@@ -42,7 +42,7 @@ $(LIB_DECODER_DLL):
 	$(Q)$(CC) $(CFLAGS) -shared -Wl,-soname,$@.$(MAJOR) -o "$@.$(VERSION)" $^ $(LDFLAGS)
 	@echo "LD $@"
 	@rm -f $@
-	@ln "$@.$(VERSION)" $@
+	@ln -s "$(@:$(BIN)/%=%).$(VERSION)" $@
 
 liballegro_decode_a: $(LIB_DECODER_A)
 

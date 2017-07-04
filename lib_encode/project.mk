@@ -44,7 +44,7 @@ $(LIB_ENCODER_DLL):
 	$(Q)$(CC) $(CFLAGS) -shared -Wl,-soname,$@.$(MAJOR) -o "$@.$(VERSION)" $^ $(LDFLAGS)
 	@echo "LD $@"
 	@rm -f $@
-	@ln "$@.$(VERSION)" $@
+	@ln -s "$(@:$(BIN)/%=%).$(VERSION)" $@
 
 liballegro_encode_a: $(LIB_ENCODER_A)
 
