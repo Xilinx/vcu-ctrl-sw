@@ -1,1 +1,2 @@
 CFLAGS+=-w
+CTRLSW_VER=""

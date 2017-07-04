@@ -1,7 +1,7 @@
 MAJOR=0
 MINOR=0
 STEP=0
-CTRLSW_VER=Undefined
+CTRLSW_VER?=$(shell ./setlocalversion.sh)
 
-VERSION=$(MAJOR).$(MINOR).$(STEP)+$(CTRLSW_VER)
+VERSION=$(MAJOR).$(MINOR).$(STEP)$(CTRLSW_VER)
 
