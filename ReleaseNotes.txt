@@ -1,0 +1,196 @@
+
+2015-06-01 (v1.0.15):
+---------------------
+  Added feature(s) :
+     - HEVC dependent slice support
+     - Add VP9 segment management for QP per LCU
+
+  Fixed Bug(s)
+     - Fix memory leak
+     - Fix VPS and SPS flags conformance issue
+
+  Other change(s) :
+    - Add 64-bit support
+    - Add support for Android
+
+2015-06-30 (v1.0.16):
+---------------------
+  Added feature(s) :
+    - QpCtrlMode = LOAD_QP allows to load the QP table from an external QP file.
+    - more configuration parameters are now available from command line (see section 2 of the user manual)
+    - CBR is now available in VP9
+    - Add command list support
+
+  Fixed Bug(s) :
+    -- Fix candidate reference list construction in VP9
+    -- Fix Segment data management and VP9 Frame Header
+
+  Other change(s) :
+    - Remove warnings and errors from static analysis
+    - Align Traces with hardware testbenches
+
+2015-07-08 (v1.0.17) :
+---------------------
+  Added feature(s) :
+
+  Fixed Bug(s) :
+    -- Fix rate control initialization and limit.
+    -- Fix VP9 encapsulation (IVF), increment frame number.
+
+  Other change(s) :
+    -- Rename SLICE_SKIP into SLICE_REPEAT for VP9 encoder
+    -- Cleanup segment IDs initialisation in QP table
+    -- Cleanup config files
+
+
+2015-07-30 (v1.0.18) :
+---------------------
+  Added feature(s) :
+    -- Add Preliminary support for VBR rate control
+    -- Add support for HW IP that includes monochrome option
+
+  Fixed Bug(s) :
+    -- Fix output trace file in command list mode with several slices per frame
+
+  Other change(s) :
+    -- improve Custom Gop by allowing POC value different from source order
+
+2015-08-10 (v1.0.19) :
+---------------------
+  Added feature(s) :
+    -- Add Preliminary support of Long Term reference picture
+    -- Add AllRefInPast flag in command registers
+    -- Add Reconstructed and Motion vectors output disabled flag in command registers
+    -- Add Driver tests documentation
+  Fixed Bug(s) :
+    -- Remove srand utilization
+    -- Add to_string replacement for android libc
+
+2015-09-04 (v1.0.20) :
+---------------------
+  Added feature(s) :
+    -- Add PYRAMIDAL_GOP
+    -- up to 4 consecutives B frame in DEFAULT_GOP mode
+  Fixed Bug(s) :
+    -- Fix multi-core IP management
+
+2015-10-08 (v1.0.21) :
+---------------------
+  Fixed Bug(s) :
+    -- Fix crash issue when src yuv format was different from reconstructed yuv Format.
+    -- Fix relative QP table feature in VP9
+    -- Fix Low delay B Gop pattern when number of frame is not multiple of Gop.length
+
+2015-11-13 (v1.0.22) :
+---------------------
+  Added feature(s) :
+    -- Add mcu firmware in app_mcu
+    -- Mcu firmware support HEVC and AVC encoding
+    -- SchedulerMcu implements the discussion with the mcu linux driver
+  ToDos :
+    -- Pyramidal GOP mode on MCU
+    -- MultiChannel on MCU (not validated)
+    -- Perfs feedback on MCU
+
+2016-02-26 (v1.0.23) :
+---------------------
+  Added feature(s) :
+    -- dmabuf first step support (take dmabuf as input)
+
+2016-05-19 (v1.0.26) :
+---------------------
+  Added feature(s) :
+    -- 64 bit compilation support for CtrlSW (runtime not validated)
+    -- Improved multichannel scheduling
+    -- Redmine #689: Set ForceLoad to true by default
+    -- Improved perfs on MCU
+    -- Show firmware and libraries footprint at build
+  ToDos:
+    -- Redmine #673: Improve rate ctrl in low_delay cases
+
+2016-06-03 (v1.0.27):
+---------------------
+ Fixed Bug(s) :
+    -- Added missing MCU data cache invalidation
+    -- Fix potential missing register field in AVC multicore status merge
+    -- Fix POC encoding in slice header
+    -- Include testEnc patches from Redmine #576
+    -- Improve driver stability for multi-channel
+
+2016-06-07 (v1.0.27b):
+-----------
+  Added feature(s) :
+    -- buffer allocation is controlled by the user
+    -- dmabuf support
+
+2016-08-08 (v1.0.28):
+---------------------
+    -- Fix dcache invalidation (dcache invalidation needs to be aligned on 32bit)
+    -- Fix firmware WPP in firmware mode (dcache invalidation error)
+    -- Fix 64bit (firmware compatibility with its control software)
+    -- Fix memory leak in the DevicePool
+    -- Fix ioctl structure alignments
+
+2016-09-09 (v1.0.29):
+---------------------
+    -- Add CBR option for scene change resilience
+    -- Fix division by zero when all LCUs are skipped in multi core AVC
+
+2016-09-09 (v1.0.29b):
+---------------------
+  Added feature(s) :
+    -- buffer allocation is controlled by the user
+    -- dmabuf support
+
+2016-12-23 (v1.0.30):
+---------------------
+  Added feature(s) :
+    -- GoP in MCU (Phase 1)
+    -- Enhance error feedback
+    -- Sync Enc1 / Enc2 (Phase 1)
+
+2017-3-01 (v1.0.32):
+--------------------
+  Added features (Encoder) :
+    -- GoP in MCU
+    -- Encoder and Decoder in the same package
+
+  Added features (Decoder) :
+    -- enhance error concealment
+    -- fix hang issue
+
+  Missing feature(s) :
+    -- long terms
+    -- pyramidal gop
+
+2017-06-09 (v1.0.33):
+--------------------
+
+  Added features (Codec) :
+    -- Move user API header files into single include folder
+    -- Improve conversion function to allow native use of RX0A, RX2A, RXmA
+      as inputs.
+    -- Remove usage of --relax option while compiling the firmware because of
+      code generation bug when it used with --gc-sections
+    -- Report mcu errors more precisely
+    -- Improve multichannel fairness.
+    -- Add support for partial AVC level 6 in the decoder (8K yuvs)
+
+  Missing feature(s) :
+    -- long terms
+    -- pyramidal gop
+
+2017-06-30 (v1.0.34)
+--------------------
+
+  Added features (Codec) :
+    -- pyramidal gop
+    -- change eos mechanism to avoid a one frame buffer latency (encode)
+
+  API:
+    -- make lib_encode and lib_decode APIs uniform
+    -- use std types (uint32_t ...)
+
+  Missing feature(s) :
+    -- long terms
+

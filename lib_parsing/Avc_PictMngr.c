@@ -1,0 +1,469 @@
+/******************************************************************************
+*
+* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in
+* all copies or substantial portions of the Software.
+*
+* Use of the Software is limited solely to applications:
+* (a) running on a Xilinx device, or
+* (b) that interact with a Xilinx device through a bus or interconnect.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* SOFTWARE.
+*
+* Except as contained in this notice, the name of  Xilinx shall not be used
+* in advertising or otherwise to promote the sale, use or other dealings in
+* this Software without prior written authorization from Xilinx.
+*
+*
+* Except as contained in this notice, the name of Allegro DVT2 shall not be used
+* in advertising or otherwise to promote the sale, use or other dealings in
+* this Software without prior written authorization from Allegro DVT2.
+*
+******************************************************************************/
+
+/****************************************************************************
+   -----------------------------------------------------------------------------
+ **************************************************************************//*!
+   \addtogroup lib_decode_hls
+   @{
+   \file
+ *****************************************************************************/
+
+#include "Avc_PictMngr.h"
+#include "lib_common/BufferSrcMeta.h"
+
+/*****************************************************************************/
+static void AL_sGetPocType0(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
+{
+  int iPrevPocMSB = 0;
+  uint32_t uPrevPocLSB = 0;
+  uint32_t uMaxPocLSB = 1u << (pSlice->m_pSPS->log2_max_pic_order_cnt_lsb_minus4 + 4);
+
+  if(pSlice->nal_unit_type != 5)/*the current picture isn't an IDR picture*/
+  {
+    if(AL_Dpb_LastHasMMCO5(&pCtx->m_DPB))
+      /*warning : work in frame only*/
+      uPrevPocLSB = pCtx->m_iTopFieldOrderCnt;
+    else
+    {
+      iPrevPocMSB = pCtx->m_iPrevPocMSB;
+      uPrevPocLSB = pCtx->m_uPrevPocLSB;
+    }
+  }
+
+  if((pSlice->pic_order_cnt_lsb < uPrevPocLSB) &&
+     ((uPrevPocLSB - pSlice->pic_order_cnt_lsb) >= (uMaxPocLSB / 2)))
+    iPrevPocMSB = iPrevPocMSB + uMaxPocLSB;
+
+  else if((pSlice->pic_order_cnt_lsb > uPrevPocLSB) &&
+          ((pSlice->pic_order_cnt_lsb - uPrevPocLSB) > (uMaxPocLSB / 2)))
+    iPrevPocMSB = iPrevPocMSB - uMaxPocLSB;
+
+  /*warning : work in frame only*/
+  pCtx->m_iTopFieldOrderCnt = iPrevPocMSB + pSlice->pic_order_cnt_lsb;
+  pCtx->m_iBotFieldOrderCnt = pCtx->m_iTopFieldOrderCnt + pSlice->delta_pic_order_cnt_bottom;
+
+  if(pSlice->nal_ref_idc)
+  {
+    pCtx->m_uPrevPocLSB = pSlice->pic_order_cnt_lsb;
+    pCtx->m_iPrevPocMSB = iPrevPocMSB;
+  }
+}
+
+/*****************************************************************************/
+static void AL_sGetPocType1(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
+{
+  int i;
+  int iFrameNumOffset;
+  int iAbsFrameNum = 0;
+  int iPicOrderCntCycleCnt;
+  int iFrameNumInPicOrderCntCycle;
+  int iExpectedPicOrderCnt = 0;
+  int iExpectedDeltaPerPicOrderCntCycle = 0;
+  bool bIsIDR = (pSlice->nal_unit_type == 5) ? true : false;
+  uint32_t uMaxFrameNum = 1 << (pSlice->m_pSPS->log2_max_frame_num_minus4 + 4);
+
+  for(i = 0; i < pSlice->m_pSPS->num_ref_frames_in_pic_order_cnt_cycle; ++i)
+    iExpectedDeltaPerPicOrderCntCycle += pSlice->m_pSPS->offset_for_ref_frame[i];
+
+  if(!bIsIDR)
+  {
+    if(AL_Dpb_LastHasMMCO5(&pCtx->m_DPB))
+    {
+      pCtx->m_iPrevFrameNumOffset = 0;
+      pCtx->m_iPrevFrameNum = 0;
+    }
+  }
+
+  if(bIsIDR)
+    iFrameNumOffset = 0;
+  else if(pCtx->m_iPrevFrameNum > pSlice->frame_num)
+    iFrameNumOffset = pCtx->m_iPrevFrameNumOffset + uMaxFrameNum;
+  else
+    iFrameNumOffset = pCtx->m_iPrevFrameNumOffset;
+
+  if(pSlice->m_pSPS->num_ref_frames_in_pic_order_cnt_cycle)
+    iAbsFrameNum = iFrameNumOffset + pSlice->frame_num;
+
+  if(!pSlice->nal_ref_idc && iAbsFrameNum > 0)
+    iAbsFrameNum -= 1;
+
+  if(iAbsFrameNum > 0)
+  {
+    iPicOrderCntCycleCnt = (iAbsFrameNum - 1) / pSlice->m_pSPS->num_ref_frames_in_pic_order_cnt_cycle;
+    iFrameNumInPicOrderCntCycle = (iAbsFrameNum - 1) % pSlice->m_pSPS->num_ref_frames_in_pic_order_cnt_cycle;
+    iExpectedPicOrderCnt = iPicOrderCntCycleCnt * iExpectedDeltaPerPicOrderCntCycle;
+
+    for(i = 0; i <= iFrameNumInPicOrderCntCycle; ++i)
+      iExpectedPicOrderCnt += pSlice->m_pSPS->offset_for_ref_frame[i];
+  }
+
+  if(!pSlice->nal_ref_idc)
+    iExpectedPicOrderCnt += pSlice->m_pSPS->offset_for_non_ref_pic;
+
+  pCtx->m_iPrevFrameNumOffset = iFrameNumOffset;
+  /*warning : work only in frame mode*/
+  pCtx->m_iTopFieldOrderCnt = iExpectedPicOrderCnt + pSlice->delta_pic_order_cnt[0];
+  pCtx->m_iBotFieldOrderCnt = pCtx->m_iTopFieldOrderCnt + pSlice->m_pSPS->offset_for_top_to_bottom_field +
+                              pSlice->delta_pic_order_cnt[1];
+}
+
+/*****************************************************************************/
+static void AL_sGetPocType2(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
+{
+  int iFrameNumOffset;
+  int iTempPicOrderCnt;
+  uint32_t uMaxFrameNum = 1 << (pSlice->m_pSPS->log2_max_frame_num_minus4 + 4);
+  bool bIsIDR = (pSlice->nal_unit_type == 5) ? true : false;
+
+  if(!bIsIDR)
+  {
+    if(AL_Dpb_LastHasMMCO5(&pCtx->m_DPB))
+    {
+      pCtx->m_iPrevFrameNumOffset = 0;
+      pCtx->m_iPrevFrameNum = 0;
+    }
+  }
+
+  if(bIsIDR)
+    iFrameNumOffset = 0;
+  else if(pCtx->m_iPrevFrameNum > pSlice->frame_num)
+    iFrameNumOffset = pCtx->m_iPrevFrameNumOffset + uMaxFrameNum;
+  else
+    iFrameNumOffset = pCtx->m_iPrevFrameNumOffset;
+
+  if(bIsIDR)
+    iTempPicOrderCnt = 0;
+  else if(!pSlice->nal_ref_idc)
+    iTempPicOrderCnt = 2 * (iFrameNumOffset + pSlice->frame_num) - 1;
+  else
+    iTempPicOrderCnt = 2 * (iFrameNumOffset + pSlice->frame_num);
+
+  pCtx->m_iPrevFrameNumOffset = iFrameNumOffset;
+  /*warning : work only in frame mode*/
+  pCtx->m_iTopFieldOrderCnt = iTempPicOrderCnt;
+  pCtx->m_iBotFieldOrderCnt = iTempPicOrderCnt;
+}
+
+/*****************************************************************************/
+static void AL_AVC_sFillWPCoeff(AL_VADDR pDataWP, AL_TAvcSliceHdr* pSlice, uint8_t uL0L1)
+{
+  uint8_t uNumRefIdx = (uL0L1 ? pSlice->num_ref_idx_l1_active_minus1 : pSlice->num_ref_idx_l0_active_minus1) + 1;
+  uint32_t* pWP = (uint32_t*)(pDataWP + (uL0L1 * 8));
+
+  AL_TWPCoeff* pWpCoeff = &pSlice->pred_weight_table.tWpCoeff[uL0L1];
+  uint8_t i;
+
+  for(i = 0; i < uNumRefIdx; ++i)
+  {
+    pWP[0] = ((pWpCoeff->luma_offset[i] & 0x3FF)) |
+             ((pWpCoeff->chroma_offset[i][0] & 0x3FF) << 10) |
+             ((pWpCoeff->chroma_offset[i][1] & 0x3FF) << 20);
+
+    pWP[1] = ((pWpCoeff->luma_delta_weight[i] & 0xFF)) |
+             ((pWpCoeff->chroma_delta_weight[i][0] & 0xFF) << 8) |
+             ((pWpCoeff->chroma_delta_weight[i][1] & 0xFF) << 16) |
+             ((pSlice->pred_weight_table.luma_log2_weight_denom & 0x07) << 24) |
+             ((pWpCoeff->luma_weight_flag[i] & 0x01) << 27) |
+             ((pSlice->pred_weight_table.chroma_log2_weight_denom & 0x07) << 28) |
+             ((pWpCoeff->chroma_weight_flag[i] & 0x01u) << 31);
+
+    pWP += 4;
+  }
+}
+
+/*****************************************************************************/
+static void AL_sBuildWPCoeff(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice, TBuffer* pWP)
+{
+  AL_VADDR pDataWP = pWP->tMD.pVirtualAddr + (pCtx->m_uNumSlice * WP_SLICE_SIZE);
+  Rtos_Memset(pDataWP, 0, WP_SLICE_SIZE);
+
+  // explicit weighted_pred case
+  if((pSlice->slice_type == SLICE_P && pSlice->m_pPPS->weighted_pred_flag) ||
+     (pSlice->slice_type == SLICE_B && pSlice->m_pPPS->weighted_bipred_idc == 1))
+  {
+    AL_AVC_sFillWPCoeff(pDataWP, pSlice, 0);
+
+    if(pSlice->slice_type == SLICE_B)
+      AL_AVC_sFillWPCoeff(pDataWP, pSlice, 1);
+  }
+}
+
+/*****************************************************************************/
+static int32_t AL_sCalculatePOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
+{
+  switch(pSlice->m_pSPS->pic_order_cnt_type)
+  {
+  case 0:
+    AL_sGetPocType0(pCtx, pSlice);
+    break;
+
+  case 1:
+    AL_sGetPocType1(pCtx, pSlice);
+    break;
+
+  case 2:
+    AL_sGetPocType2(pCtx, pSlice);
+    break;
+
+  default:
+    return 0xBAADF00D;
+  }
+
+  return (pCtx->m_iTopFieldOrderCnt < pCtx->m_iBotFieldOrderCnt) ? pCtx->m_iTopFieldOrderCnt :
+         pCtx->m_iBotFieldOrderCnt;
+}
+
+/*****************************************************************************/
+bool AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
+{
+  int32_t iCurPoc = AL_sCalculatePOC(pCtx, pSlice);
+
+  if(pSlice->slice_type == SLICE_I || AL_Dpb_SearchPOC(&pCtx->m_DPB, iCurPoc) == 0xFF)
+    pCtx->m_iCurFramePOC = iCurPoc;
+  else
+    return false;
+  return true;
+}
+
+/*****************************************************************************/
+void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_TDecPicParam* pPP)
+{
+  AL_TBuffer* pFrmBuf = pCtx->m_FrmBufPool.pFrmBufs[pCtx->m_uRecID];
+  AL_TDecodedPictureMetaData* pFrmPrivate = (AL_TDecodedPictureMetaData*)AL_Buffer_GetMetaData(pFrmBuf, AL_META_TYPE_DECODEDPICTURE);
+  AL_TSrcMetaData* pFrmMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pFrmBuf, AL_META_TYPE_SOURCE);
+
+  pFrmPrivate->uBitDepthY = pPP->BitDepthY;
+  pFrmPrivate->uBitDepthC = pPP->BitDepthC;
+  pFrmMeta->tPitches.iLuma = RndPitch(pFrmMeta->iWidth, pPP->MaxBitDepth);
+  pFrmMeta->tPitches.iChroma = pFrmMeta->tPitches.iLuma;
+
+  // update cropping information
+  AL_TCropInfo cropInfo =
+  {
+    0
+  };
+  cropInfo.bCropping = pSPS->frame_cropping_flag ? true : false;
+
+  if(pSPS->frame_cropping_flag)
+  {
+    if(pSPS->chroma_format_idc == 1 || pSPS->chroma_format_idc == 2)
+    {
+      cropInfo.uCropOffsetLeft += 2 * pSPS->frame_crop_left_offset;
+      cropInfo.uCropOffsetRight += 2 * pSPS->frame_crop_right_offset;
+    }
+    else
+    {
+      cropInfo.uCropOffsetLeft += pSPS->frame_crop_left_offset;
+      cropInfo.uCropOffsetRight += pSPS->frame_crop_right_offset;
+    }
+
+    if(pSPS->chroma_format_idc == 1)
+    {
+      cropInfo.uCropOffsetTop += 2 * pSPS->frame_crop_top_offset;
+      cropInfo.uCropOffsetBottom += 2 * pSPS->frame_crop_bottom_offset;
+    }
+    else
+    {
+      cropInfo.uCropOffsetTop += pSPS->frame_crop_top_offset;
+      cropInfo.uCropOffsetBottom += pSPS->frame_crop_bottom_offset;
+    }
+  }
+
+  pFrmPrivate->tCropInfo = cropInfo;
+}
+
+/***************************************************************************/
+void AL_AVC_PictMngr_EndParsing(AL_TPictMngrCtx* pCtx, bool bClearRef, AL_EMarkingRef eMarkingFlag)
+{
+  AL_TDpb* pDpb = &pCtx->m_DPB;
+  uint8_t uNode = AL_Dpb_GetHeadPOC(pDpb);
+
+  if(bClearRef)
+    AL_PictMngr_Flush(pCtx);
+
+  // increment present pictures latency count
+  uNode = AL_Dpb_GetHeadPOC(pDpb);
+
+  while(uNode != uEndOfList)
+  {
+    AL_Dpb_IncrementPicLatency(pDpb, uNode, pCtx->m_iCurFramePOC);
+    uNode = AL_Dpb_GetNextPOC(pDpb, uNode);
+  }
+
+  // Add newRef
+
+  {
+    // remove
+    uint8_t uDelete = AL_Dpb_SearchPOC(&pCtx->m_DPB, pCtx->m_iCurFramePOC);
+
+    if(uDelete != uEndOfList)
+      AL_Dpb_Remove(pDpb, uDelete);
+  }
+  AL_PictMngr_Insert(pCtx, pCtx->m_iCurFramePOC, 0, pCtx->m_uRecID, pCtx->m_uMvID, 1, eMarkingFlag, 0, 0);
+  AL_Dpb_ResetMMCO5(&pCtx->m_DPB);
+}
+
+/***************************************************************************/
+void AL_AVC_PictMngr_CleanDPB(AL_TPictMngrCtx* pCtx)
+{
+  AL_Dpb_AVC_Cleanup(&pCtx->m_DPB);
+}
+
+/***************************************************************************/
+bool AL_AVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef, TBuffer* pListAddr, TBufferPOC** ppPOC, TBufferMV** ppMV, TBuffer* pWP, AL_TBuffer** ppRec, AL_EFbStorageMode eFBStorageMode)
+{
+  bool bOk;
+  bOk = AL_PictMngr_GetBuffers(pCtx, pPP, pSP, pListRef, pListAddr, ppPOC, ppMV, ppRec, eFBStorageMode);
+
+  if(!bOk)
+    return false;
+
+  // Build Weighted Pred Table
+  AL_sBuildWPCoeff(pCtx, pSlice, pWP);
+
+  return true;
+}
+
+/*****************************************************************************/
+void AL_AVC_PictMngr_Fill_Gap_In_FrameNum(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
+{
+  uint32_t uMaxFrameNum = 1 << (pSlice->m_pSPS->log2_max_frame_num_minus4 + 4);
+
+  if(pSlice->frame_num != pCtx->m_iPrevFrameNum &&
+     pSlice->frame_num != (int)((pCtx->m_iPrevFrameNum + 1) % uMaxFrameNum))
+  {
+    if(pSlice->m_pSPS->gaps_in_frame_num_value_allowed_flag)
+    {
+      uint32_t UnusedShortTermFrameNum = (pCtx->m_iPrevFrameNum + 1) % uMaxFrameNum;
+      uint32_t CurrFrameNum = pSlice->frame_num;
+
+      while(CurrFrameNum != UnusedShortTermFrameNum)
+      {
+        AL_TAvcSliceHdr pUnusedSlice = *pSlice;
+
+        pUnusedSlice.frame_num = UnusedShortTermFrameNum;
+        pUnusedSlice.adaptive_ref_pic_marking_mode_flag = 0;
+        int iFramePOC = AL_sCalculatePOC(pCtx, &pUnusedSlice);
+
+        AL_PictMngr_Insert(pCtx, iFramePOC, 0, uEndOfList, uEndOfList, 0, SHORT_TERM_REF, 1, 0);
+        AL_Dpb_MarkingProcess(&pCtx->m_DPB, &pUnusedSlice);
+        AL_Dpb_AVC_Cleanup(&pCtx->m_DPB);
+        pCtx->m_iPrevFrameNum = UnusedShortTermFrameNum;
+        UnusedShortTermFrameNum = (UnusedShortTermFrameNum + 1) % uMaxFrameNum;
+      }
+    }
+  }
+}
+
+/*****************************************************************************/
+void AL_AVC_PictMngr_InitPictList(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef)
+{
+  uint8_t uRef;
+
+  for(uRef = 0; uRef < 16; ++uRef)
+  {
+    (*pListRef)[0][uRef].uNodeID = uEndOfList;
+    (*pListRef)[1][uRef].uNodeID = uEndOfList;
+  }
+
+  if(pSlice->slice_type == SLICE_P || pSlice->slice_type == SLICE_SP)
+    AL_Dpb_InitPSlice_RefList(&pCtx->m_DPB, &(*pListRef)[0][0]);
+  else if(pSlice->slice_type == SLICE_B)
+    AL_Dpb_InitBSlice_RefList(&pCtx->m_DPB, pCtx->m_iCurFramePOC, pListRef);
+}
+
+/*****************************************************************************/
+void AL_AVC_PictMngr_ReorderPictList(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef)
+{
+  int iPicNumPred = pSlice->frame_num;
+
+  if(pSlice->ref_pic_list_reordering_flag_l0)
+  {
+    uint8_t uParse = 0;
+    uint8_t uRefIdxL0 = 0;
+    uint8_t uParseShort = 0;
+    uint8_t uParseLong = 0;
+
+    while(pSlice->reordering_of_pic_nums_idc_l0[uParse] != 3)
+    {
+      int iPicNumIdc = pSlice->reordering_of_pic_nums_idc_l0[uParse++];
+      switch(iPicNumIdc)
+      {
+      case 0:
+      case 1:
+        AL_Dpb_ModifShortTerm(&pCtx->m_DPB, pSlice, iPicNumIdc, uParseShort++, 0, &uRefIdxL0, &iPicNumPred, pListRef);
+        break;
+      case 2:
+        AL_Dpb_ModifLongTerm(&pCtx->m_DPB, pSlice, uParseLong++, 0, &uRefIdxL0, pListRef);
+        break;
+      default:
+        break;
+      }
+    }
+  }
+
+  if(pSlice->ref_pic_list_reordering_flag_l1 && pSlice->slice_type == SLICE_B)
+  {
+    uint8_t uParse = 0;
+    uint8_t uRefIdxL1 = 0;
+    uint8_t uParseShort = 0;
+    uint8_t uParseLong = 0;
+
+    iPicNumPred = pSlice->frame_num;
+
+    while(pSlice->reordering_of_pic_nums_idc_l1[uParse] != 3)
+    {
+      int iPicNumIdc = pSlice->reordering_of_pic_nums_idc_l1[uParse++];
+      switch(iPicNumIdc)
+      {
+      case 0:
+      case 1:
+        AL_Dpb_ModifShortTerm(&pCtx->m_DPB, pSlice, iPicNumIdc, uParseShort++, 1, &uRefIdxL1, &iPicNumPred, pListRef);
+        break;
+      case 2:
+        AL_Dpb_ModifLongTerm(&pCtx->m_DPB, pSlice, uParseLong++, 1, &uRefIdxL1, pListRef);
+        break;
+      default:
+        break;
+      }
+    }
+  }
+}
+
+/*@}*/
+

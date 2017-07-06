@@ -1,0 +1,67 @@
+============================
+Allegro Software Source Code
+============================
+
+Overview
+========
+
+The control-software can be used as:
+- a standalone command-line executable (see below).
+- a library, whose entry point can be found in lib_encode and lib_decode
+
+How to build the encoder and the decoder
+=====================================
+
+GCC:
+----
+
+You need a working gcc/g++ toolchain installed.
+Just run:
+
+$ make
+
+The resulting binaries will be available in the bin/ directory
+
+You can test it on a very simple configuration with the following command:
+$ ./bin/AL_Encoder.exe -cfg test/config/encode.simple.cfg
+
+Libraries
+=========
+
+customers       Allows to change build options like traces enabling (config.h)
+
+lib_app         misc C++ utilities.
+lib_cfg         C++ configuration file parsing.
+lib_conv_yuv    C++ yuvs conversion helpers for the encoder (use lib_app)
+lib_preprocess  QP table management
+
+lib_rtos        wrapper around OS synchronization primitives.
+lib_common      misc C utilities.
+lib_common_*    structures used to communicate with the firmware
+lib_bitstream   high-level syntax bitstream generation (e.g headers).
+
+lib_encode      encode library entry point.
+lib_decode      decode library entry point
+
+lib_parsing     codec specifications specifics for the decoder (HLS, DPB, etc.)
+
+lib_fpga        communication with the hardware (read/write register, irq).
+lib_ip_ctrl     interface to the codec.
+
+Build Options
+=============
+
+The customers contains a build_defs.h file that allows to set some build options :
+
+ENABLE_TRACES
+  Enable/disable the traces files generation. Note : trace files are use for IP integration/validation purpose and should not be enabled in other case.
+
+Warning : Options below the comment line /// IP CONFIGURATION ////
+          have automatically been set according to the feature set supported
+          by your hardware IP and shall not be changed.
+
+User Manual
+===========
+
+The encoder user manual is available in Doc/Allegro_encoder_UserManual.pdf
+

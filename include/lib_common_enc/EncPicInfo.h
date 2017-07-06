@@ -1,0 +1,176 @@
+/******************************************************************************
+*
+* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in
+* all copies or substantial portions of the Software.
+*
+* Use of the Software is limited solely to applications:
+* (a) running on a Xilinx device, or
+* (b) that interact with a Xilinx device through a bus or interconnect.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* SOFTWARE.
+*
+* Except as contained in this notice, the name of  Xilinx shall not be used
+* in advertising or otherwise to promote the sale, use or other dealings in
+* this Software without prior written authorization from Xilinx.
+*
+*
+* Except as contained in this notice, the name of Allegro DVT2 shall not be used
+* in advertising or otherwise to promote the sale, use or other dealings in
+* this Software without prior written authorization from Allegro DVT2.
+*
+******************************************************************************/
+
+/****************************************************************************
+   -----------------------------------------------------------------------------
+ **************************************************************************//*!
+   \addtogroup lib_base
+   @{
+   \file
+ *****************************************************************************/
+
+#pragma once
+
+#include "lib_common/SliceConsts.h"
+#include "lib_common/BufCommon.h"
+
+/*************************************************************************//*!
+   \brief Encoding tool enum
+*****************************************************************************/
+typedef enum AL_e_PicEncOption
+{
+  AL_OPT_USE_QP_TABLE = 0x0001,
+  AL_OPT_FORCE_LOAD = 0x0002,
+  AL_OPT_USE_L2_CACHE = 0x0004,
+  AL_OPT_DISABLE_INTRA = 0x0008,
+  AL_OPT_DEPENDENT_SLICES = 0x0010,
+} AL_EPicEncOption __AL_ALIGNED__ (4);
+
+typedef struct AL_t_EncInfo
+{
+  AL_EPicEncOption eEncOptions;
+  int16_t iPpsQP;
+
+
+
+  AL_64U UserParam;
+  AL_64U SrcHandle;
+}AL_TEncInfo;
+
+typedef enum
+{
+  AL_OPT_SCENE_CHANGE = 0x0001,
+  AL_OPT_USE_LONG_TERM = 0x0004,
+}AL_ERequestEncOption;
+
+typedef struct AL_t_EncRequestInfo
+{
+  AL_ERequestEncOption eReqOptions;
+  uint32_t uSceneChangeDelay;
+}AL_TEncRequestInfo __AL_ALIGNED__ (8);
+
+/*************************************************************************//*!
+   \brief Stream partition structure
+*****************************************************************************/
+typedef struct AL_t_StreamPart
+{
+  uint32_t uOffset;
+  uint32_t uSize;
+}AL_TStreamPart;
+
+/*************************************************************************//*!
+   \brief Picture status structure
+*****************************************************************************/
+typedef struct AL_t_EncPicStatus
+{
+  AL_64U UserParam;
+  AL_64U SrcHandle;
+
+  bool bSkip;
+  bool bIsRef;
+  uint32_t uInitialRemovalDelay;
+  uint32_t uDpbOutputDelay;
+  uint32_t uSize;
+  uint32_t uFrmTagSize;
+  int32_t iStuffing;
+  int32_t iFiller;
+  uint16_t uNumClmn;
+  uint16_t uNumRow;
+  int16_t iQP;
+  uint8_t uNumRefIdxL0;
+  uint8_t uNumRefIdxL1;
+
+  uint32_t uStrmPartOffset;
+  int32_t iNumParts;
+
+  uint32_t uSumCplx;
+
+  int32_t iTileWidth[AL_ENC_NUM_CORES];
+  int32_t iTileHeight[AL_MAX_ROWS_TILE];
+
+  AL_ERR eErrorCode;
+
+  // Segment ID
+  uint32_t uNumGroup;
+
+  AL_ESliceType eType;
+  AL_EPicStruct ePicStruct;
+  bool bIsIDR;
+  int16_t iPpsQP;
+}AL_TEncPicStatus;
+
+#define AL_SUCCESS ((AL_ERR)0x00000000)
+
+#define AL_DEF_WARNING(N) ((AL_ERR)(0x00 + (N)))
+#define AL_DEF_ERROR(N) ((AL_ERR)(0x80 + (N)))
+
+#define AL_WARN_LCU_OVERFLOW AL_DEF_WARNING(1)
+
+#define AL_ERROR AL_DEF_ERROR(0)
+#define AL_ERR_STREAM_OVERFLOW AL_DEF_ERROR(1)
+#define AL_ERR_TOO_MANY_SLICES AL_DEF_ERROR(2)
+#define AL_ERR_CHAN_CREATION_FAIL AL_DEF_ERROR(3)
+#if ENABLE_WATCHDOG
+#define AL_ERR_WATCHDOG_TIMEOUT AL_DEF_ERROR(4)
+#endif
+
+#define AL_ERR_ALLOC_FAILED AL_DEF_ERROR(5)
+
+#define AL_ERR_PICT_RES_TOO_BIG AL_DEF_ERROR(10)
+#define AL_ERR_PIX_RATE_TOO_BIG AL_DEF_ERROR(11)
+#define AL_ERR_VCU_OVERLOADED AL_DEF_ERROR(12)
+
+#define AL_ERR_SRC_BUF_NOT_READY AL_DEF_ERROR(20)
+#define AL_ERR_REC_BUF_NOT_READY AL_DEF_ERROR(21)
+#define AL_ERR_INTERM_BUF_NOT_READY AL_DEF_ERROR(22)
+#define AL_ERR_STRM_BUF_NOT_READY AL_DEF_ERROR(23)
+
+/*@}*/
+
+/*************************************************************************//*!
+   \brief Picture buffers structure
+*****************************************************************************/
+typedef struct AL_t_EncPicBufAddrs
+{
+  AL_PADDR pSrc_Y;
+  AL_PADDR pSrc_UV;
+  uint32_t uPitchSrc;
+
+  AL_PADDR pEP2;
+  AL_PTR64 pEP2_v;
+}AL_TEncPicBufAddrs;
+
