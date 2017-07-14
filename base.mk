@@ -44,7 +44,7 @@ $(BIN)/%.exe:
 	@echo "CXX $@"
 
 $(BIN)/%.so:
-	$(Q)$(CXX) $(CFLAGS) -shared -Wl,-soname,$@.$(MAJOR) -o "$@.$(VERSION)" $^ $(LDFLAGS)
+	$(Q)$(CXX) $(CFLAGS) -shared -Wl,-soname,$(notdir $@).$(MAJOR) -o "$@.$(VERSION)" $^ $(LDFLAGS)
 	@echo "LD $@"
 	@rm -f $@
 	@ln "$@.$(VERSION)" $@

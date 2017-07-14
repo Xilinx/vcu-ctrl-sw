@@ -41,7 +41,7 @@ liballegro_encode: liballegro_encode_dll liballegro_encode_a
 liballegro_encode_dll: $(LIB_ENCODER_DLL)
 
 $(LIB_ENCODER_DLL):
-	$(Q)$(CC) $(CFLAGS) -shared -Wl,-soname,$@.$(MAJOR) -o "$@.$(VERSION)" $^ $(LDFLAGS)
+	$(Q)$(CC) $(CFLAGS) -shared -Wl,-soname,$(notdir $@).$(MAJOR) -o "$@.$(VERSION)" $^ $(LDFLAGS)
 	@echo "LD $@"
 	@rm -f $@
 	@ln -s "$(@:$(BIN)/%=%).$(VERSION)" $@

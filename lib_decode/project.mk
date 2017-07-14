@@ -39,7 +39,7 @@ liballegro_decode: liballegro_decode_dll liballegro_decode_a
 liballegro_decode_dll: $(LIB_DECODER_DLL)
 
 $(LIB_DECODER_DLL):
-	$(Q)$(CC) $(CFLAGS) -shared -Wl,-soname,$@.$(MAJOR) -o "$@.$(VERSION)" $^ $(LDFLAGS)
+	$(Q)$(CC) $(CFLAGS) -shared -Wl,-soname,$(notdir $@).$(MAJOR) -o "$@.$(VERSION)" $^ $(LDFLAGS)
 	@echo "LD $@"
 	@rm -f $@
 	@ln -s "$(@:$(BIN)/%=%).$(VERSION)" $@
