@@ -282,10 +282,10 @@ typedef struct __AL_ALIGNED__ (4) AL_t_EncChanParam
   uint16_t uSliceSize;
   uint16_t uNumSlices;
 
-  /* L2 cache parameters */
-  bool bL2CacheAuto;
-  uint32_t uL2CacheMemOffset;
-  uint32_t uL2CacheMemSize;
+  /* L2 prefetch parameters */
+  bool bL2PrefetchAuto;
+  uint32_t uL2PrefetchMemOffset;
+  uint32_t uL2PrefetchMemSize;
   uint16_t uClipHrzRange;
   uint16_t uClipVrtRange;
 
@@ -310,6 +310,7 @@ typedef struct __AL_ALIGNED__ (4) AL_t_EncChanParam
   /* Gop & Rate control parameters */
   AL_TRCParam tRCParam;
   AL_TGopParam tGopParam;
+  bool bSubframeLatency;
 } AL_TEncChanParam;
 
 #define AL_GetWidthInLCU(tChParam) (((tChParam).uWidth + (1 << (tChParam).uMaxCuSize) - 1) >> (tChParam).uMaxCuSize)

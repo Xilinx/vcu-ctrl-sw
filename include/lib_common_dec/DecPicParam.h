@@ -181,7 +181,6 @@ typedef struct AL_t_DecPicStatus
   uint32_t uNumLCU;
   uint32_t uNumBytes;
   uint32_t uNumBins;
-  uint32_t uBandwidth;
   uint32_t uCRC;
   bool bConceal;
   bool bHanged;

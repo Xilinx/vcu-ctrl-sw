@@ -53,7 +53,7 @@ void Close(Driver* driver, int fd)
   Rtos_DriverClose((void*)(uintptr_t)fd);
 }
 
-bool PostMessage(Driver* driver, int fd, int messageId, void* data)
+bool PostMessage(Driver* driver, int fd, long unsigned int messageId, void* data)
 {
   (void)driver;
   /* must keep the errno from ioctl */

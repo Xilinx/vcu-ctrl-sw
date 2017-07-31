@@ -147,6 +147,7 @@ bool AL_Patchworker_Init(AL_TPatchworker* this, TCircBuffer* pCircularBuf)
 
   this->endOfInput = false;
   this->endOfOutput = false;
+  this->shouldBeStopped = false;
   this->outputCirc = pCircularBuf;
   this->lock = Rtos_CreateMutex(false);
   this->workBuf = NULL;
@@ -217,5 +218,35 @@ bool AL_Patchworker_IsEndOfInput(AL_TPatchworker* this)
 bool AL_Patchworker_IsAllDataTransfered(AL_TPatchworker* this)
 {
   return this->endOfOutput;
+}
+
+void AL_Patchworker_NotifyForceStop(AL_TPatchworker* this)
+{
+  Rtos_GetMutex(this->lock);
+  this->shouldBeStopped = true;
+  Rtos_ReleaseMutex(this->lock);
+}
+
+void AL_Patchworker_Drop(AL_TPatchworker* this)
+{
+  if(!this->workBuf)
+    this->workBuf = AL_Fifo_Dequeue(this->inputFifo, AL_NO_WAIT);
+
+  if(!this->workBuf)
+    return;
+
+  while(this->workBuf)
+  {
+    AL_Buffer_Unref(this->workBuf);
+    this->workBuf = AL_Fifo_Dequeue(this->inputFifo, AL_NO_WAIT);
+  }
+}
+
+bool AL_Patchworker_ShouldBeStopped(AL_TPatchworker* this)
+{
+  Rtos_GetMutex(this->lock);
+  bool bRet = this->shouldBeStopped;
+  Rtos_ReleaseMutex(this->lock);
+  return bRet;
 }
 

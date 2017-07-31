@@ -37,7 +37,7 @@
 
 #include <stdio.h>
 #include "lib_rtos/types.h"
-#include "Board.h"
+#include "lib_fpga/Board.h"
 #include "lib_common/Allocator.h"
 
 TBoard* Board_Create(const char* deviceFile, uint32_t uIntReg, uint32_t uMskReg, uint32_t uIntMask)

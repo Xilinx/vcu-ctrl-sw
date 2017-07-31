@@ -68,9 +68,8 @@ typedef struct
    \brief The ParseSPS function parse an SPS NAL
    \param[out] pSPSTable Pointer to the table where the parsed are stored
    \param[in]  pRP  Pointer to NAL parser
-   \param[in]  pCurCfg   Pointer to the current Video Configuration
 *****************************************************************************/
-AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TAvcSps pSPSTable[], AL_TRbspParser* pRP, AL_TVideoConfiguration* pCurCfg);
+AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TAvcSps pSPSTable[], AL_TRbspParser* pRP);
 
 /*************************************************************************//*!
    \brief the short term reference picture computation
@@ -84,11 +83,9 @@ void AL_HEVC_short_term_ref_pic_set(AL_THevcSps* pSPS, uint8_t RefIdx, AL_TRbspP
    \brief The ParseSPS function parses a SPS NAL
    \param[out] pSPSTable Pointer to the table holding the parsed SPS
    \param[in]  pRP       Pointer to NAL parser
-   \param[in]  pVPSTable Pointer to a table where are stored the available VPS
-   \param[in]  pCurCfg   Pointer to the current Video Configuration
    \param[out] SpsId     ID of the SPS
 *****************************************************************************/
-AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_THevcSps pSPSTable[], AL_TRbspParser* pRP, AL_THevcVps pVPSTable[], AL_TVideoConfiguration* pCurCfg, uint8_t* SpsId);
+AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_THevcSps pSPSTable[], AL_TRbspParser* pRP, uint8_t* SpsId);
 
 void AL_AVC_UpdateVideoConfiguration(AL_TVideoConfiguration* pCfg, AL_TAvcSps* pSPS);
 bool AL_AVC_IsVideoConfigurationCompatible(AL_TVideoConfiguration* pCfg, AL_TAvcSps* pSPS);

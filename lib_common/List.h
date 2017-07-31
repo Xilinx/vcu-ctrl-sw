@@ -56,26 +56,8 @@ typedef struct AL_t_ListHead
 #define AL_ListEntry(ptr, type, member) \
   containerOf(ptr, type, member)
 
-/* pos is the member which will be filled
- * head is the list head
- * member is the name of the list inside the structure
- * type is the type of the structure that contains the list */
-#define AL_ListForEachEntry(pos, head, member, type) \
-  for((pos) = AL_ListEntry((head)->pNext, type, member); \
-      &(pos)->member != (head); \
-      (pos) = AL_ListEntry((pos)->member.pNext, type, member))
-
-#define AL_ListForEachEntrySafe(pos, n, head, member, type) \
-  for(pos = AL_ListEntry((head)->pNext, type, member), \
-      (n) = AL_ListEntry((pos)->member.pNext, type, member); \
-      &(pos)->member != (head); \
-      (pos) = (n), (n) = AL_ListEntry((n)->member.pNext, type, member))
-
 #define AL_ListFirstEntry(ptr, type, member) \
   AL_ListEntry((ptr)->pNext, type, member);
-
-#define AL_ListLastEntry(ptr, type, member) \
-  AL_ListEntry((ptr)->pPrev, type, member);
 
 static AL_INLINE int AL_ListEmpty(const AL_ListHead* pHead)
 {

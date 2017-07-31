@@ -35,88 +35,32 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************/
-/*!
-   \addtogroup lib_fpga
-   @{
-   \file BoardLinux.c
- *****************************************************************************/
-#include <pthread.h>
-#include <malloc.h>
-#include <stdio.h>
-#include <errno.h>
-#include <assert.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <signal.h>
-#include <sys/ioctl.h>
-#include <string.h>
-
+#pragma once
 #include "lib_rtos/types.h"
 
-#include "lib_common/versions.h"
-
-#include "Board.h"
-#include "lib_fpga/DmaAlloc.h"
-#include "IpCtrlLinux.h"
-
-#define METHOD_BEGIN(Type) \
-  Type * this = (Type*)pThis; \
-  (void)this
-
-typedef struct
+typedef struct t_driver Driver;
+struct t_driver
 {
-  TBoard vtable;
-  AL_TIpCtrl* m_IpCtrl;
-}TBoardLinux;
-
-/******************************************************************************/
-static void BoardLinux_Destroy(void* pThis)
-{
-  METHOD_BEGIN(TBoardLinux);
-
-  LinuxIpCtrl_Destroy(this->m_IpCtrl);
-  free(this);
-}
-
-/******************************************************************************/
-static AL_TIpCtrl* BoardLinux_GetIpCtrl(void* pThis)
-{
-  METHOD_BEGIN(TBoardLinux);
-  return this->m_IpCtrl;
-}
-
-/******************************************************************************/
-static const TBoard BoardLinuxVtable =
-{
-  &BoardLinux_Destroy,
-  &BoardLinux_GetIpCtrl,
+  int (* Open)(Driver* driver);
+  void (* Close)(Driver* driver, int fd);
+  bool (* PostMessage)(Driver* driver, int fd, long unsigned int messageId, void* data);
 };
 
-/******************************************************************************/
-TBoard* Board_Create(const char* deviceFile, uint32_t uIntReg, uint32_t uMskReg, uint32_t uIntMask)
+static inline
+int AL_Driver_Open(Driver* driver)
 {
-  (void)uIntMask;
-  (void)uIntReg;
-  (void)uMskReg;
-  TBoardLinux* board = calloc(1, sizeof(TBoardLinux));
-
-  if(!board)
-    return NULL;
-  board->vtable = BoardLinuxVtable;
-
-  board->m_IpCtrl = LinuxIpCtrl_Create(deviceFile);
-
-  if(!board->m_IpCtrl)
-  {
-    free(board);
-    return NULL;
-  }
-
-  return (TBoard*)board;
+  return driver->Open(driver);
 }
 
-/*@}*/
+static inline
+void AL_Driver_Close(Driver* driver, int fd)
+{
+  driver->Close(driver, fd);
+}
+
+static inline
+bool AL_Driver_PostMessage(Driver* driver, int fd, long unsigned int messageId, void* data)
+{
+  return driver->PostMessage(driver, fd, messageId, data);
+}
 

@@ -51,7 +51,6 @@
 #include "lib_common/BufferAPI.h"
 #include "lib_common/BufferMeta.h"
 #include "lib_common/BufferAccess.h"
-#include "lib_common/Fifo.h"
 
 /*************************************************************************//*!
    \brief AL_TBufPoolConfig: Used to configure the AL_TBufPool
@@ -78,7 +77,7 @@ typedef struct
 /*************************************************************************//*!
    \brief AL_TBufPool: Pool of buffer
 *****************************************************************************/
-typedef struct al_t_BufPool
+typedef struct
 {
   AL_TAllocator* pAllocator; /*! Allocator used to allocate the buffers */
 
@@ -121,4 +120,31 @@ bool AL_BufPool_ReleaseBuffer(AL_TBufPool* pBufPool, AL_TBuffer* pBuf);
 /*****************************************************************************/
 
 /*@}*/
+
+#ifdef __cplusplus
+
+// RAII wrapper
+struct BufPool
+{
+  BufPool() = default;
+
+  BufPool(AL_TAllocator* pAllocator, AL_TBufPoolConfig& config)
+  {
+    AL_BufPool_Init(&m_pool, pAllocator, &config);
+  }
+
+  ~BufPool()
+  {
+    AL_BufPool_Deinit(&m_pool);
+  }
+
+  AL_TBufPool* operator & ()
+  {
+    return &m_pool;
+  }
+
+  AL_TBufPool m_pool {};
+};
+
+#endif
 

@@ -55,7 +55,7 @@ typedef enum AL_e_PicEncOption
 {
   AL_OPT_USE_QP_TABLE = 0x0001,
   AL_OPT_FORCE_LOAD = 0x0002,
-  AL_OPT_USE_L2_CACHE = 0x0004,
+  AL_OPT_USE_L2_PREFETCH = 0x0004,
   AL_OPT_DISABLE_INTRA = 0x0008,
   AL_OPT_DEPENDENT_SLICES = 0x0010,
 } AL_EPicEncOption __AL_ALIGNED__ (4);
@@ -114,7 +114,7 @@ typedef struct AL_t_EncPicStatus
   uint8_t uNumRefIdxL0;
   uint8_t uNumRefIdxL1;
 
-  uint32_t uStrmPartOffset;
+  uint32_t uStreamPartOffset;
   int32_t iNumParts;
 
   uint32_t uSumCplx;
@@ -130,6 +130,8 @@ typedef struct AL_t_EncPicStatus
   AL_ESliceType eType;
   AL_EPicStruct ePicStruct;
   bool bIsIDR;
+  bool bIsFirstSlice;
+  bool bIsLastSlice;
   int16_t iPpsQP;
 }AL_TEncPicStatus;
 
@@ -137,16 +139,6 @@ typedef struct AL_t_EncPicStatus
 
 #define AL_DEF_WARNING(N) ((AL_ERR)(0x00 + (N)))
 #define AL_DEF_ERROR(N) ((AL_ERR)(0x80 + (N)))
-
-#define AL_WARN_LCU_OVERFLOW AL_DEF_WARNING(1)
-
-#define AL_ERROR AL_DEF_ERROR(0)
-#define AL_ERR_STREAM_OVERFLOW AL_DEF_ERROR(1)
-#define AL_ERR_TOO_MANY_SLICES AL_DEF_ERROR(2)
-#define AL_ERR_CHAN_CREATION_FAIL AL_DEF_ERROR(3)
-#if ENABLE_WATCHDOG
-#define AL_ERR_WATCHDOG_TIMEOUT AL_DEF_ERROR(4)
-#endif
 
 #define AL_ERR_ALLOC_FAILED AL_DEF_ERROR(5)
 

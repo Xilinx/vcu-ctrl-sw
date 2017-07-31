@@ -180,7 +180,6 @@ void UpdateContextAtEndOfFrame(AL_TDecCtx* pCtx)
 {
   pCtx->m_bIsFirstPicture = false;
   pCtx->m_bLastIsEOS = false;
-  pCtx->m_uColocID = 0xFF;
 
   pCtx->m_tConceal.m_iFirstLCU = -1;
   pCtx->m_tConceal.m_bValidFrame = false;

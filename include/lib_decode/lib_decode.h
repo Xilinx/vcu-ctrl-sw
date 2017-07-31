@@ -49,6 +49,7 @@
 
 #include "lib_common/BufferAccess.h"
 #include "lib_common/BufferAPI.h"
+#include "lib_common/Error.h"
 
 #include "lib_common_dec/DecInfo.h"
 #include "lib_common_dec/DecDpbMode.h"
@@ -109,7 +110,6 @@ typedef struct
   AL_EFbStorageMode eFBStorageMode;
   AL_EDecUnit eDecUnit;     // !< SubFrame latency control activation flag
   AL_EDpbMode eDpbMode;     // !< Low ref mode control activation flag
-  int iNumBufHeldByNextComponent; // !< Numbers of buffers that can be held simultaneously by the next component (i.e. display / encoder / ..)
 }AL_TDecSettings;
 
 typedef struct
@@ -183,6 +183,12 @@ int AL_Decoder_GetMaxBD(AL_HDecoder hDec);
    \return return the current error status
 *****************************************************************************/
 AL_ERR AL_Decoder_GetLastError(AL_HDecoder hDec);
+
+/*************************************************************************//*!
+   \brief Force to stop the decoder as soon as possible. This is not a pause.
+   \param[in]  hDec  Handle to an decoder object.
+*****************************************************************************/
+void AL_Decoder_ForceStop(AL_HDecoder hDec);
 
 /*@}*/
 

@@ -67,6 +67,7 @@ static void AL_DispFifo_sInit(AL_TDispFifo* pFifo)
 /*************************************************************************/
 static void AL_DispFifo_sDeinit(AL_TDispFifo* pFifo)
 {
+  (void)pFifo;
 }
 
 /*****************************************************************************/
@@ -445,7 +446,7 @@ static int16_t AL_Dpb_sPicNumF(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t u
 }
 
 /*****************************************************************************/
-static int16_t AL_Dpb_sLongTermPicNumF(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t uNodeID)
+static int16_t AL_Dpb_sLongTermPicNumF(AL_TDpb* pDpb, uint8_t uNodeID)
 {
   // fast access
   AL_TDpbNode* pNodes = pDpb->m_Nodes;
@@ -998,7 +999,7 @@ void AL_Dpb_AVC_Cleanup(AL_TDpb* pDpb)
 
   uNode = AL_Dpb_GetHeadPOC(pDpb);
 
-  while(uNode != uEndOfList && AL_Dpb_GetRefCount(pDpb) > AL_Dpb_GetNumRef(pDpb))
+  while(uNode != uEndOfList)
   {
     uint8_t uNextNode = pNodes[uNode].uNextPOC;
 
@@ -1011,7 +1012,7 @@ void AL_Dpb_AVC_Cleanup(AL_TDpb* pDpb)
 
   uNode = AL_Dpb_GetHeadPOC(pDpb);
 
-  while(uNode != uEndOfList && (AL_Dpb_GetRefCount(pDpb) > AL_Dpb_GetNumRef(pDpb) || AL_Dpb_GetPicCount(pDpb) >= AL_Dpb_GetNumPic(pDpb)))
+  while(uNode != uEndOfList && (AL_Dpb_GetRefCount(pDpb) > AL_Dpb_GetNumRef(pDpb) || AL_Dpb_GetPicCount(pDpb) > AL_Dpb_GetNumRef(pDpb)))
   {
     uint8_t uNextNode = pNodes[uNode].uNextPOC;
 
@@ -1260,7 +1261,8 @@ void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, uint32_t uPocLsb, uint8_t uNode
   }
 
   // Update List counters
-  ++pDpb->m_uCountRef;
+  if(eMarkingFlag != UNUSED_FOR_REF)
+    ++pDpb->m_uCountRef;
   ++pDpb->m_uCountPic;
 
   if(pic_output_flag)
@@ -1583,7 +1585,7 @@ void AL_Dpb_ModifLongTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t uOffse
 
       for(uCpt = *pRefIdx; uCpt <= uNumRef; ++uCpt)
       {
-        if(AL_Dpb_sLongTermPicNumF(pDpb, pSlice, (*pListRef)[iL0L1][uCpt].uNodeID) != iLongTermPicNum)
+        if(AL_Dpb_sLongTermPicNumF(pDpb, (*pListRef)[iL0L1][uCpt].uNodeID) != iLongTermPicNum)
           (*pListRef)[iL0L1][unIdx++] = (*pListRef)[iL0L1][uCpt];
       }
 

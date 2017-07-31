@@ -75,12 +75,12 @@ static void FillConcealValue(AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP)
 {
   AL_TDpb* pDpb = &pCtx->m_PictMngr.m_DPB;
 
-  if(pCtx->m_uColocID == 0xFF && pDpb->m_uLastPOC == 0xFF)
+  if(pDpb->m_uLastPOC == 0xFF)
     pSP->ValidConceal = false;
   else
   {
     pSP->ValidConceal = true;
-    pSP->ColocPicID = (pCtx->m_uColocID == 0xFF) ? pDpb->m_Nodes[pCtx->m_PictMngr.m_DPB.m_uLastPOC].uPicID : pCtx->m_uColocID;
+    pSP->ColocPicID = pDpb->m_Nodes[pCtx->m_PictMngr.m_DPB.m_uLastPOC].uPicID;
   }
 }
 
@@ -159,8 +159,8 @@ void AL_AVC_FillSliceParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx*
   // Reg 4
   pSP->tc_offset_div2 = pSlice->slice_alpha_c0_offset_div2;
   pSP->beta_offset_div2 = pSlice->slice_beta_offset_div2;
-  pSP->LoopFilter = pSlice->disable_deblocking_filter_idc & FILT_DISABLE ? true : false;
-  pSP->XSliceLoopFilter = pSlice->disable_deblocking_filter_idc & FILT_DIS_SLICE ? false : true;
+  pSP->LoopFilter = (pSlice->disable_deblocking_filter_idc & FILT_DISABLE);
+  pSP->XSliceLoopFilter = !(pSlice->disable_deblocking_filter_idc & FILT_DIS_SLICE);
   pSP->WPTableID = pCtx->m_PictMngr.m_uNumSlice;
 
   // Reg 5

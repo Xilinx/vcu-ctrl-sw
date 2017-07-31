@@ -47,12 +47,6 @@
 #include "lib_common_enc/Settings.h"
 
 /****************************************************************************/
-void AL_GenerateSkippedPictureCavlc(AL_TBitStreamLite* pBS, int iNumMBs)
-{
-  AL_BitStreamLite_PutUE(pBS, iNumMBs);
-  AL_BitStreamLite_PutU(pBS, 1, 1);
-  AL_BitStreamLite_AlignWithBits(pBS, 0);
-}
 
 /*************************************************************************//*!
    \brief mimics structure for cabac entropy context

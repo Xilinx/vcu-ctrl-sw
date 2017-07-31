@@ -56,6 +56,7 @@ typedef struct
   void (* pfnSetParam)(AL_TDecoder* pDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm);
   bool (* pfnPushBuffer)(AL_TDecoder* pDec, AL_TBuffer* pBuf, size_t uSize, AL_EBufMode eMode);
   void (* pfnFlush)(AL_TDecoder* pDec);
+  void (* pfnForceStop)(AL_TDecoder* pDec);
   AL_TBuffer* (*pfnGetDecPict)(AL_TDecoder * pDec, AL_TInfoDecode * pInfo);
   void (* pfnReleaseDecPict)(AL_TDecoder* pDec, AL_TBuffer* pDecPict);
   void (* pfnPutDecPict)(AL_TDecoder* pDec, AL_TBuffer* pDecPict);

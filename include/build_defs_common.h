@@ -36,19 +36,35 @@
 ******************************************************************************/
 
 #pragma once
+#define AL_ENABLE_INTERRUPT 1
+#define ENABLE_WATCHDOG 1
 
-#define AL_SUCCESS ((AL_ERR)0x00000000)
-#define AL_DEF_WARNING(N) ((AL_ERR)(0x00 + (N)))
-#define AL_DEF_ERROR(N) ((AL_ERR)(0x80 + (N)))
+#ifndef ENABLE_TRACES
+#define ENABLE_TRACES 1
+#endif
 
-#define AL_WARN_CONCEAL_DETECT AL_DEF_WARNING(1)
 
-#define AL_ERROR AL_DEF_ERROR(0)
-#define ERR_INIT_FAILED AL_DEF_ERROR(1)
-#define ERR_NO_FRAME_DECODED AL_DEF_ERROR(2)
-#define AL_ERR_BUFFER_EXCEPTION AL_DEF_ERROR(3)
-#define AL_ERR_NOT_SUPPORTED AL_DEF_ERROR(4)
-#define ERR_RESOLUTION_CHANGE AL_DEF_ERROR(5)
-#define ERR_CHANNEL_NOT_CREATED AL_DEF_ERROR(6)
-#define ERR_NO_MORE_MEMORY AL_DEF_ERROR(7)
+#ifndef AL_MAX_ENC_SLICE
+#define AL_MAX_ENC_SLICE 200
+#endif
+
+#define ENABLE_RTOS_SYNC 1
+
+/* Fixed LCU Size chosen for resources calculs */
+#define AL_LCU_BASIC_WIDTH 32
+#define AL_LCU_BASIC_HEIGHT 32
+
+#define AL_ALIGN_FRM_BUF 256
+
+////////////////////////// DEBUG TOOLS ///////////////////////////
+#define DEBUG_PATH "."
+
+#ifndef AL_ENABLE_SITE
+#define AL_ENABLE_SITE 1
+#endif
+
+/* Choose default raster format packing option if not defined in client config */
+#ifndef AL_DEC_RASTER_3x10B_ON_32B
+#define AL_DEC_RASTER_3x10B_ON_32B 1
+#endif
 

@@ -90,6 +90,13 @@ void AL_InitFrameBuffers(AL_TDecCtx* pCtx, int iWidth, int iHeight, AL_TDecPicPa
 void AL_InitIntermediateBuffers(AL_TDecCtx* pCtx, AL_TDecPicBuffers* pBufs);
 
 /*************************************************************************//*!
+   \brief The AL_SetConcealParameters sets the conceal ID buffer and it's availability flag
+   \param[in]  pCtx              Pointer to a decoder context object
+   \param[out] pSP               Pointer to the current slice parameters
+*****************************************************************************/
+void AL_SetConcealParameters(AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP);
+
+/*************************************************************************//*!
    \brief The AL_TerminatePreviousCommand flush one decoding command by computing parameters relative to next slice
    \param[in]  pCtx              Pointer to a decoder context object
    \param[in]  pPP               Pointer to the current picture parameters

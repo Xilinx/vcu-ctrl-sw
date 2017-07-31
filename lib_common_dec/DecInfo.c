@@ -36,6 +36,8 @@
 ******************************************************************************/
 
 #include "lib_common_dec/DecInfo.h"
+#include "lib_common/Utils.h"
+#include <assert.h>
 
 /******************************************************************************/
 bool AL_NeedsCropping(AL_TCropInfo* pInfo)
@@ -47,5 +49,138 @@ bool AL_NeedsCropping(AL_TCropInfo* pInfo)
     return true;
 
   return false;
+}
+
+/******************************************************************************/
+int AL_AVC_GetMaxDPBSize(int const iLevel, int const iWidth, int const iHeight)
+{
+  assert(iWidth);
+  assert(iHeight);
+
+  int iMaxDpbMbs;
+  switch(iLevel)
+  {
+  case 9: /* bConstrSet3 */
+  case 10:
+    iMaxDpbMbs = 396;
+    break;
+
+  case 11:
+    iMaxDpbMbs = 900;
+    break;
+
+  case 12:
+  case 13:
+  case 20:
+    iMaxDpbMbs = 2376;
+    break;
+
+  case 21:
+    iMaxDpbMbs = 4752;
+    break;
+
+  case 22:
+  case 30:
+    iMaxDpbMbs = 8100;
+    break;
+
+  case 31:
+    iMaxDpbMbs = 18000;
+    break;
+
+  case 32:
+    iMaxDpbMbs = 20480;
+    break;
+
+  case 40:
+  case 41:
+    iMaxDpbMbs = 32768;
+    break;
+
+  case 42:
+    iMaxDpbMbs = 34816;
+    break;
+
+  case 50:
+    iMaxDpbMbs = 110400;
+    break;
+
+  case 51:
+  case 52:
+    iMaxDpbMbs = 184320;
+    break;
+
+  case 60:
+  case 61:
+  case 62:
+    iMaxDpbMbs = 696320;
+    break;
+
+  default:
+    assert(0);
+    return 0;
+  }
+
+  int const iNumMbs = ((iWidth / 16) * (iHeight / 16));
+  return Clip3(iMaxDpbMbs / iNumMbs, 2, MAX_REF);
+}
+
+/******************************************************************************/
+int AL_HEVC_GetMaxDPBSize(int const iLevel, int const iWidth, int const iHeight)
+{
+  int iMaxLumaPS;
+  switch(iLevel)
+  {
+  case 10:
+    iMaxLumaPS = 36864;
+    break;
+
+  case 20:
+    iMaxLumaPS = 122880;
+    break;
+
+  case 21:
+    iMaxLumaPS = 245760;
+    break;
+
+  case 30:
+    iMaxLumaPS = 552960;
+    break;
+
+  case 31:
+    iMaxLumaPS = 983040;
+    break;
+
+  case 40:
+  case 41:
+    iMaxLumaPS = 2228224;
+    break;
+
+  case 50:
+  case 51:
+  case 52:
+  default:
+    iMaxLumaPS = 8912896;
+    break;
+
+  case 60:
+  case 61:
+  case 62:
+    iMaxLumaPS = 35651584;
+    break;
+  }
+
+  int const iPictSizeY = iWidth * iHeight;
+
+  if(iPictSizeY <= (iMaxLumaPS / 4))
+    return 16;
+  else if(iPictSizeY <= (iMaxLumaPS / 2))
+    return 12;
+  else if(iPictSizeY <= ((iMaxLumaPS * 2) / 3))
+    return 9;
+  else if(iPictSizeY <= ((3 * iMaxLumaPS) / 4))
+    return 8;
+  else
+    return 6;
 }
 

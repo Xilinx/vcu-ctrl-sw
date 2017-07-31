@@ -47,6 +47,7 @@
 #include "lib_common_dec/DecBuffers.h"
 #include "lib_common/Utils.h"
 
+
 /****************************************************************************/
 static uint32_t GetBlk64x64(uint16_t uWidth, uint16_t uHeight)
 {
@@ -90,7 +91,7 @@ uint32_t RndPitch(uint32_t uWidth, uint8_t uBitDepth)
 {
   uint32_t uVal;
 
-  if(AL_DEC_RASTER_10B_IS_PACKED)
+  if(AL_DEC_RASTER_3x10B_ON_32B)
     uVal = (uBitDepth == 8) ? uWidth : (uWidth + 2) / 3 * 4;
   else
     uVal = (uBitDepth == 8) ? uWidth : uWidth * 2;
@@ -144,6 +145,52 @@ uint32_t AL_GetAllocSize_MV(uint16_t uWidth, uint16_t uHeight, bool bIsAvc)
   uint32_t uNumBlk = bIsAvc ? GetBlk16x16(uWidth, uHeight) : GetBlk64x64(uWidth, uHeight) << 4;
 
   return bIsAvc ? (16 * uNumBlk * sizeof(uint32_t)) : (4 * uNumBlk * sizeof(uint32_t));
+}
+
+/*****************************************************************************/
+int AL_GetAllocSize_Frame(AL_TDimension tDimension, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bFrameBufferCompression, AL_EFbStorageMode eFrameBufferStorageMode)
+{
+  (void)bFrameBufferCompression;
+  (void)eFrameBufferStorageMode;
+  int iTotalSize = AL_GetAllocSize_Reference(tDimension.iWidth, tDimension.iHeight, eChromaMode, uBitDepth);
+  return iTotalSize;
+}
+
+/*****************************************************************************/
+uint32_t AL_GetAllocSize_Reference(uint16_t uWidth, uint16_t uHeight, AL_EChromaMode eChromaMode, uint8_t uBitDepth)
+{
+  uint32_t uPitch = RndPitch(uWidth, uBitDepth);
+  uint32_t uSize = uPitch * RndHeight(uHeight);
+  switch(eChromaMode)
+  {
+  case CHROMA_4_2_0:
+    uSize += (uSize >> 1);
+    break;
+
+  case CHROMA_4_2_2:
+    uSize += uSize;
+    break;
+
+  case CHROMA_4_4_4:
+    uSize += (uSize << 1);
+    break;
+
+  default:
+    break;
+  }
+
+  return uSize;
+}
+
+/*****************************************************************************/
+uint32_t AL_GetAllocSize_LumaMap(uint16_t uWidth, uint16_t uHeight, AL_EFbStorageMode eFBStorageMode)
+{
+  if(eFBStorageMode == AL_FB_RASTER)
+    return 0;
+  assert(eFBStorageMode == AL_FB_TILE_32x4 || eFBStorageMode == AL_FB_TILE_64x4);
+  uint32_t uTileWidth = eFBStorageMode == AL_FB_TILE_32x4 ? 32 : 64;
+  uint32_t uTileHeight = 4;
+  return (4096 / (2 * uTileWidth)) * ((uWidth + 4095) >> 12) * (uHeight / uTileHeight);
 }
 
 /*!@}*/

@@ -45,15 +45,18 @@
 
 #pragma once
 
-#include "IScheduler.h"
 #include "lib_common/BufferAccess.h"
 #include "lib_common/BufferAPI.h"
+#include "lib_common/Error.h"
 #include "lib_common_enc/Settings.h"
 #include "lib_common_enc/EncRecBuffer.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef struct t_Scheduler TScheduler;
+bool AL_ISchedulerEnc_Destroy(TScheduler* pScheduler);
 
 typedef AL_HANDLE AL_HEncoder;
 
@@ -111,6 +114,11 @@ void AL_Encoder_ReleaseRecPicture(AL_HEncoder hEnc, TRecPic* pRecPic);
    \brief The AL_Encoder_PutStreamBuffer function allows to push a stream buffer
    in the encoder stream buffer queue. This buffer will be used by the encoder to
    store the encoded bitstream.
+   The buffer needs to have an associated AL_TStreamMetaData created with
+   AL_StreamMetaData_Create(sectionNumber, uMaxSize)
+   where uMaxSize shall be aligned on 32bits
+   and the sectionNumber should be set to AL_MAX_SECTION or less
+   if you know how many sections you are expecting.
    \param[in] hEnc Handle to an encoder object
    \param[in] pStream Pointer to the stream buffer given to the encoder
    \return return true if the buffer was successfully pushed. false if an error

@@ -54,8 +54,6 @@
 typedef struct AL_t_LoopFilter
 {
   AL_EFilterMode Mode;  /*!< Specifies the deblocking Filter mode */
-  int8_t AlphaOffset; /*!< Specifies the offset used in accessing the alpha deblocking filter table */
-  int8_t BetaOffset;  /*!< Specifies the offset used in accessing the beta deblocking filter table */
 }AL_TLoopFilter;
 
 /*************************************************************************//*!
@@ -125,7 +123,6 @@ typedef struct AL_t_DecSliceParam
   uint32_t uStrAvailSize;
   uint32_t uCompOffset;
   uint32_t uStrOffset;
-  uint32_t uStrSize;
   uint32_t entry_point_offset[AL_MAX_ENTRY_POINT + 1];
 
 #if AL_ENABLE_TRACES_ENTROPY

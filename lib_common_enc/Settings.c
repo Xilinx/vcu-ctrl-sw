@@ -50,7 +50,7 @@
 #include "lib_common_enc/Settings.h"
 #include "Utils_enc.h"
 #include "lib_common/Utils.h"
-#include "L2CacheParam.h"
+#include "L2PrefetchParam.h"
 #include "lib_common/SEI.h"
 
 /***************************************************************************/
@@ -610,19 +610,18 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 
   pSettings->uEnableSEI = SEI_NONE;
   pSettings->bEnableAUD = true;
-  pSettings->eAspectRatio = ASPECT_RATIO_AUTO;
+  pSettings->eAspectRatio = AL_ASPECT_RATIO_AUTO;
   pSettings->eColourDescription = COLOUR_DESC_BT_470_PAL;
 
   pSettings->eQpCtrlMode = UNIFORM_QP;// ADAPTIVE_AUTO_QP;
   pSettings->eLdaCtrlMode = DEFAULT_LDA;
 
-  pSettings->eScalingList = DEFAULT;
-  pSettings->uEncFlags = 0;
+  pSettings->eScalingList = AL_SCL_DEFAULT;
 
   pSettings->bDisIntra = false;
   pSettings->bForceLoad = true;
-  pSettings->iCacheLevel2 = 0;
-  pSettings->uL2CSize = 0;
+  pSettings->iPrefetchLevel2 = 0;
+  pSettings->uL2PSize = 0;
   pSettings->uClipHrzRange = 0;
   pSettings->uClipVrtRange = 0;
   pSettings->tChParam.pMeRange[SLICE_P][0] = -1; // Horz
@@ -647,6 +646,8 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 
 
   pSettings->bEnableWatchdog = false;
+
+  pSettings->tChParam.bSubframeLatency = false;
 }
 
 /***************************************************************************/
@@ -786,25 +787,25 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, FILE* pOut)
   }
 
 
-  if(pSettings->iCacheLevel2)
+  if(pSettings->iPrefetchLevel2)
   {
-    uint32_t uCacheSize = (pSettings->iCacheLevel2 > 0) ? (uint32_t)pSettings->iCacheLevel2 : pSettings->uL2CSize;
-    uint32_t uCacheMinSize = AL_L2C_GetL2CacheMinSize(&pSettings->tChParam, pSettings->tChParam.uNumCore != NUMCORE_AUTO ? pSettings->tChParam.uNumCore : AL_ENC_NUM_CORES);
+    uint32_t uPrefetchSize = (pSettings->iPrefetchLevel2 > 0) ? (uint32_t)pSettings->iPrefetchLevel2 : pSettings->uL2PSize;
+    uint32_t uPrefetchMinSize = AL_L2P_GetL2PrefetchMinSize(&pSettings->tChParam, pSettings->tChParam.uNumCore != NUMCORE_AUTO ? pSettings->tChParam.uNumCore : AL_ENC_NUM_CORES);
 
-    if(uCacheMinSize > uCacheSize)
+    if(uPrefetchMinSize > uPrefetchSize)
     {
       ++err;
-      MSG("Level2 cache too small for this resolution ! ");
+      MSG("Level2 Prefetch too small for this resolution ! ");
     }
 
-    if(uCacheSize > AL_L2C_MAX_SIZE)
+    if(uPrefetchSize > AL_L2P_MAX_SIZE)
     {
       ++err;
-      MSG("Level2 cache is bigger than physical memory available !");
+      MSG("Level2 Prefetch is bigger than physical memory available !");
     }
   }
 
-  if((pSettings->iCacheLevel2 < 0) || (pSettings->tChParam.eOptions & AL_OPT_FORCE_MV_CLIP))
+  if((pSettings->iPrefetchLevel2 < 0) || (pSettings->tChParam.eOptions & AL_OPT_FORCE_MV_CLIP))
   {
     if(pSettings->uClipHrzRange < 64 || pSettings->uClipHrzRange > pSettings->tChParam.uWidth)
     {
@@ -1081,9 +1082,9 @@ bool AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FIL
         MSG("!! The Specified CrQpOffset is not allowed; it will be adjusted!!");
       }
 
-      if(pSettings->eScalingList != FLAT)
+      if(pSettings->eScalingList != AL_SCL_FLAT)
       {
-        pSettings->eScalingList = FLAT;
+        pSettings->eScalingList = AL_SCL_FLAT;
         MSG("!! The specified ScalingList is not allowed; it will be adjusted!!");
       }
     }
@@ -1182,17 +1183,17 @@ bool AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FIL
     MSG("!! Long Term reference are not allowed with PYRAMIDAL GOP, it will be adjusted !!");
   }
 
-  if(pSettings->iCacheLevel2)
+  if(pSettings->iPrefetchLevel2)
   {
-    uint32_t uCacheSize = (pSettings->iCacheLevel2 > 0) ? (uint32_t)pSettings->iCacheLevel2 : pSettings->uL2CSize;
-    uint32_t uCacheMaxSize = AL_L2C_GetL2CacheMaxSize(&pSettings->tChParam, pSettings->tChParam.uNumCore > 0 ? pSettings->tChParam.uNumCore : AL_ENC_NUM_CORES);
+    uint32_t uCacheSize = (pSettings->iPrefetchLevel2 > 0) ? (uint32_t)pSettings->iPrefetchLevel2 : pSettings->uL2PSize;
+    uint32_t uCacheMaxSize = AL_L2P_GetL2PrefetchMaxSize(&pSettings->tChParam, pSettings->tChParam.uNumCore > 0 ? pSettings->tChParam.uNumCore : AL_ENC_NUM_CORES);
 
     if(uCacheSize > uCacheMaxSize)
     {
-      if(pSettings->iCacheLevel2 > 0)
-        pSettings->iCacheLevel2 = uCacheMaxSize;
+      if(pSettings->iPrefetchLevel2 > 0)
+        pSettings->iPrefetchLevel2 = uCacheMaxSize;
       else
-        pSettings->uL2CSize = uCacheMaxSize;
+        pSettings->uL2PSize = uCacheMaxSize;
       MSG("L2 cache size too big for current resolution and/or for L2 cache controller, it will be adjusted !!");
     }
   }

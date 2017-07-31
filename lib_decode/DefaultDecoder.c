@@ -46,7 +46,7 @@
 #include <string.h>
 #include "assert.h"
 #include "stdio.h"
-#include "lib_common_dec/DecError.h"
+#include "lib_common/Error.h"
 
 #include "lib_parsing/I_PictMngr.h"
 
@@ -247,6 +247,7 @@ void AL_Default_Decoder_Destroy(AL_TDecoder* pAbsDec)
 }
 
 /*****************************************************************************/
+
 void AL_Default_Decoder_SetParam(AL_TDecoder* pAbsDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm)
 {
   AL_TDefaultDecoder* pDec = (AL_TDefaultDecoder*)pAbsDec;
@@ -257,6 +258,9 @@ void AL_Default_Decoder_SetParam(AL_TDecoder* pAbsDec, bool bConceal, bool bUseB
 
   pCtx->m_iTraceFirstFrame = iFrmID;
   pCtx->m_iTraceLastFrame = iFrmID + iNumFrm;
+
+  if(iNumFrm > 0)
+    AL_CLEAN_BUFFERS = 1;
 }
 
 /*****************************************************************************/
@@ -276,11 +280,12 @@ static bool SearchNextDecodUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* pLa
     uint32_t uPos = pTable[iNal].uPosition;
     uint8_t uNUT = pTable[iNal].uNUT;
 
-    bool IsFirstSlice = false;
     bool bIsVcl = pCtx->m_chanParam.eCodec == AL_CODEC_AVC ? AL_AVC_IsVcl((AL_ENut)uNUT) : AL_HEVC_IsVcl((AL_ENut)uNUT);
 
     if(bIsVcl)
     {
+      bool IsFirstSlice = false;
+
       /* skip all 0x00 */
       while(pBuf[uPos % uSize] != 0x01)
         ++uPos;
@@ -505,6 +510,13 @@ void AL_Default_Decoder_Flush(AL_TDecoder* pAbsDec)
   AL_BufferFeeder_Flush(pCtx->m_Feeder);
 }
 
+void AL_Default_Decoder_ForceStop(AL_TDecoder* pAbsDec)
+{
+  AL_TDefaultDecoder* pDec = (AL_TDefaultDecoder*)pAbsDec;
+  AL_TDecCtx* pCtx = &pDec->ctx;
+  AL_BufferFeeder_ForceStop(pCtx->m_Feeder);
+}
+
 /*****************************************************************************/
 void AL_Default_Decoder_InternalFlush(AL_TDecoder* pAbsDec)
 {
@@ -602,6 +614,7 @@ const AL_TDecoderVtable AL_Default_Decoder_Vtable =
   &AL_Default_Decoder_SetParam,
   &AL_Default_Decoder_PushBuffer,
   &AL_Default_Decoder_Flush,
+  &AL_Default_Decoder_ForceStop,
   &AL_Default_Decoder_GetDecPict,
   &AL_Default_Decoder_ReleaseDecPict,
   &AL_Default_Decoder_PutDecPict,
@@ -632,6 +645,34 @@ static AL_TBuffer* AllocEosBufferAVC()
   return AL_Buffer_WrapData((uint8_t*)EOSNal, sizeof EOSNal, &AL_Buffer_Destroy);
 }
 
+static void AssignSettings(AL_TDecCtx* const pCtx, AL_TDecSettings* const pSettings)
+{
+  pCtx->m_iStackSize = Min(pSettings->iStackSize, MAX_STACK_SIZE);
+  pCtx->m_bForceFrameRate = pSettings->bForceFrameRate;
+  pCtx->m_eDecUnit = pSettings->eDecUnit;
+  pCtx->m_eDpbMode = pSettings->eDpbMode;
+
+  AL_TDecChanParam* pChan = &pCtx->m_chanParam;
+  pChan->uMaxLatency = Min(pSettings->iStackSize, MAX_STACK_SIZE);
+  pChan->uNumCore = pSettings->uNumCore;
+  pChan->uClkRatio = pSettings->uClkRatio;
+  pChan->uFrameRate = pSettings->uFrameRate;
+  pChan->bDisableCache = pSettings->bDisableCache;
+  pChan->bFrameBufferCompression = pSettings->bFrameBufferCompression;
+  pChan->eFBStorageMode = pSettings->eFBStorageMode;
+  pChan->uDDRWidth = pSettings->uDDRWidth == 16 ? 0 : pSettings->uDDRWidth == 32 ? 1 : 2;
+  pChan->bParallelWPP = pSettings->bParallelWPP;
+  pChan->bLowLat = pSettings->bLowLat;
+  pChan->eCodec = pSettings->bIsAvc ? AL_CODEC_AVC : AL_CODEC_HEVC;
+}
+
+static void AssignCallBacks(AL_TDecCtx* const pCtx, AL_TDecCallBacks* const pCB)
+{
+  pCtx->m_decodeCB = pCB->endDecodingCB;
+  pCtx->m_displayCB = pCB->displayCB;
+  pCtx->m_resolutionFoundCB = pCB->resolutionFoundCB;
+}
+
 AL_TDecoder* AL_CreateDefaultDecoder(AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB)
 {
   AL_TDefaultDecoder* const pDec = (AL_TDefaultDecoder*)Rtos_Malloc(sizeof(AL_TDefaultDecoder));
@@ -645,27 +686,12 @@ AL_TDecoder* AL_CreateDefaultDecoder(AL_TIDecChannel* pDecChannel, AL_TAllocator
   pCtx->m_pDecChannel = pDecChannel;
   pCtx->m_pAllocator = pAllocator;
 
-  pCtx->m_bFirstIsValid = false;
-
   // initialize internal buffers
   InitBuffers(pCtx);
 
   // initialize decoder user parameters
-  pCtx->m_iStackSize = Min(pSettings->iStackSize, MAX_STACK_SIZE);
-  pCtx->m_chanParam.uMaxLatency = pCtx->m_iStackSize;
-  pCtx->m_chanParam.uNumCore = pSettings->uNumCore;
-  pCtx->m_chanParam.uClkRatio = pSettings->uClkRatio;
-  pCtx->m_chanParam.uFrameRate = pSettings->uFrameRate;
-  pCtx->m_bForceFrameRate = pSettings->bForceFrameRate;
-  pCtx->m_chanParam.bParallelWPP = pSettings->bParallelWPP;
-  pCtx->m_chanParam.bLowLat = pSettings->bLowLat;
-  pCtx->m_eDecUnit = pSettings->eDecUnit;
-  pCtx->m_eDpbMode = pSettings->eDpbMode;
-  pCtx->m_iNumBufHeldByNextComponent = pSettings->iNumBufHeldByNextComponent;
-
-  pCtx->m_decodeCB = pCB->endDecodingCB;
-  pCtx->m_displayCB = pCB->displayCB;
-  pCtx->m_resolutionFoundCB = pCB->resolutionFoundCB;
+  AssignSettings(pCtx, pSettings);
+  AssignCallBacks(pCtx, pCB);
 
   pCtx->m_Sem = Rtos_CreateSemaphore(pCtx->m_iStackSize);
   pCtx->m_ScDetectionComplete = Rtos_CreateEvent(0);
@@ -674,22 +700,13 @@ AL_TDecoder* AL_CreateDefaultDecoder(AL_TIDecChannel* pDecChannel, AL_TAllocator
   AL_Default_Decoder_SetParam((AL_TDecoder*)pDec, false, false, 0, 0);
 
   // initialize decoder context
+  pCtx->m_bFirstIsValid = false;
   pCtx->m_PictMngr.m_bFirstInit = false;
   pCtx->m_uNoRaslOutputFlag = 1;
   pCtx->m_bIsFirstPicture = true;
   pCtx->m_bLastIsEOS = false;
   pCtx->m_bFirstSliceInFrameIsValid = false;
   pCtx->m_bBeginFrameIsValid = false;
-
-  if(pSettings->bIsAvc)
-    pCtx->m_chanParam.eCodec = AL_CODEC_AVC;
-  else
-    pCtx->m_chanParam.eCodec = AL_CODEC_HEVC;
-  pCtx->m_uColocID = 0xFF;
-  pCtx->m_chanParam.bDisableCache = pSettings->bDisableCache;
-  pCtx->m_chanParam.bFrameBufferCompression = pSettings->bFrameBufferCompression;
-  pCtx->m_chanParam.eFBStorageMode = pSettings->eFBStorageMode;
-  pCtx->m_chanParam.uDDRWidth = pSettings->uDDRWidth == 16 ? 0 : pSettings->uDDRWidth == 32 ? 1 : 2;
 
   AL_Conceal_Init(&pCtx->m_tConceal);
 

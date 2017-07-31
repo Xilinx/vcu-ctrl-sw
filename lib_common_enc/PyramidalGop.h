@@ -36,15 +36,87 @@
 ******************************************************************************/
 
 #pragma once
+#include "lib_common_enc/EncChanParam.h"
 
-#include "lib_common/BufferMeta.h"
-
-typedef struct AL_t_SourceManagementMetaData
+static AL_TGopFrm PYRAMIDAL_GOP_3[] =
 {
-  AL_TMetaData tMeta;
-  uint32_t uFlags;
-}AL_TSourceManagementMetaData;
+  {
+    SLICE_P, 0, 1, 0, 4, -4, 0, 0, { -4, 0, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 1, 1, 2, -2, 2, 0, { -2, 2, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 1, -1, 1, 0, { -1, 1, 3, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 3, -1, 1, 0, { -1, 1, 0, 0, 0 }
+  }
+};
 
-/* zeroed */
-AL_TSourceManagementMetaData* AL_SourceManagementMetaData_Create();
+static AL_TGopFrm PYRAMIDAL_GOP_5[] =
+{
+  {
+    SLICE_P, 0, 1, 0, 6, -6, 0, 0, { -6, 0, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 1, 1, 3, -3, 3, 0, { -3, 3, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 1, -1, 2, 0, { -1, 2, 5, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 2, -2, 1, 0, { -2, 1, 4, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 4, -1, 2, 0, { -1, 2, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 5, -2, 1, 0, { -2, 1, 0, 0, 0 }
+  }
+};
+
+static AL_TGopFrm PYRAMIDAL_GOP_7[] =
+{
+  {
+    SLICE_P, 0, 1, 0, 8, -8, 0, 0, { -8, 0, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 1, 1, 4, -4, 4, 0, { -4, 4, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 1, 1, 2, -2, 2, 0, { -2, 2, 6, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 1, -1, 1, 0, { -1, 1, 3, 7, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 3, -1, 1, 0, { -1, 1, 5, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 1, 1, 6, -2, 2, 0, { -2, 2, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 5, -1, 1, 0, { -1, 1, 3, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 7, -1, 1, 0, { -1, 1, 0, 0, 0 }
+  }
+};
+
+static AL_TGopFrm* getPyramidalFrames(int numB)
+{
+  switch(numB)
+  {
+  case 7:
+    return PYRAMIDAL_GOP_7;
+  case 5:
+    return PYRAMIDAL_GOP_5;
+  case 3:
+    return PYRAMIDAL_GOP_3;
+  default:
+    assert(false);
+    return PYRAMIDAL_GOP_3;
+  }
+}
 

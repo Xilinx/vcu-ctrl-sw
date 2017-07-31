@@ -141,19 +141,12 @@ AL_ERR AL_Common_Encoder_GetLastError(AL_TEncoder* pEnc);
 /*************************************************************************//*!
    \brief The Encoder_WaitReadiness function wait until the encoder context object is available
    \param[in] pCtx Pointer on an encoder context object
-   \param[in] uTimeOut time to wait
    \return If the function succeeds the return value is nonzero (true)
    If the function fails the return value is zero (false)
 *****************************************************************************/
-bool AL_Common_Encoder_WaitReadiness(AL_TEncCtx* pCtx, uint32_t uTimeOut);
-void AL_Common_Encoder_EndEncoding(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TBuffer const* const pSrc);
-
-/*************************************************************************//*!
-   \brief The InitBuffers function initializes an encoder context buffers structure
-   \param[in] pCtx Pointer on an encoder context object
-   \param[in] pAllocator Pointer to the allocator to use
-*****************************************************************************/
-void AL_Common_Encoder_InitBuffers(AL_TEncCtx* pCtx, AL_TAllocator* pAllocator);
+void AL_Common_Encoder_WaitReadiness(AL_TEncCtx* pCtx);
+void AL_Common_Encoder_EndEncoding(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TBuffer* pSrc, AL_TBuffer* pQpTable, bool bIsEndOfFrame);
+void AL_Common_Encoder_EndEncoding2(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TBuffer* pSrc, AL_TBuffer* pQpTable, bool bIsEndOfFrame, bool shouldReleaseSrc);
 
 /*************************************************************************//*!
    \brief The Encoder_DestroyCtx deinitialize an encoder context
@@ -221,6 +214,8 @@ bool AL_Common_Encoder_IsInitialQpProvided(AL_TEncChanParam* pChParam);
 uint32_t AL_Common_Encoder_ComputeBitPerPixel(AL_TEncChanParam* pChParam);
 int8_t AL_Common_Encoder_GetInitialQP(uint32_t iBitPerPixel);
 void AL_Common_Encoder_SetMaxNumRef(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam);
+
+void AL_Common_Encoder_PushStreamBuffers(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, uint32_t uStreamOffset);
 
 /*@}*/
 

@@ -36,31 +36,26 @@
 ******************************************************************************/
 
 #pragma once
-#include "lib_rtos/types.h"
 
-typedef struct t_driver Driver;
-struct t_driver
-{
-  int (* Open)(Driver* driver);
-  void (* Close)(Driver* driver, int fd);
-  bool (* PostMessage)(Driver* driver, int fd, int messageId, void* data);
-};
+#define AL_SUCCESS ((AL_ERR)0x00000000)
+#define AL_DEF_WARNING(N) ((AL_ERR)(0x00 + (N)))
+#define AL_DEF_ERROR(N) ((AL_ERR)(0x80 + (N)))
 
-static inline
-int AL_Driver_Open(Driver* driver)
-{
-  return driver->Open(driver);
-}
+#define AL_WARN_CONCEAL_DETECT AL_DEF_WARNING(1)
+#define AL_WARN_LCU_OVERFLOW AL_DEF_WARNING(1)
 
-static inline
-void AL_Driver_Close(Driver* driver, int fd)
-{
-  driver->Close(driver, fd);
-}
-
-static inline
-bool AL_Driver_PostMessage(Driver* driver, int fd, int messageId, void* data)
-{
-  return driver->PostMessage(driver, fd, messageId, data);
-}
+#define AL_ERROR AL_DEF_ERROR(0)
+#define ERR_INIT_FAILED AL_DEF_ERROR(1)
+#define ERR_NO_FRAME_DECODED AL_DEF_ERROR(2)
+#define AL_ERR_BUFFER_EXCEPTION AL_DEF_ERROR(3)
+#define AL_ERR_NOT_SUPPORTED AL_DEF_ERROR(4)
+#define ERR_RESOLUTION_CHANGE AL_DEF_ERROR(5)
+#define ERR_CHANNEL_NOT_CREATED AL_DEF_ERROR(6)
+#define ERR_NO_MORE_MEMORY AL_DEF_ERROR(7)
+#define AL_ERR_STREAM_OVERFLOW AL_DEF_ERROR(8)
+#define AL_ERR_TOO_MANY_SLICES AL_DEF_ERROR(9)
+#define AL_ERR_CHAN_CREATION_FAIL AL_DEF_ERROR(10)
+#if ENABLE_WATCHDOG
+#define AL_ERR_WATCHDOG_TIMEOUT AL_DEF_ERROR(11)
+#endif
 

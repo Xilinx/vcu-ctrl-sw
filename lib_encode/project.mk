@@ -16,6 +16,7 @@ LIB_ENCODE_SRC+=\
 	lib_encode/lib_encoder.c\
 	lib_encode/ISchedulerCommon.c\
 	lib_encode/hardwareDriver.c\
+	lib_encode/IScheduler.c\
 
 LIB_ENCODER_SRC:=\
   $(LIB_FPGA_SRC)\

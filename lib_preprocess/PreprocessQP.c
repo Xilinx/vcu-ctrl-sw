@@ -319,11 +319,14 @@ char* createQPFileNameWithID(int iFrameID)
   char* str = NULL;
   char* format_str = DEBUG_PATH "/QP_%d.hex";
   int numberCharNeeded = snprintf(str, 0, format_str, iFrameID) + 1;
-  str = (char*)malloc(numberCharNeeded * sizeof(char*));
+  str = (char*)malloc(numberCharNeeded * sizeof(char));
   numberCharNeeded = snprintf(str, numberCharNeeded, format_str, iFrameID);
 
   if(numberCharNeeded < 0)
+  {
+    free(str);
     return NULL;
+  }
   return str;
 }
 

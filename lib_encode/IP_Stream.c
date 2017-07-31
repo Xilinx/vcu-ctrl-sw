@@ -76,6 +76,11 @@ uint32_t StreamGetNumBytes(TStream* pStream)
   return pStream->m_pCur - pStream->m_pData;
 }
 
+static bool Matches(uint8_t const* pData)
+{
+  return !((pData[0] & 0xFF) || (pData[1] & 0xFF) || pData[2] & 0xFC);
+}
+
 /****************************************************************************/
 void AntiEmul(TStream* pStream, uint8_t const* pData, int iNumBytes)
 {
@@ -87,7 +92,7 @@ void AntiEmul(TStream* pStream, uint8_t const* pData, int iNumBytes)
     StreamWriteByte(pStream, *pData);
 
     // Check for start code emulation
-    if(!(0x00FCFFFF & *((uint32_t*)(pData++))))
+    if(Matches(pData++))
     {
       StreamWriteByte(pStream, *pData++);
       iByte++;

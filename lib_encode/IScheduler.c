@@ -35,27 +35,12 @@
 *
 ******************************************************************************/
 
-#include "lib_rtos/lib_rtos.h"
-#include "BufferSourceManagementMeta.h"
+#include "IScheduler.h"
 
-static bool destroy(AL_TMetaData* pMeta)
+/* can't be a static inline function as api user need this function and
+ * don't know about the TScheduler type internals */
+bool AL_ISchedulerEnc_Destroy(TScheduler* pScheduler)
 {
-  Rtos_Free(pMeta);
-  return true;
-}
-
-AL_TSourceManagementMetaData* AL_SourceManagementMetaData_Create()
-{
-  AL_TSourceManagementMetaData* pMeta = Rtos_Malloc(sizeof(*pMeta));
-
-  if(!pMeta)
-    return NULL;
-
-  Rtos_Memset(pMeta, 0, sizeof(*pMeta));
-
-  pMeta->tMeta.eType = AL_META_TYPE_SOURCEMANAGEMENT;
-  pMeta->tMeta.MetaDestroy = destroy;
-
-  return pMeta;
+  return pScheduler->vtable->destroy(pScheduler);
 }
 

@@ -35,7 +35,7 @@
 *
 ******************************************************************************/
 
-#include "driverInterface.h"
+typedef struct t_driver Driver;
 
 Driver* AL_GetHardwareDriver();
 

@@ -72,8 +72,7 @@ struct LinuxDmaCtx
  */
 static AL_VADDR LinuxDma_Map(int fd, size_t zSize)
 {
-  AL_VADDR vaddr;
-  vaddr = (AL_VADDR)mmap(0, zSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  AL_VADDR vaddr = (AL_VADDR)mmap(0, zSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
   if(vaddr == MAP_FAILED)
   {
@@ -89,9 +88,8 @@ static AL_VADDR LinuxDma_Map(int fd, size_t zSize)
 static bool LinuxDma_GetDmaFd(AL_TAllocator* pAllocator, struct al5_dma_info* pInfo)
 {
   struct LinuxDmaCtx* pCtx = (struct LinuxDmaCtx*)pAllocator;
-  int ret;
 
-  ret = ioctl(pCtx->fd, GET_DMA_FD, pInfo);
+  int ret = ioctl(pCtx->fd, GET_DMA_FD, pInfo);
 
   if(ret == -1)
   {
@@ -104,9 +102,8 @@ static bool LinuxDma_GetDmaFd(AL_TAllocator* pAllocator, struct al5_dma_info* pI
 static bool LinuxDma_GetBusAddrFromFd(AL_TLinuxDmaAllocator* pAllocator, struct al5_dma_info* pInfo)
 {
   struct LinuxDmaCtx* pCtx = (struct LinuxDmaCtx*)pAllocator;
-  int ret;
 
-  ret = ioctl(pCtx->fd, GET_DMA_PHY, pInfo);
+  int ret = ioctl(pCtx->fd, GET_DMA_PHY, pInfo);
 
   if(ret == -1)
   {
@@ -127,18 +124,15 @@ static size_t AlignToPageSize(size_t zSize)
 
 static AL_HANDLE LinuxDma_Alloc(AL_TAllocator* pAllocator, size_t zSize)
 {
-  bool bSuccess;
-  size_t zMapSize = AlignToPageSize(zSize);
-
   struct DmaAllocCtx* pDmaAllocCtx = (struct DmaAllocCtx*)calloc(1, sizeof(*pDmaAllocCtx));
 
   if(!pDmaAllocCtx)
     return NULL;
 
+  size_t zMapSize = AlignToPageSize(zSize);
   pDmaAllocCtx->info.size = zMapSize;
-  bSuccess = LinuxDma_GetDmaFd(pAllocator, &pDmaAllocCtx->info);
 
-  if(!bSuccess)
+  if(!LinuxDma_GetDmaFd(pAllocator, &pDmaAllocCtx->info))
     goto fail;
 
   pDmaAllocCtx->vaddr = LinuxDma_Map(pDmaAllocCtx->info.fd, zMapSize);
@@ -193,6 +187,10 @@ int isAligned256B(AL_PADDR addr)
 static struct DmaAllocCtx* OverAllocateAndAlign256B(AL_TAllocator* pAllocator, size_t zSize)
 {
   struct DmaAllocCtx* p = LinuxDma_Alloc(pAllocator, Ceil256B(zSize));
+
+  if(!p)
+    return NULL;
+
   void* vaddr;
   p->info.phy_addr = Ceil256B(p->info.phy_addr);
   vaddr = (void*)Ceil256B((unsigned long)p->vaddr);
@@ -217,10 +215,16 @@ static AL_HANDLE LinuxDma_Alloc_256B_Aligned(AL_TAllocator* pAllocator, size_t z
 {
   struct DmaAllocCtx* p = (struct DmaAllocCtx*)LinuxDma_Alloc(pAllocator, zSize);
 
+  if(!p)
+    return NULL;
+
   if(!isAligned256B(p->info.phy_addr))
   {
     LinuxDma_Free(pAllocator, (AL_HANDLE)p);
     p = OverAllocateAndAlign256B(pAllocator, zSize);
+
+    if(!p)
+      return NULL;
   }
 
   LOG_ALLOCATION(p);
@@ -312,17 +316,15 @@ static int LinuxDma_ExportToFd(AL_TLinuxDmaAllocator* pAllocator, AL_HANDLE hBuf
 
 static AL_HANDLE LinuxDma_ImportFromFd(AL_TLinuxDmaAllocator* pAllocator, int fd)
 {
-  bool bSuccess;
   struct DmaAllocCtx* pDmaAllocCtx = (struct DmaAllocCtx*)calloc(1, sizeof(*pDmaAllocCtx));
 
   if(!pDmaAllocCtx)
     return NULL;
 
   pDmaAllocCtx->info.fd = dup(fd);
-  /* this fills info.phy_addr */
-  bSuccess = LinuxDma_GetBusAddrFromFd(pAllocator, &pDmaAllocCtx->info);
 
-  if(!bSuccess)
+  /* this fills info.phy_addr */
+  if(!LinuxDma_GetBusAddrFromFd(pAllocator, &pDmaAllocCtx->info))
     goto fail;
 
   size_t zSize = LinuxDma_GetDmabufSize(fd);
@@ -331,7 +333,6 @@ static AL_HANDLE LinuxDma_ImportFromFd(AL_TLinuxDmaAllocator* pAllocator, int fd
     goto fail;
 
   size_t zMapSize = AlignToPageSize(zSize);
-
   pDmaAllocCtx->info.size = zMapSize;
   pDmaAllocCtx->vaddr = LinuxDma_Map(fd, zMapSize);
 

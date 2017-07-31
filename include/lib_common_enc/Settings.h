@@ -74,10 +74,10 @@ typedef enum e_OptionFlag
 *****************************************************************************/
 typedef enum e_AspectRatio
 {
-  ASPECT_RATIO_AUTO,
-  ASPECT_RATIO_4_3,
-  ASPECT_RATIO_16_9,
-  ASPECT_RATIO_NONE,
+  AL_ASPECT_RATIO_AUTO = 0x00,
+  AL_ASPECT_RATIO_4_3 = 0x01,
+  AL_ASPECT_RATIO_16_9 = 0x02,
+  AL_ASPECT_RATIO_NONE = 0x03,
 }AL_EAspectRatio;
 
 /*************************************************************************//*!
@@ -149,13 +149,12 @@ typedef struct t_EncSettings
   AL_EColourDescription eColourDescription;
   AL_EScalingList eScalingList;
   bool bDependentSlice;
-  uint32_t uEncFlags;
 
   bool bDisIntra;
   bool bForceLoad;
   AL_ELdaCtrlMode eLdaCtrlMode;
-  int32_t iCacheLevel2;
-  uint32_t uL2CSize;
+  int32_t iPrefetchLevel2;
+  uint32_t uL2PSize;
   uint16_t uClipHrzRange;
   uint16_t uClipVrtRange;
   AL_EQpCtrlMode eQpCtrlMode;

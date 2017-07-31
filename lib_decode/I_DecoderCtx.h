@@ -113,11 +113,9 @@ typedef struct t_Dec_Ctx
 
   AL_TDecChanParam m_chanParam;
   AL_EDecUnit m_eDecUnit;
-  int m_iNumBufHeldByNextComponent;
   AL_EDpbMode m_eDpbMode;
   bool m_bUseBoard;
   bool m_bConceal;
-  bool m_bSubFrameLat;
   int m_iStackSize;
   bool m_bForceFrameRate;
 
@@ -136,11 +134,9 @@ typedef struct t_Dec_Ctx
   int m_iCurOffset;
   uint32_t m_uCurPocLsb;
   uint8_t m_uNoRaslOutputFlag;
-  uint8_t m_uColocID;
   uint8_t m_uMaxBD;
   uint8_t m_uMvIDRefList[MAX_STACK_SIZE][AL_MAX_NUM_REF];
   uint8_t m_uNumRef[MAX_STACK_SIZE];
-  AL_TDecPicParam m_PP;
 
   // error concealment context
   AL_TConceal m_tConceal;
@@ -148,7 +144,6 @@ typedef struct t_Dec_Ctx
 
   // tile data management
   uint16_t m_uCurTileID;      // Tile offset of the current tile within the frame
-  uint16_t m_uTileCmdId;      // Command ID of the current tile
   bool m_bTileSupToSlice; // specify when current tile is bigger than slices (E neighbor tile computation purpose)
 
   // Decoder toggle buffer

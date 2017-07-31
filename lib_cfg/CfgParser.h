@@ -47,9 +47,8 @@
 
 extern "C"
 {
-#include "lib_common/Traces.h"
+#include "traces/Traces.h"
 #include "lib_common_enc/Settings.h"
-#include "lib_encode/IScheduler.h"
 }
 
 #include <string>

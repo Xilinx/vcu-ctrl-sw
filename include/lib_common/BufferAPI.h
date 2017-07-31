@@ -129,7 +129,6 @@ size_t AL_Buffer_GetSizeData(AL_TBuffer* pBuf);
 bool AL_Buffer_AddMetaData(AL_TBuffer* pBuf, AL_TMetaData* pMeta);
 bool AL_Buffer_RemoveMetaData(AL_TBuffer* pBuf, AL_TMetaData* pMeta);
 AL_TMetaData* AL_Buffer_GetMetaData(AL_TBuffer const* pBuf, AL_EMetaType eType);
-AL_TMetaData* AL_Buffer_IterateMetaData(AL_TBuffer* pBuf, AL_HANDLE* hState);
 
 /*************************************************************************//*!
    \brief

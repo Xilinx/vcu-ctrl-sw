@@ -42,51 +42,51 @@
    @{
    \file
  *****************************************************************************/
-#include "L2CacheParam.h"
+#include "L2PrefetchParam.h"
 #include "lib_common/Utils.h"
 
 
 /****************************************************************************/
-void AL_L2C_GetL2CacheMaxRange(AL_TEncChanParam const* pChParam, AL_ESliceType eSliceType, uint8_t uNumCore, uint16_t* pHorzRange, uint16_t* pVertRange)
+void AL_L2P_GetL2PrefetchMaxRange(AL_TEncChanParam const* pChParam, AL_ESliceType eSliceType, uint8_t uNumCore, uint16_t* pHorzRange, uint16_t* pVertRange)
 {
-  int iCacheSize = pChParam->uL2CacheMemSize;
+  int iPrefetchSize = pChParam->uL2PrefetchMemSize;
   int iCTBSize = 1 << pChParam->uMaxCuSize;
   int iLcuWidth = (pChParam->uWidth + (1 << pChParam->uMaxCuSize) - 1) >> pChParam->uMaxCuSize;
   int iPictWidth = iLcuWidth << pChParam->uMaxCuSize;
   int iVRange, iHRange;
 
   if(eSliceType == SLICE_B)
-    iCacheSize >>= 1;
+    iPrefetchSize >>= 1;
 
-  iCacheSize = iCacheSize * 8 / HW_IP_BIT_DEPTH;
+  iPrefetchSize = iPrefetchSize * 8 / HW_IP_BIT_DEPTH;
 
   if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == CHROMA_4_2_0)
-    iCacheSize = (iCacheSize * 2) / 3;
+    iPrefetchSize = (iPrefetchSize * 2) / 3;
   else if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == CHROMA_4_2_2)
-    iCacheSize = iCacheSize / 2;
+    iPrefetchSize = iPrefetchSize / 2;
 
-  iCacheSize -= L2C_REFILL_MARGIN * L2C_W * L2C_H * uNumCore;
+  iPrefetchSize -= L2P_REFILL_MARGIN * L2P_W * L2P_H * uNumCore;
 
-  iCacheSize -= L2C_W * iCTBSize * uNumCore; // Recycling margin : LCU step are smaller than the L2C tile width, so the tiles can not be recycled at each step.
+  iPrefetchSize -= L2P_W * iCTBSize * uNumCore; // Recycling margin : LCU step are smaller than the L2P tile width, so the tiles can not be recycled at each step.
 
   if(pChParam->eOptions & AL_OPT_WPP)
   {
-    int iCacheWidth = ALIGN_UP(iPictWidth, L2C_W);
-    int iCoreGap = (uNumCore > 1) ? L2C_WPP_CORE_GAP : 0;
+    int iPrefetchWidth = ALIGN_UP(iPictWidth, L2P_W);
+    int iCoreGap = (uNumCore > 1) ? L2P_WPP_CORE_GAP : 0;
 
-    int iTmp1 = 2 * iCacheWidth;
+    int iTmp1 = 2 * iPrefetchWidth;
     int iTmp2 = 2 * uNumCore * iCTBSize;
 
-    iCacheSize -= 2 * uNumCore * iCTBSize * iCTBSize * (iCoreGap + 1);
-    iCacheSize += 2 * iCoreGap * uNumCore * iCTBSize;
+    iPrefetchSize -= 2 * uNumCore * iCTBSize * iCTBSize * (iCoreGap + 1);
+    iPrefetchSize += 2 * iCoreGap * uNumCore * iCTBSize;
 
     iVRange = 64;
 
     for(;;)
     {
-      iHRange = ALIGN_DOWN((iCacheSize - iVRange * iTmp1) / iTmp2, iCTBSize);
+      iHRange = ALIGN_DOWN((iPrefetchSize - iVRange * iTmp1) / iTmp2, iCTBSize);
 
-      if(iHRange < iVRange || iHRange < L2C_W)
+      if(iHRange < iVRange || iHRange < L2P_W)
         iVRange -= AL_IS_AVC(pChParam->eProfile) ? ME_HMIN_AVC : ME_HMIN_HEVC;
       else
         break;
@@ -94,7 +94,7 @@ void AL_L2C_GetL2CacheMaxRange(AL_TEncChanParam const* pChParam, AL_ESliceType e
   }
   else
   {
-    int iTileWidth = ALIGN_UP(iPictWidth / uNumCore, L2C_W);
+    int iTileWidth = ALIGN_UP(iPictWidth / uNumCore, L2P_W);
 
     iVRange = 64;
 
@@ -105,10 +105,10 @@ void AL_L2C_GetL2CacheMaxRange(AL_TEncChanParam const* pChParam, AL_ESliceType e
       iTmp1 = uNumCore * (2 * iVRange * iTileWidth + 2 * iCTBSize * iCTBSize);
       iTmp2 = 2 * (2 * iVRange + iCTBSize) * (uNumCore - 1) + 2 * uNumCore * iCTBSize;
 
-      iHRange = ALIGN_DOWN((iCacheSize - iTmp1) / iTmp2, L2C_H);
+      iHRange = ALIGN_DOWN((iPrefetchSize - iTmp1) / iTmp2, L2P_H);
 
-      if(iHRange < iVRange || iHRange < L2C_W)
-        iVRange -= L2C_H;
+      if(iHRange < iVRange || iHRange < L2P_W)
+        iVRange -= L2P_H;
       else
         break;
     }
@@ -122,9 +122,9 @@ void AL_L2C_GetL2CacheMaxRange(AL_TEncChanParam const* pChParam, AL_ESliceType e
 }
 
 /****************************************************************************/
-static uint32_t AL_sL2Cache_GetL2CacheSize(AL_TEncChanParam const* pChParam, uint8_t uNumCore, int iHRange, int iVRange)
+static uint32_t AL_sL2Prefetch_GetL2PrefetchSize(AL_TEncChanParam const* pChParam, uint8_t uNumCore, int iHRange, int iVRange)
 {
-  uint32_t uCacheMinSize = 0;
+  uint32_t uPrefetchMinSize = 0;
 
   int iLcuSize;
 
@@ -133,64 +133,64 @@ static uint32_t AL_sL2Cache_GetL2CacheSize(AL_TEncChanParam const* pChParam, uin
   else
   iLcuSize = 32;
 
-  iHRange = ALIGN_UP(iHRange, L2C_W);
-  iVRange = ALIGN_UP(iVRange, L2C_H);
+  iHRange = ALIGN_UP(iHRange, L2P_W);
+  iVRange = ALIGN_UP(iVRange, L2P_H);
 
   if(pChParam->eOptions & AL_OPT_WPP)
   {
-    int iCacheWidth = ALIGN_UP(pChParam->uWidth, L2C_W);
-    int iCoreGap = (uNumCore > 1) ? L2C_WPP_CORE_GAP : 0;
-    uCacheMinSize += uNumCore * iLcuSize * ALIGN_UP(iLcuSize * 2 * (iCoreGap + 1) + 2 * iHRange, L2C_W);
-    uCacheMinSize += 2 * (iVRange * iCacheWidth - ALIGN_UP(iCoreGap * uNumCore * iLcuSize, L2C_W));
+    int iPrefetchWidth = ALIGN_UP(pChParam->uWidth, L2P_W);
+    int iCoreGap = (uNumCore > 1) ? L2P_WPP_CORE_GAP : 0;
+    uPrefetchMinSize += uNumCore * iLcuSize * ALIGN_UP(iLcuSize * 2 * (iCoreGap + 1) + 2 * iHRange, L2P_W);
+    uPrefetchMinSize += 2 * (iVRange * iPrefetchWidth - ALIGN_UP(iCoreGap * uNumCore * iLcuSize, L2P_W));
   }
   else
   {
-    int iTileWidth = ALIGN_UP(pChParam->uWidth / uNumCore, L2C_W);
+    int iTileWidth = ALIGN_UP(pChParam->uWidth / uNumCore, L2P_W);
 
-    uCacheMinSize += uNumCore * (2 * iVRange * iTileWidth + iLcuSize * 2 * (iHRange + iLcuSize));
-    uCacheMinSize += (uNumCore - 1) * (2 * iVRange + iLcuSize) * 2 * iHRange;
+    uPrefetchMinSize += uNumCore * (2 * iVRange * iTileWidth + iLcuSize * 2 * (iHRange + iLcuSize));
+    uPrefetchMinSize += (uNumCore - 1) * (2 * iVRange + iLcuSize) * 2 * iHRange;
   }
-  uCacheMinSize += L2C_W * iLcuSize * uNumCore; // Recycling margin : LCU step are smaller than the L2C tile width, so the tiles can not be recycled at each step.
+  uPrefetchMinSize += L2P_W * iLcuSize * uNumCore; // Recycling margin : LCU step are smaller than the L2P tile width, so the tiles can not be recycled at each step.
 
-  uCacheMinSize += L2C_REFILL_MARGIN * L2C_W * L2C_H * uNumCore;
+  uPrefetchMinSize += L2P_REFILL_MARGIN * L2P_W * L2P_H * uNumCore;
 
   if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == CHROMA_4_2_0)
-    uCacheMinSize += (uCacheMinSize >> 1);
+    uPrefetchMinSize += (uPrefetchMinSize >> 1);
   else if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == CHROMA_4_2_2)
-    uCacheMinSize += uCacheMinSize;
+    uPrefetchMinSize += uPrefetchMinSize;
 
-  uCacheMinSize = uCacheMinSize * HW_IP_BIT_DEPTH / 8;
+  uPrefetchMinSize = uPrefetchMinSize * HW_IP_BIT_DEPTH / 8;
 
   if(pChParam->tGopParam.uNumB || (pChParam->tGopParam.eMode == AL_GOP_MODE_LOW_DELAY_B && pChParam->tGopParam.uGopLength))
-    uCacheMinSize <<= 1;
+    uPrefetchMinSize <<= 1;
 
-  return uCacheMinSize;
+  return uPrefetchMinSize;
 }
 
 /****************************************************************************/
-uint32_t AL_L2C_GetL2CacheMinSize(AL_TEncChanParam const* pChParam, uint8_t uNumCore)
+uint32_t AL_L2P_GetL2PrefetchMinSize(AL_TEncChanParam const* pChParam, uint8_t uNumCore)
 {
-  int iHRange = L2C_W;
+  int iHRange = L2P_W;
   int iVRange = AL_IS_AVC(pChParam->eProfile) ? ME_HMIN_AVC : ME_HMIN_HEVC;
 
-  return AL_sL2Cache_GetL2CacheSize(pChParam, uNumCore, iHRange, iVRange);
+  return AL_sL2Prefetch_GetL2PrefetchSize(pChParam, uNumCore, iHRange, iVRange);
 }
 
 /****************************************************************************/
-uint32_t AL_L2C_GetL2CacheMaxSize(AL_TEncChanParam const* pChParam, uint8_t uNumCore)
+uint32_t AL_L2P_GetL2PrefetchMaxSize(AL_TEncChanParam const* pChParam, uint8_t uNumCore)
 {
   uint32_t uResMax;
-  uint32_t uMin = AL_L2C_GetL2CacheMinSize(pChParam, uNumCore);
+  uint32_t uMin = AL_L2P_GetL2PrefetchMinSize(pChParam, uNumCore);
   int iLcuSize = 1 << pChParam->uMaxCuSize;
-  int iHRange = ALIGN_UP(pChParam->uWidth, L2C_W);
-  int iVRange = ALIGN_UP(pChParam->uHeight, L2C_H);
+  int iHRange = ALIGN_UP(pChParam->uWidth, L2P_W);
+  int iVRange = ALIGN_UP(pChParam->uHeight, L2P_H);
   uint32_t uMax1, uMax2, uMax3;
 
   // Max Size from Max Range
-  uMax1 = AL_sL2Cache_GetL2CacheSize(pChParam, uNumCore, iHRange, iVRange);
+  uMax1 = AL_sL2Prefetch_GetL2PrefetchSize(pChParam, uNumCore, iHRange, iVRange);
 
   // Max size from picture Width
-  uMax2 = (iVRange + iLcuSize + iVRange) * ALIGN_UP(pChParam->uWidth, L2C_W);
+  uMax2 = (iVRange + iLcuSize + iVRange) * ALIGN_UP(pChParam->uWidth, L2P_W);
 
   if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == CHROMA_4_2_0)
     uMax2 += (uMax2 >> 1);
@@ -198,13 +198,13 @@ uint32_t AL_L2C_GetL2CacheMaxSize(AL_TEncChanParam const* pChParam, uint8_t uNum
     uMax2 += uMax2;
   uMax2 = uMax2 * HW_IP_BIT_DEPTH / 8;
 
-  // Max Size shall not exceed the maximum number of L2C block addr in the L2C controller
-  uMax3 = ((pChParam->eOptions & AL_OPT_WPP) && pChParam->uNumCore > 1) ? L2C_MAX_BLOCK * 2 : L2C_MAX_BLOCK;
+  // Max Size shall not exceed the maximum number of L2P block addr in the L2P controller
+  uMax3 = ((pChParam->eOptions & AL_OPT_WPP) && pChParam->uNumCore > 1) ? L2P_MAX_BLOCK * 2 : L2P_MAX_BLOCK;
 
   if(pChParam->tGopParam.uNumB > 0 || pChParam->tGopParam.eMode == AL_GOP_MODE_LOW_DELAY_B)
     uMax3 /= 2; // half/half split  for 2 references
-  uMax3 -= (ALIGN_UP(pChParam->uWidth, L2C_W) / L2C_W) * ((1 << pChParam->uMaxCuSize) / L2C_H); // 1 LCU Row margin for loop-back
-  uMax3 *= L2C_W * L2C_H; // size in number of block to size in bytes (luma)
+  uMax3 -= (ALIGN_UP(pChParam->uWidth, L2P_W) / L2P_W) * ((1 << pChParam->uMaxCuSize) / L2P_H); // 1 LCU Row margin for loop-back
+  uMax3 *= L2P_W * L2P_H; // size in number of block to size in bytes (luma)
 
   if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == CHROMA_4_2_0)
     uMax3 += (uMax3 >> 1);

@@ -90,6 +90,12 @@ void AL_BufferFeeder_Flush(AL_TBufferFeeder* this)
   AL_DecoderFeeder_Flush(this->decoderFeeder);
 }
 
+void AL_BufferFeeder_ForceStop(AL_TBufferFeeder* this)
+{
+  this->eosBuffer = NULL;
+  AL_DecoderFeeder_ForceStop(this->decoderFeeder);
+}
+
 void AL_BufferFeeder_Destroy(AL_TBufferFeeder* this)
 {
   AL_DecoderFeeder_Destroy(this->decoderFeeder);

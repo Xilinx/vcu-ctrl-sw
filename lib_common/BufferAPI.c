@@ -36,24 +36,34 @@
 ******************************************************************************/
 
 #include "lib_common/BufferAPI.h"
-#include "List.h"
 #include "assert.h"
-
-typedef struct al_t_MetaItem
-{
-  AL_ListHead list;
-  AL_TMetaData* pMeta;
-}AL_TMetaItem;
 
 typedef struct al_t_BufferImpl
 {
   AL_TBuffer buf;
   AL_MUTEX pLock;
-  int iRefCount;
-  AL_ListHead metaList;
+  int32_t iRefCount;
+
+  AL_TMetaData** pMeta;
+  int iMetaCount;
+
   void* pUserData; /*!< user private data */
   PFN_RefCount_CallBack pCallBack; /*!< user callback. called when the buffer refcount reaches 0 */
 }AL_TBufferImpl;
+
+static void* Realloc(void* pPtr, size_t zOldSize, size_t zNewSize)
+{
+  void* pNewPtr = Rtos_Malloc(zNewSize);
+
+  if(pPtr)
+  {
+    size_t zSizeToCopy = zOldSize < zNewSize ? zOldSize : zNewSize;
+    Rtos_Memcpy(pNewPtr, pPtr, zSizeToCopy);
+  }
+
+  Rtos_Free(pPtr);
+  return pNewPtr;
+}
 
 static bool AL_Buffer_InitData(AL_TBufferImpl* pBuf, AL_TAllocator* pAllocator, AL_HANDLE hBuf, size_t zSize, PFN_RefCount_CallBack pCallBack)
 {
@@ -62,7 +72,8 @@ static bool AL_Buffer_InitData(AL_TBufferImpl* pBuf, AL_TAllocator* pAllocator, 
   pBuf->pCallBack = pCallBack;
   pBuf->buf.hBuf = hBuf;
   pBuf->buf.pData = AL_Allocator_GetVirtualAddr(pAllocator, pBuf->buf.hBuf);
-  AL_ListHeadInit(&pBuf->metaList);
+  pBuf->pMeta = NULL;
+  pBuf->iMetaCount = 0;
 
   pBuf->iRefCount = 0;
   pBuf->pLock = Rtos_CreateMutex(false);
@@ -112,10 +123,13 @@ AL_TBuffer* AL_Buffer_Create_And_Allocate(AL_TAllocator* pAllocator, size_t zSiz
 {
   AL_HANDLE hBuf = AL_Allocator_Alloc(pAllocator, zSize);
 
+  if(!hBuf)
+    return NULL;
+
   AL_TBuffer* pBuf = createBuffer(pAllocator, hBuf, zSize, pCallBack);
 
   if(!pBuf)
-    AL_Allocator_Free(pAllocator, pBuf->hBuf);
+    AL_Allocator_Free(pAllocator, hBuf);
 
   return pBuf;
 }
@@ -123,14 +137,11 @@ AL_TBuffer* AL_Buffer_Create_And_Allocate(AL_TAllocator* pAllocator, size_t zSiz
 void AL_Buffer_Destroy(AL_TBuffer* hBuf)
 {
   AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
-  AL_TMetaItem* item, * tmp;
 
-  AL_ListForEachEntrySafe(item, tmp, &pBuf->metaList, list, AL_TMetaItem)
-  {
-    AL_ListDel(&item->list);
-    item->pMeta->MetaDestroy(item->pMeta);
-    Rtos_Free(item);
-  }
+  for(int i = 0; i < pBuf->iMetaCount; ++i)
+    pBuf->pMeta[i]->MetaDestroy(pBuf->pMeta[i]);
+
+  Rtos_Free(pBuf->pMeta);
 
   Rtos_DeleteMutex(pBuf->pLock);
   Rtos_Free(pBuf);
@@ -173,9 +184,7 @@ size_t AL_Buffer_GetSizeData(AL_TBuffer* pBuf)
 void AL_Buffer_Ref(AL_TBuffer* hBuf)
 {
   AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
-  Rtos_GetMutex(pBuf->pLock);
-  ++pBuf->iRefCount;
-  Rtos_ReleaseMutex(pBuf->pLock);
+  Rtos_AtomicIncrement(&pBuf->iRefCount);
 }
 
 /****************************************************************************/
@@ -183,20 +192,13 @@ void AL_Buffer_Unref(AL_TBuffer* hBuf)
 {
   AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
 
-  Rtos_GetMutex(pBuf->pLock);
-  --pBuf->iRefCount;
-  assert(pBuf->iRefCount >= 0);
+  int iRefCount = Rtos_AtomicDecrement(&pBuf->iRefCount);
+  assert(iRefCount >= 0);
 
-  if(pBuf->iRefCount <= 0)
+  if(iRefCount <= 0)
   {
-    Rtos_ReleaseMutex(pBuf->pLock);
-
     if(pBuf->pCallBack)
       pBuf->pCallBack(hBuf);
-  }
-  else
-  {
-    Rtos_ReleaseMutex(pBuf->pLock);
   }
 }
 
@@ -204,14 +206,14 @@ void AL_Buffer_Unref(AL_TBuffer* hBuf)
 AL_TMetaData* AL_Buffer_GetMetaData(AL_TBuffer const* hBuf, AL_EMetaType eType)
 {
   AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
-  AL_TMetaItem* item;
   Rtos_GetMutex(pBuf->pLock);
-  AL_ListForEachEntry(item, &pBuf->metaList, list, AL_TMetaItem)
+
+  for(int i = 0; i < pBuf->iMetaCount; ++i)
   {
-    if(item->pMeta->eType == eType)
+    if(pBuf->pMeta[i]->eType == eType)
     {
       Rtos_ReleaseMutex(pBuf->pLock);
-      return item->pMeta;
+      return pBuf->pMeta[i];
     }
   }
 
@@ -223,15 +225,23 @@ AL_TMetaData* AL_Buffer_GetMetaData(AL_TBuffer const* hBuf, AL_EMetaType eType)
 bool AL_Buffer_AddMetaData(AL_TBuffer* hBuf, AL_TMetaData* pMeta)
 {
   AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
-  AL_TMetaItem* pItem = Rtos_Malloc(sizeof(*pItem));
-
-  if(!pItem)
-    return false;
-
-  pItem->pMeta = pMeta;
 
   Rtos_GetMutex(pBuf->pLock);
-  AL_ListAddTail(&pItem->list, &pBuf->metaList);
+
+  size_t const zOldSize = sizeof(AL_TMetaData*) * pBuf->iMetaCount;
+  size_t const zNewSize = sizeof(AL_TMetaData*) * (pBuf->iMetaCount + 1);
+  AL_TMetaData** pNewBuffer = Realloc(pBuf->pMeta, zOldSize, zNewSize);
+
+  if(!pNewBuffer)
+  {
+    Rtos_ReleaseMutex(pBuf->pLock);
+    return false;
+  }
+
+  pBuf->pMeta = pNewBuffer;
+  pBuf->pMeta[pBuf->iMetaCount] = pMeta;
+  pBuf->iMetaCount++;
+
   Rtos_ReleaseMutex(pBuf->pLock);
 
   return true;
@@ -241,16 +251,16 @@ bool AL_Buffer_AddMetaData(AL_TBuffer* hBuf, AL_TMetaData* pMeta)
 bool AL_Buffer_RemoveMetaData(AL_TBuffer* hBuf, AL_TMetaData* pMeta)
 {
   AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
-  AL_TMetaItem* item;
-  AL_TMetaItem* tmp;
 
   Rtos_GetMutex(pBuf->pLock);
-  AL_ListForEachEntrySafe(item, tmp, &pBuf->metaList, list, AL_TMetaItem)
+
+  for(int i = 0; i < pBuf->iMetaCount; ++i)
   {
-    if(item->pMeta == pMeta)
+    if(pBuf->pMeta[i] == pMeta)
     {
-      AL_ListDel(&item->list);
-      Rtos_Free(item);
+      pBuf->pMeta[i] = pBuf->pMeta[pBuf->iMetaCount - 1];
+      pBuf->pMeta = Realloc(pBuf->pMeta, sizeof(void*) * pBuf->iMetaCount, sizeof(void*) * (pBuf->iMetaCount - 1));
+      pBuf->iMetaCount--;
       Rtos_ReleaseMutex(pBuf->pLock);
       return true;
     }
@@ -258,40 +268,5 @@ bool AL_Buffer_RemoveMetaData(AL_TBuffer* hBuf, AL_TMetaData* pMeta)
 
   Rtos_ReleaseMutex(pBuf->pLock);
   return false;
-}
-
-/****************************************************************************/
-AL_TMetaData* AL_Buffer_IterateMetaData(AL_TBuffer* hBuf, AL_HANDLE* hState)
-{
-  AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
-  AL_TMetaItem* item;
-
-  AL_ListHead** pState = (AL_ListHead**)hState;
-  AL_ListHead* pHead = *pState;
-
-  /* if the iteration has ended */
-  if(pHead != NULL && pHead->pNext == &pBuf->metaList)
-  {
-    *pState = NULL;
-    return NULL;
-  }
-
-  /* if state null, take the first metadata */
-  if(pHead == NULL)
-    pHead = &pBuf->metaList;
-
-  Rtos_GetMutex(pBuf->pLock);
-
-  if(AL_ListEmpty(pHead))
-  {
-    Rtos_ReleaseMutex(pBuf->pLock);
-    return NULL;
-  }
-
-  item = AL_ListFirstEntry(pHead, AL_TMetaItem, list);
-  *pState = (pHead)->pNext;
-
-  Rtos_ReleaseMutex(pBuf->pLock);
-  return item->pMeta;
 }
 

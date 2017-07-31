@@ -194,3 +194,21 @@
   Missing feature(s) :
     -- long terms
 
+2017-07-28 (v1.0.35)
+--------------------
+
+  Added features (Codec) :
+    -- fix crashes when the dma allocation failed
+    -- fix freqIDR
+    -- external SEI support (encode)
+    -- Fix command line parsing : hexadecimal value are allowed again
+
+  API:
+    -- export less headers in include: We do not export IScheduler.h anymore.
+    -- exe_encoder and exe_decoder do not depend on any internal headers anymore
+    -- add API to add section in the stream buffer from outside lib_encode (external SEI support)
+    -- add decoder AL_Decoder_ForceStop API to terminate decoding regardless of remaining data in 
+       the circular buffer and/or input buffer(s), only wait for end of command already sent to the MCU.
+
+  Missing feature(s) :
+    -- long terms

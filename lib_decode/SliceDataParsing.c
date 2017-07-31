@@ -97,7 +97,7 @@ static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecP
   uint16_t uWidth = pPP->PicWidth << 3;
   uint16_t uHeight = pPP->PicHeight << 3;
 
-  uint32_t uLumaSize = AL_PictMngr_GetReferenceSize(uWidth, uHeight, CHROMA_MONO, pPP->MaxBitDepth);
+  uint32_t uLumaSize = AL_GetAllocSize_Reference(uWidth, uHeight, CHROMA_MONO, pPP->MaxBitDepth);
   uint16_t uPitch = RndPitch(uWidth, pPP->MaxBitDepth);
 
   if(pCtx->m_chanParam.eFBStorageMode != AL_FB_RASTER)
@@ -115,10 +115,10 @@ static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecP
   pBufs->tRecC.tMD.uPhysicalAddr = AL_Allocator_GetPhysicalAddr(pCtx->m_pRec->pAllocator, pCtx->m_pRec->hBuf) + uLumaSize;
   pBufs->tRecC.tMD.pVirtualAddr = pCtx->m_pRec->pData + uLumaSize;
 
-  uint32_t uBufferSize = AL_PictMngr_GetReferenceSize(uWidth, uHeight, pPP->ChromaMode, pPP->MaxBitDepth);
+  uint32_t uBufferSize = AL_GetAllocSize_Reference(uWidth, uHeight, pPP->ChromaMode, pPP->MaxBitDepth);
   pBufs->tRecFbcMapY.tMD.uPhysicalAddr = AL_Allocator_GetPhysicalAddr(pCtx->m_pRec->pAllocator, pCtx->m_pRec->hBuf) + uBufferSize;
   pBufs->tRecFbcMapY.tMD.pVirtualAddr = pCtx->m_pRec->pData + uBufferSize;
-  uint32_t uChromaMapOffset = uBufferSize + AL_PictMngr_GetLumaMapSize(uWidth, uHeight, pCtx->m_chanParam.eFBStorageMode);
+  uint32_t uChromaMapOffset = uBufferSize + AL_GetAllocSize_LumaMap(uWidth, uHeight, pCtx->m_chanParam.eFBStorageMode);
   pBufs->tRecFbcMapC.tMD.uPhysicalAddr = AL_Allocator_GetPhysicalAddr(pCtx->m_pRec->pAllocator, pCtx->m_pRec->hBuf) + uChromaMapOffset;
   pBufs->tRecFbcMapC.tMD.pVirtualAddr = pCtx->m_pRec->pData + uChromaMapOffset;
 
@@ -270,6 +270,13 @@ static void AL_TerminateCurrentCommand(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, A
 
   AL_sSaveCommandBlk2(pCtx, pPP, pBufs);
   pushCommandParameters(pCtx, pSP, true);
+}
+
+/*****************************************************************************/
+void AL_SetConcealParameters(AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP)
+{
+  pSP->ConcealPicID = AL_PictMngr_GetLastPicID(&pCtx->m_PictMngr);
+  pSP->ValidConceal = (pSP->ConcealPicID == uEndOfList) ? false : true;
 }
 
 /*****************************************************************************/

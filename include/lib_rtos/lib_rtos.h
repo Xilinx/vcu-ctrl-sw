@@ -120,6 +120,12 @@ void Rtos_DriverClose(void* drv);
 int Rtos_DriverIoctl(void* drv, int req, void* data);
 
 /****************************************************************************/
+/*  Atomics */
+/****************************************************************************/
+int32_t Rtos_AtomicIncrement(int32_t* iVal);
+int32_t Rtos_AtomicDecrement(int32_t* iVal);
+
+/****************************************************************************/
 
 /*@}*/
 

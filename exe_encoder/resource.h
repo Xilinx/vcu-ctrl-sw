@@ -1,7 +1,7 @@
 #define IDI_ICON1 101
 
-#define IP_VERSION 1, 0, 34
-#define IP_VERSION_STR "1,0,34"
+#define IP_VERSION 1, 0, 35
+#define IP_VERSION_STR "1,0,35"
 
 #define IP_ENCODER_NAME_PART1 "AVC/"
 #define IP_ENCODER_NAME_PART2 "HEVC"

@@ -125,8 +125,9 @@ typedef enum __AL_ALIGNED__ (4) AL_e_Profile
 typedef enum AL_e_GdrMode
 {
   AL_GDR_OFF = 0x00,
-  AL_GDR_VERTICAL = 0x02,
-  AL_GDR_HORIZONTAL = 0x03,
+  AL_GDR_ON = 0x02,
+  AL_GDR_VERTICAL = AL_GDR_ON | 0x00,
+  AL_GDR_HORIZONTAL = AL_GDR_ON | 0x01
 }AL_EGdrMode;
 
 /****************************************************************************/
@@ -144,10 +145,10 @@ typedef enum AL_e_Codec
 *****************************************************************************/
 typedef enum e_ScalingList
 {
-  FLAT = 0,
-  DEFAULT = 1,
-  CUSTOM = 2,
-  RANDOM_SCL = 3
+  AL_SCL_FLAT = 0,
+  AL_SCL_DEFAULT = 1,
+  AL_SCL_CUSTOM = 2,
+  AL_SCL_RANDOM = 3
 }AL_EScalingList;
 
 /*************************************************************************//*!
@@ -464,4 +465,27 @@ typedef enum AL_e_FbStorageMode
   AL_FB_TILE_32x4 = 2,
   AL_FB_TILE_64x4 = 3
 }AL_EFbStorageMode;
+
+/*************************************************************************//*!
+   \brief Struct for dimension
+*****************************************************************************/
+typedef struct
+{
+  int iWidth;
+  int iHeight;
+}AL_TDimension;
+
+/****************************************************************************/
+typedef enum e_SeiFlag
+{
+  SEI_NONE = 0x00000000, // no SEI
+
+  SEI_BP = 0x00000001, // Buffering period
+  SEI_PT = 0x00000002, // Picture Timing
+  SEI_FILL = 0x00000004, // Filler
+  SEI_RP = 0x00000008, // Recovery Point
+  SEI_SVI = 0x00010000, // Stereo Video Info
+
+  SEI_ALL = 0x00FFFFFF, // All supported SEI
+}AL_SeiFlag;
 

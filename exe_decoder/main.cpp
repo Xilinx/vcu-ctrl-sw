@@ -52,9 +52,6 @@ extern "C"
 {
 #include "lib_app/BufPool.h"
 #include "lib_common/BufferSrcMeta.h"
-
-#include "lib_common_dec/DecError.h"
-
 #include "lib_decode/lib_decode.h"
 #include "lib_common_dec/IpDecFourCC.h"
 #include "lib_common/FourCC.h"
@@ -72,6 +69,8 @@ extern "C"
 #include "CodecUtils.h"
 #include "crc.h"
 
+
+#define BUFFER_HELD_BY_NEXT_COMPONENT 1 /* We need at lease 1 buffer to copy the output on a file */
 
 using namespace std;
 
@@ -117,7 +116,6 @@ AL_TDecSettings getDefaultDecSettings()
   settings.eDecUnit = AL_AU_UNIT;
   settings.eDpbMode = AL_DPB_NORMAL;
   settings.eFBStorageMode = AL_FB_RASTER;
-  settings.iNumBufHeldByNextComponent = 2;
 
   return settings;
 }
@@ -158,6 +156,12 @@ static void Usage(CommandLineParser const& opt, char* ExeName)
   cerr << "  " << ExeName << " -avc  -in bitstream.264 -out decoded.yuv -bd 8 " << endl;
   cerr << "  " << ExeName << " -hevc -in bitstream.265 -out decoded.yuv -bd 10" << endl;
   cerr << endl;
+}
+
+template<int Offset>
+static int IntWithOffset(const string& word)
+{
+  return atoi(word.c_str()) + Offset;
 }
 
 /******************************************************************************/
@@ -208,10 +212,7 @@ static Config ParseCommandLine(int argc, char* argv[])
     Config.iNumberTrace = 1;
   }, "First frame to trace (optional)");
 
-  opt.addOption("-clk", [&]()
-  {
-    Config.tDecSettings.uClkRatio = opt.popInt() + 1000;
-  }, "Set clock ratio");
+  opt.addCustom("-clk", &Config.tDecSettings.uClkRatio, &IntWithOffset<1000>, "Set clock ratio");
 
   opt.addFlag("-slicelat", &Config.tDecSettings.eDecUnit,
               "Specify decoder latency (default: Frame Latency)",
@@ -471,6 +472,11 @@ static void ProcessFrame(AL_TBuffer& tRecBuf, AL_TBuffer& tYuvBuf, AL_TInfoDecod
 /******************************************************************************/
 struct TCbParam
 {
+  ~TCbParam()
+  {
+    Rtos_DeleteEvent(hFinished);
+  }
+
   AL_HDecoder hDec;
   AL_EVENT hFinished;
   ofstream& YuvFile;
@@ -486,7 +492,7 @@ struct ResChgParam
 {
   AL_HDecoder hDec;
   bool bPoolIsInit;
-  AL_TBufPool BufPool;
+  BufPool bufPool;
   AL_TAllocator* pAllocator;
   mutex hMutex;
 };
@@ -568,24 +574,24 @@ static void sResolutionFound(int BufferNumber, int BufferSize, int iWidth, int i
   AL_TBufPoolConfig BufPoolConfig;
 
   BufPoolConfig.zBufSize = BufferSize;
-  BufPoolConfig.uMaxBuf = BufferNumber;
-  BufPoolConfig.uMinBuf = BufferNumber;
+  BufPoolConfig.uMaxBuf = BufferNumber + BUFFER_HELD_BY_NEXT_COMPONENT;
+  BufPoolConfig.uMinBuf = BufferNumber + BUFFER_HELD_BY_NEXT_COMPONENT;
 
   AL_TPitches tPitches {};
   AL_TOffsetYC tOffsetYC {};
   BufPoolConfig.pMetaData = (AL_TMetaData*)AL_SrcMetaData_Create(iWidth, iHeight, tPitches, tOffsetYC, tFourCC);
 
-  if(!AL_BufPool_Init(&p->BufPool, p->pAllocator, &BufPoolConfig))
+  if(!AL_BufPool_Init(&p->bufPool, p->pAllocator, &BufPoolConfig))
     throw codec_error(ERR_NO_MORE_MEMORY);
 
   p->bPoolIsInit = true;
 
   for(int i = 0; i < BufferNumber; ++i)
   {
-    auto pDecPict = AL_BufPool_GetBuffer(&p->BufPool, AL_BUF_MODE_NONBLOCK);
+    auto pDecPict = AL_BufPool_GetBuffer(&p->bufPool, AL_BUF_MODE_NONBLOCK);
     assert(pDecPict);
     AL_Decoder_PutDecPict(p->hDec, pDecPict);
-    AL_BufPool_ReleaseBuffer(&p->BufPool, pDecPict);
+    AL_BufPool_ReleaseBuffer(&p->bufPool, pDecPict);
   }
 }
 
@@ -678,18 +684,10 @@ void SafeMain(int argc, char** argv)
     NULL, NULL, ofYuvFile, IpCrcFile, CertCrcFile, YuvBuffer, Config.tDecSettings.iBitDepth, 0, {}
   };
   tDisplayParam.hFinished = Rtos_CreateEvent(false);
-  auto scopeMutex = scopeExit([&]() {
-    Rtos_DeleteEvent(tDisplayParam.hFinished);
-  });
 
   ResChgParam ResolutionFoundParam;
   ResolutionFoundParam.pAllocator = pAllocator;
   ResolutionFoundParam.bPoolIsInit = false;
-
-  auto scopeBufPool = scopeExit([&]() {
-    if(ResolutionFoundParam.bPoolIsInit)
-      AL_BufPool_Deinit(&ResolutionFoundParam.BufPool);
-  });
 
   DecodeParam tDecodeParam {};
   AL_TDecSettings Settings = Config.tDecSettings;
@@ -718,7 +716,7 @@ void SafeMain(int argc, char** argv)
 
   AL_Decoder_SetParam(hDec, Config.bConceal, iUseBoard ? true : false, Config.iNumTrace, Config.iNumberTrace);
 
-  AL_TBufPool bufPool;
+  BufPool bufPool;
 
   {
     AL_TBufPoolConfig BufPoolConfig {};
@@ -733,10 +731,6 @@ void SafeMain(int argc, char** argv)
     if(!ret)
       throw runtime_error("Can't create BufPool");
   }
-
-  auto destroyBufPool = scopeExit([&]() {
-    AL_BufPool_Deinit(&bufPool);
-  });
 
   // Initial stream buffer filling
   auto const uBegin = GetPerfTime();

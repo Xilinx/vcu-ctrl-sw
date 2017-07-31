@@ -43,7 +43,7 @@
 extern "C"
 {
 #include "lib_common_enc/Settings.h"
-#include "lib_encode/IScheduler.h"
+#include "lib_encode/lib_encoder.h"
 }
 
 typedef struct AL_t_Allocator AL_TAllocator;
@@ -58,7 +58,6 @@ struct CIpDevice
   };
   TScheduler* m_pScheduler = nullptr;
   AL_TAllocator* m_pAllocator = nullptr;
-  virtual void GetBoardInformation() {};
   std::function<void(void)> destroy;
 };
 

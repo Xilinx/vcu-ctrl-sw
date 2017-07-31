@@ -109,34 +109,6 @@ static uint32_t GetLumaRowSize(TFourCC fourCC, uint32_t uWidth)
   return uRowSizeLuma;
 }
 
-static uint32_t GetFileLumaSize(AL_TSrcMetaData* pSrcMeta, uint32_t uRowSize)
-{
-  return pSrcMeta->iHeight * uRowSize;
-}
-
-static uint32_t GetFileChromaSize(AL_TSrcMetaData* pSrcMeta, uint32_t uRowSize)
-{
-  uint32_t uFileNumRow = pSrcMeta->iHeight;
-  uint32_t uNumRowC = (AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_0) ? uFileNumRow >> 1 : uFileNumRow;
-  return uRowSize * uNumRowC;
-}
-
-bool IsLastFrameInFile(std::ifstream& File, AL_TBuffer* pBuf)
-{
-  AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
-  uint32_t uRowSize = GetLumaRowSize(pSrcMeta->tFourCC, pSrcMeta->iWidth);
-  uint32_t uSize = GetFileLumaSize(pSrcMeta, uRowSize);
-  uSize += GetFileChromaSize(pSrcMeta, uRowSize);
-
-  auto curPos = File.tellg();
-
-  File.seekg(uSize - 1, std::ios::cur);
-  File.peek();
-  bool eof = File.eof();
-  File.seekg(curPos, std::ios::beg);
-  return eof;
-}
-
 /*****************************************************************************/
 static uint32_t ReadFileLumaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSize, uint32_t uFileNumRow, bool bPadding = false)
 {
@@ -581,19 +553,21 @@ unsigned int ReadNextFrameMV(std::ifstream& File, int& iX, int& iY)
 void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection)
 {
   AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
+  AL_TStreamSection* pCurSection = &pStreamMeta->pSections[iSection];
+  uint8_t* pData = pStream->pData;
 
-  if(pStreamMeta->pSections[iSection].uLength)
+  if(pCurSection->uLength)
   {
-    uint32_t uRemSize = pStream->zSize - pStreamMeta->pSections[iSection].uOffset;
+    uint32_t uRemSize = pStream->zSize - pCurSection->uOffset;
 
-    if(uRemSize < pStreamMeta->pSections[iSection].uLength)
+    if(uRemSize < pCurSection->uLength)
     {
-      File.write((char*)(pStream->pData + pStreamMeta->pSections[iSection].uOffset), uRemSize);
-      File.write((char*)pStream->pData, pStreamMeta->pSections[iSection].uLength - uRemSize);
+      File.write((char*)(pData + pCurSection->uOffset), uRemSize);
+      File.write((char*)pData, pCurSection->uLength - uRemSize);
     }
     else
     {
-      File.write((char*)(pStream->pData + pStreamMeta->pSections[iSection].uOffset), pStreamMeta->pSections[iSection].uLength);
+      File.write((char*)(pStream->pData + pCurSection->uOffset), pCurSection->uLength);
     }
   }
 }

@@ -12,7 +12,6 @@ LIB_COMMON_SRC:=\
 	lib_common/BufferSrcMeta.c\
 	lib_common/BufferCircMeta.c\
 	lib_common/BufferOffsetMeta.c\
-	lib_common/BufferSourceManagementMeta.c\
 	lib_common/BufferStreamMeta.c\
 	lib_common/BufferAccess.c\
 	lib_common/Fifo.c\

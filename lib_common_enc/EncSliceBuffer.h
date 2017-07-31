@@ -60,28 +60,11 @@ typedef struct t_SliceBuffersEnc
   TBuffer CompData; /*!< Pointer to the intermediate compressed buffer */
   TBuffer CompMap; /*!< Pointer to the intermediate compressed mapping */
 
-  TBuffer StrPart; /*!< Buffer receiving the encoded nal units map */
-
   TBuffer* pWPP; /*!< Pointer to Wavefront size buffer */
   TBufferEP* pEP1; /*!< Pointer to the lambdas & SclMtx buffer */
   TBufferEP* pEP2; /*!< Pointer to the QP table buffer */
   TBufferEP* pEP3; /*!< Pointer to the HwRcCtx buffer */
 
-  TCircBuffer* pStream;  /*!< Pointer to the bitstream buffer */
+  TCircBuffer Stream;
 }TSliceBuffersEnc;
-
-/*************************************************************************//*!
-   \brief Slice buffer information. This structure is a kind of shortcut to
-   the full Frame buffer
-*****************************************************************************/
-typedef struct t_SliceInfoYuv
-{
-  int iMBWidth; /*!< Slice width in Macroblock unit*/
-  int iMBHeight; /*!< Slice height in Macroblock unit*/
-  AL_EChromaMode eChromaMode; /*!< Chroma sampling mode */
-
-  uint8_t* pY; /*!< Shortcut pointer to the Luma plane */
-  uint8_t* pU; /*!< Shortcut pointer to the Chroma U plane */
-  uint8_t* pV; /*!< Shortcut pointer to the Chroma V plane */
-}TSliceInfoYuv;
 

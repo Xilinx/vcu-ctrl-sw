@@ -81,10 +81,13 @@ struct CommandLineParser
   {
     auto word = popWord();
     stringstream ss(word);
+    ss.unsetf(std::ios::dec);
+    ss.unsetf(std::ios::hex);
+
     int value;
     ss >> value;
 
-    if(ss.fail())
+    if(ss.fail() || ss.tellg() != streampos(-1))
       throw runtime_error("Expected an integer, got '" + word + "'");
 
     return value;
@@ -104,6 +107,19 @@ struct CommandLineParser
     Option o;
     o.parser = func;
     o.desc = makeDescription(name, "", desc_);
+    insertOption(name, o);
+  }
+
+  // add an option with a user-provided value parsing function
+  template<typename VariableType, typename ParserRetType>
+  void addCustom(string name, VariableType* value, ParserRetType (* customParser)(const string &), string desc_)
+  {
+    Option o;
+    o.parser = [=]()
+               {
+                 * value = (VariableType)customParser(popWord());
+               };
+    o.desc = makeDescription(name, "value", desc_);
     insertOption(name, o);
   }
 

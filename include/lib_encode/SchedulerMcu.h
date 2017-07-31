@@ -37,8 +37,10 @@
 
 #pragma once
 
-#include "lib_encode/IScheduler.h"
-#include "driverInterface.h"
+#include "lib_common/Allocator.h"
+
+typedef struct t_driver Driver;
+typedef struct t_Scheduler TScheduler;
 
 TScheduler* AL_SchedulerMcu_Create(Driver* driver, AL_TAllocator* pDmaAllocator);
 

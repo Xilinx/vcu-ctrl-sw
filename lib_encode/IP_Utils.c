@@ -42,7 +42,6 @@
 #include "IP_Utils.h"
 #include "lib_common/Utils.h"
 #include "IP_EncoderCtx.h"
-#include "lib_common/BufferStreamMeta.h"
 
 #include <assert.h>
 #include "lib_rtos/lib_rtos.h"
@@ -54,7 +53,7 @@
 /*************************************************************************//*!
    \brief AL_t_RPS: reference picture set
 *****************************************************************************/
-struct AL_t_RPS
+static struct AL_t_RPS
 {
   uint8_t uNumNegPics;
   uint8_t uNumPosPics;
@@ -186,107 +185,6 @@ static void AL_sReduction(uint32_t* pN, uint32_t* pD)
   }
 }
 
-/***************************************************************************/
-uint32_t AL_GetNumStuffingWords(int iNumBits, int iNumBins, int iNumLCU)
-{
-  int iStuffingBytes = ((3 * (iNumBins - 96 * iNumLCU)) + 31) / 32 - (iNumBits >> 3);
-
-  if(iStuffingBytes <= 0)
-    return 0;
-  else
-    return (iStuffingBytes + 2) / 3;
-}
-
-/***************************************************************************/
-uint32_t AL_AddStuffingWords(AL_TBuffer* pStream, uint16_t uSecID, uint32_t uDataSize, uint32_t uNumWords)
-{
-  if(uNumWords)
-  {
-    AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
-
-    uint32_t i;
-    uint32_t uOffset = (pMetaData->pSections[uSecID].uOffset + uDataSize) % pMetaData->uMaxSize;
-    uint32_t uStufSize = 3 * uNumWords;
-
-    uint32_t uRemSize = pMetaData->uMaxSize - uOffset;
-    uint32_t uAvailSize = pMetaData->uAvailSize - uDataSize;
-
-    uint8_t* pBuf = pStream->pData + uOffset;
-
-    uDataSize += uStufSize;
-
-    if(uStufSize > uAvailSize)
-    {
-      uStufSize = uAvailSize;
-      uNumWords = uStufSize / 3;
-    }
-
-    if(uRemSize < uStufSize)
-    {
-      i = uRemSize / 3;
-
-      uNumWords -= i + 1;
-
-      while(i-- > 0)
-      {
-        *pBuf++ = 0x00;
-        *pBuf++ = 0x00;
-        *pBuf++ = 0x03;
-      }
-      switch(uRemSize % 3)
-      {
-      case 0:
-        pBuf = pStream->pData;
-        break;
-      case 1:
-        *pBuf = 0x00;
-        pBuf = pStream->pData;
-        *pBuf++ = 0x00;
-        *pBuf++ = 0x03;
-        break;
-      case 2:
-        *pBuf++ = 0x00;
-        *pBuf = 0x00;
-        pBuf = pStream->pData;
-        *pBuf++ = 0x03;
-        break;
-      }
-    }
-    i = uNumWords;
-
-    while(i-- > 0)
-    {
-      *pBuf++ = 0x00;
-      *pBuf++ = 0x00;
-      *pBuf++ = 0x03;
-    }
-  }
-  return uDataSize;
-}
-
-/*****************************************************************************/
-void AL_ResetStreamInfo(TStreamInfo* pInfo)
-{
-  pInfo->uNumBins = 0;
-  pInfo->uNumBytes = 0;
-
-  pInfo->bLcuOverflow = false;
-  pInfo->bBufOverflow = false;
-}
-
-/*****************************************************************************/
-void AL_MergeStreamInfo(TStreamInfo* pInfo, TStreamInfo const* pNew)
-{
-  pInfo->uNumBytes += pNew->uNumBytes;
-  pInfo->uNumBins += pNew->uNumBins;
-
-  if(pNew->bLcuOverflow)
-    pInfo->bLcuOverflow = true;
-
-  if(pNew->bBufOverflow)
-    pInfo->bBufOverflow = true;
-}
-
 /****************************************************************************/
 static void fillScalingList(AL_TEncSettings* pSettings, uint8_t* pSL, int iSizeId, int iMatrixId, int iDir, uint8_t* uSLpresentFlag)
 {
@@ -320,7 +218,7 @@ void AL_AVC_SelectScalingList(AL_TAvcSps* pSPS, AL_TEncSettings* pSettings)
   int iDir, i;
   AL_EScalingList eScalingList = pSettings->eScalingList;
 
-  if(eScalingList == CUSTOM)
+  if(eScalingList == AL_SCL_CUSTOM)
   {
     pSPS->seq_scaling_matrix_present_flag = 1;
 
@@ -332,7 +230,7 @@ void AL_AVC_SelectScalingList(AL_TAvcSps* pSPS, AL_TEncSettings* pSettings)
       fillScalingList(pSettings, pSPS->scaling_list_param.ScalingList[0][(3 * iDir) + 2], 0, iDir * 3 + 2, iDir, &pSPS->seq_scaling_list_present_flag[iDir * 3 + 2]);
     }
   }
-  else if(eScalingList == DEFAULT)
+  else if(eScalingList == AL_SCL_DEFAULT)
   {
     pSPS->seq_scaling_matrix_present_flag = 1;
 
@@ -374,7 +272,7 @@ void AL_HEVC_SelectScalingList(AL_THevcSps* pSPS, AL_TEncSettings* pSettings)
 
   AL_EScalingList eScalingList = pSettings->eScalingList;
 
-  if(eScalingList == CUSTOM)
+  if(eScalingList == AL_SCL_CUSTOM)
   {
     pSPS->scaling_list_enabled_flag = 1;
     pSPS->sps_scaling_list_data_present_flag = 1;
@@ -419,7 +317,7 @@ void AL_HEVC_SelectScalingList(AL_THevcSps* pSPS, AL_TEncSettings* pSettings)
       }
     }
   }
-  else if(eScalingList == DEFAULT)
+  else if(eScalingList == AL_SCL_DEFAULT)
   {
     int iDir;
 
@@ -461,178 +359,9 @@ void AL_HEVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufE
 }
 
 /****************************************************************************/
-void AL_LoadQpByQpGroup(uint8_t const* pQPs, int iNumQpGrps, TBufferEP* pBufEP)
+static void AL_UpdateAspectRatio(AL_TVuiParam* pVuiParam, uint32_t uWidth, uint32_t uHeight, AL_EAspectRatio eAspectRatio)
 {
-  Rtos_Memcpy(pBufEP->tMD.pVirtualAddr + EP2_BUF_QP_BY_MB.Offset, pQPs, iNumQpGrps);
-
-  {
-    int iAlign = iNumQpGrps & 0x7F; // align up to 128 bytes burst
-
-    if(iAlign)
-      AL_CleanupMemory(pBufEP->tMD.pVirtualAddr + EP2_BUF_QP_BY_MB.Offset + iNumQpGrps, 0x80 - iAlign);
-  }
-
-  pBufEP->uFlags |= EP2_BUF_QP_BY_MB.Flag;
-}
-
-/****************************************************************************/
-void AL_AVC_UpdateAspectRatio(AL_TAvcSps* pSPS, uint32_t uWidth, uint32_t uHeight, AL_EAspectRatio eAspectRatio)
-{
-  bool bAuto = (eAspectRatio == ASPECT_RATIO_AUTO) ? true : false;
-  uint32_t uHeightRnd = (uHeight + 15) & ~15;
-
-  pSPS->vui_param.aspect_ratio_info_present_flag = 0;
-  pSPS->vui_param.aspect_ratio_idc = 0;
-  pSPS->vui_param.sar_width = 0;
-  pSPS->vui_param.sar_height = 0;
-
-  if(eAspectRatio == ASPECT_RATIO_NONE)
-    return;
-
-  if(bAuto)
-  {
-    if(uWidth <= 720)
-      eAspectRatio = ASPECT_RATIO_4_3;
-    else
-      eAspectRatio = ASPECT_RATIO_16_9;
-  }
-
-  if(eAspectRatio == ASPECT_RATIO_4_3)
-  {
-    if(uWidth == 352)
-    {
-      if(uHeight == 240)
-        pSPS->vui_param.aspect_ratio_idc = 3;
-      else if(uHeight == 288)
-        pSPS->vui_param.aspect_ratio_idc = 2;
-      else if(uHeight == 480)
-        pSPS->vui_param.aspect_ratio_idc = 7;
-      else if(uHeight == 576)
-        pSPS->vui_param.aspect_ratio_idc = 6;
-    }
-    else if(uWidth == 480)
-    {
-      if(uHeight == 480)
-        pSPS->vui_param.aspect_ratio_idc = 11;
-      else if(uHeight == 576)
-        pSPS->vui_param.aspect_ratio_idc = 10;
-    }
-    else if(uWidth == 528)
-    {
-      if(uHeight == 480)
-        pSPS->vui_param.aspect_ratio_idc = 5;
-      else if(uHeight == 576)
-        pSPS->vui_param.aspect_ratio_idc = 4;
-    }
-    else if(uWidth == 640)
-    {
-      if(uHeight == 480)
-        pSPS->vui_param.aspect_ratio_idc = 1;
-    }
-    else if(uWidth == 720)
-    {
-      if(uHeight == 480)
-        pSPS->vui_param.aspect_ratio_idc = 3;
-      else if(uHeight == 576)
-        pSPS->vui_param.aspect_ratio_idc = 2;
-    }
-    else if(uWidth == 1440)
-    {
-      if(uHeightRnd == 1088)
-        pSPS->vui_param.aspect_ratio_idc = 1;
-    }
-  }
-  else if(eAspectRatio == ASPECT_RATIO_16_9)
-  {
-    if(uWidth == 352)
-    {
-      if(uHeight == 480)
-        pSPS->vui_param.aspect_ratio_idc = 8;
-      else if(uHeight == 576)
-        pSPS->vui_param.aspect_ratio_idc = 9;
-    }
-    else if(uWidth == 480)
-    {
-      if(uHeight == 480)
-        pSPS->vui_param.aspect_ratio_idc = 7;
-      else if(uHeight == 576)
-        pSPS->vui_param.aspect_ratio_idc = 6;
-    }
-    else if(uWidth == 528)
-    {
-      if(uHeight == 480)
-        pSPS->vui_param.aspect_ratio_idc = 13;
-      else if(uHeight == 576)
-        pSPS->vui_param.aspect_ratio_idc = 12;
-    }
-    else if(uWidth == 720)
-    {
-      if(uHeight == 480)
-        pSPS->vui_param.aspect_ratio_idc = 5;
-      else if(uHeight == 576)
-        pSPS->vui_param.aspect_ratio_idc = 4;
-    }
-    else if(uWidth == 960)
-    {
-      if(uHeightRnd == 1088)
-        pSPS->vui_param.aspect_ratio_idc = 16;
-    }
-    else if(uWidth == 1280)
-    {
-      if(uHeight == 720)
-        pSPS->vui_param.aspect_ratio_idc = 1;
-      else if(uHeightRnd == 1088)
-        pSPS->vui_param.aspect_ratio_idc = 15;
-    }
-    else if(uWidth == 1440)
-    {
-      if(uHeightRnd == 1088)
-        pSPS->vui_param.aspect_ratio_idc = 14;
-    }
-    else if(uWidth == 1920)
-    {
-      if(uHeightRnd == 1088)
-        pSPS->vui_param.aspect_ratio_idc = 1;
-    }
-  }
-
-  if(!pSPS->vui_param.aspect_ratio_idc && !bAuto)
-  {
-    uint32_t uW = uWidth;
-    uint32_t uH = uHeight;
-
-    if(eAspectRatio == ASPECT_RATIO_4_3)
-    {
-      uW *= 3;
-      uH *= 4;
-    }
-    else if(eAspectRatio == ASPECT_RATIO_16_9)
-    {
-      uW *= 9;
-      uH *= 16;
-    }
-
-    if(uH != uW)
-    {
-      AL_sReduction(&uW, &uH);
-
-      pSPS->vui_param.sar_width = uH;
-      pSPS->vui_param.sar_height = uW;
-      pSPS->vui_param.aspect_ratio_idc = 255;
-    }
-    else
-      pSPS->vui_param.aspect_ratio_idc = 1;
-  }
-
-  if(pSPS->vui_param.aspect_ratio_idc)
-    pSPS->vui_param.aspect_ratio_info_present_flag = 1;
-}
-
-/****************************************************************************/
-void AL_HEVC_UpdateAspectRatio(AL_THevcSps* pSPS, uint32_t uWidth, uint32_t uHeight, AL_EAspectRatio eAspectRatio)
-{
-  bool bAuto = (eAspectRatio == ASPECT_RATIO_AUTO) ? true : false;
-  AL_TVuiParam* pVuiParam = &pSPS->vui_param;
+  bool bAuto = (eAspectRatio == AL_ASPECT_RATIO_AUTO) ? true : false;
   uint32_t uHeightRnd = (uHeight + 15) & ~15;
 
   pVuiParam->aspect_ratio_info_present_flag = 0;
@@ -640,18 +369,18 @@ void AL_HEVC_UpdateAspectRatio(AL_THevcSps* pSPS, uint32_t uWidth, uint32_t uHei
   pVuiParam->sar_width = 0;
   pVuiParam->sar_height = 0;
 
-  if(eAspectRatio == ASPECT_RATIO_NONE)
+  if(eAspectRatio == AL_ASPECT_RATIO_NONE)
     return;
 
   if(bAuto)
   {
     if(uWidth <= 720)
-      eAspectRatio = ASPECT_RATIO_4_3;
+      eAspectRatio = AL_ASPECT_RATIO_4_3;
     else
-      eAspectRatio = ASPECT_RATIO_16_9;
+      eAspectRatio = AL_ASPECT_RATIO_16_9;
   }
 
-  if(eAspectRatio == ASPECT_RATIO_4_3)
+  if(eAspectRatio == AL_ASPECT_RATIO_4_3)
   {
     if(uWidth == 352)
     {
@@ -696,7 +425,7 @@ void AL_HEVC_UpdateAspectRatio(AL_THevcSps* pSPS, uint32_t uWidth, uint32_t uHei
         pVuiParam->aspect_ratio_idc = 1;
     }
   }
-  else if(eAspectRatio == ASPECT_RATIO_16_9)
+  else if(eAspectRatio == AL_ASPECT_RATIO_16_9)
   {
     if(uWidth == 352)
     {
@@ -755,12 +484,12 @@ void AL_HEVC_UpdateAspectRatio(AL_THevcSps* pSPS, uint32_t uWidth, uint32_t uHei
     uint32_t uW = uWidth;
     uint32_t uH = uHeight;
 
-    if(eAspectRatio == ASPECT_RATIO_4_3)
+    if(eAspectRatio == AL_ASPECT_RATIO_4_3)
     {
       uW *= 3;
       uH *= 4;
     }
-    else if(eAspectRatio == ASPECT_RATIO_16_9)
+    else if(eAspectRatio == AL_ASPECT_RATIO_16_9)
     {
       uW *= 9;
       uH *= 16;
@@ -949,7 +678,7 @@ void AL_AVC_UpdateSPS(AL_TAvcSps* pSPS, int iMaxRef, int iCpbSize, AL_TEncSettin
   pSPS->vui_param.chroma_sample_loc_type_top_field = 0;
   pSPS->vui_param.chroma_sample_loc_type_bottom_field = 0;
 
-  AL_AVC_UpdateAspectRatio(pSPS, pSettings->tChParam.uWidth, pSettings->tChParam.uHeight, pSettings->eAspectRatio);
+  AL_UpdateAspectRatio(&pSPS->vui_param, pSettings->tChParam.uWidth, pSettings->tChParam.uHeight, pSettings->eAspectRatio);
 
   pSPS->vui_param.overscan_info_present_flag = 0;
 
@@ -1157,7 +886,7 @@ void AL_HEVC_UpdateSPS(AL_THevcSps* pSPS, int iMaxRef, int iCpbSize, AL_TEncSett
   pSPS->vui_param.frame_field_info_present_flag = 0;
   pSPS->vui_param.default_display_window_flag = 0;
 
-  AL_HEVC_UpdateAspectRatio(pSPS, pSettings->tChParam.uWidth, pSettings->tChParam.uHeight, pSettings->eAspectRatio);
+  AL_UpdateAspectRatio(&pSPS->vui_param, pSettings->tChParam.uWidth, pSettings->tChParam.uHeight, pSettings->eAspectRatio);
 
   pSPS->vui_param.overscan_info_present_flag = 0;
 
@@ -1298,7 +1027,4 @@ void AL_HEVC_UpdatePPS(AL_THevcPps* pPPS, AL_TEncSettings const* pSettings, int 
   pPPS->log2_parallel_merge_level_minus2 = 0; // parallel merge at 16x16 granularity
 #endif
 }
-
-/***************************************************************************/
-/***************************************************************************/
 

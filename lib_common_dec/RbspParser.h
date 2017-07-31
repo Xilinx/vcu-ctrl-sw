@@ -56,7 +56,6 @@ typedef struct t_RbspParser
 {
   uint32_t m_iTrailingBitOneIndex;
   uint32_t m_iTotalBitIndex;
-  uint32_t m_iBufferSize;
   uint32_t m_iTrailingBitOneIndexConceal;
   uint8_t m_uNumScDetect;
   uint8_t m_uZeroBytesCount;
@@ -100,15 +99,6 @@ bool byte_aligned(AL_TRbspParser* pRP);
                 false otherwise
 *****************************************************************************/
 bool byte_alignment(AL_TRbspParser* pRP);
-
-/*************************************************************************//*!
-   \brief The more_data_in_payload function check if the sei_payload still have data to be parsed
-   \param[in] pRP          Pointer to NAL parser
-   \param[in] uPayloadSize Size of the current sei_payload
-   \return    return true if there are data to be parsed in the NAL,
-                   false otherwise
-*****************************************************************************/
-bool more_data_in_payload(AL_TRbspParser* pRP, uint32_t uPayloadSize);
 
 /*************************************************************************//*!
    \brief The more_rbsp_data function check if the NAL still have data to be parsed

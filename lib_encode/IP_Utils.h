@@ -46,7 +46,6 @@
 
 #include "lib_common_enc/Settings.h"
 #include "lib_common_enc/EncSliceStatus.h"
-#include "lib_common_enc/BufferStream.h"
 #include "lib_common_enc/EncEPBuffer.h"
 
 #include "lib_common/PPS.h"
@@ -99,14 +98,6 @@ static const int AL_BitPerPixelQP[36][2] = /* x1000 */
   { 551, 12 }, // {1447, 12}, //{2343, 12},
 };
 
-/***************************************************************************/
-uint32_t AL_GetNumStuffingWords(int iNumBits, int iNumBins, int iNumLCU);
-uint32_t AL_AddStuffingWords(AL_TBuffer* pStream, uint16_t uSecID, uint32_t uDataSize, uint32_t uNumWords);
-
-/*****************************************************************************/
-void AL_ResetStreamInfo(TStreamInfo* pInfo);
-void AL_MergeStreamInfo(TStreamInfo* pInfo, TStreamInfo const* pNew);
-
 /****************************************************************************/
 void AL_HEVC_SelectScalingList(AL_THevcSps* pSPS, AL_TEncSettings* pSettings);
 void AL_AVC_SelectScalingList(AL_TAvcSps* pSPS, AL_TEncSettings* pSettings);
@@ -114,11 +105,7 @@ void AL_AVC_SelectScalingList(AL_TAvcSps* pSPS, AL_TEncSettings* pSettings);
 /****************************************************************************/
 void AL_HEVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufEP);
 void AL_AVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufEP);
-void AL_LoadQpByQpGroup(uint8_t const* pQPs, int iNumQpGrps, TBufferEP* pBufEP);
 
-/****************************************************************************/
-void AL_HEVC_UpdateAspectRatio(AL_THevcSps* pSPS, uint32_t uWidth, uint32_t uHeight, AL_EAspectRatio eAspectRatio);
-void AL_AVC_UpdateAspectRatio(AL_TAvcSps* pSPS, uint32_t uWidth, uint32_t uHeight, AL_EAspectRatio eAspectRatio);
 /****************************************************************************/
 void AL_UpdateVPS(AL_THevcVps* pVPS, int iMaxRef, AL_TEncSettings const* pSettings);
 
@@ -130,10 +117,6 @@ void AL_AVC_UpdatePPS(AL_TAvcPps* pPPS, AL_TEncSettings const* pSettings, int iM
 
 /***************************************************************************/
 void InitHwRateCtrl(AL_TEncSettings* pSettings, int iNumLCU);
-/***************************************************************************/
-void AL_VP9_InitializeCtxProbs(TBufferEP* pBufEP);
-void AL_VP9_UpdateCtxProbs(TBufferEP* pBufEP, AL_ESliceType SliceType);
-/***************************************************************************/
 
 /*@}*/
 

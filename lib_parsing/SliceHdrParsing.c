@@ -238,7 +238,7 @@ static void AL_AVC_sdec_ref_pic_marking(AL_TRbspParser* pRP, AL_TAvcSliceHdr* pS
 }
 
 /*****************************************************************************/
-static bool ApplyAvcSPSAndReturn(AL_TAvcSliceHdr* pSlice, const AL_TAvcPps* pPPS)
+static bool ApplyAvcSPSAndReturn(AL_TAvcSliceHdr* pSlice, AL_TAvcPps const* pPPS)
 {
   pSlice->m_pPPS = pPPS;
   pSlice->m_pSPS = pSlice->m_pPPS->m_pSPS;
@@ -296,10 +296,6 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
 
   // check slice_type coherency
   if((pSlice->slice_type > AL_AVC_MAX_SLICE_TYPE) || (pSlice->nal_unit_type == 0x05 && pSlice->slice_type != SLICE_I && pSlice->slice_type != SLICE_SI))
-    return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
-
-  // check pps id integrity
-  if(pSlice->pic_parameter_set_id >= AL_AVC_MAX_PPS /* || pSlice->pic_parameter_set_id > pCtx->m_iLastPPSId*/)
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
 
   if(!pConceal->m_bValidFrame)
@@ -901,7 +897,7 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
 
       pSlice->five_minus_max_num_merge_cand = ue(pRP);
 
-      if(pSlice->five_minus_max_num_merge_cand < 0 || pSlice->five_minus_max_num_merge_cand > 4)
+      if(pSlice->five_minus_max_num_merge_cand > 4)
         return false;
     }
 

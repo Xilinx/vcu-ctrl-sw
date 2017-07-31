@@ -7,9 +7,7 @@ endif
 endif
 
 ifeq ($(findstring linux,$(TARGET)),linux)
-	LIB_FPGA_SRC+=lib_fpga/BoardLinux.c
 	LIB_FPGA_SRC+=lib_fpga/DmaAllocLinux.c
-	LIB_FPGA_SRC+=lib_fpga/IpCtrlLinux.c
 	LIB_FPGA_SRC+=lib_fpga/DevicePool.c
 	LDFLAGS+=-lpthread
 endif

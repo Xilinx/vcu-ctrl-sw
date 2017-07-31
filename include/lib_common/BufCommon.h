@@ -122,3 +122,5 @@ typedef struct t_BufferYuv
 uint32_t AL_RndUpPow2(uint32_t uVal);
 void AL_CleanupMemory(void* pDst, size_t uSize);
 
+extern int AL_CLEAN_BUFFERS;
+

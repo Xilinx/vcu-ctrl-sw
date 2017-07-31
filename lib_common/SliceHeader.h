@@ -108,7 +108,6 @@ typedef struct t_AvcSliceHeader
   int long_term_pic_num[32];
   int long_term_frame_idx[32];
   int max_long_term_frame_idx_plus1[32];
-  int slice_group_change_cycle;
 
   uint8_t no_output_of_prior_pics_flag;
   uint8_t long_term_reference_flag;

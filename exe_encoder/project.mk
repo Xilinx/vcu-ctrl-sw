@@ -10,7 +10,7 @@ EXE_ENCODER_SRCS:=\
   $(THIS_EXE_ENCODER)/MD5.cpp\
   $(LIB_CFG_SRC)\
   $(LIB_CONV_SRC)\
-	$(LIB_APP_SRC)\
+  $(LIB_APP_SRC)\
 
 -include $(THIS_EXE_ENCODER)/site.mk
 

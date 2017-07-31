@@ -324,30 +324,27 @@ void Rtos_DeleteMutex(AL_MUTEX Mutex)
 /****************************************************************************/
 bool Rtos_GetMutex(AL_MUTEX Mutex)
 {
-  bool bRet = true;
   pthread_mutex_t* pMutex = (pthread_mutex_t*)Mutex;
 
-  if(pMutex)
-  {
-    if(pthread_mutex_lock(pMutex) < 0)
-      bRet = false;
-  }
-  else
-    bRet = false;
-  return bRet;
+  if(!pMutex)
+    return false;
+
+  if(pthread_mutex_lock(pMutex) < 0)
+    return false;
+
+  return true;
 }
 
 /****************************************************************************/
 bool Rtos_ReleaseMutex(AL_MUTEX Mutex)
 {
-  bool bRet = true;
+  if(!Mutex)
+    return false;
 
-  if(Mutex)
-    bRet = ((pthread_mutex_unlock((pthread_mutex_t*)Mutex)) < 0) ? false : true;
-  else
-    bRet = false;
+  if((pthread_mutex_unlock((pthread_mutex_t*)Mutex)) < 0)
+    return false;
 
-  return bRet;
+  return true;
 }
 
 /****************************************************************************/
@@ -376,47 +373,44 @@ void Rtos_DeleteSemaphore(AL_SEMAPHORE Semaphore)
 /****************************************************************************/
 bool Rtos_GetSemaphore(AL_SEMAPHORE Semaphore, uint32_t Wait)
 {
-  bool bRet = true;
   sem_t* pSem = (sem_t*)Semaphore;
 
-  if(pSem)
-  {
-    if(Wait == AL_NO_WAIT)
-    {
-      if(sem_trywait(pSem) < 0)
-        bRet = false;
-    }
-    else if(Wait == AL_WAIT_FOREVER)
-    {
-      if(sem_wait(pSem) < 0)
-        bRet = false;
-    }
-    else
-    {
-      struct timespec Ts;
-      Ts.tv_sec = Wait / 1000;
-      Ts.tv_nsec = (Wait % 1000) * 1000000;
+  if(!pSem)
+    return false;
 
-      if(sem_timedwait(pSem, &Ts) < 0)
-        bRet = false;
-    }
+  if(Wait == AL_NO_WAIT)
+  {
+    if(sem_trywait(pSem) < 0)
+      return false;
+  }
+  else if(Wait == AL_WAIT_FOREVER)
+  {
+    if(sem_wait(pSem) < 0)
+      return false;
   }
   else
-    bRet = false;
-  return bRet;
+  {
+    struct timespec Ts;
+    Ts.tv_sec = Wait / 1000;
+    Ts.tv_nsec = (Wait % 1000) * 1000000;
+
+    if(sem_timedwait(pSem, &Ts) < 0)
+      return false;
+  }
+
+  return true;
 }
 
 /****************************************************************************/
 bool Rtos_ReleaseSemaphore(AL_SEMAPHORE Semaphore)
 {
-  bool bRet = true;
   sem_t* pSem = (sem_t*)Semaphore;
 
-  if(pSem)
-    sem_post(pSem);
-  else
-    bRet = false;
-  return bRet;
+  if(!pSem)
+    return false;
+
+  sem_post(pSem);
+  return true;
 }
 
 /****************************************************************************/
@@ -449,45 +443,43 @@ void Rtos_DeleteEvent(AL_EVENT Event)
 /****************************************************************************/
 bool Rtos_WaitEvent(AL_EVENT Event, uint32_t Wait)
 {
-  bool bRet = true;
   evt_t* pEvt = (evt_t*)Event;
 
-  if(pEvt)
+  if(!pEvt)
+    return false;
+
+  bool bRet = true;
+
+  pthread_mutex_lock(&pEvt->Mutex);
+
+  if(Wait == AL_WAIT_FOREVER)
   {
-    pthread_mutex_lock(&pEvt->Mutex);
-
-    if(Wait == AL_WAIT_FOREVER)
-    {
-      while(bRet && !pEvt->bSignaled)
-        bRet = (pthread_cond_wait(&pEvt->Cond, &pEvt->Mutex) == 0);
-    }
-    else
-    {
-      struct timespec Ts;
-      Ts.tv_sec = Wait / 1000;
-      Ts.tv_nsec = (Wait % 1000) * 1000000;
-
-      while(bRet && !pEvt->bSignaled)
-        bRet = (pthread_cond_timedwait(&pEvt->Cond, &pEvt->Mutex, &Ts) == 0);
-    }
-
-    if(bRet)
-      pEvt->bSignaled = false;
-    pthread_mutex_unlock(&pEvt->Mutex);
+    while(bRet && !pEvt->bSignaled)
+      bRet = (pthread_cond_wait(&pEvt->Cond, &pEvt->Mutex) == 0);
   }
   else
-    bRet = false;
+  {
+    struct timespec Ts;
+    Ts.tv_sec = Wait / 1000;
+    Ts.tv_nsec = (Wait % 1000) * 1000000;
+
+    while(bRet && !pEvt->bSignaled)
+      bRet = (pthread_cond_timedwait(&pEvt->Cond, &pEvt->Mutex, &Ts) == 0);
+  }
+
+  if(bRet)
+    pEvt->bSignaled = false;
+  pthread_mutex_unlock(&pEvt->Mutex);
   return bRet;
 }
 
 /****************************************************************************/
 bool Rtos_SetEvent(AL_EVENT Event)
 {
-  bool bRet;
   evt_t* pEvt = (evt_t*)Event;
   pthread_mutex_lock(&pEvt->Mutex);
   pEvt->bSignaled = true;
-  bRet = pthread_cond_signal(&pEvt->Cond) == 0;
+  bool bRet = pthread_cond_signal(&pEvt->Cond) == 0;
   pthread_mutex_unlock(&pEvt->Mutex);
   return bRet;
 }
@@ -668,6 +660,31 @@ bool Rtos_ReleaseSemaphore(AL_SEMAPHORE Semaphore)
   SyncCtx* pCtx = (SyncCtx*)Semaphore;
   --pCtx->m_iCount;
   return true;
+}
+
+#endif
+
+#ifdef _MSC_VER
+int32_t Rtos_AtomicIncrement(int32_t* iVal)
+{
+  return InterlockedIncrement(iVal);
+}
+
+int32_t Rtos_AtomicDecrement(int32_t* iVal)
+{
+  return InterlockedDecrement(iVal);
+}
+
+#else
+
+int32_t Rtos_AtomicIncrement(int32_t* iVal)
+{
+  return __sync_add_and_fetch(iVal, 1);
+}
+
+int32_t Rtos_AtomicDecrement(int32_t* iVal)
+{
+  return __sync_sub_and_fetch(iVal, 1);
 }
 
 #endif

@@ -123,12 +123,10 @@ bool AL_BufPool_Init(AL_TBufPool* pBufPool, AL_TAllocator* pAllocator, AL_TBufPo
   // Create uMin free buffers
   while(pBufPool->uNumBuf < pConfig->uMinBuf)
     if(!AL_sBufPool_AllocBuf(pBufPool))
-      goto fail_alloc_buf;
+      goto fail_alloc_pool;
 
   return true;
 
-  fail_alloc_buf:
-  Rtos_Free(pBufPool->pPool);
   fail_alloc_pool:
   AL_BufPool_Deinit(pBufPool);
   fail_init:

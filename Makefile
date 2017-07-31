@@ -36,14 +36,14 @@ include base.mk
 ##############################################################
 # Libraries
 ##############################################################
-include lib_fpga/project.mk
+-include lib_fpga/project.mk
 include lib_app/project.mk
 
 include lib_cfg/project.mk
-include lib_common/project.mk
-include lib_common_enc/project.mk
-include lib_rtos/project.mk
-include lib_preprocess/project.mk
+-include lib_common/project.mk
+-include lib_common_enc/project.mk
+-include lib_rtos/project.mk
+-include lib_preprocess/project.mk
 
 -include lib_buf_mngt/project.mk
 -include lib_rate_ctrl/project.mk
@@ -54,7 +54,7 @@ include lib_preprocess/project.mk
 -include lib_conv_yuv/project.mk
 
 ifneq ($(ENABLE_DECODER),0)
-include lib_common_dec/project.mk
+-include lib_common_dec/project.mk
 endif
 
 -include ref.mk
@@ -63,9 +63,9 @@ endif
 # AL_Decoder
 ##############################################################
 ifneq ($(ENABLE_DECODER),0)
-  include lib_parsing/project.mk
+  -include lib_parsing/project.mk
   -include lib_scheduler_dec/project.mk
-  include lib_decode/project.mk
+  -include lib_decode/project.mk
   include exe_decoder/project.mk
 endif
 

@@ -46,20 +46,6 @@
 
 #include "common_syntax_elements.h"
 
-/****************************************************************************/
-typedef enum e_SeiFlag
-{
-  SEI_NONE = 0x00000000, // no SEI
-
-  SEI_BP = 0x00000001, // Buffering period
-  SEI_PT = 0x00000002, // Picture Timing
-  SEI_FILL = 0x00000004, // Filler
-  SEI_RP = 0x00000008, // Recovery Point
-  SEI_SVI = 0x00010000, // Stereo Video Info
-
-  SEI_ALL = 0x00FFFFFF, // All supported SEI
-}AL_SeiFlag;
-
 /*************************************************************************//*!
    \brief Mimics structure for AVC SEI buffering period
 *****************************************************************************/

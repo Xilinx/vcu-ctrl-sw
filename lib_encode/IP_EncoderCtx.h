@@ -58,18 +58,6 @@
 
 typedef struct t_Scheduler TScheduler;
 
-#if ENABLE_RTOS_SYNC
-#define AL_IP_ENCODER_BEGIN_MUTEX(pCtx) Rtos_GetMutex(pCtx->m_Mutex)
-#define AL_IP_ENCODER_END_MUTEX(pCtx) Rtos_ReleaseMutex(pCtx->m_Mutex)
-#define AL_IP_ENCODER_GET_SEM(pCtx, uTimeOut) Rtos_GetSemaphore(pCtx->m_Semaphore, uTimeOut)
-#define AL_IP_ENCODER_RELEASE_SEM(pCtx) Rtos_ReleaseSemaphore(pCtx->m_Semaphore)
-#else
-#define AL_IP_ENCODER_BEGIN_MUTEX(pCtx)
-#define AL_IP_ENCODER_END_MUTEX(pCtx)
-#define AL_IP_ENCODER_GET_SEM(pCtx)
-#define AL_IP_ENCODER_RELEASE_SEM(pCtx)
-#endif
-
 /****************************************************************************/
 #define ENC_MAX_HEADER_SIZE (2 * 1024)
 #define MAX_PPS_SIZE (1 * 1024)
@@ -87,7 +75,6 @@ typedef struct AL_t_FrameInfo
   AL_TEncInfo tEncInfo;
   AL_TEncRequestInfo tRequestInfo;
   uint16_t uFirstSecID;
-  AL_TEncPicBufAddrs tBufAddrs;
   AL_TBuffer* pQpTable;
 }AL_TFrameInfo;
 
@@ -132,7 +119,6 @@ struct AL_t_EncCtx
 
   AL_TSkippedPicture m_pSkippedPicture;
 
-  int m_iFrameCountSent;
   int m_iFrameCountDone;
   AL_ERR m_eError;
   int m_iNumLCU;
@@ -151,10 +137,8 @@ struct AL_t_EncCtx
   int m_iCurPool;
 
 
-#if ENABLE_RTOS_SYNC
   AL_MUTEX m_Mutex;
-  AL_SEMAPHORE m_Semaphore;
-#endif
+  AL_SEMAPHORE m_PendingEncodings; // tracks the count of jobs sent to the scheduler
 
   TScheduler* m_pScheduler;
 

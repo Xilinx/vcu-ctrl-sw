@@ -69,10 +69,8 @@ typedef struct
 static
 int AL_WakeUp(AL_WaitQueue* pQueue)
 {
-  int ret;
-
   pthread_mutex_lock(&pQueue->Lock);
-  ret = pthread_cond_broadcast(&pQueue->Cond);
+  int ret = pthread_cond_broadcast(&pQueue->Cond);
   pthread_mutex_unlock(&pQueue->Lock);
 
   return ret;
@@ -109,7 +107,7 @@ void AL_WaitQueue_Deinit(AL_WaitQueue* pQueue)
 typedef struct
 {
   int fd;
-  pthread_t thread;
+  AL_THREAD thread;
   bool bBeingDestroyed;
 
   AL_CB_EndFrameDecoding endFrameDecodingCB;
@@ -143,7 +141,7 @@ typedef struct
 struct DecChanMcuCtx
 {
   const AL_TIDecChannelVtable* vtable;
-  pthread_t pSCThread;
+  AL_THREAD pSCThread;
   StartCodeEventQueue SCQueue;
   Channel chan;
   bool chanIsConfigured;
@@ -233,12 +231,11 @@ void setChannelMsg(struct al5_params* msg, const AL_TDecChanParam* pChParam)
 static
 bool getStatusMsg(Channel* chan, struct al5_params* msg)
 {
-  bool bRet;
-  memset(msg, 0, sizeof(*msg));
-  bRet = PostMessage(chan->fd, AL_MCU_WAIT_FOR_STATUS, msg);
+  bool bRet = PostMessage(chan->fd, AL_MCU_WAIT_FOR_STATUS, msg);
 
   if(!bRet && !chan->bBeingDestroyed)
     perror("Failed to get decode status");
+
   return bRet;
 }
 
@@ -248,32 +245,26 @@ bool getScStatusMsg(SCMsg* pMsg, struct al5_scstatus* StatusMsg)
   return PostMessage(pMsg->fd, AL_MCU_WAIT_FOR_START_CODE, StatusMsg);
 }
 
-static
-void setStatus(AL_TDecPicStatus* status, struct al5_params* msg)
+static void processStatusMsg(Channel* chan, struct al5_params* msg)
 {
-  memcpy(status, msg->opaque, msg->size);
-}
-
-static void processStatusMsg(Channel* chan, struct al5_params* msg, AL_TDecPicStatus* status)
-{
-  setStatus(status, msg);
-  chan->endFrameDecodingCB.func(chan->endFrameDecodingCB.userParam, status);
+  AL_TDecPicStatus status;
+  memcpy(&status, msg->opaque, msg->size);
+  chan->endFrameDecodingCB.func(chan->endFrameDecodingCB.userParam, &status);
 }
 
 static void* NotificationThread(void* p)
 {
   Channel* chan = p;
-  bool bRet;
-  struct al5_params msg;
-  AL_TDecPicStatus status;
 
   for(;;)
   {
-    bRet = getStatusMsg(chan, &msg);
+    struct al5_params msg = { 0 };
+    bool bRet = getStatusMsg(chan, &msg);
 
     if(!bRet)
       break;
-    processStatusMsg(chan, &msg, &status);
+
+    processStatusMsg(chan, &msg);
   }
 
   return 0;
@@ -285,11 +276,12 @@ static void setScStatus(AL_TScStatus* status, struct al5_scstatus* msg)
   status->uNumBytes = msg->num_bytes;
 }
 
-static void processScStatusMsg(SCMsg* pMsg, struct al5_scstatus* StatusMsg, AL_TScStatus* status)
+static void processScStatusMsg(SCMsg* pMsg, struct al5_scstatus* StatusMsg)
 {
-  setScStatus(status, StatusMsg);
+  AL_TScStatus status;
 
-  pMsg->endStartCodeCB.func(pMsg->endStartCodeCB.userParam, status);
+  setScStatus(&status, StatusMsg);
+  pMsg->endStartCodeCB.func(pMsg->endStartCodeCB.userParam, &status);
 }
 
 /* One reader, no race condition */
@@ -303,17 +295,13 @@ static void* ScNotificationThread(void* p)
 {
   StartCodeEventQueue* pSCQueue = p;
   AL_EventQueue* pEventQueue = &pSCQueue->EventQueue;
-  struct al5_scstatus StatusMsg;
-  memset(&StatusMsg, 0, sizeof(StatusMsg));
-  AL_TScStatus status;
-  AL_Event* pEvent;
-  SCMsg* pMsg;
-  bool bRet;
+  struct al5_scstatus StatusMsg = { 0 };
 
   while(true)
   {
+    AL_Event* pEvent;
     AL_EventQueue_Fetch(pEventQueue, &pEvent, isSCReady, pEventQueue);
-    pMsg = (SCMsg*)pEvent->pPriv;
+    SCMsg* pMsg = pEvent->pPriv;
 
     if(pMsg->bEnded)
     {
@@ -321,10 +309,10 @@ static void* ScNotificationThread(void* p)
       break;
     }
 
-    bRet = getScStatusMsg(pMsg, &StatusMsg);
+    bool bRet = getScStatusMsg(pMsg, &StatusMsg);
 
     if(bRet)
-      processScStatusMsg(pMsg, &StatusMsg, &status);
+      processScStatusMsg(pMsg, &StatusMsg);
 
     close(pMsg->fd);
     Rtos_Free(pMsg);
@@ -347,40 +335,28 @@ static void getParamUpdateByMcu(const struct al5_channel_status* msg, AL_TDecCha
  */
 static bool DecChannelMcu_Init(struct DecChanMcuCtx* decChanMcu)
 {
-  pthread_attr_t attr;
-  int err;
   StartCodeEventQueue* SCQueue = &decChanMcu->SCQueue;
   decChanMcu->chanIsConfigured = false;
 
   AL_EventQueue_Init(&SCQueue->EventQueue);
 
-  pthread_attr_init(&attr);
+  decChanMcu->pSCThread = Rtos_CreateThread(&ScNotificationThread, SCQueue);
 
-  err = pthread_create(&decChanMcu->pSCThread, &attr, &ScNotificationThread, SCQueue);
-
-  if(err)
+  if(!decChanMcu->pSCThread)
   {
     perror("Couldn't create thread");
-    goto fail_create;
+    return false;
   }
 
-  pthread_attr_destroy(&attr);
-
   return true;
-
-  fail_create:
-  pthread_attr_destroy(&attr);
-  return false;
 }
 
 /****************************************************************************/
 static bool DecChannelMcu_DestroyChannel(Channel* chan)
 {
-  bool bRet = true;
-
   chan->bBeingDestroyed = true;
 
-  bRet = PostMessage(chan->fd, AL_MCU_DESTROY_CHANNEL, NULL);
+  bool bRet = PostMessage(chan->fd, AL_MCU_DESTROY_CHANNEL, NULL);
 
   if(!bRet)
   {
@@ -388,7 +364,8 @@ static bool DecChannelMcu_DestroyChannel(Channel* chan)
     goto exit;
   }
 
-  pthread_join(chan->thread, NULL);
+  Rtos_JoinThread(chan->thread);
+  Rtos_DeleteThread(chan->thread);
 
   exit:
   close(chan->fd);
@@ -401,7 +378,6 @@ static void DecChannelMcu_Destroy(AL_TIDecChannel* pDecChannel)
 {
   struct DecChanMcuCtx* decChanMcu = (struct DecChanMcuCtx*)pDecChannel;
   StartCodeEventQueue* SCQueue = &decChanMcu->SCQueue;
-  int err;
 
   AL_Event* pEvent = Rtos_Malloc(sizeof(*pEvent));
 
@@ -419,10 +395,10 @@ static void DecChannelMcu_Destroy(AL_TIDecChannel* pDecChannel)
   if(decChanMcu->chanIsConfigured)
     DecChannelMcu_DestroyChannel(&decChanMcu->chan);
 
-  err = pthread_join(decChanMcu->pSCThread, NULL);
-
-  if(err)
+  if(!Rtos_JoinThread(decChanMcu->pSCThread))
     goto fail_join;
+
+  Rtos_DeleteThread(decChanMcu->pSCThread);
 
   AL_EventQueue_Deinit(&SCQueue->EventQueue);
 
@@ -439,10 +415,8 @@ static void DecChannelMcu_Destroy(AL_TIDecChannel* pDecChannel)
 /****************************************************************************/
 static bool DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecChanParam* pChParam, AL_TIDecChannelCallbacks* pCBs)
 {
-  int err;
   struct DecChanMcuCtx* decChanMcu = (struct DecChanMcuCtx*)pDecChannel;
-  struct al5_channel_config msg;
-  memset(&msg, 0, sizeof(msg));
+  struct al5_channel_config msg = { 0 };
   bool bRet;
 
   Channel* chan = &decChanMcu->chan;
@@ -469,9 +443,9 @@ static bool DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecCha
 
   getParamUpdateByMcu(&msg.status, pChParam);
 
-  err = pthread_create(&chan->thread, NULL, &NotificationThread, chan);
+  chan->thread = Rtos_CreateThread(&NotificationThread, chan);
 
-  if(err)
+  if(!chan->thread)
     goto fail_open;
 
   decChanMcu->chanIsConfigured = true;
@@ -508,8 +482,7 @@ static void setSearchStartCodeMsg(struct al5_search_sc_msg* search_msg, AL_TScPa
 static void DecChannelMcu_SearchSC(AL_TIDecChannel* pDecChannel, AL_TScParam* pScParam, AL_TScBufferAddrs* pBufAddrs, AL_CB_EndStartCode endStartCodeCB)
 {
   struct DecChanMcuCtx* decChanMcu = (struct DecChanMcuCtx*)pDecChannel;
-  struct al5_search_sc_msg search_msg;
-  memset(&search_msg, 0, sizeof(search_msg));
+  struct al5_search_sc_msg search_msg = { 0 };
   AL_EventQueue* pEventQueue = &decChanMcu->SCQueue.EventQueue;
   bool bRet;
   AL_Event* pEvent = Rtos_Malloc(sizeof(*pEvent));
@@ -558,8 +531,6 @@ static void DecChannelMcu_SearchSC(AL_TIDecChannel* pDecChannel, AL_TScParam* pS
 
 static void prepareDecodeMessage(struct al5_decode_msg* msg, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* hSliceParam)
 {
-  memset(msg, 0, sizeof(*msg));
-
   setPictParam(&msg->params, pPictParam);
   setPictBufferAddrs(&msg->addresses, pPictAddrs);
 
@@ -576,7 +547,7 @@ static void DecChannelMcu_DecodeOneFrame(AL_TIDecChannel* pDecChannel, AL_TDecPi
   if(chan == AL_INVALID_CHANNEL || chan == AL_UNINITIALIZED_CHANNEL)
     return;
 
-  struct al5_decode_msg msg;
+  struct al5_decode_msg msg = { 0 };
   prepareDecodeMessage(&msg, pPictParam, pPictAddrs, hSliceParam);
 
   if(!PostMessage(chan->fd, AL_MCU_DECODE_ONE_FRM, &msg))
@@ -592,7 +563,7 @@ static void DecChannelMcu_DecodeOneSlice(AL_TIDecChannel* pDecChannel, AL_TDecPi
   if(chan == AL_INVALID_CHANNEL || chan == AL_UNINITIALIZED_CHANNEL)
     return;
 
-  struct al5_decode_msg msg;
+  struct al5_decode_msg msg = { 0 };
   prepareDecodeMessage(&msg, pPictParam, pPictAddrs, hSliceParam);
 
   if(!PostMessage(chan->fd, AL_MCU_DECODE_ONE_SLICE, &msg))

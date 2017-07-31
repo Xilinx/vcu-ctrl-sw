@@ -35,24 +35,69 @@
 *
 ******************************************************************************/
 
+#pragma once
 
-/////////////////////// IP CONFIGURATION ////////////////////////
-#define AL_UID_ENCODER 0x00019BB3
-#define AL_ENC_NUM_CORES 4
-#define AL_DEC_NUM_CORES 2
+#include <vector>
 
-#define HW_IP_BIT_DEPTH 10
-#define AL_CORE_MAX_WIDTH 4096
-#define AL_L2C_MAX_SIZE (26 * 40 * 4096)
-#define AL_ALIGN_HEIGHT 64
-#define AL_ALIGN_PITCH 256
+struct RepeaterSink : IFrameSink
+{
+  RepeaterSink(int bufferingCount, int maxPicCount) : m_bufferingCount{bufferingCount}, m_picCount{maxPicCount}
+  {
+  }
 
-#define AL_BLK16x16_QP_TABLE 0
+  ~RepeaterSink()
+  {
+    for(auto frame : frames)
+      AL_Buffer_Unref(frame);
+  }
 
-#define AL_SCHEDULER_CORE_FREQUENCY 666666666 // ~667 MHz
-#define AL_SCHEDULER_FREQUENCY_MARGIN 10
-#define AL_SCHEDULER_BLK_32x32_CYCLE 4900
-#define AL_MAX_RESSOURCE ((AL_SCHEDULER_CORE_FREQUENCY - ((AL_SCHEDULER_CORE_FREQUENCY / 100) * AL_SCHEDULER_FREQUENCY_MARGIN)) / AL_SCHEDULER_BLK_32x32_CYCLE)
+  void startProcessForReal()
+  {
+    auto frame = frames.begin();
 
-#include "build_defs_common.h"
+    while(m_picCount > 0)
+    {
+      next->ProcessFrame(*frame);
+      --m_picCount;
+      ++frame;
+
+      if(frame == frames.end())
+        frame = frames.begin();
+    }
+
+    next->ProcessFrame(nullptr);
+  }
+
+  void ProcessFrame(AL_TBuffer* frame)
+  {
+    if(frame)
+    {
+      AL_Buffer_Ref(frame);
+      frames.push_back(frame);
+      --m_bufferingCount;
+    }
+    else
+    {
+      m_bufferingCount = 0;
+    }
+
+    if(m_bufferingCount > 0 || m_hasAlreadyStarted)
+      return;
+
+    if(!m_hasAlreadyStarted)
+    {
+      m_hasAlreadyStarted = true;
+      startProcessForReal();
+    }
+  }
+
+  IFrameSink* next;
+
+private:
+  int m_bufferingCount;
+  int m_picCount;
+  bool m_hasAlreadyStarted = false;
+
+  std::vector<AL_TBuffer*> frames;
+};
 

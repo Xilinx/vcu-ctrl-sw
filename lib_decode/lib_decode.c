@@ -83,6 +83,13 @@ void AL_Decoder_Flush(AL_HDecoder hDec)
 }
 
 /*****************************************************************************/
+void AL_Decoder_ForceStop(AL_HDecoder hDec)
+{
+  AL_TDecoder* pDec = (AL_TDecoder*)hDec;
+  pDec->vtable->pfnForceStop(pDec);
+}
+
+/*****************************************************************************/
 void AL_Decoder_ReleaseDecPict(AL_HDecoder hDec, AL_TBuffer* pDecPict)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)hDec;

@@ -37,6 +37,7 @@
 
 #include "lib_common/BufferStreamMeta.h"
 #include "lib_rtos/lib_rtos.h"
+#include <assert.h>
 
 static bool StreamMeta_Destroy(AL_TMetaData* pMeta)
 {
@@ -85,5 +86,48 @@ AL_TStreamMetaData* AL_StreamMetaData_Create(uint16_t uMaxNumSection, uint32_t u
 AL_TStreamMetaData* AL_StreamMetaData_Clone(AL_TStreamMetaData* pMeta)
 {
   return AL_StreamMetaData_Create(pMeta->uMaxNumSection, pMeta->uMaxSize);
+}
+
+uint16_t AL_StreamMetaData_AddSection(AL_TStreamMetaData* pMetaData, uint32_t uOffset, uint32_t uLength, uint32_t uFlags)
+{
+  uint16_t uSectionID;
+
+  assert(pMetaData && pMetaData->uNumSection < AL_MAX_SECTION);
+
+  uSectionID = pMetaData->uNumSection++ % AL_MAX_SECTION;
+
+  if(uLength > (pMetaData->uAvailSize - uOffset))
+    uLength = (pMetaData->uAvailSize - uOffset);
+
+  uOffset = (pMetaData->uOffset + uOffset) % pMetaData->uMaxSize;
+
+  pMetaData->pSections[uSectionID].uOffset = uOffset;
+  pMetaData->pSections[uSectionID].uLength = uLength;
+  pMetaData->pSections[uSectionID].uFlags = uFlags;
+
+  return uSectionID;
+}
+
+/****************************************************************************/
+void AL_StreamMetaData_ChangeSection(AL_TStreamMetaData* pMetaData, uint16_t uSectionID, uint32_t uOffset, uint32_t uLength)
+{
+  assert(pMetaData && uSectionID < pMetaData->uNumSection);
+
+  pMetaData->pSections[uSectionID].uOffset = uOffset;
+  pMetaData->pSections[uSectionID].uLength = uLength;
+}
+
+/****************************************************************************/
+void AL_StreamMetaData_SetSectionFlags(AL_TStreamMetaData* pMetaData, uint16_t uSectionID, uint32_t uFlags)
+{
+  assert(pMetaData && uSectionID < pMetaData->uNumSection);
+  pMetaData->pSections[uSectionID].uFlags = uFlags;
+}
+
+/****************************************************************************/
+void AL_StreamMetaData_ClearAllSections(AL_TStreamMetaData* pMetaData)
+{
+  assert(pMetaData);
+  pMetaData->uNumSection = 0;
 }
 

@@ -101,12 +101,6 @@ static AL_INLINE int Sign(int iVal)
 }
 
 /***************************************************************************/
-static AL_INLINE int AbsDiff(int iVal1, int iVal2)
-{
-  return ((iVal1) > (iVal2)) ? ((iVal1) - (iVal2)) : ((iVal2) - (iVal1));
-}
-
-/***************************************************************************/
 static AL_INLINE int RoundUp(int iVal, int iRnd)
 {
   return (iVal + iRnd - 1) & (~(iRnd - 1));
@@ -119,24 +113,6 @@ AL_INLINE static AL_ECodec AL_GetCodec(AL_EProfile eProf)
     return AL_CODEC_AVC;
   return AL_CODEC_HEVC;
 }
-
-/*************************************************************************//*!
-   \brief The GetMaxDPBSize function retrieves the maximum DBP size respect to the
-   level constraint
-   \param[in] iLevel Level of the current H264 stream
-   \param[in] bConstrSet3 Used for the special level value 11
-   \return return the maximum size of the DBP allowed by the specified level
-*****************************************************************************/
-uint32_t AL_AVC_GetMaxDPBSize(int iLevel, bool bConstrSet3);
-
-/*************************************************************************//*!
-   \brief This function retrieves the maximum DBP size respect to the
-   level constraint
-   \param[in] level_idc  Level of the current HEVC stream
-   \param[in] uPictSizeY Size of picture luma component
-   \return return the maximum size of the DBP allowed by the specified level
- ***************************************************************************/
-uint8_t AL_HEVC_GetMaxDPBSize(uint8_t level_idc, uint32_t uPictSizeY);
 
 /*************************************************************************//*!
    \brief This function checks if the current Nal Unit Type corresponds to an IDR

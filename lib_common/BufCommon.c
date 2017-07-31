@@ -68,12 +68,11 @@ void AL_CopyYuv(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 }
 
 /****************************************************************************/
+int AL_CLEAN_BUFFERS;
+
 void AL_CleanupMemory(void* pDst, size_t uSize)
 {
-  (void)pDst;
-  (void)uSize;
-#if CLEAN_BUFFERS
-  Rtos_Memset(pDst, 0, uSize);
-#endif
+  if(AL_CLEAN_BUFFERS)
+    Rtos_Memset(pDst, 0, uSize);
 }
 

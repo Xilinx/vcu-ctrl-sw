@@ -57,20 +57,24 @@ struct BitstreamWriter : IFrameSink
 
   }
 
-  ~BitstreamWriter()
-  {
-    auto bitrate = (m_file.tellp() * cfg.Settings.tChParam.tRCParam.uFrameRate * 8.0) / (m_frameCount * cfg.Settings.tChParam.tRCParam.uClkRatio);
-    Message(CC_DEFAULT, "\nAchieved bitrate = %.4f Kbps\n", bitrate);
-  }
-
   void ProcessFrame(AL_TBuffer* pStream)
   {
     if(pStream == EndOfStream)
     {
+      printBitrate();
       return;
     }
 
     m_frameCount += WriteStream(m_file, pStream);
+  }
+
+  void printBitrate()
+  {
+    auto const outputSizeInBits = m_file.tellp() * 8;
+    auto const frameRate = (float)cfg.Settings.tChParam.tRCParam.uFrameRate / cfg.Settings.tChParam.tRCParam.uClkRatio;
+    auto const durationInSeconds = m_frameCount / frameRate;
+    auto bitrate = outputSizeInBits / durationInSeconds;
+    Message(CC_DEFAULT, "\nAchieved bitrate = %.4f Kbps\n", (float)bitrate);
   }
 
   int m_frameCount = 0;

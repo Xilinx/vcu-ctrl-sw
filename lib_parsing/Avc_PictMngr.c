@@ -311,13 +311,12 @@ void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS
 void AL_AVC_PictMngr_EndParsing(AL_TPictMngrCtx* pCtx, bool bClearRef, AL_EMarkingRef eMarkingFlag)
 {
   AL_TDpb* pDpb = &pCtx->m_DPB;
-  uint8_t uNode = AL_Dpb_GetHeadPOC(pDpb);
 
   if(bClearRef)
     AL_PictMngr_Flush(pCtx);
 
   // increment present pictures latency count
-  uNode = AL_Dpb_GetHeadPOC(pDpb);
+  uint8_t uNode = AL_Dpb_GetHeadPOC(pDpb);
 
   while(uNode != uEndOfList)
   {

@@ -247,12 +247,6 @@ void AL_BitStreamLite_PutSE(AL_TBitStreamLite* pBS, int32_t iValue)
 }
 
 /******************************************************************************/
-int BitStreamLite_SizeSE(int32_t iValue)
-{
-  return AL_BitStreamLite_SizeUE(2 * (iValue > 0 ? iValue : -iValue) - (iValue > 0));
-}
-
-/******************************************************************************/
 void AL_BitStreamLite_PutME(AL_TBitStreamLite* pBS, int iCodedBlockPattern, int iIsIntraNxN, int iChromaFormatIdc)
 {
   // Tables mapping a coded block pattern to a code num, following spec table 9-4 reversed.

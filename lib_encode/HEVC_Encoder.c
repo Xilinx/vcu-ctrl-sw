@@ -42,10 +42,9 @@
    @{
 ****************************************************************************/
 #include "Com_Encoder.h"
-#include "lib_common/StreamSection.h"
 #include "lib_common/BufferStreamMeta.h"
-
 #include "lib_common/Utils.h"
+#include "lib_common/Error.h"
 
 /***************************************************************************/
 static void GenerateSkippedPictureData(AL_TEncCtx* pCtx)
@@ -176,75 +175,68 @@ static void WriteSEI(AL_TEncCtx* pCtx, uint32_t uSeiFlags, bool bSeparated, AL_T
 }
 
 /***************************************************************************/
-static uint32_t GenerateAU(AL_TEncCtx* pCtx, AL_TBuffer* pStream, uint32_t const uTotalSize, uint32_t const uFlags, AL_ESliceType const eType)
+static uint32_t GenerateAUD(AL_TEncCtx* pCtx, AL_TStreamMetaData* pStreamMeta, uint32_t const uTotalSize, uint32_t const uFlags, AL_ESliceType const eType)
 {
-  uint32_t uSize;
   WriteAUD(pCtx, eType);
-  uSize = StreamGetNumBytes(&pCtx->m_Stream) - uTotalSize;
-  AddSection(pStream, uTotalSize, uSize, uFlags);
+  uint32_t uSize = StreamGetNumBytes(&pCtx->m_Stream) - uTotalSize;
+  AL_StreamMetaData_AddSection(pStreamMeta, uTotalSize, uSize, uFlags);
   return uSize;
 }
 
 /***************************************************************************/
-static uint32_t GenerateVPS(AL_TEncCtx* pCtx, AL_TBuffer* pStream, uint32_t const uTotalSize, uint32_t const uFlags)
+static uint32_t GenerateVPS(AL_TEncCtx* pCtx, AL_TStreamMetaData* pStreamMeta, uint32_t const uTotalSize, uint32_t const uFlags)
 {
-  uint32_t uSize;
   AL_UpdateVPS(&pCtx->m_VPS, pCtx->m_iMaxNumRef, &pCtx->m_Settings);
   pCtx->m_VPS.vps_video_parameter_set_id = 0;
   WriteVPS(pCtx);
-  uSize = StreamGetNumBytes(&pCtx->m_Stream) - uTotalSize;
-  AddSection(pStream, uTotalSize, uSize, uFlags);
+  uint32_t uSize = StreamGetNumBytes(&pCtx->m_Stream) - uTotalSize;
+  AL_StreamMetaData_AddSection(pStreamMeta, uTotalSize, uSize, uFlags);
   return uSize;
 }
 
 /***************************************************************************/
-static uint32_t GenerateSPS(AL_TEncCtx* pCtx, AL_TBuffer* pStream, uint32_t const uTotalSize, uint32_t const uFlags)
+static uint32_t GenerateSPS(AL_TEncCtx* pCtx, AL_TStreamMetaData* pStreamMeta, uint32_t const uTotalSize, uint32_t const uFlags)
 {
-  uint32_t uSize;
   AL_HEVC_UpdateSPS(&pCtx->m_HevcSPS, pCtx->m_iMaxNumRef, pCtx->m_Settings.tChParam.tRCParam.uCPBSize, &pCtx->m_Settings);
   pCtx->m_HevcSPS.sps_seq_parameter_set_id = 0;
   WriteSPS(pCtx);
-  uSize = StreamGetNumBytes(&pCtx->m_Stream) - uTotalSize;
-  AddSection(pStream, uTotalSize, uSize, uFlags);
+  uint32_t uSize = StreamGetNumBytes(&pCtx->m_Stream) - uTotalSize;
+  AL_StreamMetaData_AddSection(pStreamMeta, uTotalSize, uSize, uFlags);
   return uSize;
 }
 
 /***************************************************************************/
-static uint32_t GeneratePPS(AL_TEncCtx* pCtx, AL_TBuffer* pStream, uint32_t const uTotalSize, uint32_t const uFlags, AL_TEncPicStatus const* pPicStatus)
+static uint32_t GeneratePPS(AL_TEncCtx* pCtx, AL_TStreamMetaData* pStreamMeta, uint32_t const uTotalSize, uint32_t const uFlags, AL_TEncPicStatus const* pPicStatus)
 {
-  uint32_t uSize;
   int32_t const iNumClmn = pPicStatus->uNumClmn;
   int32_t const iNumRow = pPicStatus->uNumRow;
   int32_t const* pTileWidth = pPicStatus->iTileWidth;
   int32_t const* pTileHeight = pPicStatus->iTileHeight;
 
   AL_HEVC_UpdatePPS(&pCtx->m_HevcPPS, &pCtx->m_Settings, pCtx->m_iMaxNumRef, pPicStatus->iPpsQP);
-  pCtx->m_HevcPPS.pps_seq_parameter_set_id = 0;
   pCtx->m_HevcPPS.num_tile_columns_minus1 = iNumClmn - 1;
   pCtx->m_HevcPPS.num_tile_rows_minus1 = iNumRow - 1;
+  pCtx->m_HevcPPS.pps_seq_parameter_set_id = 0;
 
   if(!pCtx->m_HevcPPS.num_tile_columns_minus1 && !pCtx->m_HevcPPS.num_tile_rows_minus1)
     pCtx->m_HevcPPS.tiles_enabled_flag = 0;
   else
   {
-    int iClmn, iRow;
-
-    for(iClmn = 0; iClmn < iNumClmn - 1; ++iClmn)
+    for(int iClmn = 0; iClmn < iNumClmn - 1; ++iClmn)
       pCtx->m_HevcPPS.column_width[iClmn] = pTileWidth[iClmn];
 
-    for(iRow = 0; iRow < iNumRow - 1; ++iRow)
+    for(int iRow = 0; iRow < iNumRow - 1; ++iRow)
       pCtx->m_HevcPPS.row_height[iRow] = pTileHeight[iRow];
   }
   WritePPS(pCtx);
-  uSize = StreamGetNumBytes(&pCtx->m_Stream) - uTotalSize;
-  AddSection(pStream, uTotalSize, uSize, uFlags);
+  uint32_t uSize = StreamGetNumBytes(&pCtx->m_Stream) - uTotalSize;
+  AL_StreamMetaData_AddSection(pStreamMeta, uTotalSize, uSize, uFlags);
   return uSize;
 }
 
 /***************************************************************************/
-static void GenerateSEI(AL_TEncCtx* pCtx, AL_TBuffer* pStream, uint32_t const uTotalSize, uint32_t const uFlags, AL_TEncPicStatus const* pPicStatus)
+static void GenerateSEI(AL_TEncCtx* pCtx, AL_TStreamMetaData* pStreamMeta, uint32_t uTotalSize, uint32_t uFlags, AL_TEncPicStatus const* pPicStatus)
 {
-  uint32_t uSize;
   uint32_t uSeiFlags = SEI_PT;
 
   if(pPicStatus->eType == SLICE_I)
@@ -258,41 +250,41 @@ static void GenerateSEI(AL_TEncCtx* pCtx, AL_TBuffer* pStream, uint32_t const uT
 
   pCtx->m_HevcSPS.sps_seq_parameter_set_id = 0;
   WriteSEI(pCtx, uSeiFlags, false, pPicStatus);
-  uSize = StreamGetNumBytes(&pCtx->m_Stream) - uTotalSize;
+  uint32_t uSize = StreamGetNumBytes(&pCtx->m_Stream) - uTotalSize;
 
   if(uSize)
-    AddSection(pStream, uTotalSize, uSize, uFlags);
+    AL_StreamMetaData_AddSection(pStreamMeta, uTotalSize, uSize, uFlags);
 }
 
 /***************************************************************************/
 static void GenerateNalUnits(AL_TEncCtx* pCtx, AL_TNALUnitsInfo const tNALUnitsInfo, AL_TEncPicStatus const* pPicStatus, AL_TBuffer* pStream)
 {
-  AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
   uint32_t uSumSize = 0;
+  AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
   uint32_t uOffset = pMetaData->uOffset % pMetaData->uMaxSize;
   uint32_t uFlags = SECTION_CONFIG_FLAG | AL_StreamSection_GetCompleteFlags(tNALUnitsInfo.isSPSEnabled);
 
   assert((pMetaData->uMaxSize - uOffset) >= ENC_MAX_HEADER_SIZE);
 
-  AL_IP_ENCODER_BEGIN_MUTEX(pCtx);
+  Rtos_GetMutex(pCtx->m_Mutex);
+
+  StreamInitBuffer(&pCtx->m_Stream, pStream->pData + uOffset, ENC_MAX_HEADER_SIZE);
+
+  if(tNALUnitsInfo.isAUDEnabled)
+    uSumSize += GenerateAUD(pCtx, pMetaData, uSumSize, uFlags, pPicStatus->eType);
+
+  if(tNALUnitsInfo.isSPSEnabled)
   {
-    StreamInitBuffer(&pCtx->m_Stream, pStream->pData + uOffset, ENC_MAX_HEADER_SIZE);
-
-    if(tNALUnitsInfo.isAUDEnabled)
-      uSumSize += GenerateAU(pCtx, pStream, uSumSize, uFlags, pPicStatus->eType);
-
-    if(tNALUnitsInfo.isSPSEnabled)
-    {
-      uSumSize += GenerateVPS(pCtx, pStream, uSumSize, uFlags);
-      uSumSize += GenerateSPS(pCtx, pStream, uSumSize, uFlags);
-    }
-
-    if(tNALUnitsInfo.isPPSEnabled)
-      uSumSize += GeneratePPS(pCtx, pStream, uSumSize, uFlags, pPicStatus);
-
-    GenerateSEI(pCtx, pStream, uSumSize, uFlags, pPicStatus);
+    uSumSize += GenerateVPS(pCtx, pMetaData, uSumSize, uFlags);
+    uSumSize += GenerateSPS(pCtx, pMetaData, uSumSize, uFlags);
   }
-  AL_IP_ENCODER_END_MUTEX(pCtx);
+
+  if(tNALUnitsInfo.isPPSEnabled)
+    uSumSize += GeneratePPS(pCtx, pMetaData, uSumSize, uFlags, pPicStatus);
+
+  GenerateSEI(pCtx, pMetaData, uSumSize, uFlags, pPicStatus);
+
+  Rtos_ReleaseMutex(pCtx->m_Mutex);
 }
 
 /***************************************************************************/
@@ -302,86 +294,80 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_TBuff
 
   if(!pPicStatus || !pStream)
   {
-    AL_Common_Encoder_EndEncoding(pCtx, NULL, NULL);
+    AL_Common_Encoder_EndEncoding(pCtx, NULL, NULL, NULL, false);
     return;
   }
 
   assert(pPicStatus->iNumParts > 0);
   int iPoolID = pPicStatus->UserParam;
   AL_TFrameInfo* pFI = &pCtx->m_Pool[iPoolID];
-  AL_TNALUnitsInfo tNALUnitsInfo =
-  {
-    pCtx->m_Settings.bEnableAUD,   /* isAUDEnabled */
-    pPicStatus->bIsIDR,            /* isSPSEnabled */
-    (pPicStatus->eType == SLICE_I) /* isPPSEnabled */
-  };
-  uint32_t const uCompleteFlags = AL_StreamSection_GetCompleteFlags(pPicStatus->bIsIDR);
+
+  const uint32_t uCompleteFlags = AL_StreamSection_GetCompleteFlags(pPicStatus->bIsIDR);
+
   assert(pStream);
 
   if(pPicStatus->eErrorCode & AL_ERROR)
   {
-    AL_IP_ENCODER_BEGIN_MUTEX(pCtx);
+    Rtos_GetMutex(pCtx->m_Mutex);
     pCtx->m_eError = pPicStatus->eErrorCode;
-    AL_IP_ENCODER_END_MUTEX(pCtx);
+    Rtos_ReleaseMutex(pCtx->m_Mutex);
   }
   else if(pPicStatus->bSkip)
   {
-    // TODO
   }
   else
   {
-    int iPart;
-    uint16_t uLastSecID = 0;
-    AL_TStreamPart* pStreamParts = (AL_TStreamPart*)(pStream->pData + pPicStatus->uStrmPartOffset);
-    AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
+    AL_TStreamPart* pStreamParts = (AL_TStreamPart*)(pStream->pData + pPicStatus->uStreamPartOffset);
 
     uint32_t uOffset = pStreamParts[pPicStatus->iNumParts - 1].uOffset
                        + pStreamParts[pPicStatus->iNumParts - 1].uSize;
 
-    pMetaData->uMaxSize -= (pMetaData->uMaxSize - pPicStatus->uStrmPartOffset);
+    AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
+    pMetaData->uMaxSize -= (pMetaData->uMaxSize - pPicStatus->uStreamPartOffset);
     pMetaData->uAvailSize = pMetaData->uMaxSize - pMetaData->uOffset;
 
-    // High Level Syntax (AUD, SPS, PPS, SEI ...) ---------------------------
-    pFI->uFirstSecID = AddSection(pStream, 0, 0, 0); // Reserve one section for filler data
-    GenerateNalUnits(pCtx, tNALUnitsInfo, pPicStatus, pStream);
+    pFI->uFirstSecID = AL_StreamMetaData_AddSection(pMetaData, 0, 0, 0); // Reserve one section for filler data
+
+    if(pPicStatus->bIsFirstSlice)
+    {
+      AL_TNALUnitsInfo tNALUnitsInfo =
+      {
+        pCtx->m_Settings.bEnableAUD,   /* isAUDEnabled */
+        pPicStatus->bIsIDR,            /* isSPSEnabled */
+        (pPicStatus->eType == SLICE_I) /* isPPSEnabled */
+      };
+
+      GenerateNalUnits(pCtx, tNALUnitsInfo, pPicStatus, pStream);
+    }
 
     if(pPicStatus->iFiller)
       AL_Common_Encoder_AddFillerData(pStream, &uOffset, pFI->uFirstSecID, pPicStatus->iFiller, false);
 
-    for(iPart = 0; iPart < pPicStatus->iNumParts; ++iPart)
-      uLastSecID = AddSection(pStream, pStreamParts[iPart].uOffset, pStreamParts[iPart].uSize, uCompleteFlags);
+    uint16_t uLastSecID = 0;
 
-    SetSectionFlags(pStream, uLastSecID, SECTION_END_FRAME_FLAG | uCompleteFlags);
+    for(int iPart = 0; iPart < pPicStatus->iNumParts; ++iPart)
+      uLastSecID = AL_StreamMetaData_AddSection(pMetaData, pStreamParts[iPart].uOffset, pStreamParts[iPart].uSize, uCompleteFlags);
 
-    // Update Contexts
-    SetSectionFlags(pStream, pFI->uFirstSecID, uCompleteFlags);
+    uint32_t uLastFlags = uCompleteFlags;
 
-    // PictureManager_AddRef(&pCtx->m_PictMngrCtx, &pFI->tPicInfo, &Buf);
+    if(pPicStatus->bIsLastSlice)
+      uLastFlags |= SECTION_END_FRAME_FLAG;
+    AL_StreamMetaData_SetSectionFlags(pMetaData, uLastSecID, uLastFlags);
+    AL_StreamMetaData_SetSectionFlags(pMetaData, pFI->uFirstSecID, uCompleteFlags);
 
     if(pPicStatus->eType == SLICE_I)
       pCtx->m_uCpbRemovalDelay = 0;
     pCtx->m_uCpbRemovalDelay += PictureDisplayToFieldNumber[pPicStatus->ePicStruct];
+
+    Rtos_GetMutex(pCtx->m_Mutex);
+
+    if(pCtx->m_Settings.tChParam.tRCParam.eRCMode == AL_RC_LOW_LATENCY)
+      pCtx->uNumGroup = pPicStatus->uNumGroup;
+    Rtos_ReleaseMutex(pCtx->m_Mutex);
   }
 
-  // End frame
-  AL_IP_ENCODER_BEGIN_MUTEX(pCtx);
-
-  if(pCtx->m_Settings.tChParam.tRCParam.eRCMode == AL_RC_LOW_LATENCY)
-    pCtx->uNumGroup = pPicStatus->uNumGroup;
-  AL_IP_ENCODER_END_MUTEX(pCtx);
-
   AL_TBuffer* pSrc = (AL_TBuffer*)(uintptr_t)pPicStatus->SrcHandle;
-  AL_Common_Encoder_EndEncoding(pCtx, pStream, pSrc);
-  AL_Buffer_Unref(pSrc);
-
-  if(pFI->pQpTable)
-    AL_Buffer_Unref(pFI->pQpTable);
-
-  AL_IP_ENCODER_BEGIN_MUTEX(pCtx);
-  ++pCtx->m_iFrameCountDone;
-
-  AL_IP_ENCODER_END_MUTEX(pCtx);
-  AL_IP_ENCODER_RELEASE_SEM(pCtx);
+  AL_Common_Encoder_EndEncoding(pCtx, pStream, pSrc, pFI->pQpTable, pPicStatus->bIsLastSlice);
 }
 
 static void UpdateHls(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
@@ -425,7 +411,7 @@ static void UpdateMotionEstimationRange(AL_TEncChanParam* pChParam)
 
 static void ComputeQPInfo(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
 {
-  // Calculate Initial QP if not provided --------------------------------------
+  // Calculate Initial QP if not provided ----------------------------------
   if(!AL_Common_Encoder_IsInitialQpProvided(pChParam))
   {
     uint32_t iBitPerPixel = AL_Common_Encoder_ComputeBitPerPixel(pChParam);
@@ -466,7 +452,7 @@ AL_TEncCtx* AL_HEVC_Encoder_Create(TScheduler* pScheduler, AL_TAllocator* pAlloc
   assert(pSettings);
 
   // Create New encoder context --------------------------------------------
-  AL_TEncCtx* pCtx = (AL_TEncCtx*)Rtos_Malloc(sizeof(AL_TEncCtx));
+  AL_TEncCtx* pCtx = Rtos_Malloc(sizeof(AL_TEncCtx));
 
   if(!pCtx)
     return NULL;
@@ -481,7 +467,7 @@ AL_TEncCtx* AL_HEVC_Encoder_Create(TScheduler* pScheduler, AL_TAllocator* pAlloc
   // Initialize Scheduler -------------------------------------------------
   pCtx->m_pScheduler = pScheduler;
 
-  if(pSettings->eScalingList != FLAT)
+  if(pSettings->eScalingList != AL_SCL_FLAT)
     pChParam->eOptions |= AL_OPT_SCL_LST;
 
   if(pSettings->eLdaCtrlMode != DEFAULT_LDA)
@@ -494,17 +480,15 @@ AL_TEncCtx* AL_HEVC_Encoder_Create(TScheduler* pScheduler, AL_TAllocator* pAlloc
   AL_Common_Encoder_SetWatchdogCB(&CBs, pSettings);
 #endif
 
-#if ENABLE_RTOS_SYNC
   /* We don't want to send a cmd the scheduler can't store */
-  pCtx->m_Semaphore = Rtos_CreateSemaphore(ENC_MAX_CMD - 1);
-#endif
+  pCtx->m_PendingEncodings = Rtos_CreateSemaphore(ENC_MAX_CMD - 1);
 
   GenerateSkippedPictureData(pCtx);
 
   // Scaling List -----------------------------------------------------------
   AL_HEVC_SelectScalingList(&pCtx->m_HevcSPS, &pCtx->m_Settings);
 
-  if(pSettings->eScalingList != FLAT)
+  if(pSettings->eScalingList != AL_SCL_FLAT)
     AL_HEVC_PreprocessScalingList(&pCtx->m_HevcSPS.scaling_list_param, &pCtx->m_tBufEP1);
 
   // Lambdas ----------------------------------------------------------------
@@ -513,11 +497,11 @@ AL_TEncCtx* AL_HEVC_Encoder_Create(TScheduler* pScheduler, AL_TAllocator* pAlloc
 
   pCtx->m_hChannel = AL_ISchedulerEnc_CreateChannel(pCtx->m_pScheduler, pChParam, pCtx->m_tBufEP1.tMD.uPhysicalAddr, &CBs);
 
-  AL_Common_Encoder_SetMaxNumRef(pCtx, pChParam);
-
   if(pCtx->m_hChannel == AL_INVALID_CHANNEL)
     goto fail_create_channel; // cannot create channel, probably not enough core for the resolution
 
+
+  AL_Common_Encoder_SetMaxNumRef(pCtx, pChParam);
 
   return pCtx;
 

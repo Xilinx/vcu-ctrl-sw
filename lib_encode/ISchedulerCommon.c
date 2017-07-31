@@ -52,8 +52,6 @@ void SetChannelInfo(AL_TCommonChannelInfo* pChanInfo, AL_TEncChanParam* pChParam
   pChanInfo->uRecPitchC = pChanInfo->uRecPitchY;
 }
 
-void SetChannelInfo(AL_TCommonChannelInfo* pChanInfo, AL_TEncChanParam* pChParam);
-
 static void setRecChannelWideInfo(TRecPic* pRecPic, AL_TCommonChannelInfo* pChanInfo)
 {
   pRecPic->tBuf.iWidth = pChanInfo->uWidth;

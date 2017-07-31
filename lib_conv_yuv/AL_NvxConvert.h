@@ -48,7 +48,7 @@ public:
   virtual AL_UINT GetConvBufSize();
   virtual void ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut);
 
-private:
+protected:
   struct TFrameInfo
   {
     int iWidth;

@@ -103,8 +103,6 @@ typedef struct t_PictMngrCtx
   AL_TDpb m_DPB;
 
   uint16_t m_uNumSlice;
-  uint8_t m_uMaxFrmBuf;
-  uint8_t m_uMaxMvBuf;
 
   // Current Buffers/index
   uint8_t m_uRecID;    /*!< Index of the Frame buffers currently used as reconstructed buffers */
@@ -149,14 +147,13 @@ typedef struct t_PictMngrCtx
    \param[in] bAvc        Specifies if we use the AVC or HEVC codec
    \param[in] uWidth      Picture width in pixels unit
    \param[in] uHeight     Picture height in pixels unit
-   \param[in] uNumFrmBuf  Number of frame buffer to manage
    \param[in] uNumMvBuf   Number of motion-vector buffer to manage
    \param[in] uNumRef     Number of reference to manage
    \param[in] uNumInterBuf Number of intermediate buffer to manage
    \return If the function succeeds the return value is nonzero (true)
          If the function fails the return value is zero (false)
 *****************************************************************************/
-bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, bool bAvc, uint16_t uWidth, uint16_t uHeight, uint8_t uNumFrmBuf, uint8_t uNumMvBuf, uint8_t uNumRef, uint8_t uNumInterBuf);
+bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, bool bAvc, uint16_t uWidth, uint16_t uHeight, uint8_t uNumMvBuf, uint8_t uNumRef, uint8_t uNumInterBuf);
 
 /*************************************************************************//*!
    \brief Flush all pictures so all buffers are fully released
@@ -185,19 +182,6 @@ void AL_PictMngr_LockRefMvId(AL_TPictMngrCtx* pCtx, uint8_t uNumRef, uint8_t* pR
    \param[in] pRefMvId List of motion vectors buffer IDs associated to the reference pictures
 *****************************************************************************/
 void AL_PictMngr_UnlockRefMvId(AL_TPictMngrCtx* pCtx, uint8_t uNumRef, uint8_t* pRefMvId);
-
-/*************************************************************************//*!
-   \brief Retrieves the size of a reference frame buffer
-   \param[in] uWidth      frame width in pixels units
-   \param[in] uHeight     frame height in pixels units
-   \param[in] eChromaMode Chroma subsampling
-   \param[in] uBitDepth   Size in bits of picture samples
-   \return return the POC value of the current decoded frame
-*****************************************************************************/
-uint32_t AL_PictMngr_GetReferenceSize(uint16_t uWidth, uint16_t uHeight, AL_EChromaMode eChromaMode, uint8_t uBitDepth);
-
-/*****************************************************************************/
-uint32_t AL_PictMngr_GetLumaMapSize(uint16_t uWidth, uint16_t uHeight, AL_EFbStorageMode eFBStorageMode);
 
 /*************************************************************************//*!
    \brief Retrieves the current decoded frame identifier

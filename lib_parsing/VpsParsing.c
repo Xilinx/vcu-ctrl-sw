@@ -51,7 +51,7 @@
 /*****************************************************************************/
 void ParseVPS(AL_THevcVps pVPSTable[], AL_TRbspParser* pRP)
 {
-  uint16_t i, j, layer_offset;
+  int i, j, layer_offset;
   uint8_t vps_id;
   AL_THevcVps* pVPS;
 

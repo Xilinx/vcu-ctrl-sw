@@ -35,88 +35,24 @@
 *
 ******************************************************************************/
 
-#pragma once
-#include "EncChanParam.h"
 
-static AL_TGopFrm PYRAMIDAL_GOP_3[] =
-{
-  {
-    SLICE_P, 0, 1, 0, 4, -4, 0, 0, { -4, 0, 0, 0, 0 }
-  },
-  {
-    SLICE_B, 0, 1, 1, 2, -2, 2, 0, { -2, 2, 0, 0, 0 }
-  },
-  {
-    SLICE_B, 0, 0, 2, 1, -1, 1, 0, { -1, 1, 3, 0, 0 }
-  },
-  {
-    SLICE_B, 0, 0, 2, 3, -1, 1, 0, { -1, 1, 0, 0, 0 }
-  }
-};
+/////////////////////// IP CONFIGURATION ////////////////////////
+#define AL_UID_ENCODER 0x00019BB3
+#define AL_ENC_NUM_CORES 4
+#define AL_DEC_NUM_CORES 2
 
-static AL_TGopFrm PYRAMIDAL_GOP_5[] =
-{
-  {
-    SLICE_P, 0, 1, 0, 6, -6, 0, 0, { -6, 0, 0, 0, 0 }
-  },
-  {
-    SLICE_B, 0, 1, 1, 3, -3, 3, 0, { -3, 3, 0, 0, 0 }
-  },
-  {
-    SLICE_B, 0, 0, 2, 1, -1, 2, 0, { -1, 2, 5, 0, 0 }
-  },
-  {
-    SLICE_B, 0, 0, 2, 2, -2, 1, 0, { -2, 1, 4, 0, 0 }
-  },
-  {
-    SLICE_B, 0, 0, 2, 4, -1, 2, 0, { -1, 2, 0, 0, 0 }
-  },
-  {
-    SLICE_B, 0, 0, 2, 5, -2, 1, 0, { -2, 1, 0, 0, 0 }
-  }
-};
+#define HW_IP_BIT_DEPTH 10
+#define AL_CORE_MAX_WIDTH 4096
+#define AL_L2P_MAX_SIZE (26 * 40 * 4096)
+#define AL_ALIGN_HEIGHT 64
+#define AL_ALIGN_PITCH 256
 
-static AL_TGopFrm PYRAMIDAL_GOP_7[] =
-{
-  {
-    SLICE_P, 0, 1, 0, 8, -8, 0, 0, { -8, 0, 0, 0, 0 }
-  },
-  {
-    SLICE_B, 0, 1, 1, 4, -4, 4, 0, { -4, 4, 0, 0, 0 }
-  },
-  {
-    SLICE_B, 0, 1, 1, 2, -2, 2, 0, { -2, 2, 6, 0, 0 }
-  },
-  {
-    SLICE_B, 0, 0, 2, 1, -1, 1, 0, { -1, 1, 3, 7, 0 }
-  },
-  {
-    SLICE_B, 0, 0, 2, 3, -1, 1, 0, { -1, 1, 5, 0, 0 }
-  },
-  {
-    SLICE_B, 0, 1, 1, 6, -2, 2, 0, { -2, 2, 0, 0, 0 }
-  },
-  {
-    SLICE_B, 0, 0, 2, 5, -1, 1, 0, { -1, 1, 3, 0, 0 }
-  },
-  {
-    SLICE_B, 0, 0, 2, 7, -1, 1, 0, { -1, 1, 0, 0, 0 }
-  }
-};
+#define AL_BLK16x16_QP_TABLE 0
 
-static AL_TGopFrm* getPyramidalFrames(int numB)
-{
-  switch(numB)
-  {
-  case 7:
-    return PYRAMIDAL_GOP_7;
-  case 5:
-    return PYRAMIDAL_GOP_5;
-  case 3:
-    return PYRAMIDAL_GOP_3;
-  default:
-    assert(false);
-    return PYRAMIDAL_GOP_3;
-  }
-}
+#define AL_SCHEDULER_CORE_FREQUENCY 666666666 // ~667 MHz
+#define AL_SCHEDULER_FREQUENCY_MARGIN 10
+#define AL_SCHEDULER_BLK_32x32_CYCLE 4900
+#define AL_MAX_RESSOURCE ((AL_SCHEDULER_CORE_FREQUENCY - ((AL_SCHEDULER_CORE_FREQUENCY / 100) * AL_SCHEDULER_FREQUENCY_MARGIN)) / AL_SCHEDULER_BLK_32x32_CYCLE)
+
+#include "build_defs_common.h"
 

@@ -46,7 +46,6 @@
 
 #include "lib_rtos/types.h"
 
-#include "lib_common/versions.h"
 #include "lib_common/SliceConsts.h"
 #include "lib_common/BufCommon.h"
 #include "lib_common/BufferAPI.h"
@@ -151,6 +150,36 @@ uint32_t AL_GetAllocSize_CompMap(uint16_t uWidth, uint16_t uHeight);
    \return the size (in bytes) needed for the colocated frame buffer
 *****************************************************************************/
 uint32_t AL_GetAllocSize_MV(uint16_t uWidth, uint16_t uHeight, bool bIsAvc);
+
+/*************************************************************************//*!
+   \brief Retrieves the size of the output frame buffer
+   \param[in] tDimension  Frame dimension (width, height) in pixel
+   \param[in] eChromaMode Chroma mode
+   \param[in] uBitDepth   Bit Depth
+   \param[in] bFrameBufferCompression Specifies if compression is needed
+   \param[in] eFrameBufferStorageMode Storage Mode of the frame buffer
+   \return the size (in bytes) needed for the output frame buffer
+*****************************************************************************/
+int AL_GetAllocSize_Frame(AL_TDimension tDimension, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bFrameBufferCompression, AL_EFbStorageMode eFrameBufferStorageMode);
+
+/*************************************************************************//*!
+   \brief Retrieves the size of a reference frame buffer
+   \param[in] uWidth      frame width in pixels units
+   \param[in] uHeight     frame height in pixels units
+   \param[in] eChromaMode Chroma subsampling
+   \param[in] uBitDepth   Size in bits of picture samples
+   \return the size (in bytes) needed for reference frame buffer
+*****************************************************************************/
+uint32_t AL_GetAllocSize_Reference(uint16_t uWidth, uint16_t uHeight, AL_EChromaMode eChromaMode, uint8_t uBitDepth);
+
+/*************************************************************************//*!
+   \brief Retrieves the size of the luma map
+   \param[in] uWidth      frame width in pixels units
+   \param[in] uHeight     frame height in pixels units
+   \param[in] eFrameBufferStorageMode Storage Mode of the frame buffer
+   \return the size (in bytes) needed for the luma map
+*****************************************************************************/
+uint32_t AL_GetAllocSize_LumaMap(uint16_t uWidth, uint16_t uHeight, AL_EFbStorageMode eFrameBufferStorageMode);
 
 /*@}*/
 

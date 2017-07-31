@@ -37,13 +37,33 @@
 
 #include "lib_encode/IScheduler.h"
 #include "lib_encode/driverInterface.h"
+#include "lib_encode/SchedulerMcu.h"
+#include "lib_encode/ISchedulerCommon.h"
 
 #include <stdlib.h>
 #include <string.h>
 
 #include "lib_rtos/lib_rtos.h"
 #include "lib_fpga/DmaAlloc.h"
-#include "SchedulerMcuPrivate.h"
+
+typedef struct al_t_SchedulerMcu
+{
+  const TSchedulerVtable* vtable;
+  AL_TAllocator* allocator;
+  Driver* driver;
+}AL_TSchedulerMcu;
+
+typedef struct
+{
+  AL_TISchedulerCallBacks CBs;
+  AL_TCommonChannelInfo info;
+  Driver* driver;
+  int fd;
+  AL_THREAD thread;
+  bool shouldContinue;
+}Channel;
+
+bool AL_SchedulerMcu_Destroy(AL_TSchedulerMcu* schedulerMcu);
 
 #if __linux__
 
@@ -66,8 +86,6 @@ static void* WaitForStatus(void* p);
 static AL_HANDLE createChannel(TScheduler* pScheduler, AL_TEncChanParam* pChParam, AL_PADDR pEP1, AL_TISchedulerCallBacks* pCBs)
 {
   AL_TSchedulerMcu* schedulerMcu = (AL_TSchedulerMcu*)pScheduler;
-  bool bRet;
-  struct al5_config_channel msg = { 0 };
 
   Channel* chan = calloc(1, sizeof(Channel));
 
@@ -83,8 +101,9 @@ static AL_HANDLE createChannel(TScheduler* pScheduler, AL_TEncChanParam* pChPara
     goto fail;
   }
 
+  struct al5_config_channel msg = { 0 };
   setConfigChannelMsg(&msg, pChParam, pEP1);
-  bRet = AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_CONFIG_CHANNEL, &msg);
+  bool bRet = AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_CONFIG_CHANNEL, &msg);
 
   if(!bRet)
   {
@@ -98,24 +117,17 @@ static AL_HANDLE createChannel(TScheduler* pScheduler, AL_TEncChanParam* pChPara
 
   setCallbacks(chan, pCBs);
 
-  chan->semRequests = Rtos_CreateSemaphore(0);
-
-  if(!chan->semRequests)
-    goto fail;
-
   chan->shouldContinue = true;
 
   chan->thread = Rtos_CreateThread(&WaitForStatus, chan);
 
   if(!chan->thread)
-    goto fail_thread;
+    goto fail;
 
   SetChannelInfo(&chan->info, pChParam);
 
   return chan;
 
-  fail_thread:
-  Rtos_DeleteSemaphore(chan->semRequests);
   fail:
 
   if(chan && chan->fd >= 0)
@@ -141,12 +153,7 @@ static bool encodeOneFrame(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TEncIn
     setEncodeMsg(&msg, pEncInfo, pReqInfo, pBuffersAddrs);
   }
 
-  bool isSuccess = AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_ENCODE_ONE_FRM, &msg);
-
-  if(isSuccess)
-    Rtos_ReleaseSemaphore(chan->semRequests);
-
-  return isSuccess;
+  return AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_ENCODE_ONE_FRM, &msg);
 }
 
 static bool destroyChannel(TScheduler* pScheduler, AL_HANDLE hChannel)
@@ -155,16 +162,15 @@ static bool destroyChannel(TScheduler* pScheduler, AL_HANDLE hChannel)
   Channel* chan = hChannel;
 
   chan->shouldContinue = false;
-  Rtos_ReleaseSemaphore(chan->semRequests);
 
   AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_DESTROY_CHANNEL, NULL);
 
   if(!Rtos_JoinThread(chan->thread))
     return false;
+  Rtos_DeleteThread(chan->thread);
 
   AL_Driver_Close(schedulerMcu->driver, chan->fd);
 
-  Rtos_DeleteSemaphore(chan->semRequests);
   free(chan);
 
   return true;
@@ -229,11 +235,7 @@ static void setCallbacks(Channel* chan, AL_TISchedulerCallBacks* pCBs)
 
 static bool getStatusMsg(Channel* chan, struct al5_params* msg)
 {
-  bool bRet = AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_WAIT_FOR_STATUS, msg);
-
-  if(!bRet)
-    perror("Failed to get encode status");
-  return bRet;
+  return AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_WAIT_FOR_STATUS, msg);
 }
 
 static void processStatusMsg(Channel* chan, struct al5_params* msg, AL_TEncPicStatus* status)
@@ -254,8 +256,6 @@ static void* WaitForStatus(void* p)
 
   while(true)
   {
-    Rtos_GetSemaphore(chan->semRequests, AL_WAIT_FOREVER);
-
     if(!chan->shouldContinue)
       break;
 

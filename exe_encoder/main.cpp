@@ -51,11 +51,8 @@
 #include <string.h>
 #include <string>
 #include <vector>
-#include <mutex>
-#include <condition_variable>
 
 #include "lib_app/console.h"
-#include "lib_app/timing.h"
 #include "lib_app/utils.h"
 
 #include "CodecUtils.h"
@@ -83,6 +80,9 @@ extern "C"
 #include "sink_bitstream_writer.h"
 #include "sink_frame_writer.h"
 #include "sink_md5.h"
+#include "sink_repeater.h"
+
+int g_numFrameToRepeat;
 
 using namespace std;
 
@@ -170,12 +170,6 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
       DoNotAcceptCfg = true;
   });
 
-  auto popCmdLineValue =
-    [&](CommandLineParser& opt) -> int
-    {
-      return GetCmdlineValue(opt.popWord());
-    };
-
   opt.addOption("-cfg", [&]()
   {
     auto const cfgPath = opt.popWord();
@@ -189,8 +183,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
     ParseConfigFile(cfgPath, cfg);
   }, "Use it instead of -cfg. Errors in the configuration file will be ignored");
 
-  opt.addFlag("--help", &help, "Show this help");
-  opt.addFlag("-h", &help, "Show this help");
+  opt.addFlag("--help,-h", &help, "Show this help");
   opt.addString("--input,-i", &cfg.YUVFileName, "YUV input file");
   opt.addString("--output,-o", &cfg.BitstreamFileName, "Compressed output file");
   opt.addString("--md5", &cfg.RunInfo.sMd5Path, "Path to the output MD5 textfile");
@@ -200,41 +193,21 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   }, "Enable color");
 
   opt.addFlag("--quiet,-q", &g_Verbosity, "do not output anything", 0);
-  opt.addOption("--input-height", [&]()
-  {
-    auto height = opt.popInt();
-    cfg.FileInfo.PictHeight = height;
-    cfg.Settings.tChParam.uHeight = height;
-  }, "Specify YUV input height");
-
-  opt.addOption("--input-width", [&]()
-  {
-    auto value = popCmdLineValue(opt);
-    cfg.FileInfo.PictWidth = value;
-    cfg.Settings.tChParam.uWidth = value;
-  }, "Specify YUV input width");
+  opt.addInt("--input-width", &cfg.FileInfo.PictWidth, "Specify YUV input width");
+  opt.addInt("--input-height", &cfg.FileInfo.PictHeight, "Specify YUV input height");
   opt.addOption("--chroma-mode", [&]()
   {
     auto chromaMode = stringToChromaMode(opt.popWord());
     AL_SET_CHROMA_MODE(cfg.Settings.tChParam.ePicFormat, chromaMode);
   }, "Specify chroma-mode (CHROMA_MONO, CHROMA_4_0_0, CHROMA_4_2_0, CHROMA_4_2_2)");
-  opt.addOption("--ip-bitdepth", [&]()
-  {
-    auto bd = popCmdLineValue(opt);
-    AL_SET_BITDEPTH(cfg.Settings.tChParam.ePicFormat, bd);
-  }, "Specify bitdepth of ip input (8 : 10)");
-  opt.addOption("--input-format", [&]()
-  {
-    cfg.FileInfo.FourCC = GetCmdlineFourCC(opt.popWord());
-  }, "Specify YUV input format (I420, IYUV, YV12, NV12, Y800, Y010, P010, I0AL ...)");
-  opt.addOption("--output-format", [&]()
-  {
-    cfg.RecFourCC = GetCmdlineFourCC(opt.popWord());
-  }, "Specify output format");
-  opt.addOption("--ratectrl-mode", [&]()
-  {
-    cfg.Settings.tChParam.tRCParam.eRCMode = AL_ERateCtrlMode(popCmdLineValue(opt));
-  }, "Specify rate control mode (CONST_QP, CBR, VBR"
+
+  int ipbitdepth = -1;
+  opt.addInt("--level", &cfg.Settings.tChParam.uLevel, "Specify the level we want to encode with (10 to 62)");
+  opt.addCustom("--ip-bitdepth", &ipbitdepth, &GetCmdlineValue, "Specify bitdepth of ip input (8 : 10)");
+  opt.addCustom("--input-format", &cfg.FileInfo.FourCC, &GetCmdlineFourCC, "Specify YUV input format (I420, IYUV, YV12, NV12, Y800, Y010, P010, I0AL ...)");
+  opt.addCustom("--output-format", &cfg.RecFourCC, &GetCmdlineFourCC, "Specify output format");
+  opt.addCustom("--ratectrl-mode", &cfg.Settings.tChParam.tRCParam.eRCMode, &GetCmdlineValue,
+                "Specify rate control mode (CONST_QP, CBR, VBR"
 #if AL_ENABLE_HWTC
                 ", LOW_LATENCY"
 #endif
@@ -257,9 +230,14 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addInt("--sliceQP", &cfg.Settings.tChParam.tRCParam.iInitialQP, "Specify the initial slice QP");
   opt.addInt("--gop-length", &cfg.Settings.tChParam.tGopParam.uGopLength, "Specify the GOP length, 0 means I slice only");
   opt.addInt("--gop-numB", &cfg.Settings.tChParam.tGopParam.uNumB, "Number of consecutive B frame (0 .. 4)");
-  opt.addInt("--max-picture", &cfg.RunInfo.iMaxPict, "Maximum number of pictures encoded (1,2 .. ALL)");
+  opt.addInt("--max-picture", &cfg.RunInfo.iMaxPict, "Maximum number of pictures encoded (1,2 .. -1 for ALL)");
   opt.addInt("--num-slices", &cfg.Settings.tChParam.uNumSlices, "Specify the number of slices to use");
   opt.addInt("--num-core", &cfg.Settings.tChParam.uNumCore, "Specify the number of cores to use (resolution needs to be sufficient)");
+  opt.addFlag("--loop", &cfg.RunInfo.bLoop, "loop at the end of the yuv file");
+  opt.addFlag("--slicelat", &cfg.Settings.tChParam.bSubframeLatency, "enable subframe latency");
+  opt.addFlag("--framelat", &cfg.Settings.tChParam.bSubframeLatency, "disable subframe latency", false);
+
+  opt.addInt("--prefetch", &g_numFrameToRepeat, "prefetch n frames and loop between these frames for max picture count");
   opt.parse(argc, argv);
 
   if(help)
@@ -268,8 +246,17 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
     exit(0);
   }
 
+  cfg.Settings.tChParam.uWidth = cfg.FileInfo.PictWidth;
+  cfg.Settings.tChParam.uHeight = cfg.FileInfo.PictHeight;
+
   if(AL_IS_STILL_PROFILE(cfg.Settings.tChParam.eProfile))
     cfg.RunInfo.iMaxPict = 1;
+
+
+  if(ipbitdepth != -1)
+  {
+    AL_SET_BITDEPTH(cfg.Settings.tChParam.ePicFormat, ipbitdepth);
+  }
 }
 
 void ValidateConfig(ConfigFile& cfg)
@@ -351,11 +338,6 @@ shared_ptr<AL_TBuffer> AllocateConversionBuffer(vector<uint8_t>& YuvBuffer, int 
   return shared_ptr<AL_TBuffer>(Yuv, &AL_Buffer_Destroy);
 }
 
-bool IsValid(AL_TBuffer* Src)
-{
-  return Src && Src->pData != nullptr;
-}
-
 AL_TBuffer* ReadSourceFrame(AL_TBufPool* pBufPool, AL_TBuffer* conversionBuffer, ifstream& YuvFile, ConfigFile const& cfg, IConvSrc* hConv)
 {
   auto sourceBuffer = AL_BufPool_GetBuffer(pBufPool, AL_BUF_MODE_BLOCK);
@@ -368,11 +350,6 @@ AL_TBuffer* ReadSourceFrame(AL_TBufPool* pBufPool, AL_TBuffer* conversionBuffer,
     hConv->ConvertSrcBuf(AL_GET_BITDEPTH(cfg.Settings.tChParam.ePicFormat), conversionBuffer, sourceBuffer);
 
   return sourceBuffer;
-}
-
-bool AllFrameProcessed(unsigned int iPictCount, unsigned int iMaxPict)
-{
-  return iPictCount >= iMaxPict;
 }
 
 static int GetPitchYValue(int iWidth)
@@ -397,44 +374,17 @@ static void SetPitchYC(AL_TPitches& p, int iWidth, TFourCC tFourCC)
   }
 }
 
-int sendInputFileTo(string YUVFileName, AL_TBufPool& SrcBufPool, AL_TAllocator* pAllocator, AL_TBuffer* Yuv, IFrameSink* sink, ConfigFile const& cfg, bool shouldConvert)
+bool isLastPict(int iPictCount, int iMaxPict)
+{
+  return (iPictCount >= iMaxPict) && (iMaxPict != -1);
+}
+
+int sendInputFileTo(string YUVFileName, BufPool& SrcBufPool, AL_TBuffer* Yuv, ConfigFile const& cfg, IConvSrc* pSrcConv, IFrameSink* sink)
 {
   ifstream YuvFile;
   OpenInput(YuvFile, YUVFileName);
 
   GotoFirstPicture(cfg.FileInfo, YuvFile, cfg.RunInfo.iFirstPict);
-
-  auto BitDepth = AL_GET_BITDEPTH(cfg.Settings.tChParam.ePicFormat);
-  auto ChromaMode = AL_GET_CHROMA_MODE(cfg.Settings.tChParam.ePicFormat);
-  TFourCC FourCC = AL_GetSrcFourCC(ChromaMode, BitDepth);
-  AL_TPitches p;
-  SetPitchYC(p, cfg.FileInfo.PictWidth, FourCC);
-  AL_TOffsetYC tOffsetYC = GetOffsetYC(p.iLuma, cfg.FileInfo.PictHeight);
-
-  /* source compression case*/
-  unique_ptr<IConvSrc> pSrcConv;
-  switch(cfg.Settings.tChParam.eSrcConvMode)
-  {
-  case AL_NVX:
-    pSrcConv.reset(new CNvxConv(cfg.FileInfo.PictWidth, cfg.FileInfo.PictHeight, BitDepth, ChromaMode));
-    break;
-  default:
-    break;
-  }
-
-  int frameBuffersCount = 2 + cfg.Settings.tChParam.tGopParam.uNumB;
-
-  AL_TBufPoolConfig poolConfig {};
-
-  poolConfig.uMinBuf = frameBuffersCount;
-  poolConfig.uMaxBuf = frameBuffersCount;
-  poolConfig.zBufSize = pSrcConv->GetConvBufSize();
-  poolConfig.pMetaData = (AL_TMetaData*)AL_SrcMetaData_Create(cfg.FileInfo.PictWidth, cfg.FileInfo.PictHeight, p, tOffsetYC, FourCC);
-
-  AL_BufPool_Init(&SrcBufPool, pAllocator, &poolConfig);
-
-  if(!shouldConvert)
-    pSrcConv.reset(nullptr);
 
   int iPictCount = 0;
 
@@ -442,8 +392,8 @@ int sendInputFileTo(string YUVFileName, AL_TBufPool& SrcBufPool, AL_TAllocator* 
   {
     AL_TBuffer* frame = NULL;
 
-    if(!AllFrameProcessed(iPictCount, cfg.RunInfo.iMaxPict))
-      frame = ReadSourceFrame(&SrcBufPool, Yuv, YuvFile, cfg, pSrcConv.get());
+    if(!isLastPict(iPictCount, cfg.RunInfo.iMaxPict))
+      frame = ReadSourceFrame(&SrcBufPool, Yuv, YuvFile, cfg, pSrcConv);
 
     sink->ProcessFrame(frame);
 
@@ -458,7 +408,7 @@ int sendInputFileTo(string YUVFileName, AL_TBufPool& SrcBufPool, AL_TAllocator* 
 }
 
 /*****************************************************************************/
-void SafeMain(int argc, char** argv)
+int SafeMain(int argc, char** argv)
 {
   ConfigFile cfg;
   SetDefaults(cfg);
@@ -482,37 +432,45 @@ void SafeMain(int argc, char** argv)
   if(!pIpDevice)
     throw runtime_error("Can't create IpDevice");
 
-  if(RunInfo.iSchedulerType == SCHEDULER_TYPE_CPU)
-  {
-    pIpDevice->GetBoardInformation();
-  }
+  auto hFinished = Rtos_CreateEvent(false);
+  auto scopeMutex = scopeExit([&]() {
+    Rtos_DeleteEvent(hFinished);
+  });
 
   // --------------------------------------------------------------------------------
   // Create Encoder
   auto pAllocator = pIpDevice->m_pAllocator;
   auto pScheduler = pIpDevice->m_pScheduler;
 
-  AL_TBufPool StreamBufPool;
-
   AL_TBufPoolConfig StreamBufPoolConfig;
 
-  StreamBufPoolConfig.uMinBuf = 2 + 2 + Settings.tChParam.tGopParam.uNumB;
-  StreamBufPoolConfig.uMaxBuf = 2 + 2 + Settings.tChParam.tGopParam.uNumB;
-  StreamBufPoolConfig.zBufSize = GetMaxNalSize(FileInfo.PictWidth, FileInfo.PictHeight, AL_GET_CHROMA_MODE(Settings.tChParam.ePicFormat));
+  auto numStreams = 2 + 2 + Settings.tChParam.tGopParam.uNumB;
+  auto streamSize = GetMaxNalSize(FileInfo.PictWidth, FileInfo.PictHeight, AL_GET_CHROMA_MODE(Settings.tChParam.ePicFormat));
+
+  if(Settings.tChParam.bSubframeLatency)
+  {
+    numStreams *= Settings.tChParam.uNumSlices;
+    streamSize /= Settings.tChParam.uNumSlices;
+    /* we need space for the headers on each slice */
+    streamSize += 4096 * 2;
+    /* stream size is required to be 32bits aligned */
+    streamSize = (streamSize + 31) & ~31;
+  }
+
+  StreamBufPoolConfig.uMinBuf = numStreams;
+  StreamBufPoolConfig.uMaxBuf = numStreams;
+  StreamBufPoolConfig.zBufSize = streamSize;
   StreamBufPoolConfig.pMetaData = (AL_TMetaData*)AL_StreamMetaData_Create(AL_MAX_SECTION, StreamBufPoolConfig.zBufSize);
 
-  AL_BufPool_Init(&StreamBufPool, pAllocator, &StreamBufPoolConfig);
+  BufPool StreamBufPool(pAllocator, StreamBufPoolConfig);
 
-  AL_TBufPool SrcBufPool {};
-  auto scopeBuffer2 = scopeExit([&]() {
-    AL_BufPool_Deinit(&SrcBufPool);
-  });
+  BufPool SrcBufPool;
 
   if(!RecFileName.empty() || !cfg.RunInfo.sMd5Path.empty())
     Settings.tChParam.eOptions = (AL_EChEncOption)(Settings.tChParam.eOptions | AL_OPT_FORCE_REC);
 
 
-  const int frameBuffersCount = 2 + cfg.Settings.tChParam.tGopParam.uNumB;
+  int frameBuffersCount = 2 + cfg.Settings.tChParam.tGopParam.uNumB;
   AL_TBufPoolConfig QpBufPoolConfig = {};
 
   if(cfg.Settings.eQpCtrlMode & (MASK_QP_TABLE_EXT))
@@ -534,6 +492,11 @@ void SafeMain(int argc, char** argv)
   enc.reset(new EncoderSink(cfg.sScnChgFileName, cfg.sLTFileName, cfg.sGMVFileName, cfg, pScheduler, pAllocator, QpBufPool));
 
   enc->BitstreamOutput = createBitstreamWriter(StreamFileName, cfg);
+  enc->m_done = ([&]() {
+    Rtos_SetEvent(hFinished);
+  });
+
+  IFrameSink* firstSink = enc.get();
 
   // Input/Output Format conversion
   // Missing a method to create a wrapped buffer
@@ -571,17 +534,57 @@ void SafeMain(int argc, char** argv)
     assert(bRet);
   }
 
-  auto const uBegin = GetPerfTime();
+  unique_ptr<RepeaterSink> prefetch;
 
-  auto const iPictCount = sendInputFileTo(cfg.YUVFileName, SrcBufPool, pAllocator, SrcYuv.get(), enc.get(), cfg, shouldConvert);
+  if(g_numFrameToRepeat > 0)
+  {
+    prefetch.reset(new RepeaterSink(g_numFrameToRepeat, cfg.RunInfo.iMaxPict));
+    prefetch->next = enc.get();
+    firstSink = prefetch.get();
+    cfg.RunInfo.iMaxPict = g_numFrameToRepeat;
+    frameBuffersCount = max(frameBuffersCount, g_numFrameToRepeat);
+  }
 
-  auto const uEnd = GetPerfTime();
+  auto BitDepth = AL_GET_BITDEPTH(cfg.Settings.tChParam.ePicFormat);
+  auto ChromaMode = AL_GET_CHROMA_MODE(cfg.Settings.tChParam.ePicFormat);
+  TFourCC FourCC = AL_GetSrcFourCC(ChromaMode, BitDepth);
+  AL_TPitches p;
+  SetPitchYC(p, cfg.FileInfo.PictWidth, FourCC);
+  AL_TOffsetYC tOffsetYC = GetOffsetYC(p.iLuma, cfg.FileInfo.PictHeight);
 
-  Message(CC_DEFAULT, "\n\n%d pictures encoded. Average FrameRate = %.4f Fps\n",
-          iPictCount, (iPictCount * 1000.0) / (uEnd - uBegin));
+  /* source compression case*/
+  unique_ptr<IConvSrc> pSrcConv;
+  switch(cfg.Settings.tChParam.eSrcConvMode)
+  {
+  case AL_NVX:
+    pSrcConv.reset(new CNvxConv(cfg.FileInfo.PictWidth, cfg.FileInfo.PictHeight, BitDepth, ChromaMode));
+    break;
+  default:
+    break;
+  }
+
+  AL_TBufPoolConfig poolConfig {};
+
+  poolConfig.uMinBuf = frameBuffersCount;
+  poolConfig.uMaxBuf = frameBuffersCount;
+  poolConfig.zBufSize = pSrcConv->GetConvBufSize();
+  poolConfig.pMetaData = (AL_TMetaData*)AL_SrcMetaData_Create(cfg.FileInfo.PictWidth, cfg.FileInfo.PictHeight, p, tOffsetYC, FourCC);
+
+  bool ret = AL_BufPool_Init(&SrcBufPool, pAllocator, &poolConfig);
+  assert(ret);
+
+  if(!shouldConvert)
+    pSrcConv.reset(nullptr);
+
+  sendInputFileTo(cfg.YUVFileName, SrcBufPool, SrcYuv.get(), cfg, pSrcConv.get(), firstSink);
+
+  Rtos_WaitEvent(hFinished, AL_WAIT_FOREVER);
+
+  return int(GetEncoderLastError());
 }
 
-/*****************************************************************************/
+/******************************************************************************/
+
 int main(int argc, char** argv)
 {
   try
@@ -589,18 +592,15 @@ int main(int argc, char** argv)
     SafeMain(argc, argv);
     return 0;
   }
-  catch(const runtime_error& err)
+  catch(codec_error const& error)
   {
-    g_Verbosity = 1;
-    Message(CC_RED, "\nError: %s\n", err.what());
-    SetConsoleColor(CC_DEFAULT);
-
-    codec_error const* pCodecErr = dynamic_cast<codec_error const*>(&err);
-
-    if(pCodecErr)
-      return pCodecErr->GetCode();
-    else
-      return 255;
+    cerr << endl << "Codec error: " << error.what() << endl;
+    return error.GetCode();
+  }
+  catch(runtime_error const& error)
+  {
+    cerr << endl << "Exception caught: " << error.what() << endl;
+    return 1;
   }
 }
 

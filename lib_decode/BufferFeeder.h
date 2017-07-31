@@ -64,4 +64,6 @@ bool AL_BufferFeeder_PushBuffer(AL_TBufferFeeder* pFeeder, AL_TBuffer* pBuf, AL_
 void AL_BufferFeeder_Signal(AL_TBufferFeeder* pFeeder);
 /* After telling the feeder that EOS is coming, wait for the decoder to consume all the buffers */
 void AL_BufferFeeder_Flush(AL_TBufferFeeder* pFeeder);
+/* Stop abruptly the decoding */
+void AL_BufferFeeder_ForceStop(AL_TBufferFeeder* pFeeder);
 

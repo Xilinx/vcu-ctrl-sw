@@ -35,36 +35,68 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \addtogroup lib_base
-   @{
-   \file
- *****************************************************************************/
 #pragma once
 
-#include "lib_common_enc/EncChanParam.h"
+// Registers
+#define REG_START 0x0084
 
-/*************************************************************************//*!
-   \brief The L2 cache constant parameters
-*****************************************************************************/
-#define L2C_W 64 // L2 cache Block Width
-#define L2C_H 8  // L2 cache Block Height
-#define ME_HMIN_AVC 8  // Motion estimation minimum range in AVC profile
-#define ME_HMIN_HEVC 16 // Motion estimation minimum range in HEVC profile
-#define L2C_WPP_CORE_GAP 4  // Minimum number of Ctb between 2 cores in Wavefront
-#define L2C_REFILL_MARGIN 8  // Min number of L2 cache block (L2C_W x L2C_H)
-#define L2C_MAX_BLOCK 4096
+// param registers mapping
+#define AL_REG_PARAM(Idx) (0x0200 + (Idx << 2))
 
-#define ALIGN_UP(Val, Step) (((Val) + (Step) - 1) & ~((Step) - 1))
-#define ALIGN_DOWN(Val, Step) ((Val) & ~((Step) - 1))
+#define REG_CMD_00 AL_REG_PARAM(0)
+#define REG_CMD_01 AL_REG_PARAM(1)
+#define REG_CMD_02 AL_REG_PARAM(2)
 
-/*****************************************************************************/
-void AL_L2C_GetL2CacheMaxRange(AL_TEncChanParam const* pChParam, AL_ESliceType eSliceType, uint8_t uNumCore, uint16_t* pHorzRange, uint16_t* pVertRange);
+// address registers mapping
+#define AL_REG_ADDR(Idx) (0x0280 + (Idx << 2))
 
-uint32_t AL_L2C_GetL2CacheMinSize(AL_TEncChanParam const* pChParam, uint8_t uNumCore);
-uint32_t AL_L2C_GetL2CacheMaxSize(AL_TEncChanParam const* pChParam, uint8_t uNumCore);
+#define REG_ADD_00 AL_REG_ADDR(0)
+#define REG_ADD_01 AL_REG_ADDR(1)
+#define REG_ADD_02 AL_REG_ADDR(2) // reserved
+#define REG_ADD_03 AL_REG_ADDR(3) // reserved
+#define REG_ADD_04 AL_REG_ADDR(4)
+#define REG_ADD_05 AL_REG_ADDR(5)
+#define REG_ADD_06 AL_REG_ADDR(6)
+#define REG_ADD_07 AL_REG_ADDR(7)
+#define REG_ADD_08 AL_REG_ADDR(8) // reserved
+#define REG_ADD_09 AL_REG_ADDR(9)
+#define REG_ADD_10 AL_REG_ADDR(10)
+#define REG_ADD_11 AL_REG_ADDR(11)
+#define REG_ADD_12 AL_REG_ADDR(12)
+#define REG_ADD_13 AL_REG_ADDR(13)
 
-/*@}*/
+struct REG_ADD
+{
+  REG_ADD(int LSB_, int MSB_) : uLSB(LSB_), uMSB(MSB_)
+  {
+  }
+
+  int uLSB;
+  int uMSB;
+};
+
+static REG_ADD getRegAddrOutputYTile()
+{
+  return REG_ADD(REG_ADD_00, REG_ADD_01);
+}
+
+static REG_ADD getRegAddrYMap()
+{
+  return REG_ADD(REG_ADD_04, REG_ADD_05);
+}
+
+static REG_ADD getRegAddrCMap()
+{
+  return REG_ADD(REG_ADD_06, REG_ADD_07);
+}
+
+static REG_ADD getRegAddrInputYTile()
+{
+  return REG_ADD(REG_ADD_10, REG_ADD_11);
+}
+
+static REG_ADD getRegAddrInputCTile()
+{
+  return REG_ADD(REG_ADD_12, REG_ADD_13);
+}
 

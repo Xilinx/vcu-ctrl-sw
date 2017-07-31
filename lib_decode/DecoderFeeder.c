@@ -37,7 +37,7 @@
 
 #include "lib_rtos/lib_rtos.h"
 #include "DecoderFeeder.h"
-#include "lib_common_dec/DecError.h"
+#include "lib_common/Error.h"
 #include "lib_common/Utils.h"
 #include <stdlib.h> // for 'exit'
 
@@ -73,6 +73,15 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
   do
   {
     AL_HANDLE hDec = slave->hDec;
+
+    if(AL_Patchworker_ShouldBeStopped(slave->patchworker))
+    {
+      AL_Patchworker_Drop(slave->patchworker);
+      AL_Decoder_InternalFlush(slave->hDec);
+      slave->flushed = true;
+      break;
+    }
+
     uint32_t uNewOffset = AL_Decoder_GetStrOffset(hDec);
 
     CircBuffer_ConsumeUpToOffset(slave->patchworker->outputCirc, uNewOffset);
@@ -183,6 +192,12 @@ void AL_DecoderFeeder_Process(AL_TDecoderFeeder* this)
 void AL_DecoderFeeder_Flush(AL_TDecoderFeeder* this)
 {
   AL_Patchworker_NotifyEndOfInput(this->patchworker);
+  Rtos_SetEvent(this->incomingWorkEvent);
+}
+
+void AL_DecoderFeeder_ForceStop(AL_TDecoderFeeder* this)
+{
+  AL_Patchworker_NotifyForceStop(this->patchworker);
   Rtos_SetEvent(this->incomingWorkEvent);
 }
 

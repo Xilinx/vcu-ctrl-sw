@@ -60,7 +60,7 @@ static bool AL_AVC_sbuffering_period(AL_TRbspParser* pRP, AL_TAvcSps* pSpsTable,
 
   pBufPeriod->seq_parameter_set_id = ue(pRP);
 
-  if(pBufPeriod->seq_parameter_set_id < 0 || pBufPeriod->seq_parameter_set_id >= 32)
+  if(pBufPeriod->seq_parameter_set_id >= 32)
     return false;
 
   pSPS = &pSpsTable[pBufPeriod->seq_parameter_set_id];
@@ -287,8 +287,7 @@ static void AL_HEVC_sbuffering_period(AL_TRbspParser* pRP, AL_THevcSps* pSpsTabl
   AL_THevcSps* pSPS = NULL;
 
   pBufPeriod->bp_seq_parameter_set_id = ue(pRP);
-  assert(pBufPeriod->bp_seq_parameter_set_id >= 0 &&
-         pBufPeriod->bp_seq_parameter_set_id < 32);
+  assert(pBufPeriod->bp_seq_parameter_set_id < 32);
 
   pSPS = &pSpsTable[pBufPeriod->bp_seq_parameter_set_id];
   assert(pSPS);

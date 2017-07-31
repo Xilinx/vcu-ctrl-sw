@@ -252,7 +252,6 @@ typedef struct t_VuiParam
   AL_THrdParam hrd_param;
 
   uint8_t poc_proportional_to_timing_flag;
-  uint32_t num_ticks_poc_diff_one_minus1;
 
   uint8_t fixed_frame_rate_flag;
 

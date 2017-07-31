@@ -45,7 +45,6 @@ extern "C"
 {
 #include "lib_common/SliceConsts.h"
 #include "lib_common_enc/Settings.h"
-#include "lib_common/SEI.h"
 }
 
 #include <assert.h>
@@ -259,10 +258,10 @@ static bool GetValue(const string& sLine, size_t zStartPos, int& Value, size_t& 
   else IF_KEYWORD_A(MODE_CABAC)
   else IF_KEYWORD_A(TILE_32x8)
   else IF_KEYWORD_A(NVX)
-  else IF_KEYWORD_0(ASPECT_RATIO_NONE)
-  else IF_KEYWORD_0(ASPECT_RATIO_AUTO)
-  else IF_KEYWORD_0(ASPECT_RATIO_16_9)
-  else IF_KEYWORD_0(ASPECT_RATIO_4_3)
+  else IF_KEYWORD_P(AL_, ASPECT_RATIO_NONE)
+  else IF_KEYWORD_P(AL_, ASPECT_RATIO_AUTO)
+  else IF_KEYWORD_P(AL_, ASPECT_RATIO_16_9)
+  else IF_KEYWORD_P(AL_, ASPECT_RATIO_4_3)
   else IF_KEYWORD_0(COLOUR_DESC_BT_470_PAL)
   else IF_KEYWORD_0(COLOUR_DESC_BT_709)
   else IF_KEYWORD_1(ADAPTIVE_B, AL_ADAPTIVE_B)
@@ -270,16 +269,16 @@ static bool GetValue(const string& sLine, size_t zStartPos, int& Value, size_t& 
   else IF_KEYWORD_0(CHROMA_4_2_0)
   else IF_KEYWORD_0(CHROMA_4_2_2)
   else IF_KEYWORD_0(CHROMA_4_4_4)
-  else IF_KEYWORD_0(FLAT)
-  else IF_KEYWORD_0(DEFAULT)
-  else IF_KEYWORD_0(CUSTOM)
-  else IF_KEYWORD_0(RANDOM_SCL)
+  else IF_KEYWORD_P(AL_SCL_, FLAT)
+  else IF_KEYWORD_P(AL_SCL_, DEFAULT)
+  else IF_KEYWORD_P(AL_SCL_, CUSTOM)
+  else IF_KEYWORD_P(AL_SCL_, RANDOM)
   else IF_KEYWORD_A(TRACE_NONE)
   else IF_KEYWORD_A(TRACE_FRAME)
   else IF_KEYWORD_A(TRACE_ALL)
   else IF_KEYWORD_A(TRACE_STATUS)
   else IF_KEYWORD_1(TRACE_ALWAYS, AL_TRACE_ALL) // backward compatibility
-  else IF_KEYWORD_1(ALL, 0xFFFFFFFF)
+  else IF_KEYWORD_1(ALL, -1)
   else IF_KEYWORD_A(BURST_256)
   else IF_KEYWORD_A(BURST_128)
   else IF_KEYWORD_A(BURST_64)
@@ -577,6 +576,7 @@ static bool ParseSettings(string & sLine, AL_TEncSettings & Settings, string& sS
   else if(KEYWORD("NumSlices"))              Settings.tChParam.uNumSlices = GetValue(sLine);
   else if(KEYWORD("SliceSize"))              Settings.tChParam.uSliceSize = GetValue(sLine) * 95 / 100; //add entropy precision error, explicit ceil() for Windows/Unix rounding mismatch.
   else if(KEYWORD("DependentSlice"))         Settings.bDependentSlice     = GetValue(sLine) ? true : false;
+  else if(KEYWORD("SubframeLatency"))        Settings.tChParam.bSubframeLatency = GetValue(sLine);
 
   else if(KEYWORD("EnableSEI"))              Settings.uEnableSEI         = uint32_t(GetValue(sLine));
   else if(KEYWORD("EnableAUD"))              Settings.bEnableAUD         = GetValue(sLine) ? true : false;
@@ -587,7 +587,6 @@ static bool ParseSettings(string & sLine, AL_TEncSettings & Settings, string& sS
 
   else if(KEYWORD("EntropyMode"))            Settings.tChParam.eEntropyMode = AL_EEntropyMode(GetValue(sLine));
   else if(KEYWORD("BitDepth"))               AL_SET_BITDEPTH(Settings.tChParam.ePicFormat, GetValue(sLine));
-//else if(KEYWORD("ColocFromL0"))            GetFlag(&Settings.uEncFlags, AL_OPT_COLOC_FROM_L0, sLine);
   else if(KEYWORD("ScalingList"))            Settings.eScalingList         = (AL_EScalingList)GetValue(sLine);
   else if(KEYWORD("FileScalingList"))        GetString(sLine, sScalingListFile);
   else if(KEYWORD("QPCtrlMode"))             Settings.eQpCtrlMode          = AL_EQpCtrlMode(GetValue(sLine));
@@ -615,7 +614,7 @@ static bool ParseSettings(string & sLine, AL_TEncSettings & Settings, string& sS
   else if(KEYWORD("ForceLoad"))              Settings.bForceLoad   = GetValue(sLine) ? true : false;
   else if(KEYWORD("ForceMvOut"))             GetFlag(&Settings.tChParam.eOptions, AL_OPT_FORCE_MV_OUT, sLine);
   else if(KEYWORD("ForceMvClip"))            GetFlag(&Settings.tChParam.eOptions, AL_OPT_FORCE_MV_CLIP, sLine);
-  else if(KEYWORD("CacheLevel2"))            Settings.iCacheLevel2     = GetValue(sLine) * 1024;
+  else if(KEYWORD("CacheLevel2"))            Settings.iPrefetchLevel2     = GetValue(sLine) * 1024;
   else if(KEYWORD("ClipHrzRange"))           Settings.uClipHrzRange = uint32_t(GetValue(sLine));
   else if(KEYWORD("ClipVrtRange"))           Settings.uClipVrtRange = uint32_t(GetValue(sLine));
   else if(KEYWORD("FixPredictor"))           GetFlag(&Settings.tChParam.eOptions, AL_OPT_FIX_PREDICTOR, sLine);
@@ -982,12 +981,12 @@ static void WarningNoTraceFrame(int& iLine, TConfigTrace& CfgTrace, TCfgRunInfo&
 
 static void GetScalingListWrapped(AL_TEncSettings& Settings, string& sScalingListFile, ostream& errstream)
 {
-    if(Settings.eScalingList == CUSTOM) {
+    if(Settings.eScalingList == AL_SCL_CUSTOM) {
         if(!ParseScalingListFileWrapped(sScalingListFile, Settings, errstream)) {
-            Settings.eScalingList = DEFAULT;
+            Settings.eScalingList = AL_SCL_DEFAULT;
         }
-    } else if(Settings.eScalingList == RANDOM_SCL) {
-        Settings.eScalingList = CUSTOM;
+    } else if(Settings.eScalingList == AL_SCL_RANDOM) {
+        Settings.eScalingList = AL_SCL_CUSTOM;
         GenerateMatrice(Settings);
     }
 }

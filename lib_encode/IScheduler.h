@@ -93,11 +93,7 @@ typedef struct t_SchedulerVtable
 
 }TSchedulerVtable;
 
-static inline
-bool AL_ISchedulerEnc_Destroy(TScheduler* pScheduler)
-{
-  return pScheduler->vtable->destroy(pScheduler);
-}
+bool AL_ISchedulerEnc_Destroy(TScheduler* pScheduler);
 
 /*************************************************************************//*!
    \brief Channel creation

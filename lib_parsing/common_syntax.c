@@ -255,7 +255,7 @@ static bool avc_hrd_parameters(AL_TRbspParser* pRP, AL_THrdParam* pHrdParam, AL_
 
   pHrdParam->cpb_cnt_minus1[0] = ue(pRP);
 
-  if(pHrdParam->cpb_cnt_minus1[0] > 31 || pHrdParam->cpb_cnt_minus1[0] < 0)
+  if(pHrdParam->cpb_cnt_minus1[0] > 31)
     return false;
 
   pHrdParam->bit_rate_scale = u(pRP, 4);
@@ -279,9 +279,7 @@ static bool avc_hrd_parameters(AL_TRbspParser* pRP, AL_THrdParam* pHrdParam, AL_
 /*****************************************************************************/
 static void sub_hrd_parameters(AL_TSubHrdParam* pSubHrdParam, uint8_t cpb_cnt, uint8_t sub_pic_hrd_params_present_flag, AL_TRbspParser* pRP)
 {
-  uint8_t i;
-
-  for(i = 0; i <= cpb_cnt; ++i)
+  for(int i = 0; i <= cpb_cnt; ++i)
   {
     pSubHrdParam->bit_rate_value_minus1[i] = ue(pRP);
     pSubHrdParam->cpb_size_value_minus1[i] = ue(pRP);

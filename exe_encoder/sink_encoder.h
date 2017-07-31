@@ -37,6 +37,8 @@
 
 #pragma once
 
+#include "lib_app/timing.h"
+
 static void PreprocessQP(uint8_t* pQPs, const AL_TEncSettings& Settings, int iFrameCountSent)
 {
   uint8_t* pSegs = NULL;
@@ -67,7 +69,7 @@ public:
 
   void releaseBuffer(AL_TBuffer* buffer)
   {
-    if(!isExternQpTable)
+    if(!isExternQpTable || !buffer)
       return;
     AL_BufPool_ReleaseBuffer(&bufpool, buffer);
   }
@@ -153,14 +155,21 @@ private:
 };
 
 
+static AL_ERR g_EncoderLastError = AL_SUCCESS;
+
+AL_ERR GetEncoderLastError()
+{
+  return g_EncoderLastError;
+}
+
 static
 void ThrowEncoderError(AL_ERR eErr)
 {
   switch(eErr)
   {
-  case AL_ERR_STREAM_OVERFLOW: throw codec_error("Encoder failed : Stream overflow", eErr);
+  case AL_ERR_STREAM_OVERFLOW: Message(CC_RED, "Stream Error : Stream overflow\n");
     break;
-  case AL_ERR_TOO_MANY_SLICES: throw codec_error("Encoder failed : Too many slices", eErr);
+  case AL_ERR_TOO_MANY_SLICES: Message(CC_RED, "Stream Error : Too many slices\n");
     break;
   case AL_ERR_CHAN_CREATION_FAIL: throw codec_error("Encoder failed : Channel creation failed", eErr);
     break;
@@ -175,6 +184,9 @@ void ThrowEncoderError(AL_ERR eErr)
   default: throw codec_error("Encoder failed : Unknown error !!", eErr);
     break;
   }
+
+  if(eErr != AL_SUCCESS)
+    g_EncoderLastError = eErr;
 }
 
 struct EncoderSink : IFrameSink
@@ -201,53 +213,41 @@ struct EncoderSink : IFrameSink
 
   ~EncoderSink()
   {
+    Message(CC_DEFAULT, "\n\n%d pictures encoded. Average FrameRate = %.4f Fps\n",
+            m_picCount, (m_picCount * 1000.0) / (m_EndTime - m_StartTime));
+
     AL_Encoder_Destroy(hEnc);
   }
 
+  std::function<void(void)> m_done;
+
   void ProcessFrame(AL_TBuffer* Src) override
   {
+    if(m_picCount == 0)
+      m_StartTime = GetPerfTime();
+
     if(Src)
       DisplayFrameStatus(m_picCount);
     else
       Message(CC_DEFAULT, "Flushing...");
 
-    m_readCount++;
+    AL_TBuffer* QpBuf = nullptr;
 
     if(Src)
     {
-      ScnChg.notify(hEnc, m_picCount, m_readCount);
+      ScnChg.notify(hEnc, m_picCount, m_picCount + 1);
 
       LT.notify(hEnc);
-
-      auto QpBuf = qpBuffers.getBuffer(m_picCount);
-
-      if(!AL_Encoder_Process(hEnc, Src, QpBuf))
-        throw runtime_error("Failed");
-
-      if(AL_ERR eErr = AL_Encoder_GetLastError(hEnc))
-        ThrowEncoderError(eErr);
-
-      qpBuffers.releaseBuffer(QpBuf);
-    }
-    else
-    {
-      AL_Encoder_Process(hEnc, nullptr, nullptr);
-
-      {
-        unique_lock<mutex> lk(eosMutex);
-        eos.wait(lk, [&] {
-          return bDone;
-        });
-      }
-
-      if(eEncError != AL_SUCCESS)
-        ThrowEncoderError(eEncError);
-
-      RecOutput->ProcessFrame(EndOfStream);
-      BitstreamOutput->ProcessFrame(EndOfStream);
+      QpBuf = qpBuffers.getBuffer(m_picCount);
     }
 
-    m_picCount++;
+    if(!AL_Encoder_Process(hEnc, Src, QpBuf))
+      throw runtime_error("Failed");
+
+    qpBuffers.releaseBuffer(QpBuf);
+
+    if(Src)
+      m_picCount++;
   }
 
   unique_ptr<IFrameSink> RecOutput;
@@ -256,15 +256,11 @@ struct EncoderSink : IFrameSink
 
 private:
   int m_picCount = 0;
-  int m_readCount = 0;
+  uint64_t m_StartTime = 0;
+  uint64_t m_EndTime = 0;
   SceneChange ScnChg;
   LongTermRef LT;
   QPBuffers qpBuffers;
-
-  bool bDone = false;
-  AL_ERR eEncError = AL_SUCCESS;
-  condition_variable eos;
-  mutex eosMutex;
 
   static void EndEncoding(void* userParam, AL_TBuffer* pStream, AL_TBuffer const* /* pSrc */)
   {
@@ -274,28 +270,15 @@ private:
 
   void processOutput(AL_TBuffer* pStream)
   {
-    lock_guard<mutex> lk(eosMutex);
+    if(AL_ERR eErr = AL_Encoder_GetLastError(hEnc))
+      ThrowEncoderError(eErr);
 
     BitstreamOutput->ProcessFrame(pStream);
-
-    eEncError = AL_Encoder_GetLastError(hEnc);
-
-    if(eEncError != AL_SUCCESS)
-    {
-      bDone = true;
-      eos.notify_one();
-      return;
-    }
 
     if(pStream)
     {
       auto bRet = AL_Encoder_PutStreamBuffer(hEnc, pStream);
       assert(bRet);
-    }
-    else
-    {
-      bDone = true;
-      eos.notify_one();
     }
 
     TRecPic RecPic;
@@ -307,6 +290,13 @@ private:
       AL_Buffer_Destroy(buf);
 
       AL_Encoder_ReleaseRecPicture(hEnc, &RecPic);
+    }
+
+    if(!pStream)
+    {
+      RecOutput->ProcessFrame(EndOfStream);
+      m_EndTime = GetPerfTime();
+      m_done();
     }
   }
 

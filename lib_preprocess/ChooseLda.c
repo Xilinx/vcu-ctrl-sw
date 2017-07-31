@@ -91,23 +91,6 @@ void SetAutoQPCtrl(AL_ESliceType eType, AL_TQPCtrl const* pQPCtrl, TBufferEP* pE
 }
 
 /****************************************************************************/
-void SetLambdas(uint8_t const* pLambdasIntra, uint8_t const* pLambdasInter, uint8_t const* pLambdasSkip, uint8_t const* pLambdasQPix, TBufferEP* pEP)
-{
-  AL_TLambdas* pLambdas = (AL_TLambdas*)(pEP->tMD.pVirtualAddr + EP1_BUF_LAMBDAS.Offset);
-  int iQP;
-
-  for(iQP = 0; iQP < 52; iQP++)
-  {
-    pLambdas[iQP][0] = pLambdasIntra[iQP];
-    pLambdas[iQP][1] = pLambdasInter[iQP];
-    pLambdas[iQP][2] = pLambdasSkip[iQP];
-    pLambdas[iQP][3] = pLambdasQPix[iQP];
-  }
-
-  pEP->uFlags |= EP1_BUF_LAMBDAS.Flag;
-}
-
-/****************************************************************************/
 int LambdaMVDs[52] =
 {
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
