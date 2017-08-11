@@ -96,6 +96,11 @@ void AL_BufferFeeder_ForceStop(AL_TBufferFeeder* this)
   AL_DecoderFeeder_ForceStop(this->decoderFeeder);
 }
 
+void AL_BufferFeeder_Reset(AL_TBufferFeeder* this)
+{
+  AL_DecoderFeeder_Reset(this->decoderFeeder);
+}
+
 void AL_BufferFeeder_Destroy(AL_TBufferFeeder* this)
 {
   AL_DecoderFeeder_Destroy(this->decoderFeeder);

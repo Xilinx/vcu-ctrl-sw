@@ -250,3 +250,13 @@ bool AL_Patchworker_ShouldBeStopped(AL_TPatchworker* this)
   return bRet;
 }
 
+void AL_Patchworker_Reset(AL_TPatchworker* this)
+{
+  Rtos_GetMutex(this->lock);
+  this->endOfOutput = false;
+  this->endOfInput = false;
+  this->shouldBeStopped = false;
+  AL_Patchworker_Drop(this);
+  Rtos_ReleaseMutex(this->lock);
+}
+

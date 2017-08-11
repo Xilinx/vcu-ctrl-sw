@@ -66,4 +66,6 @@ void AL_BufferFeeder_Signal(AL_TBufferFeeder* pFeeder);
 void AL_BufferFeeder_Flush(AL_TBufferFeeder* pFeeder);
 /* Stop abruptly the decoding */
 void AL_BufferFeeder_ForceStop(AL_TBufferFeeder* pFeeder);
+/* Make decoder ready for next sequence */
+void AL_BufferFeeder_Reset(AL_TBufferFeeder* pFeeder);
 

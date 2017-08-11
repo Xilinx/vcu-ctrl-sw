@@ -56,7 +56,7 @@ typedef struct AL_TDecoderFeederS
   TCircBuffer decodeBuffer;
   bool keepGoing;
   AL_MUTEX lock;
-  bool flushed;
+  bool stopped;
 }AL_TDecoderFeeder;
 
 /* Decoder Feeder Slave structure */
@@ -78,7 +78,7 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
     {
       AL_Patchworker_Drop(slave->patchworker);
       AL_Decoder_InternalFlush(slave->hDec);
-      slave->flushed = true;
+      slave->stopped = true;
       break;
     }
 
@@ -110,7 +110,6 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
     if(AL_Patchworker_IsAllDataTransfered(slave->patchworker))
     {
       AL_Decoder_InternalFlush(slave->hDec);
-      slave->flushed = true;
       break;
     }
   }
@@ -139,7 +138,7 @@ static void Slave_EntryPoint(AL_TDecoderFeeder* slave)
 
     bool bRet = true;
 
-    if(!slave->flushed)
+    if(!slave->stopped)
       bRet = Slave_Process(slave, &slave->decodeBuffer);
 
     if(!bRet)
@@ -201,6 +200,11 @@ void AL_DecoderFeeder_ForceStop(AL_TDecoderFeeder* this)
   Rtos_SetEvent(this->incomingWorkEvent);
 }
 
+void AL_DecoderFeeder_Reset(AL_TDecoderFeeder* this)
+{
+  AL_Patchworker_Reset(this->patchworker);
+}
+
 AL_TDecoderFeeder* AL_DecoderFeeder_Create(TMemDesc* decodeMemoryDescriptor, AL_HANDLE hDec, AL_TPatchworker* patchworker)
 {
   AL_TDecoderFeeder* this = Rtos_Malloc(sizeof(*this));
@@ -223,7 +227,7 @@ AL_TDecoderFeeder* AL_DecoderFeeder_Create(TMemDesc* decodeMemoryDescriptor, AL_
 
   this->keepGoing = true;
   this->lock = Rtos_CreateMutex(false);
-  this->flushed = false;
+  this->stopped = false;
   this->hDec = hDec;
 
   if(!CreateSlave(this))

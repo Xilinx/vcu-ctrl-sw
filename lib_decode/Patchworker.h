@@ -72,6 +72,7 @@ bool AL_Patchworker_IsAllDataTransfered(AL_TPatchworker* pPatchworker);
 void AL_Patchworker_NotifyForceStop(AL_TPatchworker* pPatchworker);
 void AL_Patchworker_Drop(AL_TPatchworker* pPatchworker);
 bool AL_Patchworker_ShouldBeStopped(AL_TPatchworker* pPatchworker);
+void AL_Patchworker_Reset(AL_TPatchworker* pPatchworker);
 
 void AL_Patchworker_Deinit(AL_TPatchworker* pPatchworker);
 bool AL_Patchworker_Init(AL_TPatchworker* pPatchworker, TCircBuffer* pCircularBuf);

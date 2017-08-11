@@ -528,6 +528,8 @@ void AL_Default_Decoder_InternalFlush(AL_TDecoder* pAbsDec)
 
   AL_PictMngr_Flush(&pCtx->m_PictMngr);
 
+  AL_BufferFeeder_Reset(pCtx->m_Feeder);
+
   // Send eos & get last frames in dpb if any
   if(pCtx->m_displayCB.func)
   {
@@ -535,6 +537,10 @@ void AL_Default_Decoder_InternalFlush(AL_TDecoder* pAbsDec)
     AL_sDecoder_CallDisplay(pCtx);
     pCtx->m_displayCB.func(NULL, tmp, pCtx->m_displayCB.userParam);
   }
+
+  // Release all semaphore for next restart.
+  for(int iSem = 0; iSem < pCtx->m_iStackSize; ++iSem)
+    Rtos_ReleaseSemaphore(pCtx->m_Sem);
 }
 
 /*****************************************************************************/
