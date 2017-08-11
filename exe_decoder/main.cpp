@@ -138,6 +138,8 @@ struct Config
   unsigned int uInputBufferNum = 2;
   size_t zInputBufferSize = 32 * 1024;
   IpCtrlMode ipCtrlMode = IPCTRL_MODE_STANDARD;
+
+  int iLoop = 1;
 };
 
 /******************************************************************************/
@@ -233,6 +235,8 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addFlag("-noyuv", &Config.bEnableYUVOutput,
               "Disable writing output YUV file",
               false);
+
+  opt.addInt("-loop", &Config.iLoop, "Number of Decoding loop (optional)");
 
   opt.parse(argc, argv);
 
@@ -735,35 +739,51 @@ void SafeMain(int argc, char** argv)
   // Initial stream buffer filling
   auto const uBegin = GetPerfTime();
 
+  int iLoop = 0;
+
   for(;;)
   {
-    auto pBufStream = AL_BufPool_GetBuffer(&bufPool, AL_BUF_MODE_BLOCK);
-
-    auto uAvailSize = ReadStream(ifFileStream, pBufStream);
-
-    if(!uAvailSize)
-      break;
-
-    AddBuffer(hDec, pBufStream, uAvailSize);
-
-    AL_BufPool_ReleaseBuffer(&bufPool, pBufStream);
-
-    auto eErr = AL_Decoder_GetLastError(hDec);
-
-    if(eErr == AL_WARN_CONCEAL_DETECT)
+    for(;;)
     {
-      iNumFrameConceal++;
-      eErr = AL_SUCCESS;
+      auto pBufStream = AL_BufPool_GetBuffer(&bufPool, AL_BUF_MODE_BLOCK);
+
+      auto uAvailSize = ReadStream(ifFileStream, pBufStream);
+
+      if(!uAvailSize)
+      {
+        AL_BufPool_ReleaseBuffer(&bufPool, pBufStream);
+        break;
+      }
+
+      AddBuffer(hDec, pBufStream, uAvailSize);
+
+      AL_BufPool_ReleaseBuffer(&bufPool, pBufStream);
+
+      auto eErr = AL_Decoder_GetLastError(hDec);
+
+      if(eErr == AL_WARN_CONCEAL_DETECT)
+      {
+        iNumFrameConceal++;
+        eErr = AL_SUCCESS;
+      }
+
+      if(eErr)
+        throw codec_error(eErr);
     }
 
-    if(eErr)
-      throw codec_error(eErr);
+    // Flush decoding request
+    AL_Decoder_Flush(hDec);
+
+    Rtos_WaitEvent(tDisplayParam.hFinished, AL_WAIT_FOREVER);
+
+    if(++iLoop >= Config.iLoop)
+      break;
+
+    // Rewind
+    ifFileStream.clear();
+    ifFileStream.seekg(0);
+    Message(CC_GREY, " Looping\n");
   }
-
-  /* flush decoding request */
-  AL_Decoder_Flush(hDec);
-
-  Rtos_WaitEvent(tDisplayParam.hFinished, AL_WAIT_FOREVER);
 
   auto const uEnd = GetPerfTime();
 
