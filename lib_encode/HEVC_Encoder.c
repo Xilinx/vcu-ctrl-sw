@@ -349,7 +349,7 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_TBuff
       uLastFlags |= SECTION_END_FRAME_FLAG;
     AL_StreamMetaData_SetSectionFlags(pMetaData, uLastSecID, uLastFlags);
 
-    if(pPicStatus->iFiller)
+    if(pCtx->m_Settings.bEnableFillerData && pPicStatus->iFiller)
       AL_Common_Encoder_AddFillerData(pStream, &uOffset, pPicStatus->iFiller, false);
 
     if(pPicStatus->eType == SLICE_I)

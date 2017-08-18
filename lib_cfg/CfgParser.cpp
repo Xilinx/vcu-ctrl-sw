@@ -580,6 +580,7 @@ static bool ParseSettings(string & sLine, AL_TEncSettings & Settings, string& sS
 
   else if(KEYWORD("EnableSEI"))              Settings.uEnableSEI         = uint32_t(GetValue(sLine));
   else if(KEYWORD("EnableAUD"))              Settings.bEnableAUD         = GetValue(sLine) ? true : false;
+  else if(KEYWORD("EnableFillerData"))       Settings.bEnableFillerData  = GetValue(sLine) ? true : false;
 
   else if(KEYWORD("AspectRatio"))            Settings.eAspectRatio       = AL_EAspectRatio(GetValue(sLine));
   else if(KEYWORD("ColourDescription"))      Settings.eColourDescription = AL_EColourDescription(GetValue(sLine));

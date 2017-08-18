@@ -143,6 +143,7 @@ typedef struct t_EncSettings
   // Stream
   AL_TEncChanParam tChParam;
   bool bEnableAUD;
+  bool bEnableFillerData;
 
   uint32_t uEnableSEI;
   AL_EAspectRatio eAspectRatio; /*!< specifies the display aspect ratio */

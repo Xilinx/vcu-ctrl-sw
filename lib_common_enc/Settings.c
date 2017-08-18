@@ -610,6 +610,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 
   pSettings->uEnableSEI = SEI_NONE;
   pSettings->bEnableAUD = true;
+  pSettings->bEnableFillerData = true;
   pSettings->eAspectRatio = AL_ASPECT_RATIO_AUTO;
   pSettings->eColourDescription = COLOUR_DESC_BT_470_PAL;
 
