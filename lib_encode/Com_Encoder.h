@@ -194,11 +194,10 @@ void AL_Common_Encoder_PreprocessEncoderParam(AL_TEncCtx* pCtx, TSliceBuffersEnc
    \param[inout] pOffset Pointer to the offset specfying the position where
    the filler data are added. The value is updated with the
    filler data size.
-   \param[in] uSectionID number of the section of the stream
    \param[in] uNumBytes number of bytes of filler data
    \param[in] bAVC specifies if the codec is AVC
 *****************************************************************************/
-uint32_t AL_Common_Encoder_AddFillerData(AL_TBuffer* pStream, uint32_t* pOffset, uint16_t uSectionID, uint32_t uNumBytes, bool bAVC);
+uint32_t AL_Common_Encoder_AddFillerData(AL_TBuffer* pStream, uint32_t* pOffset, uint32_t uNumBytes, bool bAVC);
 
 #if ENABLE_WATCHDOG
 /*************************************************************************//*!

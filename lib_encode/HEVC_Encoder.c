@@ -326,8 +326,6 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_TBuff
     pMetaData->uMaxSize -= (pMetaData->uMaxSize - pPicStatus->uStreamPartOffset);
     pMetaData->uAvailSize = pMetaData->uMaxSize - pMetaData->uOffset;
 
-    pFI->uFirstSecID = AL_StreamMetaData_AddSection(pMetaData, 0, 0, 0); // Reserve one section for filler data
-
     if(pPicStatus->bIsFirstSlice)
     {
       AL_TNALUnitsInfo tNALUnitsInfo =
@@ -340,9 +338,6 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_TBuff
       GenerateNalUnits(pCtx, tNALUnitsInfo, pPicStatus, pStream);
     }
 
-    if(pPicStatus->iFiller)
-      AL_Common_Encoder_AddFillerData(pStream, &uOffset, pFI->uFirstSecID, pPicStatus->iFiller, false);
-
     uint16_t uLastSecID = 0;
 
     for(int iPart = 0; iPart < pPicStatus->iNumParts; ++iPart)
@@ -353,7 +348,9 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_TBuff
     if(pPicStatus->bIsLastSlice)
       uLastFlags |= SECTION_END_FRAME_FLAG;
     AL_StreamMetaData_SetSectionFlags(pMetaData, uLastSecID, uLastFlags);
-    AL_StreamMetaData_SetSectionFlags(pMetaData, pFI->uFirstSecID, uCompleteFlags);
+
+    if(pPicStatus->iFiller)
+      AL_Common_Encoder_AddFillerData(pStream, &uOffset, pPicStatus->iFiller, false);
 
     if(pPicStatus->eType == SLICE_I)
       pCtx->m_uCpbRemovalDelay = 0;

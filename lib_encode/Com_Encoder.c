@@ -468,7 +468,7 @@ void AL_Common_Encoder_Destroy(AL_TEncoder* pEnc)
 }
 
 /*****************************************************************************/
-uint32_t AL_Common_Encoder_AddFillerData(AL_TBuffer* pStream, uint32_t* pOffset, uint16_t uSectionID, uint32_t uNumBytes, bool bAVC)
+uint32_t AL_Common_Encoder_AddFillerData(AL_TBuffer* pStream, uint32_t* pOffset, uint32_t uNumBytes, bool bAVC)
 {
   AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
   uint32_t uHdrSize = bAVC ? 4 : 5;
@@ -507,7 +507,7 @@ uint32_t AL_Common_Encoder_AddFillerData(AL_TBuffer* pStream, uint32_t* pOffset,
     }
 
     uOffset = (pMetaData->uOffset + *pOffset) % pMetaData->uMaxSize;
-    uRemSize = pMetaData->uMaxSize - uOffset - 5;
+    uRemSize = pMetaData->uMaxSize - uOffset - uHdrSize;
 
     // Write filler data
     if(uRemSize <= uTmpSize)
@@ -526,8 +526,7 @@ uint32_t AL_Common_Encoder_AddFillerData(AL_TBuffer* pStream, uint32_t* pOffset,
     // Write trailing bits
     *pBuf = 0x80;
 
-    AL_StreamMetaData_ChangeSection(pMetaData, uSectionID, uOffset, uSize);
-    AL_StreamMetaData_SetSectionFlags(pMetaData, uSectionID, SECTION_COMPLETE_FLAG);
+    AL_StreamMetaData_AddSection(pMetaData, uOffset, uSize, SECTION_COMPLETE_FLAG);
 
     *pOffset += uSize;
   }

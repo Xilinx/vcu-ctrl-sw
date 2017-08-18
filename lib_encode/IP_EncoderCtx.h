@@ -74,7 +74,6 @@ typedef struct AL_t_FrameInfo
 {
   AL_TEncInfo tEncInfo;
   AL_TEncRequestInfo tRequestInfo;
-  uint16_t uFirstSecID;
   AL_TBuffer* pQpTable;
 }AL_TFrameInfo;
 
