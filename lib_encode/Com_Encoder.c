@@ -514,14 +514,17 @@ uint32_t AL_Common_Encoder_AddFillerData(AL_TBuffer* pStream, uint32_t* pOffset,
     {
       uTmpSize -= uRemSize;
 
-      while(uRemSize-- > 0)
-        *pBuf++ = 0xff;
+      if(uRemSize > 0)
+        Rtos_Memset(pBuf, 0xFF, uRemSize);
 
       pBuf = pStream->pData;
     }
 
-    while(uTmpSize-- > 0)
-      *pBuf++ = 0xff;
+    if(uTmpSize > 0)
+    {
+      Rtos_Memset(pBuf, 0xFF, uTmpSize);
+      pBuf += uTmpSize;
+    }
 
     // Write trailing bits
     *pBuf = 0x80;
