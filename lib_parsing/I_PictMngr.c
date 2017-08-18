@@ -440,7 +440,7 @@ void AL_PictMngr_Insert(AL_TPictMngrCtx* pCtx, int iFramePOC, uint32_t uPocLsb, 
   if(!AL_Dpb_NodeIsReset(&pCtx->m_DPB, uNode))
     AL_Dpb_Remove(&pCtx->m_DPB, uNode);
 
-  if(uFrmID != uEndOfList)
+  if(uFrmID != UndefID)
   {
     AL_TDecodedPictureMetaData* pMeta = AL_sGetDecodedPictureMetaData(pCtx->m_FrmBufPool.pFrmBufs[uFrmID]);
     pMeta->iFramePOC = iFramePOC;
@@ -515,9 +515,8 @@ void AL_PictMngr_PutDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TBuffer* pBuf)
   AL_Buffer_AddMetaData(pBuf, (AL_TMetaData*)pMeta);
 
   pCtx->m_FrmBufPool.pFrmBufs[pCtx->m_FrmBufPool.iBufCnt] = pBuf;
-  pCtx->m_FrmBufPool.iBufCnt++;
-
   pCtx->m_FrmBufPool.pFreeIDs[pCtx->m_FrmBufPool.iBufCnt] = pCtx->m_FrmBufPool.iBufCnt;
+  pCtx->m_FrmBufPool.iBufCnt++;
   pCtx->m_FrmBufPool.iFreeCnt++;
 
   Rtos_ReleaseSemaphore(pCtx->m_FrmBufPool.SemaphoreFree);
@@ -600,13 +599,13 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDec
       bool bFindId = false;
       uint8_t uNodeID = AL_Dpb_ConvertPicIDToNodeID(&pCtx->m_DPB, i);
 
-      if(uNodeID == uEndOfList
+      if(uNodeID == UndefID
          && pSP->eSliceType == SLICE_CONCEAL
          && pSP->ValidConceal
          && pCtx->m_DPB.m_uCountPic)
         uNodeID = AL_Dpb_ConvertPicIDToNodeID(&pCtx->m_DPB, pSP->ConcealPicID);
 
-      if(uNodeID != uEndOfList)
+      if(uNodeID != UndefID)
       {
         uint8_t uFrmID = AL_Dpb_GetFrmID_FromNode(&pCtx->m_DPB, uNodeID);
         uint8_t uMvID = AL_Dpb_GetMvID_FromNode(&pCtx->m_DPB, uNodeID);

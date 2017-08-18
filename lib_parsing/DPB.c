@@ -71,8 +71,16 @@ static void AL_DispFifo_sDeinit(AL_TDispFifo* pFifo)
 }
 
 /*****************************************************************************/
-static void AL_Dpb_sResetNodeInfo(AL_TDpbNode* pNode)
+static void AL_Dpb_sResetNodeInfo(AL_TDpb* pDpb, AL_TDpbNode* pNode)
 {
+  if(pNode->uNodeID == pDpb->m_uNodeWaiting)
+  {
+    pDpb->m_uNodeWaiting = uEndOfList;
+    pDpb->m_uFrmWaiting = UndefID;
+    pDpb->m_uMvWaiting = UndefID;
+    pDpb->m_bPicWaiting = false;
+  }
+
   pNode->iFramePOC = 0xFFFFFFFF;
   pNode->slice_pic_order_cnt_lsb = 0xFFFFFFFF;
   pNode->uNodeID = uEndOfList;
@@ -505,7 +513,7 @@ void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, uint8_t uNumInterBuf, void* pPf
   int i;
 
   for(i = 0; i < MAX_DPB_SIZE; i++)
-    AL_Dpb_sResetNodeInfo(&pDpb->m_Nodes[i]);
+    AL_Dpb_sResetNodeInfo(pDpb, &pDpb->m_Nodes[i]);
 
   for(i = 0; i < PIC_ID_POOL_SIZE; i++)
   {
@@ -590,12 +598,14 @@ uint8_t AL_Dpb_GetHeadPOC(AL_TDpb* pDpb)
 /*****************************************************************************/
 uint8_t AL_Dpb_GetNextPOC(AL_TDpb* pDpb, uint8_t uNode)
 {
+  assert(uNode < MAX_DPB_SIZE);
   return pDpb->m_Nodes[uNode].uNextPOC;
 }
 
 /*****************************************************************************/
 uint8_t AL_Dpb_GetOutputFlag(AL_TDpb* pDpb, uint8_t uNode)
 {
+  assert(uNode < MAX_DPB_SIZE);
   return pDpb->m_Nodes[uNode].pic_output_flag;
 }
 
@@ -608,6 +618,7 @@ uint8_t AL_Dpb_GetNumOutputPict(AL_TDpb* pDpb)
 /*****************************************************************************/
 uint8_t AL_Dpb_GetMarkingFlag(AL_TDpb* pDpb, uint8_t uNode)
 {
+  assert(uNode < MAX_DPB_SIZE);
   return pDpb->m_Nodes[uNode].eMarking_flag;
 }
 
@@ -620,6 +631,7 @@ uint8_t AL_Dpb_GetFifoLast(AL_TDpb* pDpb)
 /*************************************************************************/
 uint32_t AL_Dpb_GetPicLatency_FromNode(AL_TDpb* pDpb, uint8_t uNode)
 {
+  assert(uNode < MAX_DPB_SIZE);
   return pDpb->m_Nodes[uNode].uPicLatency;
 }
 
@@ -632,21 +644,21 @@ uint32_t AL_Dpb_GetPicLatency_FromFifo(AL_TDpb* pDpb, uint8_t uFrmID)
 /*************************************************************************/
 uint8_t AL_Dpb_GetPicID_FromNode(AL_TDpb* pDpb, uint8_t uNode)
 {
-  if(uNode >= MAX_DPB_SIZE)
-    return 0;
-
+  assert(uNode < MAX_DPB_SIZE);
   return pDpb->m_Nodes[uNode].uPicID;
 }
 
 /*************************************************************************/
 uint8_t AL_Dpb_GetMvID_FromNode(AL_TDpb* pDpb, uint8_t uNode)
 {
+  assert(uNode < MAX_DPB_SIZE);
   return pDpb->m_Nodes[uNode].uMvID;
 }
 
 /*************************************************************************/
 uint8_t AL_Dpb_GetFrmID_FromNode(AL_TDpb* pDpb, uint8_t uNode)
 {
+  assert(uNode < MAX_DPB_SIZE);
   return pDpb->m_Nodes[uNode].uFrmID;
 }
 
@@ -1096,7 +1108,7 @@ uint8_t AL_Dpb_Remove(AL_TDpb* pDpb, uint8_t uNode)
     --pDpb->m_uCountPic;
 
     // Reset node information
-    AL_Dpb_sResetNodeInfo(&pDpb->m_Nodes[uNode]);
+    AL_Dpb_sResetNodeInfo(pDpb, &pDpb->m_Nodes[uNode]);
 
     // assigned pic id to the awaiting picture
     if(pDpb->m_bPicWaiting && pDpb->m_FreePicIdCnt)
