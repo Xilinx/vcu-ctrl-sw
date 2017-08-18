@@ -52,9 +52,7 @@
 /*****************************************************************************/
 static void AL_DispFifo_sInit(AL_TDispFifo* pFifo)
 {
-  int i;
-
-  for(i = 0; i < FRM_BUF_POOL_SIZE; ++i)
+  for(int i = 0; i < FRM_BUF_POOL_SIZE; ++i)
   {
     pFifo->pFrmIDs[i] = UndefID;
     pFifo->pFrmStatus[i] = AL_NOT_NEEDED_FOR_OUTPUT;
@@ -71,15 +69,19 @@ static void AL_DispFifo_sDeinit(AL_TDispFifo* pFifo)
 }
 
 /*****************************************************************************/
+static void AL_Dpb_sResetWaiting(AL_TDpb* pDpb)
+{
+  pDpb->m_uNodeWaiting = uEndOfList;
+  pDpb->m_uFrmWaiting = UndefID;
+  pDpb->m_uMvWaiting = UndefID;
+  pDpb->m_bPicWaiting = false;
+}
+
+/*****************************************************************************/
 static void AL_Dpb_sResetNodeInfo(AL_TDpb* pDpb, AL_TDpbNode* pNode)
 {
   if(pNode->uNodeID == pDpb->m_uNodeWaiting)
-  {
-    pDpb->m_uNodeWaiting = uEndOfList;
-    pDpb->m_uFrmWaiting = UndefID;
-    pDpb->m_uMvWaiting = UndefID;
-    pDpb->m_bPicWaiting = false;
-  }
+    AL_Dpb_sResetWaiting(pDpb);
 
   pNode->iFramePOC = 0xFFFFFFFF;
   pNode->slice_pic_order_cnt_lsb = 0xFFFFFFFF;
@@ -120,9 +122,7 @@ static void AL_Dpb_sReleasePicID(AL_TDpb* pDpb, uint8_t uPicID)
 /*****************************************************************************/
 static void AL_Dpb_sAddToDisplayList(AL_TDpb* pDpb, uint8_t uNode)
 {
-  uint8_t uID;
-
-  uID = pDpb->m_DispFifo.uFirstFrm + pDpb->m_DispFifo.uNumFrm++;
+  uint8_t uID = pDpb->m_DispFifo.uFirstFrm + pDpb->m_DispFifo.uNumFrm++;
 
   pDpb->m_DispFifo.pFrmIDs[uID % FRM_BUF_POOL_SIZE] = pDpb->m_Nodes[uNode].uFrmID;
   pDpb->m_DispFifo.pPicLatency[pDpb->m_Nodes[uNode].uFrmID] = pDpb->m_Nodes[uNode].uPicLatency;
@@ -510,12 +510,7 @@ static void AL_Dpb_sFillWaitingPicture(AL_TDpb* pDpb)
 /*****************************************************************************/
 void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, uint8_t uNumInterBuf, void* pPfnCtx, PfnIncrementFrmBuf pfnIncrementFrmBuf, PfnReleaseFrmBuf pfnReleaseFrmBuf, PfnOutputFrmBuf pfnOutputFrmBuf, PfnIncrementMvBuf pfnIncrementMvBuf, PfnReleaseMvBuf pfnReleaseMvBuf)
 {
-  int i;
-
-  for(i = 0; i < MAX_DPB_SIZE; i++)
-    AL_Dpb_sResetNodeInfo(pDpb, &pDpb->m_Nodes[i]);
-
-  for(i = 0; i < PIC_ID_POOL_SIZE; i++)
+  for(int i = 0; i < PIC_ID_POOL_SIZE; i++)
   {
     pDpb->m_FreePicIDs[i] = i;
     pDpb->m_PicId2NodeId[i] = uEndOfList;
@@ -526,10 +521,14 @@ void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, uint8_t uNumInterBuf, void* pPf
   pDpb->m_FreePicIdCnt = PIC_ID_POOL_SIZE;
 
   pDpb->m_bNewSeq = true;
-  pDpb->m_bPicWaiting = false;
-  pDpb->m_uNodeWaiting = uEndOfList;
-  pDpb->m_uFrmWaiting = uEndOfList;
-  pDpb->m_uMvWaiting = uEndOfList;
+
+  AL_Dpb_sResetWaiting(pDpb);
+
+  for(int i = 0; i < MAX_DPB_SIZE; i++)
+  {
+    pDpb->m_Nodes[i].uNodeID = UndefID;
+    AL_Dpb_sResetNodeInfo(pDpb, &pDpb->m_Nodes[i]);
+  }
 
   pDpb->m_uNumRef = uNumRef;
   pDpb->m_uNumInterBuf = uNumInterBuf;
@@ -671,22 +670,23 @@ uint8_t AL_Dpb_GetFrmID_FromFifo(AL_TDpb* pDpb, uint8_t uID)
 /*************************************************************************/
 uint8_t AL_Dpb_GetLastPicID(AL_TDpb* pDpb)
 {
-  uint8_t uRetID;
   DPB_GET_MUTEX(pDpb);
+
+  uint8_t uNode = pDpb->m_uHeadPOC;
+  uint8_t uRetID;
+
+  if(uNode == uEndOfList)
+    uRetID = uNode;
+  else
   {
-    uint8_t uNode = pDpb->m_uHeadPOC;
+    while(pDpb->m_Nodes[uNode].uNextPOC != uEndOfList)
+      uNode = pDpb->m_Nodes[uNode].uNextPOC;
 
-    if(uNode == uEndOfList)
-      uRetID = uNode;
-    else
-    {
-      while(pDpb->m_Nodes[uNode].uNextPOC != uEndOfList)
-        uNode = pDpb->m_Nodes[uNode].uNextPOC;
-
-      uRetID = pDpb->m_Nodes[uNode].uPicID;
-    }
+    uRetID = pDpb->m_Nodes[uNode].uPicID;
   }
+
   DPB_RELEASE_MUTEX(pDpb);
+
   return uRetID;
 }
 
@@ -789,11 +789,9 @@ uint8_t AL_Dpb_GetNextFreeNode(AL_TDpb* pDpb)
 /*****************************************************************************/
 void AL_Dpb_FillList(AL_TDpb* pDpb, uint8_t uL0L1, TBufferListRef* pListRef, int* pPocList, uint32_t* pLongTermList)
 {
-  uint8_t i;
-
   DPB_GET_MUTEX(pDpb);
 
-  for(i = 0; i < MAX_REF; ++i)
+  for(int i = 0; i < MAX_REF; ++i)
   {
     uint8_t uNodeID = (*pListRef)[uL0L1][i].uNodeID;
 
@@ -814,10 +812,9 @@ void AL_Dpb_FillList(AL_TDpb* pDpb, uint8_t uL0L1, TBufferListRef* pListRef, int
 /*************************************************************************/
 uint8_t AL_Dpb_SearchPocLsb(AL_TDpb* pDpb, uint32_t poc_lsb)
 {
-  uint8_t uParse;
   DPB_GET_MUTEX(pDpb);
 
-  uParse = pDpb->m_uHeadPocLsb;
+  uint8_t uParse = pDpb->m_uHeadPocLsb;
 
   while(uParse != uEndOfList)
   {
@@ -834,11 +831,10 @@ uint8_t AL_Dpb_SearchPocLsb(AL_TDpb* pDpb, uint32_t poc_lsb)
 /*****************************************************************************/
 uint8_t AL_Dpb_SearchPOC(AL_TDpb* pDpb, int iPOC)
 {
-  uint8_t uParse;
-  AL_TDpbNode* pNodes = pDpb->m_Nodes;
   DPB_GET_MUTEX(pDpb);
 
-  uParse = pDpb->m_uHeadPOC;
+  uint8_t uParse = pDpb->m_uHeadPOC;
+  AL_TDpbNode* pNodes = pDpb->m_Nodes;
 
   while(uParse != uEndOfList)
   {
@@ -855,10 +851,9 @@ uint8_t AL_Dpb_SearchPOC(AL_TDpb* pDpb, int iPOC)
 /*****************************************************************************/
 void AL_Dpb_Display(AL_TDpb* pDpb, uint8_t uNode)
 {
-  uint8_t uParse;
   DPB_GET_MUTEX(pDpb);
 
-  uParse = pDpb->m_uHeadPOC;
+  uint8_t uParse = pDpb->m_uHeadPOC;
 
   // check if there is anterior picture to be displayed present in the DPB
   while(uParse != uNode)
@@ -890,26 +885,26 @@ void AL_Dpb_Display(AL_TDpb* pDpb, uint8_t uNode)
 /*************************************************************************/
 uint8_t AL_Dpb_GetDisplayBuffer(AL_TDpb* pDpb)
 {
-  uint8_t uFrmID = UndefID;
   DPB_GET_MUTEX(pDpb);
+
+  uint8_t uEnd = AL_Dpb_GetFifoLast(pDpb) % FRM_BUF_POOL_SIZE;
+  uint8_t uFrmID = UndefID;
+
+  if(pDpb->m_DispFifo.uFirstFrm != uEnd || pDpb->m_DispFifo.uNumFrm == FRM_BUF_POOL_SIZE)
   {
-    uint8_t uEnd = AL_Dpb_GetFifoLast(pDpb) % FRM_BUF_POOL_SIZE;
+    uFrmID = pDpb->m_DispFifo.pFrmIDs[pDpb->m_DispFifo.uFirstFrm];
 
-    if(pDpb->m_DispFifo.uFirstFrm != uEnd || pDpb->m_DispFifo.uNumFrm == FRM_BUF_POOL_SIZE)
+    if(uFrmID != UndefID && pDpb->m_DispFifo.pFrmStatus[uFrmID] == AL_READY_FOR_OUTPUT)
     {
-      uFrmID = pDpb->m_DispFifo.pFrmIDs[pDpb->m_DispFifo.uFirstFrm];
-
-      if(uFrmID != UndefID && pDpb->m_DispFifo.pFrmStatus[uFrmID] == AL_READY_FOR_OUTPUT)
-      {
-        pDpb->m_DispFifo.pFrmIDs[pDpb->m_DispFifo.uFirstFrm] = UndefID;
-        pDpb->m_DispFifo.pFrmStatus[uFrmID] = AL_NOT_NEEDED_FOR_OUTPUT;
-        pDpb->m_DispFifo.uFirstFrm = (pDpb->m_DispFifo.uFirstFrm + 1) % FRM_BUF_POOL_SIZE;
-        --pDpb->m_DispFifo.uNumFrm;
-      }
-      else
-        uFrmID = UndefID;
+      pDpb->m_DispFifo.pFrmIDs[pDpb->m_DispFifo.uFirstFrm] = UndefID;
+      pDpb->m_DispFifo.pFrmStatus[uFrmID] = AL_NOT_NEEDED_FOR_OUTPUT;
+      pDpb->m_DispFifo.uFirstFrm = (pDpb->m_DispFifo.uFirstFrm + 1) % FRM_BUF_POOL_SIZE;
+      --pDpb->m_DispFifo.uNumFrm;
     }
+    else
+      uFrmID = UndefID;
   }
+
   DPB_RELEASE_MUTEX(pDpb);
   return uFrmID;
 }
@@ -917,19 +912,16 @@ uint8_t AL_Dpb_GetDisplayBuffer(AL_TDpb* pDpb)
 /*************************************************************************/
 uint8_t AL_Dpb_ReleaseDisplayBuffer(AL_TDpb* pDpb)
 {
-  uint8_t uFrmID;
   DPB_GET_MUTEX(pDpb);
-  {
-    uFrmID = pDpb->m_DispFifo.pFrmIDs[pDpb->m_DispFifo.uFirstFrm];
+  uint8_t uFrmID = pDpb->m_DispFifo.pFrmIDs[pDpb->m_DispFifo.uFirstFrm];
 
-    if(uFrmID != UndefID)
-    {
-      pDpb->m_DispFifo.pFrmIDs[pDpb->m_DispFifo.uFirstFrm] = UndefID;
-      pDpb->m_DispFifo.uFirstFrm = (pDpb->m_DispFifo.uFirstFrm + 1) % FRM_BUF_POOL_SIZE;
-      pDpb->m_DispFifo.uNumFrm--;
-      pDpb->m_DispFifo.pFrmStatus[uFrmID] = AL_NOT_NEEDED_FOR_OUTPUT;
-      pDpb->m_pfnReleaseFrmBuf(pDpb->m_pPfnCtx, uFrmID);
-    }
+  if(uFrmID != UndefID)
+  {
+    pDpb->m_DispFifo.pFrmIDs[pDpb->m_DispFifo.uFirstFrm] = UndefID;
+    pDpb->m_DispFifo.uFirstFrm = (pDpb->m_DispFifo.uFirstFrm + 1) % FRM_BUF_POOL_SIZE;
+    pDpb->m_DispFifo.uNumFrm--;
+    pDpb->m_DispFifo.pFrmStatus[uFrmID] = AL_NOT_NEEDED_FOR_OUTPUT;
+    pDpb->m_pfnReleaseFrmBuf(pDpb->m_pPfnCtx, uFrmID);
   }
   DPB_RELEASE_MUTEX(pDpb);
   return uFrmID;
@@ -938,10 +930,9 @@ uint8_t AL_Dpb_ReleaseDisplayBuffer(AL_TDpb* pDpb)
 /*************************************************************************/
 void AL_Dpb_ClearOutput(AL_TDpb* pDpb)
 {
-  AL_TDpbNode* pNodes = pDpb->m_Nodes;
-  uint8_t uNode;
   DPB_GET_MUTEX(pDpb);
-  uNode = pDpb->m_uHeadPOC;
+  uint8_t uNode = pDpb->m_uHeadPOC;
+  AL_TDpbNode* pNodes = pDpb->m_Nodes;
 
   while(uNode != uEndOfList)
   {
@@ -956,9 +947,9 @@ void AL_Dpb_ClearOutput(AL_TDpb* pDpb)
 /*************************************************************************/
 void AL_Dpb_Flush(AL_TDpb* pDpb)
 {
-  uint8_t uHeadPOC;
-
   DPB_GET_MUTEX(pDpb);
+
+  uint8_t uHeadPOC;
 
   while(uEndOfList != (uHeadPOC = AL_Dpb_GetHeadPOC(pDpb)))
   {
@@ -974,10 +965,9 @@ void AL_Dpb_Flush(AL_TDpb* pDpb)
 void AL_Dpb_HEVC_Cleanup(AL_TDpb* pDpb, uint32_t uMaxLatency, uint8_t MaxNumOutput)
 {
   AL_TDpbNode* pNodes = pDpb->m_Nodes;
-  uint8_t uNode;
   DPB_GET_MUTEX(pDpb);
 
-  uNode = pDpb->m_uHeadPOC;
+  uint8_t uNode = pDpb->m_uHeadPOC;
 
   while(uNode != uEndOfList)
   {
@@ -1004,12 +994,10 @@ void AL_Dpb_HEVC_Cleanup(AL_TDpb* pDpb, uint32_t uMaxLatency, uint8_t MaxNumOutp
 /*************************************************************************/
 void AL_Dpb_AVC_Cleanup(AL_TDpb* pDpb)
 {
-  AL_TDpbNode* pNodes = pDpb->m_Nodes;
-  uint8_t uNode;
-
   DPB_GET_MUTEX(pDpb);
 
-  uNode = AL_Dpb_GetHeadPOC(pDpb);
+  uint8_t uNode = AL_Dpb_GetHeadPOC(pDpb);
+  AL_TDpbNode* pNodes = pDpb->m_Nodes;
 
   while(uNode != uEndOfList)
   {
@@ -1048,9 +1036,8 @@ void AL_Dpb_AVC_Cleanup(AL_TDpb* pDpb)
 /*************************************************************************/
 uint8_t AL_Dpb_Remove(AL_TDpb* pDpb, uint8_t uNode)
 {
-  uint8_t uFrmID = UndefID;
-
   DPB_GET_MUTEX(pDpb);
+  uint8_t uFrmID = UndefID;
 
   if(uNode != uEndOfList)
   {
@@ -1339,8 +1326,6 @@ void AL_Dpb_PictNumberProcess(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice)
 /******************************************************************************/
 void AL_Dpb_MarkingProcess(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice)
 {
-  uint8_t op_idc;
-
   // fast access
   AL_TDpbNode* pNodes = pDpb->m_Nodes;
   uint8_t uCurPos = pDpb->m_uCurRef;
@@ -1368,7 +1353,7 @@ void AL_Dpb_MarkingProcess(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice)
     else
       AL_Dpb_sAdaptiveMemoryControlMarking(pDpb, pSlice);
 
-    for(op_idc = 0; op_idc < 32; ++op_idc)
+    for(int op_idc = 0; op_idc < 32; ++op_idc)
     {
       if(pSlice->memory_management_control_operation[op_idc] == 6 &&
          pNodes[uCurPos].eMarking_flag != LONG_TERM_REF)
@@ -1384,12 +1369,6 @@ void AL_Dpb_MarkingProcess(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice)
 /*****************************************************************************/
 void AL_Dpb_InitPSlice_RefList(AL_TDpb* pDpb, TBufferRef* pRefList)
 {
-  int iPic, iRef;
-  int iCnt_short = MAX_REF - 1;
-  int iCnt_long = 0;
-
-  uint8_t uNode = pDpb->m_uHeadDecOrder;
-
   // fast access
   AL_TDpbNode* pNodes = pDpb->m_Nodes;
 
@@ -1398,6 +1377,10 @@ void AL_Dpb_InitPSlice_RefList(AL_TDpb* pDpb, TBufferRef* pRefList)
 
   Rtos_Memset(&NodeShortTerm[0], 0, 16 * sizeof(AL_TDpbNode));
   Rtos_Memset(&NodeLongTerm[0], 0, 16 * sizeof(AL_TDpbNode));
+
+  int iCnt_short = MAX_REF - 1;
+  int iCnt_long = 0;
+  uint8_t uNode = pDpb->m_uHeadDecOrder;
 
   while(uNode != uEndOfList)
   {
@@ -1411,8 +1394,8 @@ void AL_Dpb_InitPSlice_RefList(AL_TDpb* pDpb, TBufferRef* pRefList)
   }
 
   // merge short term and long term reference in the RefList
-  iPic = 0;
-  iRef = iCnt_short + 1;
+  int iPic = 0;
+  int iRef = iCnt_short + 1;
   iCnt_short = MAX_REF - iRef;
 
   while(iPic < iCnt_short)
@@ -1427,13 +1410,6 @@ void AL_Dpb_InitPSlice_RefList(AL_TDpb* pDpb, TBufferRef* pRefList)
 /*****************************************************************************/
 void AL_Dpb_InitBSlice_RefList(AL_TDpb* pDpb, int iCurFramePOC, TBufferListRef* pListRef)
 {
-  int iPic, iRef;
-  int iCnt_short_great = 0;
-  int iCnt_long = 0;
-  int iCnt_short_less = MAX_REF - 1;
-
-  uint8_t uShortNode = pDpb->m_uHeadPOC;
-  uint8_t uLongNode = pDpb->m_uHeadDecOrder;
   // fast access
   AL_TDpbNode* pNodes = pDpb->m_Nodes;
 
@@ -1444,6 +1420,10 @@ void AL_Dpb_InitBSlice_RefList(AL_TDpb* pDpb, int iCurFramePOC, TBufferListRef* 
   Rtos_Memset(&NodeShortTermPOCGreat[0], 0, 16 * sizeof(AL_TDpbNode));
   Rtos_Memset(&NodeShortTermPOCLess[0], 0, 16 * sizeof(AL_TDpbNode));
   Rtos_Memset(&NodeLongTerm[0], 0, 16 * sizeof(AL_TDpbNode));
+
+  int iCnt_short_less = MAX_REF - 1;
+  int iCnt_short_great = 0;
+  uint8_t uShortNode = pDpb->m_uHeadPOC;
 
   while(uShortNode != uEndOfList)
   {
@@ -1456,6 +1436,9 @@ void AL_Dpb_InitBSlice_RefList(AL_TDpb* pDpb, int iCurFramePOC, TBufferListRef* 
     uShortNode = pNodes[uShortNode].uNextPOC;
   }
 
+  int iCnt_long = 0;
+  uint8_t uLongNode = pDpb->m_uHeadDecOrder;
+
   while(uLongNode != uEndOfList) /*long_term_reference case*/
   {
     if(pNodes[uLongNode].eMarking_flag == LONG_TERM_REF)
@@ -1463,8 +1446,8 @@ void AL_Dpb_InitBSlice_RefList(AL_TDpb* pDpb, int iCurFramePOC, TBufferListRef* 
     uLongNode = pNodes[uLongNode].uNextDecOrder;
   }
 
-  iPic = 0;
-  iRef = iCnt_short_less + 1;
+  int iPic = 0;
+  int iRef = iCnt_short_less + 1;
   iCnt_short_less = MAX_REF - iRef;
 
   // List 0
@@ -1527,9 +1510,6 @@ void AL_Dpb_ModifShortTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, int iPicNumId
   AL_TDpbNode* pNodes = pDpb->m_Nodes;
 
   int iPicNumNoWrap;
-  int iPicNum;
-  uint8_t uCpt;
-  uint8_t unIdx;
 
   if(!iPicNumIdc)
     iPicNumNoWrap = ((*pPicNumPred - iDiffPicNum) < 0) ?
@@ -1541,13 +1521,13 @@ void AL_Dpb_ModifShortTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, int iPicNumId
   *pPicNumPred = iPicNumNoWrap;
 
   /*warning : only frame slice*/
-  iPicNum = (iPicNumNoWrap > pSlice->frame_num) ? iPicNumNoWrap - iMaxFrameNum : iPicNumNoWrap - 0;
+  int iPicNum = (iPicNumNoWrap > pSlice->frame_num) ? iPicNumNoWrap - iMaxFrameNum : iPicNumNoWrap - 0;
 
   /*process reordering*/
-  for(uCpt = uNumRef; uCpt > *pRefIdx; --uCpt)
-    (*pListRef)[iL0L1][uCpt] = (*pListRef)[iL0L1][uCpt - 1];
+  for(uint8_t u = uNumRef; u > *pRefIdx; --u)
+    (*pListRef)[iL0L1][u] = (*pListRef)[iL0L1][u - 1];
 
-  uCpt = pDpb->m_uHeadDecOrder;
+  uint8_t uCpt = pDpb->m_uHeadDecOrder;
 
   while(uCpt != uEndOfList)
   {
@@ -1555,7 +1535,7 @@ void AL_Dpb_ModifShortTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, int iPicNumId
     {
       (*pListRef)[iL0L1][(*pRefIdx)++].uNodeID = pNodes[uCpt].uNodeID;
 
-      unIdx = *pRefIdx;
+      uint8_t unIdx = *pRefIdx;
 
       for(uCpt = *pRefIdx; uCpt <= uNumRef; ++uCpt)
       {
@@ -1573,19 +1553,14 @@ void AL_Dpb_ModifShortTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, int iPicNumId
 void AL_Dpb_ModifLongTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t uOffset, int iL0L1, uint8_t* pRefIdx, TBufferListRef* pListRef)
 {
   // fast access
-  uint8_t uNumRef = iL0L1 ?
-                    pSlice->num_ref_idx_l1_active_minus1 + 1 : pSlice->num_ref_idx_l0_active_minus1 + 1;
-  int16_t iLongTermPicNum = iL0L1 ?
-                            pSlice->long_term_pic_num_l1[uOffset] : pSlice->long_term_pic_num_l0[uOffset];
+  uint8_t uNumRef = iL0L1 ? pSlice->num_ref_idx_l1_active_minus1 + 1 : pSlice->num_ref_idx_l0_active_minus1 + 1;
+
+  for(uint8_t u = uNumRef; u > *pRefIdx; --u)
+    (*pListRef)[iL0L1][u] = (*pListRef)[iL0L1][u - 1];
+
+  int16_t iLongTermPicNum = iL0L1 ? pSlice->long_term_pic_num_l1[uOffset] : pSlice->long_term_pic_num_l0[uOffset];
   AL_TDpbNode* pNodes = pDpb->m_Nodes;
-
-  uint8_t uCpt;
-  uint8_t unIdx;
-
-  for(uCpt = uNumRef; uCpt > *pRefIdx; --uCpt)
-    (*pListRef)[iL0L1][uCpt] = (*pListRef)[iL0L1][uCpt - 1];
-
-  uCpt = pDpb->m_uHeadDecOrder;
+  uint8_t uCpt = pDpb->m_uHeadDecOrder;
 
   while(uCpt != uEndOfList)
   {
@@ -1593,7 +1568,7 @@ void AL_Dpb_ModifLongTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t uOffse
     {
       (*pListRef)[iL0L1][(*pRefIdx)++].uNodeID = pNodes[uCpt].uNodeID;
 
-      unIdx = *pRefIdx;
+      uint8_t unIdx = *pRefIdx;
 
       for(uCpt = *pRefIdx; uCpt <= uNumRef; ++uCpt)
       {
