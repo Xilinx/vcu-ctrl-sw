@@ -310,8 +310,7 @@ static size_t LinuxDma_GetDmabufSize(int fd)
 
 static int LinuxDma_ExportToFd(AL_TLinuxDmaAllocator* pAllocator, AL_HANDLE hBuf)
 {
-  /* this will return -1 if any error occured */
-  return dup(LinuxDma_GetFd(pAllocator, hBuf));
+  return LinuxDma_GetFd(pAllocator, hBuf);
 }
 
 static AL_HANDLE LinuxDma_ImportFromFd(AL_TLinuxDmaAllocator* pAllocator, int fd)
@@ -321,7 +320,7 @@ static AL_HANDLE LinuxDma_ImportFromFd(AL_TLinuxDmaAllocator* pAllocator, int fd
   if(!pDmaAllocCtx)
     return NULL;
 
-  pDmaAllocCtx->info.fd = dup(fd);
+  pDmaAllocCtx->info.fd = fd;
 
   /* this fills info.phy_addr */
   if(!LinuxDma_GetBusAddrFromFd(pAllocator, &pDmaAllocCtx->info))
