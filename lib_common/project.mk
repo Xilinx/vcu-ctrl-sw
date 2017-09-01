@@ -1,6 +1,5 @@
 LIB_COMMON_BASE_SRC:=\
 	lib_common/Utils.c\
-	lib_common/UtilsQp.c\
 	lib_common/BufCommon.c\
 	lib_common/AllocatorDefault.c\
 

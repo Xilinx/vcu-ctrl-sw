@@ -79,7 +79,7 @@ void SetAutoQPCtrlExt(AL_ESliceType eType, AL_TQPCtrl const* pQPCtrl, int iMaxQP
   pBuf[2] = (pQPCtrl->ThP2 << 16) | pQPCtrl->ThP1;
   pBuf[3] = (pQPCtrl->DltM2 << 6) | (pQPCtrl->DltM1 << 3) | pQPCtrl->DltM0;
   pBuf[3] |= (pQPCtrl->DltP2 << 15) | (pQPCtrl->DltP1 << 12) | (pQPCtrl->DltP0 << 9);
-  pBuf[3] |= (pQPCtrl->Mode << 30) | (iMaxQP << 24) | (iMinQP << 18);
+  pBuf[3] |= (iMaxQP << 24) | (iMinQP << 18);
 
   pEP->uFlags |= EP2_BUF_QP_CTRL.Flag;
 }

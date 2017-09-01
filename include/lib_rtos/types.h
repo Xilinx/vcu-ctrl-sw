@@ -103,7 +103,6 @@ typedef struct AL_t_QPCtrl
   uint8_t DltM0, DltM1, DltM2;
   uint8_t DltP0, DltP1, DltP2;
   uint8_t QPMin, QPMax;
-  uint8_t Mode;
 }AL_TQPCtrl;
 
 #define AL_MAX_NUM_CPB 32
