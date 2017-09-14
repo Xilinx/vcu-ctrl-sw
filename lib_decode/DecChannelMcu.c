@@ -211,7 +211,7 @@ static bool PostMessage(int fd, int iMsgID, void* pData)
     iRet = ioctl(fd, iMsgID, pData);
 
     /* if a timeout occured, retry */
-    if(iRet < 0 && errno == EAGAIN)
+    if(iRet < 0 && (errno == EAGAIN || errno == EINTR))
       continue;
     bDone = true;
   }
@@ -302,6 +302,7 @@ static void* ScNotificationThread(void* p)
     AL_Event* pEvent;
     AL_EventQueue_Fetch(pEventQueue, &pEvent, isSCReady, pEventQueue);
     SCMsg* pMsg = pEvent->pPriv;
+    Rtos_Free(pEvent);
 
     if(pMsg->bEnded)
     {
@@ -401,6 +402,8 @@ static void DecChannelMcu_Destroy(AL_TIDecChannel* pDecChannel)
   Rtos_DeleteThread(decChanMcu->pSCThread);
 
   AL_EventQueue_Deinit(&SCQueue->EventQueue);
+
+  Rtos_Free(decChanMCU);
 
   return;
 
