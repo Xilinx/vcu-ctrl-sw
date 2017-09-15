@@ -403,7 +403,7 @@ static void DecChannelMcu_Destroy(AL_TIDecChannel* pDecChannel)
 
   AL_EventQueue_Deinit(&SCQueue->EventQueue);
 
-  Rtos_Free(decChanMCU);
+  Rtos_Free(decChanMcu);
 
   return;
 
