@@ -1109,6 +1109,13 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
         MSG("!! The specified ScalingList is not allowed; it will be adjusted!!");
         ++numIncoherency;
       }
+
+      if(AL_GET_CHROMA_MODE(pSettings->tChParam.ePicFormat) != CHROMA_4_2_0)
+      {
+        AL_SET_CHROMA_MODE(pSettings->tChParam.ePicFormat, CHROMA_4_2_0);
+        MSG("!! The specified ChromaMode and Profile are not allowed; they will be adjusted!!");
+        ++numIncoherency;
+      }
     }
 
     if(AL_GET_PROFILE_IDC(pSettings->tChParam.eProfile) == AL_GET_PROFILE_IDC(AL_PROFILE_AVC_BASELINE))
