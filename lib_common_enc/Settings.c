@@ -687,6 +687,11 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, FILE* pOut)
   int iRound = 0;
   int err = 0;
 
+  uint8_t uNumCore = pSettings->tChParam.uNumCore;
+
+  if(uNumCore == NUMCORE_AUTO)
+    uNumCore = AL_GetNumCore(pSettings->tChParam.uWidth, pSettings->tChParam.uHeight, pSettings->tChParam.tRCParam.uFrameRate, pSettings->tChParam.tRCParam.uClkRatio);
+
   if(!AL_sSettings_CheckProfile(pSettings->tChParam.eProfile))
   {
     ++err;
@@ -778,8 +783,6 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, FILE* pOut)
 
   if(pSettings->tChParam.eOptions & AL_OPT_WPP)
   {
-    uint8_t uNumCore = (pSettings->tChParam.uNumCore != NUMCORE_AUTO) ? pSettings->tChParam.uNumCore : AL_ENC_NUM_CORES;
-
     if(pSettings->tChParam.uNumSlices * uNumCore * iRound > pSettings->tChParam.uHeight)
     {
       ++err;
@@ -791,7 +794,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, FILE* pOut)
   if(pSettings->iPrefetchLevel2)
   {
     uint32_t uPrefetchSize = (pSettings->iPrefetchLevel2 > 0) ? (uint32_t)pSettings->iPrefetchLevel2 : pSettings->uL2PSize;
-    uint32_t uPrefetchMinSize = AL_L2P_GetL2PrefetchMinSize(&pSettings->tChParam, pSettings->tChParam.uNumCore != NUMCORE_AUTO ? pSettings->tChParam.uNumCore : AL_ENC_NUM_CORES);
+    uint32_t uPrefetchMinSize = AL_L2P_GetL2PrefetchMinSize(&pSettings->tChParam, uNumCore);
 
     if(uPrefetchMinSize > uPrefetchSize)
     {
@@ -870,11 +873,6 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, FILE* pOut)
         MSG("Invalid parameter : SliceQP, CbQpOffset");
       }
     }
-
-    uint8_t uNumCore = pSettings->tChParam.uNumCore;
-
-    if(uNumCore == NUMCORE_AUTO)
-      uNumCore = AL_GetNumCore(pSettings->tChParam.uWidth, pSettings->tChParam.uHeight, pSettings->tChParam.tRCParam.uFrameRate, pSettings->tChParam.tRCParam.uClkRatio);
 
     if(uNumCore > 1 && pSettings->tChParam.uSliceSize > 0)
     {
