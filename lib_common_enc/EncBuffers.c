@@ -99,9 +99,16 @@ uint32_t GetMaxLCU(uint16_t uWidth, uint16_t uHeight, uint8_t uMaxCuSize)
 }
 
 /****************************************************************************/
-uint32_t GetMaxNalSize(int iWidth, int iHeight, AL_EChromaMode eMode)
+uint32_t GetMaxVclNalSize(int iWidth, int iHeight, AL_EChromaMode eMode)
 {
   uint32_t uMaxPCM = GetBlk64x64(iWidth, iHeight) * AL_PCM_SIZE[eMode][2];
+  return uMaxPCM;
+}
+
+/****************************************************************************/
+uint32_t GetMaxNalSize(int iWidth, int iHeight, AL_EChromaMode eMode)
+{
+  uint32_t uMaxPCM = GetMaxVclNalSize(iWidth, iHeight, eMode);
 
   uMaxPCM += 2048 + (((iHeight + 15) / 16) * AL_MAX_SLICE_HEADER_SIZE); // 4096 for AUD/SPS/PPS/SEI/slice header ...
 

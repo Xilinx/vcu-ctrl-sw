@@ -54,6 +54,15 @@
 #include "lib_common_enc/EncChanParam.h"
 
 /*************************************************************************//*!
+   \brief Retrieves the maximum size of one VCL NAL unit
+   \param[in] iWidth Frame Width in pixel
+   \param[in] iHeight Frame Height in pixel
+   \param[in] eMode Chroma subsampling
+   \return maximum size of one NAL unit
+*****************************************************************************/
+uint32_t GetMaxVclNalSize(int iWidth, int iHeight, AL_EChromaMode eMode);
+
+/*************************************************************************//*!
    \brief Retrieves the maximum size of one NAL unit
    \param[in] iWidth Frame Width in pixel
    \param[in] iHeight Frame Height in pixel

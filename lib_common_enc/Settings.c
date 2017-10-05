@@ -50,6 +50,7 @@
 #include "lib_common_enc/Settings.h"
 #include "Utils_enc.h"
 #include "lib_common/Utils.h"
+#include "lib_common_enc/EncBuffers.h"
 #include "L2PrefetchParam.h"
 #include "lib_common/SEI.h"
 
@@ -980,7 +981,24 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
   {
     pSettings->tChParam.tRCParam.uMaxBitRate = pSettings->tChParam.tRCParam.uTargetBitRate;
   }
+
+  // ChromaMode and profile depend on input format
+  eInputChromaMode = AL_GetChromaMode(tFourCC);
+
   {
+    if(pSettings->tChParam.tRCParam.eRCMode == AL_RC_CBR)
+    {
+      uint32_t maxNalSizeInByte = GetMaxVclNalSize(pSettings->tChParam.uWidth, pSettings->tChParam.uHeight, eInputChromaMode);
+      uint32_t maxBitRate = 8 * maxNalSizeInByte * pSettings->tChParam.tRCParam.uFrameRate;
+
+      if(pSettings->tChParam.tRCParam.uTargetBitRate > maxBitRate)
+      {
+        MSG("!! Warning specified TargetBitRate is too high for this use case and will be adjusted!!");
+        pSettings->tChParam.tRCParam.uTargetBitRate = maxBitRate;
+        pSettings->tChParam.tRCParam.uMaxBitRate = maxBitRate;
+      }
+    }
+
     uint8_t uMinLevel = AL_sSettings_GetMinLevel(pSettings);
 
     if(uMinLevel == 255)
@@ -1039,9 +1057,6 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
   AL_sCheckRange(&pSettings->tChParam.pMeRange[SLICE_P][1], iMaxPRange, pOut);
   AL_sCheckRange(&pSettings->tChParam.pMeRange[SLICE_B][0], iMaxBRange, pOut);
   AL_sCheckRange(&pSettings->tChParam.pMeRange[SLICE_B][1], iMaxBRange, pOut);
-
-  // ChromaMode and profile depend on input format
-  eInputChromaMode = AL_GetChromaMode(tFourCC);
 
   if((eInputChromaMode == CHROMA_4_2_2 && (!AL_IS_422_PROFILE(pSettings->tChParam.eProfile) || AL_GET_CHROMA_MODE(pSettings->tChParam.ePicFormat) == CHROMA_4_2_0)) ||
      (eInputChromaMode == CHROMA_4_2_0 && AL_GET_CHROMA_MODE(pSettings->tChParam.ePicFormat) == CHROMA_4_2_2))
