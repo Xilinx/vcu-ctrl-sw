@@ -212,3 +212,43 @@
 
   Missing feature(s) :
     -- long terms
+
+2017-09-04 (v1.0.36)
+--------------------
+
+  Added features (Codec) :
+    -- fix dpb buffer management (decode)
+    -- fix sem_wait and equivalent when signal are present
+    -- use minQP, maxQP from channel parameter in AUTO_QP (encoder)
+    -- fix compliance when using SEI message (encode)
+    -- fix rate control CONST_QP (P-frames, B-frames QPs values were interchanged)
+    -- fix potential race condition on EOS : we could miss a frame (encoder)
+
+  Missing feature(s) :
+    -- long terms
+
+2017-09-21 (v1.0.37)
+--------------------
+
+  Added features (Codec) :
+    -- Fix error paths when signals are sent to the application using lib_encode / lib_decode
+    -- Better error reporting when configuration files are wrong
+    -- Size optimization: Streampart, Cmdlist and channel context size optimizations
+    -- Better error reporting at channel creation
+    -- Stream buffer overcommitted while encoding are now properly released at AL_Encoder_Destroy
+    -- Fix memory leak in decoder mcu mode
+    -- Fix potential data race (decoder)
+    -- Fix cmdlist wrapping data race (decoder)
+    -- Relaxed watchdog timeout constraint in slicelat
+
+  API:
+    -- AL_Settings_CheckCoherency now returns -1 at fatal failure, number of incoherency
+    if it corrected some.
+    -- HLIBREF was removed, the lib_ref is now fully an AL_TIpCtrl. The destruction
+    of the lib_ref is now handled using the virtual destruction of the AL_TIpCtrl
+    -- RefAlloc is now fully an AL_TAllocator and implements the virtual destruction too
+    -- AL_Encoder_Create and AL_Decoder_Create signature change to enable better error reporting
+
+
+  Missing feature(s) :
+    -- long terms

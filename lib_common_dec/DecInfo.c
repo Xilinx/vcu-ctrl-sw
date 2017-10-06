@@ -36,6 +36,7 @@
 ******************************************************************************/
 
 #include "lib_common_dec/DecInfo.h"
+#include "lib_common_dec/DecDpbMode.h"
 #include "lib_common/Utils.h"
 #include <assert.h>
 
@@ -52,10 +53,13 @@ bool AL_NeedsCropping(AL_TCropInfo* pInfo)
 }
 
 /******************************************************************************/
-int AL_AVC_GetMaxDPBSize(int const iLevel, int const iWidth, int const iHeight)
+int AL_AVC_GetMaxDPBSize(int iLevel, int iWidth, int iHeight, AL_EDpbMode eMode)
 {
   assert(iWidth);
   assert(iHeight);
+
+  if(eMode == AL_DPB_LOW_REF)
+    return 2;
 
   int iMaxDpbMbs;
   switch(iLevel)
@@ -126,8 +130,11 @@ int AL_AVC_GetMaxDPBSize(int const iLevel, int const iWidth, int const iHeight)
 }
 
 /******************************************************************************/
-int AL_HEVC_GetMaxDPBSize(int const iLevel, int const iWidth, int const iHeight)
+int AL_HEVC_GetMaxDPBSize(int iLevel, int iWidth, int iHeight, AL_EDpbMode eMode)
 {
+  if(eMode == AL_DPB_LOW_REF)
+    return 2;
+
   int iMaxLumaPS;
   switch(iLevel)
   {

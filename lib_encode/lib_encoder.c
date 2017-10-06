@@ -44,13 +44,18 @@
 
 /****************************************************************************/
 
-AL_TEncCtx* AL_HEVC_Encoder_Create(TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings);
-AL_TEncCtx* AL_AVC_Encoder_Create(TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings);
+AL_ERR AL_HEVC_Encoder_Create(AL_TEncCtx** hCtx, TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings);
+AL_ERR AL_AVC_Encoder_Create(AL_TEncCtx** hCtx, TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings);
 
 /****************************************************************************/
-AL_HEncoder AL_Encoder_Create(TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings, AL_CB_EndEncoding callback)
+AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings, AL_CB_EndEncoding callback)
 {
-  AL_TEncoder* pEncoder = (AL_TEncoder*)Rtos_Malloc(sizeof(AL_TEncoder));
+  /* subframe latency isn't supported yet */
+  assert(pSettings->tChParam.bSubframeLatency == false);
+
+  *hEnc = (AL_HEncoder)Rtos_Malloc(sizeof(AL_TEncoder));
+  AL_TEncoder* pEncoder = (AL_TEncoder*)*hEnc;
+  AL_ERR errorCode = AL_ERROR;
 
   if(!pEncoder)
     goto fail;
@@ -59,10 +64,10 @@ AL_HEncoder AL_Encoder_Create(TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_
 
 
   if(AL_IS_HEVC(pSettings->tChParam.eProfile))
-    pEncoder->pCtx = AL_HEVC_Encoder_Create(pScheduler, pAlloc, pSettings);
+    errorCode = AL_HEVC_Encoder_Create(&pEncoder->pCtx, pScheduler, pAlloc, pSettings);
 
   if(AL_IS_AVC(pSettings->tChParam.eProfile))
-    pEncoder->pCtx = AL_AVC_Encoder_Create(pScheduler, pAlloc, pSettings);
+    errorCode = AL_AVC_Encoder_Create(&pEncoder->pCtx, pScheduler, pAlloc, pSettings);
 
   if(!pEncoder->pCtx)
     goto fail;
@@ -70,11 +75,12 @@ AL_HEncoder AL_Encoder_Create(TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_
   if(callback.func)
     pEncoder->pCtx->m_callback = callback;
 
-  return pEncoder;
+  return AL_SUCCESS;
 
   fail:
   Rtos_Free(pEncoder);
-  return NULL;
+  *hEnc = NULL;
+  return errorCode;
 }
 
 /****************************************************************************/

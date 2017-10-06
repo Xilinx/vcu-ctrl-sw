@@ -39,6 +39,7 @@
 #include <memory>
 #include <functional>
 #include "lib_app/InputFiles.h"
+#include "lib_app/utils.h"
 
 extern "C"
 {
@@ -51,15 +52,9 @@ typedef struct AL_t_Allocator AL_TAllocator;
 /*****************************************************************************/
 struct CIpDevice
 {
-  virtual ~CIpDevice()
-  {
-    if(destroy)
-      destroy();
-  };
   TScheduler* m_pScheduler = nullptr;
-  AL_TAllocator* m_pAllocator = nullptr;
-  std::function<void(void)> destroy;
+  std::shared_ptr<AL_TAllocator> m_pAllocator;
 };
 
-std::unique_ptr<CIpDevice> CreateIpDevice(bool bUseRefSoftware, int iSchedulerType, AL_TEncSettings& Settings, int logIpInteractions, int iVip = 0, int iVqDescr = 0);
+std::shared_ptr<CIpDevice> CreateIpDevice(bool bUseRefSoftware, int iSchedulerType, AL_TEncSettings& Settings, IpCtrlMode ipCtrlMode, bool trackDma = false, int iVip = 0, int iVqDescr = 0);
 

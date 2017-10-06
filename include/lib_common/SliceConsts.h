@@ -169,6 +169,7 @@ typedef enum e_SliceType
 {
   SLICE_SI = 4, /*!<AVC SI Slice */
   SLICE_SP = 3, /*!<AVC SP Slice */
+  SLICE_GOLDEN = 3,
   SLICE_I = 2,  /*!< I Slice */
   SLICE_P = 1,  /*!< P Slice */
   SLICE_B = 0,  /*!< B Slice */
@@ -181,6 +182,7 @@ typedef enum e_SliceType
   SLICE_MAX_ENUM
 }AL_ESliceType;
 
+int AL_GetPrimaryPictureType(AL_ESliceType sliceType);
 /*************************************************************************//*!
    \brief Indentifies pic_struct (subset of table D-1)
 *****************************************************************************/
@@ -391,14 +393,6 @@ typedef enum
 }AL_MV_CLASS_TYPE;
 
 /************************************************************************/
-typedef enum
-{
-  VP9_INTER_NEAREST_MV = 0,
-  VP9_INTER_NEAR_MV = 1,
-  VP9_INTER_ZERO_MV = 2,
-  VP9_INTER_NEW_MV = 3,
-  AL_VP9_MVPRED_MODES
-}AL_VP9_MVPRED_MODE;
 
 // block transform size
 typedef enum

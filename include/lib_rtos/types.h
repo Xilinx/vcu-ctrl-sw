@@ -48,10 +48,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#ifndef __cplusplus
-#define static_assert _Static_assert
-#endif
-
 #ifdef __GNUC__
 
 #define _CRT_SECURE_NO_WARNINGS
@@ -59,12 +55,20 @@
 #define AL_INLINE inline
 #define AL_API extern
 
+#ifndef __cplusplus
+#define static_assert _Static_assert
+#endif
+
 #else // _MSC_VER
 
 #define __AL_ALIGNED__(x)
 #define __attribute__(x)
 #define AL_INLINE __inline
 #define AL_API extern
+
+#ifndef __cplusplus
+#define static_assert(assertion, ...) _STATIC_ASSERT(assertion)
+#endif
 
 #endif
 
@@ -84,11 +88,6 @@ typedef uint32_t AL_ERR;
 typedef void* AL_HANDLE;
 
 /*************************************************************************//*!
-   \brief UUID
-*****************************************************************************/
-typedef uint8_t AL_UUID[16];
-
-/*************************************************************************//*!
    \brief Hardware Quality control structure
 *****************************************************************************/
 typedef uint8_t AL_TLambdas[4];
@@ -106,8 +105,6 @@ typedef struct AL_t_QPCtrl
 }AL_TQPCtrl;
 
 #define AL_MAX_NUM_CPB 32
-#define AL_MAX_NUM_LEVEL 1
-#define AL_MAX_NUM_OP 2
 #define AL_MAX_NUM_VIEW 1
 #define AL_MAX_NUM_REF 16
 #define AL_MAX_NUM_B_PICT 7

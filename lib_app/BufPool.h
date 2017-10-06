@@ -60,6 +60,7 @@ typedef struct al_t_BufPoolConfig
   uint32_t uMinBuf; /*!< Minimum size of the pool (Buffer that will be allocated at init time)*/
   uint32_t uMaxBuf;/*!< Maximum size of the pool */
   size_t zBufSize;/*!< Size of the buffer that will fill the pool */
+  char const* debugName;
   AL_TMetaData* pMetaData;/*!< Metadata of the buffer that will fill the pool */
 }AL_TBufPoolConfig;
 
@@ -110,12 +111,6 @@ void AL_BufPool_Deinit(AL_TBufPool* pBufPool);
    \return return the buffer or NULL in case of failure in the non blocking case
 *****************************************************************************/
 AL_TBuffer* AL_BufPool_GetBuffer(AL_TBufPool* pBufPool, AL_EBufMode eMode);
-/*************************************************************************//*!
-   \brief AL_BufPool_ReleaseBuffer Tell the pool we are not using this buffer anymore
-   \param[in] pBufPool Pointer to an AL_TBufPool
-   \param[in] pBuf Pointer to an AL_TBuffer
-*****************************************************************************/
-bool AL_BufPool_ReleaseBuffer(AL_TBufPool* pBufPool, AL_TBuffer* pBuf);
 
 /*****************************************************************************/
 

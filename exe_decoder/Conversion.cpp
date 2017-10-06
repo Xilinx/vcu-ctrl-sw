@@ -56,8 +56,8 @@ void CropFrame(AL_TBuffer* pYUV, int iSizePix, uint32_t uCropLeft, uint32_t uCro
   int iHeight = pMeta->iHeight;
   AL_EChromaMode eMode = AL_GetChromaMode(pMeta->tFourCC);
 
-  uint8_t* pOut = AL_Buffer_GetBufferData(pYUV);
-  uint8_t* pIn = AL_Buffer_GetBufferData(pYUV);
+  uint8_t* pOut = AL_Buffer_GetData(pYUV);
+  uint8_t* pIn = AL_Buffer_GetData(pYUV);
 
   /*warning: works in frame only in 4:2:0*/
   iBeginVert = uCropTop;

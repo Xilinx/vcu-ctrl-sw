@@ -44,108 +44,111 @@
 #include "lib_common/SliceConsts.h"
 
 /****************************************************************************/
-void StreamInitBuffer(TStream* pStream, uint8_t* pBuf, uint32_t uSize)
+NalHeader GetNalHeaderHevc(uint8_t uNUT, uint8_t uNalIdc)
 {
-  pStream->m_pData = pBuf;
-  pStream->m_pCur = pBuf;
-  pStream->m_uSize = uSize;
+  (void)uNalIdc;
+  NalHeader nh;
+  nh.size = 2;
+  nh.bytes[0] = uNUT << 1;
+  nh.bytes[1] = 1;
+  return nh;
 }
 
 /****************************************************************************/
-void StreamReset(TStream* pStream)
+NalHeader GetNalHeaderAvc(uint8_t uNUT, uint8_t uNalIdc)
 {
-  pStream->m_pCur = pStream->m_pData;
+  NalHeader nh;
+  nh.size = 1;
+  nh.bytes[0] = ((uNalIdc & 0x03) << 5) | (uNUT & 0x1F);
+  return nh;
 }
 
 /****************************************************************************/
-void StreamWriteByte(TStream* pStream, uint8_t uByte)
+static void writeByte(AL_TBitStreamLite* pStream, uint8_t uByte)
 {
-  *(pStream->m_pCur++) = uByte;
+  AL_BitStreamLite_PutBits(pStream, 8, uByte);
 }
 
 /****************************************************************************/
-void StreamCopyBytes(TStream* pStream, uint8_t* pBuf, int iNumber)
-{
-  Rtos_Memcpy(pStream->m_pCur, pBuf, iNumber);
-  pStream->m_pCur += iNumber;
-}
-
-/****************************************************************************/
-uint32_t StreamGetNumBytes(TStream* pStream)
-{
-  return pStream->m_pCur - pStream->m_pData;
-}
-
 static bool Matches(uint8_t const* pData)
 {
   return !((pData[0] & 0xFF) || (pData[1] & 0xFF) || pData[2] & 0xFC);
 }
 
 /****************************************************************************/
-void AntiEmul(TStream* pStream, uint8_t const* pData, int iNumBytes)
+static void AntiEmul(AL_TBitStreamLite* pStream, uint8_t const* pData, int iNumBytes)
 {
   // Write all but the last two bytes.
   int iByte;
 
   for(iByte = 2; iByte < iNumBytes; iByte++)
   {
-    StreamWriteByte(pStream, *pData);
+    writeByte(pStream, *pData);
 
     // Check for start code emulation
     if(Matches(pData++))
     {
-      StreamWriteByte(pStream, *pData++);
+      writeByte(pStream, *pData++);
       iByte++;
-      StreamWriteByte(pStream, 0x03); // Emulation Prevention uint8_t
+      writeByte(pStream, 0x03); // Emulation Prevention uint8_t
     }
   }
 
   if(iByte <= iNumBytes)
-    StreamWriteByte(pStream, *pData++);
-  StreamWriteByte(pStream, *pData);
+    writeByte(pStream, *pData++);
+  writeByte(pStream, *pData);
 }
 
-/****************************************************************************/
-void FlushNAL(TStream* pStream, uint8_t uNUT, uint8_t uTempID, uint8_t uLayerID, uint8_t* pDataInNAL, int iBitsInNAL, bool bCheckEmul, uint8_t uNalIdc, bool bAvc)
+static void writeStartCode(AL_TBitStreamLite* pStream, int nut)
 {
-  uint8_t uNalHdrFstByte, uNalHdrSecByte = 0;
-  const int iBytesInNAL = (iBitsInNAL + 7) >> 3;
-
-  if(bAvc)
-    uNalHdrFstByte = ((uNalIdc & 0x03) << 5) | (uNUT & 0x1F);
-  else
-  {
-    uNalHdrFstByte = (uNUT << 1) | ((uLayerID & 0x01) << 7);
-    uNalHdrSecByte = ((uLayerID & 0x3E) << 2) | (uTempID + 1);
-  }
-
 #if !__ANDROID_API__
 
   // If this is a SPS or PPS or Access Unit, add an extra zero_byte (spec. B.1.2).
-  if((bAvc && (uNUT >= AL_AVC_NUT_SPS) && (uNUT <= AL_AVC_NUT_SUB_SPS)) ||
-     (!bAvc && (uNUT >= AL_HEVC_NUT_VPS) && (uNUT <= AL_HEVC_NUT_SUFFIX_SEI)))
+  if((nut >= AL_AVC_NUT_SPS && nut <= AL_AVC_NUT_SUB_SPS) ||
+     (nut >= AL_HEVC_NUT_VPS && nut <= AL_HEVC_NUT_SUFFIX_SEI))
 #endif
   {
-    StreamWriteByte(pStream, 0x00);
+    writeByte(pStream, 0x00);
   }
 
   // don't count start code in case of "VCL Compliance"
-  StreamWriteByte(pStream, 0x00);
-  StreamWriteByte(pStream, 0x00);
-  StreamWriteByte(pStream, 0x01);
+  writeByte(pStream, 0x00);
+  writeByte(pStream, 0x00);
+  writeByte(pStream, 0x01);
+}
 
-  // write nal header
-  StreamWriteByte(pStream, uNalHdrFstByte);
+/****************************************************************************/
+void FlushNAL(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, uint8_t* pDataInNAL, int iBitsInNAL)
+{
+  writeStartCode(pStream, uNUT);
 
-  if(!bAvc)
-    StreamWriteByte(pStream, uNalHdrSecByte);
+  for(int i = 0; i < header.size; i++)
+    writeByte(pStream, header.bytes[i]);
+
+  const int iBytesInNAL = (iBitsInNAL + 7) >> 3;
 
   if(pDataInNAL && iBytesInNAL)
+    AntiEmul(pStream, pDataInNAL, iBytesInNAL);
+}
+
+/****************************************************************************/
+void WriteFillerData(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, int bytesCount)
+{
+  int bookmark = AL_BitStreamLite_GetBitsCount(pStream);
+  writeStartCode(pStream, uNUT);
+
+  for(int i = 0; i < header.size; i++)
+    writeByte(pStream, header.bytes[i]);
+
+  int headerInBytes = (AL_BitStreamLite_GetBitsCount(pStream) - bookmark) / 8;
+  int bytesToWrite = bytesCount - headerInBytes - 1; // -1 for the final 0x80
+
+  if(bytesToWrite > 0)
   {
-    if(bCheckEmul)
-      AntiEmul(pStream, pDataInNAL, iBytesInNAL);
-    else
-      StreamCopyBytes(pStream, pDataInNAL, iBytesInNAL);
+    Rtos_Memset(AL_BitStreamLite_GetData(pStream) + headerInBytes, 0xFF, bytesToWrite);
+    AL_BitStreamLite_SkipBits(pStream, bytesToWrite * 8);
   }
+
+  writeByte(pStream, 0x80);
 }
 

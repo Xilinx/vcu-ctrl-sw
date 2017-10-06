@@ -52,6 +52,8 @@
 
 #include "allegro_ioctl_mcu_dec.h"
 #include "lib_common/List.h"
+#include "lib_common/Error.h"
+#include <assert.h>
 
 #define DCACHE_OFFSET 0x80000000
 
@@ -210,7 +212,6 @@ static bool PostMessage(int fd, int iMsgID, void* pData)
   {
     iRet = ioctl(fd, iMsgID, pData);
 
-    /* if a timeout occured, retry */
     if(iRet < 0 && (errno == EAGAIN || errno == EINTR))
       continue;
     bDone = true;
@@ -259,9 +260,8 @@ static void* NotificationThread(void* p)
   for(;;)
   {
     struct al5_params msg = { 0 };
-    bool bRet = getStatusMsg(chan, &msg);
 
-    if(!bRet)
+    if(!getStatusMsg(chan, &msg))
       break;
 
     processStatusMsg(chan, &msg);
@@ -310,9 +310,7 @@ static void* ScNotificationThread(void* p)
       break;
     }
 
-    bool bRet = getScStatusMsg(pMsg, &StatusMsg);
-
-    if(bRet)
+    if(getScStatusMsg(pMsg, &StatusMsg))
       processScStatusMsg(pMsg, &StatusMsg);
 
     close(pMsg->fd);
@@ -416,11 +414,11 @@ static void DecChannelMcu_Destroy(AL_TIDecChannel* pDecChannel)
 }
 
 /****************************************************************************/
-static bool DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecChanParam* pChParam, AL_TIDecChannelCallbacks* pCBs)
+static AL_ERR DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecChanParam* pChParam, AL_TIDecChannelCallbacks* pCBs)
 {
   struct DecChanMcuCtx* decChanMcu = (struct DecChanMcuCtx*)pDecChannel;
   struct al5_channel_config msg = { 0 };
-  bool bRet;
+  AL_ERR errorCode = AL_ERROR;
 
   Channel* chan = &decChanMcu->chan;
 
@@ -436,13 +434,17 @@ static bool DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecCha
   }
 
   setChannelMsg(&msg.param, pChParam);
-  bRet = PostMessage(chan->fd, AL_MCU_CONFIG_CHANNEL, &msg);
 
-  if(!bRet)
+  if(!PostMessage(chan->fd, AL_MCU_CONFIG_CHANNEL, &msg))
   {
-    perror("Failed to config channel");
+    /* the ioctl might not have been called at all,
+     * so the error_code might no be set. leave it to AL_ERROR in this case */
+    if(msg.status.error_code)
+      errorCode = msg.status.error_code;
     goto fail_open;
   }
+
+  assert(msg.status.error_code == 0);
 
   getParamUpdateByMcu(&msg.status, pChParam);
 
@@ -452,13 +454,13 @@ static bool DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecCha
     goto fail_open;
 
   decChanMcu->chanIsConfigured = true;
-  return true;
+  return AL_SUCCESS;
 
   fail_open:
 
   if(chan->fd >= 0)
     close(chan->fd);
-  return false;
+  return errorCode;
 }
 
 static void setStartCodeParams(struct al5_params* msg, AL_TScParam* pScParam)
@@ -487,7 +489,6 @@ static void DecChannelMcu_SearchSC(AL_TIDecChannel* pDecChannel, AL_TScParam* pS
   struct DecChanMcuCtx* decChanMcu = (struct DecChanMcuCtx*)pDecChannel;
   struct al5_search_sc_msg search_msg = { 0 };
   AL_EventQueue* pEventQueue = &decChanMcu->SCQueue.EventQueue;
-  bool bRet;
   AL_Event* pEvent = Rtos_Malloc(sizeof(*pEvent));
   SCMsg* pMsg = Rtos_Malloc(sizeof(*pMsg));
 
@@ -510,9 +511,8 @@ static void DecChannelMcu_SearchSC(AL_TIDecChannel* pDecChannel, AL_TScParam* pS
   }
 
   setSearchStartCodeMsg(&search_msg, pScParam, pBufAddrs);
-  bRet = PostMessage(pMsg->fd, AL_MCU_SEARCH_START_CODE, &search_msg);
 
-  if(!bRet)
+  if(!PostMessage(pMsg->fd, AL_MCU_SEARCH_START_CODE, &search_msg))
   {
     perror("Failed to search start code");
     goto fail_open;

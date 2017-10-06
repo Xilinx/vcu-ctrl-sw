@@ -40,7 +40,7 @@
 #include "lib_fpga/Board.h"
 #include "lib_common/Allocator.h"
 
-TBoard* Board_Create(const char* deviceFile, uint32_t uIntReg, uint32_t uMskReg, uint32_t uIntMask)
+AL_TIpCtrl* Board_Create(const char* deviceFile, uint32_t uIntReg, uint32_t uMskReg, uint32_t uIntMask)
 {
   (void)deviceFile;
   (void)uIntReg;

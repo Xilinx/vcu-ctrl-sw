@@ -51,7 +51,6 @@ typedef void (* PFN_RefCount_CallBack)(AL_TBuffer* pBuf);
 struct al_t_Buffer
 {
   AL_TAllocator* pAllocator; /*!< Allocator pointer. */
-  uint8_t* pData; /*!< Buffer data mapped in userspace */
   size_t zSize; /*!< Size of the allocated buffer */
   AL_HANDLE hBuf; /*!< Handle to the allocated buffer */
 };
@@ -66,6 +65,7 @@ struct al_t_Buffer
    \return return true on success, false on failure
 *****************************************************************************/
 AL_TBuffer* AL_Buffer_Create_And_Allocate(AL_TAllocator* pAllocator, size_t zSize, PFN_RefCount_CallBack pCallBack);
+AL_TBuffer* AL_Buffer_Create_And_AllocateNamed(AL_TAllocator* pAllocator, size_t zSize, PFN_RefCount_CallBack pCallBack, char const* name);
 
 /*************************************************************************//*!
    \brief AL_Buffer_Init: Initialize the buffer
@@ -113,18 +113,21 @@ void AL_Buffer_SetUserData(AL_TBuffer* pBuf, void* pUserData);
 void* AL_Buffer_GetUserData(AL_TBuffer* pBuf);
 
 /*************************************************************************//*!
-   \brief AL_Buffer_GetBufferData: Get buffer data mapped in userspace
-   \param[in] pBuf Pointer to an AL_TBuffer
-   \return return the private user data
-*****************************************************************************/
-uint8_t* AL_Buffer_GetBufferData(AL_TBuffer* pBuf);
+   \brief AL_Buffer_GetData(AL_TBuffer* pBuf). This might map the data in memory
+   if needed.
 
-/*************************************************************************//*!
-   \brief AL_Buffer_GetSizeData: Get size of the allocated buffer
    \param[in] pBuf Pointer to an AL_TBuffer
    \return return the private user data
 *****************************************************************************/
-size_t AL_Buffer_GetSizeData(AL_TBuffer* pBuf);
+uint8_t* AL_Buffer_GetData(const AL_TBuffer* pBuf);
+
+/*
+ * Change the memory region backed by the buffer
+ * without any check
+ *
+ * _do not use this in new code, this is here for historical reason_
+ * */
+void AL_Buffer_SetData(const AL_TBuffer* pBuf, uint8_t* pData);
 
 bool AL_Buffer_AddMetaData(AL_TBuffer* pBuf, AL_TMetaData* pMeta);
 bool AL_Buffer_RemoveMetaData(AL_TBuffer* pBuf, AL_TMetaData* pMeta);

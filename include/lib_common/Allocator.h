@@ -57,6 +57,7 @@ typedef struct
   bool (* pfnFree)(AL_TAllocator* pAllocator, AL_HANDLE hBuf);
   AL_VADDR (* pfnGetVirtualAddr)(AL_TAllocator* pAllocator, AL_HANDLE hBuf);
   AL_PADDR (* pfnGetPhysicalAddr)(AL_TAllocator* pAllocator, AL_HANDLE hBuf);
+  AL_HANDLE (* pfnAllocNamed)(AL_TAllocator* pAllocator, size_t zSize, char const* name);
 }AL_AllocatorVtable;
 
 struct AL_t_Allocator
@@ -79,6 +80,17 @@ static inline
 AL_HANDLE AL_Allocator_Alloc(AL_TAllocator* pAllocator, size_t zSize)
 {
   return pAllocator->vtable->pfnAlloc(pAllocator, zSize);
+}
+
+static inline
+AL_HANDLE AL_Allocator_AllocNamed(AL_TAllocator* pAllocator, size_t zSize, char const* name)
+{
+  (void)name;
+
+  if(!pAllocator->vtable->pfnAllocNamed)
+    return pAllocator->vtable->pfnAlloc(pAllocator, zSize);
+
+  return pAllocator->vtable->pfnAllocNamed(pAllocator, zSize, name);
 }
 
 /*****************************************************************************/

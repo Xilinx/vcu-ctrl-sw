@@ -37,8 +37,9 @@
 
 /****************************************************************************
    -----------------------------------------------------------------------------
- *****************************************************************************/
+****************************************************************************/
 #include "AVC_RbspEncod.h"
+#include "RbspEncod.h"
 
 #include "lib_common/SliceConsts.h"
 #include "lib_common/SliceHeader.h"
@@ -48,23 +49,8 @@
 
 #include <assert.h>
 
-/*****************************************************************************/
-void AL_AVC_RbspEncoding_WriteAUD(AL_TRbspEncoding* pRE, int primary_pic_type)
-{
-  AL_TBitStreamLite* pBS = pRE->m_pBS;
-
-  // 1 - Write primary_pic_type.
-
-  AL_BitStreamLite_PutU(pBS, 3, primary_pic_type);
-
-  // 2 - Write rbsp_trailing_bits.
-
-  AL_BitStreamLite_PutU(pBS, 1, 1);
-  AL_BitStreamLite_AlignWithBits(pBS, 0);
-}
-
 /******************************************************************************/
-static int AL_sAVC_RbspEncoding_WriteScalingList(AL_TBitStreamLite* pBS, uint8_t const* pScalingList, int iSize)
+static int writeScalingList(AL_TBitStreamLite* pBS, uint8_t const* pScalingList, int iSize)
 {
   int32_t const* pDecScanBlock = (iSize == 16) ? AL_DecScanBlock4x4[0] : AL_DecScanBlock8x8[0];
   int32_t iLastScale = 8;
@@ -72,9 +58,7 @@ static int AL_sAVC_RbspEncoding_WriteScalingList(AL_TBitStreamLite* pBS, uint8_t
   /* if iSize == 0, we return an error code */
   int iUseDefault = -1;
 
-  int j;
-
-  for(j = 0; j < iSize; j++)
+  for(int j = 0; j < iSize; j++)
   {
     int i = pDecScanBlock[j];
 
@@ -99,17 +83,15 @@ static int AL_sAVC_RbspEncoding_WriteScalingList(AL_TBitStreamLite* pBS, uint8_t
 }
 
 /******************************************************************************/
-static void AL_sAVC_RbspEncoding_WriteHrdParam(AL_TBitStreamLite* pBS, AL_THrdParam const* pHrd, AL_TSubHrdParam const* pSubHrd)
+static void writeHrdParam(AL_TBitStreamLite* pBS, AL_THrdParam const* pHrd, AL_TSubHrdParam const* pSubHrd)
 {
-  uint32_t uSchedSelIdx;
-
   assert(pHrd->cpb_cnt_minus1[0] < AL_MAX_NUM_CPB);
 
   AL_BitStreamLite_PutUE(pBS, pHrd->cpb_cnt_minus1[0]);
   AL_BitStreamLite_PutU(pBS, 4, pHrd->bit_rate_scale);
   AL_BitStreamLite_PutU(pBS, 4, pHrd->cpb_size_scale);
 
-  for(uSchedSelIdx = 0; uSchedSelIdx <= pHrd->cpb_cnt_minus1[0]; uSchedSelIdx++)
+  for(uint32_t uSchedSelIdx = 0; uSchedSelIdx <= pHrd->cpb_cnt_minus1[0]; uSchedSelIdx++)
   {
     AL_BitStreamLite_PutUE(pBS, pSubHrd->bit_rate_value_minus1[uSchedSelIdx]);
     AL_BitStreamLite_PutUE(pBS, pSubHrd->cpb_size_value_minus1[uSchedSelIdx]);
@@ -123,7 +105,7 @@ static void AL_sAVC_RbspEncoding_WriteHrdParam(AL_TBitStreamLite* pBS, AL_THrdPa
 }
 
 /******************************************************************************/
-static void AL_sAVC_RbspEncoding_WriteSpsData(AL_TBitStreamLite* pBS, AL_TAvcSps const* pSps)
+static void writeSpsData(AL_TBitStreamLite* pBS, AL_TAvcSps const* pSps)
 {
   // 1 - Write SPS following spec 7.3.2.1.1
 
@@ -153,45 +135,50 @@ static void AL_sAVC_RbspEncoding_WriteSpsData(AL_TBitStreamLite* pBS, AL_TAvcSps
 
     if(pSps->seq_scaling_matrix_present_flag)
     {
-      int i;
-
-      for(i = 0; i < 8; i++)
+      for(int i = 0; i < 8; i++)
       {
         AL_BitStreamLite_PutU(pBS, 1, pSps->seq_scaling_list_present_flag[i]);
 
-        if(pSps->seq_scaling_list_present_flag[i])
+        if(!pSps->seq_scaling_list_present_flag[i])
+          continue;
+
+        int row = i < 6 ? 0 : 1;
+        int size = i < 6 ? 16 : 64;
+
+        int column;
+        switch(i)
         {
-          switch(i)
-          {
-          case 0: AL_sAVC_RbspEncoding_WriteScalingList(pBS, (pSps->scaling_list_param.ScalingList[0][(3 * AL_SL_INTRA)]), 16);
-            break;
-          case 1: AL_sAVC_RbspEncoding_WriteScalingList(pBS, (pSps->scaling_list_param.ScalingList[0][(3 * AL_SL_INTRA) + 1]), 16);
-            break;
-          case 2: AL_sAVC_RbspEncoding_WriteScalingList(pBS, (pSps->scaling_list_param.ScalingList[0][(3 * AL_SL_INTRA) + 2]), 16);
-            break;
-          case 3: AL_sAVC_RbspEncoding_WriteScalingList(pBS, (pSps->scaling_list_param.ScalingList[0][(3 * AL_SL_INTER)]), 16);
-            break;
-          case 4: AL_sAVC_RbspEncoding_WriteScalingList(pBS, (pSps->scaling_list_param.ScalingList[0][(3 * AL_SL_INTER) + 1]), 16);
-            break;
-          case 5: AL_sAVC_RbspEncoding_WriteScalingList(pBS, (pSps->scaling_list_param.ScalingList[0][(3 * AL_SL_INTER) + 2]), 16);
-            break;
-          case 6: AL_sAVC_RbspEncoding_WriteScalingList(pBS, (pSps->scaling_list_param.ScalingList[1][(3 * AL_SL_INTRA)]), 64);
-            break;
-          case 7: AL_sAVC_RbspEncoding_WriteScalingList(pBS, (pSps->scaling_list_param.ScalingList[1][(3 * AL_SL_INTER)]), 64);
-            break;
-          }
+        case 0:
+        case 1:
+        case 2:
+          column = 3 * AL_SL_INTRA + i;
+          break;
+        case 3:
+        case 4:
+        case 5:
+          column = 3 * AL_SL_INTER + (i - 3);
+          break;
+        case 6:
+          column = 3 * AL_SL_INTRA;
+          break;
+        case 7:
+          column = 3 * AL_SL_INTER;
+          break;
         }
-      } // for (int i = 0; i < 8; i++)
-    } // if (pSps->seq_scaling_matrix_present_flag)
-  } // if (pSps->profile_idc >= 100).
+
+        writeScalingList(pBS, pSps->scaling_list_param.ScalingList[row][column], size);
+      }
+    }
+  }
 
   AL_BitStreamLite_PutUE(pBS, pSps->log2_max_frame_num_minus4);
   AL_BitStreamLite_PutUE(pBS, pSps->pic_order_cnt_type);
 
   if(pSps->pic_order_cnt_type == 0)
     AL_BitStreamLite_PutUE(pBS, pSps->log2_max_pic_order_cnt_lsb_minus4);
-  else if(pSps->pic_order_cnt_type == 1)
-    assert(0);
+
+  assert(pSps->pic_order_cnt_type != 1);
+
   AL_BitStreamLite_PutUE(pBS, pSps->max_num_ref_frames);
   AL_BitStreamLite_PutU(pBS, 1, pSps->gaps_in_frame_num_value_allowed_flag);
   AL_BitStreamLite_PutUE(pBS, pSps->pic_width_in_mbs_minus1);
@@ -265,12 +252,12 @@ static void AL_sAVC_RbspEncoding_WriteSpsData(AL_TBitStreamLite* pBS, AL_TAvcSps
     AL_BitStreamLite_PutU(pBS, 1, pSps->vui_param.hrd_param.nal_hrd_parameters_present_flag);
 
     if(pSps->vui_param.hrd_param.nal_hrd_parameters_present_flag)
-      AL_sAVC_RbspEncoding_WriteHrdParam(pBS, &pSps->vui_param.hrd_param, &pSps->vui_param.hrd_param.nal_sub_hrd_param);
+      writeHrdParam(pBS, &pSps->vui_param.hrd_param, &pSps->vui_param.hrd_param.nal_sub_hrd_param);
 
     AL_BitStreamLite_PutU(pBS, 1, pSps->vui_param.hrd_param.vcl_hrd_parameters_present_flag);
 
     if(pSps->vui_param.hrd_param.vcl_hrd_parameters_present_flag)
-      AL_sAVC_RbspEncoding_WriteHrdParam(pBS, &pSps->vui_param.hrd_param, &pSps->vui_param.hrd_param.vcl_sub_hrd_param);
+      writeHrdParam(pBS, &pSps->vui_param.hrd_param, &pSps->vui_param.hrd_param.vcl_sub_hrd_param);
 
     if(pSps->vui_param.hrd_param.nal_hrd_parameters_present_flag || pSps->vui_param.hrd_param.vcl_hrd_parameters_present_flag)
       AL_BitStreamLite_PutU(pBS, 1, pSps->vui_param.hrd_param.low_delay_hrd_flag[0]);
@@ -281,12 +268,12 @@ static void AL_sAVC_RbspEncoding_WriteSpsData(AL_TBitStreamLite* pBS, AL_TAvcSps
   }
 }
 
-/******************************************************************************/
-void AL_AVC_RbspEncoding_WriteSPS(AL_TRbspEncoding* pRE, AL_TAvcSps const* pSps)
-{
-  AL_TBitStreamLite* pBS = pRE->m_pBS;
+/* Interface functions */
 
-  AL_sAVC_RbspEncoding_WriteSpsData(pBS, pSps);
+/******************************************************************************/
+static void writeSps(AL_TBitStreamLite* pBS, AL_TSps const* pSps)
+{
+  writeSpsData(pBS, &pSps->m_AvcSPS);
 
   // Write rbsp_trailing_bits.
   AL_BitStreamLite_PutU(pBS, 1, 1);
@@ -294,9 +281,9 @@ void AL_AVC_RbspEncoding_WriteSPS(AL_TRbspEncoding* pRE, AL_TAvcSps const* pSps)
 }
 
 /*****************************************************************************/
-void AL_AVC_RbspEncoding_WritePPS(AL_TRbspEncoding* pRE, AL_TAvcPps const* pPps)
+static void writePps(AL_TBitStreamLite* pBS, AL_TPps const* pIPps)
 {
-  AL_TBitStreamLite* pBS = pRE->m_pBS;
+  AL_TAvcPps* pPps = (AL_TAvcPps*)pIPps;
 
   // 1 - Write PPS following spec 7.3.2.2.
 
@@ -335,109 +322,51 @@ void AL_AVC_RbspEncoding_WritePPS(AL_TRbspEncoding* pRE, AL_TAvcPps const* pPps)
 }
 
 /******************************************************************************/
-static void AL_sAVC_RbspEncoding_BeginSEI(AL_TRbspEncoding* pRE, uint8_t uPayloadType)
+static void writeSeiBp(AL_TBitStreamLite* pBS, AL_TSps const* pISps, int iCpbInitialDelay, int iCpbInitialOffset)
 {
-  assert(pRE->m_iBookmarkSEI == 0);
-  AL_BitStreamLite_PutBits(pRE->m_pBS, 8, uPayloadType);
-  pRE->m_iBookmarkSEI = AL_BitStreamLite_GetBitsCount(pRE->m_pBS);
-  assert(pRE->m_iBookmarkSEI % 8 == 0);
-  AL_BitStreamLite_PutBits(pRE->m_pBS, 8, 0xFF);
-}
-
-/******************************************************************************/
-static void AL_sAVC_RbspEncoding_EndSEI(AL_TRbspEncoding* pRE, bool bMVCSN)
-{
-  uint8_t* pSize;
-
-  assert(pRE->m_iBookmarkSEI != 0);
-
-  pSize = AL_BitStreamLite_GetData(pRE->m_pBS) + (pRE->m_iBookmarkSEI + 7) / 8;
-  assert(*pSize == 0xFF);
-  *pSize = (AL_BitStreamLite_GetBitsCount(pRE->m_pBS) - pRE->m_iBookmarkSEI - 1) / 8;
-
-  pRE->m_iBookmarkSEI = 0;
-
-  if(pRE->m_pMVCSN)
-  {
-    *(pRE->m_pMVCSN) += *pSize + 2;
-    pRE->m_pMVCSN = NULL;
-  }
-  else if(bMVCSN)
-    pRE->m_pMVCSN = pSize;
-}
-
-/******************************************************************************/
-void AL_AVC_RbspEncoding_WriteSEI_MVCSN(AL_TRbspEncoding* pRE, int iNumViews)
-{
-  AL_TBitStreamLite* pBS = pRE->m_pBS;
-
-  // MVC scalable nesting
-  AL_sAVC_RbspEncoding_BeginSEI(pRE, 37);
-
-  AL_BitStreamLite_PutU(pBS, 1, 1); // operation point flag
-
-  AL_BitStreamLite_PutUE(pBS, iNumViews - 1); // num_view_components_op_minus1
-
-  while(iNumViews--)
-    AL_BitStreamLite_PutU(pBS, 10, iNumViews); // sei_op_view_id
-
-  AL_BitStreamLite_PutU(pBS, 3, 0); // sei_ip_temporal_id
-
-  AL_BitStreamLite_AlignWithBits(pBS, 0); // sei_nesting_zero_bit
-
-  AL_sAVC_RbspEncoding_EndSEI(pRE, true);
-}
-
-/******************************************************************************/
-void AL_AVC_RbspEncoding_WriteSEI_BP(AL_TRbspEncoding* pRE, AL_TAvcSps const* pSps, int iCpbInitialDelay)
-{
-  AL_TBitStreamLite* pBS = pRE->m_pBS;
-
-  uint32_t iSecParamSetId = pSps->seq_parameter_set_id;
-  int iIniCPBLength = pSps->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 + 1;
+  (void)iCpbInitialOffset;
+  AL_TAvcSps* pSps = (AL_TAvcSps*)pISps;
 
   // buffering_period
-  AL_sAVC_RbspEncoding_BeginSEI(pRE, 0);
+  int bookmark = AL_RbspEncoding_BeginSEI(pBS, 0);
 
-  AL_BitStreamLite_PutUE(pBS, iSecParamSetId);
+  AL_BitStreamLite_PutUE(pBS, pSps->seq_parameter_set_id);
 
+  int iIniCPBLength = pSps->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 + 1;
   AL_BitStreamLite_PutU(pBS, iIniCPBLength, iCpbInitialDelay);
   AL_BitStreamLite_PutU(pBS, iIniCPBLength, 0); // offset
 
   AL_BitStreamLite_EndOfSEIPayload(pBS);
 
-  AL_sAVC_RbspEncoding_EndSEI(pRE, false);
+  AL_RbspEncoding_EndSEI(pBS, bookmark);
 }
 
 /******************************************************************************/
-void AL_AVC_RbspEncoding_WriteSEI_RP(AL_TRbspEncoding* pRE)
+static void writeSeiRp(AL_TBitStreamLite* pBS)
 {
-  AL_TBitStreamLite* pBS = pRE->m_pBS;
-
   // recovery_point
-  AL_sAVC_RbspEncoding_BeginSEI(pRE, 6);
+  int bookmark = AL_RbspEncoding_BeginSEI(pBS, 6);
 
   AL_BitStreamLite_PutUE(pBS, 0);
   AL_BitStreamLite_PutBits(pBS, 4, 0x8);
 
   AL_BitStreamLite_EndOfSEIPayload(pBS);
 
-  AL_sAVC_RbspEncoding_EndSEI(pRE, false);
+  AL_RbspEncoding_EndSEI(pBS, bookmark);
 }
 
 /******************************************************************************/
-void AL_AVC_RbspEncoding_WriteSEI_PT(AL_TRbspEncoding* pRE, AL_TAvcSps const* pSps, int iCpbRemovalDelay, int iDpbOutputDelay, int iPicStruct)
+static void writeSeiPt(AL_TBitStreamLite* pBS, AL_TSps const* pISps, int iCpbRemovalDelay, int iDpbOutputDelay, int iPicStruct)
 {
+  AL_TAvcSps* pSps = (AL_TAvcSps*)pISps;
   // Table D-1
   static const int PicStructToNumClockTS[9] =
   {
     1, 1, 1, 2, 2, 3, 3, 2, 3
   };
 
-  AL_TBitStreamLite* pBS = pRE->m_pBS;
-
   // pic_timing
-  AL_sAVC_RbspEncoding_BeginSEI(pRE, 1);
+  int bookmark = AL_RbspEncoding_BeginSEI(pBS, 1);
 
   if(pSps->vui_param.hrd_param.nal_hrd_parameters_present_flag || pSps->vui_param.hrd_param.vcl_hrd_parameters_present_flag)
   {
@@ -455,15 +384,23 @@ void AL_AVC_RbspEncoding_WriteSEI_PT(AL_TRbspEncoding* pRE, AL_TAvcSps const* pS
 
   AL_BitStreamLite_EndOfSEIPayload(pBS);
 
-  AL_sAVC_RbspEncoding_EndSEI(pRE, false);
+  AL_RbspEncoding_EndSEI(pBS, bookmark);
 }
 
-/******************************************************************************/
-void AL_AVC_RbspEncoding_CloseSEI(AL_TRbspEncoding* pRE)
+static IRbspWriter writer =
 {
-  AL_TBitStreamLite* pBS = pRE->m_pBS;
+  AL_RbspEncoding_WriteAUD,
+  NULL, /* WriteVPS */
+  writeSps,
+  writePps,
+  NULL, /* WriteSEIAPS */
+  writeSeiBp,
+  writeSeiRp,
+  writeSeiPt,
+};
 
-  AL_BitStreamLite_PutU(pBS, 1, 1);
-  AL_BitStreamLite_AlignWithBits(pBS, 0);
+IRbspWriter* AL_GetAvcRbspWriter()
+{
+  return &writer;
 }
 

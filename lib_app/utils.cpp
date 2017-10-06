@@ -75,6 +75,7 @@ void Message(EConColor Color, const char* sMsg, ...)
 void OpenInput(std::ifstream& fp, std::string filename, bool binary)
 {
   fp.open(filename, binary ? std::ios::binary : std::ios::in);
+  fp.exceptions(ifstream::badbit);
 
   if(!fp.is_open())
     throw std::runtime_error("Can't open file for reading: '" + filename + "'");
@@ -85,6 +86,7 @@ void OpenOutput(std::ofstream& fp, std::string filename, bool binary)
   auto open_mode = binary ? std::ios::out | std::ios::binary : std::ios::out;
 
   fp.open(filename, open_mode);
+  fp.exceptions(ofstream::badbit);
 
   if(!fp.is_open())
     throw std::runtime_error("Can't open file for writing: '" + filename + "'");

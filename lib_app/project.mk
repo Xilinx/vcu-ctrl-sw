@@ -4,6 +4,7 @@ LIB_APP_SRC+=lib_app/utils.cpp\
 	     lib_app/convert.cpp\
 	     lib_app/BufPool.c\
 	     lib_app/BufferMetaFactory.c\
+			 lib_app/AllocatorTracker.cpp\
 
 
 ifeq ($(findstring mingw,$(TARGET)),mingw)

@@ -48,11 +48,6 @@ typedef struct AL_t_ListHead
 #define containerOf(ptr, type, member) \
   ((type*)((char*)(ptr) - offsetof(type, member)))
 
-#define AL_LIST_HEAD_INIT(name) { &(name), &(name) }
-
-#define AL_LIST_HEAD(name) \
-  AL_ListHead name = AL_LIST_HEAD_INIT(name)
-
 #define AL_ListEntry(ptr, type, member) \
   containerOf(ptr, type, member)
 

@@ -378,15 +378,27 @@ bool Rtos_GetSemaphore(AL_SEMAPHORE Semaphore, uint32_t Wait)
   if(!pSem)
     return false;
 
+  int ret;
+
   if(Wait == AL_NO_WAIT)
   {
-    if(sem_trywait(pSem) < 0)
-      return false;
+    do
+    {
+      ret = sem_trywait(pSem);
+    }
+    while(ret == -1 && errno == EINTR);
+
+    return ret == 0;
   }
   else if(Wait == AL_WAIT_FOREVER)
   {
-    if(sem_wait(pSem) < 0)
-      return false;
+    do
+    {
+      ret = sem_wait(pSem);
+    }
+    while(ret == -1 && errno == EINTR);
+
+    return ret == 0;
   }
   else
   {
@@ -394,8 +406,13 @@ bool Rtos_GetSemaphore(AL_SEMAPHORE Semaphore, uint32_t Wait)
     Ts.tv_sec = Wait / 1000;
     Ts.tv_nsec = (Wait % 1000) * 1000000;
 
-    if(sem_timedwait(pSem, &Ts) < 0)
-      return false;
+    do
+    {
+      ret = sem_timedwait(pSem, &Ts);
+    }
+    while(ret == -1 && errno == EINTR);
+
+    return ret == 0;
   }
 
   return true;

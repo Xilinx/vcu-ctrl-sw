@@ -38,18 +38,27 @@
 #include <stdexcept>
 #include <memory>
 
+#include "IpDevice.h"
+#include "lib_app/console.h"
+#include "lib_app/utils.h"
+
+
 extern "C"
 {
 #include "lib_fpga/DmaAlloc.h"
 #include "lib_decode/I_DecChannel.h"
 }
 
-#include "IpDevice.h"
-#include "lib_app/console.h"
-#include "lib_app/utils.h"
-
-
 using namespace std;
+
+AL_TAllocator* createDmaAllocator(const char* deviceName)
+{
+  auto h = DmaAlloc_Create(deviceName);
+
+  if(h == nullptr)
+    throw runtime_error("Can't find dma allocator (trying to use " + string(deviceName) + ")");
+  return h;
+}
 
 
 extern "C"
@@ -59,10 +68,10 @@ AL_TIDecChannel* AL_DecChannelMcu_Create();
 
 static unique_ptr<CIpDevice> createMcuIpDevice(int iVip)
 {
-  unique_ptr<CIpDevice> device(new CIpDevice);
+  auto device = make_unique<CIpDevice>();
 
   (void)iVip;
-  device->m_pAllocator = DmaAlloc_Create("/dev/allegroDecodeIP");
+  device->m_pAllocator.reset(createDmaAllocator("/dev/allegroDecodeIP"), &AL_Allocator_Destroy);
 
   if(!device->m_pAllocator)
     throw runtime_error("Can't open DMA allocator");
@@ -77,26 +86,20 @@ static unique_ptr<CIpDevice> createMcuIpDevice(int iVip)
 }
 
 
-unique_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, AL_EDecUnit eDecUnit, IpCtrlMode ipCtrlMode, int uNumCore, int iVip)
+shared_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, AL_EDecUnit eDecUnit, IpCtrlMode ipCtrlMode, bool trackDma, int uNumCore, int iVip)
 {
-  unique_ptr<CIpDevice> pIpDevice;
   (void)iUseBoard;
   (void)eDecUnit;
   (void)ipCtrlMode;
   (void)uNumCore;
   (void)iVip;
+  (void)trackDma;
 
-  if(iSchedulerType == SCHEDULER_TYPE_CPU)
-  {
-    throw runtime_error("No support for on-CPU scheduling");
-  }
-  else if(iSchedulerType == SCHEDULER_TYPE_MCU)
-  {
-    pIpDevice = createMcuIpDevice(iVip);
-  }
-  else
-    throw runtime_error("No device found");
 
-  return pIpDevice;
+
+  if(iSchedulerType == SCHEDULER_TYPE_MCU)
+    return createMcuIpDevice(iVip);
+
+  throw runtime_error("No support for this scheduling type");
 }
 

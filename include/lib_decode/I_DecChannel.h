@@ -94,7 +94,7 @@ typedef struct AL_t_IDecChannel
 typedef struct AL_t_IDecChannelVtable
 {
   void (* Destroy)(AL_TIDecChannel* pDecChannel);
-  bool (* Configure)(AL_TIDecChannel* pDecChannel, AL_TDecChanParam* pChParam, AL_TIDecChannelCallbacks* pCBs);
+  AL_ERR (* Configure)(AL_TIDecChannel* pDecChannel, AL_TDecChanParam* pChParam, AL_TIDecChannelCallbacks* pCBs);
   void (* SearchSC)(AL_TIDecChannel* pDecChannel, AL_TScParam* pScParam, AL_TScBufferAddrs* pBufferAddrs, AL_CB_EndStartCode callback);
   void (* DecodeOneFrame)(AL_TIDecChannel* pDecChannel, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* pSliceParams);
   void (* DecodeOneSlice)(AL_TIDecChannel* pDecChannel, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* pSliceParams);
@@ -120,7 +120,7 @@ void AL_IDecChannel_Destroy(AL_TIDecChannel* pThis)
               255 otherwise(invalide channel ID)
 *****************************************************************************/
 static inline
-bool AL_IDecChannel_Configure(AL_TIDecChannel* pThis, AL_TDecChanParam* pChParam, AL_TIDecChannelCallbacks* pCBs)
+AL_ERR AL_IDecChannel_Configure(AL_TIDecChannel* pThis, AL_TDecChanParam* pChParam, AL_TIDecChannelCallbacks* pCBs)
 {
   return pThis->vtable->Configure(pThis, pChParam, pCBs);
 }

@@ -41,10 +41,10 @@
 
 #include "lib_encode/driverInterface.h"
 
-int Open(Driver* driver)
+int Open(Driver* driver, const char* device)
 {
   (void)driver;
-  return (uintptr_t)Rtos_DriverOpen("/dev/allegroIP");
+  return (uintptr_t)Rtos_DriverOpen(device);
 }
 
 void Close(Driver* driver, int fd)
@@ -64,8 +64,7 @@ bool PostMessage(Driver* driver, int fd, long unsigned int messageId, void* data
   {
     iRet = Rtos_DriverIoctl((void*)(uintptr_t)fd, messageId, data);
 
-    /* if a timeout occured, retry */
-    if(iRet < 0 && errno == EAGAIN)
+    if(iRet < 0 && (errno == EAGAIN || errno == EINTR))
       continue;
     isDone = true;
   }

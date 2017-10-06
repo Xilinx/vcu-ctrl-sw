@@ -56,8 +56,6 @@ typedef void* AL_SEMAPHORE;
 typedef void* AL_EVENT;
 typedef void* AL_THREAD;
 
-#define AL_THREAD_NULL 0
-
 /****************************************************************************/
 #define AL_NO_WAIT 0
 #define AL_WAIT_FOREVER 0xFFFFFFFF

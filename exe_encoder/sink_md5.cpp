@@ -75,7 +75,7 @@ public:
       pBuf = Yuv;
     }
 
-    m_MD5.Update(pBuf->pData, pBuf->zSize);
+    m_MD5.Update(AL_Buffer_GetData(pBuf), pBuf->zSize);
   }
 
 private:

@@ -59,5 +59,3 @@ typedef struct
 /*! section data is an sps, pps, vps */
 #define SECTION_CONFIG_FLAG 0x10000000
 
-uint32_t AL_StreamSection_GetCompleteFlags(bool bIsIDR);
-

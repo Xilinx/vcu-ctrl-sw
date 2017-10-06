@@ -240,6 +240,15 @@ typedef struct t_Hevc_Sps
   uint8_t ChromaArrayType;
 }AL_THevcSps;
 
+typedef struct
+{
+  union
+  {
+    AL_THevcSps m_HevcSPS;
+    AL_TAvcSps m_AvcSPS;
+  };
+}AL_TSps;
+
 /****************************************************************************/
 
 /*@}*/

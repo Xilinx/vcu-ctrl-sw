@@ -55,7 +55,7 @@
 static const AL_HANDLE AL_INVALID_CHANNEL = (AL_HANDLE)(NULL);
 
 /****************************************************************************/
-typedef void (* AL_PFN_iChannel_CB) (void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_TBuffer* pStream);
+typedef void (* AL_PFN_iChannel_CB) (void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U streamUserPtr);
 #if ENABLE_WATCHDOG
 typedef void (* AL_PFN_iWatchdog_CB) (void* pUserParam);
 #endif
@@ -84,10 +84,10 @@ typedef struct t_Scheduler
 typedef struct t_SchedulerVtable
 {
   bool (* destroy)(TScheduler* pScheduler);
-  AL_HANDLE (* createChannel)(TScheduler* pScheduler, AL_TEncChanParam* pChParam, AL_PADDR pEP1, AL_TISchedulerCallBacks* pCBs);
+  AL_ERR (* createChannel)(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEncChanParam* pChParam, AL_PADDR pEP1, AL_TISchedulerCallBacks* pCBs);
   bool (* destroyChannel)(TScheduler* pScheduler, AL_HANDLE hChannel);
   bool (* encodeOneFrame)(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TEncInfo* pEncInfo, AL_TEncRequestInfo* pReqInfo, AL_TEncPicBufAddrs* pBufferAddrs);
-  bool (* putStreamBuffer)(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuffer* pStream, uint32_t uOffset);
+  bool (* putStreamBuffer)(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuffer* pStream, AL_64U streamUserPtr, uint32_t uOffset);
   bool (* getRecPicture)(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPic* pRecPic);
   bool (* releaseRecPicture)(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPic* pRecPic);
 
@@ -97,14 +97,15 @@ bool AL_ISchedulerEnc_Destroy(TScheduler* pScheduler);
 
 /*************************************************************************//*!
    \brief Channel creation
+   \param[out] opaque valid handle on success, AL_INVALID_CHANNEL otherwise
    \param[in] pChParam Pointer to the channel parameter
    \param[in] pCBs Pointer to the callbacks (See Scheduler callbacks)
-   \return opaque valid handle on success, AL_INVALID_CHANNEL otherwise
+   \return errorcode explaining why the channel creation failed
 *****************************************************************************/
 static inline
-AL_HANDLE AL_ISchedulerEnc_CreateChannel(TScheduler* pScheduler, AL_TEncChanParam* pChParam, AL_PADDR pEP1, AL_TISchedulerCallBacks* pCBs)
+AL_ERR AL_ISchedulerEnc_CreateChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEncChanParam* pChParam, AL_PADDR pEP1, AL_TISchedulerCallBacks* pCBs)
 {
-  return pScheduler->vtable->createChannel(pScheduler, pChParam, pEP1, pCBs);
+  return pScheduler->vtable->createChannel(hChannel, pScheduler, pChParam, pEP1, pCBs);
 }
 
 /*************************************************************************//*!
@@ -142,9 +143,9 @@ bool AL_ISchedulerEnc_EncodeOneFrame(TScheduler* pScheduler, AL_HANDLE hChannel,
    false otherwise
 *****************************************************************************/
 static inline
-bool AL_ISchedulerEnc_PutStreamBuffer(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuffer* pStream, uint32_t uOffset)
+bool AL_ISchedulerEnc_PutStreamBuffer(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuffer* pStream, AL_64U streamUserPtr, uint32_t uOffset)
 {
-  return pScheduler->vtable->putStreamBuffer(pScheduler, hChannel, pStream, uOffset);
+  return pScheduler->vtable->putStreamBuffer(pScheduler, hChannel, pStream, streamUserPtr, uOffset);
 }
 
 /*************************************************************************//*!

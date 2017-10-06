@@ -83,6 +83,12 @@ void AL_LaunchSliceDecoding(AL_TDecCtx* pCtx, bool bIsLastAUNal);
 void AL_InitFrameBuffers(AL_TDecCtx* pCtx, int iWidth, int iHeight, AL_TDecPicParam* pPP);
 
 /*************************************************************************//*!
+   \brief The AL_CancelFrameBuffers function reverts the frame buffers initialization done by AL_InitFrameBuffers in case of late error detection
+   \param[in]  pCtx              Pointer to a decoder context object
+*****************************************************************************/
+void AL_CancelFrameBuffers(AL_TDecCtx* pCtx);
+
+/*************************************************************************//*!
    \brief The AL_InitIntermediateBuffers function intializes the intermediate buffers needed to process the current frame decoding
    \param[in]  pCtx              Pointer to a decoder context object
    \param[in]  pBufs             Pointer to the current picture buffers

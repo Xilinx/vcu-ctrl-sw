@@ -212,7 +212,7 @@ bool AL_AVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iNumMBs, b
   if(!pSkipPict || !pSkipPict->pBuffer)
     return false;
 
-  AL_BitStreamLite_Init(&BS, pSkipPict->pBuffer, pSkipPict->iBufSize);
+  AL_BitStreamLite_Init(&BS, pSkipPict->pBuffer);
 
   if(bCabac)
   {

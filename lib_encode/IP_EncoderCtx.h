@@ -44,23 +44,24 @@
  *****************************************************************************/
 #pragma once
 
+#include "Sections.h"
 #include "lib_encode/lib_encoder.h"
 #include "lib_rtos/lib_rtos.h"
 #include "lib_bitstream/lib_bitstream.h"
 #include "IP_Stream.h"
+#include "SourceBufferChecker.h"
 #include "lib_common_enc/EncPicInfo.h"
 #include "lib_common_enc/EncBuffersInternal.h"
 #include "lib_common_enc/PictureInfo.h"
 #include "lib_common_enc/EncSliceStatus.h"
 #include "lib_common_enc/EncSliceBuffer.h"
+#include "lib_common_enc/EncSize.h"
 #include "lib_encode/lib_encoder.h"
 
 
 typedef struct t_Scheduler TScheduler;
 
 /****************************************************************************/
-#define ENC_MAX_HEADER_SIZE (2 * 1024)
-#define MAX_PPS_SIZE (1 * 1024)
 #define ENC_MAX_REF_DEFAULT 3
 #define ENC_MAX_REF_CUSTOM 5
 #define ENC_MAX_SRC 2
@@ -83,27 +84,16 @@ typedef AL_TEncSliceStatus TStreamInfo;
 /*************************************************************************//*!
    \brief Encoder Context structure
 *****************************************************************************/
-struct AL_t_EncCtx
+typedef struct AL_t_EncCtx
 {
   AL_TEncSettings m_Settings;
 
   AL_HANDLE m_hChannel;
 
-  AL_THevcVps m_VPS;
-  union
-  {
-    struct
-    {
-      AL_THevcSps m_HevcSPS;
-      AL_THevcPps m_HevcPPS;
-    };
-    struct
-    {
-      AL_TAvcSps m_AvcSPS;
-      AL_TAvcPps m_AvcPPS;
-    };
-  };
-  TStream m_Stream;
+  AL_TSps m_sps;
+  AL_TPps m_pps;
+  AL_THevcVps m_vps;
+
   TStreamInfo m_StreamInfo;
 
   int32_t m_uAltRefRecPOC;
@@ -111,9 +101,9 @@ struct AL_t_EncCtx
   uint8_t m_uLastRecID;
   int m_iLastIdrId;
 
-  uint32_t m_uInitialCpbRemovalDelay;
-  uint32_t m_uCpbRemovalDelay;
+  AL_SeiData m_seiData;
 
+  AL_TSrcBufferChecker m_srcBufferChecker;
   int m_iMaxNumRef;
 
   AL_TSkippedPicture m_pSkippedPicture;
@@ -124,16 +114,14 @@ struct AL_t_EncCtx
   int m_iMinQP;
   int m_iMaxQP;
 
-  uint8_t* m_pHdrBuf;
-  AL_TBitStreamLite m_BS;
-  AL_TRbspEncoding m_RE;
-
-  uint32_t uNumGroup;
-
   TBufferEP m_tBufEP1;
 
   AL_TFrameInfo m_Pool[ENC_MAX_CMD];
   int m_iCurPool;
+
+  AL_TBuffer* m_StreamSent[AL_MAX_STREAM_BUFFER];
+  int m_iCurStreamSent;
+  int m_iCurStreamRecv;
 
 
   AL_MUTEX m_Mutex;
@@ -143,9 +131,9 @@ struct AL_t_EncCtx
 
   AL_CB_EndEncoding m_callback;
 
-};
+}AL_TEncCtx;
 
-typedef struct AL_t_EncCtx AL_TEncCtx;
+NalsData AL_ExtractNalsData(AL_TEncCtx* pCtx);
 
 /*@}*/
 

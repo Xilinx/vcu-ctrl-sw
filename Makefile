@@ -49,6 +49,7 @@ include lib_cfg/project.mk
 -include lib_rate_ctrl/project.mk
 -include lib_bitstream/project.mk
 -include lib_scheduler_enc/project.mk
+-include lib_perfs/project.mk
 -include lib_encode/project.mk
 
 -include lib_conv_yuv/project.mk
@@ -75,6 +76,21 @@ endif
 -include exe_encoder/project.mk
 
 ##############################################################
+# AL_Compress
+##############################################################
+ifneq ($(ENABLE_COMP),0)
+  -include exe_compress/project.mk
+endif
+
+
+##############################################################
+# AL_Decompress
+##############################################################
+ifneq ($(ENABLE_COMP),0)
+  -include exe_decompress/project.mk
+endif
+
+##############################################################
 # Unit tests
 ##############################################################
 -include test/test.mk
@@ -88,6 +104,7 @@ endif
 # tools
 ##############################################################
 -include app_mcu/integration_tests.mk
+-include exe_vip/project.mk
 
 true_all: $(TARGETS)
 

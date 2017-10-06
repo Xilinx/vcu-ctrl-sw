@@ -186,7 +186,7 @@ static void AL_sReduction(uint32_t* pN, uint32_t* pD)
 }
 
 /****************************************************************************/
-static void fillScalingList(AL_TEncSettings* pSettings, uint8_t* pSL, int iSizeId, int iMatrixId, int iDir, uint8_t* uSLpresentFlag)
+static void fillScalingList(AL_TEncSettings const* pSettings, uint8_t* pSL, int iSizeId, int iMatrixId, int iDir, uint8_t* uSLpresentFlag)
 {
   if(pSettings->bScalingListPresentFlags & (1 << (iSizeId * 4 + iMatrixId)))
   {
@@ -213,8 +213,10 @@ static void fillScalingList(AL_TEncSettings* pSettings, uint8_t* pSL, int iSizeI
 }
 
 /****************************************************************************/
-void AL_AVC_SelectScalingList(AL_TAvcSps* pSPS, AL_TEncSettings* pSettings)
+void AL_AVC_SelectScalingList(AL_TSps* pISPS, AL_TEncSettings const* pSettings)
 {
+  AL_TAvcSps* pSPS = (AL_TAvcSps*)pISPS;
+
   int iDir, i;
   AL_EScalingList eScalingList = pSettings->eScalingList;
 
@@ -266,9 +268,9 @@ void AL_AVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufEP
 }
 
 /****************************************************************************/
-void AL_HEVC_SelectScalingList(AL_THevcSps* pSPS, AL_TEncSettings* pSettings)
+static void AL_HEVC_SelectScalingList(AL_TSps* pISPS, AL_TEncSettings const* pSettings)
 {
-  int iSizeId, iMatrixId;
+  AL_THevcSps* pSPS = (AL_THevcSps*)pISPS;
 
   AL_EScalingList eScalingList = pSettings->eScalingList;
 
@@ -278,9 +280,9 @@ void AL_HEVC_SelectScalingList(AL_THevcSps* pSPS, AL_TEncSettings* pSettings)
     pSPS->sps_scaling_list_data_present_flag = 1;
 
     // update scaling list with settings
-    for(iSizeId = 0; iSizeId < 4; ++iSizeId)
+    for(int iSizeId = 0; iSizeId < 4; ++iSizeId)
     {
-      for(iMatrixId = 0; iMatrixId < 6; iMatrixId += (iSizeId == 3) ? 3 : 1)
+      for(int iMatrixId = 0; iMatrixId < 6; iMatrixId += (iSizeId == 3) ? 3 : 1)
       {
         // by default use default scaling list
         pSPS->scaling_list_param.scaling_list_pred_mode_flag[iSizeId][iMatrixId] = 0;
@@ -319,12 +321,10 @@ void AL_HEVC_SelectScalingList(AL_THevcSps* pSPS, AL_TEncSettings* pSettings)
   }
   else if(eScalingList == AL_SCL_DEFAULT)
   {
-    int iDir;
-
     pSPS->scaling_list_enabled_flag = 1;
     pSPS->sps_scaling_list_data_present_flag = 0;
 
-    for(iDir = 0; iDir < 2; ++iDir)
+    for(int iDir = 0; iDir < 2; ++iDir)
     {
       Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[3][(3 * iDir)], AL_HEVC_DefaultScalingLists8x8[iDir], 64);
       Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[2][(3 * iDir)], AL_HEVC_DefaultScalingLists8x8[iDir], 64);
@@ -512,7 +512,7 @@ static void AL_UpdateAspectRatio(AL_TVuiParam* pVuiParam, uint32_t uWidth, uint3
 }
 
 /****************************************************************************/
-void AL_UpdateVPS(AL_THevcVps* pVPS, int iMaxRef, AL_TEncSettings const* pSettings)
+void AL_HEVC_GenerateVPS(AL_THevcVps* pVPS, AL_TEncSettings const* pSettings, int iMaxRef)
 {
   pVPS->vps_video_parameter_set_id = 0;
   pVPS->vps_base_layer_internal_flag = 1;
@@ -593,8 +593,9 @@ static void AL_HEVC_UpdateHrdParameters(AL_THevcSps* pSPS, AL_TSubHrdParam* pSub
 }
 
 /****************************************************************************/
-void AL_AVC_UpdateSPS(AL_TAvcSps* pSPS, int iMaxRef, int iCpbSize, AL_TEncSettings const* pSettings)
+void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize)
 {
+  AL_TAvcSps* pSPS = (AL_TAvcSps*)pISPS;
   int iMBWidth = (pSettings->tChParam.uWidth + ((1 << pSettings->tChParam.uMaxCuSize) - 1)) >> pSettings->tChParam.uMaxCuSize;
   int iMBHeight = (pSettings->tChParam.uHeight + ((1 << pSettings->tChParam.uMaxCuSize) - 1)) >> pSettings->tChParam.uMaxCuSize;
 
@@ -622,7 +623,7 @@ void AL_AVC_UpdateSPS(AL_TAvcSps* pSPS, int iMaxRef, int iCpbSize, AL_TEncSettin
   pSPS->bit_depth_chroma_minus8 = AL_GET_BITDEPTH_CHROMA(pSettings->tChParam.ePicFormat) - 8;
   pSPS->qpprime_y_zero_transform_bypass_flag = 0;
 
-  AL_AVC_SelectScalingList(pSPS, (AL_TEncSettings*)pSettings);
+  AL_AVC_SelectScalingList(pISPS, pSettings);
 
   pSPS->level_idc = pSettings->tChParam.uLevel;
   pSPS->seq_parameter_set_id = 0;
@@ -705,13 +706,13 @@ void AL_AVC_UpdateSPS(AL_TAvcSps* pSPS, int iMaxRef, int iCpbSize, AL_TEncSettin
   pSPS->vui_param.fixed_frame_rate_flag = 1; // DVB compliance = 1
 
   // NAL HRD
-  pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag = 0; // VCL Compliance = 0
+  pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag = 0;
 
   if(pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag)
     AL_AVC_UpdateHrdParameters(pSPS, &(pSPS->vui_param.hrd_param.nal_sub_hrd_param), iCpbSize, pSettings);
 
   // VCL HRD
-  pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag = 1; // VCL Compliance = 1
+  pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag = 1;
 
   if(pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag)
     AL_AVC_UpdateHrdParameters(pSPS, &(pSPS->vui_param.hrd_param.vcl_sub_hrd_param), iCpbSize, pSettings);
@@ -728,8 +729,9 @@ void AL_AVC_UpdateSPS(AL_TAvcSps* pSPS, int iMaxRef, int iCpbSize, AL_TEncSettin
 }
 
 /****************************************************************************/
-void AL_HEVC_UpdateSPS(AL_THevcSps* pSPS, int iMaxRef, int iCpbSize, AL_TEncSettings const* pSettings)
+void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize)
 {
+  AL_THevcSps* pSPS = (AL_THevcSps*)pISPS;
   int i;
 
   int iLcuWidth = (pSettings->tChParam.uWidth + ((1 << pSettings->tChParam.uMaxCuSize) - 1)) >> pSettings->tChParam.uMaxCuSize;
@@ -777,6 +779,7 @@ void AL_HEVC_UpdateSPS(AL_THevcSps* pSPS, int iMaxRef, int iCpbSize, AL_TEncSett
   pSPS->max_transform_hierarchy_depth_inter = pSettings->tChParam.uMaxTransfoDepthInter;
   pSPS->max_transform_hierarchy_depth_intra = pSettings->tChParam.uMaxTransfoDepthIntra;
 
+  AL_HEVC_SelectScalingList(pISPS, pSettings);
   pSPS->scaling_list_enabled_flag = (pSettings->tChParam.eOptions & AL_OPT_SCL_LST) ? 1 : 0;
 
   pSPS->amp_enabled_flag = 0;
@@ -813,7 +816,7 @@ void AL_HEVC_UpdateSPS(AL_THevcSps* pSPS, int iMaxRef, int iCpbSize, AL_TEncSett
   {
     int const NumB = pSettings->tChParam.tGopParam.uNumB;
     pSPS->num_short_term_ref_pic_sets = NumB + 1;
-    AL_TGopFrm* pGopFrms = getPyramidalFrames(NumB);
+    AL_TGopFrm* pGopFrms = getPyramidalFrames(NumB, false);
 
     for(i = 0; i < pSPS->num_short_term_ref_pic_sets; ++i)
     {
@@ -912,7 +915,6 @@ void AL_HEVC_UpdateSPS(AL_THevcSps* pSPS, int iMaxRef, int iCpbSize, AL_TEncSett
   pSPS->vui_param.vui_poc_proportional_to_timing_flag = 0;
 
   // HRD
-  pSPS->vui_param.vui_hrd_parameters_present_flag = 0; // TODO set to 0 to align on the trunk
   pSPS->vui_param.hrd_param.sub_pic_hrd_params_present_flag = 0; // TODO check if 0 is a correct value
 
   // NAL
@@ -926,6 +928,8 @@ void AL_HEVC_UpdateSPS(AL_THevcSps* pSPS, int iMaxRef, int iCpbSize, AL_TEncSett
 
   if(pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag)
     AL_HEVC_UpdateHrdParameters(pSPS, &(pSPS->vui_param.hrd_param.vcl_sub_hrd_param), iCpbSize, pSettings);
+
+  pSPS->vui_param.vui_hrd_parameters_present_flag = pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag + pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag;
 
   // low Delay
   pSPS->vui_param.hrd_param.low_delay_hrd_flag[0] = 0;
@@ -945,8 +949,9 @@ void AL_HEVC_UpdateSPS(AL_THevcSps* pSPS, int iMaxRef, int iCpbSize, AL_TEncSett
 }
 
 /****************************************************************************/
-void AL_AVC_UpdatePPS(AL_TAvcPps* pPPS, AL_TEncSettings const* pSettings, int iMaxRef, int16_t iPpsQP)
+void AL_AVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, int iMaxRef)
 {
+  AL_TAvcPps* pPPS = (AL_TAvcPps*)pIPPS;
   pPPS->pic_parameter_set_id = 0;
   pPPS->seq_parameter_set_id = 0;
 
@@ -960,7 +965,7 @@ void AL_AVC_UpdatePPS(AL_TAvcPps* pPPS, AL_TEncSettings const* pSettings, int iM
   pPPS->weighted_pred_flag = (pSettings->tChParam.eWPMode == AL_WP_EXPLICIT) ? 1 : 0;
   pPPS->weighted_bipred_idc = pSettings->tChParam.eWPMode;
 
-  pPPS->pic_init_qp_minus26 = iPpsQP - 26;
+  pPPS->pic_init_qp_minus26 = 0;
   pPPS->pic_init_qs_minus26 = 0;
   pPPS->chroma_qp_index_offset = Clip3(pSettings->tChParam.iCbPicQpOffset, -12, 12);
   pPPS->second_chroma_qp_index_offset = Clip3(pSettings->tChParam.iCrPicQpOffset, -12, 12);
@@ -974,8 +979,9 @@ void AL_AVC_UpdatePPS(AL_TAvcPps* pPPS, AL_TEncSettings const* pSettings, int iM
 }
 
 /****************************************************************************/
-void AL_HEVC_UpdatePPS(AL_THevcPps* pPPS, AL_TEncSettings const* pSettings, int iMaxRef, int16_t iPpsQP)
+void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, int iMaxRef)
 {
+  AL_THevcPps* pPPS = (AL_THevcPps*)pIPPS;
   pPPS->pps_pic_parameter_set_id = 0;
   pPPS->pps_seq_parameter_set_id = 0;
 
@@ -986,9 +992,9 @@ void AL_HEVC_UpdatePPS(AL_THevcPps* pPPS, AL_TEncSettings const* pSettings, int 
   pPPS->cabac_init_present_flag = (pSettings->tChParam.uPpsParam & AL_PPS_CABAC_INIT_PRES_FLAG) ? 1 : 0;
   pPPS->num_ref_idx_l0_default_active_minus1 = iMaxRef - 1;
   pPPS->num_ref_idx_l1_default_active_minus1 = iMaxRef - 1;
-  pPPS->init_qp_minus26 = iPpsQP - 26;
+  pPPS->init_qp_minus26 = 0;
   pPPS->constrained_intra_pred_flag = (pSettings->tChParam.eOptions & AL_OPT_CONST_INTRA_PRED) ? 1 : 0;
-  pPPS->transform_skip_enabled_flag = 0; // not supported yet
+  pPPS->transform_skip_enabled_flag = (pSettings->tChParam.eOptions & AL_OPT_TRANSFO_SKIP) ? 1 : 0;
   pPPS->cu_qp_delta_enabled_flag = pSettings->eQpCtrlMode ||
                                    (pSettings->tChParam.tRCParam.eRCMode == AL_RC_LOW_LATENCY) ||
                                    pSettings->tChParam.uSliceSize ? 1 : 0;
@@ -1006,7 +1012,6 @@ void AL_HEVC_UpdatePPS(AL_THevcPps* pPPS, AL_TEncSettings const* pSettings, int 
 
   pPPS->uniform_spacing_flag = 1;
   pPPS->loop_filter_across_tiles_enabled_flag = (pSettings->tChParam.eOptions & AL_OPT_LF_X_TILE) ? 1 : 0;
-  ;
 
   pPPS->loop_filter_across_slices_enabled_flag = (pSettings->tChParam.eOptions & AL_OPT_LF_X_SLICE) ? 1 : 0;
   pPPS->deblocking_filter_control_present_flag = (!(pSettings->tChParam.eOptions & AL_OPT_LF) || pSettings->tChParam.iBetaOffset || pSettings->tChParam.iTcOffset) ? 1 : 0;
@@ -1026,5 +1031,36 @@ void AL_HEVC_UpdatePPS(AL_THevcPps* pPPS, AL_TEncSettings const* pSettings, int 
 #else
   pPPS->log2_parallel_merge_level_minus2 = 0; // parallel merge at 16x16 granularity
 #endif
+}
+
+void AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus)
+{
+  AL_THevcPps* pPPS = (AL_THevcPps*)pIPPS;
+
+  pPPS->init_qp_minus26 = pPicStatus->iPpsQP - 26;
+  int32_t const iNumClmn = pPicStatus->uNumClmn;
+  int32_t const iNumRow = pPicStatus->uNumRow;
+  int32_t const* pTileWidth = pPicStatus->iTileWidth;
+  int32_t const* pTileHeight = pPicStatus->iTileHeight;
+
+  pPPS->num_tile_columns_minus1 = iNumClmn - 1;
+  pPPS->num_tile_rows_minus1 = iNumRow - 1;
+
+  if(!pPPS->num_tile_columns_minus1 && !pPPS->num_tile_rows_minus1)
+    pPPS->tiles_enabled_flag = 0;
+  else
+  {
+    for(int iClmn = 0; iClmn < iNumClmn - 1; ++iClmn)
+      pPPS->column_width[iClmn] = pTileWidth[iClmn];
+
+    for(int iRow = 0; iRow < iNumRow - 1; ++iRow)
+      pPPS->row_height[iRow] = pTileHeight[iRow];
+  }
+}
+
+void AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus)
+{
+  AL_TAvcPps* pPPS = (AL_TAvcPps*)pIPPS;
+  pPPS->pic_init_qp_minus26 = pPicStatus->iPpsQP - 26;
 }
 

@@ -52,7 +52,6 @@
 typedef struct AL_t_BitStreamLite
 {
   uint8_t* m_pData; /*!< Pointer to an array of bytes used as bistream */
-  int m_iDataSize; /*!< Number of bytes allocated in m_pData. */
   int m_iBitCount; /*!< Bits already written */
 }AL_TBitStreamLite;
 
@@ -60,9 +59,8 @@ typedef struct AL_t_BitStreamLite
    \brief Constructs BitStream object using an external buffer
    \param[in] pBS Pointer to a TBitStreamLite object
    \param[in] pBuf Pointer to the buffer that the Bitstream object shall use
-   \param[in] iBufSize Bytes size of the specified buffer
  *************************************************************************/
-void AL_BitStreamLite_Init(AL_TBitStreamLite* pBS, uint8_t* pBuf, int iBufSize);
+void AL_BitStreamLite_Init(AL_TBitStreamLite* pBS, uint8_t* pBuf);
 
 /*************************************************************************//*!
    \brief Destructor
@@ -135,53 +133,6 @@ void AL_BitStreamLite_PutUE(AL_TBitStreamLite* pBS, uint32_t uValue);
 void AL_BitStreamLite_PutSE(AL_TBitStreamLite* pBS, int32_t iValue);
 
 /*************************************************************************//*!
-   \brief Puts Mapped Exp-Golomb-coded syntax element in the BitStream
-   \param[in] pBS Pointer to a TBitStreamLite object
-   \param[in] iCodedBlockPattern Indice to the conversion table
-   \param[in] iIsIntraNxN Specifies which table is used(Intra or Inter)
-   \param[in] iChromaFormatIdc Chroma Subsampling
- *************************************************************************/
-void AL_BitStreamLite_PutME(AL_TBitStreamLite* pBS, int iCodedBlockPattern, int iIsIntraNxN, int iChromaFormatIdc);
-
-/*************************************************************************//*!
-   \brief Puts Truncated Exp-Golomb-coded syntax element in the BitStream
-   \param[in] pBS Pointer to a TBitStreamLite object
-   \param[in] uValue Value to put in the bitstream
-   \param[in] iMaxValue syntax element maximum range value
- *************************************************************************/
-void AL_BitStreamLite_PutTE(AL_TBitStreamLite* pBS, uint32_t uValue, int iMaxValue);
-
-/*************************************************************************//*!
-   \brief Retrieves the size (in bits) of an unsigned integer Exp-Golomb-coded
-   \param[in] uValue integer value to evaluate
-   \return Exp-Golomb coded size of uValue
- *************************************************************************/
-int AL_BitStreamLite_SizeUE(uint32_t uValue);
-
-/*************************************************************************//*!
-   \brief Retrieves the size (in bits) of an signed integer Exp-Golomb-coded
-   \param[in] iValue integer value to evaluate
-   \return Exp-Golomb coded size of uValue
- *************************************************************************/
-int AL_BitStreamLite_SizeSE(int32_t iValue);
-
-/*************************************************************************//*!
-   \brief Retrieves the size (in bits) of a Mapped Exp-Golomb-coded syntax element
-   \param[in] iCodedBlockPattern integer value to evaluate
-   \param[in] iIsIntraNxN indice of the Exp-Golomb mapping table
-   \return Exp-Golomb coded size of uValue
- *************************************************************************/
-int AL_BitStreamLite_SizeME(int iCodedBlockPattern, int iIsIntraNxN);
-
-/*************************************************************************//*!
-   \brief Retrieves the size (in bits) of a Truncated Exp-Golomb-coded syntax element
-   \param[in] uValue integer value to evaluate
-   \param[in] iMaxValue syntax element maximum range value
-   \return Exp-Golomb coded size of uValue
- *************************************************************************/
-int AL_BitStreamLite_SizeTE(uint32_t uValue, int iMaxValue);
-
-/*************************************************************************//*!
    \brief Returns pointer to the begining of the bitstream
    \param[in] pBS Pointer to a TBitStreamLite object
  *************************************************************************/
@@ -192,12 +143,6 @@ uint8_t* AL_BitStreamLite_GetData(AL_TBitStreamLite* pBS);
    \param[in] pBS Pointer to a TBitStreamLite object
  *************************************************************************/
 int AL_BitStreamLite_GetBitsCount(AL_TBitStreamLite* pBS);
-
-/*************************************************************************//*!
-   \brief Returns bitstream maximum size in Bytes
-   \param[in] pBS Pointer to a TBitStreamLite object
- *************************************************************************/
-int AL_BitStreamLite_GetSize(AL_TBitStreamLite* pBS);
 
 /****************************************************************************/
 

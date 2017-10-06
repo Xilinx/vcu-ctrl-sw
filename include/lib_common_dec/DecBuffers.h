@@ -73,8 +73,6 @@ static const int POCOL_LIST_OFFSET = 128;
 static const int MVCOL_LIST_OFFSET = 192;
 static const int FBC_LIST_OFFSET = 256;
 static const int SCLST_SIZE_DEC = 12288;
-static const int LCU_SIZE_OFF = 160;
-static const int WP_OFFSET = 168;
 static const int REF_LIST_SIZE = 96 * sizeof(size_t);
 
 /*************************************************************************//*!
@@ -172,14 +170,6 @@ int AL_GetAllocSize_Frame(AL_TDimension tDimension, AL_EChromaMode eChromaMode, 
 *****************************************************************************/
 uint32_t AL_GetAllocSize_Reference(uint16_t uWidth, uint16_t uHeight, AL_EChromaMode eChromaMode, uint8_t uBitDepth);
 
-/*************************************************************************//*!
-   \brief Retrieves the size of the luma map
-   \param[in] uWidth      frame width in pixels units
-   \param[in] uHeight     frame height in pixels units
-   \param[in] eFrameBufferStorageMode Storage Mode of the frame buffer
-   \return the size (in bytes) needed for the luma map
-*****************************************************************************/
-uint32_t AL_GetAllocSize_LumaMap(uint16_t uWidth, uint16_t uHeight, AL_EFbStorageMode eFrameBufferStorageMode);
 
 /*@}*/
 

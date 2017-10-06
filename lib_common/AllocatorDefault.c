@@ -77,6 +77,7 @@ static const AL_AllocatorVtable s_DefaultAllocatorVtable =
   AL_sDefaultAllocator_Free,
   AL_sDefaultAllocator_GetVirtualAddr,
   AL_sDefaultAllocator_GetPhysicalAddr,
+  NULL,
 };
 
 static AL_TAllocator s_DefaultAllocator =
@@ -100,6 +101,7 @@ static const AL_AllocatorVtable s_WrapperAllocatorVtable =
   NULL,
   AL_sDefaultAllocator_GetVirtualAddr,
   AL_sWrapperAllocator_GetPhysicalAddr,
+  NULL,
 };
 
 static AL_TAllocator s_WrapperAllocator =

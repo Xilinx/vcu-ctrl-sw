@@ -708,7 +708,14 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
   if(pSlice->slice_pic_parameter_set_id > pConceal->m_iLastPPSId ||
      pSlice->slice_pic_parameter_set_id >= AL_HEVC_MAX_PPS ||
      pSlice->slice_pic_parameter_set_id != pConceal->m_iActivePPS)
+  {
+    if(pConceal->m_iLastPPSId >= 0)
+    {
+      pSlice->m_pPPS = &pPPSTable[pConceal->m_iLastPPSId];
+      pSlice->m_pSPS = pSlice->m_pPPS->m_pSPS;
+    }
     return false;
+  }
 
   // assign corresponding pps and sps
   pSlice->m_pPPS = &pPPSTable[pSlice->slice_pic_parameter_set_id];
@@ -880,11 +887,13 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
         if(pSlice->slice_type == SLICE_B)
           pSlice->collocated_from_l0_flag = u(pRP, 1);
 
-        if(pSlice->slice_type != SLICE_I &&
-           ((pSlice->collocated_from_l0_flag && pSlice->num_ref_idx_l0_active_minus1 > 0) ||
-            (!pSlice->collocated_from_l0_flag && pSlice->num_ref_idx_l1_active_minus1 > 0))
-           )
-          pSlice->collocated_ref_idx = Clip3(ue(pRP), 0, AL_HEVC_MAX_REF_IDX);
+        if(pSlice->slice_type != SLICE_I)
+        {
+          if(pSlice->collocated_from_l0_flag && pSlice->num_ref_idx_l0_active_minus1 > 0)
+            pSlice->collocated_ref_idx = Clip3(ue(pRP), 0, pSlice->num_ref_idx_l0_active_minus1);
+          else if(!pSlice->collocated_from_l0_flag && pSlice->num_ref_idx_l1_active_minus1 > 0)
+            pSlice->collocated_ref_idx = Clip3(ue(pRP), 0, pSlice->num_ref_idx_l1_active_minus1);
+        }
       }
 
       // check if NAL isn't empty

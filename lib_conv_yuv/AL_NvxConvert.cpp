@@ -242,6 +242,8 @@ static void convertToRx10(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(NV12):
   case FOURCC(NV16):
     Y800_To_RX10(pSrcIn, pSrcOut);
+    break;
+
   default:
     cout << "No conversion known from " << FourCCToString(inFourCC) << endl;
     assert(0);

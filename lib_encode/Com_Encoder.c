@@ -60,16 +60,25 @@ void AL_Common_Encoder_EndEncoding2(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TB
   if(IsEndOfFrame)
   {
     if(shouldReleaseSrc)
+    {
       AL_Buffer_Unref(pSrc);
 
-    if(pQpTable)
-      AL_Buffer_Unref(pQpTable);
+      if(pQpTable)
+        AL_Buffer_Unref(pQpTable);
+    }
 
     Rtos_GetMutex(pCtx->m_Mutex);
     ++pCtx->m_iFrameCountDone;
     Rtos_ReleaseMutex(pCtx->m_Mutex);
 
     Rtos_ReleaseSemaphore(pCtx->m_PendingEncodings);
+  }
+
+  if(pStream) // eos when pStream is NULL
+  {
+    Rtos_GetMutex(pCtx->m_Mutex);
+    AL_Buffer_Unref(pStream);
+    Rtos_ReleaseMutex(pCtx->m_Mutex);
   }
 }
 
@@ -108,7 +117,7 @@ static void AL_sEncoder_DefaultEndEncodingCB(void* pUserParam, AL_TBuffer* pStre
 
 static void AL_Common_Encoder_InitBuffers(AL_TEncCtx* pCtx, AL_TAllocator* pAllocator)
 {
-  bool bRet = MemDesc_Alloc(&pCtx->m_tBufEP1.tMD, pAllocator, GetAllocSizeEP1());
+  bool bRet = MemDesc_AllocNamed(&pCtx->m_tBufEP1.tMD, pAllocator, GetAllocSizeEP1(), "ep1");
   assert(bRet);
 
   pCtx->m_tBufEP1.uFlags = 0;
@@ -127,13 +136,16 @@ void AL_Common_Encoder_InitCtx(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_
   pCtx->m_callback.func = AL_sEncoder_DefaultEndEncodingCB;
   pCtx->m_callback.userParam = pCtx;
 
-  AL_Common_Encoder_InitRbspEncoder(pCtx);
+  AL_SrcBuffersChecker_Init(&pCtx->m_srcBufferChecker, pChParam);
 
 
   pCtx->m_iLastIdrId = 0;
 
-  pCtx->m_uCpbRemovalDelay = 0;
+  pCtx->m_seiData.initialCpbRemovalDelay = pChParam->tRCParam.uInitialRemDelay;
+  pCtx->m_seiData.cpbRemovalDelay = 0;
 
+  pCtx->m_iCurStreamSent = 0;
+  pCtx->m_iCurStreamRecv = 0;
   pCtx->m_iFrameCountDone = 0;
 
   pCtx->m_eError = AL_SUCCESS;
@@ -142,7 +154,6 @@ void AL_Common_Encoder_InitCtx(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_
   int const iHeightInLcu = (pChParam->uHeight + ((1 << pChParam->uMaxCuSize) - 1)) >> pChParam->uMaxCuSize;
 
   pCtx->m_iNumLCU = iWidthInLcu * iHeightInLcu;
-  pCtx->m_uInitialCpbRemovalDelay = pChParam->tRCParam.uInitialRemDelay;
 
   Rtos_Memset(pCtx->m_Pool, 0, sizeof pCtx->m_Pool);
 
@@ -160,24 +171,6 @@ void AL_Common_Encoder_SetWatchdogCB(AL_TISchedulerCallBacks* CBs, const AL_TEnc
 }
 
 #endif
-
-/***************************************************************************/
-void AL_Common_Encoder_InitRbspEncoder(AL_TEncCtx* pCtx)
-{
-  pCtx->m_pHdrBuf = Rtos_Malloc(ENC_MAX_HEADER_SIZE);
-  assert(pCtx->m_pHdrBuf);
-
-  AL_BitStreamLite_Init(&pCtx->m_BS, pCtx->m_pHdrBuf, ENC_MAX_HEADER_SIZE);
-  AL_RbspEncoding_Init(&pCtx->m_RE, &pCtx->m_BS);
-}
-
-/***************************************************************************/
-void AL_Common_Encoder_DeInitRbspEncoder(AL_TEncCtx* pCtx)
-{
-  AL_RbspEncoding_Deinit(&pCtx->m_RE);
-  AL_BitStreamLite_Deinit(&pCtx->m_BS);
-  Rtos_Free(pCtx->m_pHdrBuf);
-}
 
 /***************************************************************************/
 void AL_Common_Encoder_NotifySceneChange(AL_TEncoder* pEnc, int uAhead)
@@ -208,15 +201,15 @@ bool AL_Common_Encoder_PutStreamBuffer(AL_TEncoder* pEnc, AL_TBuffer* pStream)
   assert(pCtx);
 
   AL_StreamMetaData_ClearAllSections(pMetaData);
-  pMetaData->uMaxSize = AL_Buffer_GetSizeData(pStream);
-  pMetaData->uAvailSize = pMetaData->uMaxSize;
-  pMetaData->uOffset = 0;
-
   Rtos_GetMutex(pCtx->m_Mutex);
-  bool bRet = AL_ISchedulerEnc_PutStreamBuffer(pCtx->m_pScheduler, pCtx->m_hChannel, pStream, ENC_MAX_HEADER_SIZE);
+  pCtx->m_StreamSent[pCtx->m_iCurStreamSent] = pStream;
+  bool const bRet = AL_ISchedulerEnc_PutStreamBuffer(pCtx->m_pScheduler, pCtx->m_hChannel, pStream, pCtx->m_iCurStreamSent, ENC_MAX_HEADER_SIZE);
 
   if(bRet)
+  {
+    pCtx->m_iCurStreamSent = (pCtx->m_iCurStreamSent + 1) % AL_MAX_STREAM_BUFFER;
     AL_Buffer_Ref(pStream);
+  }
   Rtos_ReleaseMutex(pCtx->m_Mutex);
 
   return bRet;
@@ -295,6 +288,9 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
 
   if(AL_GetBitDepth(pMetaData->tFourCC) > 8)
     addresses.uPitchSrc = 0x80000000 | addresses.uPitchSrc;
+
+  if(!AL_SrcBuffersChecker_CanBeUsed(&pCtx->m_srcBufferChecker, pFrame))
+    return false;
 
   AL_Buffer_Ref(pFrame);
   pEI->SrcHandle = (AL_64U)(uintptr_t)pFrame;
@@ -443,18 +439,26 @@ void AL_Common_Encoder_DeinitBuffers(AL_TEncCtx* pCtx)
   MemDesc_Free(&pCtx->m_tBufEP1.tMD);
 }
 
+static void releaseStream(AL_TEncCtx* pCtx)
+{
+  for(int streamId = pCtx->m_iCurStreamRecv; streamId != pCtx->m_iCurStreamSent; streamId = (streamId + 1) % AL_MAX_STREAM_BUFFER)
+    AL_Common_Encoder_EndEncoding(pCtx, pCtx->m_StreamSent[streamId], NULL, NULL, false);
+}
+
 /***************************************************************************/
 void AL_Common_Encoder_DestroyCtx(AL_TEncCtx* pCtx)
 {
   if(pCtx->m_hChannel != AL_INVALID_CHANNEL)
+  {
     AL_ISchedulerEnc_DestroyChannel(pCtx->m_pScheduler, pCtx->m_hChannel);
+    releaseStream(pCtx);
+  }
 
   Rtos_DeleteMutex(pCtx->m_Mutex);
   Rtos_DeleteSemaphore(pCtx->m_PendingEncodings);
 
   AL_sEncoder_DestroySkippedPictureData(pCtx);
 
-  AL_Common_Encoder_DeInitRbspEncoder(pCtx);
   AL_Common_Encoder_DeinitBuffers(pCtx);
 
   Rtos_Free(pCtx);
@@ -468,74 +472,6 @@ void AL_Common_Encoder_Destroy(AL_TEncoder* pEnc)
 }
 
 /*****************************************************************************/
-uint32_t AL_Common_Encoder_AddFillerData(AL_TBuffer* pStream, uint32_t* pOffset, uint32_t uNumBytes, bool bAVC)
-{
-  AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
-  uint32_t uHdrSize = bAVC ? 4 : 5;
-  uint32_t uSize = (uNumBytes < uHdrSize) ? uHdrSize : uNumBytes;
-  uint32_t uAvailSize = pMetaData->uAvailSize - *pOffset;
-
-  if(uSize <= uAvailSize)
-  {
-    uint32_t uOffset = (pMetaData->uOffset + *pOffset) % pMetaData->uMaxSize;
-    uint32_t uRemSize = pMetaData->uMaxSize - uOffset;
-    uint32_t uTmpSize = uSize - uHdrSize;
-
-    uint8_t* pBuf = pStream->pData + uOffset;
-
-    if(uRemSize < uHdrSize)
-    {
-      pBuf = pStream->pData;
-      uAvailSize -= uRemSize;
-      *pOffset += uRemSize;
-      assert(uSize <= (uAvailSize - uRemSize));
-    }
-
-    // Write NAL unit type
-    *pBuf++ = 0x00;
-    *pBuf++ = 0x00;
-    *pBuf++ = 0x01;
-
-    if(bAVC)
-    {
-      *pBuf++ = AL_AVC_NUT_FD;
-    }
-    else
-    {
-      *pBuf++ = AL_HEVC_NUT_FD << 1;
-      *pBuf++ = 0x01;
-    }
-
-    uOffset = (pMetaData->uOffset + *pOffset) % pMetaData->uMaxSize;
-    uRemSize = pMetaData->uMaxSize - uOffset - uHdrSize;
-
-    // Write filler data
-    if(uRemSize <= uTmpSize)
-    {
-      uTmpSize -= uRemSize;
-
-      if(uRemSize > 0)
-        Rtos_Memset(pBuf, 0xFF, uRemSize);
-
-      pBuf = pStream->pData;
-    }
-
-    if(uTmpSize > 0)
-    {
-      Rtos_Memset(pBuf, 0xFF, uTmpSize);
-      pBuf += uTmpSize;
-    }
-
-    // Write trailing bits
-    *pBuf = 0x80;
-
-    AL_StreamMetaData_AddSection(pMetaData, uOffset, uSize, SECTION_COMPLETE_FLAG);
-
-    *pOffset += uSize;
-  }
-  return uSize;
-}
-
 
 #if ENABLE_WATCHDOG
 /***************************************************************************/
@@ -547,4 +483,19 @@ void AL_Common_Encoder_Watchdog_Catch(void* pUserParam)
 
 #endif
 
+
+NalsData AL_ExtractNalsData(AL_TEncCtx* pCtx)
+{
+  NalsData data = { 0 };
+  data.vps = &pCtx->m_vps;
+  data.sps = &pCtx->m_sps;
+  data.pps = &pCtx->m_pps;
+  data.shouldWriteAud = pCtx->m_Settings.bEnableAUD;
+  data.shouldWriteFillerData = pCtx->m_Settings.bEnableFillerData;
+
+  if(pCtx->m_Settings.uEnableSEI)
+    data.seiData = &pCtx->m_seiData;
+
+  return data;
+}
 

@@ -245,6 +245,7 @@ void AL_GetSubsampling(TFourCC fourcc, int* sx, int* sy)
 /*****************************************************************************/
 bool AL_Is10bitPacked(TFourCC tFourCC)
 {
+  (void)tFourCC;
   return (tFourCC == FOURCC(RX0A) ||
           tFourCC == FOURCC(RX2A) ||
           tFourCC == FOURCC(RX10)) ? true : false;
@@ -253,8 +254,9 @@ bool AL_Is10bitPacked(TFourCC tFourCC)
 /*****************************************************************************/
 bool AL_IsSemiPlanar(TFourCC tFourCC)
 {
-  return (tFourCC == FOURCC(NV12) || tFourCC == FOURCC(P010) ||
-          tFourCC == FOURCC(NV16) || tFourCC == FOURCC(P210) ||
-          tFourCC == FOURCC(RX0A) || tFourCC == FOURCC(RX2A)) ? true : false;
+  return (tFourCC == FOURCC(NV12) || tFourCC == FOURCC(P010)
+          || tFourCC == FOURCC(NV16) || tFourCC == FOURCC(P210)
+          || tFourCC == FOURCC(RX0A) || tFourCC == FOURCC(RX2A)
+          ) ? true : false;
 }
 

@@ -45,39 +45,47 @@
 #include <assert.h>
 #include "RbspEncod.h"
 
-/****************************************************************************/
-void AL_RbspEncoding_Init(AL_TRbspEncoding* pRE, AL_TBitStreamLite* pBitStream)
+/*****************************************************************************/
+void AL_RbspEncoding_WriteAUD(AL_TBitStreamLite* pBS, int primary_pic_type)
 {
-  assert(pRE);
-  pRE->m_pBS = pBitStream;
-  pRE->m_iBookmarkSEI = 0;
-  pRE->m_pMVCSN = NULL;
-  assert(pRE->m_pBS != 0);
+  // 1 - Write primary_pic_type.
+
+  AL_BitStreamLite_PutU(pBS, 3, primary_pic_type);
+
+  // 2 - Write rbsp_trailing_bits.
+
+  AL_BitStreamLite_PutU(pBS, 1, 1);
+  AL_BitStreamLite_AlignWithBits(pBS, 0);
 }
 
-/****************************************************************************/
-void AL_RbspEncoding_Deinit(AL_TRbspEncoding* pRE)
+/******************************************************************************/
+int AL_RbspEncoding_BeginSEI(AL_TBitStreamLite* pBS, uint8_t uPayloadType)
 {
-  pRE->m_pBS = NULL;
+  AL_BitStreamLite_PutBits(pBS, 8, uPayloadType);
+  int bookmarkSEI = AL_BitStreamLite_GetBitsCount(pBS);
+  assert(bookmarkSEI % 8 == 0);
+
+  AL_BitStreamLite_PutBits(pBS, 8, 0xFF);
+
+  return bookmarkSEI;
 }
 
-/****************************************************************************/
-void AL_RbspEncoding_Reset(AL_TRbspEncoding* pRE)
+/******************************************************************************/
+void AL_RbspEncoding_EndSEI(AL_TBitStreamLite* pBS, int bookmarkSEI)
 {
-  if(pRE && pRE->m_pBS)
-    AL_BitStreamLite_Reset(pRE->m_pBS);
+  uint8_t* pSize = AL_BitStreamLite_GetData(pBS) + (bookmarkSEI / 8);
+  assert(*pSize == 0xFF);
+  int bits = AL_BitStreamLite_GetBitsCount(pBS) - bookmarkSEI;
+  assert(bits % 8 == 0);
+  *pSize = (bits / 8) - 1;
 }
 
-/****************************************************************************/
-uint8_t* AL_RbspEncoding_GetData(AL_TRbspEncoding* pRE)
+/******************************************************************************/
+void AL_RbspEncoding_CloseSEI(AL_TBitStreamLite* pBS)
 {
-  return AL_BitStreamLite_GetData(pRE->m_pBS);
-}
-
-/****************************************************************************/
-int AL_RbspEncoding_GetBitsCount(AL_TRbspEncoding* pRE)
-{
-  return AL_BitStreamLite_GetBitsCount(pRE->m_pBS);
+  // Write rbsp_trailing_bits.
+  AL_BitStreamLite_PutU(pBS, 1, 1);
+  AL_BitStreamLite_AlignWithBits(pBS, 0);
 }
 
 /*@}*/

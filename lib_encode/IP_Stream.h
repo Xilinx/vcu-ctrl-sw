@@ -45,35 +45,20 @@
 #pragma once
 
 #include "lib_rtos/types.h"
+#include "lib_bitstream/BitStreamLite.h"
 
 /****************************************************************************/
-/* Basic Bytes Stream */
-/****************************************************************************/
-
-/*************************************************************************//*!
-   \brief TODO
-*****************************************************************************/
-typedef struct t_Stream
+typedef struct t_NalHeader
 {
-  uint8_t* m_pData;
-  uint8_t* m_pCur;
-  uint32_t m_uSize;
-}TStream;
+  uint8_t bytes[2];
+  int size;
+}NalHeader;
 
-/****************************************************************************/
-void StreamInitBuffer(TStream* pStream, uint8_t* pBuf, uint32_t uSize);
-void StreamReset(TStream* pStream);
+NalHeader GetNalHeaderAvc(uint8_t uNUT, uint8_t uNalIdc);
+NalHeader GetNalHeaderHevc(uint8_t uNUT, uint8_t uNalIdc);
 
-void StreamWriteByte(TStream* pStream, uint8_t uByte);
-void StreamCopyBytes(TStream* pStream, uint8_t* pBuf, int iNumber);
-uint32_t StreamGetNumBytes(TStream* pStream);
-
-/****************************************************************************/
-void AntiEmul(TStream* pStream, uint8_t const* pData, int iNumBytes);
-
-/****************************************************************************/
-void FlushNAL(TStream* pStream, uint8_t uNUT, uint8_t uTempID, uint8_t uLayerID, uint8_t* pDataInNAL, int iBitsInNAL, bool bCheckEmul, uint8_t uNalIdc, bool bAvc);
-/*****************************************************************************/
+void WriteFillerData(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, int bytesCount);
+void FlushNAL(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, uint8_t* pDataInNAL, int iBitsInNAL);
 
 /*@}*/
 

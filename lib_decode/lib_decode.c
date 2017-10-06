@@ -39,12 +39,12 @@
 #include "BufferFeeder.h"
 #include "I_Decoder.h"
 
-AL_HDecoder AL_CreateDefaultDecoder(AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
+AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** pDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
 
 /*****************************************************************************/
-AL_HDecoder AL_Decoder_Create(AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB)
+AL_ERR AL_Decoder_Create(AL_HDecoder* hDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB)
 {
-  return AL_CreateDefaultDecoder(pDecChannel, pAllocator, pSettings, pCB);
+  return AL_CreateDefaultDecoder((AL_TDecoder**)hDec, pDecChannel, pAllocator, pSettings, pCB);
 }
 
 /*****************************************************************************/
@@ -96,27 +96,28 @@ void AL_Decoder_ReleaseDecPict(AL_HDecoder hDec, AL_TBuffer* pDecPict)
   pDec->vtable->pfnReleaseDecPict(pDec, pDecPict);
 }
 
+/*****************************************************************************/
 void AL_Decoder_PutDecPict(AL_HDecoder hDec, AL_TBuffer* pDecPict)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)hDec;
   pDec->vtable->pfnPutDecPict(pDec, pDecPict);
 }
 
-/*************************************************************************/
+/*****************************************************************************/
 int AL_Decoder_GetStrOffset(AL_HDecoder hDec)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)hDec;
   return pDec->vtable->pfnGetStrOffset(pDec);
 }
 
-/*************************************************************************/
+/*****************************************************************************/
 int AL_Decoder_GetMaxBD(AL_HDecoder hDec)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)hDec;
   return pDec->vtable->pfnGetMaxBD(pDec);
 }
 
-/*************************************************************************/
+/*****************************************************************************/
 AL_ERR AL_Decoder_GetLastError(AL_HDecoder hDec)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)hDec;
@@ -128,5 +129,12 @@ void AL_Decoder_InternalFlush(AL_HDecoder hDec)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)hDec;
   pDec->vtable->pfnInternalFlush(pDec);
+}
+
+/*****************************************************************************/
+void AL_Decoder_FlushInput(AL_HDecoder hDec)
+{
+  AL_TDecoder* pDec = (AL_TDecoder*)hDec;
+  pDec->vtable->pfnFlushInput(pDec);
 }
 

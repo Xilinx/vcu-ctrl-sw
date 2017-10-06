@@ -351,19 +351,18 @@ uint32_t u(AL_TRbspParser* pRP, uint8_t iNumBits)
   }
   else if(iNumBits <= 24)
   {
-    int c = get_cache_24(pRP);
-    int mask = ((1 << iNumBits) - 1);
-    int val2 = (c >> (24 - iNumBits)) & mask;
+    uint32_t c = get_cache_24(pRP);
+    uint32_t mask = ((1 << iNumBits) - 1);
+    uint32_t val2 = (c >> (24 - iNumBits)) & mask;
     skip(pRP, iNumBits);
     return val2;
   }
   else
   {
-    int val = get_cache_24(pRP);
-    int i;
+    uint32_t val = get_cache_24(pRP);
     skip(pRP, 24);
 
-    for(i = 0; i < iNumBits - 24; ++i)
+    for(int i = 0; i < iNumBits - 24; ++i)
     {
       val <<= 1;
       val |= get_next_bit(pRP);

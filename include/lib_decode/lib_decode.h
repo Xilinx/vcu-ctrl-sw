@@ -59,6 +59,7 @@
 /*************************************************************************//*!
    \brief Decoded callback definition.
    It is called every time a frame is decoded
+   A null frame indicates an error occured
 *****************************************************************************/
 typedef struct
 {
@@ -68,6 +69,7 @@ typedef struct
 
 /*************************************************************************//*!
    \brief Display callback definition.
+   a null frame indicates the end of the stream
 *****************************************************************************/
 typedef struct
 {
@@ -121,13 +123,15 @@ typedef struct
 
 /*************************************************************************//*!
    \brief The AL_Decoder_Create function creates a new instance of the Decoder
-   \param[in] pDecChannel      Pointer to a Scheduler structure.
+   \param[out] hDec           handle to the new created decoder
+   \param[in] pDecChannel     Pointer to a Scheduler structure.
    \param[in] pAllocator      Pointer to an allocator handle
    \param[in] pSettings       Pointer to the decoder settings
    \param[in] pCB             Pointer to the decoder callbacks
+   \return errorcode specifying why this decoder couldn't be created
    \see AL_Decoder_Destroy
 *****************************************************************************/
-AL_HDecoder AL_Decoder_Create(AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
+AL_ERR AL_Decoder_Create(AL_HDecoder* hDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
 
 /*************************************************************************//*!
    \brief The AL_Decoder_Destroy function releases all allocated ressources
@@ -189,6 +193,12 @@ AL_ERR AL_Decoder_GetLastError(AL_HDecoder hDec);
    \param[in]  hDec  Handle to an decoder object.
 *****************************************************************************/
 void AL_Decoder_ForceStop(AL_HDecoder hDec);
+
+/*************************************************************************//*!
+   \brief Force to flush decoder input context (e.g. pending SC)
+   \param[in]  hDec  Handle to an decoder object.
+*****************************************************************************/
+void AL_Decoder_FlushInput(AL_HDecoder hDec);
 
 /*@}*/
 

@@ -46,8 +46,8 @@ $(BIN)/%.exe:
 $(BIN)/%.so:
 	$(Q)$(CXX) $(CFLAGS) -shared -Wl,-soname,$(notdir $@).$(MAJOR) -o "$@.$(VERSION)" $^ $(LDFLAGS)
 	@echo "LD $@"
-	@rm -f $@
-	@ln "$@.$(VERSION)" $@
+	@ln -fs "$(@:$(BIN)/%=%).$(VERSION)" $@.$(MAJOR)
+	@ln -fs "$(@:$(BIN)/%=%).$(VERSION)" $@
 
 clean:
 	$(Q)rm -rf $(BIN)

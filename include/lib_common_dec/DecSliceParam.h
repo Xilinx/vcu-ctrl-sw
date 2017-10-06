@@ -49,14 +49,6 @@
 #include "DecBuffers.h"
 
 /*************************************************************************//*!
-   \brief Loop Filter parameters
-*****************************************************************************/
-typedef struct AL_t_LoopFilter
-{
-  AL_EFilterMode Mode;  /*!< Specifies the deblocking Filter mode */
-}AL_TLoopFilter;
-
-/*************************************************************************//*!
    \brief Slice Parameters : Mimics structure for IP registers
 *****************************************************************************/
 typedef struct AL_t_DecSliceParam

@@ -42,17 +42,3 @@
 void DisplayFrameStatus(int iFrameNum);
 void DisplayVersionInfo();
 
-enum SCHEDULER_TYPE
-{
-  SCHEDULER_TYPE_CPU,
-  SCHEDULER_TYPE_MCU,
-};
-
-enum IpCtrlMode
-{
-  IPCTRL_MODE_STANDARD,
-  IPCTRL_MODE_TIMERS,
-  IPCTRL_MODE_LOGS,
-  IPCTRL_MODE_TRACE, // codec-agnostic raw register r/w and irq dump
-};
-

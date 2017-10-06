@@ -61,9 +61,6 @@
 #define AL_MIN_WP_CHROMA_DELTA_WEIGHT -128
 #define AL_MAX_WP_CHROMA_DELTA_WEIGHT 127
 
-#define AL_MIN_WP_CHROMA_DELTA_OFFSET -512
-#define AL_MAX_WP_CHROMA_DELTA_OFFSET 511
-
 #define AL_MAX_REFERENCE_PICTURE_REORDER 17
 
 /*************************************************************************//*!

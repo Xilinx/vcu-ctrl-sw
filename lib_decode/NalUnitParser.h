@@ -96,8 +96,9 @@ void AL_AVC_InitAUP(AL_TAvcAup* pAUP);
    \param[in, out] bFirstIsValid Specifies if a previous consistent slice has already been decoded
    \param[in, out] bValidFirstSliceInFrame Specifies if a previous consistent slice has already been decoded in the current frame
    \param[in, out] iNumSlice     Add the number of slice in the NAL to iNumSlice
+   \param[in, out] bBeginFrameIsValid if false and if the beginning frame was valid, true.
 *****************************************************************************/
-bool AL_AVC_DecodeOneNAL(AL_TAvcAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIsLastAUNal, bool* bFirstIsValid, bool* bValidFirstSliceInFrame, int* iNumSlice);
+bool AL_AVC_DecodeOneNAL(AL_TAvcAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIsLastAUNal, bool* bFirstIsValid, bool* bValidFirstSliceInFrame, int* iNumSlice, bool* bBeginFrameIsValid);
 
 /*************************************************************************//*!
    \brief HEVC Access Unit Context structure

@@ -53,6 +53,21 @@ static AL_TGopFrm PYRAMIDAL_GOP_3[] =
     SLICE_B, 0, 0, 2, 3, -1, 1, 0, { -1, 1, 0, 0, 0 }
   }
 };
+static AL_TGopFrm PYRAMIDAL_GOP_3_LAST[] =
+{
+  {
+    SLICE_P, 0, 1, 0, 3, -3, 0, 3, { -3, 0, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 1, -1, 2, 1, { -1, 2, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 2, -2, 1, 2, { -2, 1, 0, 0, 0 }
+  },
+  {
+    SLICE_P, 0, 1, 0, 4, -1, 0, 4, { -1, 0, 0, 0, 0 }
+  }
+};
 
 static AL_TGopFrm PYRAMIDAL_GOP_5[] =
 {
@@ -104,7 +119,7 @@ static AL_TGopFrm PYRAMIDAL_GOP_7[] =
   }
 };
 
-static AL_TGopFrm* getPyramidalFrames(int numB)
+static AL_TGopFrm* getPyramidalFrames(int numB, bool isLast)
 {
   switch(numB)
   {
@@ -113,7 +128,7 @@ static AL_TGopFrm* getPyramidalFrames(int numB)
   case 5:
     return PYRAMIDAL_GOP_5;
   case 3:
-    return PYRAMIDAL_GOP_3;
+    return isLast ? PYRAMIDAL_GOP_3_LAST : PYRAMIDAL_GOP_3;
   default:
     assert(false);
     return PYRAMIDAL_GOP_3;

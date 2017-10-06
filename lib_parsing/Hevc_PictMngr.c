@@ -450,28 +450,31 @@ bool AL_HEVC_PictMngr_BuildPictureList(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* 
     // slice P
     uRef = 0;
 
-    while(uRef < NumRpsCurrTempList)
+    if(pSlice->NumPocStCurrBefore || pSlice->NumPocStCurrAfter || pSlice->NumPocLtCurr)
     {
-      uint8_t i;
+      while(uRef < NumRpsCurrTempList)
+      {
+        uint8_t i;
 
-      for(i = 0; i < pSlice->NumPocStCurrBefore && uRef < NumRpsCurrTempList; ++uRef, ++i)
-        uNodeList[uRef] = pCtx->RefPicSetStCurrBefore[i];
+        for(i = 0; i < pSlice->NumPocStCurrBefore && uRef < NumRpsCurrTempList; ++uRef, ++i)
+          uNodeList[uRef] = pCtx->RefPicSetStCurrBefore[i];
 
-      for(i = 0; i < pSlice->NumPocStCurrAfter && uRef < NumRpsCurrTempList; ++uRef, ++i)
-        uNodeList[uRef] = pCtx->RefPicSetStCurrAfter[i];
+        for(i = 0; i < pSlice->NumPocStCurrAfter && uRef < NumRpsCurrTempList; ++uRef, ++i)
+          uNodeList[uRef] = pCtx->RefPicSetStCurrAfter[i];
 
-      for(i = 0; i < pSlice->NumPocLtCurr && uRef < NumRpsCurrTempList; ++uRef, ++i)
-        uNodeList[uRef] = pCtx->RefPicSetLtCurr[i];
-    }
+        for(i = 0; i < pSlice->NumPocLtCurr && uRef < NumRpsCurrTempList; ++uRef, ++i)
+          uNodeList[uRef] = pCtx->RefPicSetLtCurr[i];
+      }
 
-    for(uRef = 0; uRef <= pSlice->num_ref_idx_l0_active_minus1; ++uRef)
-    {
-      uint8_t uNode = pSlice->ref_pic_modif.ref_pic_list_modification_flag_l0 ? uNodeList[pSlice->ref_pic_modif.list_entry_l0[uRef]] :
-                      uNodeList[uRef];
-      uNode = (uNode == uEndOfList) ? AL_Dpb_GetHeadPOC(&pCtx->m_DPB) : uNode;
+      for(uRef = 0; uRef <= pSlice->num_ref_idx_l0_active_minus1; ++uRef)
+      {
+        uint8_t uNode = pSlice->ref_pic_modif.ref_pic_list_modification_flag_l0 ? uNodeList[pSlice->ref_pic_modif.list_entry_l0[uRef]] :
+                        uNodeList[uRef];
+        uNode = (uNode == uEndOfList) ? AL_Dpb_GetHeadPOC(&pCtx->m_DPB) : uNode;
 
-      (*pListRef)[0][uRef].uNodeID = uNode;
-      (*pListRef)[0][uRef].RefBuf = *pCtx->m_FrmBufPool.pFrmBufs[pCtx->m_DPB.m_Nodes[uNode].uFrmID];
+        (*pListRef)[0][uRef].uNodeID = uNode;
+        (*pListRef)[0][uRef].RefBuf = *pCtx->m_FrmBufPool.pFrmBufs[pCtx->m_DPB.m_Nodes[uNode].uFrmID];
+      }
     }
 
     // slice B
@@ -480,28 +483,31 @@ bool AL_HEVC_PictMngr_BuildPictureList(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* 
       NumRpsCurrTempList = (NumPocTotalCurr > pSlice->num_ref_idx_l1_active_minus1 + 1) ? NumPocTotalCurr : pSlice->num_ref_idx_l1_active_minus1 + 1;
       uRef = 0;
 
-      while(uRef < NumRpsCurrTempList)
+      if(pSlice->NumPocStCurrAfter || pSlice->NumPocStCurrBefore || pSlice->NumPocLtCurr)
       {
-        uint8_t i;
+        while(uRef < NumRpsCurrTempList)
+        {
+          uint8_t i;
 
-        for(i = 0; i < pSlice->NumPocStCurrAfter && uRef < NumRpsCurrTempList; ++uRef, ++i)
-          uNodeList[uRef] = pCtx->RefPicSetStCurrAfter[i];
+          for(i = 0; i < pSlice->NumPocStCurrAfter && uRef < NumRpsCurrTempList; ++uRef, ++i)
+            uNodeList[uRef] = pCtx->RefPicSetStCurrAfter[i];
 
-        for(i = 0; i < pSlice->NumPocStCurrBefore && uRef < NumRpsCurrTempList; ++uRef, ++i)
-          uNodeList[uRef] = pCtx->RefPicSetStCurrBefore[i];
+          for(i = 0; i < pSlice->NumPocStCurrBefore && uRef < NumRpsCurrTempList; ++uRef, ++i)
+            uNodeList[uRef] = pCtx->RefPicSetStCurrBefore[i];
 
-        for(i = 0; i < pSlice->NumPocLtCurr && uRef < NumRpsCurrTempList; ++uRef, ++i)
-          uNodeList[uRef] = pCtx->RefPicSetLtCurr[i];
-      }
+          for(i = 0; i < pSlice->NumPocLtCurr && uRef < NumRpsCurrTempList; ++uRef, ++i)
+            uNodeList[uRef] = pCtx->RefPicSetLtCurr[i];
+        }
 
-      for(uRef = 0; uRef <= pSlice->num_ref_idx_l1_active_minus1; ++uRef)
-      {
-        uint8_t uNode = pSlice->ref_pic_modif.ref_pic_list_modification_flag_l1 ? uNodeList[pSlice->ref_pic_modif.list_entry_l1[uRef]] :
-                        uNodeList[uRef];
-        uNode = (uNode == uEndOfList) ? AL_Dpb_GetHeadPOC(&pCtx->m_DPB) : uNode;
+        for(uRef = 0; uRef <= pSlice->num_ref_idx_l1_active_minus1; ++uRef)
+        {
+          uint8_t uNode = pSlice->ref_pic_modif.ref_pic_list_modification_flag_l1 ? uNodeList[pSlice->ref_pic_modif.list_entry_l1[uRef]] :
+                          uNodeList[uRef];
+          uNode = (uNode == uEndOfList) ? AL_Dpb_GetHeadPOC(&pCtx->m_DPB) : uNode;
 
-        (*pListRef)[1][uRef].uNodeID = uNode;
-        (*pListRef)[1][uRef].RefBuf = *pCtx->m_FrmBufPool.pFrmBufs[pCtx->m_DPB.m_Nodes[uNode].uFrmID];
+          (*pListRef)[1][uRef].uNodeID = uNode;
+          (*pListRef)[1][uRef].RefBuf = *pCtx->m_FrmBufPool.pFrmBufs[pCtx->m_DPB.m_Nodes[uNode].uFrmID];
+        }
       }
     }
   }

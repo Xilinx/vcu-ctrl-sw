@@ -54,6 +54,7 @@
 
 #include "lib_common_dec/DecBuffers.h"
 #include "lib_common_dec/DecPicParam.h"
+#include "lib_common_dec/DecDpbMode.h"
 
 #define MAX_STACK 16
 
@@ -181,7 +182,6 @@ typedef struct t_DPB
   bool m_bNewSeq;
 
   uint8_t m_uNumRef; /*!< Maximum number of reference managed by the DPB */
-  uint8_t m_uNumInterBuf; /*!< Maximum number of intermediate buffer managed by the DPB */
 
   uint8_t m_uHeadPOC;      /*!< Index of the first node in POC order     */
   uint8_t m_uHeadPocLsb;   /*!< Index of the first node in poc_lsb order */
@@ -194,6 +194,7 @@ typedef struct t_DPB
   uint8_t m_uCountPic;            /*!< Number of used node in the reference list */
   int16_t m_MaxLongTermFrameIdx; // used in picture marking process
   bool m_bLastHasMMCO5;
+  AL_EDpbMode m_eMode; /*!< Possible DPB mode */
 
   void* m_pPfnCtx;  /*!< pointer to be passed each time one to the following callback is called */
   PfnIncrementFrmBuf m_pfnIncrementFrmBuf;/*!< Callback Callback Function to signal that a Frame Buffer is used by the DPB */
@@ -207,15 +208,15 @@ typedef struct t_DPB
    \brief Initializes the specified DPB context object
    \param[in,out] pDpb               Pointer to a DPB context object
    \param[in]     uNumRef            Number of reference to manage
-   \param[in]     uNumInterBuf       Number of intermediate buffers to manage
    \param[in]     pPfnCtx            User callback parameter
    \param[in]     pfnIncrementFrmBuf User Callback increasing access count on frame buffer
    \param[in]     pfnReleaseFrmBuf   User Callback decreasing access count on a frame buffer
    \param[in]     pfnOutputFrmBuf    User Callback managing frame buffer output
    \param[in]     pfnIncrementMvBuf  User Callback increasing access count on motion-vector buffer
    \param[in]     pfnReleaseMvBuf    User Callback releasing a motion vector reference buffer
+   \param[in]     eMode              Mode choose by user for the dpb
 *****************************************************************************/
-void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, uint8_t uNumInterBuf, void* pPfnCtx, PfnIncrementFrmBuf pfnIncrementFrmBuf, PfnReleaseFrmBuf pfnReleaseFrmBuf, PfnOutputFrmBuf pfnOutputFrmBuf, PfnIncrementMvBuf pfnIncrementMvBuf, PfnReleaseMvBuf pfnReleaseMvBuf);
+void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, void* pPfnCtx, PfnIncrementFrmBuf pfnIncrementFrmBuf, PfnReleaseFrmBuf pfnReleaseFrmBuf, PfnOutputFrmBuf pfnOutputFrmBuf, PfnIncrementMvBuf pfnIncrementMvBuf, PfnReleaseMvBuf pfnReleaseMvBuf, AL_EDpbMode eMode);
 
 /*************************************************************************//*!
    \brief Flush last DPB removal orders
@@ -349,13 +350,6 @@ uint8_t AL_Dpb_GetLastPicID(AL_TDpb* pDpb);
    \return returns the number of references managed by the DPB
 *****************************************************************************/
 uint8_t AL_Dpb_GetNumRef(AL_TDpb* pDpb);
-
-/*************************************************************************//*!
-   \brief This function gets the number of managed pictures
-   \param[in,out] pDpb    Pointer to a DPB context object
-   \return returns the number of references managed by the DPB
-*****************************************************************************/
-uint8_t AL_Dpb_GetNumPic(AL_TDpb* pDpb);
 
 /*************************************************************************//*!
    \brief This function must be called after each DPB flushing

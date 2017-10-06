@@ -48,20 +48,12 @@
 typedef struct AL_t_StreamMetaData
 {
   AL_TMetaData tMeta;
-  uint32_t uMaxSize;
-  uint32_t uOffset;
-  uint32_t uAvailSize;
-
-  uint16_t uMaxNumSection; /*!< Max Number of section */
-
-  uint16_t uFirstSection; /*!< Number of section in the buffer  */
-  uint16_t uNumSection; /*!< Number of section in the buffer  */
-  uint16_t uNumMissingSection; /*!< Number of section missing in the buffer if the buffer is to small */
-
   AL_TStreamSection* pSections;  /*!< Array of sections */
+  uint16_t uNumSection;
+  uint16_t uMaxNumSection;
 }AL_TStreamMetaData;
 
-AL_TStreamMetaData* AL_StreamMetaData_Create(uint16_t uMaxNumSection, uint32_t uMaxSize);
+AL_TStreamMetaData* AL_StreamMetaData_Create(uint16_t uMaxNumSection);
 AL_TStreamMetaData* AL_StreamMetaData_Clone(AL_TStreamMetaData* pMeta);
 
 /*************************************************************************//*!

@@ -1,5 +1,6 @@
 LIB_COMMON_BASE_SRC:=\
 	lib_common/Utils.c\
+	lib_common/UtilsQp.c\
 	lib_common/BufCommon.c\
 	lib_common/AllocatorDefault.c\
 
@@ -10,12 +11,11 @@ LIB_COMMON_SRC:=\
 	lib_common/BufferAPI.c\
 	lib_common/BufferSrcMeta.c\
 	lib_common/BufferCircMeta.c\
-	lib_common/BufferOffsetMeta.c\
 	lib_common/BufferStreamMeta.c\
 	lib_common/BufferAccess.c\
 	lib_common/Fifo.c\
-	lib_common/StreamSection.c\
 	lib_common/AvcLevelsLimit.c\
+	lib_common/SliceConsts.c\
 
 LIB_COMMON_MCU_SRC:=\
 	$(LIB_COMMON_BASE_SRC)

@@ -53,10 +53,14 @@
 *****************************************************************************/
 typedef enum __AL_ALIGNED__ (4) AL_e_PictFormat
 {
+  AL_400_8BITS = 0x0088,
   AL_420_8BITS = 0x0188,
   AL_422_8BITS = 0x0288,
+  AL_444_8BITS = 0x0388,
+  AL_400_10BITS = 0x00AA,
   AL_420_10BITS = 0x01AA,
   AL_422_10BITS = 0x02AA,
+  AL_444_10BITS = 0x03AA,
 } AL_EPicFormat;
 
 #define AL_GET_BITDEPTH_LUMA(PicFmt) ((PicFmt) & 0x000F)
@@ -120,6 +124,7 @@ typedef enum __AL_ALIGNED__ (4) AL_e_ChEncOptions
   AL_OPT_CUSTOM_LDA = 0x00000200,
   AL_OPT_ENABLE_AUTO_QP = 0x00000400,
   AL_OPT_ADAPT_AUTO_QP = 0x00000800,
+  AL_OPT_TRANSFO_SKIP = 0x00002000,
   AL_OPT_FORCE_REC = 0x00008000,
   AL_OPT_FORCE_MV_OUT = 0x00010000,
   AL_OPT_FORCE_MV_CLIP = 0x00020000,
@@ -213,6 +218,7 @@ typedef struct AL_t_GopParam
   AL_EGdrMode eGdrMode;
   uint16_t uGopLength;
   uint8_t uNumB;
+  uint8_t uFreqGoldenRef;
 }AL_TGopParam;
 
 /*************************************************************************//*!

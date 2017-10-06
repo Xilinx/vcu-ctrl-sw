@@ -96,6 +96,7 @@ typedef struct AL_t_PictureInfo
 
   uint16_t uGdrPos; /*!< Gradual Refresh position */
   AL_EGdrMode eGdrMode; /*!< Gradual Refresh Mode */
+  bool bIsGoldenRef;
 }AL_TPictureInfo;
 
 /*@}*/

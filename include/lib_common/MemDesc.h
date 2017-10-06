@@ -74,6 +74,7 @@ void MemDesc_Init(TMemDesc* pMD);
    \param uSize Number of bytes to allocate
 *****************************************************************************/
 bool MemDesc_Alloc(TMemDesc* pMD, AL_TAllocator* pAllocator, size_t uSize);
+bool MemDesc_AllocNamed(TMemDesc* pMD, AL_TAllocator* pAllocator, size_t uSize, char const* name);
 
 /*************************************************************************//*!
    \brief Frees Memory

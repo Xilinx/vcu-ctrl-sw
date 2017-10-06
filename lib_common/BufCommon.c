@@ -64,7 +64,7 @@ void AL_CopyYuv(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
   assert(pDst->zSize >= pSrc->zSize);
 
-  Rtos_Memcpy(pDst->pData, pSrc->pData, pSrc->zSize);
+  Rtos_Memcpy(AL_Buffer_GetData(pDst), AL_Buffer_GetData(pSrc), pSrc->zSize);
 }
 
 /****************************************************************************/

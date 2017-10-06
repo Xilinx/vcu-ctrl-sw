@@ -45,7 +45,6 @@
 #ifndef _INCLUDE_RBSP_ENCODING_H_DA01A86F_11CD_46D0_AAF6_EF08C957E05A
 #define _INCLUDE_RBSP_ENCODING_H_DA01A86F_11CD_46D0_AAF6_EF08C957E05A
 
-#include "common_Rbsp_Struct.h"
 #include "BitStreamLite.h"
 
 /*************************************************************************//*!
@@ -53,40 +52,16 @@
    Payload such as SPS, PPS ...
 *****************************************************************************/
 
-/*************************************************************************//*!
-   \brief Constructs a CRbspEncoding object that manages an external
-   CBitstreamLite
+/*********************************************************************//*!
+   \brief Writes Access Unit delimiter to the managed CBitstreamLite
    \param[in] pRE Pointer to TRbspEncoding Object
-   \param[in] pBitStream Pointer to an existing CBitStreamLite object.
-*****************************************************************************/
-void AL_RbspEncoding_Init(AL_TRbspEncoding* pRE, AL_TBitStreamLite* pBitStream);
+   \param[in] primary_pic_type
+*************************************************************************/
+void AL_RbspEncoding_WriteAUD(AL_TBitStreamLite* pRE, int primary_pic_type);
 
-/*************************************************************************//*!
-   \brief Destructor
-   \param[in] pRE Pointer to TRbspEncoding Object
-*****************************************************************************/
-void AL_RbspEncoding_Deinit(AL_TRbspEncoding* pRE);
-
-/*************************************************************************//*!
-   \brief Resets the CRbspEncoding object (Reset the managed CBitstreamLite)
-   \param[in] pRE Pointer to TRbspEncoding Object
-*****************************************************************************/
-void AL_RbspEncoding_Reset(AL_TRbspEncoding* pRE);
-
-/*************************************************************************//*!
-   \brief Returns a Pointer to the managed CBitstreamLite contents
-   \param[in] pRE Pointer to TRbspEncoding Object
-   \return pointer to the Rbsp buffer
-*****************************************************************************/
-uint8_t* AL_RbspEncoding_GetData(AL_TRbspEncoding* pRE);
-
-/*************************************************************************//*!
-   \brief Returns the current numbers of bits in the managed CBitstreamLite
-   \param[in] pRE Pointer to TRbspEncoding Object
-   \return current number of bits in the managed CBitstreamLite
-*****************************************************************************/
-int AL_RbspEncoding_GetBitsCount(AL_TRbspEncoding* pRE);
-
+int AL_RbspEncoding_BeginSEI(AL_TBitStreamLite* pRE, uint8_t payloadType);
+void AL_RbspEncoding_EndSEI(AL_TBitStreamLite* pRE, int bookmarkSEI);
+void AL_RbspEncoding_CloseSEI(AL_TBitStreamLite* pRE);
 /****************************************************************************/
 
 #endif

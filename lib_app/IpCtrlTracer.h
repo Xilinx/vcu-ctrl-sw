@@ -84,7 +84,7 @@ public:
     return uVal;
   }
 
-  void RegisterCallBack(AL_PFN_IpCtrl_CallBack pfnCallBack, void* pUserData, uint8_t uNumInt) override
+  void RegisterCallBack(std::function<void(void)> handler, uint8_t uNumInt) override
   {
     auto onIrq =
       [=]()
@@ -97,7 +97,9 @@ public:
           printf("0x%X,", uNumInt);
           printf("\n");
         }
-        return pfnCallBack(pUserData);
+
+        if(handler)
+          handler();
       };
 
     m_cb[uNumInt].func = onIrq;

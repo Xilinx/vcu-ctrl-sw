@@ -50,8 +50,7 @@
 #include "allegro_ioctl_reg.h"
 #include "DevicePool.h"
 
-/* Allocator handle */
-struct DmaAllocCtx
+struct DmaBuffer
 {
   /* ioctl structure */
   struct al5_dma_info info;
@@ -67,31 +66,12 @@ struct LinuxDmaCtx
   int fd;
 };
 
-/*
- * Map a dmabuf in the process address space
- */
-static AL_VADDR LinuxDma_Map(int fd, size_t zSize)
-{
-  AL_VADDR vaddr = (AL_VADDR)mmap(0, zSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-
-  if(vaddr == MAP_FAILED)
-  {
-    perror("MAP_FAILED");
-    return NULL;
-  }
-  return vaddr;
-}
-
-/*
- * Get a dmabuf fd representing a buffer of size pInfo->size
- */
+/* Get a dmabuf fd representing a buffer of size pInfo->size */
 static bool LinuxDma_GetDmaFd(AL_TAllocator* pAllocator, struct al5_dma_info* pInfo)
 {
   struct LinuxDmaCtx* pCtx = (struct LinuxDmaCtx*)pAllocator;
 
-  int ret = ioctl(pCtx->fd, GET_DMA_FD, pInfo);
-
-  if(ret == -1)
+  if(ioctl(pCtx->fd, GET_DMA_FD, pInfo) == -1)
   {
     perror("GET_DMA_FD");
     return false;
@@ -103,9 +83,7 @@ static bool LinuxDma_GetBusAddrFromFd(AL_TLinuxDmaAllocator* pAllocator, struct 
 {
   struct LinuxDmaCtx* pCtx = (struct LinuxDmaCtx*)pAllocator;
 
-  int ret = ioctl(pCtx->fd, GET_DMA_PHY, pInfo);
-
-  if(ret == -1)
+  if(ioctl(pCtx->fd, GET_DMA_PHY, pInfo) == -1)
   {
     perror("GET_DMA_PHY");
     return false;
@@ -124,28 +102,24 @@ static size_t AlignToPageSize(size_t zSize)
 
 static AL_HANDLE LinuxDma_Alloc(AL_TAllocator* pAllocator, size_t zSize)
 {
-  struct DmaAllocCtx* pDmaAllocCtx = (struct DmaAllocCtx*)calloc(1, sizeof(*pDmaAllocCtx));
+  struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)calloc(1, sizeof(*pDmaBuffer));
 
-  if(!pDmaAllocCtx)
+  if(!pDmaBuffer)
     return NULL;
 
   size_t zMapSize = AlignToPageSize(zSize);
-  pDmaAllocCtx->info.size = zMapSize;
+  pDmaBuffer->info.size = zMapSize;
 
-  if(!LinuxDma_GetDmaFd(pAllocator, &pDmaAllocCtx->info))
+  if(!LinuxDma_GetDmaFd(pAllocator, &pDmaBuffer->info))
     goto fail;
 
-  pDmaAllocCtx->vaddr = LinuxDma_Map(pDmaAllocCtx->info.fd, zMapSize);
+  pDmaBuffer->vaddr = NULL;
+  pDmaBuffer->offset = 0;
 
-  if(!pDmaAllocCtx->vaddr)
-    goto fail;
-
-  pDmaAllocCtx->offset = 0;
-
-  return (AL_HANDLE)pDmaAllocCtx;
+  return (AL_HANDLE)pDmaBuffer;
 
   fail:
-  free(pDmaAllocCtx);
+  free(pDmaBuffer);
   return NULL;
 }
 
@@ -153,23 +127,20 @@ static AL_HANDLE LinuxDma_Alloc(AL_TAllocator* pAllocator, size_t zSize)
 static bool LinuxDma_Free(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
 {
   (void)pAllocator;
-  struct DmaAllocCtx* pDmaAllocCtx = (struct DmaAllocCtx*)hBuf;
-  int err;
+  struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)hBuf;
   bool bRet = true;
 
-  if(!pDmaAllocCtx)
+  if(!pDmaBuffer)
     return true;
 
-  err = munmap(pDmaAllocCtx->vaddr - pDmaAllocCtx->offset, pDmaAllocCtx->info.size);
-
-  if(err)
+  if(pDmaBuffer->vaddr && (munmap(pDmaBuffer->vaddr - pDmaBuffer->offset, pDmaBuffer->info.size) == -1))
   {
     bRet = false;
     perror("munmap");
   }
   /* we try closing the fd anyway */
-  close(pDmaAllocCtx->info.fd);
-  free(pDmaAllocCtx);
+  close(pDmaBuffer->info.fd);
+  free(pDmaBuffer);
 
   return bRet;
 }
@@ -184,16 +155,15 @@ int isAligned256B(AL_PADDR addr)
   return addr % 0x100 == 0;
 }
 
-static struct DmaAllocCtx* OverAllocateAndAlign256B(AL_TAllocator* pAllocator, size_t zSize)
+static struct DmaBuffer* OverAllocateAndAlign256B(AL_TAllocator* pAllocator, size_t zSize)
 {
-  struct DmaAllocCtx* p = LinuxDma_Alloc(pAllocator, Ceil256B(zSize));
+  struct DmaBuffer* p = LinuxDma_Alloc(pAllocator, Ceil256B(zSize));
 
   if(!p)
     return NULL;
 
-  void* vaddr;
   p->info.phy_addr = Ceil256B(p->info.phy_addr);
-  vaddr = (void*)Ceil256B((unsigned long)p->vaddr);
+  void* vaddr = (void*)Ceil256B((unsigned long)p->vaddr);
   p->offset = (unsigned long)vaddr - (unsigned long)p->vaddr;
   p->vaddr = vaddr;
 
@@ -201,7 +171,7 @@ static struct DmaAllocCtx* OverAllocateAndAlign256B(AL_TAllocator* pAllocator, s
 }
 
 #if 0
-static void LogAllocation(struct DmaAllocCtx* p)
+static void LogAllocation(struct DmaBuffer* p)
 {
   printf("Allocated: {vaddr:%p,phyaddr:%x,size:%d,offset:%d}\n", p->vaddr, p->info.phy_addr, p->info.size, p->offset);
 }
@@ -213,7 +183,7 @@ static void LogAllocation(struct DmaAllocCtx* p)
 
 static AL_HANDLE LinuxDma_Alloc_256B_Aligned(AL_TAllocator* pAllocator, size_t zSize)
 {
-  struct DmaAllocCtx* p = (struct DmaAllocCtx*)LinuxDma_Alloc(pAllocator, zSize);
+  struct DmaBuffer* p = (struct DmaBuffer*)LinuxDma_Alloc(pAllocator, zSize);
 
   if(!p)
     return NULL;
@@ -232,28 +202,43 @@ static AL_HANDLE LinuxDma_Alloc_256B_Aligned(AL_TAllocator* pAllocator, size_t z
   return (AL_HANDLE)p;
 }
 
+static AL_VADDR LinuxDma_Map(int fd, size_t zSize)
+{
+  AL_VADDR vaddr = (AL_VADDR)mmap(0, zSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+  if(vaddr == MAP_FAILED)
+  {
+    perror("MAP_FAILED");
+    return NULL;
+  }
+  return vaddr;
+}
+
 /******************************************************************************/
 static AL_VADDR LinuxDma_GetVirtualAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
 {
   (void)pAllocator;
-  struct DmaAllocCtx* pDmaAllocCtx = (struct DmaAllocCtx*)hBuf;
+  struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)hBuf;
 
-  if(!pDmaAllocCtx)
+  if(!pDmaBuffer)
     return NULL;
 
-  return (AL_VADDR)pDmaAllocCtx->vaddr;
+  if(!pDmaBuffer->vaddr)
+    pDmaBuffer->vaddr = LinuxDma_Map(pDmaBuffer->info.fd, pDmaBuffer->info.size);
+
+  return (AL_VADDR)pDmaBuffer->vaddr;
 }
 
 /******************************************************************************/
 static AL_PADDR LinuxDma_GetPhysicalAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
 {
   (void)pAllocator;
-  struct DmaAllocCtx* pDmaAllocCtx = (struct DmaAllocCtx*)hBuf;
+  struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)hBuf;
 
-  if(!pDmaAllocCtx)
+  if(!pDmaBuffer)
     return 0;
 
-  return (AL_PADDR)pDmaAllocCtx->info.phy_addr;
+  return (AL_PADDR)pDmaBuffer->info.phy_addr;
 }
 
 /******************************************************************************/
@@ -269,41 +254,28 @@ static bool LinuxDma_Destroy(AL_TAllocator* pAllocator)
 static int LinuxDma_GetFd(AL_TLinuxDmaAllocator* pAllocator, AL_HANDLE hBuf)
 {
   (void)pAllocator;
-  struct DmaAllocCtx* pDmaAllocCtx = (struct DmaAllocCtx*)hBuf;
+  struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)hBuf;
 
-  return pDmaAllocCtx->info.fd;
+  return pDmaBuffer->info.fd;
 }
 
 /******************************************************************************/
 
 static size_t LinuxDma_GetDmabufSize(int fd)
 {
-  size_t zSize;
-  off_t off;
-
-  off = lseek(fd, 0, SEEK_END);
+  off_t off = lseek(fd, 0, SEEK_END);
 
   if(off < 0)
   {
     if(errno == ESPIPE)
-    {
       perror("dmabuf lseek operation is not supported by your kernel");
-    }
     return 0;
   }
 
-  zSize = (size_t)off;
+  size_t zSize = (size_t)off;
 
-  off = lseek(fd, 0, SEEK_SET);
-
-  if(off < 0)
-  {
-    if(errno == ESPIPE)
-    {
-      perror("dmabuf lseek operation is not supported by your kernel");
-    }
-    return 0;
-  }
+  if(lseek(fd, 0, SEEK_SET) < 0 && errno == ESPIPE)
+    perror("dmabuf lseek operation is not supported by your kernel");
 
   return zSize;
 }
@@ -315,34 +287,29 @@ static int LinuxDma_ExportToFd(AL_TLinuxDmaAllocator* pAllocator, AL_HANDLE hBuf
 
 static AL_HANDLE LinuxDma_ImportFromFd(AL_TLinuxDmaAllocator* pAllocator, int fd)
 {
-  struct DmaAllocCtx* pDmaAllocCtx = (struct DmaAllocCtx*)calloc(1, sizeof(*pDmaAllocCtx));
+  struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)calloc(1, sizeof(*pDmaBuffer));
 
-  if(!pDmaAllocCtx)
+  if(!pDmaBuffer)
     return NULL;
 
-  pDmaAllocCtx->info.fd = fd;
+  pDmaBuffer->info.fd = fd;
 
-  /* this fills info.phy_addr */
-  if(!LinuxDma_GetBusAddrFromFd(pAllocator, &pDmaAllocCtx->info))
+  if(!LinuxDma_GetBusAddrFromFd(pAllocator, &pDmaBuffer->info))
     goto fail;
 
-  size_t zSize = LinuxDma_GetDmabufSize(fd);
+  size_t zMapSize = AlignToPageSize(LinuxDma_GetDmabufSize(fd));
 
-  if(zSize == 0)
+  if(zMapSize == 0)
     goto fail;
 
-  size_t zMapSize = AlignToPageSize(zSize);
-  pDmaAllocCtx->info.size = zMapSize;
-  pDmaAllocCtx->vaddr = LinuxDma_Map(fd, zMapSize);
+  pDmaBuffer->info.size = zMapSize;
+  pDmaBuffer->vaddr = NULL;
 
-  if(!pDmaAllocCtx->vaddr)
-    goto fail;
-
-  return pDmaAllocCtx;
+  return pDmaBuffer;
 
   fail:
-  close(pDmaAllocCtx->info.fd);
-  free(pDmaAllocCtx);
+  close(pDmaBuffer->info.fd);
+  free(pDmaBuffer);
   return NULL;
 }
 
@@ -356,6 +323,7 @@ static const AL_DmaAllocLinuxVtable DmaAllocLinuxVtable =
     &LinuxDma_Free,
     &LinuxDma_GetVirtualAddr,
     &LinuxDma_GetPhysicalAddr,
+    NULL,
   },
   &LinuxDma_GetFd,
   &LinuxDma_ImportFromFd,

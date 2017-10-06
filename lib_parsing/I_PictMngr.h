@@ -149,11 +149,11 @@ typedef struct t_PictMngrCtx
    \param[in] uHeight     Picture height in pixels unit
    \param[in] uNumMvBuf   Number of motion-vector buffer to manage
    \param[in] uNumRef     Number of reference to manage
-   \param[in] uNumInterBuf Number of intermediate buffer to manage
+   \param[in] eMode       Mode of the DPB
    \return If the function succeeds the return value is nonzero (true)
          If the function fails the return value is zero (false)
 *****************************************************************************/
-bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, bool bAvc, uint16_t uWidth, uint16_t uHeight, uint8_t uNumMvBuf, uint8_t uNumRef, uint8_t uNumInterBuf);
+bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, bool bAvc, uint16_t uWidth, uint16_t uHeight, uint8_t uNumMvBuf, uint8_t uNumRef, AL_EDpbMode eMode);
 
 /*************************************************************************//*!
    \brief Flush all pictures so all buffers are fully released

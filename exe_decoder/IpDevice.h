@@ -39,6 +39,7 @@
 #include <memory>
 #include <functional>
 #include "CodecUtils.h"
+#include "lib_app/utils.h"
 #include "lib_common_dec/DecChanParam.h"
 
 typedef struct AL_t_Allocator AL_TAllocator;
@@ -47,15 +48,9 @@ typedef struct AL_t_IDecChannel AL_TIDecChannel;
 /*****************************************************************************/
 struct CIpDevice
 {
-  virtual ~CIpDevice()
-  {
-    if(destroy)
-      destroy();
-  };
   AL_TIDecChannel* m_pDecChannel = nullptr;
-  AL_TAllocator* m_pAllocator = nullptr;
-  std::function<void(void)> destroy;
+  std::shared_ptr<AL_TAllocator> m_pAllocator;
 };
 
-std::unique_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, AL_EDecUnit eDecUnit, IpCtrlMode ipCtrlMode, int uNumCore = 0, int iVip = 0);
+std::shared_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, AL_EDecUnit eDecUnit, IpCtrlMode ipCtrlMode, bool trackDma = false, int uNumCore = 0, int iVip = 0);
 

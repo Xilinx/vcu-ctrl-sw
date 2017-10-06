@@ -199,20 +199,13 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, FILE* pOut);
    \param[in] tFourCC Encoding tFourCC format
    \param[in] pOut Optional standard stream on which verbose messages are
    written.
-   \return If no incoherency is found the function returns non-zero (true)
-   else If the function find some incoherent parameters, it returns
-   zero (false). Since the function automatically apply correction,
+   \return 0 if no incoherency
+           the number of incoherency if incoherency were found
+   -1 if a fatal incoherency was found
+   Since the function automatically apply correction,
    the Settings can be then used with IP encoder.
  *****************************************************************************/
-bool AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE* pOut);
-
-/*************************************************************************//*!
-   \brief The GetMaxTileRow function retrieves the maximum number of tile row respect to the
-   level constraint
-   \param[in] pSettings Pointer to the encoding user settings
-   \return return the maximum number of tile rows allowed by the specified level
- ****************************************************************************/
-uint32_t AL_Settings_GetHevcMaxTileRow(AL_TEncSettings const* pSettings);
+int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE* pOut);
 
 
 /*@}*/

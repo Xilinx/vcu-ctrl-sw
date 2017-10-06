@@ -95,7 +95,7 @@ static size_t TryCopyBufferToStream(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, T
   uint32_t uBufOffset = GetBufferOffset(pMeta);
   size_t zCopySize = GetCopiedAreaSize(pBuf, pMeta, stream);
 
-  CopyAreaToStream(pBuf->pData, uBufOffset, zCopySize, stream);
+  CopyAreaToStream(AL_Buffer_GetData(pBuf), uBufOffset, zCopySize, stream);
 
   stream->uAvailSize += zCopySize;
 
@@ -140,7 +140,7 @@ size_t AL_Patchworker_CopyBuffer(AL_TPatchworker* this, AL_TBuffer* pBuf, size_t
   return zNotCopiedSize;
 }
 
-bool AL_Patchworker_Init(AL_TPatchworker* this, TCircBuffer* pCircularBuf)
+bool AL_Patchworker_Init(AL_TPatchworker* this, TCircBuffer* pCircularBuf, AL_TFifo* pInputFifo)
 {
   if(!pCircularBuf)
     return false;
@@ -151,6 +151,7 @@ bool AL_Patchworker_Init(AL_TPatchworker* this, TCircBuffer* pCircularBuf)
   this->outputCirc = pCircularBuf;
   this->lock = Rtos_CreateMutex(false);
   this->workBuf = NULL;
+  this->inputFifo = pInputFifo;
   CircBuffer_Init(this->outputCirc);
 
   /* prevent trailing_zero_bits*/

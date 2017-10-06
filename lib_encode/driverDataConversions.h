@@ -42,7 +42,7 @@
 #include "lib_common_enc/EncChanParam.h"
 #include "lib_common/BufferAPI.h"
 
-void setConfigChannelMsg(struct al5_config_channel* msg, AL_TEncChanParam* pChParam, AL_PADDR pEP1);
+void setChannelParam(struct al5_params* msg, AL_TEncChanParam* pChParam, AL_PADDR pEP1);
 void setEncodeMsg(struct al5_encode_msg* msg, AL_TEncInfo* encInfo, AL_TEncRequestInfo* reqInfo, AL_TEncPicBufAddrs* bufAddrs);
 
 #endif

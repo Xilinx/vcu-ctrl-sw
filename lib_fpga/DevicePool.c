@@ -202,11 +202,13 @@ static int DevicePool_Close(struct DevicePool* pDP, int fd)
 static bool g_DevicePoolInit;
 static struct DevicePool g_DevicePool;
 
+static
 void AL_DevicePool_Deinit()
 {
   DevicePool_Deinit(&g_DevicePool);
 }
 
+static
 bool AL_DevicePool_Init()
 {
   atexit(&AL_DevicePool_Deinit);

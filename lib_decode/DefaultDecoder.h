@@ -55,7 +55,7 @@ typedef struct
   AL_TDecCtx ctx;
 }AL_TDefaultDecoder;
 
-AL_TDecoder* AL_CreateDefaultDecoder(AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
+AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
 
 /*************************************************************************//*!
    \brief This function performs the decoding of one AU
@@ -79,10 +79,11 @@ void AL_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus);
    \param[out] pMD  Pointer to TMemDesc structure that receives allocated
                   memory informations
    \param[in] uSize Number of bytes to allocate
+   \param[in] name name of the buffer for debug purpose
    \return If the function succeeds the return value is nonzero (true)
          If the function fails the return value is zero (false)
 *****************************************************************************/
-bool AL_Decoder_Alloc(AL_TDecCtx* pCtx, TMemDesc* pMD, uint32_t uSize);
+bool AL_Decoder_Alloc(AL_TDecCtx* pCtx, TMemDesc* pMD, uint32_t uSize, char const* name);
 
 /*@}*/
 

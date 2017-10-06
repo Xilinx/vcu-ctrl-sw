@@ -50,9 +50,6 @@
 static const size_t AL_SL_INTRA = 0;
 static const size_t AL_SL_INTER = 1;
 
-static const size_t AL_SL_FORWARD = 0;
-static const size_t AL_SL_INVERSE = 1;
-
 /******************************************************************************/
 typedef uint32_t AL_TLevels4x4[4 * 4];
 typedef uint32_t AL_TLevels8x8[8 * 8];

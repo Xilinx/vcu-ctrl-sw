@@ -38,10 +38,7 @@
 #pragma once
 
 void AL_Decoder_Trace(void* pUserParam, void* pPicUserParam, int iNumCore, uint32_t* pCmdRegs0, uint32_t* pCmdRegs1, int iMode);
-uint32_t AL_sRemove_AntiEmulBytes(TBuffer* pBufNoAE, TCircBuffer* pStream, uint32_t uLength, uint32_t* uNumAE);
-void StartNewFrame(TDecCtx* pCtx);
 void UpdateCircBuffer(AL_TRbspParser* pRP, TCircBuffer* pBufStream, int* pSliceHdrLength);
-void CheckNumSlices(TDecCtx* pCtx);
 bool SkipNal();
 
 AL_TRbspParser getParserOnNonVclNal(AL_TDecCtx* pCtx);

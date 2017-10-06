@@ -44,6 +44,7 @@
  *****************************************************************************/
 #pragma once
 #include "lib_app/InputFiles.h"
+#include "lib_app/utils.h"
 
 extern "C"
 {
@@ -53,12 +54,6 @@ extern "C"
 
 #include <string>
 using namespace std;
-
-enum SCHEDULER_TYPE
-{
-  SCHEDULER_TYPE_CPU,
-  SCHEDULER_TYPE_MCU,
-};
 
 /*************************************************************************//*!
    \brief Mimics structure for RUN Section of cfg file
@@ -72,7 +67,10 @@ typedef struct tCfgRunInfo
   unsigned int iFirstPict;
   unsigned int iScnChgLookAhead;
   string sMd5Path;
-  int logIpInteractions;
+  int iVip;
+  int eVQDescr;
+  IpCtrlMode ipCtrlMode;
+  bool trackDma = false;
 }TCfgRunInfo;
 
 /*************************************************************************//*!

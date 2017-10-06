@@ -63,7 +63,7 @@ public:
       return nullptr;
 
     AL_TBuffer* QpBuf = AL_BufPool_GetBuffer(&bufpool, AL_BUF_MODE_BLOCK);
-    PreprocessQP(AL_Buffer_GetBufferData(QpBuf), settings, frameNum);
+    PreprocessQP(AL_Buffer_GetData(QpBuf), settings, frameNum);
     return QpBuf;
   }
 
@@ -71,7 +71,7 @@ public:
   {
     if(!isExternQpTable || !buffer)
       return;
-    AL_BufPool_ReleaseBuffer(&bufpool, buffer);
+    AL_Buffer_Unref(buffer);
   }
 
 private:
@@ -171,7 +171,15 @@ void ThrowEncoderError(AL_ERR eErr)
     break;
   case AL_ERR_TOO_MANY_SLICES: Message(CC_RED, "Stream Error : Too many slices\n");
     break;
-  case AL_ERR_CHAN_CREATION_FAIL: throw codec_error("Encoder failed : Channel creation failed", eErr);
+  case AL_ERR_CHAN_CREATION_NO_CHANNEL_AVAILABLE: throw codec_error("Encoder failed : Channel creation failed, no channel available", eErr);
+    break;
+  case AL_ERR_CHAN_CREATION_RESOURCE_UNAVAILABLE: throw codec_error("Encoder failed : Channel creation failed, processing power of the available cores insufficient", eErr);
+    break;
+  case AL_ERR_CHAN_CREATION_NOT_ENOUGH_CORES: throw codec_error("Encoder failed : Channel creation failed, couldn't spread the load on enough cores", eErr);
+    break;
+  case AL_ERR_REQUEST_MALFORMED: throw codec_error("Encoder failed : Channel creation failed, request was malformed", eErr);
+    break;
+  case AL_ERR_NO_MEMORY: throw codec_error("Encoder failed : Memory shortage detected (dma, embedded memory or virtual memory shortage)", eErr);
     break;
 #if ENABLE_WATCHDOG
   case AL_ERR_WATCHDOG_TIMEOUT: throw codec_error("Encoder failed : Watch dog timeout", eErr);
@@ -202,10 +210,10 @@ struct EncoderSink : IFrameSink
     (void)sGMVFileName;
     AL_CB_EndEncoding onEndEncoding = { &EncoderSink::EndEncoding, this };
 
-    hEnc = AL_Encoder_Create(pScheduler, pAllocator, &cfg.Settings, onEndEncoding);
+    AL_ERR errorCode = AL_Encoder_Create(&hEnc, pScheduler, pAllocator, &cfg.Settings, onEndEncoding);
 
-    if(!hEnc)
-      ThrowEncoderError(AL_ERR_CHAN_CREATION_FAIL);
+    if(errorCode)
+      ThrowEncoderError(errorCode);
 
     BitstreamOutput.reset(new NullFrameSink);
     RecOutput.reset(new NullFrameSink);
@@ -262,9 +270,31 @@ private:
   LongTermRef LT;
   QPBuffers qpBuffers;
 
-  static void EndEncoding(void* userParam, AL_TBuffer* pStream, AL_TBuffer const* /* pSrc */)
+  static inline bool isEOS(AL_TBuffer* pStream, AL_TBuffer const* pSrc)
+  {
+    return !pStream && !pSrc;
+  }
+
+  static inline bool isEncodedFrame(AL_TBuffer* pStream, AL_TBuffer const* pSrc)
+  {
+    return pStream && pSrc;
+  }
+
+  static inline bool isStreamReleased(AL_TBuffer* pStream, AL_TBuffer const* pSrc)
+  {
+    return pStream && !pSrc;
+  }
+
+  static void EndEncoding(void* userParam, AL_TBuffer* pStream, AL_TBuffer const* pSrc)
   {
     auto pThis = (EncoderSink*)userParam;
+
+    if(!isEncodedFrame(pStream, pSrc) && !isEOS(pStream, pSrc) && !isStreamReleased(pStream, pSrc))
+      assert(0);
+
+    if(isStreamReleased(pStream, pSrc))
+      return;
+
     pThis->processOutput(pStream);
   }
 

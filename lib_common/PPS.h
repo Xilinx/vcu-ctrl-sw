@@ -187,6 +187,15 @@ typedef struct t_Hevc_Pps
   bool bConceal;
 }AL_THevcPps;
 
+typedef struct
+{
+  union
+  {
+    AL_THevcPps m_HevcPPS;
+    AL_TAvcPps m_AvcPPS;
+  };
+}AL_TPps;
+
 /****************************************************************************/
 
 /*@}*/

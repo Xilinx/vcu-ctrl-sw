@@ -56,7 +56,7 @@ typedef struct al_t_BufferFeeder
   AL_TBuffer* eosBuffer;
 }AL_TBufferFeeder;
 
-AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, AL_TAllocator* pAllocator, size_t zCircularBufferSize, AL_UINT uMaxBufNum);
+AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, AL_TAllocator* pAllocator, size_t zCircularBufferSize, AL_UINT uMaxBufNum, AL_CB_Error* errorCallback);
 void AL_BufferFeeder_Destroy(AL_TBufferFeeder* pFeeder);
 /* push a buffer in the queue. it will be fed to the decoder when possible */
 bool AL_BufferFeeder_PushBuffer(AL_TBufferFeeder* pFeeder, AL_TBuffer* pBuf, AL_EBufMode eMode, size_t uSize);

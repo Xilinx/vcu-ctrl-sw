@@ -112,7 +112,7 @@ static uint32_t GetLumaRowSize(TFourCC fourCC, uint32_t uWidth)
 /*****************************************************************************/
 static uint32_t ReadFileLumaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSize, uint32_t uFileNumRow, bool bPadding = false)
 {
-  char* pTmp = reinterpret_cast<char*>(pBuf->pData);
+  char* pTmp = reinterpret_cast<char*>(AL_Buffer_GetData(pBuf));
 
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
 
@@ -146,7 +146,7 @@ static uint32_t ReadFileLumaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32
 /*****************************************************************************/
 static uint32_t ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uOffset, uint32_t uFileRowSize, uint32_t uFileNumRow, bool bPadding = false)
 {
-  char* pTmp = reinterpret_cast<char*>(pBuf->pData + uOffset);
+  char* pTmp = reinterpret_cast<char*>(AL_Buffer_GetData(pBuf) + uOffset);
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
 
   uint32_t uNumRowC = (AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_0) ? uFileNumRow >> 1 : uFileNumRow;
@@ -188,7 +188,7 @@ static uint32_t ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
 /*****************************************************************************/
 static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uOffset, uint32_t uFileRowSize, uint32_t uFileNumRow)
 {
-  char* pTmp = reinterpret_cast<char*>(pBuf->pData + uOffset);
+  char* pTmp = reinterpret_cast<char*>(AL_Buffer_GetData(pBuf) + uOffset);
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
   uint32_t uNumRowC = (AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_0) ? uFileNumRow >> 1 : uFileNumRow;
 
@@ -276,7 +276,7 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf, int iWidth, int 
   if(!File.is_open())
     return false;
 
-  char* pTmp = reinterpret_cast<char*>(pBuf->pData);
+  char* pTmp = reinterpret_cast<char*>(AL_Buffer_GetData(pBuf));
   int iSizePix = GetPixelSize(AL_GetBitDepth(pBufMeta->tFourCC));
 
   if(pBufMeta->tPitches.iLuma == iWidth * iSizePix)
@@ -431,7 +431,7 @@ bool WriteCompFrame(std::ofstream& File, std::ofstream& MapFile, std::ofstream& 
     int iNumRowY = (uHeight + 3) >> 2;
     int iRndNumRowY = ((uHeight + 63) & ~63) >> 2;
     int iRowSizeY = (((uWidth + 63) & ~63) << 2) * uBitDepth / 8;
-    const char* pTmp = reinterpret_cast<const char*>(pBuf->pData);
+    const char* pTmp = reinterpret_cast<const char*>(AL_Buffer_GetData(pBuf));
 
     for(int r = 0; r < iNumRowY; ++r)
     {
@@ -448,7 +448,7 @@ bool WriteCompFrame(std::ofstream& File, std::ofstream& MapFile, std::ofstream& 
     int iNumRowC = (uHeight + 3) >> 3;
     int iRndNumRowC = ((uHeight + 63) & ~63) >> 3;
     int iRowSizeC = (((uWidth + 63) & ~63) << 2) * uBitDepth / 8;
-    const char* pTmp = reinterpret_cast<const char*>(pBuf->pData + iOffset);
+    const char* pTmp = reinterpret_cast<const char*>(AL_Buffer_GetData(pBuf) + iOffset);
 
     for(int r = 0; r < iNumRowC; ++r)
     {
@@ -463,7 +463,7 @@ bool WriteCompFrame(std::ofstream& File, std::ofstream& MapFile, std::ofstream& 
     int iNumRowC = (uHeight + 3) >> 2;
     int iRndNumRowC = ((uHeight + 63) & ~63) >> 2;
     int iRowSizeC = (((uWidth + 63) & ~63) << 2) * uBitDepth / 8;
-    const char* pTmp = reinterpret_cast<const char*>(pBuf->pData + iOffset);
+    const char* pTmp = reinterpret_cast<const char*>(AL_Buffer_GetData(pBuf) + iOffset);
 
     for(int r = 0; r < iNumRowC; ++r)
     {
@@ -480,7 +480,7 @@ bool WriteCompFrame(std::ofstream& File, std::ofstream& MapFile, std::ofstream& 
     int iRowSize = 32 * ((uWidth + 4095) >> 12);
 
     // Luma
-    const char* pTmp = reinterpret_cast<const char*>(pBuf->pData + iOffset);
+    const char* pTmp = reinterpret_cast<const char*>(AL_Buffer_GetData(pBuf) + iOffset);
     MapFile.write(pTmp, iNumRowMap * iRowSize);
 
     // Chroma
@@ -554,7 +554,7 @@ void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection)
 {
   AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
   AL_TStreamSection* pCurSection = &pStreamMeta->pSections[iSection];
-  uint8_t* pData = pStream->pData;
+  uint8_t* pData = AL_Buffer_GetData(pStream);
 
   if(pCurSection->uLength)
   {
@@ -567,7 +567,7 @@ void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection)
     }
     else
     {
-      File.write((char*)(pStream->pData + pCurSection->uOffset), pCurSection->uLength);
+      File.write((char*)(pData + pCurSection->uOffset), pCurSection->uLength);
     }
   }
 }

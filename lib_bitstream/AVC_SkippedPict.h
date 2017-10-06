@@ -45,7 +45,7 @@
 #pragma once
 
 #include "lib_rtos/types.h"
-#include "common_Rbsp_Struct.h"
+#include "SkippedPicture.h"
 
 /*************************************************************************//*!
    \brief The GenerateSkippedPicture function generate Slice data for skipped

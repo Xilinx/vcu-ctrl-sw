@@ -116,7 +116,7 @@ void SetDefaults(ConfigFile& cfg)
   cfg.RunInfo.iMaxPict = INT_MAX; // ALL
   cfg.RunInfo.iFirstPict = 0;
   cfg.RunInfo.iScnChgLookAhead = 3;
-  cfg.RunInfo.logIpInteractions = 0;
+  cfg.RunInfo.ipCtrlMode = IPCTRL_MODE_STANDARD;
 
   cfg.strict_mode = false;
 }
@@ -193,6 +193,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   }, "Enable color");
 
   opt.addFlag("--quiet,-q", &g_Verbosity, "do not output anything", 0);
+
   opt.addInt("--input-width", &cfg.FileInfo.PictWidth, "Specify YUV input width");
   opt.addInt("--input-height", &cfg.FileInfo.PictHeight, "Specify YUV input height");
   opt.addOption("--chroma-mode", [&]()
@@ -208,9 +209,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addCustom("--output-format", &cfg.RecFourCC, &GetCmdlineFourCC, "Specify output format");
   opt.addCustom("--ratectrl-mode", &cfg.Settings.tChParam.tRCParam.eRCMode, &GetCmdlineValue,
                 "Specify rate control mode (CONST_QP, CBR, VBR"
-#if AL_ENABLE_HWTC
                 ", LOW_LATENCY"
-#endif
                 ")"
                 );
   opt.addOption("--bitrate", [&]()
@@ -234,8 +233,6 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addInt("--num-slices", &cfg.Settings.tChParam.uNumSlices, "Specify the number of slices to use");
   opt.addInt("--num-core", &cfg.Settings.tChParam.uNumCore, "Specify the number of cores to use (resolution needs to be sufficient)");
   opt.addFlag("--loop", &cfg.RunInfo.bLoop, "loop at the end of the yuv file");
-  opt.addFlag("--slicelat", &cfg.Settings.tChParam.bSubframeLatency, "enable subframe latency");
-  opt.addFlag("--framelat", &cfg.Settings.tChParam.bSubframeLatency, "disable subframe latency", false);
 
   opt.addInt("--prefetch", &g_numFrameToRepeat, "prefetch n frames and loop between these frames for max picture count");
   opt.parse(argc, argv);
@@ -245,6 +242,12 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
     Usage(opt, argv[0]);
     exit(0);
   }
+
+  if(cfg.FileInfo.PictWidth > UINT16_MAX)
+    throw runtime_error("Unsupported picture width value");
+
+  if(cfg.FileInfo.PictHeight > UINT16_MAX)
+    throw runtime_error("Unsupported picture height value");
 
   cfg.Settings.tChParam.uWidth = cfg.FileInfo.PictWidth;
   cfg.Settings.tChParam.uHeight = cfg.FileInfo.PictHeight;
@@ -277,10 +280,10 @@ void ValidateConfig(ConfigFile& cfg)
     throw runtime_error(ss.str());
   }
 
-  if(!AL_Settings_CheckCoherency(&cfg.Settings, cfg.FileInfo.FourCC, stdout))
-  {
-    ::Sleep(1500);
-  }
+  auto const incoherencies = AL_Settings_CheckCoherency(&cfg.Settings, cfg.FileInfo.FourCC, stdout);
+
+  if(incoherencies == -1)
+    throw runtime_error("Fatal coherency error in settings");
   SetConsoleColor(CC_DEFAULT);
 }
 
@@ -338,16 +341,16 @@ shared_ptr<AL_TBuffer> AllocateConversionBuffer(vector<uint8_t>& YuvBuffer, int 
   return shared_ptr<AL_TBuffer>(Yuv, &AL_Buffer_Destroy);
 }
 
-AL_TBuffer* ReadSourceFrame(AL_TBufPool* pBufPool, AL_TBuffer* conversionBuffer, ifstream& YuvFile, ConfigFile const& cfg, IConvSrc* hConv)
+shared_ptr<AL_TBuffer> ReadSourceFrame(AL_TBufPool* pBufPool, AL_TBuffer* conversionBuffer, ifstream& YuvFile, ConfigFile const& cfg, IConvSrc* hConv)
 {
-  auto sourceBuffer = AL_BufPool_GetBuffer(pBufPool, AL_BUF_MODE_BLOCK);
+  shared_ptr<AL_TBuffer> sourceBuffer(AL_BufPool_GetBuffer(pBufPool, AL_BUF_MODE_BLOCK), &AL_Buffer_Unref);
   assert(sourceBuffer);
 
-  if(!ReadOneFrameYuv(YuvFile, hConv ? conversionBuffer : sourceBuffer, cfg.RunInfo.bLoop))
+  if(!ReadOneFrameYuv(YuvFile, hConv ? conversionBuffer : sourceBuffer.get(), cfg.RunInfo.bLoop))
     return nullptr;
 
   if(hConv)
-    hConv->ConvertSrcBuf(AL_GET_BITDEPTH(cfg.Settings.tChParam.ePicFormat), conversionBuffer, sourceBuffer);
+    hConv->ConvertSrcBuf(AL_GET_BITDEPTH(cfg.Settings.tChParam.ePicFormat), conversionBuffer, sourceBuffer.get());
 
   return sourceBuffer;
 }
@@ -390,18 +393,17 @@ int sendInputFileTo(string YUVFileName, BufPool& SrcBufPool, AL_TBuffer* Yuv, Co
 
   while(true)
   {
-    AL_TBuffer* frame = NULL;
+    shared_ptr<AL_TBuffer> frame;
 
     if(!isLastPict(iPictCount, cfg.RunInfo.iMaxPict))
       frame = ReadSourceFrame(&SrcBufPool, Yuv, YuvFile, cfg, pSrcConv);
 
-    sink->ProcessFrame(frame);
+    sink->ProcessFrame(frame.get());
 
     if(!frame)
       break;
 
     iPictCount++;
-    AL_BufPool_ReleaseBuffer(&SrcBufPool, frame);
   }
 
   return iPictCount;
@@ -427,7 +429,7 @@ int SafeMain(int argc, char** argv)
   ValidateConfig(cfg);
   SetMoreDefaults(cfg);
 
-  auto pIpDevice = CreateIpDevice(!RunInfo.bUseBoard, RunInfo.iSchedulerType, Settings, RunInfo.logIpInteractions);
+  auto pIpDevice = CreateIpDevice(!RunInfo.bUseBoard, RunInfo.iSchedulerType, Settings, RunInfo.ipCtrlMode, RunInfo.trackDma, RunInfo.iVip, RunInfo.eVQDescr);
 
   if(!pIpDevice)
     throw runtime_error("Can't create IpDevice");
@@ -439,7 +441,7 @@ int SafeMain(int argc, char** argv)
 
   // --------------------------------------------------------------------------------
   // Create Encoder
-  auto pAllocator = pIpDevice->m_pAllocator;
+  auto pAllocator = pIpDevice->m_pAllocator.get();
   auto pScheduler = pIpDevice->m_pScheduler;
 
   AL_TBufPoolConfig StreamBufPoolConfig;
@@ -460,7 +462,8 @@ int SafeMain(int argc, char** argv)
   StreamBufPoolConfig.uMinBuf = numStreams;
   StreamBufPoolConfig.uMaxBuf = numStreams;
   StreamBufPoolConfig.zBufSize = streamSize;
-  StreamBufPoolConfig.pMetaData = (AL_TMetaData*)AL_StreamMetaData_Create(AL_MAX_SECTION, StreamBufPoolConfig.zBufSize);
+  StreamBufPoolConfig.pMetaData = (AL_TMetaData*)AL_StreamMetaData_Create(AL_MAX_SECTION);
+  StreamBufPoolConfig.debugName = "stream";
 
   BufPool StreamBufPool(pAllocator, StreamBufPoolConfig);
 
@@ -479,6 +482,7 @@ int SafeMain(int argc, char** argv)
     QpBufPoolConfig.uMaxBuf = frameBuffersCount;
     QpBufPoolConfig.zBufSize = GetAllocSizeEP2(cfg.Settings.tChParam.uWidth, cfg.Settings.tChParam.uHeight, cfg.Settings.tChParam.uMaxCuSize);
     QpBufPoolConfig.pMetaData = NULL;
+    QpBufPoolConfig.debugName = "qp-ext";
   }
   AL_TBufPool QpBufPool;
   AL_BufPool_Init(&QpBufPool, pAllocator, &QpBufPoolConfig);
@@ -499,7 +503,6 @@ int SafeMain(int argc, char** argv)
   IFrameSink* firstSink = enc.get();
 
   // Input/Output Format conversion
-  // Missing a method to create a wrapped buffer
   shared_ptr<AL_TBuffer> SrcYuv;
   vector<uint8_t> YuvBuffer;
 
@@ -532,6 +535,7 @@ int SafeMain(int argc, char** argv)
     assert(pStream);
     auto bRet = AL_Encoder_PutStreamBuffer(enc->hEnc, pStream);
     assert(bRet);
+    AL_Buffer_Unref(pStream);
   }
 
   unique_ptr<RepeaterSink> prefetch;
@@ -552,7 +556,7 @@ int SafeMain(int argc, char** argv)
   SetPitchYC(p, cfg.FileInfo.PictWidth, FourCC);
   AL_TOffsetYC tOffsetYC = GetOffsetYC(p.iLuma, cfg.FileInfo.PictHeight);
 
-  /* source compression case*/
+  /* source compression case */
   unique_ptr<IConvSrc> pSrcConv;
   switch(cfg.Settings.tChParam.eSrcConvMode)
   {
@@ -569,6 +573,7 @@ int SafeMain(int argc, char** argv)
   poolConfig.uMaxBuf = frameBuffersCount;
   poolConfig.zBufSize = pSrcConv->GetConvBufSize();
   poolConfig.pMetaData = (AL_TMetaData*)AL_SrcMetaData_Create(cfg.FileInfo.PictWidth, cfg.FileInfo.PictHeight, p, tOffsetYC, FourCC);
+  poolConfig.debugName = "src";
 
   bool ret = AL_BufPool_Init(&SrcBufPool, pAllocator, &poolConfig);
   assert(ret);

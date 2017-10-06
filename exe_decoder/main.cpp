@@ -70,19 +70,20 @@ extern "C"
 #include "crc.h"
 
 
-#define BUFFER_HELD_BY_NEXT_COMPONENT 1 /* We need at lease 1 buffer to copy the output on a file */
-
 using namespace std;
 
 const char* ToString(AL_ERR eErrCode)
 {
   switch(eErrCode)
   {
-  case ERR_INIT_FAILED: return "Failed to initialize the decoder";
-  case ERR_CHANNEL_NOT_CREATED: return "Channel not created";
-  case ERR_NO_FRAME_DECODED: return "No frame decoded";
-  case ERR_RESOLUTION_CHANGE: return "Resolution Change is not supported";
-  case ERR_NO_MORE_MEMORY: return "No more memory ! You need more space !";
+  case AL_ERR_INIT_FAILED: return "Failed to initialize the decoder";
+  case AL_ERR_CHAN_CREATION_NO_CHANNEL_AVAILABLE: return "Channel not created, no channel available";
+  case AL_ERR_CHAN_CREATION_RESOURCE_UNAVAILABLE: return "Channel not created, processing power of the available cores insufficient";
+  case AL_ERR_CHAN_CREATION_NOT_ENOUGH_CORES: return "Channel not created, couldn't spread the load on enough cores";
+  case AL_ERR_REQUEST_MALFORMED: return "Channel not created: request was malformed";
+  case AL_ERR_NO_FRAME_DECODED: return "No frame decoded";
+  case AL_ERR_RESOLUTION_CHANGE: return "Resolution Change is not supported";
+  case AL_ERR_NO_MEMORY: return "Memory shortage detected (dma, embedded memory or virtual memory shortage)";
   case AL_ERR_BUFFER_EXCEPTION: return "No frame decoded";
   case AL_ERR_NOT_SUPPORTED: return "Stream Not supported";
   case AL_SUCCESS: return "Success";
@@ -135,9 +136,11 @@ struct Config
   int iNumberTrace = 0;
   bool bConceal = false;
   bool bEnableYUVOutput = true;
+  int iVip = 0;
   unsigned int uInputBufferNum = 2;
   size_t zInputBufferSize = 32 * 1024;
   IpCtrlMode ipCtrlMode = IPCTRL_MODE_STANDARD;
+  bool trackDma = false;
 
   int iLoop = 1;
 };
@@ -216,13 +219,9 @@ static Config ParseCommandLine(int argc, char* argv[])
 
   opt.addCustom("-clk", &Config.tDecSettings.uClkRatio, &IntWithOffset<1000>, "Set clock ratio");
 
-  opt.addFlag("-slicelat", &Config.tDecSettings.eDecUnit,
-              "Specify decoder latency (default: Frame Latency)",
-              AL_VCL_NAL_UNIT);
-
-  opt.addFlag("-framelat", &Config.tDecSettings.eDecUnit,
-              "Specify decoder latency (default: Frame Latency)",
-              AL_AU_UNIT);
+  opt.addFlag("-lowref", &Config.tDecSettings.eDpbMode,
+              "Specify decoder DPB Low ref (stream musn't have B-frame & reference must be at best 1",
+              AL_DPB_LOW_REF);
 
   opt.addFlag("-avc", &Config.tDecSettings.bIsAvc,
               "Specify the input bitstream codec (default: HEVC)",
@@ -290,8 +289,7 @@ AL_TO_IP Bind(AL_TO_IP_SCALE* convertFunc, int horzScale, int vertScale)
   return conversion;
 }
 
-static
-int GetPictureSizeInSamples(AL_TSrcMetaData* meta)
+static int GetPictureSizeInSamples(AL_TSrcMetaData* meta)
 {
   int sx;
   int sy;
@@ -389,20 +387,16 @@ AL_TO_IP GetConversionFunction(TFourCC input, int iBdOut)
 static void ConvertFrameBuffer(AL_TBuffer& input, int iBdIn, AL_TBuffer& output, int iBdOut)
 {
   auto pRecMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(&input, AL_META_TYPE_SOURCE);
-
   auto eChromaMode = AL_GetChromaMode(pRecMeta->tFourCC);
-
   pRecMeta->tFourCC = GetInternalFourCC(eChromaMode, iBdIn);
-
   auto const iSizePix = (iBdOut + 7) >> 3;
-
   uint32_t uSize = GetPictureSizeInSamples(pRecMeta) * iSizePix;
 
   if(uSize != output.zSize)
   {
     AL_Allocator_Free(output.pAllocator, output.hBuf);
     output.hBuf = AL_Allocator_Alloc(output.pAllocator, uSize);
-    output.pData = AL_Allocator_GetVirtualAddr(output.pAllocator, output.hBuf);
+    AL_Buffer_SetData(&output, AL_Allocator_GetVirtualAddr(output.pAllocator, output.hBuf));
     output.zSize = uSize;
   }
 
@@ -455,12 +449,12 @@ static void ProcessFrame(AL_TBuffer& tRecBuf, AL_TBuffer& tYuvBuf, AL_TInfoDecod
 
       if(iBdOut == 8)
       {
-        uint8_t* pBuf = tYuvBuf.pData;
+        uint8_t* pBuf = AL_Buffer_GetData(&tYuvBuf);
         Compute_CRC(info.uBitDepthY, info.uBitDepthC, iBdOut, iNumPix, iNumPixC, eChromaMode, pBuf, ofCertCrcFile);
       }
       else
       {
-        uint16_t* pBuf = (uint16_t*)tYuvBuf.pData;
+        uint16_t* pBuf = (uint16_t*)AL_Buffer_GetData(&tYuvBuf);
         Compute_CRC(info.uBitDepthY, info.uBitDepthC, iBdOut, iNumPix, iNumPixC, eChromaMode, pBuf, ofCertCrcFile);
       }
     }
@@ -468,7 +462,7 @@ static void ProcessFrame(AL_TBuffer& tRecBuf, AL_TBuffer& tYuvBuf, AL_TInfoDecod
     if(ofYuvFile.is_open())
     {
       auto uSize = GetPictureSizeInSamples(pYuvMeta) * iSizePix;
-      ofYuvFile.write((const char*)tYuvBuf.pData, uSize);
+      ofYuvFile.write((const char*)AL_Buffer_GetData(&tYuvBuf), uSize);
     }
   }
 }
@@ -503,13 +497,21 @@ struct ResChgParam
 
 struct DecodeParam
 {
+  AL_HDecoder hDec;
   int decodedFrames;
 };
 
 /******************************************************************************/
-static void sFrameDecoded(AL_TBuffer* /*pDecodedFrame*/, void* pUserParam)
+static void sFrameDecoded(AL_TBuffer* pDecodedFrame, void* pUserParam)
 {
   auto pParam = reinterpret_cast<DecodeParam*>(pUserParam);
+
+  if(!pDecodedFrame)
+  {
+    auto error = codec_error(AL_Decoder_GetLastError(pParam->hDec));
+    cerr << endl << "Codec error: " << error.what() << endl;
+    exit(error.Code);
+  }
   pParam->decodedFrames++;
 };
 
@@ -531,7 +533,7 @@ static void sFrameDisplay(AL_TBuffer* pFrame, AL_TInfoDecode tInfo, void* pUserP
   else if(pParam->iBitDepth == -1)
     pParam->iBitDepth = AL_Decoder_GetMaxBD(pParam->hDec);
 
-  assert(AL_Buffer_GetBufferData(pFrame));
+  assert(AL_Buffer_GetData(pFrame));
 
   ProcessFrame(*pFrame, *pParam->YuvBuffer, tInfo, pParam->iBitDepth, pParam->YuvFile, pParam->IpCrcFile, pParam->CertCrcFile);
   AL_Decoder_ReleaseDecPict(pParam->hDec, pFrame);
@@ -573,20 +575,21 @@ static void sResolutionFound(int BufferNumber, int BufferSize, int iWidth, int i
 
   /* We do not support in stream resolution change */
   if(p->bPoolIsInit)
-    throw codec_error(ERR_RESOLUTION_CHANGE);
+    throw codec_error(AL_ERR_RESOLUTION_CHANGE);
 
+  const int buffersHeldByNextComponent = 1; /* We need at least 1 buffer to copy the output on a file */
   AL_TBufPoolConfig BufPoolConfig;
-
   BufPoolConfig.zBufSize = BufferSize;
-  BufPoolConfig.uMaxBuf = BufferNumber + BUFFER_HELD_BY_NEXT_COMPONENT;
-  BufPoolConfig.uMinBuf = BufferNumber + BUFFER_HELD_BY_NEXT_COMPONENT;
+  BufPoolConfig.uMaxBuf = BufferNumber + buffersHeldByNextComponent;
+  BufPoolConfig.uMinBuf = BufferNumber + buffersHeldByNextComponent;
+  BufPoolConfig.debugName = "yuv";
 
   AL_TPitches tPitches {};
   AL_TOffsetYC tOffsetYC {};
   BufPoolConfig.pMetaData = (AL_TMetaData*)AL_SrcMetaData_Create(iWidth, iHeight, tPitches, tOffsetYC, tFourCC);
 
   if(!AL_BufPool_Init(&p->bufPool, p->pAllocator, &BufPoolConfig))
-    throw codec_error(ERR_NO_MORE_MEMORY);
+    throw codec_error(AL_ERR_NO_MEMORY);
 
   p->bPoolIsInit = true;
 
@@ -595,15 +598,15 @@ static void sResolutionFound(int BufferNumber, int BufferSize, int iWidth, int i
     auto pDecPict = AL_BufPool_GetBuffer(&p->bufPool, AL_BUF_MODE_NONBLOCK);
     assert(pDecPict);
     AL_Decoder_PutDecPict(p->hDec, pDecPict);
-    AL_BufPool_ReleaseBuffer(&p->bufPool, pDecPict);
+    AL_Buffer_Unref(pDecPict);
   }
 }
 
 /******************************************************************************/
-static uint32_t ReadStream(ifstream& ifFileStream, AL_TBuffer* pBufStream)
+static uint32_t ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream)
 {
-  uint8_t* pBuf = AL_Buffer_GetBufferData(pBufStream);
-  auto zSize = AL_Buffer_GetSizeData(pBufStream);
+  uint8_t* pBuf = AL_Buffer_GetData(pBufStream);
+  auto zSize = pBufStream->zSize;
 
   ifFileStream.read((char*)pBuf, zSize);
   return (uint32_t)ifFileStream.gcount();
@@ -660,13 +663,9 @@ void SafeMain(int argc, char** argv)
   //
   // IP Device ------------------------------------------------------------
   auto iUseBoard = Config.iUseBoard;
-  auto pIpDevice = CreateIpDevice(&iUseBoard, Config.iSchedulerType, Config.tDecSettings.eDecUnit, Config.ipCtrlMode, Config.tDecSettings.uNumCore);
+  auto pIpDevice = CreateIpDevice(&iUseBoard, Config.iSchedulerType, Config.tDecSettings.eDecUnit, Config.ipCtrlMode, Config.trackDma, Config.tDecSettings.uNumCore, Config.iVip);
 
-  auto pAllocator = pIpDevice->m_pAllocator;
-  auto scopeAllocator = scopeExit([&]() {
-    AL_Allocator_Destroy(pAllocator);
-  });
-
+  auto pAllocator = pIpDevice->m_pAllocator.get();
   auto pDecChannel = pIpDevice->m_pDecChannel;
 
   AL_TPitches tPitches {};
@@ -703,19 +702,19 @@ void SafeMain(int argc, char** argv)
 
   Settings.iBitDepth = HW_IP_BIT_DEPTH;
 
-  AL_HDecoder hDec = AL_Decoder_Create((AL_TIDecChannel*)pDecChannel, pAllocator, &Settings, &CB);
+  AL_HDecoder hDec;
+  auto error = AL_Decoder_Create(&hDec, (AL_TIDecChannel*)pDecChannel, pAllocator, &Settings, &CB);
 
-  if(!hDec)
-    throw codec_error(ERR_INIT_FAILED);
+  if(!hDec || error != AL_SUCCESS)
+    throw codec_error(AL_ERR_INIT_FAILED);
 
   auto scopeDecoder = scopeExit([&]() {
-    pIpDevice.reset();
     AL_Decoder_Destroy(hDec);
   });
 
   // Param of Display Callback assignment
   tDisplayParam.hDec = hDec;
-
+  tDecodeParam.hDec = hDec;
   ResolutionFoundParam.hDec = hDec;
 
   AL_Decoder_SetParam(hDec, Config.bConceal, iUseBoard ? true : false, Config.iNumTrace, Config.iNumberTrace);
@@ -729,6 +728,7 @@ void SafeMain(int argc, char** argv)
     BufPoolConfig.uMaxBuf = Config.uInputBufferNum;
     BufPoolConfig.uMinBuf = Config.uInputBufferNum;
     BufPoolConfig.pMetaData = nullptr;
+    BufPoolConfig.debugName = "stream";
 
     auto ret = AL_BufPool_Init(&bufPool, AL_GetDefaultAllocator(), &BufPoolConfig);
 
@@ -738,26 +738,22 @@ void SafeMain(int argc, char** argv)
 
   // Initial stream buffer filling
   auto const uBegin = GetPerfTime();
-
   int iLoop = 0;
 
   for(;;)
   {
     for(;;)
     {
-      auto pBufStream = AL_BufPool_GetBuffer(&bufPool, AL_BUF_MODE_BLOCK);
+      auto pBufStream = shared_ptr<AL_TBuffer>(
+        AL_BufPool_GetBuffer(&bufPool, AL_BUF_MODE_BLOCK),
+        &AL_Buffer_Unref);
 
-      auto uAvailSize = ReadStream(ifFileStream, pBufStream);
+      auto uAvailSize = ReadStream(ifFileStream, pBufStream.get());
 
       if(!uAvailSize)
-      {
-        AL_BufPool_ReleaseBuffer(&bufPool, pBufStream);
         break;
-      }
 
-      AddBuffer(hDec, pBufStream, uAvailSize);
-
-      AL_BufPool_ReleaseBuffer(&bufPool, pBufStream);
+      AddBuffer(hDec, pBufStream.get(), uAvailSize);
 
       auto eErr = AL_Decoder_GetLastError(hDec);
 
@@ -782,7 +778,7 @@ void SafeMain(int argc, char** argv)
     // Rewind
     ifFileStream.clear();
     ifFileStream.seekg(0);
-    Message(CC_GREY, " Looping\n");
+    Message(CC_GREY, "  Looping\n");
   }
 
   auto const uEnd = GetPerfTime();
@@ -793,7 +789,7 @@ void SafeMain(int argc, char** argv)
     throw codec_error(eErr);
 
   if(!tDecodeParam.decodedFrames)
-    throw codec_error(ERR_NO_FRAME_DECODED);
+    throw codec_error(AL_ERR_NO_FRAME_DECODED);
 
   auto const duration = (uEnd - uBegin) / 1000.0;
   Message(CC_DEFAULT, "\n\nDecoded time = %.4f s;  Decoding FrameRate ~ %.4f Fps; Frame(s) conceal = %d\n",

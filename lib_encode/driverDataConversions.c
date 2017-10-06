@@ -41,7 +41,7 @@
 #include "lib_rtos/types.h"
 #include <string.h>
 
-static void setEncChanParam(struct al5_params* param, AL_TEncChanParam* pChParam, AL_PADDR pEP1)
+void setChannelParam(struct al5_params* param, AL_TEncChanParam* pChParam, AL_PADDR pEP1)
 {
   static_assert(sizeof(*pChParam) <= 4 * 128, "Driver channel_param struct is too small");
   int channel_param_size = sizeof(*pChParam);
@@ -49,11 +49,6 @@ static void setEncChanParam(struct al5_params* param, AL_TEncChanParam* pChParam
   param->size = channel_param_size + ep1_size;
   memcpy(param->opaque_params, pChParam, channel_param_size);
   memcpy(param->opaque_params + channel_param_size / 4, &pEP1, ep1_size);
-}
-
-void setConfigChannelMsg(struct al5_config_channel* msg, AL_TEncChanParam* pChParam, AL_PADDR pEP1)
-{
-  setEncChanParam(&msg->param, pChParam, pEP1);
 }
 
 static

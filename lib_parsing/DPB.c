@@ -508,7 +508,7 @@ static void AL_Dpb_sFillWaitingPicture(AL_TDpb* pDpb)
 /***************************************************************************/
 
 /*****************************************************************************/
-void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, uint8_t uNumInterBuf, void* pPfnCtx, PfnIncrementFrmBuf pfnIncrementFrmBuf, PfnReleaseFrmBuf pfnReleaseFrmBuf, PfnOutputFrmBuf pfnOutputFrmBuf, PfnIncrementMvBuf pfnIncrementMvBuf, PfnReleaseMvBuf pfnReleaseMvBuf)
+void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, void* pPfnCtx, PfnIncrementFrmBuf pfnIncrementFrmBuf, PfnReleaseFrmBuf pfnReleaseFrmBuf, PfnOutputFrmBuf pfnOutputFrmBuf, PfnIncrementMvBuf pfnIncrementMvBuf, PfnReleaseMvBuf pfnReleaseMvBuf, AL_EDpbMode eMode)
 {
   for(int i = 0; i < PIC_ID_POOL_SIZE; i++)
   {
@@ -518,6 +518,7 @@ void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, uint8_t uNumInterBuf, void* pPf
     pDpb->m_PicId2MvId[i] = uEndOfList;
   }
 
+  pDpb->m_eMode = eMode;
   pDpb->m_FreePicIdCnt = PIC_ID_POOL_SIZE;
 
   pDpb->m_bNewSeq = true;
@@ -531,7 +532,6 @@ void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, uint8_t uNumInterBuf, void* pPf
   }
 
   pDpb->m_uNumRef = uNumRef;
-  pDpb->m_uNumInterBuf = uNumInterBuf;
 
   pDpb->m_uHeadDecOrder = uEndOfList;
   pDpb->m_uHeadPOC = uEndOfList;
@@ -697,12 +697,6 @@ uint8_t AL_Dpb_GetNumRef(AL_TDpb* pDpb)
 }
 
 /*************************************************************************/
-uint8_t AL_Dpb_GetNumPic(AL_TDpb* pDpb)
-{
-  return pDpb->m_uNumRef + pDpb->m_uNumInterBuf;
-}
-
-/*************************************************************************/
 void AL_Dpb_SetNumRef(AL_TDpb* pDpb, uint8_t uMaxRef)
 {
   pDpb->m_uNumRef = uMaxRef;
@@ -860,13 +854,13 @@ void AL_Dpb_Display(AL_TDpb* pDpb, uint8_t uNode)
   {
     uint8_t uNext = pDpb->m_Nodes[uParse].uNextPOC;
 
-    if(pDpb->m_Nodes[uParse].pic_output_flag && (pDpb->m_Nodes[uParse].iFramePOC > pDpb->m_iLastDisplayedPOC || pDpb->m_bNewSeq))
+    if(pDpb->m_Nodes[uParse].pic_output_flag)
       AL_Dpb_Display(pDpb, uParse);
     uParse = uNext;
   }
 
   // add current picture to display list
-  if(pDpb->m_Nodes[uNode].pic_output_flag && (pDpb->m_Nodes[uNode].iFramePOC > pDpb->m_iLastDisplayedPOC || pDpb->m_bNewSeq))
+  if(pDpb->m_Nodes[uNode].pic_output_flag)
   {
     if(!pDpb->m_Nodes[uNode].non_existing)
     {
@@ -951,7 +945,7 @@ void AL_Dpb_Flush(AL_TDpb* pDpb)
 
   uint8_t uHeadPOC;
 
-  while(uEndOfList != (uHeadPOC = AL_Dpb_GetHeadPOC(pDpb)))
+  while(uEndOfList != (uHeadPOC = pDpb->m_uHeadPOC))
   {
     if(AL_Dpb_GetOutputFlag(pDpb, uHeadPOC))
       AL_Dpb_Display(pDpb, uHeadPOC);
@@ -996,7 +990,7 @@ void AL_Dpb_AVC_Cleanup(AL_TDpb* pDpb)
 {
   DPB_GET_MUTEX(pDpb);
 
-  uint8_t uNode = AL_Dpb_GetHeadPOC(pDpb);
+  uint8_t uNode = pDpb->m_uHeadPOC;
   AL_TDpbNode* pNodes = pDpb->m_Nodes;
 
   while(uNode != uEndOfList)
@@ -1010,7 +1004,7 @@ void AL_Dpb_AVC_Cleanup(AL_TDpb* pDpb)
     uNode = uNextNode;
   }
 
-  uNode = AL_Dpb_GetHeadPOC(pDpb);
+  uNode = pDpb->m_uHeadPOC;
 
   while(uNode != uEndOfList && (AL_Dpb_GetRefCount(pDpb) > AL_Dpb_GetNumRef(pDpb) || AL_Dpb_GetPicCount(pDpb) > AL_Dpb_GetNumRef(pDpb)))
   {
@@ -1121,6 +1115,8 @@ uint8_t AL_Dpb_Remove(AL_TDpb* pDpb, uint8_t uNode)
 uint8_t AL_Dpb_RemoveHead(AL_TDpb* pDpb)
 {
   // Remove header of the Decoding ordered linked list
+  if(AL_Dpb_GetOutputFlag(pDpb, pDpb->m_uHeadPOC))
+    AL_Dpb_Display(pDpb, pDpb->m_uHeadPOC);
   return AL_Dpb_Remove(pDpb, pDpb->m_uHeadPOC);
 }
 
@@ -1276,6 +1272,12 @@ void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, uint32_t uPocLsb, uint8_t uNode
 }
 
 /*****************************************************************************/
+static bool AL_Dpb_sIsLowRef(AL_TDpb* pDpb)
+{
+  return pDpb->m_eMode == AL_DPB_LOW_REF;
+}
+
+/*****************************************************************************/
 void AL_Dpb_EndDecoding(AL_TDpb* pDpb, int iFrmID)
 {
   DPB_GET_MUTEX(pDpb);
@@ -1284,7 +1286,12 @@ void AL_Dpb_EndDecoding(AL_TDpb* pDpb, int iFrmID)
 
   // Set Frame Availability
   if(pDpb->m_DispFifo.pFrmStatus[iFrmID] == AL_NOT_READY_FOR_OUTPUT)
+  {
     pDpb->m_DispFifo.pFrmStatus[iFrmID] = AL_READY_FOR_OUTPUT;
+
+    if(AL_Dpb_sIsLowRef(pDpb) && AL_Dpb_GetOutputFlag(pDpb, pDpb->m_uHeadPOC))
+      AL_Dpb_Display(pDpb, pDpb->m_uHeadPOC);
+  }
 
   DPB_RELEASE_MUTEX(pDpb);
 }

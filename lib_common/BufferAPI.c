@@ -49,6 +49,8 @@ typedef struct al_t_BufferImpl
 
   void* pUserData; /*!< user private data */
   PFN_RefCount_CallBack pCallBack; /*!< user callback. called when the buffer refcount reaches 0 */
+
+  uint8_t* pData; /*!< Buffer data mapped in userspace */
 }AL_TBufferImpl;
 
 static void* Realloc(void* pPtr, size_t zOldSize, size_t zNewSize)
@@ -71,7 +73,7 @@ static bool AL_Buffer_InitData(AL_TBufferImpl* pBuf, AL_TAllocator* pAllocator, 
   pBuf->buf.pAllocator = pAllocator;
   pBuf->pCallBack = pCallBack;
   pBuf->buf.hBuf = hBuf;
-  pBuf->buf.pData = AL_Allocator_GetVirtualAddr(pAllocator, pBuf->buf.hBuf);
+  pBuf->pData = NULL;
   pBuf->pMeta = NULL;
   pBuf->iMetaCount = 0;
 
@@ -86,12 +88,10 @@ static bool AL_Buffer_InitData(AL_TBufferImpl* pBuf, AL_TAllocator* pAllocator, 
 
 static AL_TBuffer* createBuffer(AL_TAllocator* pAllocator, AL_HANDLE hBuf, size_t zSize, PFN_RefCount_CallBack pCallBack)
 {
-  AL_TBufferImpl* pBuf;
-
   if(!hBuf)
     return NULL;
 
-  pBuf = Rtos_Malloc(sizeof(*pBuf));
+  AL_TBufferImpl* pBuf = Rtos_Malloc(sizeof(*pBuf));
 
   if(!pBuf)
     return NULL;
@@ -119,9 +119,9 @@ AL_TBuffer* AL_Buffer_Create(AL_TAllocator* pAllocator, AL_HANDLE hBuf, size_t z
   return createBuffer(pAllocator, hBuf, zSize, pCallBack);
 }
 
-AL_TBuffer* AL_Buffer_Create_And_Allocate(AL_TAllocator* pAllocator, size_t zSize, PFN_RefCount_CallBack pCallBack)
+AL_TBuffer* AL_Buffer_Create_And_AllocateNamed(AL_TAllocator* pAllocator, size_t zSize, PFN_RefCount_CallBack pCallBack, char const* name)
 {
-  AL_HANDLE hBuf = AL_Allocator_Alloc(pAllocator, zSize);
+  AL_HANDLE hBuf = AL_Allocator_AllocNamed(pAllocator, zSize, name);
 
   if(!hBuf)
     return NULL;
@@ -134,14 +134,23 @@ AL_TBuffer* AL_Buffer_Create_And_Allocate(AL_TAllocator* pAllocator, size_t zSiz
   return pBuf;
 }
 
+AL_TBuffer* AL_Buffer_Create_And_Allocate(AL_TAllocator* pAllocator, size_t zSize, PFN_RefCount_CallBack pCallBack)
+{
+  return AL_Buffer_Create_And_AllocateNamed(pAllocator, zSize, pCallBack, "unknown");
+}
+
 void AL_Buffer_Destroy(AL_TBuffer* hBuf)
 {
   AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
+  Rtos_GetMutex(pBuf->pLock);
+
+  assert(pBuf->iRefCount == 0);
 
   for(int i = 0; i < pBuf->iMetaCount; ++i)
     pBuf->pMeta[i]->MetaDestroy(pBuf->pMeta[i]);
 
   Rtos_Free(pBuf->pMeta);
+  Rtos_ReleaseMutex(pBuf->pLock);
 
   Rtos_DeleteMutex(pBuf->pLock);
   Rtos_Free(pBuf);
@@ -159,25 +168,12 @@ void AL_Buffer_SetUserData(AL_TBuffer* hBuf, void* pUserData)
 void* AL_Buffer_GetUserData(AL_TBuffer* hBuf)
 {
   AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
-  void* pUserData;
 
   Rtos_GetMutex(pBuf->pLock);
-  pUserData = pBuf->pUserData;
+  void* pUserData = pBuf->pUserData;
   Rtos_ReleaseMutex(pBuf->pLock);
 
   return pUserData;
-}
-
-/*****************************************************************************/
-uint8_t* AL_Buffer_GetBufferData(AL_TBuffer* pBuf)
-{
-  return pBuf->pData;
-}
-
-/*****************************************************************************/
-size_t AL_Buffer_GetSizeData(AL_TBuffer* pBuf)
-{
-  return pBuf->zSize;
 }
 
 /****************************************************************************/
@@ -192,7 +188,7 @@ void AL_Buffer_Unref(AL_TBuffer* hBuf)
 {
   AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
 
-  int iRefCount = Rtos_AtomicDecrement(&pBuf->iRefCount);
+  int32_t iRefCount = Rtos_AtomicDecrement(&pBuf->iRefCount);
   assert(iRefCount >= 0);
 
   if(iRefCount <= 0)
@@ -268,5 +264,20 @@ bool AL_Buffer_RemoveMetaData(AL_TBuffer* hBuf, AL_TMetaData* pMeta)
 
   Rtos_ReleaseMutex(pBuf->pLock);
   return false;
+}
+
+uint8_t* AL_Buffer_GetData(const AL_TBuffer* hBuf)
+{
+  AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
+
+  if(!pBuf->pData)
+    pBuf->pData = AL_Allocator_GetVirtualAddr(pBuf->buf.pAllocator, pBuf->buf.hBuf);
+  return pBuf->pData;
+}
+
+void AL_Buffer_SetData(const AL_TBuffer* hBuf, uint8_t* pData)
+{
+  AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
+  pBuf->pData = pData;
 }
 

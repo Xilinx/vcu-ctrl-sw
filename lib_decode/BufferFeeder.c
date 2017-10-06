@@ -85,7 +85,7 @@ void AL_BufferFeeder_Signal(AL_TBufferFeeder* this)
 void AL_BufferFeeder_Flush(AL_TBufferFeeder* this)
 {
   if(this->eosBuffer)
-    AL_BufferFeeder_PushBuffer(this, this->eosBuffer, AL_BUF_MODE_BLOCK, AL_Buffer_GetSizeData(this->eosBuffer));
+    AL_BufferFeeder_PushBuffer(this, this->eosBuffer, AL_BUF_MODE_BLOCK, this->eosBuffer->zSize);
 
   AL_DecoderFeeder_Flush(this->decoderFeeder);
 }
@@ -110,7 +110,7 @@ void AL_BufferFeeder_Destroy(AL_TBufferFeeder* this)
   Rtos_Free(this);
 }
 
-AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, AL_TAllocator* pAllocator, size_t zCircularBufferSize, AL_UINT uMaxBufNum)
+AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, AL_TAllocator* pAllocator, size_t zCircularBufferSize, AL_UINT uMaxBufNum, AL_CB_Error* errorCallback)
 {
   AL_TBufferFeeder* this = Rtos_Malloc(sizeof(*this));
 
@@ -119,18 +119,16 @@ AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, AL_TAllocator* pAllocat
 
   this->eosBuffer = NULL;
 
-  if(!MemDesc_Alloc(&this->circularBuf.tMD, pAllocator, zCircularBufferSize))
+  if(!MemDesc_AllocNamed(&this->circularBuf.tMD, pAllocator, zCircularBufferSize, "circular stream"))
     goto fail_circular_buffer_allocation;
-
-  if(!AL_Patchworker_Init(&this->patchworker, &this->circularBuf))
-    goto fail_patchworker_allocation;
-
-  this->patchworker.inputFifo = &this->fifo;
 
   if(uMaxBufNum == 0 || !AL_Fifo_Init(&this->fifo, uMaxBufNum))
     goto fail_queue_allocation;
 
-  this->decoderFeeder = AL_DecoderFeeder_Create(&this->circularBuf.tMD, hDec, &this->patchworker);
+  if(!AL_Patchworker_Init(&this->patchworker, &this->circularBuf, &this->fifo))
+    goto fail_patchworker_allocation;
+
+  this->decoderFeeder = AL_DecoderFeeder_Create(&this->circularBuf.tMD, hDec, &this->patchworker, errorCallback);
 
   if(!this->decoderFeeder)
     goto fail_decoder_feeder_creation;
@@ -138,10 +136,10 @@ AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, AL_TAllocator* pAllocat
   return this;
 
   fail_decoder_feeder_creation:
-  AL_Fifo_Deinit(&this->fifo);
-  fail_queue_allocation:
   AL_Patchworker_Deinit(&this->patchworker);
   fail_patchworker_allocation:
+  AL_Fifo_Deinit(&this->fifo);
+  fail_queue_allocation:
   MemDesc_Free(&this->circularBuf.tMD);
   fail_circular_buffer_allocation:
   Rtos_Free(this);

@@ -47,6 +47,7 @@
 
 #include "lib_common/SliceConsts.h"
 #include "lib_common/BufCommon.h"
+#include "lib_common/Error.h"
 
 /*************************************************************************//*!
    \brief Encoding tool enum
@@ -125,7 +126,6 @@ typedef struct AL_t_EncPicStatus
   AL_ERR eErrorCode;
 
   // Segment ID
-  uint32_t uNumGroup;
 
   AL_ESliceType eType;
   AL_EPicStruct ePicStruct;
@@ -135,21 +135,12 @@ typedef struct AL_t_EncPicStatus
   int16_t iPpsQP;
 }AL_TEncPicStatus;
 
-#define AL_SUCCESS ((AL_ERR)0x00000000)
-
-#define AL_DEF_WARNING(N) ((AL_ERR)(0x00 + (N)))
-#define AL_DEF_ERROR(N) ((AL_ERR)(0x80 + (N)))
-
-#define AL_ERR_ALLOC_FAILED AL_DEF_ERROR(5)
-
-#define AL_ERR_PICT_RES_TOO_BIG AL_DEF_ERROR(10)
-#define AL_ERR_PIX_RATE_TOO_BIG AL_DEF_ERROR(11)
-#define AL_ERR_VCU_OVERLOADED AL_DEF_ERROR(12)
-
 #define AL_ERR_SRC_BUF_NOT_READY AL_DEF_ERROR(20)
 #define AL_ERR_REC_BUF_NOT_READY AL_DEF_ERROR(21)
 #define AL_ERR_INTERM_BUF_NOT_READY AL_DEF_ERROR(22)
 #define AL_ERR_STRM_BUF_NOT_READY AL_DEF_ERROR(23)
+
+#define AL_ERR_ALLOC_FAILED AL_DEF_ERROR(24)
 
 /*@}*/
 

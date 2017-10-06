@@ -47,8 +47,6 @@
 #define AL_MCU_SEARCH_START_CODE _IOWR('q', 8, struct al5_search_sc_msg)
 #define AL_MCU_WAIT_FOR_START_CODE _IOWR('q', 9, struct al5_scstatus)
 #define GET_DMA_FD        _IOWR('q', 13, struct al5_dma_info)
-#define AL_MCU_SET_TIMER_BUFFER _IOWR('q', 16, struct al5_dma_info)
-#define AL_MCU_SET_IRQ_TIMER_BUFFER _IOWR('q', 17, struct al5_dma_info)
 #define AL_MCU_DECODE_ONE_SLICE _IOWR('q', 18, struct al5_decode_msg)
 
 struct al5_dma_info
@@ -63,6 +61,7 @@ struct al5_dma_info
 struct al5_channel_status
 {
 	__u8 num_core;
+        __u32 error_code;
 };
 
 struct al5_params

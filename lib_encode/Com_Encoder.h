@@ -62,27 +62,7 @@
 
 #include "lib_encode/IScheduler.h"
 
-/***************************************************************************/
-typedef struct
-{
-  bool isAUDEnabled;
-  bool isSPSEnabled;
-  bool isPPSEnabled;
-}AL_TNALUnitsInfo;
-
 void AL_Common_Encoder_InitCtx(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TAllocator* pAllocator);
-
-/*************************************************************************//*!
-   \brief The Encoder_InitRpsbEncoder function initializes the header stream writer
-   \param[in] pCtx Pointer on an encoder context object
-*****************************************************************************/
-void AL_Common_Encoder_InitRbspEncoder(AL_TEncCtx* pCtx);
-
-/*************************************************************************//*!
-   \brief The Encoder_DeInitRpsbEncoder function deinitializes the header stream writer
-   \param[in] pCtx Pointer on an encoder context object
-*****************************************************************************/
-void AL_Common_Encoder_DeInitRbspEncoder(AL_TEncCtx* pCtx);
 
 /*************************************************************************//*!
    \brief The Encoder_NotifySceneChange function informs the encoder that a scene
@@ -131,7 +111,7 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
 
 
 /*************************************************************************//*!
-   \brief The Encoder_WaitReadiness function wait until the encoder context object is available
+   \brief The Encoder_GetLastError function return the last error if any
    \param[in] pEnc Pointer on an encoder context object
    \return if an error occurs the function returns the corresponding error code,
    otherwise, the function returns AL_SUCCESS.
@@ -188,17 +168,6 @@ void AL_Common_Encoder_SetME(int iHrzRange_P, int iVrtRange_P, int iHrzRange_B, 
 *****************************************************************************/
 void AL_Common_Encoder_PreprocessEncoderParam(AL_TEncCtx* pCtx, TSliceBuffersEnc* pBuffers, AL_TPictureInfo* pPictInfo, AL_EPicEncOption* pPictOptions);
 
-/*************************************************************************//*!
-   \brief The Encoder_AddFillerData add filler data to the encoding stream
-   \param[out] pStream Pointer to the stream buffer
-   \param[inout] pOffset Pointer to the offset specfying the position where
-   the filler data are added. The value is updated with the
-   filler data size.
-   \param[in] uNumBytes number of bytes of filler data
-   \param[in] bAVC specifies if the codec is AVC
-*****************************************************************************/
-uint32_t AL_Common_Encoder_AddFillerData(AL_TBuffer* pStream, uint32_t* pOffset, uint32_t uNumBytes, bool bAVC);
-
 #if ENABLE_WATCHDOG
 /*************************************************************************//*!
    \brief The Encoder_Watchdog_Catch function is called when a watchdog flag is catch
@@ -213,8 +182,6 @@ bool AL_Common_Encoder_IsInitialQpProvided(AL_TEncChanParam* pChParam);
 uint32_t AL_Common_Encoder_ComputeBitPerPixel(AL_TEncChanParam* pChParam);
 int8_t AL_Common_Encoder_GetInitialQP(uint32_t iBitPerPixel);
 void AL_Common_Encoder_SetMaxNumRef(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam);
-
-void AL_Common_Encoder_PushStreamBuffers(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, uint32_t uStreamOffset);
 
 /*@}*/
 

@@ -37,75 +37,70 @@
 
 #include <stdexcept>
 #include <memory>
-#include "IpDevice.h"
-#include "CodecUtils.h"
 
+#include "IpDevice.h"
 #include "lib_app/console.h"
 #include "lib_app/utils.h"
-#include "lib_cfg/lib_cfg.h"
+
 
 extern "C"
 {
 #include "lib_fpga/DmaAlloc.h"
-#include "lib_encode/SchedulerMcu.h"
-#include "lib_encode/hardwareDriver.h"
+#include "lib_encode/IScheduler.h"
 }
 
 using namespace std;
 
-/*****************************************************************************/
-
-class CMcuIpDevice : public CIpDevice
+AL_TAllocator* createDmaAllocator(const char* deviceName)
 {
-public:
-  CMcuIpDevice(int iVip)
-  {
-    (void)iVip;
-    m_pAllocator = DmaAlloc_Create("/dev/allegroIP");
+  auto h = DmaAlloc_Create(deviceName);
 
-    if(!m_pAllocator)
-      throw runtime_error("Can't open DMA allocator");
+  if(h == nullptr)
+    throw runtime_error("Can't find dma allocator (trying to use " + string(deviceName) + ")");
+  return h;
+}
 
-    m_pScheduler = AL_SchedulerMcu_Create(AL_GetHardwareDriver(), m_pAllocator);
 
-    if(!m_pScheduler)
-    {
-      AL_Allocator_Destroy(m_pAllocator);
-      throw std::runtime_error("Failed to create MCU scheduler");
-    }
+extern "C"
+{
+#include "lib_encode/SchedulerMcu.h"
+#include "lib_encode/hardwareDriver.h"
+}
 
-  }
+static unique_ptr<CIpDevice> createMcuIpDevice(int iVip)
+{
+  auto device = make_unique<CIpDevice>();
 
-  ~CMcuIpDevice()
-  {
-    AL_Allocator_Destroy(m_pAllocator);
+  (void)iVip;
+  device->m_pAllocator.reset(createDmaAllocator("/dev/allegroIP"), &AL_Allocator_Destroy);
 
-    if(m_pScheduler)
-      AL_ISchedulerEnc_Destroy(m_pScheduler);
-  }
-};
+  if(!device->m_pAllocator)
+    throw runtime_error("Can't open DMA allocator");
 
-std::unique_ptr<CIpDevice> CreateIpDevice(bool bUseRefSoftware, int iSchedulerType, AL_TEncSettings& Settings, int logIpInteractions, int iVip, int eVqDescr)
+  device->m_pScheduler = AL_SchedulerMcu_Create(AL_GetHardwareDriver(), device->m_pAllocator.get());
+
+  if(!device->m_pScheduler)
+    throw std::runtime_error("Failed to create MCU scheduler");
+
+
+  return device;
+}
+
+
+shared_ptr<CIpDevice> CreateIpDevice(bool bUseRefSoftware, int iSchedulerType, AL_TEncSettings& Settings, IpCtrlMode ipCtrlMode, bool trackDma, int iVip, int eVqDescr)
 {
   (void)bUseRefSoftware;
   (void)Settings;
-  (void)logIpInteractions;
-  (void)iVip;
+  (void)ipCtrlMode;
   (void)eVqDescr;
-  unique_ptr<CIpDevice> pIpDevice;
+  (void)iVip;
+  (void)trackDma;
 
-  if(iSchedulerType == SCHEDULER_TYPE_CPU)
-  {
-    throw runtime_error("No support for on-CPU scheduling");
-  }
-  else if(iSchedulerType == SCHEDULER_TYPE_MCU)
-  {
-    pIpDevice.reset(new CMcuIpDevice(iVip));
-  }
 
-  if(!pIpDevice)
-    throw runtime_error("No device found");
 
-  return pIpDevice;
+  if(iSchedulerType == SCHEDULER_TYPE_MCU)
+    return createMcuIpDevice(iVip);
+
+  throw runtime_error("No support for this scheduling type");
 }
 

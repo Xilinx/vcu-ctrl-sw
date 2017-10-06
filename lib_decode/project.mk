@@ -27,6 +27,7 @@ LIB_DECODER_SRC:=\
   $(LIB_PARSING_SRC)\
   $(LIB_DECODE_SRC)\
   $(LIB_SCHEDULER_DEC_SRC)\
+  $(LIB_PERFS_SRC)\
 
 LIB_DECODER_OBJ:=$(LIB_DECODER_SRC:%=$(BIN)/%.o)
 
@@ -37,12 +38,6 @@ $(LIB_DECODER_DLL): $(LIB_DECODER_OBJ)
 liballegro_decode: liballegro_decode_dll liballegro_decode_a
 
 liballegro_decode_dll: $(LIB_DECODER_DLL)
-
-$(LIB_DECODER_DLL):
-	$(Q)$(CC) $(CFLAGS) -shared -Wl,-soname,$(notdir $@).$(MAJOR) -o "$@.$(VERSION)" $^ $(LDFLAGS)
-	@echo "LD $@"
-	@rm -f $@
-	@ln -s "$(@:$(BIN)/%=%).$(VERSION)" $@
 
 liballegro_decode_a: $(LIB_DECODER_A)
 

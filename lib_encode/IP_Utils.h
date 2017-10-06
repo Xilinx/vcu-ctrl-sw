@@ -51,6 +51,7 @@
 #include "lib_common/PPS.h"
 
 typedef AL_TEncSliceStatus TStreamInfo;
+typedef struct AL_t_EncPicStatus AL_TEncPicStatus;
 
 #define AL_NUM_RPS 13
 #define AL_NUM_RPS_EXT 24
@@ -99,22 +100,20 @@ static const int AL_BitPerPixelQP[36][2] = /* x1000 */
 };
 
 /****************************************************************************/
-void AL_HEVC_SelectScalingList(AL_THevcSps* pSPS, AL_TEncSettings* pSettings);
-void AL_AVC_SelectScalingList(AL_TAvcSps* pSPS, AL_TEncSettings* pSettings);
-
-/****************************************************************************/
 void AL_HEVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufEP);
 void AL_AVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufEP);
 
 /****************************************************************************/
-void AL_UpdateVPS(AL_THevcVps* pVPS, int iMaxRef, AL_TEncSettings const* pSettings);
+void AL_HEVC_GenerateVPS(AL_THevcVps* pVPS, AL_TEncSettings const* pSettings, int iMaxRef);
 
-void AL_HEVC_UpdateSPS(AL_THevcSps* pSPS, int iMaxRef, int iCpbSize, AL_TEncSettings const* pSettings);
-void AL_AVC_UpdateSPS(AL_TAvcSps* pSPS, int iMaxRef, int iCpbSize, AL_TEncSettings const* pSettings);
+void AL_HEVC_GenerateSPS(AL_TSps* pSPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize);
+void AL_AVC_GenerateSPS(AL_TSps* pSPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize);
 
-void AL_HEVC_UpdatePPS(AL_THevcPps* pPPS, AL_TEncSettings const* pSettings, int iMaxRef, int16_t iPpsQP);
-void AL_AVC_UpdatePPS(AL_TAvcPps* pPPS, AL_TEncSettings const* pSettings, int iMaxRef, int16_t iPpsQP);
+void AL_HEVC_GeneratePPS(AL_TPps* pPPS, AL_TEncSettings const* pSettings, int iMaxRef);
+void AL_AVC_GeneratePPS(AL_TPps* pPPS, AL_TEncSettings const* pSettings, int iMaxRef);
 
+void AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus);
+void AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus);
 /***************************************************************************/
 void InitHwRateCtrl(AL_TEncSettings* pSettings, int iNumLCU);
 

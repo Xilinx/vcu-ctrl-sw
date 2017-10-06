@@ -169,26 +169,22 @@ static uint32_t ConsiderChromaForAllocSize(AL_EChromaMode eChromaMode, uint32_t 
   return uSize;
 }
 
-/****************************************************************************/
-static uint32_t CalculatePitchValue(TFourCC tFourCC, int iWidth)
+int CalculatePitchValue(TFourCC tFourCC, int iWidth)
 {
-  uint32_t uPitch;
+  int iPitch;
   (void)tFourCC;
 
   if(IsRXxFourCC(tFourCC))
   {
-    uPitch = (iWidth + 2) / 3 * 4;
-    uPitch = AL_RndUpPow2(uPitch);
+    iPitch = (iWidth + 2) / 3 * 4;
+    iPitch = AL_RndUpPow2(iPitch);
   }
   else
-  {
-    uPitch = RoundUp(iWidth, 32); // pitch aligned on 256 bits
-  }
-  return uPitch;
+  iPitch = RoundUp(iWidth, 32); // pitch aligned on 256 bits
+  return iPitch;
 }
 
-/****************************************************************************/
-static int CalculatePixSize(TFourCC tFourCC)
+int CalculatePixSize(TFourCC tFourCC)
 {
 
   if(IsRXxFourCC(tFourCC))

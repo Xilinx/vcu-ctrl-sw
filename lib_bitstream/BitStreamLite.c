@@ -35,21 +35,13 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
-**************************************************************************//*!
-   \addtogroup lib_bitstream
-   @{
-****************************************************************************/
-
 #include <assert.h>
 #include "BitStreamLite.h"
 
 /******************************************************************************/
 
-void AL_BitStreamLite_Init(AL_TBitStreamLite* pBS, uint8_t* pBuf, int iBufSize)
+void AL_BitStreamLite_Init(AL_TBitStreamLite* pBS, uint8_t* pBuf)
 {
-  pBS->m_iDataSize = iBufSize;
   pBS->m_pData = pBuf;
   pBS->m_iBitCount = 0;
 }
@@ -58,8 +50,6 @@ void AL_BitStreamLite_Init(AL_TBitStreamLite* pBS, uint8_t* pBuf, int iBufSize)
 void AL_BitStreamLite_Deinit(AL_TBitStreamLite* pBS)
 {
   pBS->m_pData = NULL;
-  pBS->m_iDataSize = 0;
-
   pBS->m_iBitCount = 0;
 }
 
@@ -82,12 +72,6 @@ int AL_BitStreamLite_GetBitsCount(AL_TBitStreamLite* pBS)
 }
 
 /******************************************************************************/
-int AL_BitStreamLite_GetSize(AL_TBitStreamLite* pBS)
-{
-  return pBS->m_iDataSize;
-}
-
-/******************************************************************************/
 void AL_BitStreamLite_PutBit(AL_TBitStreamLite* pBS, uint8_t iBit)
 {
   assert((iBit == 0) || (iBit == 1));
@@ -97,10 +81,8 @@ void AL_BitStreamLite_PutBit(AL_TBitStreamLite* pBS, uint8_t iBit)
 /******************************************************************************/
 void AL_BitStreamLite_AlignWithBits(AL_TBitStreamLite* pBS, uint8_t iBit)
 {
-  uint8_t bitOffset = pBS->m_iBitCount % 8;
-
-  if(bitOffset != 0)
-    AL_BitStreamLite_PutBits(pBS, 8 - bitOffset, (iBit * 0xff) >> bitOffset);
+  while(pBS->m_iBitCount % 8 != 0)
+    AL_BitStreamLite_PutBit(pBS, iBit);
 }
 
 /******************************************************************************/
@@ -139,7 +121,6 @@ static void PutInByte(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32_t uValue)
 void AL_BitStreamLite_PutBits(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32_t uValue)
 {
   assert(iNumBits == 32 || (uValue >> iNumBits) == 0);
-  assert(pBS->m_iBitCount + iNumBits <= pBS->m_iDataSize << 3);
 
   uint8_t numBitsToWrite = 8 - (pBS->m_iBitCount & 7);
 
@@ -167,7 +148,7 @@ void AL_BitStreamLite_PutU(AL_TBitStreamLite* pBS, int iNumBits, uint32_t uValue
 }
 
 /******************************************************************************/
-void AL_BitStreamLite_PutVLCBits(AL_TBitStreamLite* pBS, uint32_t uCodeLength, uint32_t uValue)
+static void putVclBits(AL_TBitStreamLite* pBS, uint32_t uCodeLength, uint32_t uValue)
 {
   if(uCodeLength == 1)
   {
@@ -210,34 +191,7 @@ void AL_BitStreamLite_PutUE(AL_TBitStreamLite* pBS, uint32_t uValue)
 
   // 2 - Write code.
 
-  AL_BitStreamLite_PutVLCBits(pBS, uCodeLength, uValue);
-}
-
-/******************************************************************************/
-// Computes the number of bits to Write one Exp-Golomb code to the bitstream.
-int AL_BitStreamLite_SizeUE(uint32_t uValue)
-{
-  uint32_t uCodeLength;
-
-#if defined(__ICL)
-  uCodeLength = 1 + (_bit_scan_reverse(uValue + 1) << 1);
-#else
-  int32_t NN = uValue + 1;
-  int32_t i = -1;
-
-  while(NN)
-  {
-    NN >>= 1;
-    i++;
-  }
-
-  uCodeLength = 1 + (i << 1);
-#endif
-
-  if(uCodeLength == 1)
-    return 1;
-
-  return ((uCodeLength - 1) >> 1) * 2 + 1;
+  putVclBits(pBS, uCodeLength, uValue);
 }
 
 /******************************************************************************/
@@ -245,121 +199,4 @@ void AL_BitStreamLite_PutSE(AL_TBitStreamLite* pBS, int32_t iValue)
 {
   AL_BitStreamLite_PutUE(pBS, 2 * (iValue > 0 ? iValue : -iValue) - (iValue > 0));
 }
-
-/******************************************************************************/
-void AL_BitStreamLite_PutME(AL_TBitStreamLite* pBS, int iCodedBlockPattern, int iIsIntraNxN, int iChromaFormatIdc)
-{
-  // Tables mapping a coded block pattern to a code num, following spec table 9-4 reversed.
-  // E.g. CHANGE_TO_ME_INTRANxN[15] = 2 because a cbp of 15 = 1111 must be encoded as code num = 2 in INTRANxN.
-  static int const CHANGE_TO_ME[2][48] =
-  {
-    {
-      // 0 - 15
-      0, 2, 3, 7, 4, 8, 17, 13, 5, 18, 9, 14, 10, 15, 16, 11,
-      // 16 - 31
-      1, 32, 33, 36, 34, 37, 44, 40, 35, 45, 38, 41, 39, 42, 43, 19,
-      // 32 - 47
-      6, 24, 25, 20, 26, 21, 46, 28, 27, 47, 22, 29, 23, 30, 31, 12
-    },
-    {
-      // 0 - 15
-      3, 29, 30, 17, 31, 18, 37, 8, 32, 38, 19, 9, 20, 10, 11, 2,
-      // 16 - 31
-      16, 33, 34, 21, 35, 22, 39, 4, 36, 40, 23, 5, 24, 6, 7, 1,
-      // 32 - 47
-      41, 42, 43, 25, 44, 26, 46, 12, 45, 47, 27, 13, 28, 14, 15, 0
-    }
-  };
-  static int const CHANGE_TO_ME_MONO[2][16] =
-  {
-    { 0, 1, 2, 5, 3, 6, 14, 10, 4, 15, 7, 11, 8, 12, 13, 9 },
-    { 1, 10, 11, 6, 12, 7, 14, 2, 13, 15, 8, 3, 9, 4, 5, 0 }
-  };
-
-  assert(iIsIntraNxN == 0 || iIsIntraNxN == 1);
-
-  if(iChromaFormatIdc)
-  {
-    AL_BitStreamLite_PutUE(pBS, CHANGE_TO_ME[iIsIntraNxN][iCodedBlockPattern]);
-  }
-  else
-  {
-    assert(iCodedBlockPattern < 16);
-    AL_BitStreamLite_PutUE(pBS, CHANGE_TO_ME_MONO[iIsIntraNxN][iCodedBlockPattern]);
-  }
-}
-
-/******************************************************************************/
-int AL_BitStreamLite_SizeME(int iCodedBlockPattern, int iIsIntraNxN)
-{
-  // Tables mapping a coded block pattern to a code num, following spec table 9-4 reversed.
-  // E.g. CHANGE_TO_ME_INTRANxN[15] = 2 because a cbp of 15 = 1111 must be encoded as code num = 2 in INTRANxN.
-  static int const CHANGE_TO_ME[2][48] =
-  {
-    {
-      // 0 -  7
-      0, 2, 3, 7, 4, 8, 17, 13,
-      // 8 - 15
-      5, 18, 9, 14, 10, 15, 16, 11,
-      // 16 - 23
-      1, 32, 33, 36, 34, 37, 44, 40,
-      // 24 - 31
-      35, 45, 38, 41, 39, 42, 43, 19,
-      // 32 - 39
-      6, 24, 25, 20, 26, 21, 46, 28,
-      // 40 - 47
-      27, 47, 22, 29, 23, 30, 31, 12
-    },
-    {
-      // 0 -  7
-      3, 29, 30, 17, 31, 18, 37, 8,
-      // 8 - 15
-      32, 38, 19, 9, 20, 10, 11, 2,
-      // 16 - 23
-      16, 33, 34, 21, 35, 22, 39, 4,
-      // 24 - 31
-      36, 40, 23, 5, 24, 6, 7, 1,
-      // 32 - 39
-      41, 42, 43, 25, 44, 26, 46, 12,
-      // 40 - 47
-      45, 47, 27, 13, 28, 14, 15, 0
-    }
-  };
-  assert(iIsIntraNxN == 0 || iIsIntraNxN == 1);
-
-  return AL_BitStreamLite_SizeUE(CHANGE_TO_ME[iIsIntraNxN][iCodedBlockPattern]);
-}
-
-/******************************************************************************/
-void AL_BitStreamLite_PutTE(AL_TBitStreamLite* pBS, uint32_t uValue, int iMaxValue)
-{
-  if(iMaxValue > 1)
-  {
-    AL_BitStreamLite_PutUE(pBS, uValue);
-  }
-  else
-  {
-    assert(iMaxValue == 1);
-    assert((uValue == 0) || (uValue == 1));
-    AL_BitStreamLite_PutBits(pBS, 1, 1 - uValue);
-  }
-}
-
-/******************************************************************************/
-int AL_BitStreamLite_SizeTE(uint32_t uValue, int iMaxValue)
-{
-  if(iMaxValue > 1)
-  {
-    return AL_BitStreamLite_SizeUE(uValue);
-  }
-  else
-  {
-    assert(iMaxValue == 1);
-    assert((uValue == 0) || (uValue == 1));
-    return 1;
-  }
-}
-
-/****************************************************************************/
-/*@}*/
 

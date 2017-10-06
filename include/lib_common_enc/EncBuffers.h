@@ -76,8 +76,6 @@ typedef struct t_BufInfo
 
 // EP2 masks
 #define FLAG_INTRA_ONLY 0x40
-#define FLAG_MV0 0x80
-#define FLAG_SKIP 0x80
 
 #define MASK_QP 0x3F
 #define MASK_FORCE_INTRA 0x40
@@ -129,14 +127,30 @@ uint32_t GetAllocSize_Src(int iWidth, int iHeight, uint8_t uBitDepth, AL_EChroma
 
 /*************************************************************************//*!
    \brief Retrieves the size of a YUV frame buffer
-   \param[in]  iWidth Frame width in pixel unit
-   \param[in]  iHeight Frame height in pixel unit
-   \param[in]  uBitDepth YUV bit-depth
-   \param[in]  eChromaMode Chroma Mode
+   \param[in] iWidth Frame width in pixel unit
+   \param[in] iHeight Frame height in pixel unit
+   \param[in] uBitDepth YUV bit-depth
+   \param[in] eChromaMode Chroma Mode
    \param[in] iPitch Internal memory pitch
    \return maximum size (in bytes) needed for the YUV frame buffer
 *****************************************************************************/
 uint32_t GetAllocSize_SrcPitch(int iWidth, int iHeight, uint8_t uBitDepth, AL_EChromaMode eChromaMode, int iPitch);
+
+/*************************************************************************//*!
+   \brief Retrieves the pixel size depending on FOURCC
+   \param[in] tFourCC FOURCC code of the YUV frame buffer format
+   \return pixel size
+*****************************************************************************/
+int CalculatePixSize(TFourCC tFourCC);
+
+/*************************************************************************//*!
+   \brief Retrieves the Pitch value depending on FOURCC and width
+   \param[in] tFourCC FOURCC code of the YUV frame buffer format
+   \param[in] iWidth Frame width in pixel unit
+   \return pitch value
+*****************************************************************************/
+int CalculatePitchValue(TFourCC tFourCC, int iWidth);
+
 
 /*@}*/
 

@@ -37,6 +37,7 @@
 
 #pragma once
 #include <fstream>
+#include <memory>
 #include "lib_app/console.h" // EConColor
 
 extern int g_Verbosity;
@@ -71,4 +72,27 @@ ScopeExitClass<Lambda> scopeExit(Lambda fn)
 {
   return ScopeExitClass<Lambda>(fn);
 }
+
+#if __cplusplus < 201402 && !defined(_MSC_VER) // has c++14 ? (Visual 2015 defines __cplusplus as "199711L" ...)
+template<typename T, typename... Args>
+std::unique_ptr<T> make_unique(Args && ... args)
+{
+  return std::unique_ptr<T>(new T(std::forward<Args>(args) ...));
+}
+
+#endif
+
+enum IpCtrlMode
+{
+  IPCTRL_MODE_STANDARD,
+  IPCTRL_MODE_TIMERS,
+  IPCTRL_MODE_LOGS,
+  IPCTRL_MODE_TRACE, // codec-agnostic raw register r/w and irq dump
+};
+
+enum SCHEDULER_TYPE
+{
+  SCHEDULER_TYPE_CPU,
+  SCHEDULER_TYPE_MCU,
+};
 

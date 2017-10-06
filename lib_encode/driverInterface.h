@@ -41,15 +41,15 @@
 typedef struct t_driver Driver;
 struct t_driver
 {
-  int (* Open)(Driver* driver);
+  int (* Open)(Driver* driver, const char* device);
   void (* Close)(Driver* driver, int fd);
   bool (* PostMessage)(Driver* driver, int fd, long unsigned int messageId, void* data);
 };
 
 static inline
-int AL_Driver_Open(Driver* driver)
+int AL_Driver_Open(Driver* driver, const char* device)
 {
-  return driver->Open(driver);
+  return driver->Open(driver, device);
 }
 
 static inline

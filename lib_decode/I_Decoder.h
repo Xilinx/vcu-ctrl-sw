@@ -67,6 +67,7 @@ typedef struct
   AL_ERR (* pfnTryDecodeOneAU)(AL_TDecoder* pDec, TCircBuffer* pBufStream);
   void (* pfnInternalFlush)(AL_TDecoder* pDec);
   int (* pfnGetStrOffset)(AL_TDecoder* pDec);
+  void (* pfnFlushInput)(AL_TDecoder* pDec);
 }AL_TDecoderVtable;
 
 typedef struct AL_s_TDecoder

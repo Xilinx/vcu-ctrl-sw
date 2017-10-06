@@ -91,9 +91,8 @@ bool AL_Fifo_Queue(AL_TFifo* pFifo, void* pElem, uint32_t uWait)
 
   Rtos_GetMutex(pFifo->hMutex);
   pFifo->m_ElemBuffer[pFifo->m_zTail] = pElem;
-  Rtos_ReleaseMutex(pFifo->hMutex);
-
   pFifo->m_zTail = (pFifo->m_zTail + 1) % pFifo->m_zMaxElem;
+  Rtos_ReleaseMutex(pFifo->hMutex);
 
   Rtos_ReleaseSemaphore(pFifo->hCountSem);
 
@@ -109,9 +108,8 @@ void* AL_Fifo_Dequeue(AL_TFifo* pFifo, uint32_t uWait)
 
   Rtos_GetMutex(pFifo->hMutex);
   void* pElem = pFifo->m_ElemBuffer[pFifo->m_zHead];
-  Rtos_ReleaseMutex(pFifo->hMutex);
-
   pFifo->m_zHead = (pFifo->m_zHead + 1) % pFifo->m_zMaxElem;
+  Rtos_ReleaseMutex(pFifo->hMutex);
 
   /* new empty space available */
   Rtos_ReleaseSemaphore(pFifo->hSpaceSem);

@@ -63,7 +63,7 @@ static bool AL_sBufPool_AllocBuf(AL_TBufPool* pBufPool)
 
   assert(pBufPool->uNumBuf < pBufPool->config.uMaxBuf);
 
-  AL_TBuffer* pBuf = AL_Buffer_Create_And_Allocate(pBufPool->pAllocator, pBufPool->config.zBufSize, FreeBufInPool);
+  AL_TBuffer* pBuf = AL_Buffer_Create_And_AllocateNamed(pBufPool->pAllocator, pBufPool->config.zBufSize, FreeBufInPool, pBufPool->config.debugName);
 
   if(!pBuf)
     goto fail_buffer_init;
@@ -165,14 +165,6 @@ AL_TBuffer* AL_BufPool_GetBuffer(AL_TBufPool* pBufPool, AL_EBufMode eMode)
   return pBuf;
 }
 
-/****************************************************************************/
-bool AL_BufPool_ReleaseBuffer(AL_TBufPool* pBufPool, AL_TBuffer* pBuf)
-{
-  (void)pBufPool;
-  AL_Buffer_Unref(pBuf);
-  return true;
-}
-
 static bool Fifo_Init(App_Fifo* pFifo, size_t zMaxElem)
 {
   pFifo->m_zMaxElem = zMaxElem + 1;
@@ -222,9 +214,8 @@ static bool Fifo_Queue(App_Fifo* pFifo, void* pElem, uint32_t uWait)
 
   Rtos_GetMutex(pFifo->hMutex);
   pFifo->m_ElemBuffer[pFifo->m_zTail] = pElem;
-  Rtos_ReleaseMutex(pFifo->hMutex);
-
   pFifo->m_zTail = (pFifo->m_zTail + 1) % pFifo->m_zMaxElem;
+  Rtos_ReleaseMutex(pFifo->hMutex);
 
   Rtos_ReleaseSemaphore(pFifo->hCountSem);
 
@@ -240,9 +231,8 @@ static void* Fifo_Dequeue(App_Fifo* pFifo, uint32_t uWait)
 
   Rtos_GetMutex(pFifo->hMutex);
   void* pElem = pFifo->m_ElemBuffer[pFifo->m_zHead];
-  Rtos_ReleaseMutex(pFifo->hMutex);
-
   pFifo->m_zHead = (pFifo->m_zHead + 1) % pFifo->m_zMaxElem;
+  Rtos_ReleaseMutex(pFifo->hMutex);
 
   /* new empty space available */
   Rtos_ReleaseSemaphore(pFifo->hSpaceSem);

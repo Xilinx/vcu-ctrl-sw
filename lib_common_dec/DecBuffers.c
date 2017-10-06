@@ -183,15 +183,6 @@ uint32_t AL_GetAllocSize_Reference(uint16_t uWidth, uint16_t uHeight, AL_EChroma
 }
 
 /*****************************************************************************/
-uint32_t AL_GetAllocSize_LumaMap(uint16_t uWidth, uint16_t uHeight, AL_EFbStorageMode eFBStorageMode)
-{
-  if(eFBStorageMode == AL_FB_RASTER)
-    return 0;
-  assert(eFBStorageMode == AL_FB_TILE_32x4 || eFBStorageMode == AL_FB_TILE_64x4);
-  uint32_t uTileWidth = eFBStorageMode == AL_FB_TILE_32x4 ? 32 : 64;
-  uint32_t uTileHeight = 4;
-  return (4096 / (2 * uTileWidth)) * ((uWidth + 4095) >> 12) * (uHeight / uTileHeight);
-}
 
 /*!@}*/
 

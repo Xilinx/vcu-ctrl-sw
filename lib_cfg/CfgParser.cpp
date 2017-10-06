@@ -35,10 +35,6 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
- (c)2008 ALLEGRO DVT
------------------------------------------------------------------------------
-****************************************************************************/
 #include "CfgParser.h"
 
 extern "C"
@@ -325,7 +321,7 @@ static int GetValueWrapped(const string& sLine, ostream &errstream)
   {
     if(!GetValue(sLine, zPos2, ValTmp, zLength))
     {
-      errstream << "Invalid value: " << sLine << endl;
+      errstream << "Invalid value: \"" << sLine << "\"" << endl;
       ConfigError();
       return Value;
     }
@@ -341,12 +337,12 @@ static int GetValueWrapped(const string& sLine, ostream &errstream)
                  Value *= ValTmp;
                else
                {
-                 errstream << "Invalid Operator" << endl;
+                 errstream << "Invalid Operator: \"" << sLine << "\"" << endl;
                  ConfigError();
                }
                break;
     default:
-               errstream << "Syntax error or invalid value !!!" << endl;
+               errstream << "Syntax error or invalid value: \"" << sLine << "\"" << endl;
                ConfigError();
                return Value;
     }
@@ -561,6 +557,8 @@ static bool ParseGop(string & sLine, AL_TEncSettings & Settings)
   else if(Settings.tChParam.tGopParam.eMode & AL_GOP_FLAG_LOW_DELAY)
   {
     if(KEYWORD("Gop.GdrMode"))     Settings.tChParam.tGopParam.eGdrMode   = AL_EGdrMode(GetValue(sLine));
+    else
+	    return false;
   }
 
   return true;
@@ -1064,8 +1062,4 @@ void ParseConfigFile(const string& sCfgFileName, ConfigFile& cfg)
         cfg.CfgTrace))
     throw runtime_error("Cannot parse config file: '" + sCfgFileName + "'");
 }
-/*****************************************************************************/
-
-#undef IF_KEYWORD
-
 /*****************************************************************************/

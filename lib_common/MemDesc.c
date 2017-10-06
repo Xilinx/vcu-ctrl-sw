@@ -60,11 +60,16 @@ void MemDesc_Init(TMemDesc* pMD)
 /****************************************************************************/
 bool MemDesc_Alloc(TMemDesc* pMD, AL_TAllocator* pAllocator, size_t zSize)
 {
+  return MemDesc_AllocNamed(pMD, pAllocator, zSize, "unknown");
+}
+
+bool MemDesc_AllocNamed(TMemDesc* pMD, AL_TAllocator* pAllocator, size_t zSize, char const* name)
+{
   bool bRet = false;
 
   if(pMD && pAllocator)
   {
-    AL_HANDLE hBuf = AL_Allocator_Alloc(pAllocator, zSize);
+    AL_HANDLE hBuf = AL_Allocator_AllocNamed(pAllocator, zSize, name);
 
     if(hBuf)
     {

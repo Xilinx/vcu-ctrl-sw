@@ -45,10 +45,6 @@
 #pragma once
 
 #include "lib_rtos/types.h"
-#include "DecBuffers.h"
-
-#define LAST_AU_NAL 0x01
-#define COMPLETE_NAL 0x02
 
 /*************************************************************************//*!
    \brief Start Code Detector Parameters : Mimics structure for IP registers

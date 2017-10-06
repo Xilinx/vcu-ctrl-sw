@@ -47,7 +47,7 @@ static bool StreamMeta_Destroy(AL_TMetaData* pMeta)
   return true;
 }
 
-AL_TStreamMetaData* AL_StreamMetaData_Create(uint16_t uMaxNumSection, uint32_t uMaxSize)
+AL_TStreamMetaData* AL_StreamMetaData_Create(uint16_t uMaxNumSection)
 {
   AL_TStreamMetaData* pMeta;
 
@@ -62,14 +62,8 @@ AL_TStreamMetaData* AL_StreamMetaData_Create(uint16_t uMaxNumSection, uint32_t u
   pMeta->tMeta.eType = AL_META_TYPE_STREAM;
   pMeta->tMeta.MetaDestroy = StreamMeta_Destroy;
 
-  pMeta->uOffset = 0;
-  pMeta->uAvailSize = 0;
-  pMeta->uMaxSize = uMaxSize;
-
   pMeta->uMaxNumSection = uMaxNumSection;
-  pMeta->uFirstSection = 0;
   pMeta->uNumSection = 0;
-  pMeta->uNumMissingSection = 0;
 
   pMeta->pSections = Rtos_Malloc(sizeof(AL_TStreamSection) * uMaxNumSection);
 
@@ -85,21 +79,14 @@ AL_TStreamMetaData* AL_StreamMetaData_Create(uint16_t uMaxNumSection, uint32_t u
 
 AL_TStreamMetaData* AL_StreamMetaData_Clone(AL_TStreamMetaData* pMeta)
 {
-  return AL_StreamMetaData_Create(pMeta->uMaxNumSection, pMeta->uMaxSize);
+  return AL_StreamMetaData_Create(pMeta->uMaxNumSection);
 }
 
 uint16_t AL_StreamMetaData_AddSection(AL_TStreamMetaData* pMetaData, uint32_t uOffset, uint32_t uLength, uint32_t uFlags)
 {
-  uint16_t uSectionID;
-
   assert(pMetaData && pMetaData->uNumSection < AL_MAX_SECTION);
 
-  uSectionID = pMetaData->uNumSection++ % AL_MAX_SECTION;
-
-  if(uLength > (pMetaData->uAvailSize - uOffset))
-    uLength = (pMetaData->uAvailSize - uOffset);
-
-  uOffset = (pMetaData->uOffset + uOffset) % pMetaData->uMaxSize;
+  uint16_t uSectionID = pMetaData->uNumSection++ % AL_MAX_SECTION;
 
   pMetaData->pSections[uSectionID].uOffset = uOffset;
   pMetaData->pSections[uSectionID].uLength = uLength;

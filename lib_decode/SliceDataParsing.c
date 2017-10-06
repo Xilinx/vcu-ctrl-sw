@@ -108,19 +108,15 @@ static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecP
 
   uint32_t u10BitsFlag = (pPP->MaxBitDepth == 8) ? 0x00000000 : 0x80000000;
 
+  uint8_t* pRecData = AL_Buffer_GetData(pCtx->m_pRec);
+
   /* put addresses */
   pBufs->tRecY.tMD.uPhysicalAddr = AL_Allocator_GetPhysicalAddr(pCtx->m_pRec->pAllocator, pCtx->m_pRec->hBuf);
-  pBufs->tRecY.tMD.pVirtualAddr = pCtx->m_pRec->pData;
+  pBufs->tRecY.tMD.pVirtualAddr = pRecData;
 
   pBufs->tRecC.tMD.uPhysicalAddr = AL_Allocator_GetPhysicalAddr(pCtx->m_pRec->pAllocator, pCtx->m_pRec->hBuf) + uLumaSize;
-  pBufs->tRecC.tMD.pVirtualAddr = pCtx->m_pRec->pData + uLumaSize;
+  pBufs->tRecC.tMD.pVirtualAddr = pRecData + uLumaSize;
 
-  uint32_t uBufferSize = AL_GetAllocSize_Reference(uWidth, uHeight, pPP->ChromaMode, pPP->MaxBitDepth);
-  pBufs->tRecFbcMapY.tMD.uPhysicalAddr = AL_Allocator_GetPhysicalAddr(pCtx->m_pRec->pAllocator, pCtx->m_pRec->hBuf) + uBufferSize;
-  pBufs->tRecFbcMapY.tMD.pVirtualAddr = pCtx->m_pRec->pData + uBufferSize;
-  uint32_t uChromaMapOffset = uBufferSize + AL_GetAllocSize_LumaMap(uWidth, uHeight, pCtx->m_chanParam.eFBStorageMode);
-  pBufs->tRecFbcMapC.tMD.uPhysicalAddr = AL_Allocator_GetPhysicalAddr(pCtx->m_pRec->pAllocator, pCtx->m_pRec->hBuf) + uChromaMapOffset;
-  pBufs->tRecFbcMapC.tMD.pVirtualAddr = pCtx->m_pRec->pData + uChromaMapOffset;
 
   pBufs->tPoc.tMD.uPhysicalAddr = pCtx->m_pPOC->tMD.uPhysicalAddr;
   pBufs->tPoc.tMD.pVirtualAddr = pCtx->m_pPOC->tMD.pVirtualAddr;
@@ -246,6 +242,15 @@ void AL_InitFrameBuffers(AL_TDecCtx* pCtx, int iWidth, int iHeight, AL_TDecPicPa
   }
 
   AL_PictMngr_LockRefMvId(&pCtx->m_PictMngr, pCtx->m_uNumRef[iOffset], pCtx->m_uMvIDRefList[iOffset]);
+}
+
+/*****************************************************************************/
+void AL_CancelFrameBuffers(AL_TDecCtx* pCtx)
+{
+  AL_PictMngr_CancelFrame(&pCtx->m_PictMngr);
+
+  int iOffset = pCtx->m_iNumFrmBlk1 % MAX_STACK_SIZE;
+  AL_PictMngr_UnlockRefMvId(&pCtx->m_PictMngr, pCtx->m_uNumRef[iOffset], pCtx->m_uMvIDRefList[iOffset]);
 }
 
 /*****************************************************************************/

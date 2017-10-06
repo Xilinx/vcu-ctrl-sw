@@ -43,13 +43,10 @@
 #define RES_SIZE_16x16_HEVC 768/*!< residuals size of a 16x16 LCU */
 #define SIZE_COMPRESS_LCU 1312/*!< header + MVDs + residuals words size */
 #define SIZE_LCU_INFO 16 /*!< LCU compressed size + LCU offset */
-#define SCD_SIZE 128/*!< size of start code detector output */
-#define NON_VCL_NAL_SIZE 2048/*!< Init size of the Deanti-emulated buffer used by
-                                the software to parse the high level syntax data  */
+
 
 #define AL_MAX_SUPPORTED_LCU_SIZE 6
 #define AL_MIN_SUPPORTED_LCU_SIZE 4
-#define AL_MAX_SUPPORTED_CHROMA_MODE 3
 
 static const uint16_t AL_PCM_SIZE[4][3] =
 {
@@ -62,4 +59,8 @@ static const uint16_t AL_PCM_SIZE[4][3] =
 #define QP_CTRL_TABLE_SIZE 48
 
 static const int SCLST_SIZE_ENC = 1024;
+
+
+#define AL_MAX_SLICES_SUBFRAME 32
+#define AL_MAX_STREAM_BUFFER (AL_MAX_SLICES_SUBFRAME * 10)
 

@@ -60,6 +60,15 @@ bool AL_ISchedulerEnc_Destroy(TScheduler* pScheduler);
 
 typedef AL_HANDLE AL_HEncoder;
 
+/*************************************************************************//*!
+   \brief This callback is called when
+   - a frame is encoded ((pStream != NULL) && (pSrc != NULL))
+   - eos reached ((pStream == NULL) && (pSrc == NULL))
+   - release stream buffer ((pStream != NULL && (pSrc == NULL))
+   \param[out] pUserParam User parameter
+   \param[out] pStream The stream buffer if any
+   \param[out] pSrc The source buffer associated to the stream if any
+*****************************************************************************/
 typedef struct
 {
   void (* func)(void* pUserParam, AL_TBuffer* pStream, AL_TBuffer const* pSrc);
@@ -69,17 +78,16 @@ typedef struct
 /*************************************************************************//*!
    \brief The AL_Encoder_Create function creates a new instance of the encoder
    and returns a handle that can be used to access the object
+   \param[out] hEnc handle to the new created encoder
    \param[in] pScheduler Pointer to the scheduler object.
    \param[in] pAlloc Pointer to a AL_TAllocator interface.
    \param[in] pSettings Pointer to AL_TEncSettings structure specifying the encoder
    parameters.
    \param[in] callback callback called when the encoding of a frame is finished
-   \return If the function succeeds the return value is an handle to the new
-   created encoder
-   If the function fails the return value is NULL
+   \return errorcode specifying why this encoder couldn't be created
    \see AL_Encoder_Destroy
 *****************************************************************************/
-AL_HEncoder AL_Encoder_Create(TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings, AL_CB_EndEncoding callback);
+AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings, AL_CB_EndEncoding callback);
 
 /*************************************************************************//*!
    \brief The AL_Encoder_Destroy function releases all allocated ressources

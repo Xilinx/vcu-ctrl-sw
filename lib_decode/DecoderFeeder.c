@@ -39,7 +39,6 @@
 #include "DecoderFeeder.h"
 #include "lib_common/Error.h"
 #include "lib_common/Utils.h"
-#include <stdlib.h> // for 'exit'
 
 int AL_Decoder_GetStrOffset(AL_HANDLE hDec);
 AL_ERR AL_Decoder_TryDecodeOneAU(AL_HDecoder hDec, TCircBuffer* pBufStream);
@@ -54,9 +53,9 @@ typedef struct AL_TDecoderFeederS
 
   AL_THREAD slave;
   TCircBuffer decodeBuffer;
-  bool keepGoing;
-  AL_MUTEX lock;
+  int32_t keepGoing;
   bool stopped;
+  AL_CB_Error errorCallback;
 }AL_TDecoderFeeder;
 
 /* Decoder Feeder Slave structure */
@@ -91,11 +90,11 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
     // Decode Max AU as possible with this data
     AL_ERR eErr = AL_SUCCESS;
 
-    while(eErr != ERR_NO_FRAME_DECODED)
+    while(eErr != AL_ERR_NO_FRAME_DECODED)
     {
       eErr = AL_Decoder_TryDecodeOneAU(hDec, decodeBuffer);
 
-      if(eErr == ERR_INIT_FAILED)
+      if(eErr == AL_ERR_INIT_FAILED)
         return false;
     }
 
@@ -103,7 +102,11 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
     {
       // no more AU to get from a full circular buffer:
       // empty it to avoid a stall
+      AL_Decoder_FlushInput(slave->hDec);
+      CircBuffer_Init(decodeBuffer);
       CircBuffer_Init(slave->patchworker->outputCirc);
+      // enable buffer transfer to CircBuffer
+      AL_DecoderFeeder_Process(slave);
     }
 
     // Leave when end of input [all the data were processed in the previous TryDecodeOneAU]
@@ -120,11 +123,9 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
 
 static bool shouldKeepGoing(AL_TDecoderFeeder* slave)
 {
-  bool keepGoing;
-  Rtos_GetMutex(slave->lock);
-  keepGoing = slave->keepGoing;
-  Rtos_ReleaseMutex(slave->lock);
-  return keepGoing;
+  int32_t keepGoing = Rtos_AtomicDecrement(&slave->keepGoing);
+  Rtos_AtomicIncrement(&slave->keepGoing);
+  return keepGoing >= 0;
 }
 
 static void Slave_EntryPoint(AL_TDecoderFeeder* slave)
@@ -143,7 +144,7 @@ static void Slave_EntryPoint(AL_TDecoderFeeder* slave)
 
     if(!bRet)
     {
-      exit(99); // workaround to avoid a deadlock. TODO: use an error callback
+      slave->errorCallback.func(slave->errorCallback.userParam);
       break; // exit thread
     }
   }
@@ -162,9 +163,7 @@ static void DestroySlave(AL_TDecoderFeeder* this)
 {
   if(this->slave)
   {
-    Rtos_GetMutex(this->lock);
-    this->keepGoing = false; /* Will be propagated to the slave */
-    Rtos_ReleaseMutex(this->lock);
+    Rtos_AtomicDecrement(&this->keepGoing); /* Will be propagated to the slave */
     Rtos_SetEvent(this->incomingWorkEvent);
 
     Rtos_JoinThread(this->slave);
@@ -178,7 +177,6 @@ void AL_DecoderFeeder_Destroy(AL_TDecoderFeeder* this)
   {
     DestroySlave(this);
     Rtos_DeleteEvent(this->incomingWorkEvent);
-    Rtos_DeleteMutex(this->lock);
     Rtos_Free(this);
   }
 }
@@ -205,7 +203,7 @@ void AL_DecoderFeeder_Reset(AL_TDecoderFeeder* this)
   AL_Patchworker_Reset(this->patchworker);
 }
 
-AL_TDecoderFeeder* AL_DecoderFeeder_Create(TMemDesc* decodeMemoryDescriptor, AL_HANDLE hDec, AL_TPatchworker* patchworker)
+AL_TDecoderFeeder* AL_DecoderFeeder_Create(TMemDesc* decodeMemoryDescriptor, AL_HANDLE hDec, AL_TPatchworker* patchworker, AL_CB_Error* errorCallback)
 {
   AL_TDecoderFeeder* this = Rtos_Malloc(sizeof(*this));
 
@@ -216,6 +214,7 @@ AL_TDecoderFeeder* AL_DecoderFeeder_Create(TMemDesc* decodeMemoryDescriptor, AL_
     goto cleanup;
 
   this->patchworker = patchworker;
+  this->errorCallback = *errorCallback;
 
   CircBuffer_Init(&this->decodeBuffer);
   this->decodeBuffer.tMD = *decodeMemoryDescriptor;
@@ -225,8 +224,7 @@ AL_TDecoderFeeder* AL_DecoderFeeder_Create(TMemDesc* decodeMemoryDescriptor, AL_
   if(!this->incomingWorkEvent)
     goto cleanup;
 
-  this->keepGoing = true;
-  this->lock = Rtos_CreateMutex(false);
+  this->keepGoing = 1;
   this->stopped = false;
   this->hDec = hDec;
 

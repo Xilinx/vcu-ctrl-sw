@@ -40,7 +40,7 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
-#define AL_MCU_CONFIG_CHANNEL  _IOWR('q', 2, struct al5_config_channel)
+#define AL_MCU_CONFIG_CHANNEL  _IOWR('q', 2, struct al5_channel_config)
 #define AL_MCU_DESTROY_CHANNEL  _IO('q', 4)
 #define AL_MCU_ENCODE_ONE_FRM _IOWR('q', 5, struct al5_encode_msg)
 #define AL_MCU_WAIT_FOR_STATUS _IOWR('q', 6, struct al5_params)
@@ -52,7 +52,6 @@
 
 #define AL_MCU_GET_REC_PICTURE _IOWR('q', 23, struct al5_reconstructed_info)
 #define AL_MCU_RELEASE_REC_PICTURE _IOWR('q', 24, __u32)
-
 
 struct al5_reconstructed_info
 {
@@ -84,7 +83,7 @@ struct al5_channel_status
 	__u32 error_code;
 };
 
-struct al5_config_channel
+struct al5_channel_config
 {
 	struct al5_params param;
 	struct al5_channel_status status;
