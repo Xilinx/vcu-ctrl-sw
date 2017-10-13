@@ -656,13 +656,12 @@ bool AL_AVC_DecodeOneNAL(AL_TAvcAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool 
 {
   if(isSliceData(eNUT))
     return decodeSliceData(pAUP, pCtx, eNUT, bIsLastAUNal, bFirstIsValid, bFirstSliceInFrameIsValid, iNumSlice, bBeginFrameIsValid);
-
-  AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
   switch(eNUT)
   {
   // Parser SEI
   case AL_AVC_NUT_SEI:
   {
+    AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
     AL_TAvcSei sei;
     AL_AVC_ParseSEI(&sei, &rp, pAUP->m_pSPS, &pAUP->m_pActiveSPS);
     break;
@@ -671,6 +670,7 @@ bool AL_AVC_DecodeOneNAL(AL_TAvcAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool 
   // Parser SPS
   case AL_AVC_NUT_SPS:
   {
+    AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
     AL_PARSE_RESULT Ret = AL_AVC_ParseSPS(pAUP->m_pSPS, &rp);
 
     if(Ret == AL_UNSUPPORTED)
@@ -681,6 +681,7 @@ bool AL_AVC_DecodeOneNAL(AL_TAvcAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool 
   // Parser PPS
   case AL_AVC_NUT_PPS:
   {
+    AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
     AL_PARSE_RESULT Ret = AL_AVC_ParsePPS(pAUP->m_pPPS, &rp, pAUP->m_pSPS);
 
     if(Ret == AL_UNSUPPORTED)

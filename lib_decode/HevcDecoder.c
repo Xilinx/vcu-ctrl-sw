@@ -754,8 +754,6 @@ bool AL_HEVC_DecodeOneNAL(AL_THevcAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, boo
 {
   if(isSliceData(eNUT))
     return decodeSliceData(pAUP, pCtx, eNUT, bIsLastAUNal, bFirstIsValid, bFirstSliceInFrameIsValid, iNumSlice, bBeginFrameIsValid);
-
-  AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
   switch(eNUT)
   {
   // Parser SEI
@@ -768,6 +766,7 @@ bool AL_HEVC_DecodeOneNAL(AL_THevcAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, boo
   // Parser VPS
   case AL_HEVC_NUT_VPS:
   {
+    AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
     ParseVPS(pAUP->m_pVPS, &rp);
     break;
   }
@@ -775,6 +774,7 @@ bool AL_HEVC_DecodeOneNAL(AL_THevcAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, boo
   // Parser SPS
   case AL_HEVC_NUT_SPS:
   {
+    AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
     uint8_t SpsId;
     AL_HEVC_ParseSPS(pAUP->m_pSPS, &rp, &SpsId);
     break;
@@ -783,6 +783,7 @@ bool AL_HEVC_DecodeOneNAL(AL_THevcAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, boo
   // Parser PPS
   case AL_HEVC_NUT_PPS:
   {
+    AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
     uint8_t LastPicId;
     AL_HEVC_ParsePPS(pAUP->m_pPPS, &rp, pAUP->m_pSPS, &LastPicId);
 
