@@ -1,6 +1,6 @@
-============================
-Allegro Software Source Code
-============================
+================================
+VCU Control Software Source Code
+================================
 
 Overview
 ========
@@ -63,5 +63,5 @@ Warning : Options below the comment line /// IP CONFIGURATION ////
 User Manual
 ===========
 
-The encoder user manual is available in Doc/Allegro_encoder_UserManual.pdf
+VCU User Manual (ZCU_106_VCU_ReadMe.pdf) is released along with zcu106 petalinux BSP.
 
