@@ -63,5 +63,5 @@ Warning : Options below the comment line /// IP CONFIGURATION ////
 User Manual
 ===========
 
-VCU User Manual (ZCU_106_VCU_ReadMe.pdf) is released along with zcu106 petalinux BSP.
+Refer to Xilinx product guide document: PG252 H.264/H.265 Video Codec Unit Product Guide.
 
