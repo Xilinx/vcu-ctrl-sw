@@ -97,78 +97,76 @@ typedef struct t_BufferRef
 }TBufferRef, TBufferListRef[2][MAX_REF + 1];
 
 /****************************************************************************/
-uint32_t RndUpPow2(uint32_t uVal);
+int32_t RndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode);
 
 /****************************************************************************/
-uint32_t RndPitch(uint32_t uWidth, uint8_t uBitDepth);
-
-/****************************************************************************/
-uint32_t RndHeight(uint32_t uHeight);
+int32_t RndHeight(int32_t iHeight);
 
 /*************************************************************************//*!
    \brief Retrieves the number of LCU in the frame
-   \param[in] uWidth      Frame width in pixel unit
-   \param[in] uHeight     Frame height in pixel unit
+   \param[in] tDim  Frame dimension (width, height) in pixel
    \param[in] uLCUSize    Max Size of a Coding Unit
    \return number of LCU in the frame
 *****************************************************************************/
-uint32_t AL_GetNumLCU(uint16_t uWidth, uint16_t uHeight, uint8_t uLCUSize);
+int AL_GetNumLCU(AL_TDimension tDim, uint8_t uLCUSize);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a HEVC compressed buffer(LCU header + MVDs + Residuals)
-   \param[in] uWidth      Frame width in pixels
-   \param[in] uHeight     Frame height in pixels
+   \param[in] tDim  Frame dimension (width, height) in pixel
    \param[in] eChromaMode Chroma sub-sampling mode
    \return maximum size (in bytes) needed for the compressed buffer
 *****************************************************************************/
-uint32_t AL_GetAllocSize_HevcCompData(uint16_t uWidth, uint16_t uHeight, AL_EChromaMode eChromaMode);
+int AL_GetAllocSize_HevcCompData(AL_TDimension tDim, AL_EChromaMode eChromaMode);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a AVC compressed buffer(LCU header + MVDs + Residuals)
-   \param[in] uWidth      Frame width in pixels
-   \param[in] uHeight     Frame height in pixels
+   \param[in] tDim  Frame dimension (width, height) in pixel
    \param[in] eChromaMode Chroma sub-sampling mode
    \return maximum size (in bytes) needed for the compressed buffer
 *****************************************************************************/
-uint32_t AL_GetAllocSize_AvcCompData(uint16_t uWidth, uint16_t uHeight, AL_EChromaMode eChromaMode);
+int AL_GetAllocSize_AvcCompData(AL_TDimension tDim, AL_EChromaMode eChromaMode);
 
 /*************************************************************************//*!
    \brief Retrieves the size of the compressed map buffer (LCU Offset & size)
-   \param[in] uWidth  Frame width in pixels
-   \param[in] uHeight Frame height in pixels
+   \param[in] tDim  Frame dimension (width, height) in pixel
    \return maximum size (in bytes) needed for the compressed map buffer
 *****************************************************************************/
-uint32_t AL_GetAllocSize_CompMap(uint16_t uWidth, uint16_t uHeight);
+int AL_GetAllocSize_CompMap(AL_TDimension tDim);
 
 /*************************************************************************//*!
-   \brief Retrieves the size of a motion vector buffer
-   \param[in] uWidth   Frame Width in pixel
-   \param[in] uHeight  Frame Height in pixel
-   \param[in] bIsAvc   Specifies if the standard used is AVC or HEVC
+   \brief Retrieves the size of a HEVC motion vector buffer
+   \param[in] tDim  Frame dimension (width, height) in pixel
    \return the size (in bytes) needed for the colocated frame buffer
 *****************************************************************************/
-uint32_t AL_GetAllocSize_MV(uint16_t uWidth, uint16_t uHeight, bool bIsAvc);
+int AL_GetAllocSize_HevcMV(AL_TDimension tDim);
+
+/*************************************************************************//*!
+   \brief Retrieves the size of a AVC motion vector buffer
+   \param[in] tDim  Frame dimension (width, height) in pixel
+   \return the size (in bytes) needed for the colocated frame buffer
+*****************************************************************************/
+int AL_GetAllocSize_AvcMV(AL_TDimension tDim);
 
 /*************************************************************************//*!
    \brief Retrieves the size of the output frame buffer
-   \param[in] tDimension  Frame dimension (width, height) in pixel
+   \param[in] tDim Frame dimension (width, height) in pixel
    \param[in] eChromaMode Chroma mode
-   \param[in] uBitDepth   Bit Depth
+   \param[in] uBitDepth Bit Depth
    \param[in] bFrameBufferCompression Specifies if compression is needed
    \param[in] eFrameBufferStorageMode Storage Mode of the frame buffer
    \return the size (in bytes) needed for the output frame buffer
 *****************************************************************************/
-int AL_GetAllocSize_Frame(AL_TDimension tDimension, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bFrameBufferCompression, AL_EFbStorageMode eFrameBufferStorageMode);
+int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bFrameBufferCompression, AL_EFbStorageMode eFrameBufferStorageMode);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a reference frame buffer
-   \param[in] uWidth      frame width in pixels units
-   \param[in] uHeight     frame height in pixels units
+   \param[in] tDim Frame dimension (width, height) in pixel
    \param[in] eChromaMode Chroma subsampling
    \param[in] uBitDepth   Size in bits of picture samples
+   \param[in] eFrameBufferStorageMode Storage Mode of the frame buffer
    \return the size (in bytes) needed for reference frame buffer
 *****************************************************************************/
-uint32_t AL_GetAllocSize_Reference(uint16_t uWidth, uint16_t uHeight, AL_EChromaMode eChromaMode, uint8_t uBitDepth);
+int AL_GetAllocSize_DecReference(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode);
 
 
 /*@}*/

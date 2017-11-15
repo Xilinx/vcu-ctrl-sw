@@ -38,6 +38,7 @@
 #include "lib_decode/lib_decode.h"
 #include "BufferFeeder.h"
 #include "I_Decoder.h"
+#include "lib_common_dec/DecBuffers.h"
 
 AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** pDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
 
@@ -83,24 +84,10 @@ void AL_Decoder_Flush(AL_HDecoder hDec)
 }
 
 /*****************************************************************************/
-void AL_Decoder_ForceStop(AL_HDecoder hDec)
+void AL_Decoder_PutDisplayPicture(AL_HDecoder hDec, AL_TBuffer* pDisplay)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)hDec;
-  pDec->vtable->pfnForceStop(pDec);
-}
-
-/*****************************************************************************/
-void AL_Decoder_ReleaseDecPict(AL_HDecoder hDec, AL_TBuffer* pDecPict)
-{
-  AL_TDecoder* pDec = (AL_TDecoder*)hDec;
-  pDec->vtable->pfnReleaseDecPict(pDec, pDecPict);
-}
-
-/*****************************************************************************/
-void AL_Decoder_PutDecPict(AL_HDecoder hDec, AL_TBuffer* pDecPict)
-{
-  AL_TDecoder* pDec = (AL_TDecoder*)hDec;
-  pDec->vtable->pfnPutDecPict(pDec, pDecPict);
+  pDec->vtable->pfnPutDisplayPicture(pDec, pDisplay);
 }
 
 /*****************************************************************************/
@@ -125,6 +112,13 @@ AL_ERR AL_Decoder_GetLastError(AL_HDecoder hDec)
 }
 
 /*****************************************************************************/
+bool AL_Decoder_PreallocateBuffers(AL_HDecoder hDec)
+{
+  AL_TDecoder* pDec = (AL_TDecoder*)hDec;
+  return pDec->vtable->pfnPreallocateBuffers(pDec);
+}
+
+/*****************************************************************************/
 void AL_Decoder_InternalFlush(AL_HDecoder hDec)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)hDec;
@@ -136,5 +130,15 @@ void AL_Decoder_FlushInput(AL_HDecoder hDec)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)hDec;
   pDec->vtable->pfnFlushInput(pDec);
+}
+
+uint32_t AL_Decoder_RoundPitch(uint32_t uWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode)
+{
+  return RndPitch(uWidth, uBitDepth, eFrameBufferStorageMode);
+}
+
+uint32_t AL_Decoder_RoundHeight(uint32_t uHeight)
+{
+  return RndHeight(uHeight);
 }
 

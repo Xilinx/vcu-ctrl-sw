@@ -50,9 +50,13 @@
 #include "lib_common_enc/Settings.h"
 #include "Utils_enc.h"
 #include "lib_common/Utils.h"
+#include "lib_common/StreamBufferPrivate.h"
 #include "lib_common_enc/EncBuffers.h"
 #include "L2PrefetchParam.h"
 #include "lib_common/SEI.h"
+#ifndef HW_IP_BIT_DEPTH
+#define HW_IP_BIT_DEPTH 10
+#endif
 
 /***************************************************************************/
 static bool AL_sSettings_CheckProfile(AL_EProfile eProfile)
@@ -568,6 +572,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pSettings->tChParam.uLevel = 51;
   pSettings->tChParam.uTier = 0; // MAIN_TIER
   pSettings->tChParam.eOptions = AL_OPT_LF | AL_OPT_LF_X_SLICE | AL_OPT_LF_X_TILE;
+  pSettings->tChParam.eOptions |= AL_OPT_RDO_COST_MODE;
 
   pSettings->tChParam.ePicFormat = AL_420_8BITS;
 
@@ -617,7 +622,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pSettings->eColourDescription = COLOUR_DESC_BT_470_PAL;
 
   pSettings->eQpCtrlMode = UNIFORM_QP;// ADAPTIVE_AUTO_QP;
-  pSettings->eLdaCtrlMode = DEFAULT_LDA;
+  pSettings->tChParam.eLdaCtrlMode = DEFAULT_LDA;
 
   pSettings->eScalingList = AL_SCL_DEFAULT;
 
@@ -642,7 +647,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pSettings->tChParam.eEntropyMode = AL_MODE_CABAC;
   pSettings->tChParam.eWPMode = AL_WP_DEFAULT;
 
-  pSettings->tChParam.eSrcConvMode = AL_NVX;
+  pSettings->tChParam.eSrcMode = AL_NVX;
 
 
   pSettings->bScalingListPresentFlags = 0;
@@ -747,17 +752,12 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, FILE* pOut)
 
   if(pSettings->tChParam.tRCParam.eRCMode == AL_RC_LOW_LATENCY)
   {
-// MSG("LOW_LATENCY Mode not supported yet");
     if(pSettings->tChParam.tGopParam.uNumB > 0)
     {
       ++err;
       MSG("B Picture not allowed in LOW_LATENCY Mode");
     }
-// if(pSettings->tChParam.tRCParam.uTargetBitRate > 300000000)
-// MSG("Invalid parameter : BitRate");
   }
-// else if( pSettings->tChParam.tRCParam.uTargetBitRate > 40000000)
-// MSG("Invalid parameter : BitRate");
 
   if(pSettings->tChParam.tGopParam.eMode == AL_GOP_MODE_DEFAULT)
   {
@@ -935,8 +935,8 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
   int iBitDepth;
   AL_EChromaMode eInputChromaMode;
 
-  int16_t iMaxPRange = AL_IS_AVC(pSettings->tChParam.eProfile) ? AL_AVC_MAX_PRANGE : AL_HEVC_MAX_PRANGE;
-  int16_t iMaxBRange = AL_IS_AVC(pSettings->tChParam.eProfile) ? AL_AVC_MAX_BRANGE : AL_HEVC_MAX_BRANGE;
+  int16_t iMaxPRange = AL_IS_AVC(pSettings->tChParam.eProfile) ? AVC_MAX_HORIZONTAL_RANGE_P : HEVC_MAX_HORIZONTAL_RANGE_P;
+  int16_t iMaxBRange = AL_IS_AVC(pSettings->tChParam.eProfile) ? AVC_MAX_HORIZONTAL_RANGE_B : HEVC_MAX_HORIZONTAL_RANGE_B;
 
   assert(pSettings);
 
@@ -988,7 +988,8 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
   {
     if(pSettings->tChParam.tRCParam.eRCMode == AL_RC_CBR)
     {
-      uint32_t maxNalSizeInByte = GetMaxVclNalSize(pSettings->tChParam.uWidth, pSettings->tChParam.uHeight, eInputChromaMode);
+      AL_TDimension tDim = { pSettings->tChParam.uWidth, pSettings->tChParam.uHeight };
+      uint32_t maxNalSizeInByte = GetMaxVclNalSize(tDim, eInputChromaMode);
       uint32_t maxBitRate = 8 * maxNalSizeInByte * pSettings->tChParam.tRCParam.uFrameRate;
 
       if(pSettings->tChParam.tRCParam.uTargetBitRate > maxBitRate)
@@ -996,6 +997,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
         MSG("!! Warning specified TargetBitRate is too high for this use case and will be adjusted!!");
         pSettings->tChParam.tRCParam.uTargetBitRate = maxBitRate;
         pSettings->tChParam.tRCParam.uMaxBitRate = maxBitRate;
+        ++numIncoherency;
       }
     }
 

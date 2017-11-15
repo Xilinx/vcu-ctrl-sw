@@ -45,6 +45,9 @@
 #include "L2PrefetchParam.h"
 #include "lib_common/Utils.h"
 
+#ifndef HW_IP_BIT_DEPTH
+#define HW_IP_BIT_DEPTH 10
+#endif
 
 /****************************************************************************/
 void AL_L2P_GetL2PrefetchMaxRange(AL_TEncChanParam const* pChParam, AL_ESliceType eSliceType, uint8_t uNumCore, uint16_t* pHorzRange, uint16_t* pVertRange)

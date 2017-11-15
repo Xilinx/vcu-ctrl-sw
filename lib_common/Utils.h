@@ -59,12 +59,6 @@ static AL_INLINE int Clip3(int iVal, int iMin, int iMax)
 }
 
 /***************************************************************************/
-static AL_INLINE uint32_t UMax(uint32_t uVal1, uint32_t uVal2)
-{
-  return ((uVal1) < (uVal2)) ? (uVal2) : (uVal1);
-}
-
-/***************************************************************************/
 static AL_INLINE int Max(int iVal1, int iVal2)
 {
   return ((iVal1) < (iVal2)) ? (iVal2) : (iVal1);

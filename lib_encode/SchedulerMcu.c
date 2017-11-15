@@ -311,6 +311,7 @@ static bool putStreamBuffer(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuff
 }
 
 
+
 static const TSchedulerVtable McuSchedulerVtable =
 {
   &destroy,

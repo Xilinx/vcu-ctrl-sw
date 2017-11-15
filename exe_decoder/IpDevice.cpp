@@ -46,7 +46,6 @@
 extern "C"
 {
 #include "lib_fpga/DmaAlloc.h"
-#include "lib_decode/I_DecChannel.h"
 }
 
 using namespace std;
@@ -66,11 +65,10 @@ extern "C"
 AL_TIDecChannel* AL_DecChannelMcu_Create();
 }
 
-static unique_ptr<CIpDevice> createMcuIpDevice(int iVip)
+static unique_ptr<CIpDevice> createMcuIpDevice()
 {
   auto device = make_unique<CIpDevice>();
 
-  (void)iVip;
   device->m_pAllocator.reset(createDmaAllocator("/dev/allegroDecodeIP"), &AL_Allocator_Destroy);
 
   if(!device->m_pAllocator)
@@ -81,24 +79,18 @@ static unique_ptr<CIpDevice> createMcuIpDevice(int iVip)
   if(!device->m_pDecChannel)
     throw runtime_error("Failed to create MCU scheduler");
 
-
   return device;
 }
 
 
-shared_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, AL_EDecUnit eDecUnit, IpCtrlMode ipCtrlMode, bool trackDma, int uNumCore, int iVip)
+shared_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, AL_EDecUnit eDecUnit, function<AL_TIpCtrl*(AL_TIpCtrl*)> wrapIpCtrl, bool trackDma, int uNumCore, int hangers)
 {
-  (void)iUseBoard;
-  (void)eDecUnit;
-  (void)ipCtrlMode;
-  (void)uNumCore;
-  (void)iVip;
-  (void)trackDma;
+  (void)iUseBoard, (void)eDecUnit, (void)wrapIpCtrl, (void)uNumCore, (void)trackDma, (void)hangers;
 
 
 
   if(iSchedulerType == SCHEDULER_TYPE_MCU)
-    return createMcuIpDevice(iVip);
+    return createMcuIpDevice();
 
   throw runtime_error("No support for this scheduling type");
 }

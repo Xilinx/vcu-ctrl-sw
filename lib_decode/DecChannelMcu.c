@@ -414,7 +414,7 @@ static void DecChannelMcu_Destroy(AL_TIDecChannel* pDecChannel)
 }
 
 /****************************************************************************/
-static AL_ERR DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecChanParam* pChParam, AL_TIDecChannelCallbacks* pCBs)
+static AL_ERR DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecChanParam* pChParam, AL_CB_EndFrameDecoding callback)
 {
   struct DecChanMcuCtx* decChanMcu = (struct DecChanMcuCtx*)pDecChannel;
   struct al5_channel_config msg = { 0 };
@@ -423,7 +423,7 @@ static AL_ERR DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecC
   Channel* chan = &decChanMcu->chan;
 
   chan->bBeingDestroyed = false;
-  chan->endFrameDecodingCB = pCBs->endFrameDecodingCB;
+  chan->endFrameDecodingCB = callback;
 
   chan->fd = open(deviceFile, O_RDWR);
 
@@ -584,6 +584,7 @@ static const AL_TIDecChannelVtable DecChannelMcu =
   DecChannelMcu_DecodeOneSlice,
 };
 
+/******************************************************************************/
 AL_TIDecChannel* AL_DecChannelMcu_Create()
 {
   struct DecChanMcuCtx* decChannel = Rtos_Malloc(sizeof(*decChannel));

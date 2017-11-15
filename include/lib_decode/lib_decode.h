@@ -50,11 +50,13 @@
 #include "lib_common/BufferAccess.h"
 #include "lib_common/BufferAPI.h"
 #include "lib_common/Error.h"
+#include "lib_common/FourCC.h"
 
 #include "lib_common_dec/DecInfo.h"
 #include "lib_common_dec/DecDpbMode.h"
+#include "lib_common_dec/DecChanParam.h"
 
-#include "I_DecChannel.h"
+typedef struct AL_t_IDecChannel AL_TIDecChannel;
 
 /*************************************************************************//*!
    \brief Decoded callback definition.
@@ -84,7 +86,7 @@ typedef struct
 *****************************************************************************/
 typedef struct
 {
-  void (* func)(int BufferNumber, int BufferSize, int iWidth, int iHeight, AL_TCropInfo tCropInfo, TFourCC tFourCC, void* pUserParam);
+  void (* func)(int BufferNumber, int BufferSize, AL_TDimension tDim, AL_TCropInfo tCropInfo, TFourCC tFourCC, void* pUserParam);
   void* userParam;
 }AL_CB_ResolutionFound;
 
@@ -112,6 +114,7 @@ typedef struct
   AL_EFbStorageMode eFBStorageMode;
   AL_EDecUnit eDecUnit;     // !< SubFrame latency control activation flag
   AL_EDpbMode eDpbMode;     // !< Low ref mode control activation flag
+  AL_TStreamSettings tStream; // !< Stream's settings
 }AL_TDecSettings;
 
 typedef struct
@@ -160,19 +163,12 @@ bool AL_Decoder_PushBuffer(AL_HDecoder hDec, AL_TBuffer* pBuf, size_t uSize, AL_
 void AL_Decoder_Flush(AL_HDecoder hDec);
 
 /*************************************************************************//*!
-   \brief The AL_Decoder_ReleaseDecPict function release the decoded picture buffer
-   \param[in] hDec   Handle to an decoder object.
-   \param[in] pDecPict Pointer to the decoded picture buffer
-*****************************************************************************/
-void AL_Decoder_ReleaseDecPict(AL_HDecoder hDec, AL_TBuffer* pDecPict);
-
-/*************************************************************************//*!
-   \brief The AL_Decoder_PutDecPict function put the decoded picture buffer inside the decoder internal bufpool
+   \brief The AL_Decoder_PutDisplayPicture function put the display buffer inside the decoder internal bufpool
    It is used to give the decoder buffers where it will output the decoded pictures
    \param[in] hDec   Handle to an decoder object.
-   \param[in] pDecPict Pointer to the decoded picture buffer
+   \param[in] pDisplay Pointer to the decoded picture buffer
 *****************************************************************************/
-void AL_Decoder_PutDecPict(AL_HDecoder hDec, AL_TBuffer* pDecPict);
+void AL_Decoder_PutDisplayPicture(AL_HDecoder hDec, AL_TBuffer* pDisplay);
 
 /*************************************************************************//*!
    \brief The AL_Decoder_GetMaxBD function retrieves the maximum bitdepth allowed by the stream profile
@@ -189,10 +185,11 @@ int AL_Decoder_GetMaxBD(AL_HDecoder hDec);
 AL_ERR AL_Decoder_GetLastError(AL_HDecoder hDec);
 
 /*************************************************************************//*!
-   \brief Force to stop the decoder as soon as possible. This is not a pause.
+   \brief Preallocate required buffers. This is only usable if Stream settings are set
    \param[in]  hDec  Handle to an decoder object.
+   \return return false if the allocation failed. True otherwise
 *****************************************************************************/
-void AL_Decoder_ForceStop(AL_HDecoder hDec);
+bool AL_Decoder_PreallocateBuffers(AL_HDecoder hDec);
 
 /*************************************************************************//*!
    \brief Force to flush decoder input context (e.g. pending SC)
@@ -200,5 +197,10 @@ void AL_Decoder_ForceStop(AL_HDecoder hDec);
 *****************************************************************************/
 void AL_Decoder_FlushInput(AL_HDecoder hDec);
 
+uint32_t AL_Decoder_RoundPitch(uint32_t uWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode);
+
+uint32_t AL_Decoder_RoundHeight(uint32_t uHeight);
+
+int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bFrameBufferCompression, AL_EFbStorageMode eFrameBufferStorageMode);
 /*@}*/
 

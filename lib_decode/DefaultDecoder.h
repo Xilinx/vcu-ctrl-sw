@@ -71,10 +71,10 @@ AL_ERR AL_Default_Decoder_TryDecodeOneAU(AL_TDecoder* pAbsDec, TCircBuffer* pBuf
    \param[in] pUserParam filled with the decoder context
    \param[in] pStatus Current frame decoded status
 *****************************************************************************/
-void AL_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus);
+void AL_Default_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus);
 
 /*************************************************************************//*!
-   \brief the AL_Decoder_Alloc function allocate memory blocks usable by the decoder
+   \brief This function allocate memory blocks usable by the decoder
    \param[in]  pCtx decoder context
    \param[out] pMD  Pointer to TMemDesc structure that receives allocated
                   memory informations
@@ -83,7 +83,37 @@ void AL_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus);
    \return If the function succeeds the return value is nonzero (true)
          If the function fails the return value is zero (false)
 *****************************************************************************/
-bool AL_Decoder_Alloc(AL_TDecCtx* pCtx, TMemDesc* pMD, uint32_t uSize, char const* name);
+bool AL_Default_Decoder_Alloc(AL_TDecCtx* pCtx, TMemDesc* pMD, uint32_t uSize, char const* name);
+
+/*************************************************************************//*!
+   \brief This function allocate comp memory blocks used by the decoder
+   \param[in] pCtx decoder context
+   \param[in] iWPSize Size of the weighted pred buffer
+   \param[in] iSPSize Size of the slice param buffer
+   \param[in] iCompDataSize Size of the comp data buffer
+   \param[in] iCompMapSize Size of the comp map buffer
+   \return If the function succeeds the return value is nonzero (true)
+         If the function fails the return value is zero (false)
+*****************************************************************************/
+bool AL_Default_Decoder_AllocPool(AL_TDecCtx* pCtx, int iWPSize, int iSPSize, int iCompDataSize, int iCompMapSize);
+
+/*************************************************************************//*!
+   \brief This function allocate comp memory blocks used by the decoder
+   \param[in] pCtx decoder context
+   \param[in] iMVSize Size of the motion vector data buffer
+   \param[in] iPOCSize Size of the poc buffer
+   \param[in] iNum Number of buffers
+   \return If the function succeeds the return value is nonzero (true)
+         If the function fails the return value is zero (false)
+*****************************************************************************/
+bool AL_Default_Decoder_AllocMv(AL_TDecCtx* pCtx, int iMVSize, int iPOCSize, int iNum);
+
+/*************************************************************************//*!
+   \brief This function allocate comp memory blocks used by the decoder
+   \param[in] pCtx decoder context
+   \param[in] eError Error to set
+*****************************************************************************/
+void AL_Default_Decoder_SetError(AL_TDecCtx* pCtx, AL_ERR eError);
 
 /*@}*/
 

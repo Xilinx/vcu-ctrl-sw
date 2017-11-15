@@ -38,6 +38,8 @@
 #include "lib_common_dec/DecInfo.h"
 #include "lib_common_dec/DecDpbMode.h"
 #include "lib_common/Utils.h"
+#include "lib_decode/lib_decode.h"
+#include "lib_parsing/DPB.h"
 #include <assert.h>
 
 /******************************************************************************/
@@ -53,13 +55,22 @@ bool AL_NeedsCropping(AL_TCropInfo* pInfo)
 }
 
 /******************************************************************************/
+int AL_AVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iStack, AL_EDpbMode eMode)
+{
+  int const iDpbMaxBuf = AL_AVC_GetMaxDPBSize(tStreamSettings.iLevel, tStreamSettings.tDim.iWidth, tStreamSettings.tDim.iHeight, eMode);
+  int const iRecBuf = REC_BUF;
+  int const iConcealBuf = CONCEAL_BUF;
+  return iDpbMaxBuf + iStack + iRecBuf + iConcealBuf;
+}
+
+/******************************************************************************/
 int AL_AVC_GetMaxDPBSize(int iLevel, int iWidth, int iHeight, AL_EDpbMode eMode)
 {
   assert(iWidth);
   assert(iHeight);
 
   if(eMode == AL_DPB_LOW_REF)
-    return 2;
+    return 1;
 
   int iMaxDpbMbs;
   switch(iLevel)
@@ -127,6 +138,15 @@ int AL_AVC_GetMaxDPBSize(int iLevel, int iWidth, int iHeight, AL_EDpbMode eMode)
 
   int const iNumMbs = ((iWidth / 16) * (iHeight / 16));
   return Clip3(iMaxDpbMbs / iNumMbs, 2, MAX_REF);
+}
+
+/******************************************************************************/
+int AL_HEVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iStack, AL_EDpbMode eMode)
+{
+  int const iDpbMaxBuf = AL_HEVC_GetMaxDPBSize(tStreamSettings.iLevel, tStreamSettings.tDim.iWidth, tStreamSettings.tDim.iHeight, eMode);
+  int const iRecBuf = 0;
+  int const iConcealBuf = CONCEAL_BUF;
+  return iDpbMaxBuf + iStack + iRecBuf + iConcealBuf;
 }
 
 /******************************************************************************/

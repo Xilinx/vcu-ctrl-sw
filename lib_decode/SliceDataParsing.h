@@ -51,15 +51,6 @@
 
 #include "lib_parsing/I_PictMngr.h"
 
-typedef struct t_Dec_Ctx TDecCtx;
-
-/*************************************************************************//*!
-   \brief The GetBlk2Buffers retrieves the buffer needed for the second block decoding
-   \param[in]  pCtx       Pointer to a decoder context object
-   \param[in]  pSP        Pointer to the current slice parameters
-*****************************************************************************/
-void GetBlk2Buffers(AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP);
-
 /*************************************************************************//*!
    \brief The AL_LaunchDecoding function launch a frame decoding request to the Hardware IP
    \param[in]  pCtx              Pointer to a decoder context object
@@ -76,24 +67,17 @@ void AL_LaunchSliceDecoding(AL_TDecCtx* pCtx, bool bIsLastAUNal);
 /*************************************************************************//*!
    \brief The AL_InitFrameBuffers function intializes the frame buffers needed to process the current frame decoding
    \param[in]  pCtx              Pointer to a decoder context object
-   \param[in]  iWidth            Picture width in pixels unit
-   \param[in]  iHeight           Picture height in pixels unit
+   \param[in]  pBufs             Pointer to the current picture buffers
+   \param[in]  tDim              Picture dimension (width, height) in pixel unit
    \param[in]  pPP               Pointer to the current picture parameters
 *****************************************************************************/
-void AL_InitFrameBuffers(AL_TDecCtx* pCtx, int iWidth, int iHeight, AL_TDecPicParam* pPP);
+void AL_InitFrameBuffers(AL_TDecCtx* pCtx, AL_TDecPicBuffers* pBufs, AL_TDimension tDim, AL_TDecPicParam* pPP);
 
 /*************************************************************************//*!
    \brief The AL_CancelFrameBuffers function reverts the frame buffers initialization done by AL_InitFrameBuffers in case of late error detection
    \param[in]  pCtx              Pointer to a decoder context object
 *****************************************************************************/
 void AL_CancelFrameBuffers(AL_TDecCtx* pCtx);
-
-/*************************************************************************//*!
-   \brief The AL_InitIntermediateBuffers function intializes the intermediate buffers needed to process the current frame decoding
-   \param[in]  pCtx              Pointer to a decoder context object
-   \param[in]  pBufs             Pointer to the current picture buffers
-*****************************************************************************/
-void AL_InitIntermediateBuffers(AL_TDecCtx* pCtx, AL_TDecPicBuffers* pBufs);
 
 /*************************************************************************//*!
    \brief The AL_SetConcealParameters sets the conceal ID buffer and it's availability flag

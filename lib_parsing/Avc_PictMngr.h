@@ -61,8 +61,9 @@ bool AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlic
    \param[in] pCtx Pointer to a Picture manager context object
    \param[in] pSPS Pointer to a ACV SPS structure
    \param[in] pPP  Pointer to the current picture parameters
+   \param[in] eFBStorageMode the way frame buffer is stored
 *****************************************************************************/
-void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_TDecPicParam* pPP);
+void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_TDecPicParam* pPP, AL_EFbStorageMode eFBStorageMode);
 
 /*************************************************************************//*!
    \brief This function updates the Picture Manager context each time a picture have been parsed.

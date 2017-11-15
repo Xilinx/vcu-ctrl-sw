@@ -15,7 +15,8 @@ LIB_COMMON_SRC:=\
 	lib_common/BufferAccess.c\
 	lib_common/Fifo.c\
 	lib_common/AvcLevelsLimit.c\
-	lib_common/SliceConsts.c\
+	lib_common/StreamBuffer.c\
+	lib_common/FourCC.c\
 
 LIB_COMMON_MCU_SRC:=\
 	$(LIB_COMMON_BASE_SRC)

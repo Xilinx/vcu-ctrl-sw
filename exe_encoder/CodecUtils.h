@@ -51,7 +51,7 @@ extern "C"
 }
 
 /*****************************************************************************/
-bool IsConversionNeeded(TFourCC const& FourCC, AL_EChromaMode EncChromaMode, uint8_t uBitDepth);
+bool IsConversionNeeded(TFourCC const& FourCC, AL_TPicFormat const& picFmt);
 
 /*****************************************************************************/
 void GotoFirstPicture(TYUVFileInfo const& FI, std::ifstream& File, unsigned int iFirstPict = 0);

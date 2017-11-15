@@ -45,7 +45,7 @@ static void audWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void con
 
 AL_NalUnit AL_CreateAud(int nut, AL_ESliceType eSliceType)
 {
-  AL_NalUnit nal = { &audWrite, (void*)(uintptr_t)AL_GetPrimaryPictureType(eSliceType), nut, 0 };
+  AL_NalUnit nal = { &audWrite, (void*)(uintptr_t)eSliceType, nut, 0 };
   return nal;
 }
 

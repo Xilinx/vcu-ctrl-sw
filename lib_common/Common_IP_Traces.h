@@ -37,7 +37,7 @@
 
 #pragma once
 
-#include "lib_common/BufCommon.h"
+#include <stdint.h>
 #include <stdio.h>
 
 FILE* safe_fopen(const char* sFileName, const char* sMode);

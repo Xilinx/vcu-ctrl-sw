@@ -54,48 +54,7 @@ void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tFourCC)
 {
   AL_TSrcMetaData* pRecMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pRec, AL_META_TYPE_SOURCE);
 
-  if(pRecMeta->tFourCC == FOURCC(P010))
-  {
-    if(tFourCC == FOURCC(I420))
-      P010_To_I420(pRec, pYuv);
-    else if(tFourCC == FOURCC(IYUV))
-      P010_To_IYUV(pRec, pYuv);
-    else if(tFourCC == FOURCC(YV12))
-      P010_To_YV12(pRec, pYuv);
-    else if(tFourCC == FOURCC(NV12))
-      P010_To_NV12(pRec, pYuv);
-    else if(tFourCC == FOURCC(Y800))
-      P010_To_Y800(pRec, pYuv);
-    else if(tFourCC == FOURCC(P010))
-      AL_CopyYuv(pRec, pYuv);
-    else if(tFourCC == FOURCC(I0AL))
-      P010_To_I0AL(pRec, pYuv);
-    else if(tFourCC == FOURCC(Y010))
-      P010_To_Y010(pRec, pYuv);
-    else
-      assert(0);
-  }
-  else if(pRecMeta->tFourCC == FOURCC(NV12))
-  {
-    if(tFourCC == FOURCC(I420))
-      NV12_To_I420(pRec, pYuv);
-    else if(tFourCC == FOURCC(IYUV))
-      NV12_To_IYUV(pRec, pYuv);
-    else if(tFourCC == FOURCC(YV12))
-      NV12_To_YV12(pRec, pYuv);
-    else if(tFourCC == FOURCC(NV12))
-      AL_CopyYuv(pRec, pYuv);
-    else if(tFourCC == FOURCC(Y800))
-      NV12_To_Y800(pRec, pYuv);
-    else if(tFourCC == FOURCC(P010))
-      NV12_To_P010(pRec, pYuv);
-    else if(tFourCC == FOURCC(I0AL))
-      NV12_To_I0AL(pRec, pYuv);
-    // else if(tFourCC == FOURCC(Y010)) NV12_To_Y010(pRec, pYuv);
-    else
-      assert(0);
-  }
-  else if(pRecMeta->tFourCC == FOURCC(Y800))
+  if(pRecMeta->tFourCC == FOURCC(Y800))
   {
     if(tFourCC == FOURCC(I420))
       Y800_To_I420(pRec, pYuv);
@@ -115,101 +74,101 @@ void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tFourCC)
     else
       assert(0);
   }
-  else if(pRecMeta->tFourCC == FOURCC(AL0A))
+  else if(pRecMeta->tFourCC == FOURCC(T60A))
   {
     if(tFourCC == FOURCC(Y800))
-      AL0A_To_Y800(pRec, pYuv);
+      T60A_To_Y800(pRec, pYuv);
     else if(tFourCC == FOURCC(I420))
-      AL0A_To_I420(pRec, pYuv);
+      T60A_To_I420(pRec, pYuv);
     else if(tFourCC == FOURCC(IYUV))
-      AL0A_To_IYUV(pRec, pYuv);
+      T60A_To_IYUV(pRec, pYuv);
     else if(tFourCC == FOURCC(YV12))
-      AL0A_To_YV12(pRec, pYuv);
+      T60A_To_YV12(pRec, pYuv);
     else if(tFourCC == FOURCC(NV12))
-      AL0A_To_NV12(pRec, pYuv);
+      T60A_To_NV12(pRec, pYuv);
     else if(tFourCC == FOURCC(P010))
-      AL0A_To_P010(pRec, pYuv);
+      T60A_To_P010(pRec, pYuv);
     else if(tFourCC == FOURCC(I0AL))
-      AL0A_To_I0AL(pRec, pYuv);
+      T60A_To_I0AL(pRec, pYuv);
     else if(tFourCC == FOURCC(Y010))
-      AL0A_To_Y010(pRec, pYuv);
+      T60A_To_Y010(pRec, pYuv);
   }
-  else if(pRecMeta->tFourCC == FOURCC(AL2A))
+  else if(pRecMeta->tFourCC == FOURCC(T62A))
   {
     if(tFourCC == FOURCC(Y800))
-      AL2A_To_Y800(pRec, pYuv);
+      T62A_To_Y800(pRec, pYuv);
     else if(tFourCC == FOURCC(Y010))
-      AL2A_To_Y010(pRec, pYuv);
+      T62A_To_Y010(pRec, pYuv);
     else if(tFourCC == FOURCC(I422))
-      AL2A_To_I422(pRec, pYuv);
+      T62A_To_I422(pRec, pYuv);
     else if(tFourCC == FOURCC(NV16))
-      AL2A_To_NV16(pRec, pYuv);
+      T62A_To_NV16(pRec, pYuv);
     else if(tFourCC == FOURCC(I2AL))
-      AL2A_To_I2AL(pRec, pYuv);
+      T62A_To_I2AL(pRec, pYuv);
     else if(tFourCC == FOURCC(P210))
-      AL2A_To_P210(pRec, pYuv);
+      T62A_To_P210(pRec, pYuv);
     else if(tFourCC == FOURCC(Y010))
-      AL2A_To_Y010(pRec, pYuv);
+      T62A_To_Y010(pRec, pYuv);
     else
       assert(0);
   }
-  else if(pRecMeta->tFourCC == FOURCC(AL08))
+  else if(pRecMeta->tFourCC == FOURCC(T608))
   {
     if(tFourCC == FOURCC(Y800))
-      AL08_To_Y800(pRec, pYuv);
+      T608_To_Y800(pRec, pYuv);
     else if(tFourCC == FOURCC(Y010))
-      AL08_To_Y010(pRec, pYuv);
+      T608_To_Y010(pRec, pYuv);
     else if(tFourCC == FOURCC(I420))
-      AL08_To_I420(pRec, pYuv);
+      T608_To_I420(pRec, pYuv);
     else if(tFourCC == FOURCC(IYUV))
-      AL08_To_IYUV(pRec, pYuv);
+      T608_To_IYUV(pRec, pYuv);
     else if(tFourCC == FOURCC(YV12))
-      AL08_To_YV12(pRec, pYuv);
+      T608_To_YV12(pRec, pYuv);
     else if(tFourCC == FOURCC(NV12))
-      AL08_To_NV12(pRec, pYuv);
+      T608_To_NV12(pRec, pYuv);
     else if(tFourCC == FOURCC(P010))
-      AL08_To_P010(pRec, pYuv);
+      T608_To_P010(pRec, pYuv);
     else if(tFourCC == FOURCC(I0AL))
-      AL08_To_I0AL(pRec, pYuv);
+      T608_To_I0AL(pRec, pYuv);
     else if(tFourCC == FOURCC(Y010))
-      AL08_To_Y010(pRec, pYuv);
+      T608_To_Y010(pRec, pYuv);
   }
-  else if(pRecMeta->tFourCC == FOURCC(AL28))
+  else if(pRecMeta->tFourCC == FOURCC(T628))
   {
     if(tFourCC == FOURCC(Y800))
-      AL28_To_Y800(pRec, pYuv);
+      T628_To_Y800(pRec, pYuv);
     else if(tFourCC == FOURCC(Y010))
-      AL28_To_Y010(pRec, pYuv);
+      T628_To_Y010(pRec, pYuv);
     else if(tFourCC == FOURCC(I422))
-      AL28_To_I422(pRec, pYuv);
+      T628_To_I422(pRec, pYuv);
     else if(tFourCC == FOURCC(NV16))
-      AL28_To_NV16(pRec, pYuv);
+      T628_To_NV16(pRec, pYuv);
     else if(tFourCC == FOURCC(I2AL))
-      AL28_To_I2AL(pRec, pYuv);
+      T628_To_I2AL(pRec, pYuv);
     else if(tFourCC == FOURCC(P210))
-      AL28_To_P210(pRec, pYuv);
+      T628_To_P210(pRec, pYuv);
     else if(tFourCC == FOURCC(Y010))
-      AL28_To_Y010(pRec, pYuv);
+      T628_To_Y010(pRec, pYuv);
     else
       assert(0);
   }
-  else if(pRecMeta->tFourCC == FOURCC(ALm8))
+  else if(pRecMeta->tFourCC == FOURCC(T6m8))
   {
     if(tFourCC == FOURCC(Y800))
-      AL08_To_Y800(pRec, pYuv);
+      T608_To_Y800(pRec, pYuv);
     else if(tFourCC == FOURCC(Y010))
-      AL08_To_Y010(pRec, pYuv);
+      T608_To_Y010(pRec, pYuv);
     else if(tFourCC == FOURCC(I420))
-      ALm8_To_I420(pRec, pYuv);
+      T6m8_To_I420(pRec, pYuv);
     else
       assert(0);
   }
-  else if(pRecMeta->tFourCC == FOURCC(ALmA))
+  else if(pRecMeta->tFourCC == FOURCC(T6mA))
   {
     if(tFourCC == FOURCC(Y800))
-      AL0A_To_Y800(pRec, pYuv);
+      T60A_To_Y800(pRec, pYuv);
     else if(tFourCC == FOURCC(Y010))
-      AL0A_To_Y010(pRec, pYuv);
+      T60A_To_Y010(pRec, pYuv);
     else
       assert(0);
   }

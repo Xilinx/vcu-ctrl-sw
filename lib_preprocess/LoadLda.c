@@ -35,41 +35,45 @@
 *
 ******************************************************************************/
 
-#pragma once
+#include "lib_rtos/lib_rtos.h"
+#include "lib_common_enc/EncBuffersInternal.h"
+#include <string.h>
+#include <stdio.h>
 
-#include "lib_rtos/types.h"
-#include "BitStreamLite.h"
-
-/*****************************************************************************/
-static const int PictureDisplayToFieldNumber[9] =
+static int FromHex(char a, char b)
 {
-  2, 1, 1, 2, 2, 3, 3, 4, 6
-};
-/*****************************************************************************/
+  int A = ((a >= 'a') && (a <= 'f')) ? (a - 'a') + 10 :
+          ((a >= 'A') && (a <= 'F')) ? (a - 'A') + 10 :
+          ((a >= '0') && (a <= '9')) ? (a - '0') : 0;
 
-/*************************************************************************//*!
-   \brief Bitstream writer
-   \see GenerateSkippedPicture
-*****************************************************************************/
-typedef struct AL_t_RbspEncoding
+  int B = ((b >= 'a') && (b <= 'f')) ? (b - 'a') + 10 :
+          ((b >= 'A') && (b <= 'F')) ? (b - 'A') + 10 :
+          ((b >= '0') && (b <= '9')) ? (b - '0') : 0;
+
+  return (A << 4) + B;
+}
+
+bool LoadLambdaFromFile(char const* lambdaFileName, TBufferEP* pEP)
 {
-  AL_TBitStreamLite* m_pBS;
+  FILE* lambdaFile = fopen(lambdaFileName, "r");
+  AL_TLambdas* pLambdas = (AL_TLambdas*)(pEP->tMD.pVirtualAddr + EP1_BUF_LAMBDAS.Offset);
 
-  int m_iBookmarkSEI;
-  uint8_t* m_pMVCSN;
-}AL_TRbspEncoding;
+  if(!lambdaFile)
+    return false;
 
-/*************************************************************************//*!
-   \brief This structure is designed to store slice data information of
-   skipped picture.
-   \see GenerateSkippedPicture
-*****************************************************************************/
-typedef struct AL_t_SkippedPicture
-{
-  uint8_t* pBuffer;  /*!< Array of bytes for storing precomputed skipped picture bitstream */
-  int iBufSize; /*!< Size (in byte of pBuffer */
+  char sLine[256];
 
-  int iNumBits; /*!< Number of bits used by the skipped picture */
-  int iNumBins; /*!< Number of bins used by the skipped picture */
-}AL_TSkippedPicture;
+  for(int i = 0; i <= 51; i++)
+  {
+    fgets(sLine, 256, lambdaFile);
+    pLambdas[i][0] = FromHex(sLine[6], sLine[7]);
+    pLambdas[i][1] = FromHex(sLine[4], sLine[5]);
+    pLambdas[i][2] = FromHex(sLine[2], sLine[3]);
+    pLambdas[i][3] = FromHex(sLine[0], sLine[1]);
+  }
+
+  pEP->uFlags |= EP1_BUF_LAMBDAS.Flag;
+
+  return true;
+}
 

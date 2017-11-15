@@ -35,46 +35,57 @@
 *
 ******************************************************************************/
 
+#include "lib_common/FourCC.h"
 #include "lib_common_enc/IpEncFourCC.h"
 #include <assert.h>
-/****************************************************************************/
-TFourCC AL_GetSrcFourCC(AL_EChromaMode eChromaMode, uint8_t uBitDepth)
-{
-  if(uBitDepth > 8)
-  {
-    switch(eChromaMode)
-    {
-    case CHROMA_4_2_0: return FOURCC(RX0A);
-    case CHROMA_4_2_2: return FOURCC(RX2A);
-    case CHROMA_MONO: return FOURCC(RX10);
-
-    default: assert(0);
-    }
-  }
-  else
-  {
-    switch(eChromaMode)
-    {
-    case CHROMA_4_2_0: return FOURCC(NV12);
-    case CHROMA_4_2_2: return FOURCC(NV16);
-    case CHROMA_MONO: return FOURCC(Y800);
-    default: assert(0);
-    }
-  }
-  return 0;
-}
 
 /****************************************************************************/
-TFourCC AL_GetRecFourCC(AL_EChromaMode eChromaMode, uint8_t uBitDepth)
+static TFourCC Get64x4FourCC(AL_TPicFormat const picFmt)
 {
-  switch(eChromaMode)
+  bool const bTenBpc = picFmt.uBitDepth > 8;
+  switch(picFmt.eChromaMode)
   {
-  case CHROMA_4_4_4: return (uBitDepth > 8) ? FOURCC(AL4A) : FOURCC(AL48);
-  case CHROMA_4_2_2: return (uBitDepth > 8) ? FOURCC(AL2A) : FOURCC(AL28);
-  case CHROMA_4_2_0: return (uBitDepth > 8) ? FOURCC(AL0A) : FOURCC(AL08);
-  case CHROMA_MONO: return (uBitDepth > 8) ? FOURCC(ALmA) : FOURCC(ALm8);
+  case CHROMA_4_2_2: return bTenBpc ? FOURCC(T62A) : FOURCC(T628);
+  case CHROMA_4_2_0: return bTenBpc ? FOURCC(T60A) : FOURCC(T608);
+  case CHROMA_MONO: return bTenBpc ? FOURCC(T6mA) : FOURCC(T6m8);
   default: assert(0);
     return -1;
   }
+}
+
+/****************************************************************************/
+static TFourCC Get32x4FourCC(AL_TPicFormat const picFmt)
+{
+  bool const bTenBpc = picFmt.uBitDepth > 8;
+  switch(picFmt.eChromaMode)
+  {
+  case CHROMA_4_2_2: return bTenBpc ? FOURCC(T52A) : FOURCC(T528);
+  case CHROMA_4_2_0: return bTenBpc ? FOURCC(T50A) : FOURCC(T508);
+  case CHROMA_MONO: return bTenBpc ? FOURCC(T5mA) : FOURCC(T5m8);
+  default: assert(0);
+    return -1;
+  }
+}
+
+/****************************************************************************/
+TFourCC AL_EncGetSrcFourCC(AL_TPicFormat const picFmt)
+{
+  switch(picFmt.eStorageMode)
+  {
+  case AL_FB_TILE_64x4:
+    return Get64x4FourCC(picFmt);
+  case AL_FB_TILE_32x4:
+    return Get32x4FourCC(picFmt);
+  case AL_FB_RASTER:
+  default:
+    return AL_GetSrcFourCC(picFmt);
+  }
+}
+
+/****************************************************************************/
+TFourCC AL_GetRecFourCC(AL_TPicFormat const picFmt)
+{
+  assert(picFmt.eStorageMode == AL_FB_TILE_64x4);
+  return Get64x4FourCC(picFmt);
 }
 

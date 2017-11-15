@@ -35,68 +35,44 @@
 *
 ******************************************************************************/
 
-#pragma once
+#include "NalDecoder.h"
+#include "NalUnitParserPrivate.h"
 
-// Registers
-#define REG_START 0x0084
-
-// param registers mapping
-#define AL_REG_PARAM(Idx) (0x0200 + (Idx << 2))
-
-#define REG_CMD_00 AL_REG_PARAM(0)
-#define REG_CMD_01 AL_REG_PARAM(1)
-#define REG_CMD_02 AL_REG_PARAM(2)
-
-// address registers mapping
-#define AL_REG_ADDR(Idx) (0x0280 + (Idx << 2))
-
-#define REG_ADD_00 AL_REG_ADDR(0)
-#define REG_ADD_01 AL_REG_ADDR(1)
-#define REG_ADD_02 AL_REG_ADDR(2) // reserved
-#define REG_ADD_03 AL_REG_ADDR(3) // reserved
-#define REG_ADD_04 AL_REG_ADDR(4)
-#define REG_ADD_05 AL_REG_ADDR(5)
-#define REG_ADD_06 AL_REG_ADDR(6)
-#define REG_ADD_07 AL_REG_ADDR(7)
-#define REG_ADD_08 AL_REG_ADDR(8) // reserved
-#define REG_ADD_09 AL_REG_ADDR(9)
-#define REG_ADD_10 AL_REG_ADDR(10)
-#define REG_ADD_11 AL_REG_ADDR(11)
-#define REG_ADD_12 AL_REG_ADDR(12)
-#define REG_ADD_13 AL_REG_ADDR(13)
-
-struct REG_ADD
+bool AL_DecodeOneNal(AL_NonVclNuts nuts, AL_NalParser parser, AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut nut, bool bIsLastAUNal, int* iNumSlice)
 {
-  REG_ADD(int LSB_, int MSB_) : uLSB(LSB_), uMSB(MSB_)
+  if(parser.isSliceData(nut))
+    return parser.decodeSliceData(pAUP, pCtx, nut, bIsLastAUNal, iNumSlice);
+
+  if(nut == nuts.sei && parser.parseSei)
   {
+    AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
+    parser.parseSei(pAUP, &rp);
   }
 
-  int uLSB;
-  int uMSB;
-};
+  if(nut == nuts.sps)
+  {
+    AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
+    parser.parseSps(pAUP, &rp);
+  }
 
-static REG_ADD getRegAddrOutputYTile()
-{
-  return REG_ADD(REG_ADD_00, REG_ADD_01);
-}
+  if(nut == nuts.pps)
+  {
+    AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
+    parser.parsePps(pAUP, &rp, pCtx);
+  }
 
-static REG_ADD getRegAddrYMap()
-{
-  return REG_ADD(REG_ADD_04, REG_ADD_05);
-}
+  if(nut == nuts.vps && parser.parseVps)
+  {
+    AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
+    parser.parseVps(pAUP, &rp);
+  }
 
-static REG_ADD getRegAddrCMap()
-{
-  return REG_ADD(REG_ADD_06, REG_ADD_07);
-}
+  if(nut == nuts.eos)
+  {
+    pCtx->m_bIsFirstPicture = true;
+    pCtx->m_bLastIsEOS = true;
+  }
 
-static REG_ADD getRegAddrInputYTile()
-{
-  return REG_ADD(REG_ADD_10, REG_ADD_11);
-}
-
-static REG_ADD getRegAddrInputCTile()
-{
-  return REG_ADD(REG_ADD_12, REG_ADD_13);
+  return false;
 }
 

@@ -8,11 +8,15 @@ EXE_ENCODER_SRCS:=\
   $(THIS_EXE_ENCODER)/sink_frame_writer.cpp\
   $(THIS_EXE_ENCODER)/sink_md5.cpp\
   $(THIS_EXE_ENCODER)/MD5.cpp\
+  $(THIS_EXE_ENCODER)/QPGenerator.cpp\
   $(LIB_CFG_SRC)\
   $(LIB_CONV_SRC)\
   $(LIB_APP_SRC)\
 
 -include $(THIS_EXE_ENCODER)/site.mk
+
+UNITTEST+=$(shell find $(THIS_EXE_ENCODER)/unittests -name "*.cpp")
+UNITTEST+=$(THIS_EXE_ENCODER)/QPGenerator.cpp
 
 EXE_ENCODER_OBJ:=$(EXE_ENCODER_SRCS:%=$(BIN)/%.o)
 

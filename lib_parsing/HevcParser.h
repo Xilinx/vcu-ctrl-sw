@@ -36,7 +36,24 @@
 ******************************************************************************/
 
 #pragma once
-#include "lib_common/FourCC.h"
 
-TFourCC AL_GetDecFourCC(AL_EChromaMode eChromaMode, uint8_t uBitDepth);
+#include "lib_common/PPS.h"
+#include "lib_common_dec/RbspParser.h"
+#include "Concealment.h"
+#include "common_syntax.h"
+#include "Aup.h"
+
+void AL_HEVC_InitAUP(AL_THevcAup* pAUP);
+
+void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint8_t* pPpsId);
+AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP);
+void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP);
+
+/*************************************************************************//*!
+   \brief the short term reference picture computation
+   \param[out] pSPS   Pointer to the SPS structure containing the ref_pic_set structure and variables
+   \param[in]  RefIdx Idx of the current ref_pic_set
+   \param[in]  pRP    Pointer to NAL parser
+*****************************************************************************/
+void AL_HEVC_short_term_ref_pic_set(AL_THevcSps* pSPS, uint8_t RefIdx, AL_TRbspParser* pRP);
 

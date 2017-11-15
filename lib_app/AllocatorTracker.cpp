@@ -42,6 +42,8 @@
 #include <map>
 #include <vector>
 
+#include <assert.h>
+
 using namespace std;
 
 constexpr int summaryMode = 0;
@@ -75,8 +77,11 @@ static bool destroy(AL_TAllocator* handle)
       auto firstSize = sizes.at(0);
       auto totalSize = 0;
 
+      /* buffer with the same name should have the same size */
       for(auto& size : sizes)
-        totalSize += size;
+        assert(size == firstSize);
+
+      totalSize = firstSize * sizes.size();
 
       cout << setfill(' ') << setw(24) << left << alloc.first << sizes.size() << " * " << firstSize << " (total: ~" << bytes_to_megabytes(totalSize) << "MB" << ")" << endl;
     }

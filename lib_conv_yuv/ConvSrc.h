@@ -52,3 +52,11 @@ public:
   virtual void ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut) = 0;
 };
 
+struct TFrameInfo
+{
+  int iWidth;
+  int iHeight;
+  uint8_t iBitDepth;
+  AL_EChromaMode eCMode;
+};
+

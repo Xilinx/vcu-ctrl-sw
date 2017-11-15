@@ -67,9 +67,9 @@ typedef struct tCfgRunInfo
   unsigned int iFirstPict;
   unsigned int iScnChgLookAhead;
   string sMd5Path;
-  int iVip;
   int eVQDescr;
   IpCtrlMode ipCtrlMode;
+  std::string logsFile;
   bool trackDma = false;
 }TCfgRunInfo;
 
@@ -105,8 +105,6 @@ struct ConfigFile
   // are used
   string sLTFileName;
 
-  // \brief Name of the file specifying Global Motion Vector for each frame
-  string sGMVFileName;
 
   // \brief Information relative to YUV input file (from section INPUT)
   TYUVFileInfo FileInfo;

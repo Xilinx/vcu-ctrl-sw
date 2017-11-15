@@ -52,18 +52,15 @@ extern "C"
 using namespace std;
 
 /*****************************************************************************/
-CNvxConv::CNvxConv(int iWidth, int iHeight, int iBitDepth, AL_EChromaMode eCMode)
+CNvxConv::CNvxConv(TFrameInfo const& FrameInfo) : m_FrameInfo(FrameInfo)
 {
-  m_FrameInfo.eCMode = eCMode;
-  m_FrameInfo.iWidth = iWidth;
-  m_FrameInfo.iHeight = iHeight;
-  m_FrameInfo.iBitDepth = iBitDepth;
 }
 
 /*****************************************************************************/
 AL_UINT CNvxConv::GetConvBufSize()
 {
-  return GetAllocSize_Src(m_FrameInfo.iWidth, m_FrameInfo.iHeight, m_FrameInfo.iBitDepth, m_FrameInfo.eCMode, AL_NVX);
+  AL_TDimension tDim = { m_FrameInfo.iWidth, m_FrameInfo.iHeight };
+  return GetAllocSize_Src(tDim, m_FrameInfo.iBitDepth, m_FrameInfo.eCMode, AL_NVX);
 }
 
 #include <sstream>
@@ -224,7 +221,7 @@ static void convertToRx2A(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   }
 }
 
-static void convertToRx10(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+static void convertToRxmA(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
   {
@@ -233,7 +230,7 @@ static void convertToRx10(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(I2AL):
   case FOURCC(P010):
   case FOURCC(P210):
-    Y010_To_RX10(pSrcIn, pSrcOut);
+    Y010_To_RXmA(pSrcIn, pSrcOut);
     break;
 
   case FOURCC(Y800):
@@ -241,7 +238,7 @@ static void convertToRx10(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(I422):
   case FOURCC(NV12):
   case FOURCC(NV16):
-    Y800_To_RX10(pSrcIn, pSrcOut);
+    Y800_To_RXmA(pSrcIn, pSrcOut);
     break;
 
   default:
@@ -310,7 +307,8 @@ static void convertToP210(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
 void CNvxConv::ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut)
 {
   AL_TSrcMetaData* pSrcInMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pSrcIn, AL_META_TYPE_SOURCE);
-  TFourCC tSrcFourCC = AL_GetSrcFourCC(m_FrameInfo.eCMode, uBitDepth);
+  AL_TPicFormat const picFmt = { m_FrameInfo.eCMode, uBitDepth };
+  TFourCC tSrcFourCC = AL_EncGetSrcFourCC(picFmt);
   switch(tSrcFourCC)
   {
   case FOURCC(Y010):
@@ -337,8 +335,8 @@ void CNvxConv::ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBu
     convertToRx2A(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
     break;
 
-  case FOURCC(RX10):
-    convertToRx10(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
+  case FOURCC(RXmA):
+    convertToRxmA(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
     break;
 
   case FOURCC(P010):

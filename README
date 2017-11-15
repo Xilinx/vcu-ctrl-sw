@@ -48,18 +48,6 @@ lib_parsing     codec specifications specifics for the decoder (HLS, DPB, etc.)
 lib_fpga        communication with the hardware (read/write register, irq).
 lib_ip_ctrl     interface to the codec.
 
-Build Options
-=============
-
-The customers contains a build_defs.h file that allows to set some build options :
-
-ENABLE_TRACES
-  Enable/disable the traces files generation. Note : trace files are use for IP integration/validation purpose and should not be enabled in other case.
-
-Warning : Options below the comment line /// IP CONFIGURATION ////
-          have automatically been set according to the feature set supported
-          by your hardware IP and shall not be changed.
-
 User Manual
 ===========
 

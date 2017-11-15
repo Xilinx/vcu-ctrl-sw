@@ -84,13 +84,13 @@ int ceil_log2(uint16_t n)
 /*************************************************************************/
 bool AL_AVC_IsIDR(AL_ENut eNUT)
 {
-  return (eNUT == AL_AVC_NUT_VCL_IDR) ? true : false;
+  return eNUT == AL_AVC_NUT_VCL_IDR;
 }
 
 /*************************************************************************/
 bool AL_AVC_IsVcl(AL_ENut eNUT)
 {
-  return (eNUT == AL_AVC_NUT_VCL_IDR || eNUT == AL_AVC_NUT_VCL_NON_IDR) ? true : false;
+  return eNUT == AL_AVC_NUT_VCL_IDR || eNUT == AL_AVC_NUT_VCL_NON_IDR;
 }
 
 /*************************************************************************/
@@ -140,32 +140,32 @@ bool AL_HEVC_IsRASL_RADL_SLNR(AL_ENut eNUT)
 /*************************************************************************/
 bool AL_HEVC_IsBLA(AL_ENut eNUT)
 {
-  return (eNUT == AL_HEVC_NUT_BLA_N_LP || eNUT == AL_HEVC_NUT_BLA_W_LP || eNUT == AL_HEVC_NUT_BLA_W_RADL) ? true : false;
+  return eNUT == AL_HEVC_NUT_BLA_N_LP || eNUT == AL_HEVC_NUT_BLA_W_LP || eNUT == AL_HEVC_NUT_BLA_W_RADL;
 }
 
 /*************************************************************************/
 bool AL_HEVC_IsCRA(AL_ENut eNUT)
 {
-  return (eNUT == AL_HEVC_NUT_CRA) ? true : false;
+  return eNUT == AL_HEVC_NUT_CRA;
 }
 
 /*************************************************************************/
 bool AL_HEVC_IsIDR(AL_ENut eNUT)
 {
-  return (eNUT == AL_HEVC_NUT_IDR_N_LP || eNUT == AL_HEVC_NUT_IDR_W_RADL) ? true : false;
+  return eNUT == AL_HEVC_NUT_IDR_N_LP || eNUT == AL_HEVC_NUT_IDR_W_RADL;
 }
 
 /*************************************************************************/
 bool AL_HEVC_IsRASL(AL_ENut eNUT)
 {
-  return (eNUT == AL_HEVC_NUT_RASL_N || eNUT == AL_HEVC_NUT_RASL_R) ? true : false;
+  return eNUT == AL_HEVC_NUT_RASL_N || eNUT == AL_HEVC_NUT_RASL_R;
 }
 
 /*************************************************************************/
 bool AL_HEVC_IsVcl(AL_ENut eNUT)
 {
-  return ((eNUT >= AL_HEVC_NUT_TRAIL_N && eNUT <= AL_HEVC_NUT_RASL_R) ||
-          (eNUT >= AL_HEVC_NUT_BLA_W_LP && eNUT <= AL_HEVC_NUT_CRA)) ? true : false;
+  return (eNUT >= AL_HEVC_NUT_TRAIL_N && eNUT <= AL_HEVC_NUT_RASL_R) ||
+         (eNUT >= AL_HEVC_NUT_BLA_W_LP && eNUT <= AL_HEVC_NUT_CRA);
 }
 
 /****************************************************************************/
@@ -174,20 +174,23 @@ AL_EChromaMode AL_GetChromaMode(TFourCC tFourCC)
   if((tFourCC == FOURCC(I420)) || (tFourCC == FOURCC(IYUV))
      || (tFourCC == FOURCC(YV12)) || (tFourCC == FOURCC(NV12))
      || (tFourCC == FOURCC(I0AL)) || (tFourCC == FOURCC(P010))
-     || (tFourCC == FOURCC(AL08)) || (tFourCC == FOURCC(AL0A))
+     || (tFourCC == FOURCC(T608)) || (tFourCC == FOURCC(T60A))
+     || (tFourCC == FOURCC(T508)) || (tFourCC == FOURCC(T50A))
      || (tFourCC == FOURCC(RX0A))
      )
     return CHROMA_4_2_0;
   else if((tFourCC == FOURCC(YV16)) || (tFourCC == FOURCC(NV16))
           || (tFourCC == FOURCC(I422)) || (tFourCC == FOURCC(P210))
           || (tFourCC == FOURCC(I2AL))
-          || (tFourCC == FOURCC(AL28)) || (tFourCC == FOURCC(AL2A))
+          || (tFourCC == FOURCC(T628)) || (tFourCC == FOURCC(T62A))
+          || (tFourCC == FOURCC(T528)) || (tFourCC == FOURCC(T52A))
           || (tFourCC == FOURCC(RX2A))
           )
     return CHROMA_4_2_2;
   else if((tFourCC == FOURCC(Y800)) || (tFourCC == FOURCC(Y010))
-          || (tFourCC == FOURCC(ALm8)) || (tFourCC == FOURCC(ALmA))
-          || (tFourCC == FOURCC(RX10))
+          || (tFourCC == FOURCC(T6m8)) || (tFourCC == FOURCC(T6mA))
+          || (tFourCC == FOURCC(T5m8)) || (tFourCC == FOURCC(T5mA))
+          || (tFourCC == FOURCC(RXmA))
           )
     return CHROMA_MONO;
   else
@@ -203,16 +206,20 @@ uint8_t AL_GetBitDepth(TFourCC tFourCC)
      || (tFourCC == FOURCC(I422))
      || (tFourCC == FOURCC(YV16)) || (tFourCC == FOURCC(NV16))
      || (tFourCC == FOURCC(Y800))
-     || (tFourCC == FOURCC(ALm8))
-     || (tFourCC == FOURCC(AL08)) || (tFourCC == FOURCC(AL28)))
+     || (tFourCC == FOURCC(T6m8))
+     || (tFourCC == FOURCC(T608)) || (tFourCC == FOURCC(T628))
+     || (tFourCC == FOURCC(T5m8))
+     || (tFourCC == FOURCC(T508)) || (tFourCC == FOURCC(T528)))
     return 8;
   else if((tFourCC == FOURCC(I0AL)) || (tFourCC == FOURCC(P010))
           || (tFourCC == FOURCC(I2AL)) || (tFourCC == FOURCC(P210))
           || (tFourCC == FOURCC(Y010))
-          || (tFourCC == FOURCC(ALmA))
-          || (tFourCC == FOURCC(AL0A)) || (tFourCC == FOURCC(AL2A))
+          || (tFourCC == FOURCC(T6mA))
+          || (tFourCC == FOURCC(T60A)) || (tFourCC == FOURCC(T62A))
+          || (tFourCC == FOURCC(T5mA))
+          || (tFourCC == FOURCC(T50A)) || (tFourCC == FOURCC(T52A))
           || (tFourCC == FOURCC(RX0A)) || (tFourCC == FOURCC(RX2A))
-          || (tFourCC == FOURCC(RX10))
+          || (tFourCC == FOURCC(RXmA))
           )
     return 10;
   else
@@ -246,17 +253,58 @@ void AL_GetSubsampling(TFourCC fourcc, int* sx, int* sy)
 bool AL_Is10bitPacked(TFourCC tFourCC)
 {
   (void)tFourCC;
-  return (tFourCC == FOURCC(RX0A) ||
-          tFourCC == FOURCC(RX2A) ||
-          tFourCC == FOURCC(RX10)) ? true : false;
+  return tFourCC == FOURCC(RX0A) ||
+         tFourCC == FOURCC(RX2A) ||
+         tFourCC == FOURCC(RXmA);
 }
 
 /*****************************************************************************/
 bool AL_IsSemiPlanar(TFourCC tFourCC)
 {
-  return (tFourCC == FOURCC(NV12) || tFourCC == FOURCC(P010)
-          || tFourCC == FOURCC(NV16) || tFourCC == FOURCC(P210)
-          || tFourCC == FOURCC(RX0A) || tFourCC == FOURCC(RX2A)
-          ) ? true : false;
+  return tFourCC == FOURCC(NV12) || tFourCC == FOURCC(P010)
+         || tFourCC == FOURCC(NV16) || tFourCC == FOURCC(P210)
+         || tFourCC == FOURCC(RX0A) || tFourCC == FOURCC(RX2A)
+         || AL_IsTiled(tFourCC)
+  ;
+}
+
+/*****************************************************************************/
+static bool AL_Is64x4Tiled(TFourCC tFourCC)
+{
+  return tFourCC == FOURCC(T608) ||
+         tFourCC == FOURCC(T628) ||
+         tFourCC == FOURCC(T6m8) ||
+         tFourCC == FOURCC(T60A) ||
+         tFourCC == FOURCC(T62A) ||
+         tFourCC == FOURCC(T6mA);
+}
+
+/*****************************************************************************/
+static bool AL_Is32x4Tiled(TFourCC tFourCC)
+{
+  return tFourCC == FOURCC(T508) ||
+         tFourCC == FOURCC(T528) ||
+         tFourCC == FOURCC(T5m8) ||
+         tFourCC == FOURCC(T50A) ||
+         tFourCC == FOURCC(T52A) ||
+         tFourCC == FOURCC(T5mA);
+}
+
+/*****************************************************************************/
+bool AL_IsTiled(TFourCC tFourCC)
+{
+  return AL_Is32x4Tiled(tFourCC) || AL_Is64x4Tiled(tFourCC);
+}
+
+/*****************************************************************************/
+AL_EFbStorageMode GetStorageMode(TFourCC tFourCC)
+{
+  if(AL_Is64x4Tiled(tFourCC))
+    return AL_FB_TILE_64x4;
+
+  if(AL_Is32x4Tiled(tFourCC))
+    return AL_FB_TILE_32x4;
+
+  return AL_FB_RASTER;
 }
 

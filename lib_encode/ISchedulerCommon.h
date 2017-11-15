@@ -46,6 +46,7 @@ typedef struct
   uint32_t uWidth;
   uint32_t uHeight;
   uint32_t uRecSize;
+  uint32_t uRecSizeY;
   TFourCC RecFourCC;
   uint32_t uRecPitchY;
   uint32_t uRecPitchC;

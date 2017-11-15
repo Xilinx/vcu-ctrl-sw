@@ -42,21 +42,12 @@
 class CNvxConv : public IConvSrc
 {
 public:
-  CNvxConv(int iWidth, int iHeight, int iBitDepth, AL_EChromaMode eCMode);
-  virtual ~CNvxConv() {};
+  CNvxConv(TFrameInfo const& FrameInfo);
 
   virtual AL_UINT GetConvBufSize();
   virtual void ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut);
 
 protected:
-  struct TFrameInfo
-  {
-    int iWidth;
-    int iHeight;
-    int iBitDepth;
-    AL_EChromaMode eCMode;
-  };
-
-  struct TFrameInfo m_FrameInfo;
+  TFrameInfo const m_FrameInfo;
 };
 

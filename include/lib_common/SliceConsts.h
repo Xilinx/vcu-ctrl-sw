@@ -118,19 +118,6 @@ typedef enum __AL_ALIGNED__ (4) AL_e_Profile
 #define AL_IS_HEVC(Prof) (((Prof) & 0xFF000000) == AL_PROFILE_HEVC)
 
 /****************************************************************************/
-
-/*************************************************************************//*!
-   \brief GDR Mode
-*****************************************************************************/
-typedef enum AL_e_GdrMode
-{
-  AL_GDR_OFF = 0x00,
-  AL_GDR_ON = 0x02,
-  AL_GDR_VERTICAL = AL_GDR_ON | 0x00,
-  AL_GDR_HORIZONTAL = AL_GDR_ON | 0x01
-}AL_EGdrMode;
-
-/****************************************************************************/
 typedef enum AL_e_Codec
 {
   AL_CODEC_AVC = 0x00,
@@ -148,7 +135,8 @@ typedef enum e_ScalingList
   AL_SCL_FLAT = 0,
   AL_SCL_DEFAULT = 1,
   AL_SCL_CUSTOM = 2,
-  AL_SCL_RANDOM = 3
+  AL_SCL_RANDOM = 3,
+  AL_SCL_MAX_ENUM,
 }AL_EScalingList;
 
 /*************************************************************************//*!
@@ -182,7 +170,6 @@ typedef enum e_SliceType
   SLICE_MAX_ENUM
 }AL_ESliceType;
 
-int AL_GetPrimaryPictureType(AL_ESliceType sliceType);
 /*************************************************************************//*!
    \brief Indentifies pic_struct (subset of table D-1)
 *****************************************************************************/
@@ -457,7 +444,8 @@ typedef enum AL_e_FbStorageMode
 {
   AL_FB_RASTER = 0,
   AL_FB_TILE_32x4 = 2,
-  AL_FB_TILE_64x4 = 3
+  AL_FB_TILE_64x4 = 3,
+  AL_FB_MAX_ENUM,
 }AL_EFbStorageMode;
 
 /*************************************************************************//*!
@@ -465,8 +453,8 @@ typedef enum AL_e_FbStorageMode
 *****************************************************************************/
 typedef struct
 {
-  int iWidth;
-  int iHeight;
+  int32_t iWidth;
+  int32_t iHeight;
 }AL_TDimension;
 
 /****************************************************************************/

@@ -35,32 +35,27 @@
 *
 ******************************************************************************/
 
-#include "lib_common_dec/IpDecFourCC.h"
-#include <assert.h>
-/****************************************************************************/
-TFourCC AL_GetDecFourCC(AL_EChromaMode eChromaMode, uint8_t uBitDepth)
-{
-  if(uBitDepth > 8)
-  {
-    switch(eChromaMode)
-    {
-    case CHROMA_4_2_0: return FOURCC(RX0A);
-    case CHROMA_4_2_2: return FOURCC(RX2A);
-    case CHROMA_MONO: return FOURCC(RX10);
+#pragma once
+#include "DefaultDecoder.h"
 
-    default: assert(0);
-    }
-  }
-  else
-  {
-    switch(eChromaMode)
-    {
-    case CHROMA_4_2_0: return FOURCC(NV12);
-    case CHROMA_4_2_2: return FOURCC(NV16);
-    case CHROMA_MONO: return FOURCC(Y800);
-    default: assert(0);
-    }
-  }
-  return 0;
-}
+typedef struct
+{
+  AL_ENut sei;
+  AL_ENut sps;
+  AL_ENut pps;
+  AL_ENut vps;
+  AL_ENut eos;
+}AL_NonVclNuts;
+
+typedef struct
+{
+  AL_PARSE_RESULT (* parseSps)(AL_TAup*, AL_TRbspParser*);
+  AL_PARSE_RESULT (* parsePps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
+  void (* parseVps)(AL_TAup*, AL_TRbspParser*);
+  bool (* parseSei)(AL_TAup*, AL_TRbspParser*);
+  bool (* decodeSliceData)(AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
+  bool (* isSliceData)(AL_ENut nut);
+}AL_NalParser;
+
+bool AL_DecodeOneNal(AL_NonVclNuts, AL_NalParser, AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
 

@@ -49,7 +49,6 @@
 #include <stdlib.h>
 
 #include "lib_preprocess/ChooseLda.h"
-#include "lib_preprocess/PreprocessQP.h"
 
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/SEI.h"
@@ -82,9 +81,9 @@ void AL_Common_Encoder_NotifyLongTerm(AL_TEncoder* pEnc);
 
 
 /*************************************************************************//*!
-   \brief The Encoder_ReleaseStreamBuffer function releases a stream buffer
+   \brief The Encoder_PutStreamBuffer function push a stream buffer to be filled
    \param[in] pEnc Handle to an encoder object
-   \param[in] pStream The stream buffer to be released
+   \param[in] pStream The stream buffer to be filled
 *****************************************************************************/
 bool AL_Common_Encoder_PutStreamBuffer(AL_TEncoder* pEnc, AL_TBuffer* pStream);
 
@@ -105,7 +104,7 @@ void AL_Common_Encoder_ReleaseRecPicture(AL_TEncoder* pEnc, TRecPic* pRecPic);
    shall not be altered.
    \return If the function succeeds the return value is nonzero (true)
    If the function fails the return value is zero (false)
-   \see AL_Encoder_ReleaseFrameBuffer
+   \see AL_Encoder_PutStreamBuffer
 *****************************************************************************/
 bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer* pQPTable);
 
@@ -162,20 +161,10 @@ void AL_Common_Encoder_SetME(int iHrzRange_P, int iVrtRange_P, int iHrzRange_B, 
 /*************************************************************************//*!
    \brief The Encoder_PreprocessEncoderParam function preprocess Rate control and quantization params
    \param[in] pCtx Pointer on an encoder context object
-   \param[in] pBuffers Pointer to Buffers of the encoding param
-   \param[in] pPictInfo Pointer to information of the encoding picture
    \param[in] pPictOptions Pointer to encoding options
 *****************************************************************************/
-void AL_Common_Encoder_PreprocessEncoderParam(AL_TEncCtx* pCtx, TSliceBuffersEnc* pBuffers, AL_TPictureInfo* pPictInfo, AL_EPicEncOption* pPictOptions);
+void AL_Common_Encoder_PreprocessEncoderParam(AL_TEncCtx* pCtx, AL_EPicEncOption* pPictOptions);
 
-#if ENABLE_WATCHDOG
-/*************************************************************************//*!
-   \brief The Encoder_Watchdog_Catch function is called when a watchdog flag is catch
-   \param[in] pCtx Pointer on an encoder context object
-*****************************************************************************/
-void AL_Common_Encoder_Watchdog_Catch(void* pUserParam);
-void AL_Common_Encoder_SetWatchdogCB(AL_TISchedulerCallBacks* CBs, const AL_TEncSettings* pSettings);
-#endif
 
 void AL_Common_Encoder_SetHlsParam(AL_TEncChanParam* pChParam);
 bool AL_Common_Encoder_IsInitialQpProvided(AL_TEncChanParam* pChParam);

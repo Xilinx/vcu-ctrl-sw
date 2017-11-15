@@ -44,8 +44,9 @@ typedef struct AL_t_CircMetaData
   AL_TMetaData tMeta;
   uint32_t uOffset;
   uint32_t uAvailSize;
+  bool bLastBuffer;
 }AL_TCircMetaData;
 
-AL_TCircMetaData* AL_CircMetaData_Create(uint32_t uOffset, uint32_t uAvailSize);
+AL_TCircMetaData* AL_CircMetaData_Create(uint32_t uOffset, uint32_t uAvailSize, bool bLastBuffer);
 AL_TCircMetaData* AL_CircMetaData_Clone(AL_TCircMetaData* pMeta);
 

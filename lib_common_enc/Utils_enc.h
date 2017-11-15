@@ -37,6 +37,8 @@
 
 #include "lib_rtos/types.h"
 
+#define AL_MAX_RESSOURCE ((AL_SCHEDULER_CORE_FREQUENCY - ((AL_SCHEDULER_CORE_FREQUENCY / 100) * AL_SCHEDULER_FREQUENCY_MARGIN)) / AL_SCHEDULER_BLK_32X32_CYCLE)
+
 /*************************************************************************//*!
    \brief The GetNumCore function retrieves the minimum of cores needed to encode the channel
    \param[in] iWidth Channel Width resolution

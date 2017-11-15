@@ -64,8 +64,8 @@ typedef enum e_FileFormat
 *****************************************************************************/
 typedef struct t_YUVFileInfo
 {
-  unsigned int PictWidth;  /*!< Frame width in pixels */
-  unsigned int PictHeight; /*!< Frame height in pixels */
+  int PictWidth;  /*!< Frame width in pixels */
+  int PictHeight; /*!< Frame height in pixels */
 
   TFourCC FourCC; /*!< FOURCC identifying the file format */
 

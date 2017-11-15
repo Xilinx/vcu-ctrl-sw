@@ -99,15 +99,12 @@ static void AL_HEVC_sBuildWPCoeff(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pSlic
 /***************************************************************************/
 
 /*****************************************************************************/
-void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, AL_TDecPicParam* pPP)
+void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, AL_TDecPicParam* pPP, AL_EFbStorageMode eFBStorageMode)
 {
-  AL_TBuffer* pFrmBuf = pCtx->m_FrmBufPool.pFrmBufs[pCtx->m_uRecID];
-  AL_TDecodedPictureMetaData* pFrmPrivate = (AL_TDecodedPictureMetaData*)AL_Buffer_GetMetaData(pFrmBuf, AL_META_TYPE_DECODEDPICTURE);
+  AL_TBuffer* pFrmBuf = AL_PictMngr_GetDisplayBufferFromID(pCtx, pCtx->m_uRecID);
   AL_TSrcMetaData* pFrmMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pFrmBuf, AL_META_TYPE_SOURCE);
 
-  pFrmPrivate->uBitDepthY = pPP->BitDepthY;
-  pFrmPrivate->uBitDepthC = pPP->BitDepthC;
-  pFrmMeta->tPitches.iLuma = RndPitch(pFrmMeta->iWidth, pPP->MaxBitDepth);
+  pFrmMeta->tPitches.iLuma = RndPitch(pFrmMeta->tDim.iWidth, pPP->MaxBitDepth, eFBStorageMode);
   pFrmMeta->tPitches.iChroma = pFrmMeta->tPitches.iLuma;
 
   // update cropping information
@@ -142,7 +139,9 @@ void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, AL
     }
   }
 
-  pFrmPrivate->tCropInfo = cropInfo;
+  AL_TBitDepth const tBitDepth = { pPP->BitDepthY, pPP->BitDepthC };
+  AL_PictMngr_UpdateDisplayBufferBitDepth(pCtx, pCtx->m_uRecID, tBitDepth);
+  AL_PictMngr_UpdateDisplayBufferCrop(pCtx, pCtx->m_uRecID, cropInfo);
 }
 
 /*****************************************************************************/
@@ -287,7 +286,7 @@ void AL_HEVC_PictMngr_InitRefPictSet(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pS
 {
   uint8_t CurrDeltaPocMsbPresentFlag[16];
   uint8_t FollDeltaPocMsbPresentFlag[16];
-  uint8_t uNode, i;
+  uint8_t uNode;
   AL_TDpb* pDpb = &pCtx->m_DPB;
 
   // Fill the five lists of picture order count values
@@ -337,7 +336,7 @@ void AL_HEVC_PictMngr_InitRefPictSet(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pS
   }
 
   // Compute long term reference pictures
-  for(i = 0; i < pSlice->NumPocLtCurr; ++i)
+  for(int i = 0; i < pSlice->NumPocLtCurr; ++i)
   {
     uint8_t uPos;
 
@@ -348,7 +347,7 @@ void AL_HEVC_PictMngr_InitRefPictSet(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pS
     pCtx->RefPicSetLtCurr[i] = uPos;
   }
 
-  for(i = 0; i < pSlice->NumPocLtFoll; ++i)
+  for(int i = 0; i < pSlice->NumPocLtFoll; ++i)
   {
     uint8_t uPos;
 
@@ -360,13 +359,13 @@ void AL_HEVC_PictMngr_InitRefPictSet(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pS
   }
 
   // Compute short term reference pictures
-  for(i = 0; i < pSlice->NumPocStCurrBefore; ++i)
+  for(int i = 0; i < pSlice->NumPocStCurrBefore; ++i)
     pCtx->RefPicSetStCurrBefore[i] = AL_Dpb_SearchPOC(&pCtx->m_DPB, pCtx->PocStCurrBefore[i]);
 
-  for(i = 0; i < pSlice->NumPocStCurrAfter; ++i)
+  for(int i = 0; i < pSlice->NumPocStCurrAfter; ++i)
     pCtx->RefPicSetStCurrAfter[i] = AL_Dpb_SearchPOC(&pCtx->m_DPB, pCtx->PocStCurrAfter[i]);
 
-  for(i = 0; i < pSlice->NumPocStFoll; ++i)
+  for(int i = 0; i < pSlice->NumPocStFoll; ++i)
     pCtx->RefPicSetStFoll[i] = AL_Dpb_SearchPOC(&pCtx->m_DPB, pCtx->PocStFoll[i]);
 
   // reset picture marking on all the picture in the dbp
@@ -379,7 +378,7 @@ void AL_HEVC_PictMngr_InitRefPictSet(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pS
   }
 
   // mark long term reference pictures
-  for(i = 0; i < pSlice->NumPocLtCurr; ++i)
+  for(int i = 0; i < pSlice->NumPocLtCurr; ++i)
   {
     uNode = pCtx->RefPicSetLtCurr[i];
 
@@ -387,7 +386,7 @@ void AL_HEVC_PictMngr_InitRefPictSet(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pS
       AL_Dpb_SetMarkingFlag(pDpb, uNode, LONG_TERM_REF);
   }
 
-  for(i = 0; i < pSlice->NumPocLtFoll; ++i)
+  for(int i = 0; i < pSlice->NumPocLtFoll; ++i)
   {
     uNode = pCtx->RefPicSetLtFoll[i];
 
@@ -396,7 +395,7 @@ void AL_HEVC_PictMngr_InitRefPictSet(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pS
   }
 
   // mark short term reference pictures
-  for(i = 0; i < pSlice->NumPocStCurrBefore; ++i)
+  for(int i = 0; i < pSlice->NumPocStCurrBefore; ++i)
   {
     uNode = pCtx->RefPicSetStCurrBefore[i];
 
@@ -404,7 +403,7 @@ void AL_HEVC_PictMngr_InitRefPictSet(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pS
       AL_Dpb_SetMarkingFlag(pDpb, uNode, SHORT_TERM_REF);
   }
 
-  for(i = 0; i < pSlice->NumPocStCurrAfter; ++i)
+  for(int i = 0; i < pSlice->NumPocStCurrAfter; ++i)
   {
     uNode = pCtx->RefPicSetStCurrAfter[i];
 
@@ -412,7 +411,7 @@ void AL_HEVC_PictMngr_InitRefPictSet(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pS
       AL_Dpb_SetMarkingFlag(pDpb, uNode, SHORT_TERM_REF);
   }
 
-  for(i = 0; i < pSlice->NumPocStFoll; ++i)
+  for(int i = 0; i < pSlice->NumPocStFoll; ++i)
   {
     uNode = pCtx->RefPicSetStFoll[i];
 
@@ -430,7 +429,7 @@ void AL_HEVC_PictMngr_InitRefPictSet(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pS
 bool AL_HEVC_PictMngr_BuildPictureList(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pSlice, TBufferListRef* pListRef)
 {
   uint8_t uRef;
-  uint8_t i, pNumRef[2] =
+  uint8_t pNumRef[2] =
   {
     0, 0
   };
@@ -454,15 +453,13 @@ bool AL_HEVC_PictMngr_BuildPictureList(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* 
     {
       while(uRef < NumRpsCurrTempList)
       {
-        uint8_t i;
-
-        for(i = 0; i < pSlice->NumPocStCurrBefore && uRef < NumRpsCurrTempList; ++uRef, ++i)
+        for(uint8_t i = 0; i < pSlice->NumPocStCurrBefore && uRef < NumRpsCurrTempList; ++uRef, ++i)
           uNodeList[uRef] = pCtx->RefPicSetStCurrBefore[i];
 
-        for(i = 0; i < pSlice->NumPocStCurrAfter && uRef < NumRpsCurrTempList; ++uRef, ++i)
+        for(uint8_t i = 0; i < pSlice->NumPocStCurrAfter && uRef < NumRpsCurrTempList; ++uRef, ++i)
           uNodeList[uRef] = pCtx->RefPicSetStCurrAfter[i];
 
-        for(i = 0; i < pSlice->NumPocLtCurr && uRef < NumRpsCurrTempList; ++uRef, ++i)
+        for(uint8_t i = 0; i < pSlice->NumPocLtCurr && uRef < NumRpsCurrTempList; ++uRef, ++i)
           uNodeList[uRef] = pCtx->RefPicSetLtCurr[i];
       }
 
@@ -473,7 +470,7 @@ bool AL_HEVC_PictMngr_BuildPictureList(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* 
         uNode = (uNode == uEndOfList) ? AL_Dpb_GetHeadPOC(&pCtx->m_DPB) : uNode;
 
         (*pListRef)[0][uRef].uNodeID = uNode;
-        (*pListRef)[0][uRef].RefBuf = *pCtx->m_FrmBufPool.pFrmBufs[pCtx->m_DPB.m_Nodes[uNode].uFrmID];
+        (*pListRef)[0][uRef].RefBuf = *(AL_PictMngr_GetDisplayBufferFromID(pCtx, pCtx->m_DPB.m_Nodes[uNode].uFrmID));
       }
     }
 
@@ -487,15 +484,13 @@ bool AL_HEVC_PictMngr_BuildPictureList(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* 
       {
         while(uRef < NumRpsCurrTempList)
         {
-          uint8_t i;
-
-          for(i = 0; i < pSlice->NumPocStCurrAfter && uRef < NumRpsCurrTempList; ++uRef, ++i)
+          for(uint8_t i = 0; i < pSlice->NumPocStCurrAfter && uRef < NumRpsCurrTempList; ++uRef, ++i)
             uNodeList[uRef] = pCtx->RefPicSetStCurrAfter[i];
 
-          for(i = 0; i < pSlice->NumPocStCurrBefore && uRef < NumRpsCurrTempList; ++uRef, ++i)
+          for(uint8_t i = 0; i < pSlice->NumPocStCurrBefore && uRef < NumRpsCurrTempList; ++uRef, ++i)
             uNodeList[uRef] = pCtx->RefPicSetStCurrBefore[i];
 
-          for(i = 0; i < pSlice->NumPocLtCurr && uRef < NumRpsCurrTempList; ++uRef, ++i)
+          for(uint8_t i = 0; i < pSlice->NumPocLtCurr && uRef < NumRpsCurrTempList; ++uRef, ++i)
             uNodeList[uRef] = pCtx->RefPicSetLtCurr[i];
         }
 
@@ -506,13 +501,13 @@ bool AL_HEVC_PictMngr_BuildPictureList(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* 
           uNode = (uNode == uEndOfList) ? AL_Dpb_GetHeadPOC(&pCtx->m_DPB) : uNode;
 
           (*pListRef)[1][uRef].uNodeID = uNode;
-          (*pListRef)[1][uRef].RefBuf = *pCtx->m_FrmBufPool.pFrmBufs[pCtx->m_DPB.m_Nodes[uNode].uFrmID];
+          (*pListRef)[1][uRef].RefBuf = *(AL_PictMngr_GetDisplayBufferFromID(pCtx, pCtx->m_DPB.m_Nodes[uNode].uFrmID));
         }
       }
     }
   }
 
-  for(i = 0; i < 16; ++i)
+  for(uint8_t i = 0; i < 16; ++i)
   {
     if((*pListRef)[0][i].uNodeID != uEndOfList)
       pNumRef[0]++;

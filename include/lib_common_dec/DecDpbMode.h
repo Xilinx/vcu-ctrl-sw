@@ -42,7 +42,8 @@
 typedef enum AL_e_DpbMode
 {
   AL_DPB_NORMAL,
-  AL_DPB_LOW_REF
+  AL_DPB_LOW_REF,
+  AL_DPB_MAX_ENUM,
 }AL_EDpbMode;
 
 /*************************************************************************//*!

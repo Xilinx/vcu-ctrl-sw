@@ -114,8 +114,7 @@ void AL_AVC_GeneratePPS(AL_TPps* pPPS, AL_TEncSettings const* pSettings, int iMa
 
 void AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus);
 void AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus);
-/***************************************************************************/
-void InitHwRateCtrl(AL_TEncSettings* pSettings, int iNumLCU);
 
-/*@}*/
+/***************************************************************************/
+AL_EFbStorageMode GetSrcStorageMode(AL_ESrcMode eSrcMode);
 

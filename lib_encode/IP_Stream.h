@@ -46,6 +46,7 @@
 
 #include "lib_rtos/types.h"
 #include "lib_bitstream/BitStreamLite.h"
+#include "lib_common/BufferStreamMeta.h"
 
 /****************************************************************************/
 typedef struct t_NalHeader
@@ -59,6 +60,8 @@ NalHeader GetNalHeaderHevc(uint8_t uNUT, uint8_t uNalIdc);
 
 void WriteFillerData(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, int bytesCount);
 void FlushNAL(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, uint8_t* pDataInNAL, int iBitsInNAL);
+
+void AddFlagsToAllSections(AL_TStreamMetaData* pStreamMeta, uint32_t flags);
 
 /*@}*/
 

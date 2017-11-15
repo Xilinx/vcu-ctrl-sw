@@ -59,6 +59,13 @@ typedef uint32_t TFourCC;
 
 /***************************************************************************/
 
+typedef struct AL_t_PicFormat
+{
+  AL_EChromaMode eChromaMode;
+  uint8_t uBitDepth;
+  AL_EFbStorageMode eStorageMode;
+}AL_TPicFormat;
+
 /*************************************************************************//*!
    \brief returns the ChromaMode identifier according to the tFourCC parameter
    \param[in] tFourCC FourCC format of the current picture
@@ -94,6 +101,28 @@ bool AL_Is10bitPacked(TFourCC tFourCC);
    \return return the ChomaMode according to the tFourCC parameter
 *****************************************************************************/
 bool AL_IsSemiPlanar(TFourCC tFourCC);
+
+/*************************************************************************//*!
+   \brief returns true if YUV format specified by tFourCC is tiled
+   \param[in] tFourCC FourCC format of the current picture
+   \return true if YUV is tiled according to the tFourCC parameter
+*****************************************************************************/
+bool AL_IsTiled(TFourCC tFourCC);
+
+/*************************************************************************//*!
+   \brief returns the storage buffer format specified by tFourCC
+   \param[in] tFourCC FourCC format of the current picture
+   \return the storage buffer format specified by tFourCC
+*****************************************************************************/
+AL_EFbStorageMode GetStorageMode(TFourCC tFourCC);
+
+/*************************************************************************//*!
+   \brief returns the FOURCC identifier used as native YUV source format
+   according to the encoding ChromaMode and bitdepth
+   \param[in] picFmt source picture format
+   \return return the corresponding TFourCC format
+*****************************************************************************/
+TFourCC AL_GetSrcFourCC(AL_TPicFormat const picFmt);
 
 /*@}*/
 

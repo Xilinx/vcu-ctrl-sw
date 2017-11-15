@@ -47,16 +47,14 @@
 
 #include "lib_common_dec/StartCodeParam.h"
 
-#include "lib_parsing/SpsParsing.h"
 #include "lib_parsing/I_PictMngr.h"
 #include "lib_parsing/Concealment.h"
+#include "lib_parsing/VideoConfiguration.h"
 
 #include "NalUnitParser.h"
 #include "lib_decode/I_DecChannel.h"
 #include "lib_decode/lib_decode.h"
 #include "BufferFeeder.h"
-
-#define MAX_STACK_SIZE 16
 
 typedef enum AL_e_ChanState
 {
@@ -158,22 +156,16 @@ typedef struct t_Dec_Ctx
 
   // reference frames and dpb manager
   AL_TPictMngrCtx m_PictMngr;
+  AL_TAup m_aup;
   union
   {
-    struct
-    {
-      AL_TAvcAup m_AvcAup;      // Manages the high level syntax parsing
-      AL_TAvcSliceHdr m_AvcSliceHdr[2]; // Slice header
-    };
-
-    struct
-    {
-      AL_THevcAup m_HevcAup;         // Manages the high level syntax parsing
-      AL_THevcSliceHdr m_HevcSliceHdr[2]; // Slice headers
-    };
+    AL_TAvcSliceHdr m_AvcSliceHdr[2]; // Slice header
+    AL_THevcSliceHdr m_HevcSliceHdr[2]; // Slice headers
   };
   AL_ERR m_error;
-
+  bool m_bIsFirstSPSChecked;
+  bool m_bIsBuffersAllocated;
+  AL_TStreamSettings m_tStreamSettings;
   AL_TBuffer* m_eosBuffer;
 }AL_TDecCtx;
 

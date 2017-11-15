@@ -145,7 +145,7 @@ static void writeSpsData(AL_TBitStreamLite* pBS, AL_TAvcSps const* pSps)
         int row = i < 6 ? 0 : 1;
         int size = i < 6 ? 16 : 64;
 
-        int column;
+        int column = 0;
         switch(i)
         {
         case 0:
@@ -164,6 +164,8 @@ static void writeSpsData(AL_TBitStreamLite* pBS, AL_TAvcSps const* pSps)
         case 7:
           column = 3 * AL_SL_INTER;
           break;
+        default:
+          assert(0);
         }
 
         writeScalingList(pBS, pSps->scaling_list_param.ScalingList[row][column], size);

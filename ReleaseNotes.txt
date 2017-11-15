@@ -252,3 +252,29 @@
 
   Missing feature(s) :
     -- long terms
+
+2017-11-14 (v1.0.38)
+--------------------
+
+  Added features (Coded) :
+    -- Fix hardware rate control overflow
+    -- Scene Change resilience improvement
+    -- Footprint / latency optimization at exe_decoder level. (preallocation)
+    -- Better error resilience
+    -- Fix watchdog handling in slicelat
+    -- partial fix of multichannel scheduling
+
+  API:
+    -- Remove I_DecChannel.h header from the decoder api. To fix compilation,
+    just include lib_decode.h instead. I_DecChannel type is now a handle for the
+    user. This also removes DecBuffers.h, DecPicParam.h, DecSliceParam.h, StartCodeParam.h
+    -- Rename AL_Decoder_PutDecPict -> AL_Decoder_PutDisplayPicture
+    -- Remove AL_Decoder_ForceStop API. This is now automatically done when you destroy the decoder
+    whithout calling AL_Decoder_Flush
+    -- Remove AL_Decoder_GetDecPict from decoder API
+    -- Remove AL_Decoder_ReleaseDecPict from decoder API. You should use AL_Decoder_PutDisplayPicture
+    instead.
+
+  Missing feature(s):
+   -- long terms
+

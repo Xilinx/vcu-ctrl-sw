@@ -56,9 +56,6 @@ static const AL_HANDLE AL_INVALID_CHANNEL = (AL_HANDLE)(NULL);
 
 /****************************************************************************/
 typedef void (* AL_PFN_iChannel_CB) (void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U streamUserPtr);
-#if ENABLE_WATCHDOG
-typedef void (* AL_PFN_iWatchdog_CB) (void* pUserParam);
-#endif
 
 /*************************************************************************//*!
    \brief Scheduler callbacks structure
@@ -67,10 +64,6 @@ typedef struct AL_t_ISchedulerCallBacks
 {
   AL_PFN_iChannel_CB pfnEndEncodingCallBack;
   void* pEndEncodingCBParam;
-#if ENABLE_WATCHDOG
-  AL_PFN_iWatchdog_CB pfnWatchdogCallBack;
-  void* pWatchdogCBParam;
-#endif
 }AL_TISchedulerCallBacks;
 
 /****************************************************************************/
@@ -173,6 +166,7 @@ bool AL_ISchedulerEnc_ReleaseRecPicture(TScheduler* pScheduler, AL_HANDLE hChann
 {
   return pScheduler->vtable->releaseRecPicture(pScheduler, hChannel, pRecPic);
 }
+
 
 
 /*@}*/

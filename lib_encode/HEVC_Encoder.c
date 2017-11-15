@@ -40,6 +40,9 @@
 #include "lib_common/BufferStreamMeta.h"
 #include "lib_common/Utils.h"
 #include "lib_common/Error.h"
+#include "lib_preprocess/LoadLda.h"
+
+#define DEBUG_PATH "."
 
 /***************************************************************************/
 static void GenerateSkippedPictureData(AL_TEncCtx* pCtx)
@@ -69,16 +72,11 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_TBuff
   int iPoolID = pPicStatus->UserParam;
   AL_TFrameInfo* pFI = &pCtx->m_Pool[iPoolID];
 
-  if(pPicStatus->eErrorCode & AL_ERROR)
-  {
-    Rtos_GetMutex(pCtx->m_Mutex);
-    pCtx->m_eError = pPicStatus->eErrorCode;
-    Rtos_ReleaseMutex(pCtx->m_Mutex);
-  }
-  else if(pPicStatus->bSkip)
-  {
-  }
-  else
+  Rtos_GetMutex(pCtx->m_Mutex);
+  pCtx->m_eError = pPicStatus->eErrorCode;
+  Rtos_ReleaseMutex(pCtx->m_Mutex);
+
+  if(!(pPicStatus->eErrorCode & AL_ERROR || pPicStatus->bSkip))
   {
     AL_HEVC_UpdatePPS(&pCtx->m_pps, pPicStatus);
     HEVC_GenerateSections(pCtx, pStream, pPicStatus);
@@ -200,15 +198,12 @@ AL_ERR AL_HEVC_Encoder_Create(AL_TEncCtx** hCtx, TScheduler* pScheduler, AL_TAll
   if(pSettings->eScalingList != AL_SCL_FLAT)
     pChParam->eOptions |= AL_OPT_SCL_LST;
 
-  if(pSettings->eLdaCtrlMode != DEFAULT_LDA)
+  if(pSettings->tChParam.eLdaCtrlMode != DEFAULT_LDA)
     pChParam->eOptions |= AL_OPT_CUSTOM_LDA;
 
   AL_TISchedulerCallBacks CBs = { 0 };
   CBs.pfnEndEncodingCallBack = EndEncodingWrap;
   CBs.pEndEncodingCBParam = pCtx;
-#if ENABLE_WATCHDOG
-  AL_Common_Encoder_SetWatchdogCB(&CBs, pSettings);
-#endif
 
   /* We don't want to send a cmd the scheduler can't store */
   pCtx->m_PendingEncodings = Rtos_CreateSemaphore(ENC_MAX_CMD - 1);
@@ -216,8 +211,18 @@ AL_ERR AL_HEVC_Encoder_Create(AL_TEncCtx** hCtx, TScheduler* pScheduler, AL_TAll
   GenerateSkippedPictureData(pCtx);
 
   // Lambdas ----------------------------------------------------------------
-  if(pSettings->eLdaCtrlMode != DEFAULT_LDA)
-    GetLambda(pSettings, &pCtx->m_tBufEP1, 0);
+  if(pSettings->tChParam.eLdaCtrlMode != DEFAULT_LDA)
+  {
+    pCtx->m_tBufEP1.uFlags |= EP1_BUF_LAMBDAS.Flag;
+
+    if(pSettings->tChParam.eLdaCtrlMode == LOAD_LDA)
+    {
+      char const* ldaFilename = DEBUG_PATH "/Lambdas.hex";
+      LoadLambdaFromFile(ldaFilename, &pCtx->m_tBufEP1);
+    }
+    else
+      GetLambda(pSettings->tChParam.eLdaCtrlMode, &pSettings->tChParam, pCtx->m_tBufEP1.tMD.pVirtualAddr, true);
+  }
 
   errorCode = AL_ISchedulerEnc_CreateChannel(&pCtx->m_hChannel, pCtx->m_pScheduler, pChParam, pCtx->m_tBufEP1.tMD.uPhysicalAddr, &CBs);
 

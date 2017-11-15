@@ -59,13 +59,11 @@ typedef struct al_t_BufferFeeder
 AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, AL_TAllocator* pAllocator, size_t zCircularBufferSize, AL_UINT uMaxBufNum, AL_CB_Error* errorCallback);
 void AL_BufferFeeder_Destroy(AL_TBufferFeeder* pFeeder);
 /* push a buffer in the queue. it will be fed to the decoder when possible */
-bool AL_BufferFeeder_PushBuffer(AL_TBufferFeeder* pFeeder, AL_TBuffer* pBuf, AL_EBufMode eMode, size_t uSize);
+bool AL_BufferFeeder_PushBuffer(AL_TBufferFeeder* pFeeder, AL_TBuffer* pBuf, AL_EBufMode eMode, size_t uSize, bool bLastBuffer);
 /* tell the buffer queue that the decoder finished decoding a frame */
 void AL_BufferFeeder_Signal(AL_TBufferFeeder* pFeeder);
 /* After telling the feeder that EOS is coming, wait for the decoder to consume all the buffers */
 void AL_BufferFeeder_Flush(AL_TBufferFeeder* pFeeder);
-/* Stop abruptly the decoding */
-void AL_BufferFeeder_ForceStop(AL_TBufferFeeder* pFeeder);
 /* Make decoder ready for next sequence */
 void AL_BufferFeeder_Reset(AL_TBufferFeeder* pFeeder);
 

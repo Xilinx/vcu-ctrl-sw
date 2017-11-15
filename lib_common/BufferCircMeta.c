@@ -44,7 +44,7 @@ static bool destroy(AL_TMetaData* pMeta)
   return true;
 }
 
-AL_TCircMetaData* AL_CircMetaData_Create(uint32_t uOffset, uint32_t uAvailSize)
+AL_TCircMetaData* AL_CircMetaData_Create(uint32_t uOffset, uint32_t uAvailSize, bool bLastBuffer)
 {
   AL_TCircMetaData* pMeta = Rtos_Malloc(sizeof(*pMeta));
 
@@ -55,12 +55,13 @@ AL_TCircMetaData* AL_CircMetaData_Create(uint32_t uOffset, uint32_t uAvailSize)
   pMeta->tMeta.MetaDestroy = destroy;
   pMeta->uOffset = uOffset;
   pMeta->uAvailSize = uAvailSize;
+  pMeta->bLastBuffer = bLastBuffer;
 
   return pMeta;
 }
 
 AL_TCircMetaData* AL_CircMetaData_Clone(AL_TCircMetaData* pMeta)
 {
-  return AL_CircMetaData_Create(pMeta->uOffset, pMeta->uAvailSize);
+  return AL_CircMetaData_Create(pMeta->uOffset, pMeta->uAvailSize, pMeta->bLastBuffer);
 }
 

@@ -35,14 +35,30 @@
 *
 ******************************************************************************/
 
-#include "lib_common/StreamSection.h"
-/***************************************************************************/
-uint32_t AL_StreamSection_GetCompleteFlags(bool bIsIDR)
-{
-  uint32_t uCompleteFlag = SECTION_COMPLETE_FLAG;
+/****************************************************************************
+ *****************************************************************************/
+#pragma once
 
-  if(bIsIDR)
-    uCompleteFlag |= SECTION_SYNC_FLAG;
-  return uCompleteFlag;
-}
+#include "lib_common_enc/Settings.h"
+
+/*************************************************************************//*!
+   \brief Fill QP part of the buffer pointed to by pQP with a QP for each
+        Macroblock of the slice.
+   \param[in]  eMode      Specifies the way QP values are computed. see EQpCtrlMode
+   \param[in]  iSliceQP   Slice QP value (in range [0..51])
+   \param[in]  iMinQP     Minimum allowed QP value (in range [0..50])
+   \param[in]  iMaxQP     Maximum allowed QP value (in range [1..51]).
+   \param[in]  iLCUWidth  Width in Lcu Unit of the picture
+   \param[in]  iLCUHeight Height in Lcu Unit of the picture
+   \param[in]  uLcuSize   Ctb maximum size
+   \param[in]  eProf      Profile used for the encoding
+   \param[in]  iFrameID   Frame identifier
+   \param[out] pQPs       Pointer to the buffer that receives the computed QPs
+   \param[out] pSegs      Pointer to the buffer that receives the computed Segments
+   \note iMinQp <= iMaxQP
+   \return true on success, false on error
+*****************************************************************************/
+bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, uint8_t uLcuSize, AL_EProfile eProf, int iFrameID, uint8_t* pQPs, uint8_t* pSegs);
+
+/****************************************************************************/
 

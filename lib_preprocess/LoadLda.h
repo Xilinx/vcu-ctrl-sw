@@ -35,24 +35,9 @@
 *
 ******************************************************************************/
 
-#include "lib_common/SliceConsts.h"
+#pragma once
+#include "lib_common_enc/EncBuffersInternal.h"
+#include "lib_common_enc/Settings.h"
 
-#include <assert.h>
-
-int AL_GetPrimaryPictureType(AL_ESliceType sliceType)
-{
-  switch(sliceType)
-  {
-  case SLICE_I:
-    return 0;
-  case SLICE_P:
-  case SLICE_SKIP:
-    return 1;
-  case SLICE_B:
-    return 2;
-  default:
-    assert(0);
-    return -1;
-  }
-}
+bool LoadLambdaFromFile(char const* lambdaFileName, TBufferEP* pEP);
 

@@ -46,8 +46,11 @@ void SetChannelInfo(AL_TCommonChannelInfo* pChanInfo, AL_TEncChanParam* pChParam
   bool bComp = false;
   pChanInfo->uWidth = pChParam->uWidth;
   pChanInfo->uHeight = pChParam->uHeight;
-  pChanInfo->uRecSize = GetAllocSize_Ref(pChParam->uWidth, pChParam->uHeight, uBitDepth, eChromaMode, bComp);
-  pChanInfo->RecFourCC = AL_GetRecFourCC(eChromaMode, uBitDepth);
+  AL_TDimension tDim = { pChParam->uWidth, pChParam->uHeight };
+  pChanInfo->uRecSizeY = AL_GetAllocSize_EncReference(tDim, uBitDepth, CHROMA_MONO, 0);
+  pChanInfo->uRecSize = AL_GetAllocSize_EncReference(tDim, uBitDepth, eChromaMode, bComp);
+  AL_TPicFormat picRecFormat = { eChromaMode, uBitDepth, AL_FB_TILE_64x4 };
+  pChanInfo->RecFourCC = AL_GetRecFourCC(picRecFormat);
   pChanInfo->uRecPitchY = AL_GetRecPitch(uBitDepth, pChParam->uWidth);
   pChanInfo->uRecPitchC = pChanInfo->uRecPitchY;
 }
@@ -60,6 +63,8 @@ static void setRecChannelWideInfo(TRecPic* pRecPic, AL_TCommonChannelInfo* pChan
   pRecPic->tBuf.iPitchC = pChanInfo->uRecPitchC;
   pRecPic->tBuf.tFourCC = pChanInfo->RecFourCC;
   pRecPic->tBuf.tMD.uSize = pChanInfo->uRecSize;
+  pRecPic->tBuf.tOffsetYC.iLuma = 0;
+  pRecPic->tBuf.tOffsetYC.iChroma = pChanInfo->uRecSizeY;
 }
 
 static void setRecSpecificInfo(TRecPic* pRecPic, AL_TReconstructedInfo* pRecInfo)

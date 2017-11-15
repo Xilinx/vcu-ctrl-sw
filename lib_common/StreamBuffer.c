@@ -35,21 +35,49 @@
 *
 ******************************************************************************/
 
-#include "BufferOffsetMeta.h"
-#include "lib_rtos/lib_rtos.h"
+#include "lib_common/StreamBuffer.h"
+#include "lib_common/StreamBufferPrivate.h"
 
-static bool destroy(AL_TMetaData* pMeta)
+/****************************************************************************/
+int GetBlk64x64(AL_TDimension tDim)
 {
-  Rtos_Free(pMeta);
-  return true;
+  int i64x64Width = (tDim.iWidth + 63) >> 6;
+  int i64x64Height = (tDim.iHeight + 63) >> 6;
+
+  return i64x64Width * i64x64Height;
 }
 
-AL_TOffsetMetaData* AL_OffsetMetaData_Create(uint32_t uOffset)
+/****************************************************************************/
+int GetBlk32x32(AL_TDimension tDim)
 {
-  AL_TOffsetMetaData* pMeta = Rtos_Malloc(sizeof(*pMeta));
-  pMeta->tMeta.eType = AL_META_TYPE_OFFSET;
-  pMeta->tMeta.MetaDestroy = destroy;
-  pMeta->offset = uOffset;
-  return pMeta;
+  int i32x32Width = (tDim.iWidth + 31) >> 5;
+  int i32x32Height = (tDim.iHeight + 31) >> 5;
+
+  return i32x32Width * i32x32Height;
+}
+
+/****************************************************************************/
+int GetBlk16x16(AL_TDimension tDim)
+{
+  int i16x16Width = (tDim.iWidth + 15) >> 4;
+  int i16x16Height = (tDim.iHeight + 15) >> 4;
+
+  return i16x16Width * i16x16Height;
+}
+
+/****************************************************************************/
+int GetMaxVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode)
+{
+  return GetBlk64x64(tDim) * AL_PCM_SIZE[eMode][2];
+}
+
+/****************************************************************************/
+int AL_GetMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode)
+{
+  int iMaxPCM = GetMaxVclNalSize(tDim, eMode);
+
+  iMaxPCM += 2048 + (((tDim.iHeight + 15) / 16) * AL_MAX_SLICE_HEADER_SIZE);
+
+  return RoundUp(iMaxPCM, 32);
 }
 

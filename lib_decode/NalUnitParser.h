@@ -50,86 +50,15 @@
 #include "lib_common/SliceHeader.h"
 
 #include "lib_parsing/I_PictMngr.h"
-
-#define AL_MAX_VPS 16
+#include "lib_parsing/AvcParser.h"
+#include "lib_parsing/HevcParser.h"
 
 typedef struct t_Dec_Ctx AL_TDecCtx;
 
-/*************************************************************************//*!
-   \brief UpdateContextAtEndOfFrame reset decoder context
-   \param[in]  pCtx       Pointer to a decoder context object
-*****************************************************************************/
 void UpdateContextAtEndOfFrame(AL_TDecCtx* pCtx);
 
-/*************************************************************************//*!
-   \brief The GetBlk2Buffers retrieves the buffer needed for the second block decoding
-   \param[in]  pCtx       Pointer to a decoder context object
-   \param[in]  pSP        Pointer to the current slice parameters
-*****************************************************************************/
-void GetBlk2Buffers(AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP);
-
-/*************************************************************************//*!
-   \brief AVC Access Unit Context structure
-*****************************************************************************/
-typedef struct t_avc_access_unit_parser
-{
-  // Context
-  AL_TAvcSps m_pSPS[AL_AVC_MAX_SPS]; // Holds all already received SPSs.
-  AL_TAvcSps* m_pActiveSPS;    // Holds only the currently active ParserSPS.
-  AL_TAvcPps m_pPPS[AL_AVC_MAX_PPS]; // Holds all already received PPSs.
-
-  AL_ESliceType ePictureType;
-}AL_TAvcAup;
-
-/*************************************************************************//*!
-   \brief This function initializes an AVC Access Unit instance
-   \param[out] pAUP Pointer to the Access Unit object to be initialized
-*****************************************************************************/
-void AL_AVC_InitAUP(AL_TAvcAup* pAUP);
-
-/*************************************************************************//*!
-   \brief The AL_AVC_DecodeOneNAL function prepare the buffers for the hardware decoding process
-   \param[in]      pAUP          pAUP Pointer to the current Access Unit
-   \param[in]      pCtx          Pointer to a decoder context object
-   \param[in]      eNUT          Nal Unit Type of the current NAL
-   \param[in]      bIsLastAUNal  Specifies if this is the last NAL of the current access unit
-   \param[in, out] bFirstIsValid Specifies if a previous consistent slice has already been decoded
-   \param[in, out] bValidFirstSliceInFrame Specifies if a previous consistent slice has already been decoded in the current frame
-   \param[in, out] iNumSlice     Add the number of slice in the NAL to iNumSlice
-   \param[in, out] bBeginFrameIsValid if false and if the beginning frame was valid, true.
-*****************************************************************************/
-bool AL_AVC_DecodeOneNAL(AL_TAvcAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIsLastAUNal, bool* bFirstIsValid, bool* bValidFirstSliceInFrame, int* iNumSlice, bool* bBeginFrameIsValid);
-
-/*************************************************************************//*!
-   \brief HEVC Access Unit Context structure
-*****************************************************************************/
-typedef struct t_hevc_access_unit_parser
-{
-  // Context
-  AL_THevcPps m_pPPS[AL_HEVC_MAX_PPS]; // Holds received PPSs.
-  AL_THevcSps m_pSPS[AL_HEVC_MAX_SPS]; // Holds received SPSs.
-  AL_THevcVps m_pVPS[AL_MAX_VPS];      // Holds received VPSs.
-  AL_THevcSps* m_pActiveSPS;          // Holds only the currently active SPS.
-}AL_THevcAup;
-
-/*************************************************************************//*!
-   \brief This function initializes an HEVC Access Unit instance
-   \param[out] pAUP Pointer to the Access Unit object to be initialized
-*****************************************************************************/
-void AL_HEVC_InitAUP(AL_THevcAup* pAUP);
-
-/*************************************************************************//*!
-   \brief The HEVC_DecodeOneNAL function prepare the buffers for the hardware decoding process
-   \param[in]      pAUP          pAUP Pointer to the current Access Unit
-   \param[in]      pCtx          Pointer to a decoder context object
-   \param[in]      eNUT          Nal Unit Type of the current NAL
-   \param[in]      bIsLastAUNal  Specifies if this is the last NAL of the current access unit
-   \param[in, out] bFirstIsValid Specifies if a previous consistent slice has already been decoded
-   \param[in, out] bValidFirstSliceInFrame Specifies if a previous consistent slice has already been decoded in the current frame
-   \param[in, out] iNumSlice     Add the number of slice in the NAL to iNumSlice
-   \param[in, out] bBeginFrameIsValid if false and if the beginning frame was valid, true.
-*****************************************************************************/
-bool AL_HEVC_DecodeOneNAL(AL_THevcAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIsLastAUNal, bool* bFirstIsValid, bool* bValidFirstSliceInFrame, int* iNumSlice, bool* bBeginFrameIsValid);
+bool AL_AVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIsLastAUNal, int* iNumSlice);
+bool AL_HEVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIsLastAUNal, int* iNumSlice);
 
 /*@}*/
 

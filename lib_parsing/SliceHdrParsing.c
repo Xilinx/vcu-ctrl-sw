@@ -43,7 +43,7 @@
 #include "lib_common/Utils.h"
 
 #include "SliceHdrParsing.h"
-#include "SpsParsing.h"
+#include "HevcParser.h"
 
 static const int AVC_SLICE_TYPE[5] =
 {

@@ -35,39 +35,25 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \addtogroup lib_decode_hls
-   @{
-   \file
- *****************************************************************************/
 #pragma once
+#include "lib_common/Utils.h"
 
-#include "lib_rtos/types.h"
+static const uint16_t AL_PCM_SIZE[4][3] =
+{
+  { 256, 1024, 4096 }, { 384, 1536, 6144 }, { 512, 2048, 8192 }, { 768, 3072, 12288 }
+};
 
-#include "lib_common/PPS.h"
+#define AL_MAX_SLICE_HEADER_SIZE 512
 
-#include "lib_common_dec/RbspParser.h"
+/****************************************************************************/
+int GetMaxVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode);
 
-#include "Concealment.h"
+/****************************************************************************/
+int GetBlk64x64(AL_TDimension tDim);
 
-/*************************************************************************//*!
-   \brief The ParsePPS function parse an PPS NAL
-   \param[out] pPPSTable Pointer to the table where the parsed pps are stored
-   \param[in]  pRP       Pointer to NAL parser
-   \param[in]  pSPSTable Pointer to the table where the parsed sps are stored
-*****************************************************************************/
-AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAvcPps pPPSTable[], AL_TRbspParser* pRP, AL_TAvcSps pSPSTable[]);
+/****************************************************************************/
+int GetBlk32x32(AL_TDimension tDim);
 
-/*************************************************************************//*!
-   \brief The ParsePPS function parses a PPS NAL
-   \param[out] pPPSTable Pointer to the table where the parsed pps are stored
-   \param[in]  pRP       Pointer to NAL parser
-   \param[in]  pSPSTable Pointer to the table where the parsed sps are stored
-   \param[out] pPpsId  pointer to a variable that receive the PPS ID
-*****************************************************************************/
-void AL_HEVC_ParsePPS(AL_THevcPps pPPSTable[], AL_TRbspParser* pRP, AL_THevcSps pSPSTable[], uint8_t* pPpsId);
-
-/*@}*/
+/****************************************************************************/
+int GetBlk16x16(AL_TDimension tDim);
 

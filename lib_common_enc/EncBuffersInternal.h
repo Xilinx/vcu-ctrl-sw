@@ -38,6 +38,7 @@
 #pragma once
 #include "lib_common_enc/EncBuffers.h"
 #include "EncEPBuffer.h"
+#include "lib_preprocess/ChooseLda.h"
 
 #define ENC_MAX_CMD (AL_MAX_NUM_B_PICT + 2)
 
@@ -50,11 +51,8 @@
 *****************************************************************************/
 uint32_t GetMaxLCU(uint16_t uWidth, uint16_t uHeight, uint8_t uMaxCuSize);
 
+/* see ChooseLda.h for EP1_BUF_LAMBDAS */
 // Encoder Parameter Buf 1 Flag,  Size, Offset
-static const TBufInfo EP1_BUF_LAMBDAS =
-{
-  1, 256, 0
-}; // only 208 bytes used
 static const TBufInfo EP1_BUF_PROBAS_I =
 {
   2, 2048, 256
@@ -115,52 +113,36 @@ typedef TBufferYuv TBufferSrc;
 
 /*************************************************************************//*!
    \brief Retrieves the size of a Reference YUV frame buffer
-   \param[in] iWidth Frame width in pixel unit
-   \param[in] iHeight Frame height in pixel unit
+   \param[in] tDim Frame dimensions
    \param[in] uBitDepth YUV bit-depth
    \param[in] eChromaMode Chroma Mode
-   \param[in] bFbc Reference compression flag
+   \param[in] eEncOption Encoding option flags
    \return maximum size (in bytes) needed for the YUV frame buffer
 *****************************************************************************/
-uint32_t GetAllocSize_Ref(int iWidth, int iHeight, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bFbc);
-
-/*************************************************************************//*!
-   \brief Retrieves the size of a YUV frame buffer
-   \param[in] iWidth Frame width in pixel unit
-   \param[in] iHeight Frame height in pixel unit
-   \param[in] uBitDepth YUV bit-depth
-   \param[in] eChromaMode Chroma Mode
-   \param[in] iPitch Internal memory pitch
-   \param[in] bFbc Reference compression flag
-   \return maximum size (in bytes) needed for the YUV frame buffer
-*****************************************************************************/
-uint32_t GetAllocSize_RefPitch(int iWidth, int iHeight, uint8_t uBitDepth, AL_EChromaMode eChromaMode, int iPitch, bool bFbc);
+uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_EChEncOption eEncOption);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a compressed buffer(LCU header + MVDs + Residuals)
-   \param[in] iWidth  Frame width in pixels
-   \param[in] iHeight Frame height in pixels
+   \param[in] tDim Frame dimensions
    \return maximum size (in bytes) needed for the compressed buffer
 *****************************************************************************/
-uint32_t GetAllocSize_CompData(int iWidth, int iHeight);
+uint32_t GetAllocSize_CompData(AL_TDimension tDim);
 
 /*************************************************************************//*!
    \brief Retrieves the offset of the current LCU Hdr_MVDs words
-   \param[in] iWidth  Frame width in pixels
-   \param[in] iHeight Frame height in pixels
+   \param[in] tDim Frame dimensions
    \return maximum size (in bytes) needed for the LCU Info buffer
 *****************************************************************************/
-uint32_t GetAllocSize_CompMap(int iWidth, int iHeight);
+uint32_t GetAllocSize_CompMap(AL_TDimension tDim);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a colocated frame buffer
-   \param[in] iWidth Frame Width in pixel
-   \param[in] iHeight  Frame Height in pixel
+   \param[in] tDim Frame dimensions
    \param[in] uLCUSize Max Size of a Coding Unit
    \param[in] Codec Flag which specifies the codec used
    \return the size (in bytes) needed for the colocated frame buffer
 *****************************************************************************/
-uint32_t GetAllocSize_MV(int iWidth, int iHeight, uint8_t uLCUSize, AL_ECodec Codec);
+uint32_t GetAllocSize_MV(AL_TDimension tDim, uint8_t uLCUSize, AL_ECodec Codec);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a entry_points size buffer

@@ -53,8 +53,9 @@
    \param[in] pCtx Pointer to a Picture manager context object
    \param[in] pSPS Pointer to a HECV SPS structure
    \param[in] pPP  Pointer to the current picture parameters
+   \param[in] eFBStorageMode the way frame buffer is stored
 *****************************************************************************/
-void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, AL_TDecPicParam* pPP);
+void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, AL_TDecPicParam* pPP, AL_EFbStorageMode eFBStorageMode);
 
 /*************************************************************************//*!
    \brief Remove from the DPB all unused pictures(non-reference and not needed for output

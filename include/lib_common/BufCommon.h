@@ -79,17 +79,20 @@ typedef struct t_CircBuffer
 {
   TMemDesc tMD; /*!< Memory descriptor associated to the buffer */
 
-  uint32_t uOffset; /*!< Initial Offset in Circular Buffer */
-  uint32_t uAvailSize; /*!< Avail Space in Circular Buffer */
+  int32_t uOffset; /*!< Initial Offset in Circular Buffer */
+  int32_t uAvailSize; /*!< Avail Space in Circular Buffer */
 }TCircBuffer;
 
-static AL_INLINE void CircBuffer_ConsumeUpToOffset(TCircBuffer* stream, uint32_t uNewOffset)
+#include <assert.h>
+static AL_INLINE void CircBuffer_ConsumeUpToOffset(TCircBuffer* stream, int32_t uNewOffset)
 {
   if(uNewOffset < stream->uOffset)
     stream->uAvailSize -= uNewOffset + stream->tMD.uSize - stream->uOffset;
   else
     stream->uAvailSize -= uNewOffset - stream->uOffset;
   stream->uOffset = uNewOffset;
+
+  assert(stream->uAvailSize >= 0);
 }
 
 static AL_INLINE void CircBuffer_Init(TCircBuffer* pBuf)
@@ -119,7 +122,10 @@ typedef struct t_BufferYuv
 }TBufferYuv;
 
 /****************************************************************************/
-uint32_t AL_RndUpPow2(uint32_t uVal);
+int GetNumLinesInPitch(AL_EFbStorageMode eFrameBufferStorageMode);
+int32_t ComputeRndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode, int iAlignment);
+
+/****************************************************************************/
 void AL_CleanupMemory(void* pDst, size_t uSize);
 
 extern int AL_CLEAN_BUFFERS;

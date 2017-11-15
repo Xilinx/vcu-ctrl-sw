@@ -53,36 +53,6 @@
 
 #include "lib_common_enc/EncChanParam.h"
 
-/*************************************************************************//*!
-   \brief Retrieves the maximum size of one VCL NAL unit
-   \param[in] iWidth Frame Width in pixel
-   \param[in] iHeight Frame Height in pixel
-   \param[in] eMode Chroma subsampling
-   \return maximum size of one NAL unit
-*****************************************************************************/
-uint32_t GetMaxVclNalSize(int iWidth, int iHeight, AL_EChromaMode eMode);
-
-/*************************************************************************//*!
-   \brief Retrieves the maximum size of one NAL unit
-   \param[in] iWidth Frame Width in pixel
-   \param[in] iHeight Frame Height in pixel
-   \param[in] eMode Chroma subsampling
-   \return maximum size of one NAL unit
-*****************************************************************************/
-uint32_t GetMaxNalSize(int iWidth, int iHeight, AL_EChromaMode eMode);
-
-/*************************************************************************//*!
-   \brief Encoding parameters buffers info structure
-*****************************************************************************/
-typedef struct t_BufInfo
-{
-  uint32_t Flag;
-  size_t Size;
-  size_t Offset;
-}TBufInfo;
-
-/****************************************************************************/
-
 // EP2 masks
 #define FLAG_INTRA_ONLY 0x40
 
@@ -107,58 +77,40 @@ static const TBufInfo EP2_BUF_QP_BY_MB =
 
 /*************************************************************************//*!
    \brief  Retrieves the size of a Encoder parameters buffer 2 (QP Ctrl)
-   \param[in] iWidth Frame Width in pixel
-   \param[in] iHeight Frame Height in pixel
+   \param[in] tDim Frame size in pixels
    \param[in] uMaxCuSize Maximum Size of a Coding Unit
    \return maximum size (in bytes) needed to store
 *****************************************************************************/
-uint32_t GetAllocSizeEP2(int iWidth, int iHeight, uint8_t uMaxCuSize);
+uint32_t GetAllocSizeEP2(AL_TDimension tDim, uint8_t uMaxCuSize);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a Source YUV frame buffer
-   \param[in] iWidth Frame width in pixel unit
-   \param[in] iHeight Frame height in pixel unit
-   \param[in] tFourCC FOURCC code of the YUV frame buffer format
+   \param[in] tDim Frame size in pixels
+   \param[in] uBitDepth YUV bit-depth
+   \param[in] eChromaMode Chroma Mode
+   \param[in] eStorageMode Source Storage Mode
    \return maximum size (in bytes) needed for the YUV frame buffer
 *****************************************************************************/
-uint32_t GetAllocSize_Yuv(int iWidth, int iHeight, TFourCC tFourCC);
+uint32_t AL_GetAllocSize(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_EFbStorageMode eStorageMode);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a Source YUV frame buffer
-   \param[in] iWidth Frame width in pixel unit
-   \param[in] iHeight Frame height in pixel unit
+   \param[in] tDim Frame size in pixels
    \param[in] uBitDepth YUV bit-depth
    \param[in] eChromaMode Chroma Mode
    \param[in] eSrcFmt Source format used by the HW IP
    \return maximum size (in bytes) needed for the YUV frame buffer
 *****************************************************************************/
-uint32_t GetAllocSize_Src(int iWidth, int iHeight, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_ESrcConvMode eSrcFmt);
+uint32_t GetAllocSize_Src(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt);
 
 /*************************************************************************//*!
-   \brief Retrieves the size of a YUV frame buffer
+   \brief Retrieves the Pitch value depending on Source format
    \param[in] iWidth Frame width in pixel unit
-   \param[in] iHeight Frame height in pixel unit
    \param[in] uBitDepth YUV bit-depth
-   \param[in] eChromaMode Chroma Mode
-   \param[in] iPitch Internal memory pitch
-   \return maximum size (in bytes) needed for the YUV frame buffer
+   \param[in] eStorageMode Source Storage Mode
+   \return pitch value in bytes
 *****************************************************************************/
-uint32_t GetAllocSize_SrcPitch(int iWidth, int iHeight, uint8_t uBitDepth, AL_EChromaMode eChromaMode, int iPitch);
-
-/*************************************************************************//*!
-   \brief Retrieves the pixel size depending on FOURCC
-   \param[in] tFourCC FOURCC code of the YUV frame buffer format
-   \return pixel size
-*****************************************************************************/
-int CalculatePixSize(TFourCC tFourCC);
-
-/*************************************************************************//*!
-   \brief Retrieves the Pitch value depending on FOURCC and width
-   \param[in] tFourCC FOURCC code of the YUV frame buffer format
-   \param[in] iWidth Frame width in pixel unit
-   \return pitch value
-*****************************************************************************/
-int CalculatePitchValue(TFourCC tFourCC, int iWidth);
+int AL_CalculatePitchValue(int iWidth, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode);
 
 
 /*@}*/

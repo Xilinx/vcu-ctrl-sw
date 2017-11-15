@@ -55,7 +55,7 @@ static int writeNalInBuffer(IRbspWriter* writer, uint8_t* buffer, AL_NalUnit* na
   return AL_BitStreamLite_GetBitsCount(&bitstream);
 }
 
-static void GenerateNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, AL_NalUnit* nal, AL_TStreamMetaData* pMeta, uint32_t uFlags)
+static void GenerateNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, AL_NalUnit* nal, AL_TStreamMetaData* pMeta)
 {
   uint8_t tmpBuffer[ENC_MAX_HEADER_SIZE];
 
@@ -65,17 +65,17 @@ static void GenerateNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, AL_Na
   FlushNAL(bitstream, nal->nut, nal->header, tmpBuffer, sizeInBits);
   int end = getBytesOffset(bitstream);
 
-  AL_StreamMetaData_AddSection(pMeta, start, end - start, uFlags);
+  AL_StreamMetaData_AddSection(pMeta, start, end - start, SECTION_CONFIG_FLAG);
 }
 
-static void GenerateNalUnits(IRbspWriter* writer, AL_NalUnit* nals, int nalsCount, AL_TBuffer* pStream, uint32_t uFlags)
+static void GenerateNalUnits(IRbspWriter* writer, AL_NalUnit* nals, int nalsCount, AL_TBuffer* pStream)
 {
   AL_TBitStreamLite bitstream;
   AL_BitStreamLite_Init(&bitstream, AL_Buffer_GetData(pStream));
   AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
 
   for(int i = 0; i < nalsCount; i++)
-    GenerateNal(writer, &bitstream, &nals[i], pMetaData, uFlags);
+    GenerateNal(writer, &bitstream, &nals[i], pMetaData);
 }
 
 static SeiCtx createSeiCtx(AL_TSps* sps, AL_TPps* pps, AL_THevcVps* vps, int initialCpbRemovalDelay, int cpbRemovalDelay, AL_TEncPicStatus const* pPicStatus)
@@ -93,22 +93,23 @@ static SeiCtx createSeiCtx(AL_TSps* sps, AL_TPps* pps, AL_THevcVps* vps, int ini
   return ctx;
 }
 
+static int getOffsetAfterLastSection(AL_TStreamMetaData* pMeta)
+{
+  if(pMeta->uNumSection == 0)
+    return 0;
+
+  AL_TStreamSection lastSection = pMeta->pSections[pMeta->uNumSection - 1];
+  return lastSection.uOffset + lastSection.uLength;
+}
+
 void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus)
 {
   AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
 
-  uint32_t flags = SECTION_COMPLETE_FLAG;
-
-  if(pPicStatus->bIsIDR)
-    flags |= SECTION_SYNC_FLAG;
-
   if(pPicStatus->bIsFirstSlice)
   {
-    AL_NalUnit nals[5];
+    AL_NalUnit nals[4];
     int nalsCount = 0;
-
-    if(nalsData->shouldWriteAud)
-      nals[nalsCount++] = AL_CreateAud(nuts.audNut, pPicStatus->eType);
 
     if(pPicStatus->bIsIDR)
     {
@@ -132,25 +133,37 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
     for(int i = 0; i < nalsCount; i++)
       nals[i].header = nuts.GetNalHeader(nals[i].nut, nals[i].idc);
 
-    GenerateNalUnits(writer, nals, nalsCount, pStream, flags | SECTION_CONFIG_FLAG);
+    GenerateNalUnits(writer, nals, nalsCount, pStream);
   }
 
   AL_TStreamPart* pStreamParts = (AL_TStreamPart*)(AL_Buffer_GetData(pStream) + pPicStatus->uStreamPartOffset);
 
   for(int iPart = 0; iPart < pPicStatus->iNumParts; ++iPart)
-    AL_StreamMetaData_AddSection(pMetaData, pStreamParts[iPart].uOffset, pStreamParts[iPart].uSize, flags);
+    AL_StreamMetaData_AddSection(pMetaData, pStreamParts[iPart].uOffset, pStreamParts[iPart].uSize, 0);
+
+  AL_TBitStreamLite bs;
+  AL_BitStreamLite_Init(&bs, AL_Buffer_GetData(pStream));
+  int offset = getOffsetAfterLastSection(pMetaData);
+  AL_BitStreamLite_SkipBits(&bs, offset * 8);
 
   if(nalsData->shouldWriteFillerData && pPicStatus->iFiller)
   {
-    AL_TStreamPart lastPart = pStreamParts[pPicStatus->iNumParts - 1];
-    uint32_t uOffset = lastPart.uOffset + lastPart.uSize;
-    AL_TBitStreamLite bs;
-    AL_BitStreamLite_Init(&bs, AL_Buffer_GetData(pStream) + uOffset);
     WriteFillerData(&bs, nuts.fdNut, nuts.GetNalHeader(nuts.fdNut, 0), pPicStatus->iFiller);
-    AL_StreamMetaData_AddSection(pMetaData, uOffset, pPicStatus->iFiller, flags);
+    AL_StreamMetaData_AddSection(pMetaData, offset, pPicStatus->iFiller, 0);
   }
 
   if(pPicStatus->bIsLastSlice)
-    AL_StreamMetaData_AddSection(pMetaData, 0, 0, flags | SECTION_END_FRAME_FLAG);
+  {
+    if(nalsData->shouldWriteAud)
+    {
+      AL_NalUnit nal = AL_CreateAud(nuts.audNut, 2 /*pPicStatus->eType */);
+      nal.header = nuts.GetNalHeader(nal.nut, nal.idc);
+      GenerateNal(writer, &bs, &nal, pMetaData);
+    }
+    AL_StreamMetaData_AddSection(pMetaData, 0, 0, SECTION_END_FRAME_FLAG);
+  }
+
+  if(pPicStatus->bIsIDR)
+    AddFlagsToAllSections(pMetaData, SECTION_SYNC_FLAG);
 }
 

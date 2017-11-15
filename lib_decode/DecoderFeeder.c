@@ -43,6 +43,8 @@
 int AL_Decoder_GetStrOffset(AL_HANDLE hDec);
 AL_ERR AL_Decoder_TryDecodeOneAU(AL_HDecoder hDec, TCircBuffer* pBufStream);
 void AL_Decoder_InternalFlush(AL_HDecoder hDec);
+void AL_Default_Decoder_WaitFrameSent(AL_HDecoder hDec);
+void AL_Default_Decoder_ReleaseFrames(AL_HDecoder hDec);
 
 typedef struct AL_TDecoderFeederS
 {
@@ -61,25 +63,17 @@ typedef struct AL_TDecoderFeederS
 /* Decoder Feeder Slave structure */
 typedef AL_TDecoderFeeder DecoderFeederSlave;
 
-static
-bool CircBuffer_IsFull(TCircBuffer* pBuf)
+static bool CircBuffer_IsFull(TCircBuffer* pBuf)
 {
-  return pBuf->uAvailSize == pBuf->tMD.uSize;
+  return pBuf->uAvailSize == (int32_t)pBuf->tMD.uSize;
 }
 
 static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
 {
   do
   {
+    slave->stopped = false;
     AL_HANDLE hDec = slave->hDec;
-
-    if(AL_Patchworker_ShouldBeStopped(slave->patchworker))
-    {
-      AL_Patchworker_Drop(slave->patchworker);
-      AL_Decoder_InternalFlush(slave->hDec);
-      slave->stopped = true;
-      break;
-    }
 
     uint32_t uNewOffset = AL_Decoder_GetStrOffset(hDec);
 
@@ -100,12 +94,19 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
 
     if(CircBuffer_IsFull(slave->patchworker->outputCirc))
     {
-      // no more AU to get from a full circular buffer:
-      // empty it to avoid a stall
-      AL_Decoder_FlushInput(slave->hDec);
-      CircBuffer_Init(decodeBuffer);
-      CircBuffer_Init(slave->patchworker->outputCirc);
-      // enable buffer transfer to CircBuffer
+      AL_Default_Decoder_WaitFrameSent(hDec);
+
+      uint32_t uNewOffset = AL_Decoder_GetStrOffset(hDec);
+      CircBuffer_ConsumeUpToOffset(slave->patchworker->outputCirc, uNewOffset);
+
+      if(CircBuffer_IsFull(slave->patchworker->outputCirc))
+      {
+        // no more AU to get from a full circular buffer:
+        // empty it to avoid a stall
+        AL_Decoder_FlushInput(hDec);
+      }
+
+      AL_Default_Decoder_ReleaseFrames(hDec);
       AL_DecoderFeeder_Process(slave);
     }
 
@@ -113,6 +114,7 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
     if(AL_Patchworker_IsAllDataTransfered(slave->patchworker))
     {
       AL_Decoder_InternalFlush(slave->hDec);
+      slave->stopped = true;
       break;
     }
   }
@@ -135,12 +137,13 @@ static void Slave_EntryPoint(AL_TDecoderFeeder* slave)
     Rtos_WaitEvent(slave->incomingWorkEvent, AL_WAIT_FOREVER);
 
     if(!shouldKeepGoing(slave))
+    {
+      if(!slave->stopped)
+        AL_Decoder_InternalFlush(slave->hDec);
       break;
+    }
 
-    bool bRet = true;
-
-    if(!slave->stopped)
-      bRet = Slave_Process(slave, &slave->decodeBuffer);
+    bool bRet = Slave_Process(slave, &slave->decodeBuffer);
 
     if(!bRet)
     {
@@ -161,24 +164,23 @@ static bool CreateSlave(AL_TDecoderFeeder* this)
 
 static void DestroySlave(AL_TDecoderFeeder* this)
 {
-  if(this->slave)
-  {
-    Rtos_AtomicDecrement(&this->keepGoing); /* Will be propagated to the slave */
-    Rtos_SetEvent(this->incomingWorkEvent);
+  if(!this->slave)
+    return;
 
-    Rtos_JoinThread(this->slave);
-    Rtos_DeleteThread(this->slave);
-  }
+  Rtos_AtomicDecrement(&this->keepGoing); /* Will be propagated to the slave */
+  Rtos_SetEvent(this->incomingWorkEvent);
+
+  Rtos_JoinThread(this->slave);
+  Rtos_DeleteThread(this->slave);
 }
 
 void AL_DecoderFeeder_Destroy(AL_TDecoderFeeder* this)
 {
-  if(this)
-  {
-    DestroySlave(this);
-    Rtos_DeleteEvent(this->incomingWorkEvent);
-    Rtos_Free(this);
-  }
+  if(!this)
+    return;
+  DestroySlave(this);
+  Rtos_DeleteEvent(this->incomingWorkEvent);
+  Rtos_Free(this);
 }
 
 void AL_DecoderFeeder_Process(AL_TDecoderFeeder* this)
@@ -192,15 +194,10 @@ void AL_DecoderFeeder_Flush(AL_TDecoderFeeder* this)
   Rtos_SetEvent(this->incomingWorkEvent);
 }
 
-void AL_DecoderFeeder_ForceStop(AL_TDecoderFeeder* this)
-{
-  AL_Patchworker_NotifyForceStop(this->patchworker);
-  Rtos_SetEvent(this->incomingWorkEvent);
-}
-
 void AL_DecoderFeeder_Reset(AL_TDecoderFeeder* this)
 {
   AL_Patchworker_Reset(this->patchworker);
+  CircBuffer_Init(&this->decodeBuffer);
 }
 
 AL_TDecoderFeeder* AL_DecoderFeeder_Create(TMemDesc* decodeMemoryDescriptor, AL_HANDLE hDec, AL_TPatchworker* patchworker, AL_CB_Error* errorCallback)

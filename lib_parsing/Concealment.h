@@ -57,16 +57,6 @@ typedef enum
   AL_UNSUPPORTED = 2
 }AL_PARSE_RESULT;
 
-#if AL_ENABLE_FAIL_ON_CONCEAL
-
-#ifdef NDEBUG
-#error Assertions must be enabled
-#endif
-
-#define COMPLY(cond) \
-  assert(cond);
-
-#else
 
 #define COMPLY(cond) \
   do { \
@@ -75,5 +65,4 @@ typedef enum
   } \
   while(0) \
 
-#endif
 

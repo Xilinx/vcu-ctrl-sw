@@ -52,8 +52,8 @@ void CropFrame(AL_TBuffer* pYUV, int iSizePix, uint32_t uCropLeft, uint32_t uCro
 
   AL_TSrcMetaData* pMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pYUV, AL_META_TYPE_SOURCE);
 
-  int iWidth = pMeta->iWidth;
-  int iHeight = pMeta->iHeight;
+  int iWidth = pMeta->tDim.iWidth;
+  int iHeight = pMeta->tDim.iHeight;
   AL_EChromaMode eMode = AL_GetChromaMode(pMeta->tFourCC);
 
   uint8_t* pOut = AL_Buffer_GetData(pYUV);
@@ -65,8 +65,8 @@ void CropFrame(AL_TBuffer* pYUV, int iSizePix, uint32_t uCropLeft, uint32_t uCro
   iEndVert = iHeight - uCropBottom;
   iEndHrz = iWidth - uCropRight;
 
-  pMeta->iWidth = iEndHrz - iBeginHrz;
-  pMeta->iHeight = iEndVert - iBeginVert;
+  pMeta->tDim.iWidth = iEndHrz - iBeginHrz;
+  pMeta->tDim.iHeight = iEndVert - iBeginVert;
 
   /*luma samples*/
   for(iParse = iBeginVert; iParse < iEndVert; ++iParse)

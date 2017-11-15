@@ -56,12 +56,14 @@
 #include "lib_common_dec/DecPicParam.h"
 #include "lib_common_dec/DecDpbMode.h"
 
-#define MAX_STACK 16
+#define MAX_STACK_SIZE 16
 
 #define MAX_BUF_HELD_BY_NEXT_COMPONENT MAX_REF /*!< e.g. display / encoder / .. */
 #define PIC_ID_POOL_SIZE MAX_REF
-#define MAX_DPB_SIZE (MAX_REF + MAX_STACK)
-#define FRM_BUF_POOL_SIZE (MAX_REF + MAX_STACK + MAX_BUF_HELD_BY_NEXT_COMPONENT)
+#define CONCEAL_BUF 1
+#define REC_BUF 1
+#define MAX_DPB_SIZE (MAX_REF + MAX_STACK_SIZE + REC_BUF + CONCEAL_BUF)
+#define FRM_BUF_POOL_SIZE (MAX_DPB_SIZE + MAX_BUF_HELD_BY_NEXT_COMPONENT)
 
 #define uEndOfList 0xFF /*!< End Of List marker for Reference List */
 #define UndefID 0xFF/*!< Unused Buffer ID*/
@@ -80,12 +82,17 @@ typedef enum e_PicStatus
    \brief Picture Manager Callback prototype
    \ingroup BufPool
 *****************************************************************************/
-typedef void (* PfnReleaseFrmBuf)   (void* pCtx, uint8_t uFrmID);
-typedef void (* PfnIncrementFrmBuf) (void* pCtx, uint8_t uFrmID);
-typedef void (* PfnOutputFrmBuf)    (void* pCtx, uint8_t uFrmID);
+typedef struct AL_t_PictureManagerCallbacks
+{
+  void (* PfnReleaseFrmBuf)(void* pUserParam, int iFrameID);/*!< Callback Callback Function to signal that a frame buffer is no more used by the DPB */
+  void (* PfnIncrementFrmBuf)(void* pUserParam, int iFrameID);/*!< Callback Callback Function to signal that a Frame Buffer is used by the DPB */
+  void (* PfnOutputFrmBuf)(void* pUserParam, int iFrameID);  /*!< Callback Function to signal that a frame buffer need to be displayed */
 
-typedef void (* PfnIncrementMvBuf) (void* pCtx, uint8_t uMvID);
-typedef void (* PfnReleaseMvBuf)   (void* pCtx, uint8_t uMvID);
+  void (* PfnIncrementMvBuf)(void* pUserParam, uint8_t MvID); /*!< Callback Callback Function to signal that a Motion_vector buffer is used by the DPB */
+  void (* PfnReleaseMvBuf)(void* pUserParam, uint8_t MvID);   /*!< Callback Callback Function to signal that a Motion_vector buffer is no more used by the DPB */
+
+  void* pUserParam;/*!< pointer to be passed each time one to the following callback is called */
+}AL_TPictureManagerCallbacks;
 
 /*************************************************************************//*!
    \ingroup BufPool
@@ -196,27 +203,17 @@ typedef struct t_DPB
   bool m_bLastHasMMCO5;
   AL_EDpbMode m_eMode; /*!< Possible DPB mode */
 
-  void* m_pPfnCtx;  /*!< pointer to be passed each time one to the following callback is called */
-  PfnIncrementFrmBuf m_pfnIncrementFrmBuf;/*!< Callback Callback Function to signal that a Frame Buffer is used by the DPB */
-  PfnReleaseFrmBuf m_pfnReleaseFrmBuf;    /*!< Callback Callback Function to signal that a frame buffer is no more used by the DPB */
-  PfnOutputFrmBuf m_pfnOutputFrmBuf;      /*!< Callback Function to signal that a frame buffer need to be displayed */
-  PfnIncrementMvBuf m_pfnIncrementMvBuf;  /*!< Callback Callback Function to signal that a Motion_vector buffer is used by the DPB */
-  PfnReleaseMvBuf m_pfnReleaseMvBuf;      /*!< Callback Callback Function to signal that a Motion_vector buffer is no more used by the DPB */
+  AL_TPictureManagerCallbacks m_tCallbacks; /*!< Callbacks to picture manager */
 }AL_TDpb;
 
 /*************************************************************************//*!
    \brief Initializes the specified DPB context object
    \param[in,out] pDpb               Pointer to a DPB context object
    \param[in]     uNumRef            Number of reference to manage
-   \param[in]     pPfnCtx            User callback parameter
-   \param[in]     pfnIncrementFrmBuf User Callback increasing access count on frame buffer
-   \param[in]     pfnReleaseFrmBuf   User Callback decreasing access count on a frame buffer
-   \param[in]     pfnOutputFrmBuf    User Callback managing frame buffer output
-   \param[in]     pfnIncrementMvBuf  User Callback increasing access count on motion-vector buffer
-   \param[in]     pfnReleaseMvBuf    User Callback releasing a motion vector reference buffer
    \param[in]     eMode              Mode choose by user for the dpb
+   \param[in]     tCallbacks         Picture manager callbacks
 *****************************************************************************/
-void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, void* pPfnCtx, PfnIncrementFrmBuf pfnIncrementFrmBuf, PfnReleaseFrmBuf pfnReleaseFrmBuf, PfnOutputFrmBuf pfnOutputFrmBuf, PfnIncrementMvBuf pfnIncrementMvBuf, PfnReleaseMvBuf pfnReleaseMvBuf, AL_EDpbMode eMode);
+void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, AL_EDpbMode eMode, AL_TPictureManagerCallbacks tCallbacks);
 
 /*************************************************************************//*!
    \brief Flush last DPB removal orders

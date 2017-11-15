@@ -35,25 +35,10 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \addtogroup lib_decode_hls
-   @{
-   \file
- *****************************************************************************/
 #pragma once
 
-#include "lib_rtos/types.h"
-
-#include "lib_common/ScalingList.h"
 #include "lib_common/SPS.h"
-#include "lib_common/SliceConsts.h"
-#include "lib_common_dec/RbspParser.h"
 
-#include "Concealment.h"
-
-/****************************************************************************/
 typedef struct
 {
   bool bInit;
@@ -64,33 +49,8 @@ typedef struct
   int iLevelIdc;
 }AL_TVideoConfiguration;
 
-/*************************************************************************//*!
-   \brief The ParseSPS function parse an SPS NAL
-   \param[out] pSPSTable Pointer to the table where the parsed are stored
-   \param[in]  pRP  Pointer to NAL parser
-*****************************************************************************/
-AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TAvcSps pSPSTable[], AL_TRbspParser* pRP);
-
-/*************************************************************************//*!
-   \brief the short term reference picture computation
-   \param[out] pSPS   Pointer to the SPS structure containing the ref_pic_set structure and variables
-   \param[in]  RefIdx Idx of the current ref_pic_set
-   \param[in]  pRP    Pointer to NAL parser
-*****************************************************************************/
-void AL_HEVC_short_term_ref_pic_set(AL_THevcSps* pSPS, uint8_t RefIdx, AL_TRbspParser* pRP);
-
-/*************************************************************************//*!
-   \brief The ParseSPS function parses a SPS NAL
-   \param[out] pSPSTable Pointer to the table holding the parsed SPS
-   \param[in]  pRP       Pointer to NAL parser
-   \param[out] SpsId     ID of the SPS
-*****************************************************************************/
-AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_THevcSps pSPSTable[], AL_TRbspParser* pRP, uint8_t* SpsId);
-
 void AL_AVC_UpdateVideoConfiguration(AL_TVideoConfiguration* pCfg, AL_TAvcSps* pSPS);
 bool AL_AVC_IsVideoConfigurationCompatible(AL_TVideoConfiguration* pCfg, AL_TAvcSps* pSPS);
 void AL_HEVC_UpdateVideoConfiguration(AL_TVideoConfiguration* pCfg, AL_THevcSps* pSPS);
 bool AL_HEVC_IsVideoConfigurationCompatible(AL_TVideoConfiguration* pCfg, AL_THevcSps* pSPS);
-
-/*@}*/
 

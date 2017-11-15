@@ -52,10 +52,6 @@
 #include "lib_common_dec/DecBuffers.h"
 #include "lib_common_dec/RbspParser.h"
 
-#include "lib_parsing/SeiParsing.h"
-#include "lib_parsing/VpsParsing.h"
-#include "lib_parsing/SpsParsing.h"
-#include "lib_parsing/PpsParsing.h"
 #include "lib_parsing/Avc_PictMngr.h"
 #include "lib_parsing/Hevc_PictMngr.h"
 #include "lib_parsing/SliceHdrParsing.h"
@@ -64,7 +60,6 @@
 #include "I_DecoderCtx.h"
 #include "DefaultDecoder.h"
 #include "SliceDataParsing.h"
-
 
 /*************************************************************************//*!
    \brief This function returns a pointer to the Nal data cleaned of the AE bytes
@@ -153,7 +148,7 @@ static uint32_t GetNonVclSize(uint32_t uOffset, TCircBuffer* pBufStream)
 }
 
 /*****************************************************************************/
-static void InitNonVclBuf(TDecCtx* pCtx, uint32_t uOffset, TCircBuffer* pBufStream)
+static void InitNonVclBuf(AL_TDecCtx* pCtx, uint32_t uOffset, TCircBuffer* pBufStream)
 {
   uint32_t uLengthNAL = GetNonVclSize(uOffset, pBufStream);
 

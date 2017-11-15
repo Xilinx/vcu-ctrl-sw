@@ -47,7 +47,6 @@ typedef struct al_t_Patchworker
 {
   bool endOfInput;
   bool endOfOutput;
-  bool shouldBeStopped;
   AL_MUTEX lock;
   AL_TFifo* inputFifo;
   TCircBuffer* outputCirc;
@@ -60,18 +59,14 @@ typedef struct al_t_Patchworker
  */
 size_t AL_Patchworker_CopyBuffer(AL_TPatchworker* pPatchworker, AL_TBuffer* pBuf, size_t* pCopiedSize);
 
-/*
- * Transfer as much data as possible from the fifo to the circular buffer
- */
+/* Transfer as much data as possible from one buffer of the fifo to the circular buffer */
 size_t AL_Patchworker_Transfer(AL_TPatchworker* pPatchworker);
 
 void AL_Patchworker_NotifyEndOfInput(AL_TPatchworker* pPatchworker);
 bool AL_Patchworker_IsEndOfInput(AL_TPatchworker* pPatchworker);
 bool AL_Patchworker_IsAllDataTransfered(AL_TPatchworker* pPatchworker);
 
-void AL_Patchworker_NotifyForceStop(AL_TPatchworker* pPatchworker);
 void AL_Patchworker_Drop(AL_TPatchworker* pPatchworker);
-bool AL_Patchworker_ShouldBeStopped(AL_TPatchworker* pPatchworker);
 void AL_Patchworker_Reset(AL_TPatchworker* pPatchworker);
 
 void AL_Patchworker_Deinit(AL_TPatchworker* pPatchworker);

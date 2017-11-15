@@ -40,6 +40,21 @@
 #include "lib_rtos/types.h"
 #include "lib_rtos/lib_rtos.h"
 
+#include "lib_common/SliceConsts.h"
+#include "lib_common_dec/DecDpbMode.h"
+
+/*************************************************************************//*!
+   \brief Stream's settings
+ *************************************************************************/
+typedef struct
+{
+  AL_TDimension tDim; // !< Stream's dimension (width / height)
+  AL_EChromaMode eChroma; // !< Stream's chroma mode (400/420/422/444)
+  int iBitDepth; // !< Stream's bit depth
+  int iLevel; // !< Stream's level
+  int iProfileIdc; // !< Stream's profile idc
+}AL_TStreamSettings;
+
 /*************************************************************************//*!
    \brief Cropping Info on the YUV reconstructed
  *************************************************************************/
@@ -58,14 +73,18 @@ typedef struct t_CropInfo
 typedef struct t_InfoDecode
 {
   bool bChroma;
-  uint16_t uWidth;
-  uint16_t uHeight;
+  AL_TDimension tDim;
   uint8_t uBitDepthY;
   uint8_t uBitDepthC;
   AL_TCropInfo tCrop;
+  AL_EFbStorageMode eFbStorageMode;
   uint32_t uCRC;
 }AL_TInfoDecode;
 
 /******************************************************************************/
 bool AL_NeedsCropping(AL_TCropInfo* pInfo);
+/******************************************************************************/
+int AL_AVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iStack, AL_EDpbMode eMode);
+/******************************************************************************/
+int AL_HEVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iStack, AL_EDpbMode eMode);
 

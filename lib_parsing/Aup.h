@@ -37,24 +37,36 @@
 
 #pragma once
 
-#include "lib_common/BufferMeta.h"
-#include "lib_common_dec/DecInfo.h"
+#include "lib_common/SPS.h"
+#include "lib_common/PPS.h"
 
-typedef struct AL_t_DecodePictureMetaData
+#define AL_MAX_VPS 16
+
+typedef struct
 {
-  AL_TMetaData tMeta;
-  AL_TCropInfo tCropInfo;   /*!< Cropping information associated to the frame buffer */
-  int32_t iFramePOC;   /*!< Pic Order Count associated to the frame buffer            */
-  uint8_t uAccessCntByDPB;  /*!< Number of times this buffer is referenced by the DPB  */
-  uint8_t uAccessCntByDisplay;  /*!< Number of times this buffer is referenced by the Display */
-  uint8_t uFrmID;      /*!< Frame ID in the Frame buffer pool                   */
-  uint8_t uPicLatency; /*!< Picture latency count                               */
-  uint8_t uBitDepthY;  /*!< Luma   picture bit depth                            */
-  uint8_t uBitDepthC;  /*!< Chroma picture bit depth                            */
-  uint32_t uCrc;        /*!< Decoded picture CRC                                 */
-}AL_TDecodedPictureMetaData;
+  // Context
+  AL_THevcPps m_pPPS[AL_HEVC_MAX_PPS]; // Holds received PPSs.
+  AL_THevcSps m_pSPS[AL_HEVC_MAX_SPS]; // Holds received SPSs.
+  AL_THevcVps m_pVPS[AL_MAX_VPS];      // Holds received VPSs.
+  AL_THevcSps* m_pActiveSPS;          // Holds only the currently active SPS.
+}AL_THevcAup;
 
-/* Creation with zeroed structure */
-AL_TDecodedPictureMetaData* AL_DecodedPictureMetaData_Create(uint8_t uFrmID);
-AL_TDecodedPictureMetaData* AL_DecodedPictureMetaData_Clone(AL_TDecodedPictureMetaData* pMeta);
+typedef struct
+{
+  // Context
+  AL_TAvcSps m_pSPS[AL_AVC_MAX_SPS]; // Holds all already received SPSs.
+  AL_TAvcSps* m_pActiveSPS;    // Holds only the currently active ParserSPS.
+  AL_TAvcPps m_pPPS[AL_AVC_MAX_PPS]; // Holds all already received PPSs.
+
+  AL_ESliceType ePictureType;
+}AL_TAvcAup;
+
+typedef struct
+{
+  union
+  {
+    AL_THevcAup hevcAup;
+    AL_TAvcAup avcAup;
+  };
+}AL_TAup;
 

@@ -35,60 +35,14 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
-****************************************************************************/
-#include "ChooseLda.h"
-
 #include <assert.h>
 #include <math.h>
-#include "lib_rtos/lib_rtos.h"
-#include "Lambdas.h"
-#include "lib_common/Utils.h"
-
 #include <string.h>
 
-/****************************************************************************/
-static int FromHex(char a, char b)
-{
-  int A = ((a >= 'a') && (a <= 'f')) ? (a - 'a') + 10 :
-          ((a >= 'A') && (a <= 'F')) ? (a - 'A') + 10 :
-          ((a >= '0') && (a <= '9')) ? (a - '0') : 0;
-
-  int B = ((b >= 'a') && (b <= 'f')) ? (b - 'a') + 10 :
-          ((b >= 'A') && (b <= 'F')) ? (b - 'A') + 10 :
-          ((b >= '0') && (b <= '9')) ? (b - '0') : 0;
-
-  return (A << 4) + B;
-}
-
-/****************************************************************************/
-void SetAutoQPCtrlExt(AL_ESliceType eType, AL_TQPCtrl const* pQPCtrl, int iMaxQP, int iMinQP, TBufferEP* pEP)
-{
-  static const int iOffsetType[] =
-  {
-    4, 8, 0
-  };
-
-  uint32_t* pBuf = (uint32_t*)(pEP->tMD.pVirtualAddr + EP2_BUF_QP_CTRL.Offset);
-
-  pBuf += iOffsetType[eType];
-
-  pBuf[0] = (pQPCtrl->ThM1 << 16) | pQPCtrl->ThM0;
-  pBuf[1] = (pQPCtrl->ThP0 << 16) | pQPCtrl->ThM2;
-  pBuf[2] = (pQPCtrl->ThP2 << 16) | pQPCtrl->ThP1;
-  pBuf[3] = (pQPCtrl->DltM2 << 6) | (pQPCtrl->DltM1 << 3) | pQPCtrl->DltM0;
-  pBuf[3] |= (pQPCtrl->DltP2 << 15) | (pQPCtrl->DltP1 << 12) | (pQPCtrl->DltP0 << 9);
-  pBuf[3] |= (iMaxQP << 24) | (iMinQP << 18);
-
-  pEP->uFlags |= EP2_BUF_QP_CTRL.Flag;
-}
-
-/****************************************************************************/
-void SetAutoQPCtrl(AL_ESliceType eType, AL_TQPCtrl const* pQPCtrl, TBufferEP* pEP)
-{
-  SetAutoQPCtrlExt(eType, pQPCtrl, pQPCtrl->QPMax, pQPCtrl->QPMin, pEP);
-}
+#include "lib_rtos/lib_rtos.h"
+#include "lib_common/Utils.h"
+#include "Lambdas.h"
+#include "ChooseLda.h"
 
 /****************************************************************************/
 int LambdaMVDs[52] =
@@ -103,7 +57,7 @@ int LambdaMVDs[52] =
 
 static double QP2Lambda(int iQP, AL_ELdaCtrlMode eMode)
 {
-  if(eMode == AUTO_LDA)
+  if(eMode == TEST_LDA)
     return pow(2.0, iQP / 6.0 - 2.0);
   else
     return pow(2.0, iQP / 3.0);
@@ -111,7 +65,7 @@ static double QP2Lambda(int iQP, AL_ELdaCtrlMode eMode)
 
 static void GetLambdaFactor(double* dLambdaFactor, AL_ELdaCtrlMode eMode)
 {
-  if(eMode == AUTO_LDA)
+  if(eMode == TEST_LDA)
   {
     dLambdaFactor[SLICE_I] = 0.40;
     dLambdaFactor[SLICE_P] = 0.4624;
@@ -125,16 +79,16 @@ static void GetLambdaFactor(double* dLambdaFactor, AL_ELdaCtrlMode eMode)
   }
 }
 
-void ComputeAutoLambda(AL_TEncSettings const* pSettings, TLambdasTable pLambdaTable)
+void ComputeAutoLambda(AL_ELdaCtrlMode eLdaCtrlMode, AL_TEncChanParam const* pChParam, TLambdasTable pLambdaTable)
 {
   double dLambdaFactor[3];
   int iQP;
 
   for(iQP = 0; iQP < 52; iQP++)
   {
-    double dLambda = QP2Lambda(iQP, pSettings->eLdaCtrlMode);
+    double dLambda = QP2Lambda(iQP, eLdaCtrlMode);
     int i;
-    GetLambdaFactor(dLambdaFactor, pSettings->eLdaCtrlMode);
+    GetLambdaFactor(dLambdaFactor, eLdaCtrlMode);
 
     for(i = 0; i < 4; ++i)
     {
@@ -146,7 +100,7 @@ void ComputeAutoLambda(AL_TEncSettings const* pSettings, TLambdasTable pLambdaTa
         double dLambdaPic;
 
         if(i == SLICE_I)
-          dFactor = sqrt(dFactor * (1 - (0.05 * pSettings->tChParam.tGopParam.uNumB)));
+          dFactor = sqrt(dFactor * (1 - (0.05 * pChParam->tGopParam.uNumB)));
         else
           dFactor = sqrt(dFactor);
         dLambdaPic = dFactor * dLambda;
@@ -166,17 +120,18 @@ double fClip3(double val, double min, double max)
   return val;
 }
 
-void ComputeAutoLambda2(AL_TEncSettings const* pSettings, TLambdasTable pLambdaTable, int iDepth)
+void ComputeAutoLambda2(AL_ELdaCtrlMode eLdaCtrlMode, AL_TEncChanParam const* pChParam, TLambdasTable pLambdaTable, bool NotGoldenFrame)
 {
   double dLambdaFactor[3];
   int iQP;
+  AL_TGopParam const* pGopParam = &pChParam->tGopParam;
 
   for(iQP = 0; iQP < 52; iQP++)
   {
     int i;
-    GetLambdaFactor(dLambdaFactor, pSettings->eLdaCtrlMode);
+    GetLambdaFactor(dLambdaFactor, eLdaCtrlMode);
     int iQPTemp = iQP - 12;
-    double dLambda = QP2Lambda(iQPTemp, pSettings->eLdaCtrlMode);
+    double dLambda = QP2Lambda(iQPTemp, eLdaCtrlMode);
 
     for(i = 0; i < 4; ++i)
     {
@@ -189,15 +144,20 @@ void ComputeAutoLambda2(AL_TEncSettings const* pSettings, TLambdasTable pLambdaT
 
         if(i == SLICE_I)
         {
-          if(pSettings->tChParam.tGopParam.eMode & AL_GOP_FLAG_LOW_DELAY)
-            dFactor *= (1 - (0.05 * pSettings->tChParam.tGopParam.uGopLength));
+          if(pGopParam->eMode & AL_GOP_FLAG_LOW_DELAY)
+            dFactor *= (1 - (0.05 * 4));
           else
-            dFactor *= (1 - (0.05 * pSettings->tChParam.tGopParam.uNumB));
+            dFactor *= (1 - (0.05 * pGopParam->uNumB));
+        }
+
+        if(i == SLICE_B && pGopParam->eMode == AL_GOP_MODE_DEFAULT)
+        {
+          dFactor *= 2;
         }
 
         dLambdaPic = dFactor * dLambda;
 
-        if(iDepth)
+        if(NotGoldenFrame)
         {
           dLambdaPic *= fClip3(iQPTemp / 6.0, 2.00, 4.00);
         }
@@ -209,60 +169,32 @@ void ComputeAutoLambda2(AL_TEncSettings const* pSettings, TLambdasTable pLambdaT
 }
 
 /****************************************************************************/
-bool GetLambda(AL_TEncSettings const* pSettings, TBufferEP* pEP, int iDepth)
+bool GetLambda(AL_ELdaCtrlMode eMode, AL_TEncChanParam const* pChParam, uint8_t* pEP, bool NotGoldenFrame)
 {
-  AL_ELdaCtrlMode eMode = pSettings->eLdaCtrlMode;
   assert(pEP);
-
-  pEP->uFlags &= ~EP1_BUF_LAMBDAS.Flag;
   switch(eMode)
   {
   case DYNAMIC_LDA:
   {
     TLambdasTable LambdaTable;
-    ComputeAutoLambda2(pSettings, LambdaTable, iDepth);
-    Rtos_Memcpy(pEP->tMD.pVirtualAddr + EP1_BUF_LAMBDAS.Offset, LambdaTable, sizeof(TLambdasTable));
-    pEP->uFlags |= EP1_BUF_LAMBDAS.Flag;
+    ComputeAutoLambda2(eMode, pChParam, LambdaTable, NotGoldenFrame);
+    Rtos_Memcpy(pEP + EP1_BUF_LAMBDAS.Offset, LambdaTable, sizeof(TLambdasTable));
   } break;
-  case AUTO_LDA:
+  case TEST_LDA:
   {
     TLambdasTable LambdaTable;
-    ComputeAutoLambda(pSettings, LambdaTable);
-    Rtos_Memcpy(pEP->tMD.pVirtualAddr + EP1_BUF_LAMBDAS.Offset, LambdaTable, sizeof(TLambdasTable));
-    pEP->uFlags |= EP1_BUF_LAMBDAS.Flag;
+    ComputeAutoLambda(eMode, pChParam, LambdaTable);
+    Rtos_Memcpy(pEP + EP1_BUF_LAMBDAS.Offset, LambdaTable, sizeof(TLambdasTable));
+  } break;
+
+  case DEFAULT_LDA:
+  {
+    Rtos_Memcpy(pEP + EP1_BUF_LAMBDAS.Offset, AL_IS_AVC(pChParam->eProfile) ? AVC_DEFAULT_LDA_TABLE : AL_IS_HEVC(pChParam->eProfile) ? HEVC_DEFAULT_LDA_TABLE : VP9_DEFAULT_LDA_TABLE, sizeof(TLambdasTable));
   } break;
 
   case CUSTOM_LDA:
   {
-    Rtos_Memcpy(pEP->tMD.pVirtualAddr + EP1_BUF_LAMBDAS.Offset, CUSTOM_LDA_TABLE, sizeof(TLambdasTable));
-    pEP->uFlags |= EP1_BUF_LAMBDAS.Flag;
-  } break;
-
-  case LOAD_LDA:
-  {
-    AL_TLambdas* pLambdas = (AL_TLambdas*)(pEP->tMD.pVirtualAddr + EP1_BUF_LAMBDAS.Offset);
-
-    char* lambdaFileName = DEBUG_PATH "/Lambdas.hex";
-    FILE* lambdaFile = fopen(lambdaFileName, "r");
-
-    if(!lambdaFile)
-      return false;
-
-    {
-      char sLine[256];
-      int i;
-
-      for(i = 0; i <= 51; i++)
-      {
-        fgets(sLine, 256, lambdaFile);
-        pLambdas[i][0] = FromHex(sLine[6], sLine[7]);
-        pLambdas[i][1] = FromHex(sLine[4], sLine[5]);
-        pLambdas[i][2] = FromHex(sLine[2], sLine[3]);
-        pLambdas[i][3] = FromHex(sLine[0], sLine[1]);
-      }
-
-      pEP->uFlags |= EP1_BUF_LAMBDAS.Flag;
-    }
+    Rtos_Memcpy(pEP + EP1_BUF_LAMBDAS.Offset, CUSTOM_LDA_TABLE, sizeof(TLambdasTable));
   } break;
 
   default:

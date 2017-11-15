@@ -55,9 +55,9 @@ static bool enqueueBuffer(AL_TBufferFeeder* this, AL_TBuffer* pBuf, AL_EBufMode 
   return true;
 }
 
-bool AL_BufferFeeder_PushBuffer(AL_TBufferFeeder* this, AL_TBuffer* pBuf, AL_EBufMode eMode, size_t uSize)
+bool AL_BufferFeeder_PushBuffer(AL_TBufferFeeder* this, AL_TBuffer* pBuf, AL_EBufMode eMode, size_t uSize, bool bLastBuffer)
 {
-  AL_TMetaData* pMetaCirc = (AL_TMetaData*)AL_CircMetaData_Create(0, uSize);
+  AL_TMetaData* pMetaCirc = (AL_TMetaData*)AL_CircMetaData_Create(0, uSize, bLastBuffer);
 
   if(!pMetaCirc)
     return false;
@@ -85,15 +85,9 @@ void AL_BufferFeeder_Signal(AL_TBufferFeeder* this)
 void AL_BufferFeeder_Flush(AL_TBufferFeeder* this)
 {
   if(this->eosBuffer)
-    AL_BufferFeeder_PushBuffer(this, this->eosBuffer, AL_BUF_MODE_BLOCK, this->eosBuffer->zSize);
+    AL_BufferFeeder_PushBuffer(this, this->eosBuffer, AL_BUF_MODE_BLOCK, this->eosBuffer->zSize, true);
 
   AL_DecoderFeeder_Flush(this->decoderFeeder);
-}
-
-void AL_BufferFeeder_ForceStop(AL_TBufferFeeder* this)
-{
-  this->eosBuffer = NULL;
-  AL_DecoderFeeder_ForceStop(this->decoderFeeder);
 }
 
 void AL_BufferFeeder_Reset(AL_TBufferFeeder* this)

@@ -54,12 +54,6 @@
 
 static const uint16_t AL_ADAPTIVE_B = 0xFFFF;
 
-static const int16_t AL_AVC_MAX_PRANGE = 16;
-static const int16_t AL_AVC_MAX_BRANGE = 8;
-
-static const int16_t AL_HEVC_MAX_PRANGE = 32;
-static const int16_t AL_HEVC_MAX_BRANGE = 16;
-
 /*************************************************************************//*!
    \brief Enable/Disable flag identifier
 *****************************************************************************/
@@ -78,6 +72,7 @@ typedef enum e_AspectRatio
   AL_ASPECT_RATIO_4_3 = 0x01,
   AL_ASPECT_RATIO_16_9 = 0x02,
   AL_ASPECT_RATIO_NONE = 0x03,
+  AL_ASPECT_RATIO_MAX_ENUM,
 }AL_EAspectRatio;
 
 /*************************************************************************//*!
@@ -101,7 +96,6 @@ typedef enum e_QPCtrlMode
   RANDOM_QP = 0x03, /*!< used for test purpose */
   LOAD_QP = 0x04, /*!< used for test purpose */
   BORDER_QP = 0x05, /*!< used for test purpose */
-
   MASK_QP_TABLE = 0x07,
 
   // additional modes
@@ -120,19 +114,8 @@ typedef enum e_QPCtrlMode
 
   // QP table mode
   RELATIVE_QP = 0x8000,
+  QP_MAX_ENUM,
 }AL_EQpCtrlMode;
-
-/*************************************************************************//*!
-   \brief Lambda Control Mode
-*****************************************************************************/
-typedef enum e_LdaCtrlMode
-{
-  DEFAULT_LDA = 0x00, /*!< default behaviour */
-  CUSTOM_LDA = 0x01, /*!< used for test purpose */
-  AUTO_LDA = 0x02, /*!< used for test purpose */
-  DYNAMIC_LDA = 0x04, /*!< used for test purpose */
-  LOAD_LDA = 0x80, /*!< used for test purpose */
-}AL_ELdaCtrlMode;
 
 
 /*************************************************************************//*!
@@ -153,7 +136,6 @@ typedef struct t_EncSettings
 
   bool bDisIntra;
   bool bForceLoad;
-  AL_ELdaCtrlMode eLdaCtrlMode;
   int32_t iPrefetchLevel2;
   uint32_t uL2PSize;
   uint16_t uClipHrzRange;

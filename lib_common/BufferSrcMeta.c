@@ -45,7 +45,7 @@ static bool SrcMeta_Destroy(AL_TMetaData* pMeta)
   return true;
 }
 
-AL_TSrcMetaData* AL_SrcMetaData_Create(int iWidth, int iHeight, AL_TPitches tPitches, AL_TOffsetYC tOffsetYC, TFourCC tFourCC)
+AL_TSrcMetaData* AL_SrcMetaData_Create(AL_TDimension tDim, AL_TPitches tPitches, AL_TOffsetYC tOffsetYC, TFourCC tFourCC)
 {
   AL_TSrcMetaData* pMeta = Rtos_Malloc(sizeof(*pMeta));
 
@@ -55,8 +55,8 @@ AL_TSrcMetaData* AL_SrcMetaData_Create(int iWidth, int iHeight, AL_TPitches tPit
   pMeta->tMeta.eType = AL_META_TYPE_SOURCE;
   pMeta->tMeta.MetaDestroy = SrcMeta_Destroy;
 
-  pMeta->iWidth = iWidth;
-  pMeta->iHeight = iHeight;
+  pMeta->tDim.iWidth = tDim.iWidth;
+  pMeta->tDim.iHeight = tDim.iHeight;
 
   pMeta->tPitches.iLuma = tPitches.iLuma;
   pMeta->tPitches.iChroma = tPitches.iChroma;
@@ -71,12 +71,35 @@ AL_TSrcMetaData* AL_SrcMetaData_Create(int iWidth, int iHeight, AL_TPitches tPit
 
 AL_TSrcMetaData* AL_SrcMetaData_Clone(AL_TSrcMetaData* pMeta)
 {
-  return AL_SrcMetaData_Create(pMeta->iWidth, pMeta->iHeight, pMeta->tPitches, pMeta->tOffsetYC, pMeta->tFourCC);
+  return AL_SrcMetaData_Create(pMeta->tDim, pMeta->tPitches, pMeta->tOffsetYC, pMeta->tFourCC);
 }
 
 int AL_SrcMetaData_GetOffsetC(AL_TSrcMetaData* pMeta)
 {
-  assert(pMeta->tPitches.iLuma * pMeta->iHeight <= pMeta->tOffsetYC.iChroma);
+  assert(pMeta->tPitches.iLuma * pMeta->tDim.iHeight <= pMeta->tOffsetYC.iChroma ||
+         (AL_IsTiled(pMeta->tFourCC) &&
+          (pMeta->tPitches.iLuma * pMeta->tDim.iHeight / 4 <= pMeta->tOffsetYC.iChroma)));
   return pMeta->tOffsetYC.iChroma;
+}
+
+int AL_SrcMetaData_GetLumaSize(AL_TSrcMetaData* pMeta)
+{
+  if(AL_IsTiled(pMeta->tFourCC))
+    return pMeta->tPitches.iLuma * pMeta->tDim.iHeight / 4;
+  return pMeta->tPitches.iLuma * pMeta->tDim.iHeight;
+}
+
+int AL_SrcMetaData_GetChromaSize(AL_TSrcMetaData* pMeta)
+{
+  AL_EChromaMode eCMode = AL_GetChromaMode(pMeta->tFourCC);
+
+  if(eCMode == CHROMA_MONO)
+    return 0;
+
+  int const iHeightC = (eCMode == CHROMA_4_2_0) ? pMeta->tDim.iHeight / 2 : pMeta->tDim.iHeight;
+
+  if(AL_IsTiled(pMeta->tFourCC))
+    return pMeta->tPitches.iChroma * iHeightC / 4;
+  return pMeta->tPitches.iChroma * iHeightC * 2;
 }
 

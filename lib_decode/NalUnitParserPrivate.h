@@ -37,7 +37,6 @@
 
 #pragma once
 
-void AL_Decoder_Trace(void* pUserParam, void* pPicUserParam, int iNumCore, uint32_t* pCmdRegs0, uint32_t* pCmdRegs1, int iMode);
 void UpdateCircBuffer(AL_TRbspParser* pRP, TCircBuffer* pBufStream, int* pSliceHdrLength);
 bool SkipNal();
 

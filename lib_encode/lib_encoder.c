@@ -50,9 +50,6 @@ AL_ERR AL_AVC_Encoder_Create(AL_TEncCtx** hCtx, TScheduler* pScheduler, AL_TAllo
 /****************************************************************************/
 AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings, AL_CB_EndEncoding callback)
 {
-  /* subframe latency isn't supported yet */
-  assert(pSettings->tChParam.bSubframeLatency == false);
-
   *hEnc = (AL_HEncoder)Rtos_Malloc(sizeof(AL_TEncoder));
   AL_TEncoder* pEncoder = (AL_TEncoder*)*hEnc;
   AL_ERR errorCode = AL_ERROR;

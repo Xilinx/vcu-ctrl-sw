@@ -86,11 +86,13 @@ uint16_t AL_StreamMetaData_AddSection(AL_TStreamMetaData* pMetaData, uint32_t uO
 {
   assert(pMetaData && pMetaData->uNumSection < AL_MAX_SECTION);
 
-  uint16_t uSectionID = pMetaData->uNumSection++ % AL_MAX_SECTION;
+  uint16_t uSectionID = pMetaData->uNumSection;
 
   pMetaData->pSections[uSectionID].uOffset = uOffset;
   pMetaData->pSections[uSectionID].uLength = uLength;
   pMetaData->pSections[uSectionID].uFlags = uFlags;
+
+  pMetaData->uNumSection++;
 
   return uSectionID;
 }

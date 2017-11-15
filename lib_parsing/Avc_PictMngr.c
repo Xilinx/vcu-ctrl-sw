@@ -261,15 +261,12 @@ bool AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlic
 }
 
 /*****************************************************************************/
-void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_TDecPicParam* pPP)
+void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_TDecPicParam* pPP, AL_EFbStorageMode eFBStorageMode)
 {
-  AL_TBuffer* pFrmBuf = pCtx->m_FrmBufPool.pFrmBufs[pCtx->m_uRecID];
-  AL_TDecodedPictureMetaData* pFrmPrivate = (AL_TDecodedPictureMetaData*)AL_Buffer_GetMetaData(pFrmBuf, AL_META_TYPE_DECODEDPICTURE);
+  AL_TBuffer* pFrmBuf = AL_PictMngr_GetDisplayBufferFromID(pCtx, pCtx->m_uRecID);
   AL_TSrcMetaData* pFrmMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pFrmBuf, AL_META_TYPE_SOURCE);
 
-  pFrmPrivate->uBitDepthY = pPP->BitDepthY;
-  pFrmPrivate->uBitDepthC = pPP->BitDepthC;
-  pFrmMeta->tPitches.iLuma = RndPitch(pFrmMeta->iWidth, pPP->MaxBitDepth);
+  pFrmMeta->tPitches.iLuma = RndPitch(pFrmMeta->tDim.iWidth, pPP->MaxBitDepth, eFBStorageMode);
   pFrmMeta->tPitches.iChroma = pFrmMeta->tPitches.iLuma;
 
   // update cropping information
@@ -304,7 +301,9 @@ void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS
     }
   }
 
-  pFrmPrivate->tCropInfo = cropInfo;
+  AL_TBitDepth const tBitDepth = { pPP->BitDepthY, pPP->BitDepthC };
+  AL_PictMngr_UpdateDisplayBufferBitDepth(pCtx, pCtx->m_uRecID, tBitDepth);
+  AL_PictMngr_UpdateDisplayBufferCrop(pCtx, pCtx->m_uRecID, cropInfo);
 }
 
 /***************************************************************************/

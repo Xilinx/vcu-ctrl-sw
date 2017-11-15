@@ -37,6 +37,10 @@
 
 #include "lib_rtos/lib_rtos.h"
 
+#ifndef ENABLE_RTOS_SYNC
+#define ENABLE_RTOS_SYNC 1
+#endif
+
 /****************************************************************************/
 /*** W i n 3 2  &  L i n u x c o m m o n ***/
 /****************************************************************************/
@@ -566,45 +570,56 @@ int Rtos_DriverIoctl(void* drv, int req, void* data)
 /****************************************************************************/
 AL_MUTEX Rtos_CreateMutex(bool bInitialState)
 {
-  return 0;
+  (void)bInitialState;
+  AL_MUTEX validHandle = (AL_MUTEX)1;
+  return validHandle;
 }
 
 /****************************************************************************/
 void Rtos_DeleteMutex(AL_MUTEX Mutex)
 {
+  (void)Mutex;
 }
 
 /****************************************************************************/
 bool Rtos_GetMutex(AL_MUTEX Mutex)
 {
+  (void)Mutex;
   return true;
 }
 
 /****************************************************************************/
 bool Rtos_ReleaseMutex(AL_MUTEX Mutex)
 {
+  (void)Mutex;
   return true;
 }
 
 /****************************************************************************/
 AL_SEMAPHORE Rtos_CreateSemaphore(int iInitialCount)
 {
+  (void)iInitialCount;
   return 0;
 }
 
 /****************************************************************************/
 void Rtos_DeleteSemaphore(AL_SEMAPHORE Semaphore)
 {
+  (void)Semaphore;
 }
 
 /****************************************************************************/
 bool Rtos_GetSemaphore(AL_SEMAPHORE Semaphore, uint32_t Wait)
 {
+  (void)Semaphore, (void)Wait;
+  return true;
 }
 
 /****************************************************************************/
 bool Rtos_ReleaseSemaphore(AL_SEMAPHORE Semaphore)
 {
+  (void)Semaphore;
+  return true;
 }
 
 #endif

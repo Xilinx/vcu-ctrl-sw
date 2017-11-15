@@ -9,6 +9,7 @@ endif
 
 LIB_DECODE_SRC+=\
 		lib_decode/NalUnitParser.c\
+		lib_decode/NalDecoder.c\
 		lib_decode/HevcDecoder.c\
 		lib_decode/AvcDecoder.c\
 		lib_decode/FrameParam.c\
@@ -27,6 +28,7 @@ LIB_DECODER_SRC:=\
   $(LIB_PARSING_SRC)\
   $(LIB_DECODE_SRC)\
   $(LIB_SCHEDULER_DEC_SRC)\
+  $(LIB_SCHEDULER_SRC)\
   $(LIB_PERFS_SRC)\
 
 LIB_DECODER_OBJ:=$(LIB_DECODER_SRC:%=$(BIN)/%.o)

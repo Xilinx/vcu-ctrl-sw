@@ -145,10 +145,20 @@ void WriteFillerData(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header,
 
   if(bytesToWrite > 0)
   {
-    Rtos_Memset(AL_BitStreamLite_GetData(pStream) + headerInBytes, 0xFF, bytesToWrite);
+    Rtos_Memset(AL_BitStreamLite_GetData(pStream) + (AL_BitStreamLite_GetBitsCount(pStream) / 8), 0xFF, bytesToWrite);
     AL_BitStreamLite_SkipBits(pStream, bytesToWrite * 8);
   }
 
   writeByte(pStream, 0x80);
+}
+
+/****************************************************************************/
+void AddFlagsToAllSections(AL_TStreamMetaData* pStreamMeta, uint32_t flags)
+{
+  for(int i = 0; i < pStreamMeta->uNumSection; i++)
+  {
+    AL_TStreamSection section = pStreamMeta->pSections[i];
+    AL_StreamMetaData_SetSectionFlags(pStreamMeta, i, flags | section.uFlags);
+  }
 }
 

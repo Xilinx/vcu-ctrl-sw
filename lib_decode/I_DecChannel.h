@@ -77,12 +77,6 @@ typedef struct
 }AL_CB_DestroyChannel;
 
 
-typedef struct AL_t_IDecChannelCallbacks
-{
-  AL_CB_EndFrameDecoding endFrameDecodingCB;
-  AL_CB_DestroyChannel destroyChannelCB;
-}AL_TIDecChannelCallbacks;
-
 /****************************************************************************/
 typedef struct AL_t_IDecChannelVtable AL_TIDecChannelVtable;
 
@@ -94,7 +88,7 @@ typedef struct AL_t_IDecChannel
 typedef struct AL_t_IDecChannelVtable
 {
   void (* Destroy)(AL_TIDecChannel* pDecChannel);
-  AL_ERR (* Configure)(AL_TIDecChannel* pDecChannel, AL_TDecChanParam* pChParam, AL_TIDecChannelCallbacks* pCBs);
+  AL_ERR (* Configure)(AL_TIDecChannel* pDecChannel, AL_TDecChanParam* pChParam, AL_CB_EndFrameDecoding callback);
   void (* SearchSC)(AL_TIDecChannel* pDecChannel, AL_TScParam* pScParam, AL_TScBufferAddrs* pBufferAddrs, AL_CB_EndStartCode callback);
   void (* DecodeOneFrame)(AL_TIDecChannel* pDecChannel, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* pSliceParams);
   void (* DecodeOneSlice)(AL_TIDecChannel* pDecChannel, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* pSliceParams);
@@ -113,24 +107,24 @@ void AL_IDecChannel_Destroy(AL_TIDecChannel* pThis)
 
 /*************************************************************************//*!
    \brief Channel creation
-   \param[in] pChParam       Pointer to the channel parameter
-   \param[in] pfnDecCallBack User CallBack which will be called after each frame decoding
-   \param[in] pUserParam     User CallBack parameter
+   \param[in] pThis Decoder channel
+   \param[in] pChParam Pointer to the channel parameter
+   \param[in] callback Start code callback structure
    \return return the channel ID if the creation is successfull
               255 otherwise(invalide channel ID)
 *****************************************************************************/
 static inline
-AL_ERR AL_IDecChannel_Configure(AL_TIDecChannel* pThis, AL_TDecChanParam* pChParam, AL_TIDecChannelCallbacks* pCBs)
+AL_ERR AL_IDecChannel_Configure(AL_TIDecChannel* pThis, AL_TDecChanParam* pChParam, AL_CB_EndFrameDecoding callback)
 {
-  return pThis->vtable->Configure(pThis, pChParam, pCBs);
+  return pThis->vtable->Configure(pThis, pChParam, callback);
 }
 
 /*************************************************************************//*!
    \brief Asks the scheduler to process a start code detection
-   \param[in]  pScParam     Pointer to the start code detector parameters
-   \param[in]  pBufferAddrs Pointer to the start code detectors buffers
-   \param[in] pfnScdCallBack User CallBack which will be called after each start code searching
-   \param[in] pUserParam     User CallBack parameter
+   \param[in] pThis Decoder channel
+   \param[in] pScParam Pointer to the start code detector parameters
+   \param[in] pBufferAddrs Pointer to the start code detectors buffers
+   \param[in] callback Start code callback structure
    \return return true
 *****************************************************************************/
 static inline
@@ -141,7 +135,7 @@ void AL_IDecChannel_SearchSC(AL_TIDecChannel* pThis, AL_TScParam* pScParam, AL_T
 
 /*************************************************************************//*!
    \brief Asks the scheduler to process a frame decoding
-   \param[in] hChannel    Channel identifier
+   \param[in] pThis Decoder channel
    \param[in] pPictParam  Pointer to the picture parameters structure
    \param[in] pSliceParam Pointer to the slice parameters list structure
    \return return true if the decoding launch is successfull
@@ -155,7 +149,7 @@ void AL_IDecChannel_DecodeOneFrame(AL_TIDecChannel* pThis, AL_TDecPicParam* pPic
 
 /*************************************************************************//*!
    \brief Asks the scheduler to process a frame decoding
-   \param[in] hChannel    Channel identifier
+   \param[in] pThis Decoder channel
    \param[in] pPictParam  Pointer to the picture parameters structure
    \param[in] pSliceParam Pointer to the slice parameters list structure
    \return return true if the decoding launch is successfull

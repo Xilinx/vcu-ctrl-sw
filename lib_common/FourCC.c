@@ -35,27 +35,32 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \addtogroup lib_decode_hls
-   @{
-   \file
- *****************************************************************************/
-#pragma once
+#include "lib_common/FourCC.h"
+#include <assert.h>
 
-#include "lib_rtos/types.h"
+TFourCC AL_GetSrcFourCC(AL_TPicFormat const picFmt)
+{
+  if(picFmt.uBitDepth > 8)
+  {
+    switch(picFmt.eChromaMode)
+    {
+    case CHROMA_4_2_0: return FOURCC(RX0A);
+    case CHROMA_4_2_2: return FOURCC(RX2A);
+    case CHROMA_MONO: return FOURCC(RXmA);
 
-#include "lib_common/VPS.h"
-
-#include "lib_common_dec/RbspParser.h"
-
-/*************************************************************************//*!
-   \brief The ParseVPS function parses a VPS NAL
-   \param[out] pVPSTable Pointer to the table where the parsed vps are stored
-   \param[in]  pRP  Pointer to NAL parser
-*****************************************************************************/
-void ParseVPS(AL_THevcVps pVPSTable[], AL_TRbspParser* pRP);
-
-/*@}*/
+    default: assert(0);
+    }
+  }
+  else
+  {
+    switch(picFmt.eChromaMode)
+    {
+    case CHROMA_4_2_0: return FOURCC(NV12);
+    case CHROMA_4_2_2: return FOURCC(NV16);
+    case CHROMA_MONO: return FOURCC(Y800);
+    default: assert(0);
+    }
+  }
+  return 0;
+}
 

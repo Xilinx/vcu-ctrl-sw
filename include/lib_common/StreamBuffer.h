@@ -36,35 +36,14 @@
 ******************************************************************************/
 
 #pragma once
-#define AL_ENABLE_INTERRUPT 1
-#define ENABLE_WATCHDOG 1
 
-#ifndef ENABLE_TRACES
-#define ENABLE_TRACES 1
-#endif
+#include "lib_common/SliceConsts.h"
 
-
-#ifndef AL_MAX_ENC_SLICE
-#define AL_MAX_ENC_SLICE 200
-#endif
-
-#define ENABLE_RTOS_SYNC 1
-
-/* Fixed LCU Size chosen for resources calculs */
-#define AL_LCU_BASIC_WIDTH 32
-#define AL_LCU_BASIC_HEIGHT 32
-
-#define AL_ALIGN_FRM_BUF 256
-
-////////////////////////// DEBUG TOOLS ///////////////////////////
-#define DEBUG_PATH "."
-
-#ifndef AL_ENABLE_SITE
-#define AL_ENABLE_SITE 1
-#endif
-
-/* Choose default raster format packing option if not defined in client config */
-#ifndef AL_DEC_RASTER_3x10B_ON_32B
-#define AL_DEC_RASTER_3x10B_ON_32B 1
-#endif
+/*************************************************************************//*!
+   \brief Retrieves the maximum size of one VCL NAL unit
+   \param[in] tDim Frame dimension
+   \param[in] eMode Chroma subsampling
+   \return maximum size of one NAL unit
+*****************************************************************************/
+int AL_GetMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode);
 

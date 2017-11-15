@@ -792,18 +792,17 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int i
 
     for(i = 0; i < pSPS->num_short_term_ref_pic_sets; ++i)
     {
-      int iPic;
       pSPS->short_term_ref_pic_set[i].inter_ref_pic_set_prediction_flag = 0;
       pSPS->short_term_ref_pic_set[i].num_negative_pics = AL_HEVC_RPS[i].uNumNegPics;
       pSPS->short_term_ref_pic_set[i].num_positive_pics = AL_HEVC_RPS[i].uNumPosPics;
 
-      for(iPic = 0; iPic < pSPS->short_term_ref_pic_set[i].num_negative_pics; ++iPic)
+      for(int iPic = 0; iPic < pSPS->short_term_ref_pic_set[i].num_negative_pics; ++iPic)
       {
         pSPS->short_term_ref_pic_set[i].delta_poc_s0_minus1[iPic] = AL_HEVC_RPS[i].uDeltaPoc[iPic];
         pSPS->short_term_ref_pic_set[i].used_by_curr_pic_s0_flag[iPic] = AL_HEVC_RPS[i].uUsedByCurPic[iPic];
       }
 
-      for(iPic = 0; iPic < pSPS->short_term_ref_pic_set[i].num_positive_pics; ++iPic)
+      for(int iPic = 0; iPic < pSPS->short_term_ref_pic_set[i].num_positive_pics; ++iPic)
       {
         int iIndex = pSPS->short_term_ref_pic_set[i].num_negative_pics + iPic;
 
@@ -1026,11 +1025,7 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, int i
 
   pPPS->pps_scaling_list_data_present_flag = 0;
   pPPS->lists_modification_present_flag = (pSettings->tChParam.uPpsParam & AL_PPS_ENABLE_REORDERING) ? 1 : 0;
-#if PARALLEL_MERGE
-  pPPS->log2_parallel_merge_level_minus2 = 2; // parallel merge at 16x16 granularity
-#else
   pPPS->log2_parallel_merge_level_minus2 = 0; // parallel merge at 16x16 granularity
-#endif
 }
 
 void AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus)
@@ -1062,5 +1057,18 @@ void AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus)
 {
   AL_TAvcPps* pPPS = (AL_TAvcPps*)pIPPS;
   pPPS->pic_init_qp_minus26 = pPicStatus->iPpsQP - 26;
+}
+
+AL_EFbStorageMode GetSrcStorageMode(AL_ESrcMode eSrcMode)
+{
+  switch(eSrcMode)
+  {
+  case AL_TILE_64x4:
+    return AL_FB_TILE_64x4;
+  case AL_TILE_32x4:
+    return AL_FB_TILE_32x4;
+  default:
+    return AL_FB_RASTER;
+  }
 }
 

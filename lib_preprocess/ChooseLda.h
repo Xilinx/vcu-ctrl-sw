@@ -35,30 +35,15 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \addtogroup lib_preprocess
-   @{
-   \file
- *****************************************************************************/
 #pragma once
+#include "lib_common_enc/EncChanParam.h"
 
-#include "lib_common_enc/EncBuffersInternal.h"
-#include "lib_common_enc/Settings.h"
+static const TBufInfo EP1_BUF_LAMBDAS =
+{
+  1, 256, 0
+}; // only 208 bytes used
 
-/*************************************************************************//*!
-   \brief Fill Lambda part of the buffer pointed to by pQP.
-   \remark This function is provided for IP validation purpose only. It is
-         designed to improve encoder quality in near future.
-   \param[in]  pSettings pointer to the Encoding parameter structure
-   \param[out] pEP pointer to the buffer that receives the computed Lambdas
-   \param[in] iDepth
-   \return true on success, false on error
-*****************************************************************************/
-extern bool GetLambda(AL_TEncSettings const* pSettings, TBufferEP* pEP, int iDepth);
-
-/****************************************************************************/
+bool GetLambda(AL_ELdaCtrlMode eMode, AL_TEncChanParam const* pChParam, uint8_t* pEP, bool NotGoldenFrame);
 
 /*@}*/
 

@@ -109,7 +109,7 @@ static void updateConsumedSpaceInBuffer(AL_TBuffer* pBuf, size_t zCopiedSize, si
   /* support for samples without meta-data */
   if(!pMeta)
   {
-    pMeta = AL_CircMetaData_Create(0, 0);
+    pMeta = AL_CircMetaData_Create(0, 0, false);
     AL_Buffer_AddMetaData(pBuf, (AL_TMetaData*)pMeta);
   }
 
@@ -130,6 +130,8 @@ size_t AL_Patchworker_CopyBuffer(AL_TPatchworker* this, AL_TBuffer* pBuf, size_t
   }
   else if(zNotCopiedSize == 0 && pMeta)
   {
+    if(pMeta->bLastBuffer)
+      this->endOfOutput = true;
     AL_TMetaData* m = (AL_TMetaData*)pMeta;
     AL_Buffer_RemoveMetaData(pBuf, m);
     m->MetaDestroy(m);
@@ -147,7 +149,6 @@ bool AL_Patchworker_Init(AL_TPatchworker* this, TCircBuffer* pCircularBuf, AL_TF
 
   this->endOfInput = false;
   this->endOfOutput = false;
-  this->shouldBeStopped = false;
   this->outputCirc = pCircularBuf;
   this->lock = Rtos_CreateMutex(false);
   this->workBuf = NULL;
@@ -162,6 +163,12 @@ bool AL_Patchworker_Init(AL_TPatchworker* this, TCircBuffer* pCircularBuf, AL_TF
 
 void AL_Patchworker_Deinit(AL_TPatchworker* this)
 {
+  if(this->workBuf)
+  {
+    AL_Buffer_Unref(this->workBuf);
+    this->workBuf = NULL;
+  }
+
   Rtos_DeleteMutex(this->lock);
 }
 
@@ -178,15 +185,7 @@ size_t AL_Patchworker_Transfer(AL_TPatchworker* this)
     this->workBuf = AL_Fifo_Dequeue(this->inputFifo, AL_NO_WAIT);
 
   if(!this->workBuf)
-  {
-    Rtos_GetMutex(this->lock);
-
-    if(this->endOfInput)
-      this->endOfOutput = true;
-
-    Rtos_ReleaseMutex(this->lock);
     return zTotalSize; /* no more input buffers in fifo */
-  }
 
   zNotCopiedSize = AL_Patchworker_CopyBuffer(this, this->workBuf, &zCopiedSize);
   zTotalSize += zCopiedSize;
@@ -221,13 +220,6 @@ bool AL_Patchworker_IsAllDataTransfered(AL_TPatchworker* this)
   return this->endOfOutput;
 }
 
-void AL_Patchworker_NotifyForceStop(AL_TPatchworker* this)
-{
-  Rtos_GetMutex(this->lock);
-  this->shouldBeStopped = true;
-  Rtos_ReleaseMutex(this->lock);
-}
-
 void AL_Patchworker_Drop(AL_TPatchworker* this)
 {
   if(!this->workBuf)
@@ -243,21 +235,13 @@ void AL_Patchworker_Drop(AL_TPatchworker* this)
   }
 }
 
-bool AL_Patchworker_ShouldBeStopped(AL_TPatchworker* this)
-{
-  Rtos_GetMutex(this->lock);
-  bool bRet = this->shouldBeStopped;
-  Rtos_ReleaseMutex(this->lock);
-  return bRet;
-}
-
 void AL_Patchworker_Reset(AL_TPatchworker* this)
 {
   Rtos_GetMutex(this->lock);
   this->endOfOutput = false;
   this->endOfInput = false;
-  this->shouldBeStopped = false;
   AL_Patchworker_Drop(this);
+  CircBuffer_Init(this->outputCirc);
   Rtos_ReleaseMutex(this->lock);
 }
 

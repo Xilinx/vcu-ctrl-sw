@@ -40,16 +40,71 @@
 #include "lib_common/BufCommon.h"
 #include "lib_common/BufferAPI.h"
 #include "lib_common/BufferSrcMeta.h"
+#include "Utils.h"
 
-/****************************************************************************/
-uint32_t AL_RndUpPow2(uint32_t uVal)
+/*****************************************************************************/
+int GetNumLinesInPitch(AL_EFbStorageMode eFrameBufferStorageMode)
 {
-  uint32_t uRnd = 1;
+  switch(eFrameBufferStorageMode)
+  {
+  case AL_FB_RASTER:
+    return 1;
+  case AL_FB_TILE_32x4:
+  case AL_FB_TILE_64x4:
+    return 4;
+  default:
+    assert(false);
+    return 0;
+  }
+}
 
-  while(uRnd < uVal)
-    uRnd <<= 1;
+/******************************************************************************/
+static inline int GetWidthRound(AL_EFbStorageMode eStorageMode)
+{
+  switch(eStorageMode)
+  {
+  case AL_FB_RASTER:
+    return 1;
+  case AL_FB_TILE_64x4:
+    return 64;
+  case AL_FB_TILE_32x4:
+    return 32;
+  default:
+    assert(false);
+    return 0;
+  }
+}
 
-  return uRnd;
+/******************************************************************************/
+int32_t ComputeRndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode, int iAlignment)
+{
+  int32_t iVal = 0;
+  int const iRndWidth = RoundUp(iWidth, GetWidthRound(eFrameBufferStorageMode));
+  switch(eFrameBufferStorageMode)
+  {
+  case AL_FB_RASTER:
+  {
+    if(uBitDepth == 8)
+      iVal = iRndWidth;
+    else
+    {
+      iVal = (iRndWidth + 2) / 3 * 4;
+    }
+    break;
+  }
+  case AL_FB_TILE_32x4:
+  case AL_FB_TILE_64x4:
+  {
+    int const uDepth = uBitDepth > 8 ? 10 : 8;
+    iVal = iRndWidth * GetNumLinesInPitch(eFrameBufferStorageMode) * uDepth / 8;
+    break;
+  }
+  default:
+    assert(false);
+  }
+
+  assert(iAlignment > 0 && (iAlignment % 32) == 0); // IP requirement
+  return RoundUp(iVal, iAlignment);
 }
 
 /****************************************************************************/
@@ -58,8 +113,7 @@ void AL_CopyYuv(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pSrc, AL_META_TYPE_SOURCE);
   AL_TSrcMetaData* pDstMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pDst, AL_META_TYPE_SOURCE);
 
-  pDstMeta->iWidth = pSrcMeta->iWidth;
-  pDstMeta->iHeight = pSrcMeta->iHeight;
+  pDstMeta->tDim = pSrcMeta->tDim;
   pDstMeta->tFourCC = pSrcMeta->tFourCC;
 
   assert(pDst->zSize >= pSrc->zSize);

@@ -39,17 +39,25 @@
 #include "lib_common/BufferSrcMeta.h"
 #include "lib_common_enc/EncBuffers.h"
 #include "lib_common_enc/IpEncFourCC.h"
+#include "lib_encode/IP_Utils.h"
 
 static uint32_t getSourceBufferSize(AL_TEncChanParam const* pChParam)
 {
-  return GetAllocSize_Src(pChParam->uWidth, pChParam->uHeight, AL_GET_BITDEPTH(pChParam->ePicFormat), AL_GET_CHROMA_MODE(pChParam->ePicFormat), pChParam->eSrcConvMode);
+  AL_TDimension tDim = { pChParam->uWidth, pChParam->uHeight };
+  return GetAllocSize_Src(tDim, AL_GET_BITDEPTH(pChParam->ePicFormat), AL_GET_CHROMA_MODE(pChParam->ePicFormat), pChParam->eSrcMode);
 }
 
 void AL_SrcBuffersChecker_Init(AL_TSrcBufferChecker* pCtx, AL_TEncChanParam const* pChParam)
 {
   pCtx->width = pChParam->uWidth;
   pCtx->height = pChParam->uHeight;
-  pCtx->fourCC = AL_GetSrcFourCC(AL_GET_CHROMA_MODE(pChParam->ePicFormat), AL_GET_BITDEPTH(pChParam->ePicFormat));
+  AL_TPicFormat const picFmt =
+  {
+    AL_GET_CHROMA_MODE(pChParam->ePicFormat),
+    AL_GET_BITDEPTH(pChParam->ePicFormat),
+    GetSrcStorageMode(pChParam->eSrcMode)
+  };
+  pCtx->fourCC = AL_EncGetSrcFourCC(picFmt);
   pCtx->minimumSize = getSourceBufferSize(pChParam);
 }
 
@@ -65,13 +73,13 @@ static bool CheckMetaData(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf)
   if(pMetaDataBuf == NULL)
     return false;
 
-  if(pMetaDataBuf->iWidth > pMetaDataBuf->tPitches.iLuma)
+  if(pMetaDataBuf->tDim.iWidth > pMetaDataBuf->tPitches.iLuma)
     return false;
 
-  if(pMetaDataBuf->iWidth != pCtx->width)
+  if(pMetaDataBuf->tDim.iWidth != pCtx->width)
     return false;
 
-  if(pMetaDataBuf->iHeight != pCtx->height)
+  if(pMetaDataBuf->tDim.iHeight != pCtx->height)
     return false;
 
   if(pMetaDataBuf->tFourCC != pCtx->fourCC)
@@ -81,7 +89,7 @@ static bool CheckMetaData(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf)
 
   if((pMetaDataBuf->tFourCC == FOURCC(RX0A)) ||
      (pMetaDataBuf->tFourCC == FOURCC(RX2A)) ||
-     (pMetaDataBuf->tFourCC == FOURCC(RX10))
+     (pMetaDataBuf->tFourCC == FOURCC(RXmA))
      )
     iMinPitch = GetPitchYValue((pCtx->width + 2) / 3 * 4);
   else
@@ -95,19 +103,19 @@ static bool CheckMetaData(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf)
 
   if(AL_GetChromaMode(pMetaDataBuf->tFourCC) != CHROMA_MONO)
   {
-    if(pMetaDataBuf->iWidth > pMetaDataBuf->tPitches.iChroma)
+    if(pMetaDataBuf->tDim.iWidth > pMetaDataBuf->tPitches.iChroma)
       return false;
 
     if(pMetaDataBuf->tPitches.iChroma != pMetaDataBuf->tPitches.iLuma)
       return false;
 
     if((pMetaDataBuf->tOffsetYC.iLuma < pMetaDataBuf->tOffsetYC.iChroma) &&
-       (pMetaDataBuf->tOffsetYC.iChroma < pMetaDataBuf->tPitches.iLuma * pMetaDataBuf->iHeight)
+       (pMetaDataBuf->tOffsetYC.iChroma < AL_SrcMetaData_GetLumaSize(pMetaDataBuf))
        )
       return false;
 
     if((pMetaDataBuf->tOffsetYC.iChroma < pMetaDataBuf->tOffsetYC.iLuma) &&
-       (pMetaDataBuf->tOffsetYC.iLuma < pMetaDataBuf->tPitches.iChroma * pMetaDataBuf->iHeight)
+       (pMetaDataBuf->tOffsetYC.iLuma < AL_SrcMetaData_GetChromaSize(pMetaDataBuf))
        )
       return false;
   }

@@ -49,6 +49,41 @@
 #include "lib_common/SliceConsts.h"
 
 /*************************************************************************//*!
+   \brief Encoding parameters buffers info structure
+*****************************************************************************/
+typedef struct t_BufInfo
+{
+  uint32_t Flag;
+  size_t Size;
+  size_t Offset;
+}TBufInfo;
+
+/*************************************************************************//*!
+   \brief Lambda Control Mode
+*****************************************************************************/
+typedef enum e_LdaCtrlMode
+{
+  DEFAULT_LDA = 0x00, /*!< default behaviour */
+  CUSTOM_LDA = 0x01, /*!< used for test purpose */
+  AUTO_LDA = 0x02, /*!< used for test purpose */
+  TEST_LDA = 0x03, /*!< used for test purpose */
+  DYNAMIC_LDA = 0x04, /*!< used for test purpose */
+  LOAD_LDA = 0x80, /*!< used for test purpose */
+}AL_ELdaCtrlMode;
+
+/*************************************************************************//*!
+   \brief GDR Mode
+*****************************************************************************/
+typedef enum AL_e_GdrMode
+{
+  AL_GDR_OFF = 0x00,
+  AL_GDR_ON = 0x02,
+  AL_GDR_VERTICAL = AL_GDR_ON | 0x00,
+  AL_GDR_HORIZONTAL = AL_GDR_ON | 0x01,
+  AL_GDR_MAX_ENUM,
+}AL_EGdrMode;
+
+/*************************************************************************//*!
    \brief Picture format enum
 *****************************************************************************/
 typedef enum __AL_ALIGNED__ (4) AL_e_PictFormat
@@ -63,8 +98,8 @@ typedef enum __AL_ALIGNED__ (4) AL_e_PictFormat
   AL_444_10BITS = 0x03AA,
 } AL_EPicFormat;
 
-#define AL_GET_BITDEPTH_LUMA(PicFmt) ((PicFmt) & 0x000F)
-#define AL_GET_BITDEPTH_CHROMA(PicFmt) (((PicFmt) >> 4) & 0x000F)
+#define AL_GET_BITDEPTH_LUMA(PicFmt) (uint8_t)((PicFmt) & 0x000F)
+#define AL_GET_BITDEPTH_CHROMA(PicFmt) (uint8_t)(((PicFmt) >> 4) & 0x000F)
 #define AL_GET_BITDEPTH(PicFmt) (AL_GET_BITDEPTH_LUMA(PicFmt) > AL_GET_BITDEPTH_CHROMA(PicFmt) ? AL_GET_BITDEPTH_LUMA(PicFmt) : AL_GET_BITDEPTH_CHROMA(PicFmt))
 #define AL_GET_CHROMA_MODE(PicFmt) ((AL_EChromaMode)((PicFmt) >> 8))
 
@@ -143,6 +178,8 @@ typedef enum __AL_ALIGNED__ (4) AL_e_RateCtrlMode
   AL_RC_VBR = 0x02,
   AL_RC_LOW_LATENCY = 0x03,
   AL_RC_BYPASS = 0x3F,
+  AL_TEST_RC_FILLER = 0xF1,
+  AL_RC_MAX_ENUM,
 } AL_ERateCtrlMode;
 
 /*************************************************************************//*!
@@ -152,6 +189,7 @@ typedef enum __AL_ALIGNED__ (4) AL_e_RateCtrlOption
 {
   AL_RC_OPT_NONE = 0x00000000,
   AL_RC_OPT_SCN_CHG_RES = 0x00000001,
+  AL_RC_OPT_MAX_ENUM,
 } AL_ERateCtrlOption;
 
 /*************************************************************************//*!
@@ -189,6 +227,7 @@ typedef enum __AL_ALIGNED__ (4) AL_e_GopCtrlMode
   AL_GOP_FLAG_LOW_DELAY = 0x80,
   AL_GOP_MODE_LOW_DELAY_P = AL_GOP_FLAG_LOW_DELAY | 0x00,
   AL_GOP_MODE_LOW_DELAY_B = AL_GOP_FLAG_LOW_DELAY | 0x01,
+  AL_GOP_MODE_MAX_ENUM,
 } AL_EGopCtrlMode;
 
 /*************************************************************************//*!
@@ -222,7 +261,7 @@ typedef struct AL_t_GopParam
 }AL_TGopParam;
 
 /*************************************************************************//*!
-   \brief Interpolation Filter
+   \brief Max burst size
 *****************************************************************************/
 typedef enum e_MaxBurstSize
 {
@@ -238,8 +277,10 @@ typedef enum e_MaxBurstSize
 typedef enum e_SrcConvMode // [0] : CompMode | [3:1] : SourceFormat
 {
   AL_NVX = 0x0,
-  AL_TILE_32x8 = 0x6,
-}AL_ESrcConvMode;
+  AL_TILE_32x8 = 0x2,
+  AL_TILE_64x4 = 0x4,
+  AL_TILE_32x4 = 0x6,
+}AL_ESrcMode;
 
 #define MASK_SRC_COMP 0x01
 #define MASK_SRC_FMT 0x0E
@@ -260,7 +301,7 @@ typedef struct __AL_ALIGNED__ (4) AL_t_EncChanParam
   uint16_t uHeight;
   AL_EPicFormat ePicFormat;
   AL_EColorSpace eColorSpace;
-  AL_ESrcConvMode eSrcConvMode;
+  AL_ESrcMode eSrcMode;
 
   /* encoding profile/level */
   AL_EProfile eProfile;
@@ -317,6 +358,7 @@ typedef struct __AL_ALIGNED__ (4) AL_t_EncChanParam
   AL_TRCParam tRCParam;
   AL_TGopParam tGopParam;
   bool bSubframeLatency;
+  AL_ELdaCtrlMode eLdaCtrlMode;
 } AL_TEncChanParam;
 
 #define AL_GetWidthInLCU(tChParam) (((tChParam).uWidth + (1 << (tChParam).uMaxCuSize) - 1) >> (tChParam).uMaxCuSize)

@@ -48,6 +48,7 @@ extern "C"
 }
 
 typedef struct AL_t_Allocator AL_TAllocator;
+typedef struct AL_t_IpCtrl AL_TIpCtrl;
 
 /*****************************************************************************/
 struct CIpDevice
@@ -56,5 +57,5 @@ struct CIpDevice
   std::shared_ptr<AL_TAllocator> m_pAllocator;
 };
 
-std::shared_ptr<CIpDevice> CreateIpDevice(bool bUseRefSoftware, int iSchedulerType, AL_TEncSettings& Settings, IpCtrlMode ipCtrlMode, bool trackDma = false, int iVip = 0, int iVqDescr = 0);
+std::shared_ptr<CIpDevice> CreateIpDevice(bool bUseRefSoftware, int iSchedulerType, AL_TEncSettings& Settings, std::function<AL_TIpCtrl*(AL_TIpCtrl*)> wrapIpCtrl, bool trackDma = false, int iVqDescr = 0);
 

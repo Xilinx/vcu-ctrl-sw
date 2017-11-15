@@ -10,6 +10,8 @@ EXE_DECODER_SRC:=\
 
 EXE_DECODER_OBJ:=$(EXE_DECODER_SRC:%=$(BIN)/%.o)
 
+UNITTEST+=$(shell find exe_decoder/unittests -name "*.cpp")
+
 $(BIN)/AL_Decoder.exe: $(EXE_DECODER_OBJ) $(LIB_REFDEC_A) $(LIB_DECODER_A)
 
 $(BIN)/exe_decoder/%.o: CFLAGS+=$(SVNDEV)

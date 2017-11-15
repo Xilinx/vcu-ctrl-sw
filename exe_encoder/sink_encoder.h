@@ -38,14 +38,15 @@
 #pragma once
 
 #include "lib_app/timing.h"
+#include "QPGenerator.h"
 
 static void PreprocessQP(uint8_t* pQPs, const AL_TEncSettings& Settings, int iFrameCountSent)
 {
   uint8_t* pSegs = NULL;
-  bool bRet = PreprocessQP(Settings.eQpCtrlMode, Settings.tChParam.tRCParam.iInitialQP,
-                           Settings.tChParam.tRCParam.iMinQP, Settings.tChParam.tRCParam.iMaxQP,
-                           AL_GetWidthInLCU(Settings.tChParam), AL_GetHeightInLCU(Settings.tChParam),
-                           Settings.tChParam.eProfile, iFrameCountSent, pQPs + EP2_BUF_QP_BY_MB.Offset, pSegs);
+  bool bRet = GenerateQPBuffer(Settings.eQpCtrlMode, Settings.tChParam.tRCParam.iInitialQP,
+                               Settings.tChParam.tRCParam.iMinQP, Settings.tChParam.tRCParam.iMaxQP,
+                               AL_GetWidthInLCU(Settings.tChParam), AL_GetHeightInLCU(Settings.tChParam), Settings.tChParam.uMaxCuSize,
+                               Settings.tChParam.eProfile, iFrameCountSent, pQPs + EP2_BUF_QP_BY_MB.Offset, pSegs);
   assert(bRet);
 }
 
@@ -181,10 +182,6 @@ void ThrowEncoderError(AL_ERR eErr)
     break;
   case AL_ERR_NO_MEMORY: throw codec_error("Encoder failed : Memory shortage detected (dma, embedded memory or virtual memory shortage)", eErr);
     break;
-#if ENABLE_WATCHDOG
-  case AL_ERR_WATCHDOG_TIMEOUT: throw codec_error("Encoder failed : Watch dog timeout", eErr);
-    break;
-#endif
   case AL_WARN_LCU_OVERFLOW: Message(CC_RED, "Warning some LCU exceed the maximum allowed bits\n");
     break;
   case AL_SUCCESS: /* do nothing */ break;
@@ -199,15 +196,14 @@ void ThrowEncoderError(AL_ERR eErr)
 
 struct EncoderSink : IFrameSink
 {
-  EncoderSink(string sScnChgFileName, string sLTFileName, string sGMVFileName, ConfigFile const& cfg, TScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TBufPool& qpBufPool) :
-    ScnChg(sScnChgFileName,
+  EncoderSink(ConfigFile const& cfg, TScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TBufPool& qpBufPool) :
+    ScnChg(cfg.sScnChgFileName,
            cfg.RunInfo.iScnChgLookAhead,
            cfg.FileInfo.FrameRate,
            cfg.Settings.tChParam.tRCParam.uFrameRate),
-    LT(sLTFileName, cfg.Settings.tChParam.tGopParam.uFreqLT),
+    LT(cfg.sLTFileName, cfg.Settings.tChParam.tGopParam.uFreqLT),
     qpBuffers(qpBufPool, cfg.Settings)
   {
-    (void)sGMVFileName;
     AL_CB_EndEncoding onEndEncoding = { &EncoderSink::EndEncoding, this };
 
     AL_ERR errorCode = AL_Encoder_Create(&hEnc, pScheduler, pAllocator, &cfg.Settings, onEndEncoding);
@@ -334,8 +330,9 @@ private:
   {
     AL_TBuffer* pBuf = AL_Buffer_WrapData(frame->tMD.pVirtualAddr, frame->tMD.uSize, NULL);
     AL_TPitches tPitches = { frame->iPitchY, frame->iPitchC };
-    AL_TOffsetYC tOffsetYC = { 0, frame->iPitchY * frame->iHeight };
-    AL_TSrcMetaData* pBufMeta = AL_SrcMetaData_Create(frame->iWidth, frame->iHeight, tPitches, tOffsetYC, frame->tFourCC);
+    AL_TOffsetYC tOffsetYC = frame->tOffsetYC;
+    AL_TDimension tDimension = { frame->iWidth, frame->iHeight };
+    AL_TSrcMetaData* pBufMeta = AL_SrcMetaData_Create(tDimension, tPitches, tOffsetYC, frame->tFourCC);
     AL_Buffer_AddMetaData(pBuf, (AL_TMetaData*)pBufMeta);
     return pBuf;
   }

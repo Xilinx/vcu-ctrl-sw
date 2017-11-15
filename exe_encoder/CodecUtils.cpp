@@ -134,9 +134,9 @@ static uint32_t ReadFileLumaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32
     }
   }
 
-  if(bPadding && (pSrcMeta->iHeight & 15))
+  if(bPadding && (pSrcMeta->tDim.iHeight & 15))
   {
-    uint32_t uRowPadding = ((pSrcMeta->iHeight + 15) & ~15) - pSrcMeta->iHeight;
+    uint32_t uRowPadding = ((pSrcMeta->tDim.iHeight + 15) & ~15) - pSrcMeta->tDim.iHeight;
     Rtos_Memset(pTmp, 0x00, uRowPadding * pSrcMeta->tPitches.iLuma);
     uFileNumRow += uRowPadding;
   }
@@ -170,14 +170,14 @@ static uint32_t ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
     }
   }
 
-  if(bPadding && (pSrcMeta->iHeight & 15))
+  if(bPadding && (pSrcMeta->tDim.iHeight & 15))
   {
     uint32_t uRowPadding;
 
     if(AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_0)
-      uRowPadding = (((pSrcMeta->iHeight >> 1) + 7) & ~7) - (pSrcMeta->iHeight >> 1);
+      uRowPadding = (((pSrcMeta->tDim.iHeight >> 1) + 7) & ~7) - (pSrcMeta->tDim.iHeight >> 1);
     else
-      uRowPadding = ((pSrcMeta->iHeight + 15) & ~15) - pSrcMeta->iHeight;
+      uRowPadding = ((pSrcMeta->tDim.iHeight + 15) & ~15) - pSrcMeta->tDim.iHeight;
     Rtos_Memset(pTmp, 0x80, uRowPadding * pSrcMeta->tPitches.iChroma);
     uNumRowC += uRowPadding;
   }
@@ -230,39 +230,37 @@ static void ReadFile(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSiz
 }
 
 /*****************************************************************************/
-bool IsConversionNeeded(TFourCC const& FourCC, AL_EChromaMode eEncChromaMode, uint8_t uBitDepth)
+bool IsConversionNeeded(TFourCC const& FourCC, AL_TPicFormat const& picFmt)
 {
-  return FourCC != AL_GetSrcFourCC(eEncChromaMode, uBitDepth);
+  return FourCC != AL_EncGetSrcFourCC(picFmt);
 }
 
 /*****************************************************************************/
 bool ReadOneFrameYuv(std::ifstream& File, AL_TBuffer* pBuf, bool bLoop)
 {
   if(!pBuf || !File.is_open())
-    return false;
+    throw std::runtime_error("invalid argument");
 
   if((File.peek() == EOF) && !bLoop)
     return false;
 
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
 
-  uint32_t uRowSizeLuma = GetLumaRowSize(pSrcMeta->tFourCC, pSrcMeta->iWidth);
+  uint32_t uRowSizeLuma = GetLumaRowSize(pSrcMeta->tFourCC, pSrcMeta->tDim.iWidth);
 
-  ReadFile(File, pBuf, uRowSizeLuma, pSrcMeta->iHeight);
+  ReadFile(File, pBuf, uRowSizeLuma, pSrcMeta->tDim.iHeight);
 
   if((File.rdstate() & std::ios::failbit) && bLoop)
   {
     File.clear();
     File.seekg(0, std::ios::beg);
-    ReadFile(File, pBuf, uRowSizeLuma, pSrcMeta->iHeight);
+    ReadFile(File, pBuf, uRowSizeLuma, pSrcMeta->tDim.iHeight);
   }
 
-  bool bRet = ((File.rdstate() & std::ios::failbit) == 0);
-
-  if(!bRet)
+  if(File.rdstate() & std::ios::failbit)
     throw std::runtime_error("not enough data for a complete frame");
 
-  return bRet;
+  return true;
 }
 
 /*****************************************************************************/
@@ -270,8 +268,8 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf, int iWidth, int 
 {
   AL_TSrcMetaData* pBufMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
 
-  assert(iWidth <= pBufMeta->iWidth);
-  assert(iHeight <= pBufMeta->iHeight);
+  assert(iWidth <= pBufMeta->tDim.iWidth);
+  assert(iHeight <= pBufMeta->tDim.iHeight);
 
   if(!File.is_open())
     return false;
@@ -341,71 +339,6 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf, int iWidth, int 
   return true;
 }
 
-#if AL_ENABLE_FBC_LOG
-/*****************************************************************************/
-static void ReadMap(uint8_t* pMap, uint32_t uBlockNum, uint8_t& uBurstSize)
-{
-  uBurstSize = (pMap[uBlockNum >> 1] >> ((uBlockNum & 1) << 2)) & 15; // 4 bits per block, returns number of 32-byte bursts
-}
-
-/****************************************************************************/
-static void TraceFBCMap(std::ofstream& MapLogFile, uint8_t* pBufMap, int iWidth, int iHeight, AL_EChromaMode eChromaMode, bool bTenBpc)
-{
-  if(MapLogFile.is_open() && pBufMap)
-  {
-    uint8_t uBurstSize = 0;
-    uint32_t uTotalBlockSize = 0;
-    uint32_t uTotalBlocks = 0;
-
-    for(int h = 0; h < iHeight; h += 4)
-    {
-      for(int w = 0; w < iWidth; w += 64)
-      {
-        ReadMap(pBufMap, (h >> 2) * 64 * ((iWidth + 4095) >> 12) + (w >> 6), uBurstSize);
-
-        if(uBurstSize)
-        {
-          uTotalBlocks++;
-          uTotalBlockSize += uBurstSize;
-        }
-      }
-    }
-
-    if(eChromaMode == CHROMA_4_2_0 || eChromaMode == CHROMA_4_2_2)
-    {
-      int iChromaHeight = iHeight;
-
-      if(eChromaMode == CHROMA_4_2_0)
-        iChromaHeight >>= 1;
-
-      for(int h = 0; h < iChromaHeight; h += 4)
-      {
-        for(int w = 0; w < (iWidth >> 1); w += 32)
-        {
-          uint8_t uBurstSize = 0;
-          ReadMap(pBufMap + (iHeight >> 2) * 32 * ((iWidth + 4095) >> 12), (h >> 2) * 64 * ((iWidth + 4095) >> 12) + (w >> 5), uBurstSize);
-
-          if(uBurstSize)
-          {
-            uTotalBlocks++;
-            uTotalBlockSize += uBurstSize;
-          }
-        }
-      }
-    }
-
-    if(!uTotalBlocks)
-    {
-      MapLogFile << "(inf) % (div by 0)" << std::endl;
-    }
-    else
-    {
-      MapLogFile << (uTotalBlockSize * 100 + (bTenBpc ? 10 : 8) * uTotalBlocks - 1) / ((bTenBpc ? 10 : 8) * uTotalBlocks) << "%" << std::endl;
-    }
-  }
-}
-
-#endif
 
 /*****************************************************************************/
 bool WriteCompFrame(std::ofstream& File, std::ofstream& MapFile, std::ofstream& MapLogFile, AL_TBuffer* pBuf, AL_EProfile eProfile)
@@ -415,8 +348,8 @@ bool WriteCompFrame(std::ofstream& File, std::ofstream& MapFile, std::ofstream& 
   if(!File.is_open() || !MapFile.is_open())
     return false;
 
-  uint32_t uWidth = pBufMeta->iWidth;
-  uint32_t uHeight = pBufMeta->iHeight;
+  uint32_t uWidth = pBufMeta->tDim.iWidth;
+  uint32_t uHeight = pBufMeta->tDim.iHeight;
 
   if(AL_IS_AVC(eProfile))
   {
@@ -490,9 +423,6 @@ bool WriteCompFrame(std::ofstream& File, std::ofstream& MapFile, std::ofstream& 
       MapFile.write(pTmp + iNumRowMap * iRowSize, iNumRowMap * iRowSize);
 
     (void)MapLogFile;
-#if AL_ENABLE_FBC_LOG
-    TraceFBCMap(MapLogFile, (uint8_t*)pTmp, uWidth, uHeight, eChromaMode, uBitDepth == 10 ? true : false);
-#endif // AL_ENABLE_FBC_LOG
   }
 
   return true;
@@ -580,7 +510,7 @@ int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream)
   int iNumFrame = 0;
   int i = 0;
 
-  while((i < pStreamMeta->uNumSection) && (pStreamMeta->pSections[i].uFlags & SECTION_COMPLETE_FLAG))
+  while(i < pStreamMeta->uNumSection)
   {
     if(pStreamMeta->pSections[i].uFlags & SECTION_END_FRAME_FLAG)
       ++iNumFrame;

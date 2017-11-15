@@ -45,51 +45,29 @@
 
 #include <string.h>
 #include <assert.h>
-#include "lib_common_enc/EncBuffers.h"
-#include "EncBuffersInternal.h"
-#include "lib_common_enc/IpEncFourCC.h"
 #include "lib_common/Utils.h"
+#include "lib_common/StreamBuffer.h"
+#include "lib_common/StreamBufferPrivate.h"
+
+#include "lib_common_enc/EncBuffers.h"
+#include "lib_common_enc/IpEncFourCC.h"
 #include "lib_common_enc/EncSize.h"
 
-uint32_t RndUpRXx(uint32_t uVal)
-{
-  return AL_RndUpPow2(uVal);
-}
+#include "EncBuffersInternal.h"
 
-bool IsRXxFourCC(TFourCC tFourCC)
-{
-  return (tFourCC == FOURCC(RX0A)) ||
-         (tFourCC == FOURCC(RX2A)) ||
-         (tFourCC == FOURCC(RX10));
-}
-
-
+#if USE_POWER_TWO_REF_PITCH
 /****************************************************************************/
-static uint32_t GetBlk64x64(uint16_t uWidth, uint16_t uHeight)
+static int AL_RndUpPow2(int iVal)
 {
-  uint16_t u64x64Width = (uWidth + 63) >> 6;
-  uint16_t u64x64Height = (uHeight + 63) >> 6;
+  int iRnd = 1;
 
-  return u64x64Width * u64x64Height;
+  while(iRnd < iVal)
+    iRnd <<= 1;
+
+  return iRnd;
 }
 
-/****************************************************************************/
-static uint32_t GetBlk32x32(uint16_t uWidth, uint16_t uHeight)
-{
-  uint16_t u32x32Width = (uWidth + 31) >> 5;
-  uint16_t u32x32Height = (uHeight + 31) >> 5;
-
-  return u32x32Width * u32x32Height;
-}
-
-/****************************************************************************/
-static uint32_t GetBlk16x16(uint16_t uWidth, uint16_t uHeight)
-{
-  uint16_t u16x16Width = (uWidth + 15) >> 4;
-  uint16_t u16x16Height = (uHeight + 15) >> 4;
-
-  return u16x16Width * u16x16Height;
-}
+#endif
 
 /****************************************************************************/
 uint32_t GetMaxLCU(uint16_t uWidth, uint16_t uHeight, uint8_t uMaxCuSize)
@@ -99,46 +77,33 @@ uint32_t GetMaxLCU(uint16_t uWidth, uint16_t uHeight, uint8_t uMaxCuSize)
 }
 
 /****************************************************************************/
-uint32_t GetMaxVclNalSize(int iWidth, int iHeight, AL_EChromaMode eMode)
-{
-  uint32_t uMaxPCM = GetBlk64x64(iWidth, iHeight) * AL_PCM_SIZE[eMode][2];
-  return uMaxPCM;
-}
-
-/****************************************************************************/
-uint32_t GetMaxNalSize(int iWidth, int iHeight, AL_EChromaMode eMode)
-{
-  uint32_t uMaxPCM = GetMaxVclNalSize(iWidth, iHeight, eMode);
-
-  uMaxPCM += 2048 + (((iHeight + 15) / 16) * AL_MAX_SLICE_HEADER_SIZE); // 4096 for AUD/SPS/PPS/SEI/slice header ...
-
-  return RoundUp(uMaxPCM, 32);
-}
-
-/****************************************************************************/
 uint32_t GetAllocSizeEP1()
 {
   return (uint32_t)(EP1_BUF_LAMBDAS.Size + EP1_BUF_SCL_LST.Size);
 }
 
 /****************************************************************************/
-uint32_t GetAllocSizeEP2(int iWidth, int iHeight, uint8_t uMaxCuSize)
+uint32_t GetAllocSizeEP2(AL_TDimension tDim, uint8_t uMaxCuSize)
 {
   uint32_t uMaxLCUs = 0, uMaxSize = 0;
   switch(uMaxCuSize)
   {
   case 6: // VP9
-    uMaxLCUs = GetBlk64x64(iWidth, iHeight);
+    uMaxLCUs = GetBlk64x64(tDim);
     uMaxSize = uMaxLCUs + 16;
     break;
 
   case 5: // HEVC
-    uMaxLCUs = GetBlk32x32(iWidth, iHeight);
+    uMaxLCUs = GetBlk32x32(tDim);
+#if AL_BLK16X16_QP_TABLE
+    uMaxSize = 8 * uMaxLCUs;
+#else
     uMaxSize = uMaxLCUs;
+#endif
     break;
 
   case 4: // AVC
-    uMaxLCUs = GetBlk16x16(iWidth, iHeight);
+    uMaxLCUs = GetBlk16x16(tDim);
     uMaxSize = uMaxLCUs;
     break;
 
@@ -176,83 +141,37 @@ static uint32_t ConsiderChromaForAllocSize(AL_EChromaMode eChromaMode, uint32_t 
   return uSize;
 }
 
-int CalculatePitchValue(TFourCC tFourCC, int iWidth)
+int AL_CalculatePitchValue(int iWidth, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode)
 {
-  int iPitch;
-  (void)tFourCC;
-
-  if(IsRXxFourCC(tFourCC))
-  {
-    iPitch = (iWidth + 2) / 3 * 4;
-    iPitch = AL_RndUpPow2(iPitch);
-  }
-  else
-  iPitch = RoundUp(iWidth, 32); // pitch aligned on 256 bits
-  return iPitch;
-}
-
-int CalculatePixSize(TFourCC tFourCC)
-{
-
-  if(IsRXxFourCC(tFourCC))
-    return sizeof(uint8_t);
-  else
-  return GetPixelSize(AL_GetBitDepth(tFourCC));
+  int const iAlignment = 32;
+  return ComputeRndPitch(iWidth, uBitDepth, eStorageMode, iAlignment);
 }
 
 /****************************************************************************/
-static uint32_t CalculateAllocSize(TFourCC tFourCC, uint32_t uPitch, int iHeight, int iSizePix)
+uint32_t AL_GetAllocSize(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_EFbStorageMode eStorageMode)
 {
-  uint32_t uSize;
-
-  uSize = uPitch * iHeight;
-  uSize = ConsiderChromaForAllocSize(AL_GetChromaMode(tFourCC), uSize);
-
-  return uSize * iSizePix;
-}
-
-/****************************************************************************/
-uint32_t GetAllocSize_Yuv(int iWidth, int iHeight, TFourCC tFourCC)
-{
-  int iSizePix;
-  uint32_t uPitch;
-
-  uPitch = CalculatePitchValue(tFourCC, iWidth);
-  iSizePix = CalculatePixSize(tFourCC);
-  return CalculateAllocSize(tFourCC, uPitch, iHeight, iSizePix);
-}
-
-/****************************************************************************/
-static uint32_t GetAllocSize_Tile(int iWidth, int iHeight, uint8_t uBitDepth, AL_EChromaMode eChromaMode, int iTileW, int iTileH)
-{
-  int iRndWidth = RoundUp(iWidth, iTileW);
-  int iRndHeight = RoundUp(iHeight, iTileH);
-
-  int iSizeLuma = iRndWidth * iRndHeight * GetPixelSize(uBitDepth);
-
-  int iHrzScale = (eChromaMode == CHROMA_4_4_4) ? 1 : 2;
-  int iVrtScale = (eChromaMode == CHROMA_4_2_0) ? 2 : 1;
-
-  if(eChromaMode)
-    return iSizeLuma + (iSizeLuma / (iHrzScale * iVrtScale) * 2);
-  else
-    return iSizeLuma;
+  int const uPitch = AL_CalculatePitchValue(tDim.iWidth, uBitDepth, eStorageMode);
+  int const uYSize = uPitch * tDim.iHeight / GetNumLinesInPitch(eStorageMode);
+  return ConsiderChromaForAllocSize(eChromaMode, uYSize);
 }
 
 
 /****************************************************************************/
-uint32_t GetAllocSize_Src(int iWidth, int iHeight, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_ESrcConvMode eSrcFmt)
+uint32_t GetAllocSize_Src(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt)
 {
   switch(eSrcFmt)
   {
   case AL_NVX:
-  {
-    TFourCC tFourCC = AL_GetSrcFourCC(eChromaMode, uBitDepth);
-    return GetAllocSize_Yuv(iWidth, iHeight, tFourCC);
-  }
+    return AL_GetAllocSize(tDim, uBitDepth, eChromaMode, AL_FB_RASTER);
+
+  case AL_TILE_64x4:
+    return AL_GetAllocSize(tDim, uBitDepth, eChromaMode, AL_FB_TILE_64x4);
+
+  case AL_TILE_32x4:
+    return AL_GetAllocSize(tDim, uBitDepth, eChromaMode, AL_FB_TILE_32x4);
 
   case AL_TILE_32x8:
-    return GetAllocSize_Tile(iWidth, iHeight, uBitDepth, eChromaMode, 32, 8);
+    return AL_GetAllocSize(tDim, uBitDepth, eChromaMode, AL_FB_RASTER);
 
 
   default:
@@ -261,34 +180,26 @@ uint32_t GetAllocSize_Src(int iWidth, int iHeight, uint8_t uBitDepth, AL_EChroma
 }
 
 /****************************************************************************/
-uint32_t GetAllocSize_SrcPitch(int iWidth, int iHeight, uint8_t uBitDepth, AL_EChromaMode eChromaMode, int iPitch)
-{
-  TFourCC tFourCC = AL_GetSrcFourCC(eChromaMode, uBitDepth);
-
-  assert(iPitch >= iWidth);
-  return CalculateAllocSize(tFourCC, iPitch, iHeight, CalculatePixSize(tFourCC));
-}
-
-/****************************************************************************/
-uint32_t GetAllocSize_Ref(int iWidth, int iHeight, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bFbc)
+static uint32_t GetAllocSize_Ref(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bFbc)
 {
   (void)bFbc;
   uint32_t uSize = 0;
 
-  TFourCC tRecFourCC = AL_GetRecFourCC(eChromaMode, uBitDepth);
-  const uint32_t uRoundedPixels = RoundUp(iWidth, 64) * RoundUp(iHeight, 64);
+  AL_TPicFormat const recFmt = { eChromaMode, uBitDepth, AL_FB_TILE_64x4 };
+  TFourCC tRecFourCC = AL_GetRecFourCC(recFmt);
+  const uint32_t uRoundedPixels = RoundUp(tDim.iWidth, 64) * RoundUp(tDim.iHeight, 64);
 
-  if(tRecFourCC == FOURCC(AL0A))
+  if(tRecFourCC == FOURCC(T60A))
     uSize = (uRoundedPixels * 3 * 10) / (2 * 8);
-  else if(tRecFourCC == FOURCC(AL2A))
+  else if(tRecFourCC == FOURCC(T62A))
     uSize = (uRoundedPixels * 2 * 10) / 8;
-  else if(tRecFourCC == FOURCC(AL08))
+  else if(tRecFourCC == FOURCC(T608))
     uSize = (uRoundedPixels * 3) / 2;
-  else if(tRecFourCC == FOURCC(AL28))
+  else if(tRecFourCC == FOURCC(T628))
     uSize = (uRoundedPixels * 2);
-  else if(tRecFourCC == FOURCC(ALm8))
+  else if(tRecFourCC == FOURCC(T6m8))
     uSize = uRoundedPixels;
-  else if(tRecFourCC == FOURCC(ALmA))
+  else if(tRecFourCC == FOURCC(T6mA))
     uSize = (uRoundedPixels * 10) / 8;
   else
     assert(0);
@@ -297,8 +208,9 @@ uint32_t GetAllocSize_Ref(int iWidth, int iHeight, uint8_t uBitDepth, AL_EChroma
   return uSize;
 }
 
+#if USE_POWER_TWO_REF_PITCH
 /****************************************************************************/
-uint32_t GetAllocSize_RefPitch(int iWidth, int iHeight, uint8_t uBitDepth, AL_EChromaMode eChromaMode, int iPitch, bool bFbc)
+static uint32_t GetAllocSize_RefPitch(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, int iPitch, bool bFbc)
 {
   (void)bFbc;
   int iSizePix = GetPixelSize(uBitDepth);
@@ -334,33 +246,48 @@ uint32_t GetAllocSize_RefPitch(int iWidth, int iHeight, uint8_t uBitDepth, AL_EC
   return uSize;
 }
 
+#endif
+
 /****************************************************************************/
-uint32_t GetAllocSize_CompData(int iWidth, int iHeight)
+uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_EChEncOption eEncOption)
 {
-  uint32_t uBlk16x16 = GetBlk16x16(iWidth, iHeight);
+  (void)eEncOption;
+  bool bComp = false;
+
+#if USE_POWER_TWO_REF_PITCH
+  return GetAllocSize_RefPitch(tDim, uBitDepth, eChromaMode, AL_RndUpPow2(iWidth), bComp);
+#else
+  return GetAllocSize_Ref(tDim, uBitDepth, eChromaMode, bComp);
+#endif
+}
+
+/****************************************************************************/
+uint32_t GetAllocSize_CompData(AL_TDimension tDim)
+{
+  uint32_t uBlk16x16 = GetBlk16x16(tDim);
   return SIZE_COMPRESS_LCU * uBlk16x16;
 }
 
 /****************************************************************************/
-uint32_t GetAllocSize_CompMap(int iWidth, int iHeight)
+uint32_t GetAllocSize_CompMap(AL_TDimension tDim)
 {
-  uint32_t uBlk16x16 = GetBlk16x16(iWidth, iHeight);
+  uint32_t uBlk16x16 = GetBlk16x16(tDim);
   return RoundUp(SIZE_LCU_INFO * uBlk16x16, 32);
 }
 
 /*****************************************************************************/
-uint32_t GetAllocSize_MV(int iWidth, int iHeight, uint8_t uLCUSize, AL_ECodec Codec)
+uint32_t GetAllocSize_MV(AL_TDimension tDim, uint8_t uLCUSize, AL_ECodec Codec)
 {
   uint32_t uNumBlk = 0;
   int iMul = (Codec == AL_CODEC_HEVC) ? 1 :
              2;
   switch(uLCUSize)
   {
-  case 4: uNumBlk = GetBlk16x16(iWidth, iHeight);
+  case 4: uNumBlk = GetBlk16x16(tDim);
     break;
-  case 5: uNumBlk = GetBlk32x32(iWidth, iHeight) << 2;
+  case 5: uNumBlk = GetBlk32x32(tDim) << 2;
     break;
-  case 6: uNumBlk = GetBlk64x64(iWidth, iHeight) << 4;
+  case 6: uNumBlk = GetBlk64x64(tDim) << 4;
     break;
   default: assert(0);
   }

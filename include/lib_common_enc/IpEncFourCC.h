@@ -45,7 +45,7 @@
    \param[in] uBitDepth source bitdepth
    \return return the corresponding TFourCC format
 *****************************************************************************/
-TFourCC AL_GetSrcFourCC(AL_EChromaMode eChromaMode, uint8_t uBitDepth);
+TFourCC AL_EncGetSrcFourCC(AL_TPicFormat const picFmt);
 
 /*************************************************************************//*!
    \brief returns the FOURCC identifier used as native YUV reconstructed format
@@ -54,7 +54,7 @@ TFourCC AL_GetSrcFourCC(AL_EChromaMode eChromaMode, uint8_t uBitDepth);
    \param[in] uBitDepth Encoding bitdepth
    \return return the corresponding TFourCC format
 *****************************************************************************/
-TFourCC AL_GetRecFourCC(AL_EChromaMode eChromaMode, uint8_t uBitDepth);
+TFourCC AL_GetRecFourCC(AL_TPicFormat const picFmt);
 
 /***************************************************************************/
 static AL_INLINE int GetPixelSize(uint8_t uBitDepth)

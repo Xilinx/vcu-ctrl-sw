@@ -43,6 +43,7 @@
 #include "lib_common_enc/IpEncFourCC.h"
 #include <assert.h>
 #include "lib_common/Utils.h"
+#include "lib_preprocess/LoadLda.h"
 
 
 /***************************************************************************/
@@ -161,16 +162,6 @@ void AL_Common_Encoder_InitCtx(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_
   assert(pCtx->m_Mutex);
 }
 
-#if ENABLE_WATCHDOG
-void AL_Common_Encoder_SetWatchdogCB(AL_TISchedulerCallBacks* CBs, const AL_TEncSettings* pSettings)
-{
-  if(pSettings->bEnableWatchdog)
-    CBs->pfnWatchdogCallBack = AL_Common_Encoder_Watchdog_Catch;
-  else
-    CBs->pfnWatchdogCallBack = NULL;
-}
-
-#endif
 
 /***************************************************************************/
 void AL_Common_Encoder_NotifySceneChange(AL_TEncoder* pEnc, int uAhead)
@@ -263,7 +254,7 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
     pEI->eEncOptions |= AL_OPT_DEPENDENT_SLICES;
 
   if(pCtx->m_Settings.tChParam.uL2PrefetchMemSize)
-    pEI->eEncOptions |= AL_OPT_USE_L2_PREFETCH;
+    pEI->eEncOptions |= AL_OPT_USE_L2;
 
   pMetaData = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pFrame, AL_META_TYPE_SOURCE);
 
@@ -471,17 +462,6 @@ void AL_Common_Encoder_Destroy(AL_TEncoder* pEnc)
   AL_Common_Encoder_DestroyCtx(pCtx);
 }
 
-/*****************************************************************************/
-
-#if ENABLE_WATCHDOG
-/***************************************************************************/
-void AL_Common_Encoder_Watchdog_Catch(void* pUserParam)
-{
-  AL_TEncCtx* pCtx = (AL_TEncCtx*)pUserParam;
-  pCtx->m_eError = AL_ERR_WATCHDOG_TIMEOUT;
-}
-
-#endif
 
 
 NalsData AL_ExtractNalsData(AL_TEncCtx* pCtx)

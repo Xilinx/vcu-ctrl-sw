@@ -51,8 +51,6 @@ enum
   AL_ERROR = AL_DEF_ERROR(0),
   AL_ERR_INIT_FAILED = AL_DEF_ERROR(1),
   AL_ERR_NO_FRAME_DECODED = AL_DEF_ERROR(2),
-  AL_ERR_BUFFER_EXCEPTION = AL_DEF_ERROR(3),
-  AL_ERR_NOT_SUPPORTED = AL_DEF_ERROR(4),
   AL_ERR_RESOLUTION_CHANGE = AL_DEF_ERROR(5),
   /* Couldn't allocate a resource because no memory was left
    * This can be dma memory, mcu specific memory if available or
@@ -60,9 +58,6 @@ enum
   AL_ERR_NO_MEMORY = AL_DEF_ERROR(7),
   AL_ERR_STREAM_OVERFLOW = AL_DEF_ERROR(8),
   AL_ERR_TOO_MANY_SLICES = AL_DEF_ERROR(9),
-#if ENABLE_WATCHDOG
-  AL_ERR_WATCHDOG_TIMEOUT = AL_DEF_ERROR(11),
-#endif
   AL_ERR_STRM_BUF_NOT_READY = AL_DEF_ERROR(12),
 
   /* The scheduler can't handle more channel (fixed limit of AL_SCHEDULER_MAX_CHANNEL) */

@@ -48,70 +48,31 @@
 #include "lib_common/Utils.h"
 
 
-/****************************************************************************/
-static uint32_t GetBlk64x64(uint16_t uWidth, uint16_t uHeight)
+#include "lib_common/StreamBuffer.h"
+#include "lib_common/StreamBufferPrivate.h"
+
+/*****************************************************************************/
+int32_t RndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode)
 {
-  uint32_t u64x64Width = (uWidth + 63) >> 6;
-  uint32_t u64x64Height = (uHeight + 63) >> 6;
-
-  return u64x64Width * u64x64Height;
-}
-
-/****************************************************************************/
-static uint32_t GetBlk32x32(uint16_t uWidth, uint16_t uHeight)
-{
-  uint32_t u32x32Width = (uWidth + 31) >> 5;
-  uint32_t u32x32Height = (uHeight + 31) >> 5;
-
-  return u32x32Width * u32x32Height;
-}
-
-/****************************************************************************/
-static uint32_t GetBlk16x16(uint16_t uWidth, uint16_t uHeight)
-{
-  uint32_t u16x16Width = (uWidth + 15) >> 4;
-  uint32_t u16x16Height = (uHeight + 15) >> 4;
-
-  return u16x16Width * u16x16Height;
-}
-
-/****************************************************************************/
-uint32_t RndUpPow2(uint32_t uVal)
-{
-  uint32_t uRnd = 1;
-
-  while(uRnd < uVal)
-    uRnd <<= 1;
-
-  return uRnd;
+  // set alignment to minimum if not raster
+  int const iAlignment = eFrameBufferStorageMode == AL_FB_RASTER ? AL_ALIGN_PITCH : 32;
+  return ComputeRndPitch(iWidth, uBitDepth, eFrameBufferStorageMode, iAlignment);
 }
 
 /******************************************************************************/
-uint32_t RndPitch(uint32_t uWidth, uint8_t uBitDepth)
+int32_t RndHeight(int32_t iHeight)
 {
-  uint32_t uVal;
-
-  if(AL_DEC_RASTER_3x10B_ON_32B)
-    uVal = (uBitDepth == 8) ? uWidth : (uWidth + 2) / 3 * 4;
-  else
-    uVal = (uBitDepth == 8) ? uWidth : uWidth * 2;
-  return (uVal + (AL_ALIGN_PITCH - 1)) & ~(AL_ALIGN_PITCH - 1);
-}
-
-/******************************************************************************/
-uint32_t RndHeight(uint32_t uHeight)
-{
-  return (uHeight + (AL_ALIGN_HEIGHT - 1)) & ~(AL_ALIGN_HEIGHT - 1);
+  return RoundUp(iHeight, AL_ALIGN_HEIGHT);
 }
 
 /****************************************************************************/
-uint32_t AL_GetNumLCU(uint16_t uWidth, uint16_t uHeight, uint8_t uLCUSize)
+int AL_GetNumLCU(AL_TDimension tDim, uint8_t uLCUSize)
 {
   switch(uLCUSize)
   {
-  case 4: return GetBlk16x16(uWidth, uHeight);
-  case 5: return GetBlk32x32(uWidth, uHeight);
-  case 6: return GetBlk64x64(uWidth, uHeight);
+  case 4: return GetBlk16x16(tDim);
+  case 5: return GetBlk32x32(tDim);
+  case 6: return GetBlk64x64(tDim);
   default: assert(0);
   }
 
@@ -119,67 +80,73 @@ uint32_t AL_GetNumLCU(uint16_t uWidth, uint16_t uHeight, uint8_t uLCUSize)
 }
 
 /****************************************************************************/
-uint32_t AL_GetAllocSize_HevcCompData(uint16_t uWidth, uint16_t uHeight, AL_EChromaMode eChromaMode)
+int AL_GetAllocSize_HevcCompData(AL_TDimension tDim, AL_EChromaMode eChromaMode)
 {
-  uint32_t uBlk16x16 = GetBlk64x64(uWidth, uHeight) * 16;
-  return HEVC_LCU_CMP_SIZE[eChromaMode] * uBlk16x16;
+  int iBlk16x16 = GetBlk64x64(tDim) * 16;
+  return HEVC_LCU_CMP_SIZE[eChromaMode] * iBlk16x16;
 }
 
 /****************************************************************************/
-uint32_t AL_GetAllocSize_AvcCompData(uint16_t uWidth, uint16_t uHeight, AL_EChromaMode eChromaMode)
+int AL_GetAllocSize_AvcCompData(AL_TDimension tDim, AL_EChromaMode eChromaMode)
 {
-  uint32_t uBlk16x16 = GetBlk16x16(uWidth, uHeight);
-  return AVC_LCU_CMP_SIZE[eChromaMode] * uBlk16x16;
+  int iBlk16x16 = GetBlk16x16(tDim);
+  return AVC_LCU_CMP_SIZE[eChromaMode] * iBlk16x16;
 }
 
 /****************************************************************************/
-uint32_t AL_GetAllocSize_CompMap(uint16_t uWidth, uint16_t uHeight)
+int AL_GetAllocSize_CompMap(AL_TDimension tDim)
 {
-  uint32_t uBlk16x16 = GetBlk16x16(uWidth, uHeight);
-  return SIZE_LCU_INFO * uBlk16x16;
+  int iBlk16x16 = GetBlk16x16(tDim);
+  return SIZE_LCU_INFO * iBlk16x16;
 }
 
 /*****************************************************************************/
-uint32_t AL_GetAllocSize_MV(uint16_t uWidth, uint16_t uHeight, bool bIsAvc)
+int AL_GetAllocSize_HevcMV(AL_TDimension tDim)
 {
-  uint32_t uNumBlk = bIsAvc ? GetBlk16x16(uWidth, uHeight) : GetBlk64x64(uWidth, uHeight) << 4;
-
-  return bIsAvc ? (16 * uNumBlk * sizeof(uint32_t)) : (4 * uNumBlk * sizeof(uint32_t));
+  int iNumBlk = GetBlk64x64(tDim) * 16;
+  return 4 * iNumBlk * sizeof(int32_t);
 }
 
 /*****************************************************************************/
-int AL_GetAllocSize_Frame(AL_TDimension tDimension, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bFrameBufferCompression, AL_EFbStorageMode eFrameBufferStorageMode)
+int AL_GetAllocSize_AvcMV(AL_TDimension tDim)
+{
+  int iNumBlk = GetBlk16x16(tDim);
+  return 16 * iNumBlk * sizeof(int32_t);
+}
+
+/*****************************************************************************/
+int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bFrameBufferCompression, AL_EFbStorageMode eFrameBufferStorageMode)
 {
   (void)bFrameBufferCompression;
-  (void)eFrameBufferStorageMode;
-  int iTotalSize = AL_GetAllocSize_Reference(tDimension.iWidth, tDimension.iHeight, eChromaMode, uBitDepth);
+
+  int iTotalSize = AL_GetAllocSize_DecReference(tDim, eChromaMode, uBitDepth, eFrameBufferStorageMode);
   return iTotalSize;
 }
 
 /*****************************************************************************/
-uint32_t AL_GetAllocSize_Reference(uint16_t uWidth, uint16_t uHeight, AL_EChromaMode eChromaMode, uint8_t uBitDepth)
+int AL_GetAllocSize_DecReference(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode)
 {
-  uint32_t uPitch = RndPitch(uWidth, uBitDepth);
-  uint32_t uSize = uPitch * RndHeight(uHeight);
+  int iPitch = RndPitch(tDim.iWidth, uBitDepth, eFrameBufferStorageMode);
+  int iSize = iPitch * RndHeight(tDim.iHeight) / GetNumLinesInPitch(eFrameBufferStorageMode);
   switch(eChromaMode)
   {
   case CHROMA_4_2_0:
-    uSize += (uSize >> 1);
+    iSize += (iSize / 2);
     break;
 
   case CHROMA_4_2_2:
-    uSize += uSize;
+    iSize += iSize;
     break;
 
   case CHROMA_4_4_4:
-    uSize += (uSize << 1);
+    iSize += (iSize * 2);
     break;
 
   default:
     break;
   }
 
-  return uSize;
+  return iSize;
 }
 
 /*****************************************************************************/

@@ -38,53 +38,86 @@
 /****************************************************************************
    -----------------------------------------------------------------------------
  **************************************************************************//*!
-   \addtogroup lib_decode_hls
+   \addtogroup lib_base
    @{
    \file
  *****************************************************************************/
-
 #pragma once
 
 #include "lib_rtos/types.h"
-
-#include "lib_common/SEI.h"
-#include "lib_common/SPS.h"
-
-#include "lib_common_dec/RbspParser.h"
+#include "lib_common/SliceConsts.h"
+#include "DecBuffers.h"
 
 /*************************************************************************//*!
-   \brief The ParseSEI function parse a SEI NAL
-   \param[out] pSEI Pointer to the sei message structure that will be filled
-   \param[in]  pRP  Pointer to NAL parser
-   \param[in]  pSpsTable Pointer to the SPS table
-   \param[out] pActiveSps Pointer receiving the active sps
-   \return     true when all sei messages had been parsed
-               false otherwise.
+   \brief Slice Parameters : Mimics structure for IP registers
 *****************************************************************************/
-bool AL_AVC_ParseSEI(AL_TAvcSei* pSEI, AL_TRbspParser* pRP, AL_TAvcSps* pSpsTable, AL_TAvcSps** pActiveSps);
+typedef struct AL_t_DecSliceParam
+{
+  uint8_t MaxMergeCand;
+  uint8_t CabacInitIdc;
+  uint8_t ColocFromL0;
+  uint8_t mvd_l1_zero_flag;
+  uint16_t WPTableID;
+  uint8_t NumRefIdxL1Minus1;
+  uint8_t NumRefIdxL0Minus1;
+  uint8_t WeightedPred;
+  uint8_t WeightedBiPred;
+  bool ValidConceal;
+  uint8_t SliceHeaderLength;
+  uint8_t TileNgbA;
+  uint8_t TileNgbB;
+  uint8_t TileNgbC;
+  uint8_t TileNgbD;
+  uint8_t TileNgbE;
+  uint16_t NumEntryPoint;
+  uint8_t PicIDL0[MAX_REF];
+  uint8_t PicIDL1[MAX_REF];
+  uint8_t ColocPicID;
+  uint8_t ConcealPicID;
 
-/*************************************************************************//*!
-   \brief The HEVC_InitSEI function intializes a SEI structure
-   \param[out] pSEI Pointer to the SEI structure that will be initialized
-*****************************************************************************/
-void AL_HEVC_InitSEI(AL_THevcSei* pSEI);
+  int8_t CbQpOffset;
+  int8_t CrQpOffset;
+  int8_t SliceQP;
+  int8_t tc_offset_div2;
+  int8_t beta_offset_div2;
 
-/*************************************************************************//*!
-   \brief The HEVC_DeinitSEI function releases memory allocation operated by the SEI structure
-   \param[out] pSEI Pointer to the SEI structure that will be freed
-*****************************************************************************/
-void AL_HEVC_DeinitSEI(AL_THevcSei* pSEI);
+  uint16_t TileWidth;
+  uint16_t TileHeight;
+  uint16_t FirstTileLCU;
+  uint16_t FirstLcuTileID;
+  uint16_t LcuTileWidth;
+  uint16_t LcuTileHeight;
 
-/*************************************************************************//*!
-   \brief The HEVC_ParseSEI function parse a SEI NAL
-   \param[out] pSEI Pointer to the sei message structure that will be filled
-   \param[in]  pRP  Pointer to NAL parser
-   \param[in]  pSpsTable Pointer to the SPS table
-   \param[out] pActiveSps Pointer receiving the active sps
-   \return     true when all sei messages had been parsed
-               false otherwise.
-*****************************************************************************/
-bool AL_HEVC_ParseSEI(AL_THevcSei* pSEI, AL_TRbspParser* pRP, AL_THevcSps* pSpsTable, AL_THevcSps** pActiveSps);
+  uint32_t FirstLCU;
+  uint32_t NumLCU;
+
+  uint32_t NextSliceSegment;
+  uint32_t FirstLcuSliceSegment;
+  uint32_t FirstLcuSlice;
+
+  union
+  {
+    bool DirectSpatial;
+    bool TemporalMVP;
+  };
+  bool bIsLastSlice;
+  bool DependentSlice;
+  bool SAOFilterChroma;
+  bool SAOFilterLuma;
+  bool LoopFilter;
+  bool XSliceLoopFilter;
+  bool CuChromaQpOffset;
+  bool NextIsDependent;
+  bool Tile;
+
+  AL_ESliceType eSliceType;
+
+  uint32_t uStrAvailSize;
+  uint32_t uCompOffset;
+  uint32_t uStrOffset;
+  uint32_t entry_point_offset[AL_MAX_ENTRY_POINT + 1];
+
+}AL_TDecSliceParam;
 
 /*@}*/
 

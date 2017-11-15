@@ -58,6 +58,5 @@ void AL_DecoderFeeder_Destroy(AL_TDecoderFeeder* pDecFeeder);
 /* push a buffer in the queue. it will be fed to the decoder when possible */
 void AL_DecoderFeeder_Process(AL_TDecoderFeeder* pDecFeeder);
 void AL_DecoderFeeder_Flush(AL_TDecoderFeeder* pDecFeeder);
-void AL_DecoderFeeder_ForceStop(AL_TDecoderFeeder* pDecFeeder);
 void AL_DecoderFeeder_Reset(AL_TDecoderFeeder* pDecFeeder);
 

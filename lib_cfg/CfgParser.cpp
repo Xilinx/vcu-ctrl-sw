@@ -253,6 +253,8 @@ static bool GetValue(const string& sLine, size_t zStartPos, int& Value, size_t& 
   else IF_KEYWORD_A(MODE_CAVLC)
   else IF_KEYWORD_A(MODE_CABAC)
   else IF_KEYWORD_A(TILE_32x8)
+  else IF_KEYWORD_A(TILE_64x4)
+  else IF_KEYWORD_A(TILE_32x4)
   else IF_KEYWORD_A(NVX)
   else IF_KEYWORD_P(AL_, ASPECT_RATIO_NONE)
   else IF_KEYWORD_P(AL_, ASPECT_RATIO_AUTO)
@@ -479,18 +481,15 @@ static bool ParseSection(string& sLine, ESection & Section)
 }
 
 /*****************************************************************************/
-static bool ParseInput(string & sLine, string & YUVFileName,
-                                       TYUVFileInfo & FileInfo,
-                                       string & sScnChgFileName,
-                                       string & sLTFileName)
+static bool ParseInput(string & sLine, ConfigFile& cfg)
 {
-       if(KEYWORD("YUVFile"))      return GetString(sLine, YUVFileName);
-  else if(KEYWORD("Width"))        FileInfo.PictWidth  = GetValue(sLine);
-  else if(KEYWORD("Height"))       FileInfo.PictHeight = GetValue(sLine);
-  else if(KEYWORD("Format"))       FileInfo.FourCC = TFourCC(GetFourCC(sLine));
-  else if(KEYWORD("ScnChgFile"))   GetString(sLine, sScnChgFileName);
-  else if(KEYWORD("LTFile"))       GetString(sLine, sLTFileName);
-  else if(KEYWORD("FrameRate"))    FileInfo.FrameRate  = GetValue(sLine);
+       if(KEYWORD("YUVFile"))      return GetString(sLine, cfg.YUVFileName);
+  else if(KEYWORD("Width"))        cfg.FileInfo.PictWidth  = GetValue(sLine);
+  else if(KEYWORD("Height"))       cfg.FileInfo.PictHeight = GetValue(sLine);
+  else if(KEYWORD("Format"))       cfg.FileInfo.FourCC = TFourCC(GetFourCC(sLine));
+  else if(KEYWORD("ScnChgFile"))   GetString(sLine, cfg.sScnChgFileName);
+  else if(KEYWORD("LTFile"))       GetString(sLine, cfg.sLTFileName);
+  else if(KEYWORD("FrameRate"))    cfg.FileInfo.FrameRate  = GetValue(sLine);
   else
     return false;
 
@@ -574,8 +573,6 @@ static bool ParseSettings(string & sLine, AL_TEncSettings & Settings, string& sS
   else if(KEYWORD("NumSlices"))              Settings.tChParam.uNumSlices = GetValue(sLine);
   else if(KEYWORD("SliceSize"))              Settings.tChParam.uSliceSize = GetValue(sLine) * 95 / 100; //add entropy precision error, explicit ceil() for Windows/Unix rounding mismatch.
   else if(KEYWORD("DependentSlice"))         Settings.bDependentSlice     = GetValue(sLine) ? true : false;
-  else if(KEYWORD("SubframeLatency"))        Settings.tChParam.bSubframeLatency = GetValue(sLine);
-
   else if(KEYWORD("EnableSEI"))              Settings.uEnableSEI         = uint32_t(GetValue(sLine));
   else if(KEYWORD("EnableAUD"))              Settings.bEnableAUD         = GetValue(sLine) ? true : false;
   else if(KEYWORD("EnableFillerData"))       Settings.bEnableFillerData  = GetValue(sLine) ? true : false;
@@ -589,7 +586,7 @@ static bool ParseSettings(string & sLine, AL_TEncSettings & Settings, string& sS
   else if(KEYWORD("ScalingList"))            Settings.eScalingList         = (AL_EScalingList)GetValue(sLine);
   else if(KEYWORD("FileScalingList"))        GetString(sLine, sScalingListFile);
   else if(KEYWORD("QPCtrlMode"))             Settings.eQpCtrlMode          = AL_EQpCtrlMode(GetValue(sLine));
-  else if(KEYWORD("LambdaCtrlMode"))         Settings.eLdaCtrlMode         = AL_ELdaCtrlMode(GetValue(sLine));
+  else if(KEYWORD("LambdaCtrlMode"))         Settings.tChParam.eLdaCtrlMode         = AL_ELdaCtrlMode(GetValue(sLine));
 
   else if(KEYWORD("CabacInit"))              Settings.tChParam.uCabacInitIdc    = uint8_t(GetValue(sLine));
   else if(KEYWORD("PicCbQpOffset"))          Settings.tChParam.iCbPicQpOffset   = int8_t(GetValue(sLine));
@@ -618,7 +615,7 @@ static bool ParseSettings(string & sLine, AL_TEncSettings & Settings, string& sS
   else if(KEYWORD("ClipVrtRange"))           Settings.uClipVrtRange = uint32_t(GetValue(sLine));
   else if(KEYWORD("FixPredictor"))           GetFlag(&Settings.tChParam.eOptions, AL_OPT_FIX_PREDICTOR, sLine);
   else if(KEYWORD("VrtRange_P"))             Settings.tChParam.pMeRange[SLICE_P][1] = GetValue(sLine);
-  else if(KEYWORD("SrcFormat"))              Settings.tChParam.eSrcConvMode = (AL_ESrcConvMode)GetValue(sLine);
+  else if(KEYWORD("SrcFormat"))              Settings.tChParam.eSrcMode = (AL_ESrcMode)GetValue(sLine);
   else if(KEYWORD("DisableIntra"))           Settings.bDisIntra  = bool(GetValue(sLine));
   else if(KEYWORD("AvcLowLat"))              GetFlag(&Settings.tChParam.eOptions, AL_OPT_LOWLAT_SYNC, sLine);
   else if(KEYWORD("LowLatInterrupt"))        GetFlag(&Settings.tChParam.eOptions, AL_OPT_LOWLAT_INT, sLine);
@@ -852,103 +849,95 @@ static void ParseOneLine(int &iLine,
                          ESection &Section,
                          string& sScalingListFile,
                          string& sLine,
-                         string & YUVFileName,
-                         string & BitstreamFileName,
-                         string & RecFileName,
-                         string & sScnChgFileName,
-                         string & sLTFileName,
-                         TYUVFileInfo & FileInfo,
-                         TFourCC      & RecFourCC,
-                         AL_TEncSettings & Settings,
-                         TCfgRunInfo  & RunInfo,
-                         TConfigTrace & CfgTrace,
+                         ConfigFile& cfg,
                          ostream & output)
 {
+  auto& Settings = cfg.Settings;
   // Remove comments
-    string::size_type pos = sLine.find_first_of('#');
-    if(pos != sLine.npos)
-      sLine.resize(pos);
+  string::size_type pos = sLine.find_first_of('#');
+  if(pos != sLine.npos)
+    sLine.resize(pos);
 
-    sLine = chomp(sLine);
+  sLine = chomp(sLine);
 
-    if(sLine.empty())
+  if(sLine.empty())
+  {
+    // nothing to do
+  }
+  else if(sLine[0] == '[') // Section select
+  {
+    if(!ParseSection(sLine, Section))
     {
-      // nothing to do
+      output << iLine << " => Unknown section : " << sLine << endl;
+      ConfigError();
     }
-    else if(sLine[0] == '[') // Section select
+  }
+  else if(Section == CFG_SEC_INPUT)
+  {
+    if(!ParseInput(sLine, cfg))
     {
-      if(!ParseSection(sLine, Section))
-      {
-        output << iLine << " => Unknown section : " << sLine << endl;
-        ConfigError();
-      }
+      output << iLine << " => Invalid command line in section INPUT : " << endl << sLine << endl;
+      ConfigError();
     }
-    else if(Section == CFG_SEC_INPUT)
+    Settings.tChParam.uWidth = cfg.FileInfo.PictWidth;
+    Settings.tChParam.uHeight = cfg.FileInfo.PictHeight;
+  }
+  else if(Section == CFG_SEC_OUTPUT)
+  {
+    if(!ParseOutput(sLine, cfg.BitstreamFileName, cfg.RecFileName, cfg.RecFourCC))
     {
-      if(!ParseInput(sLine, YUVFileName, FileInfo, sScnChgFileName, sLTFileName))
-      {
-        output << iLine << " => Invalid command line in section INPUT : " << endl << sLine << endl;
-        ConfigError();
-      }
-      Settings.tChParam.uWidth  = FileInfo.PictWidth;
-      Settings.tChParam.uHeight = FileInfo.PictHeight;
+      output << iLine << " => Invalid command line in section OUTPUT : " << endl << sLine << endl;
+      ConfigError();
     }
-    else if(Section == CFG_SEC_OUTPUT)
+  }
+  else if(Section == CFG_SEC_RATE_CONTROL)
+  {
+    if(!ParseRateControl(sLine, Settings))
     {
-      if(!ParseOutput(sLine, BitstreamFileName, RecFileName, RecFourCC))
-      {
-        output << iLine << " => Invalid command line in section OUTPUT : " << endl << sLine << endl;
-        ConfigError();
-      }
+      output << iLine << " => Invalid command line in section RATE_CONTROL : " << endl << sLine << endl;
+      ConfigError();
     }
-    else if(Section == CFG_SEC_RATE_CONTROL)
+  }
+  else if(Section == CFG_SEC_GOP)
+  {
+    if(!ParseGop(sLine, Settings))
     {
-      if(!ParseRateControl(sLine, Settings))
-      {
-        output << iLine << " => Invalid command line in section RATE_CONTROL : " << endl << sLine << endl;
-        ConfigError();
-      }
+      output << iLine << " => Invalid command line in section GOP : " << endl << sLine << endl;
+      ConfigError();
     }
-    else if(Section == CFG_SEC_GOP)
+  }
+  else if(Section == CFG_SEC_SETTINGS)
+  {
+    if(!ParseSettings(sLine, Settings, sScalingListFile))
     {
-      if(!ParseGop(sLine, Settings))
-      {
-        output << iLine << " => Invalid command line in section GOP : " << endl << sLine << endl;
-        ConfigError();
-      }
+      output << iLine << " => Invalid command line in section SETTINGS : " << endl << sLine << endl;
+      ConfigError();
     }
-    else if(Section == CFG_SEC_SETTINGS)
+  }
+  else if(Section == CFG_SEC_RUN)
+  {
+    if(!ParseRun(sLine, cfg.RunInfo))
     {
-      if(!ParseSettings(sLine, Settings, sScalingListFile))
-      {
-        output << iLine << " => Invalid command line in section SETTINGS : " << endl << sLine << endl;
-        ConfigError();
-      }
+      output << iLine << " => Invalid command line in section RUN : " << endl << sLine << endl;
+      ConfigError();
     }
-    else if(Section == CFG_SEC_RUN)
+  }
+  else if(Section == CFG_SEC_TRACE)
+  {
+    if(!ParseTraces(sLine, cfg.CfgTrace))
     {
-      if(!ParseRun(sLine, RunInfo))
-      {
-        output << iLine << " => Invalid command line in section RUN : " << endl << sLine << endl;
-        ConfigError();
-      }
+      output << iLine << " => Invalid command line in section TRACE : " << endl << sLine << endl;
+      ConfigError();
     }
-    else if(Section == CFG_SEC_TRACE)
+  }
+  else if(Section == CFG_SEC_HARDWARE)
+  {
+    if(!ParseHardware(sLine, Settings))
     {
-      if(!ParseTraces(sLine, CfgTrace))
-      {
-        output << iLine << " => Invalid command line in section TRACE : " << endl << sLine << endl;
-        ConfigError();
-      }
+      output << iLine << " => Invalid command line in section HARDWARE : " << endl << sLine << endl;
+      ConfigError();
     }
-    else if(Section == CFG_SEC_HARDWARE)
-    {
-      if(!ParseHardware(sLine, Settings))
-      {
-        output << iLine << " => Invalid command line in section HARDWARE : " << endl << sLine << endl;
-        ConfigError();
-      }
-    }
+  }
 }
 
 inline
@@ -997,25 +986,17 @@ static void GetScalingList(AL_TEncSettings& Settings, string& sScalingListFile)
 
 /*****************************************************************************/
 
-static bool ParseConfigFile(const string& sCfgFileName, string & YUVFileName,
-                                                 string & BitstreamFileName,
-                                                 string & RecFileName,
-                                                 string & sScnChgFileName,
-                                                 string & sLTFileName,
-                                                 TYUVFileInfo & FileInfo,
-                                                 TFourCC      & RecFourCC,
-                                                 AL_TEncSettings & Settings,
-                                                 TCfgRunInfo  & RunInfo,
-                                                 TConfigTrace & CfgTrace)
+void ParseConfigFile(const string& sCfgFileName, ConfigFile& cfg)
 {
+  strict_mode = cfg.strict_mode;
   ifstream CfgFile(sCfgFileName);
 
   if(!CfgFile.is_open())
-    return false;
+    throw runtime_error("Cannot parse config file: '" + sCfgFileName + "'");
 
   ESection Section = CFG_SEC_GLOBAL;
 
-  CfgTrace.iFrame = UINT_MAX;
+  cfg.CfgTrace.iFrame = UINT_MAX;
   string sScalingListFile = "";
   int iLine = 0;
   for(;;)
@@ -1025,41 +1006,22 @@ static bool ParseConfigFile(const string& sCfgFileName, string & YUVFileName,
     if(CfgFile.fail()) break;
 
     ParseOneLine(iLine, Section, sScalingListFile,
-      sLine, YUVFileName, BitstreamFileName, RecFileName, sScnChgFileName, sLTFileName,
-      FileInfo, RecFourCC, Settings, RunInfo, CfgTrace, cerr);
+      sLine, cfg, cerr);
 
     ++iLine;
   }
 
-  PostParsingChecks(Settings);
+  PostParsingChecks(cfg.Settings);
 
-  ToNativePath(YUVFileName);
-  ToNativePath(BitstreamFileName);
-  ToNativePath(RecFileName);
-  ToNativePath(CfgTrace.sPath);
   ToNativePath(sScalingListFile);
-  ToNativePath(sLTFileName);
-  ToNativePath(sScnChgFileName);
+  ToNativePath(cfg.YUVFileName);
+  ToNativePath(cfg.BitstreamFileName);
+  ToNativePath(cfg.RecFileName);
+  ToNativePath(cfg.CfgTrace.sPath);
+  ToNativePath(cfg.sLTFileName);
+  ToNativePath(cfg.sScnChgFileName);
 
-  WarningNoTraceFrame(iLine, CfgTrace, RunInfo);
-  GetScalingList(Settings, sScalingListFile);
-  return true;
-}
-
-void ParseConfigFile(const string& sCfgFileName, ConfigFile& cfg)
-{
-  strict_mode = cfg.strict_mode;
-  if(!ParseConfigFile(sCfgFileName,
-        cfg.YUVFileName,
-        cfg.BitstreamFileName,
-        cfg.RecFileName,
-        cfg.sScnChgFileName,
-        cfg.sLTFileName,
-        cfg.FileInfo,
-        cfg.RecFourCC,
-        cfg.Settings,
-        cfg.RunInfo,
-        cfg.CfgTrace))
-    throw runtime_error("Cannot parse config file: '" + sCfgFileName + "'");
+  WarningNoTraceFrame(iLine, cfg.CfgTrace, cfg.RunInfo);
+  GetScalingList(cfg.Settings, sScalingListFile);
 }
 /*****************************************************************************/

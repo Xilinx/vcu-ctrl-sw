@@ -35,36 +35,19 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \addtogroup lib_preprocess
-   @{
-   \file
- *****************************************************************************/
 #pragma once
 
-#include "lib_common_enc/Settings.h"
+#include "lib_common/PPS.h"
+#include "lib_common/SEI.h"
+#include "lib_common/SPS.h"
+#include "lib_common_dec/RbspParser.h"
+#include "Concealment.h"
+#include "common_syntax.h"
+#include "Aup.h"
 
-/*************************************************************************//*!
-   \brief Fill QP part of the buffer pointed to by pQP with a QP for each
-        Macroblock of the slice.
-   \param[in]  eMode      Specifies the way QP values are computed. see EQpCtrlMode
-   \param[in]  iSliceQP   Slice QP value (in range [0..51])
-   \param[in]  iMinQP     Minimum allowed QP value (in range [0..50])
-   \param[in]  iMaxQP     Maximum allowed QP value (in range [1..51]).
-   \param[in]  iLCUWidth  Width in Lcu Unit of the picture
-   \param[in]  iLCUHeight Height in Lcu Unit of the picture
-   \param[in]  eProf      Profile used for the encoding
-   \param[in]  iFrameID   Frame identifier
-   \param[out] pQPs       Pointer to the buffer that receives the computed QPs
-   \param[out] pSegs      Pointer to the buffer that receives the computed Segments
-   \note iMinQp <= iMaxQP
-   \return true on success, false on error
-*****************************************************************************/
-extern bool PreprocessQP(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, int iFrameID, uint8_t* pQPs, uint8_t* pSegs);
+void AL_AVC_InitAUP(AL_TAvcAup* pAUP);
 
-/****************************************************************************/
-
-/*@}*/
+AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP);
+AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP);
+bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP);
 

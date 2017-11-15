@@ -48,6 +48,7 @@ include lib_cfg/project.mk
 -include lib_buf_mngt/project.mk
 -include lib_rate_ctrl/project.mk
 -include lib_bitstream/project.mk
+-include lib_scheduler/project.mk
 -include lib_scheduler_enc/project.mk
 -include lib_perfs/project.mk
 -include lib_encode/project.mk
@@ -82,12 +83,18 @@ ifneq ($(ENABLE_COMP),0)
   -include exe_compress/project.mk
 endif
 
-
 ##############################################################
 # AL_Decompress
 ##############################################################
 ifneq ($(ENABLE_COMP),0)
   -include exe_decompress/project.mk
+endif
+
+##############################################################
+# AL_PerfMonitor
+##############################################################
+ifneq ($(ENABLE_PERF),0)
+  -include exe_perf_monitor/project.mk
 endif
 
 ##############################################################

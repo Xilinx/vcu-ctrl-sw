@@ -48,14 +48,15 @@
 typedef struct AL_t_SrcMetaData
 {
   AL_TMetaData tMeta;
-  int iWidth; /*!< Width in pixel of the frame */
-  int iHeight; /*!< Height in pixel of the frame */
+  AL_TDimension tDim; /*!< Dimension in pixel of the frame */
   AL_TPitches tPitches; /*!< Luma & chroma pitches size */
   AL_TOffsetYC tOffsetYC; /*!< Luma & chroma offset addresses */
   TFourCC tFourCC; /*!< FOURCC identifier */
 }AL_TSrcMetaData;
 
-AL_TSrcMetaData* AL_SrcMetaData_Create(int iWidth, int iHeight, AL_TPitches tPitches, AL_TOffsetYC tOffsetYC, TFourCC tFourCC);
+AL_TSrcMetaData* AL_SrcMetaData_Create(AL_TDimension tDim, AL_TPitches tPitches, AL_TOffsetYC tOffsetYC, TFourCC tFourCC);
 AL_TSrcMetaData* AL_SrcMetaData_Clone(AL_TSrcMetaData* pMeta);
 int AL_SrcMetaData_GetOffsetC(AL_TSrcMetaData* pMeta);
+int AL_SrcMetaData_GetLumaSize(AL_TSrcMetaData* pMeta);
+int AL_SrcMetaData_GetChromaSize(AL_TSrcMetaData* pMeta);
 
