@@ -599,6 +599,10 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pSettings->tChParam.tRCParam.uPBDelta = -1;
   pSettings->tChParam.tRCParam.eOptions = AL_RC_OPT_NONE;
 
+  pSettings->tChParam.tRCParam.bUseGoldenRef = false;
+  pSettings->tChParam.tRCParam.uGoldenRefFrequency = -1;
+  pSettings->tChParam.tRCParam.uPGoldenDelta = -1;
+
   pSettings->tChParam.iCbSliceQpOffset = 0;
   pSettings->tChParam.iCrSliceQpOffset = 0;
   pSettings->tChParam.iCbPicQpOffset = 0;
@@ -647,7 +651,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pSettings->tChParam.eEntropyMode = AL_MODE_CABAC;
   pSettings->tChParam.eWPMode = AL_WP_DEFAULT;
 
-  pSettings->tChParam.eSrcMode = AL_NVX;
+  pSettings->tChParam.eSrcMode = AL_SRC_NVX;
 
 
   pSettings->bScalingListPresentFlags = 0;

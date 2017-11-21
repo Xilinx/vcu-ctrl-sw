@@ -252,10 +252,11 @@ static bool GetValue(const string& sLine, size_t zStartPos, int& Value, size_t& 
   else IF_KEYWORD_0(SEI_ALL)
   else IF_KEYWORD_A(MODE_CAVLC)
   else IF_KEYWORD_A(MODE_CABAC)
-  else IF_KEYWORD_A(TILE_32x8)
-  else IF_KEYWORD_A(TILE_64x4)
-  else IF_KEYWORD_A(TILE_32x4)
-  else IF_KEYWORD_A(NVX)
+  else IF_KEYWORD_P(AL_SRC_, TILE_64x4)
+  else IF_KEYWORD_P(AL_SRC_, TILE_32x4)
+  else IF_KEYWORD_P(AL_SRC_, COMP_64x4)
+  else IF_KEYWORD_P(AL_SRC_, COMP_32x4)
+  else IF_KEYWORD_P(AL_SRC_, NVX)
   else IF_KEYWORD_P(AL_, ASPECT_RATIO_NONE)
   else IF_KEYWORD_P(AL_, ASPECT_RATIO_AUTO)
   else IF_KEYWORD_P(AL_, ASPECT_RATIO_16_9)
@@ -525,9 +526,12 @@ static bool ParseRateControl(string & sLine, AL_TEncSettings & Settings)
   else if(KEYWORD("CPBSize"))         Settings.tChParam.tRCParam.uCPBSize          = uint32_t(GetFloat(sLine) * 90000);
   else if(KEYWORD("IPDelta"))         Settings.tChParam.tRCParam.uIPDelta          = GetValue(sLine);
   else if(KEYWORD("PBDelta"))         Settings.tChParam.tRCParam.uPBDelta          = GetValue(sLine);
-
+  
   else if(KEYWORD("ScnChgResilience")) GetFlag(&Settings.tChParam.tRCParam.eOptions, AL_RC_OPT_SCN_CHG_RES, sLine);
 
+  else if (KEYWORD("UseGoldenRef"))   Settings.tChParam.tRCParam.bUseGoldenRef = GetValue(sLine) ? true : false;
+  else if (KEYWORD("GoldenRefFrequency"))   Settings.tChParam.tRCParam.uGoldenRefFrequency = GetValue(sLine);
+  else if (KEYWORD("PGoldenDelta"))   Settings.tChParam.tRCParam.uPGoldenDelta = GetValue(sLine);
   else
     return false;
 
@@ -573,6 +577,8 @@ static bool ParseSettings(string & sLine, AL_TEncSettings & Settings, string& sS
   else if(KEYWORD("NumSlices"))              Settings.tChParam.uNumSlices = GetValue(sLine);
   else if(KEYWORD("SliceSize"))              Settings.tChParam.uSliceSize = GetValue(sLine) * 95 / 100; //add entropy precision error, explicit ceil() for Windows/Unix rounding mismatch.
   else if(KEYWORD("DependentSlice"))         Settings.bDependentSlice     = GetValue(sLine) ? true : false;
+  else if(KEYWORD("SubframeLatency"))        Settings.tChParam.bSubframeLatency = GetValue(sLine);
+
   else if(KEYWORD("EnableSEI"))              Settings.uEnableSEI         = uint32_t(GetValue(sLine));
   else if(KEYWORD("EnableAUD"))              Settings.bEnableAUD         = GetValue(sLine) ? true : false;
   else if(KEYWORD("EnableFillerData"))       Settings.bEnableFillerData  = GetValue(sLine) ? true : false;

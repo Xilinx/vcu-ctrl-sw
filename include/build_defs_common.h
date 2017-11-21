@@ -35,84 +35,13 @@
 *
 ******************************************************************************/
 
-#include "Fifo.h"
+#pragma once
 
-bool AL_Fifo_Init(AL_TFifo* pFifo, size_t zMaxElem)
-{
-  pFifo->m_zMaxElem = zMaxElem + 1;
-  pFifo->m_zTail = 0;
-  pFifo->m_zHead = 0;
+#ifndef AL_MAX_ENC_SLICE
+#define AL_MAX_ENC_SLICE 200
+#endif
 
-  size_t zElemSize = pFifo->m_zMaxElem * sizeof(void*);
-  pFifo->m_ElemBuffer = Rtos_Malloc(zElemSize);
-
-  if(!pFifo->m_ElemBuffer)
-    return false;
-  Rtos_Memset(pFifo->m_ElemBuffer, 0xCD, zElemSize);
-
-  pFifo->hCountSem = Rtos_CreateSemaphore(0);
-
-  if(!pFifo->hCountSem)
-  {
-    Rtos_Free(pFifo->m_ElemBuffer);
-    return false;
-  }
-
-  pFifo->hSpaceSem = Rtos_CreateSemaphore(zMaxElem);
-  pFifo->hMutex = Rtos_CreateMutex();
-
-  if(!pFifo->hSpaceSem)
-  {
-    Rtos_DeleteSemaphore(pFifo->hCountSem);
-    Rtos_Free(pFifo->m_ElemBuffer);
-    return false;
-  }
-
-  return true;
-}
-
-bool AL_Fifo_Empty(AL_TFifo* pFifo)
-{
-  return pFifo->m_zHead == pFifo->m_zTail;
-}
-
-void AL_Fifo_Deinit(AL_TFifo* pFifo)
-{
-  Rtos_Free(pFifo->m_ElemBuffer);
-  Rtos_DeleteSemaphore(pFifo->hCountSem);
-  Rtos_DeleteSemaphore(pFifo->hSpaceSem);
-  Rtos_DeleteMutex(pFifo->hMutex);
-}
-
-bool AL_Fifo_Queue(AL_TFifo* pFifo, void* pElem, uint32_t uWait)
-{
-  if(!Rtos_GetSemaphore(pFifo->hSpaceSem, uWait))
-    return false;
-
-  Rtos_GetMutex(pFifo->hMutex);
-  pFifo->m_ElemBuffer[pFifo->m_zTail] = pElem;
-  pFifo->m_zTail = (pFifo->m_zTail + 1) % pFifo->m_zMaxElem;
-  Rtos_ReleaseMutex(pFifo->hMutex);
-
-  Rtos_ReleaseSemaphore(pFifo->hCountSem);
-
-  /* new item was added in the queue */
-  return true;
-}
-
-void* AL_Fifo_Dequeue(AL_TFifo* pFifo, uint32_t uWait)
-{
-  /* wait if no items */
-  if(!Rtos_GetSemaphore(pFifo->hCountSem, uWait))
-    return NULL;
-
-  Rtos_GetMutex(pFifo->hMutex);
-  void* pElem = pFifo->m_ElemBuffer[pFifo->m_zHead];
-  pFifo->m_zHead = (pFifo->m_zHead + 1) % pFifo->m_zMaxElem;
-  Rtos_ReleaseMutex(pFifo->hMutex);
-
-  /* new empty space available */
-  Rtos_ReleaseSemaphore(pFifo->hSpaceSem);
-  return pElem;
-}
+/* Fixed LCU Size chosen for resources calculs */
+#define AL_LCU_BASIC_WIDTH 32
+#define AL_LCU_BASIC_HEIGHT 32
 

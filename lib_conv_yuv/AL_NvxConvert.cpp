@@ -60,7 +60,7 @@ CNvxConv::CNvxConv(TFrameInfo const& FrameInfo) : m_FrameInfo(FrameInfo)
 AL_UINT CNvxConv::GetConvBufSize()
 {
   AL_TDimension tDim = { m_FrameInfo.iWidth, m_FrameInfo.iHeight };
-  return GetAllocSize_Src(tDim, m_FrameInfo.iBitDepth, m_FrameInfo.eCMode, AL_NVX);
+  return GetAllocSize_Src(tDim, m_FrameInfo.iBitDepth, m_FrameInfo.eCMode, AL_SRC_NVX);
 }
 
 #include <sstream>

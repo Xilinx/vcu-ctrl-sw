@@ -230,22 +230,20 @@ uint8_t AL_GetBitDepth(TFourCC tFourCC)
 /****************************************************************************/
 void AL_GetSubsampling(TFourCC fourcc, int* sx, int* sy)
 {
-  if(fourcc == FOURCC(I420)
-     || fourcc == FOURCC(I0AL))
+  switch(AL_GetChromaMode(fourcc))
   {
+  case CHROMA_4_2_0:
     *sx = 2;
     *sy = 2;
-  }
-  else if(fourcc == FOURCC(I2AL)
-          || fourcc == FOURCC(I422))
-  {
+    break;
+  case CHROMA_4_2_2:
     *sx = 2;
     *sy = 1;
-  }
-  else
-  {
+    break;
+  default:
     *sx = 1;
     *sy = 1;
+    break;
   }
 }
 

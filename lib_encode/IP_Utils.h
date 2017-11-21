@@ -61,13 +61,6 @@ static const int MAX_IDX_BIT_PER_PEL = 35;
 static const int AL_BitPerPixelQP[36][2] = /* x1000 */
 {
   // optimistic // average //pessimistic
-  { 16, 47 }, // {  95, 37}, //{ 145, 37},
-  { 18, 46 }, // {  95, 37}, //{ 145, 37},
-  { 20, 45 }, // {  95, 37}, //{ 145, 37},
-  { 22, 44 }, // {  95, 37}, //{ 145, 37},
-  { 25, 43 }, // {  95, 37}, //{ 145, 37},
-  { 27, 42 }, // {  95, 37}, //{ 145, 37},
-  { 30, 41 }, // {  95, 37}, //{ 145, 37},
   { 33, 40 }, // {  95, 37}, //{ 145, 37},
   { 37, 39 }, // {  95, 37}, //{ 145, 37},
   { 41, 38 }, // {  95, 37}, //{ 145, 37},
@@ -116,5 +109,4 @@ void AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus);
 void AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus);
 
 /***************************************************************************/
-AL_EFbStorageMode GetSrcStorageMode(AL_ESrcMode eSrcMode);
 

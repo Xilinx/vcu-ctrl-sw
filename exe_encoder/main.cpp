@@ -75,7 +75,6 @@ extern "C"
 #include "lib_rtos/lib_rtos.h"
 #include "lib_conv_yuv/lib_conv_yuv.h"
 #include "lib_common_enc/IpEncFourCC.h"
-#include "lib_encode/IP_Utils.h"
 }
 
 #include "sink_encoder.h"
@@ -235,8 +234,8 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addInt("--max-picture", &cfg.RunInfo.iMaxPict, "Maximum number of pictures encoded (1,2 .. -1 for ALL)");
   opt.addInt("--num-slices", &cfg.Settings.tChParam.uNumSlices, "Specify the number of slices to use");
   opt.addInt("--num-core", &cfg.Settings.tChParam.uNumCore, "Specify the number of cores to use (resolution needs to be sufficient)");
+  opt.addString("--log", &cfg.RunInfo.logsFile, "A file where log event will be dumped");
   opt.addFlag("--loop", &cfg.RunInfo.bLoop, "loop at the end of the yuv file");
-  opt.addFlag("--framelat", &cfg.Settings.tChParam.bSubframeLatency, "disable subframe latency", false);
 
   opt.addInt("--prefetch", &g_numFrameToRepeat, "prefetch n frames and loop between these frames for max picture count");
   opt.parse(argc, argv);
@@ -393,13 +392,20 @@ int sendInputFileTo(string YUVFileName, BufPool& SrcBufPool, AL_TBuffer* Yuv, Co
   GotoFirstPicture(cfg.FileInfo, YuvFile, cfg.RunInfo.iFirstPict);
 
   int iPictCount = 0;
+  int iReadCount = 0;
 
   while(true)
   {
     shared_ptr<AL_TBuffer> frame;
 
     if(!isLastPict(iPictCount, cfg.RunInfo.iMaxPict))
+    {
+      if(cfg.FileInfo.FrameRate != cfg.Settings.tChParam.tRCParam.uFrameRate)
+        iReadCount += GotoNextPicture(cfg.FileInfo, YuvFile, cfg.Settings.tChParam.tRCParam.uFrameRate, iPictCount, iReadCount);
+
       frame = ReadSourceFrame(&SrcBufPool, Yuv, YuvFile, cfg, pSrcConv);
+      iReadCount++;
+    }
 
     sink->ProcessFrame(frame.get());
 
@@ -417,7 +423,7 @@ unique_ptr<IConvSrc> CreateSrcConverter(TFrameInfo const& FrameInfo, AL_ESrcMode
   (void)tChParam;
   switch(eSrcMode)
   {
-  case AL_NVX:
+  case AL_SRC_NVX:
     return make_unique<CNvxConv>(FrameInfo);
   default:
     throw runtime_error("Unsupported source conversion.");
@@ -443,6 +449,7 @@ int SafeMain(int argc, char** argv)
   AL_Settings_SetDefaultParam(&cfg.Settings);
   ValidateConfig(cfg);
   SetMoreDefaults(cfg);
+
 
   function<AL_TIpCtrl*(AL_TIpCtrl*)> wrapIpCtrl;
   switch(RunInfo.ipCtrlMode)
@@ -538,7 +545,7 @@ int SafeMain(int argc, char** argv)
   {
     AL_GET_CHROMA_MODE(Settings.tChParam.ePicFormat),
     AL_GET_BITDEPTH(Settings.tChParam.ePicFormat),
-    GetSrcStorageMode(Settings.tChParam.eSrcMode)
+    AL_GetSrcStorageMode(Settings.tChParam.eSrcMode)
   };
   bool shouldConvert = IsConversionNeeded(FileInfo.FourCC, picFmt);
 
@@ -590,7 +597,7 @@ int SafeMain(int argc, char** argv)
   FrameInfo.iBitDepth = AL_GET_BITDEPTH(cfg.Settings.tChParam.ePicFormat);
   FrameInfo.eCMode = AL_GET_CHROMA_MODE(cfg.Settings.tChParam.ePicFormat);
   auto const eSrcMode = cfg.Settings.tChParam.eSrcMode;
-  TFourCC FourCC = AL_EncGetSrcFourCC(AL_TPicFormat { FrameInfo.eCMode, FrameInfo.iBitDepth, GetSrcStorageMode(eSrcMode) });
+  TFourCC FourCC = AL_EncGetSrcFourCC(AL_TPicFormat { FrameInfo.eCMode, FrameInfo.iBitDepth, AL_GetSrcStorageMode(eSrcMode) });
   AL_TPitches p;
   SetPitchYC(p, FrameInfo.iWidth, FourCC);
   AL_TOffsetYC tOffsetYC = GetOffsetYC(p.iLuma, FrameInfo.iHeight, FourCC);

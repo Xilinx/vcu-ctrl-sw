@@ -78,7 +78,7 @@ void Rtos_Sleep(uint32_t uMillisecond);
 /****************************************************************************/
 /*  Mutex */
 /****************************************************************************/
-AL_MUTEX Rtos_CreateMutex(bool iInitialState);
+AL_MUTEX Rtos_CreateMutex();
 void Rtos_DeleteMutex(AL_MUTEX Mutex);
 bool Rtos_GetMutex(AL_MUTEX Mutex);
 bool Rtos_ReleaseMutex(AL_MUTEX Mutex);

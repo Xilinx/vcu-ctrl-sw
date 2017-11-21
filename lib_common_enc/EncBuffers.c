@@ -157,26 +157,29 @@ uint32_t AL_GetAllocSize(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode e
 
 
 /****************************************************************************/
+AL_EFbStorageMode AL_GetSrcStorageMode(AL_ESrcMode eSrcMode)
+{
+  switch(eSrcMode)
+  {
+  case AL_SRC_TILE_64x4:
+  case AL_SRC_COMP_64x4:
+    return AL_FB_TILE_64x4;
+  case AL_SRC_TILE_32x4:
+  case AL_SRC_COMP_32x4:
+    return AL_FB_TILE_32x4;
+  default:
+    return AL_FB_RASTER;
+  }
+}
+
+/****************************************************************************/
 uint32_t GetAllocSize_Src(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt)
 {
-  switch(eSrcFmt)
-  {
-  case AL_NVX:
-    return AL_GetAllocSize(tDim, uBitDepth, eChromaMode, AL_FB_RASTER);
 
-  case AL_TILE_64x4:
-    return AL_GetAllocSize(tDim, uBitDepth, eChromaMode, AL_FB_TILE_64x4);
+  AL_EFbStorageMode const eSrcStorageMode = AL_GetSrcStorageMode(eSrcFmt);
+  uint32_t uSize = AL_GetAllocSize(tDim, uBitDepth, eChromaMode, eSrcStorageMode);
 
-  case AL_TILE_32x4:
-    return AL_GetAllocSize(tDim, uBitDepth, eChromaMode, AL_FB_TILE_32x4);
-
-  case AL_TILE_32x8:
-    return AL_GetAllocSize(tDim, uBitDepth, eChromaMode, AL_FB_RASTER);
-
-
-  default:
-    return 0;
-  }
+  return uSize;
 }
 
 /****************************************************************************/

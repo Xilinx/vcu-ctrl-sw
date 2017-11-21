@@ -147,7 +147,7 @@ struct Config
   unsigned int uInputBufferNum = 2;
   size_t zInputBufferSize = zDefaultInputBufferSize;
   IpCtrlMode ipCtrlMode = IPCTRL_MODE_STANDARD;
-  string logsFile = "CommandsLog.txt";
+  string logsFile = "";
   bool trackDma = false;
   int hangers = 0;
   int iLoop = 1;
@@ -178,50 +178,57 @@ static int IntWithOffset(const string& word)
   return atoi(word.c_str()) + Offset;
 }
 
-static bool IsAtLeastOneStreamDimSet(AL_TDimension tDim)
+void getExpectedSeparator(stringstream& ss, char expectedSep)
 {
-  return (tDim.iWidth > 0) || (tDim.iHeight > 0);
+  char sep;
+  ss >> sep;
+
+  if(sep != expectedSep)
+    throw runtime_error("wrong prealloc arguments format");
 }
 
-/******************************************************************************/
-static bool IsAllStreamDimSet(AL_TDimension tDim)
+bool invalidPreallocSettings(AL_TStreamSettings const& settings)
 {
-  return (tDim.iWidth > 0) && (tDim.iHeight > 0);
+  return settings.iProfileIdc <= 0 || settings.iLevel <= 0
+         || settings.tDim.iWidth <= 0 || settings.tDim.iHeight <= 0 || settings.eChroma == CHROMA_MAX_ENUM;
 }
 
-/******************************************************************************/
-static bool IsStreamChromaSet(AL_EChromaMode eChroma)
+void parsePreAllocArgs(AL_TStreamSettings* settings, string& toParse)
 {
-  return eChroma != CHROMA_MAX_ENUM;
-}
+  stringstream ss(toParse);
+  ss.unsetf(ios::dec);
+  ss.unsetf(ios::hex);
+  char chroma[4] {};
+  ss >> settings->tDim.iWidth;
+  getExpectedSeparator(ss, 'x');
+  ss >> settings->tDim.iHeight;
+  getExpectedSeparator(ss, ':');
+  ss >> chroma[0];
+  ss >> chroma[1];
+  ss >> chroma[2];
+  getExpectedSeparator(ss, ':');
+  ss >> settings->iBitDepth;
+  getExpectedSeparator(ss, ':');
+  ss >> settings->iLevel;
+  getExpectedSeparator(ss, ':');
+  ss >> settings->iProfileIdc;
 
-/******************************************************************************/
-static bool IsStreamBitDepthSet(int iBitDepth)
-{
-  return iBitDepth > 0;
-}
+  if(string(chroma) == "400")
+    settings->eChroma = CHROMA_4_0_0;
+  else if(string(chroma) == "420")
+    settings->eChroma = CHROMA_4_2_0;
+  else if(string(chroma) == "422")
+    settings->eChroma = CHROMA_4_2_2;
+  else if(string(chroma) == "444")
+    settings->eChroma = CHROMA_4_4_4;
+  else
+    throw runtime_error("wrong prealloc chroma format");
 
-/******************************************************************************/
-static bool IsStreamLevelSet(int iLevel)
-{
-  return iLevel > 0;
-}
+  if(ss.fail() || ss.tellg() != streampos(-1))
+    throw runtime_error("wrong prealloc arguments format");
 
-/******************************************************************************/
-static bool IsStreamProfileSet(int iProfileIdc)
-{
-  return iProfileIdc > 0;
-}
-
-/******************************************************************************/
-static bool IsAllStreamSettingsSet(AL_TStreamSettings tStreamSettings)
-{
-  return IsAllStreamDimSet(tStreamSettings.tDim) && IsStreamChromaSet(tStreamSettings.eChroma) && IsStreamBitDepthSet(tStreamSettings.iBitDepth) && IsStreamLevelSet(tStreamSettings.iLevel) && IsStreamProfileSet(tStreamSettings.iProfileIdc);
-}
-
-static bool IsAtLeastOneStreamSettingsSet(AL_TStreamSettings tStreamSettings)
-{
-  return IsAtLeastOneStreamDimSet(tStreamSettings.tDim) || IsStreamChromaSet(tStreamSettings.eChroma) || IsStreamBitDepthSet(tStreamSettings.iBitDepth) || IsStreamLevelSet(tStreamSettings.iLevel) || IsStreamProfileSet(tStreamSettings.iProfileIdc);
+  if(invalidPreallocSettings(*settings))
+    throw runtime_error("wrong prealloc arguments");
 }
 
 /******************************************************************************/
@@ -277,10 +284,6 @@ static Config ParseCommandLine(int argc, char* argv[])
               "Specify decoder DPB Low ref (stream musn't have B-frame & reference must be at best 1",
               AL_DPB_LOW_REF);
 
-  opt.addFlag("-framelat", &Config.tDecSettings.eDecUnit,
-              "Specify decoder latency (default: Frame Latency)",
-              AL_AU_UNIT);
-
   opt.addFlag("-avc", &Config.tDecSettings.bIsAvc,
               "Specify the input bitstream codec (default: HEVC)",
               true);
@@ -295,16 +298,12 @@ static Config ParseCommandLine(int argc, char* argv[])
 
   opt.addInt("-loop", &Config.iLoop, "Number of Decoding loop (optional)");
 
-  opt.addInt("--stream-width", &Config.tDecSettings.tStream.tDim.iWidth, "Specify stream's width");
-  opt.addInt("--stream-height", &Config.tDecSettings.tStream.tDim.iHeight, "Specify stream's height");
-  opt.addInt("--stream-bitdepth", &Config.tDecSettings.tStream.iBitDepth, "Specify streams's bit depth");
-  opt.addInt("--stream-level", &Config.tDecSettings.tStream.iLevel, "Specify streams's level");
-  opt.addInt("--stream-profile-idc", &Config.tDecSettings.tStream.iProfileIdc, "Specify streams's profile idc");
-  opt.addOption("--stream-chroma-400", [&]() { Config.tDecSettings.tStream.eChroma = CHROMA_4_0_0; }, "Specify stream's chroma mode 4_0_0");
-  opt.addOption("--stream-chroma-420", [&]() { Config.tDecSettings.tStream.eChroma = CHROMA_4_2_0; }, "Specify stream's chroma mode 4_2_0");
-  opt.addOption("--stream-chroma-422", [&]() { Config.tDecSettings.tStream.eChroma = CHROMA_4_2_2; }, "Specify stream's chroma mode 4_2_2");
-  opt.addOption("--stream-chroma-444", [&]() { Config.tDecSettings.tStream.eChroma = CHROMA_4_4_4; }, "Specify stream's chroma mode 4_4_4");
+  opt.addString("--log", &Config.logsFile, "A file where logged events will be dumped");
+
+
+  string preAllocArgs = "";
   opt.addInt("--timeout", &Config.iTimeOutInSeconds, "Specify timeout in seconds");
+  opt.addString("--prealloc-args", &preAllocArgs, "Specify the stream dimension: 1920x1080:422:10:level:profile-idc");
 
   opt.parse(argc, argv);
 
@@ -334,11 +333,8 @@ static Config ParseCommandLine(int argc, char* argv[])
   }
 
   {
-    if(IsAtLeastOneStreamSettingsSet(Config.tDecSettings.tStream))
-    {
-      if(!IsAllStreamSettingsSet(Config.tDecSettings.tStream))
-        throw runtime_error("Invalid parameters : if at least one '--stream-' parameter is set, all '--stream-' should be set");
-    }
+    if(!preAllocArgs.empty())
+      parsePreAllocArgs(&Config.tDecSettings.tStream, preAllocArgs);
 
     if(Config.tDecSettings.uNumCore > AL_DEC_NUM_CORES)
       throw runtime_error("Invalid number of cores");
@@ -349,7 +345,7 @@ static Config ParseCommandLine(int argc, char* argv[])
     // silently correct user settings
     Config.uInputBufferNum = max(1u, Config.uInputBufferNum);
     Config.zInputBufferSize = max(size_t(1), Config.zInputBufferSize);
-    Config.zInputBufferSize = (IsAllStreamSettingsSet(Config.tDecSettings.tStream) && Config.zInputBufferSize == zDefaultInputBufferSize) ? AL_GetMaxNalSize(Config.tDecSettings.tStream.tDim, Config.tDecSettings.tStream.eChroma) : Config.zInputBufferSize;
+    Config.zInputBufferSize = (!preAllocArgs.empty() && Config.zInputBufferSize == zDefaultInputBufferSize) ? AL_GetMaxNalSize(Config.tDecSettings.tStream.tDim, Config.tDecSettings.tStream.eChroma) : Config.zInputBufferSize;
     Config.tDecSettings.iStackSize = max(1, Config.tDecSettings.iStackSize);
   }
 
@@ -712,26 +708,41 @@ static void sFrameDecoded(AL_TBuffer* pDecodedFrame, void* pUserParam)
 };
 
 /******************************************************************************/
-static void sFrameDisplay(AL_TBuffer* pFrame, AL_TInfoDecode tInfo, void* pUserParam)
+static bool isEOS(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
+{
+  return !pFrame && !pInfo;
+}
+
+/******************************************************************************/
+static bool isReleaseFrame(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
+{
+  return pFrame && !pInfo;
+}
+
+/******************************************************************************/
+static void sFrameDisplay(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo, void* pUserParam)
 {
   auto pParam = reinterpret_cast<TCbParam*>(pUserParam);
   unique_lock<mutex> lck(pParam->hMutex);
 
-  if(!pFrame)
+  if(isEOS(pFrame, pInfo))
   {
     Message(CC_GREY, "Complete");
     Rtos_SetEvent(pParam->hFinished);
     return;
   }
 
+  if(isReleaseFrame(pFrame, pInfo))
+    return;
+
   if(pParam->iBitDepth == 0)
-    pParam->iBitDepth = max(tInfo.uBitDepthY, tInfo.uBitDepthC);
+    pParam->iBitDepth = max(pInfo->uBitDepthY, pInfo->uBitDepthC);
   else if(pParam->iBitDepth == -1)
     pParam->iBitDepth = AL_Decoder_GetMaxBD(pParam->hDec);
 
   assert(AL_Buffer_GetData(pFrame));
 
-  ProcessFrame(*pFrame, *pParam->YuvBuffer, tInfo, pParam->iBitDepth, pParam->YuvFile, pParam->IpCrcFile, pParam->CertCrcFile);
+  ProcessFrame(*pFrame, *pParam->YuvBuffer, *pInfo, pParam->iBitDepth, pParam->YuvFile, pParam->IpCrcFile, pParam->CertCrcFile);
   AL_Decoder_PutDisplayPicture(pParam->hDec, pFrame);
 
   DisplayFrameStatus(pParam->num_frame);
@@ -862,7 +873,7 @@ void SafeMain(int argc, char** argv)
     IpCrcFile << hex << uppercase;
   }
 
-  //
+
   // IP Device ------------------------------------------------------------
   auto iUseBoard = Config.iUseBoard;
 
@@ -953,17 +964,11 @@ void SafeMain(int argc, char** argv)
 
   AL_Decoder_SetParam(hDec, Config.bConceal, iUseBoard ? true : false, Config.iNumTrace, Config.iNumberTrace);
 
-  if(IsAllStreamSettingsSet(Config.tDecSettings.tStream))
+  if(!invalidPreallocSettings(Config.tDecSettings.tStream))
   {
-    auto ret = AL_Decoder_PreallocateBuffers(hDec);
-
-    if(!ret)
-    {
-      auto eErr = AL_Decoder_GetLastError(hDec);
-
-      if(eErr)
+    if(!AL_Decoder_PreallocateBuffers(hDec))
+      if(auto eErr = AL_Decoder_GetLastError(hDec))
         throw codec_error(eErr);
-    }
   }
 
   // Initial stream buffer filling

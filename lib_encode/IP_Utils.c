@@ -1059,16 +1059,3 @@ void AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus)
   pPPS->pic_init_qp_minus26 = pPicStatus->iPpsQP - 26;
 }
 
-AL_EFbStorageMode GetSrcStorageMode(AL_ESrcMode eSrcMode)
-{
-  switch(eSrcMode)
-  {
-  case AL_TILE_64x4:
-    return AL_FB_TILE_64x4;
-  case AL_TILE_32x4:
-    return AL_FB_TILE_32x4;
-  default:
-    return AL_FB_RASTER;
-  }
-}
-

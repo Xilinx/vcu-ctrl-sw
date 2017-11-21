@@ -139,9 +139,9 @@ void Rtos_Sleep(uint32_t uMillisecond)
 }
 
 /****************************************************************************/
-AL_MUTEX Rtos_CreateMutex(bool bInitialState)
+AL_MUTEX Rtos_CreateMutex()
 {
-  return (AL_MUTEX)CreateMutex(NULL, bInitialState, NULL);
+  return (AL_MUTEX)CreateMutex(NULL, false, NULL);
 }
 
 /****************************************************************************/
@@ -296,7 +296,7 @@ void Rtos_Sleep(uint32_t uMillisecond)
 }
 
 /****************************************************************************/
-AL_MUTEX Rtos_CreateMutex(bool bInitialState)
+AL_MUTEX Rtos_CreateMutex()
 {
   pthread_mutex_t* pMutex = (AL_MUTEX)Rtos_Malloc(sizeof(pthread_mutex_t));
 
@@ -306,9 +306,6 @@ AL_MUTEX Rtos_CreateMutex(bool bInitialState)
     pthread_mutexattr_init(&MutexAttr);
     pthread_mutexattr_settype(&MutexAttr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_init(pMutex, &MutexAttr);
-
-    if(bInitialState)
-      Rtos_GetMutex(pMutex);
   }
   return (AL_MUTEX)pMutex;
 }
@@ -568,9 +565,8 @@ int Rtos_DriverIoctl(void* drv, int req, void* data)
 /* semaphore cases should be carefully solved case by case */
 
 /****************************************************************************/
-AL_MUTEX Rtos_CreateMutex(bool bInitialState)
+AL_MUTEX Rtos_CreateMutex()
 {
-  (void)bInitialState;
   AL_MUTEX validHandle = (AL_MUTEX)1;
   return validHandle;
 }
@@ -635,7 +631,7 @@ typedef struct
 }SyncCtx;
 
 /****************************************************************************/
-AL_MUTEX Rtos_CreateMutex(bool bInitialState)
+AL_MUTEX Rtos_CreateMutex()
 {
   /* do not fail the creation: return a non NULL handle */
   return (AL_MUTEX)1;

@@ -209,6 +209,9 @@ typedef struct __AL_ALIGNED__ (4) AL_t_RCParam
   int16_t iMaxQP;
   int16_t uIPDelta;
   int16_t uPBDelta;
+  bool bUseGoldenRef;
+  int16_t uPGoldenDelta;
+  int16_t uGoldenRefFrequency;
   AL_ERateCtrlOption eOptions;
 } AL_TRCParam;
 
@@ -276,10 +279,12 @@ typedef enum e_MaxBurstSize
 *****************************************************************************/
 typedef enum e_SrcConvMode // [0] : CompMode | [3:1] : SourceFormat
 {
-  AL_NVX = 0x0,
-  AL_TILE_32x8 = 0x2,
-  AL_TILE_64x4 = 0x4,
-  AL_TILE_32x4 = 0x6,
+  AL_SRC_NVX = 0x0,
+  AL_SRC_TILE_64x4 = 0x4,
+  AL_SRC_COMP_64x4 = 0x5,
+  AL_SRC_TILE_32x4 = 0x6,
+  AL_SRC_COMP_32x4 = 0x7,
+  AL_SRC_MAX_ENUM,
 }AL_ESrcMode;
 
 #define MASK_SRC_COMP 0x01

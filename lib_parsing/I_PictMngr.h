@@ -67,7 +67,8 @@ typedef struct
   AL_TBuffer* pDisplayBuffer;
   int iNext;
   int iAccessCntByDPB;
-  int iAccessCntByDisplay;
+  bool bAccessByDisplay;
+  bool bDisplayIsDone;
   uint32_t uCRC;
   AL_TBitDepth tBitDepth;
   AL_TCropInfo tCrop;
@@ -78,7 +79,6 @@ typedef struct t_FrmBufPool
   AL_TDisplayFrameFifo array[FRM_BUF_POOL_SIZE];
   int iFifoHead;
   int iFifoTail;
-  int iBufCnt;
 
   AL_MUTEX Mutex;
   AL_SEMAPHORE Semaphore;
@@ -304,6 +304,8 @@ AL_TBuffer* AL_PictMngr_GetDisplayBufferFromID(AL_TPictMngrCtx* pCtx, int iFrame
 void AL_PictMngr_UpdateDisplayBufferCRC(AL_TPictMngrCtx* pCtx, int iFrameID, uint32_t uCRC);
 void AL_PictMngr_UpdateDisplayBufferBitDepth(AL_TPictMngrCtx* pCtx, int iFrameID, AL_TBitDepth tBitDepth);
 void AL_PictMngr_UpdateDisplayBufferCrop(AL_TPictMngrCtx* pCtx, int iFrameID, AL_TCropInfo tCrop);
+void AL_PictMngr_SignalBufferDisplayed(AL_TPictMngrCtx* pCtx, AL_TBuffer* pDisplayedFrame);
+AL_TBuffer* AL_PictMngr_GetUnusedDisplayBuffer(AL_TPictMngrCtx* pCtx);
 
 /*****************************************************************************/
 bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, TBufferListRef* pListRef, TBuffer* pListAddr, TBufferPOC** ppPOC, TBufferMV** ppMV, AL_TBuffer** ppRec, AL_EFbStorageMode eFBStorageMode);

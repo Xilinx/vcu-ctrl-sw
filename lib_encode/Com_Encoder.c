@@ -158,7 +158,7 @@ void AL_Common_Encoder_InitCtx(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_
 
   Rtos_Memset(pCtx->m_Pool, 0, sizeof pCtx->m_Pool);
 
-  pCtx->m_Mutex = Rtos_CreateMutex(false);
+  pCtx->m_Mutex = Rtos_CreateMutex();
   assert(pCtx->m_Mutex);
 }
 

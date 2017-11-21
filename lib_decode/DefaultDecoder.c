@@ -178,15 +178,16 @@ static void AL_sDecoder_CallDisplay(AL_TDecCtx* pCtx)
 {
   while(1)
   {
-    AL_TInfoDecode tInfo = { 0 };
-    AL_TBuffer* pDisplayedFrame = AL_PictMngr_GetDisplayBuffer(&pCtx->m_PictMngr, &tInfo);
+    AL_TInfoDecode pInfo = { 0 };
+    AL_TBuffer* pFrameToDisplay = AL_PictMngr_GetDisplayBuffer(&pCtx->m_PictMngr, &pInfo);
 
-    if(!pDisplayedFrame)
+    if(!pFrameToDisplay)
       break;
 
-    assert(AL_Buffer_GetData(pDisplayedFrame));
+    assert(AL_Buffer_GetData(pFrameToDisplay));
 
-    pCtx->m_displayCB.func(pDisplayedFrame, tInfo, pCtx->m_displayCB.userParam);
+    pCtx->m_displayCB.func(pFrameToDisplay, &pInfo, pCtx->m_displayCB.userParam);
+    AL_PictMngr_SignalBufferDisplayed(&pCtx->m_PictMngr, pFrameToDisplay);
   }
 }
 
@@ -294,6 +295,31 @@ static void DeinitBuffers(AL_TDecCtx* pCtx)
 }
 
 /*****************************************************************************/
+static void ReleaseFramePictureUnused(AL_TDecCtx* pCtx)
+{
+  while(1)
+  {
+    AL_TBuffer* pFrameToRelease = AL_PictMngr_GetUnusedDisplayBuffer(&pCtx->m_PictMngr);
+
+    if(!pFrameToRelease)
+      break;
+
+    assert(AL_Buffer_GetData(pFrameToRelease));
+
+    pCtx->m_displayCB.func(pFrameToRelease, NULL, pCtx->m_displayCB.userParam);
+
+    AL_PictMngr_SignalBufferDisplayed(&pCtx->m_PictMngr, pFrameToRelease);
+  }
+}
+
+/*****************************************************************************/
+static void DeinitPictureManager(AL_TDecCtx* pCtx)
+{
+  ReleaseFramePictureUnused(pCtx);
+  AL_PictMngr_Deinit(&pCtx->m_PictMngr);
+}
+
+/*****************************************************************************/
 void AL_Default_Decoder_Destroy(AL_TDecoder* pAbsDec)
 {
   AL_TDefaultDecoder* pDec = (AL_TDefaultDecoder*)pAbsDec;
@@ -306,7 +332,7 @@ void AL_Default_Decoder_Destroy(AL_TDecoder* pAbsDec)
   if(pCtx->m_eosBuffer)
     AL_Buffer_Unref(pCtx->m_eosBuffer);
 
-  AL_PictMngr_Deinit(&pCtx->m_PictMngr);
+  DeinitPictureManager(pCtx);
 
   AL_IDecChannel_Destroy(pCtx->m_pDecChannel);
 
@@ -681,10 +707,8 @@ void AL_Default_Decoder_InternalFlush(AL_TDecoder* pAbsDec)
   AL_Default_Decoder_ReleaseFrames(pAbsDec);
 
   if(pCtx->m_displayCB.func)
-  {
-    AL_TInfoDecode tmp = { 0 };
-    pCtx->m_displayCB.func(NULL, tmp, pCtx->m_displayCB.userParam);
-  }
+    pCtx->m_displayCB.func(NULL, NULL, pCtx->m_displayCB.userParam);
+
   AL_PictMngr_Terminate(&pCtx->m_PictMngr);
 }
 
@@ -986,7 +1010,7 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel,
 
   pCtx->m_Sem = Rtos_CreateSemaphore(pCtx->m_iStackSize);
   pCtx->m_ScDetectionComplete = Rtos_CreateEvent(0);
-  pCtx->m_DecMutex = Rtos_CreateMutex(false);
+  pCtx->m_DecMutex = Rtos_CreateMutex();
 
   AL_Default_Decoder_SetParam((AL_TDecoder*)pDec, false, false, 0, 0);
 

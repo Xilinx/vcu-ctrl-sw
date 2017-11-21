@@ -112,6 +112,13 @@ uint32_t GetAllocSize_Src(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode 
 *****************************************************************************/
 int AL_CalculatePitchValue(int iWidth, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode);
 
+/*************************************************************************//*!
+   \brief Retrieves the Source frame buffer storage mode depending on Source mode
+   \param[in] eSrcMode Source Mode
+   \return Source Storage Mode
+*****************************************************************************/
+AL_EFbStorageMode AL_GetSrcStorageMode(AL_ESrcMode eSrcMode);
+
 
 /*@}*/
 

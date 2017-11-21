@@ -72,7 +72,6 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
 {
   do
   {
-    slave->stopped = false;
     AL_HANDLE hDec = slave->hDec;
 
     uint32_t uNewOffset = AL_Decoder_GetStrOffset(hDec);
@@ -87,6 +86,9 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
     while(eErr != AL_ERR_NO_FRAME_DECODED)
     {
       eErr = AL_Decoder_TryDecodeOneAU(hDec, decodeBuffer);
+
+      if(eErr != AL_ERR_NO_FRAME_DECODED)
+        slave->stopped = false;
 
       if(eErr == AL_ERR_INIT_FAILED)
         return false;
@@ -222,7 +224,7 @@ AL_TDecoderFeeder* AL_DecoderFeeder_Create(TMemDesc* decodeMemoryDescriptor, AL_
     goto cleanup;
 
   this->keepGoing = 1;
-  this->stopped = false;
+  this->stopped = true;
   this->hDec = hDec;
 
   if(!CreateSlave(this))

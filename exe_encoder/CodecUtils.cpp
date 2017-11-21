@@ -97,6 +97,7 @@ void GotoFirstPicture(TYUVFileInfo const& FI, std::ifstream& File, unsigned int 
   File.seekg(iPictLen * iFirstPict);
 }
 
+/*****************************************************************************/
 static uint32_t GetLumaRowSize(TFourCC fourCC, uint32_t uWidth)
 {
   uint32_t uRowSizeLuma;
@@ -107,6 +108,27 @@ static uint32_t GetLumaRowSize(TFourCC fourCC, uint32_t uWidth)
   else
     uRowSizeLuma = uWidth * GetPixelSize(uBitDepth);
   return uRowSizeLuma;
+}
+
+/*****************************************************************************/
+int GotoNextPicture(TYUVFileInfo const& FI, std::ifstream& File, int iEncFrameRate, int iEncPictCount, int iFilePictCount)
+{
+  int iMove = (((iEncPictCount + 1) * FI.FrameRate) / iEncFrameRate) - (iFilePictCount + 1);
+
+  if(iMove != 0)
+  {
+    int iRowSize = GetLumaRowSize(FI.FourCC, FI.PictWidth) * FI.PictHeight;
+
+    if(AL_GetChromaMode(FI.FourCC) != CHROMA_MONO)
+    {
+      int iRx, iRy;
+      AL_GetSubsampling(FI.FourCC, &iRx, &iRy);
+      iRowSize += 2 * (iRowSize / (iRx * iRy));
+    }
+
+    File.seekg(iRowSize * iMove, std::ios_base::cur);
+  }
+  return iMove;
 }
 
 /*****************************************************************************/

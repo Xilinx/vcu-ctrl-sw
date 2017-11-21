@@ -39,7 +39,6 @@
 #include "lib_common/BufferSrcMeta.h"
 #include "lib_common_enc/EncBuffers.h"
 #include "lib_common_enc/IpEncFourCC.h"
-#include "lib_encode/IP_Utils.h"
 
 static uint32_t getSourceBufferSize(AL_TEncChanParam const* pChParam)
 {
@@ -55,7 +54,7 @@ void AL_SrcBuffersChecker_Init(AL_TSrcBufferChecker* pCtx, AL_TEncChanParam cons
   {
     AL_GET_CHROMA_MODE(pChParam->ePicFormat),
     AL_GET_BITDEPTH(pChParam->ePicFormat),
-    GetSrcStorageMode(pChParam->eSrcMode)
+    AL_GetSrcStorageMode(pChParam->eSrcMode)
   };
   pCtx->fourCC = AL_EncGetSrcFourCC(picFmt);
   pCtx->minimumSize = getSourceBufferSize(pChParam);

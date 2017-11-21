@@ -69,7 +69,7 @@ typedef struct tCfgRunInfo
   string sMd5Path;
   int eVQDescr;
   IpCtrlMode ipCtrlMode;
-  std::string logsFile;
+  std::string logsFile = "";
   bool trackDma = false;
 }TCfgRunInfo;
 

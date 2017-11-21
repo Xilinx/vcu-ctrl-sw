@@ -57,6 +57,9 @@ bool IsConversionNeeded(TFourCC const& FourCC, AL_TPicFormat const& picFmt);
 void GotoFirstPicture(TYUVFileInfo const& FI, std::ifstream& File, unsigned int iFirstPict = 0);
 
 /*****************************************************************************/
+int GotoNextPicture(TYUVFileInfo const& FI, std::ifstream& File, int iEncFrameRate, int iEncPictCount, int iFilePictCount);
+
+/*****************************************************************************/
 bool ReadOneFrameYuv(std::ifstream& File, AL_TBuffer* pBuf, bool bLoop);
 
 /*****************************************************************************/

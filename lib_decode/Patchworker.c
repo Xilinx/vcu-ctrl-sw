@@ -150,7 +150,7 @@ bool AL_Patchworker_Init(AL_TPatchworker* this, TCircBuffer* pCircularBuf, AL_TF
   this->endOfInput = false;
   this->endOfOutput = false;
   this->outputCirc = pCircularBuf;
-  this->lock = Rtos_CreateMutex(false);
+  this->lock = Rtos_CreateMutex();
   this->workBuf = NULL;
   this->inputFifo = pInputFifo;
   CircBuffer_Init(this->outputCirc);

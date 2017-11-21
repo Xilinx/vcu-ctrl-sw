@@ -283,10 +283,8 @@ private:
 
   static void EndEncoding(void* userParam, AL_TBuffer* pStream, AL_TBuffer const* pSrc)
   {
+    assert(isEncodedFrame(pStream, pSrc) || isEOS(pStream, pSrc) || isStreamReleased(pStream, pSrc));
     auto pThis = (EncoderSink*)userParam;
-
-    if(!isEncodedFrame(pStream, pSrc) && !isEOS(pStream, pSrc) && !isStreamReleased(pStream, pSrc))
-      assert(0);
 
     if(isStreamReleased(pStream, pSrc))
       return;

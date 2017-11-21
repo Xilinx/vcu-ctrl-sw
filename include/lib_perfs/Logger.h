@@ -35,84 +35,52 @@
 *
 ******************************************************************************/
 
-#include "Fifo.h"
+#pragma once
 
-bool AL_Fifo_Init(AL_TFifo* pFifo, size_t zMaxElem)
+#include "lib_rtos/lib_rtos.h"
+
+typedef struct
 {
-  pFifo->m_zMaxElem = zMaxElem + 1;
-  pFifo->m_zTail = 0;
-  pFifo->m_zHead = 0;
+  uint64_t timestamp;
+  char label[32];
+}LogEvent;
 
-  size_t zElemSize = pFifo->m_zMaxElem * sizeof(void*);
-  pFifo->m_ElemBuffer = Rtos_Malloc(zElemSize);
+typedef struct AL_t_Timer AL_Timer;
+typedef struct
+{
+  uint32_t (* pfnGetTime)(AL_Timer* timer);
+}AL_TimerVtable;
 
-  if(!pFifo->m_ElemBuffer)
-    return false;
-  Rtos_Memset(pFifo->m_ElemBuffer, 0xCD, zElemSize);
+struct AL_t_Timer
+{
+  const AL_TimerVtable* vtable;
+};
 
-  pFifo->hCountSem = Rtos_CreateSemaphore(0);
 
-  if(!pFifo->hCountSem)
-  {
-    Rtos_Free(pFifo->m_ElemBuffer);
-    return false;
-  }
+typedef struct
+{
+  const AL_TimerVtable* vtable;
+}AL_CpuTimer;
+AL_Timer* AL_CpuTimerInit(AL_CpuTimer* timer);
+extern AL_CpuTimer g_CpuTimer;
 
-  pFifo->hSpaceSem = Rtos_CreateSemaphore(zMaxElem);
-  pFifo->hMutex = Rtos_CreateMutex();
+typedef struct
+{
+  AL_Timer* timer;
+  LogEvent* events;
+  int count;
+  int maxCount;
+  AL_MUTEX mutex;
+}AL_Logger;
 
-  if(!pFifo->hSpaceSem)
-  {
-    Rtos_DeleteSemaphore(pFifo->hCountSem);
-    Rtos_Free(pFifo->m_ElemBuffer);
-    return false;
-  }
-
-  return true;
+static inline uint32_t AL_Timer_GetTime(AL_Timer* timer)
+{
+  return timer->vtable->pfnGetTime(timer);
 }
 
-bool AL_Fifo_Empty(AL_TFifo* pFifo)
-{
-  return pFifo->m_zHead == pFifo->m_zTail;
-}
+extern AL_Logger g_Logger;
 
-void AL_Fifo_Deinit(AL_TFifo* pFifo)
-{
-  Rtos_Free(pFifo->m_ElemBuffer);
-  Rtos_DeleteSemaphore(pFifo->hCountSem);
-  Rtos_DeleteSemaphore(pFifo->hSpaceSem);
-  Rtos_DeleteMutex(pFifo->hMutex);
-}
-
-bool AL_Fifo_Queue(AL_TFifo* pFifo, void* pElem, uint32_t uWait)
-{
-  if(!Rtos_GetSemaphore(pFifo->hSpaceSem, uWait))
-    return false;
-
-  Rtos_GetMutex(pFifo->hMutex);
-  pFifo->m_ElemBuffer[pFifo->m_zTail] = pElem;
-  pFifo->m_zTail = (pFifo->m_zTail + 1) % pFifo->m_zMaxElem;
-  Rtos_ReleaseMutex(pFifo->hMutex);
-
-  Rtos_ReleaseSemaphore(pFifo->hCountSem);
-
-  /* new item was added in the queue */
-  return true;
-}
-
-void* AL_Fifo_Dequeue(AL_TFifo* pFifo, uint32_t uWait)
-{
-  /* wait if no items */
-  if(!Rtos_GetSemaphore(pFifo->hCountSem, uWait))
-    return NULL;
-
-  Rtos_GetMutex(pFifo->hMutex);
-  void* pElem = pFifo->m_ElemBuffer[pFifo->m_zHead];
-  pFifo->m_zHead = (pFifo->m_zHead + 1) % pFifo->m_zMaxElem;
-  Rtos_ReleaseMutex(pFifo->hMutex);
-
-  /* new empty space available */
-  Rtos_ReleaseSemaphore(pFifo->hSpaceSem);
-  return pElem;
-}
+void AL_LoggerInit(AL_Logger* logger, AL_Timer* timer, LogEvent* buffer, int maxCount);
+void AL_LoggerDeinit(AL_Logger* logger);
+void AL_Log(AL_Logger* logger, const char* label);
 

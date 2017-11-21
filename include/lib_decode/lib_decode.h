@@ -75,7 +75,7 @@ typedef struct
 *****************************************************************************/
 typedef struct
 {
-  void (* func)(AL_TBuffer* pDisplayedFrame, AL_TInfoDecode tInfo, void* pUserParam);
+  void (* func)(AL_TBuffer* pDisplayedFrame, AL_TInfoDecode* pInfo, void* pUserParam);
   void* userParam;
 }AL_CB_Display;
 

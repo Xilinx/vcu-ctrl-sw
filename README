@@ -1,6 +1,6 @@
-================================
-VCU Control Software Source Code
-================================
+============================
+Allegro Software Source Code
+============================
 
 Overview
 ========
@@ -51,5 +51,5 @@ lib_ip_ctrl     interface to the codec.
 User Manual
 ===========
 
-Refer to Xilinx product guide document: PG252 H.264/H.265 Video Codec Unit Product Guide.
+The encoder user manual is available in Doc/Allegro_encoder_UserManual.pdf
 

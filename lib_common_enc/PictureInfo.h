@@ -70,11 +70,15 @@ static const uint32_t AL_PICT_INFO_BEG_FRM = 0x00000008;
 static const uint32_t AL_PICT_INFO_END_FRM = 0x00000010;
 static const uint32_t AL_PICT_INFO_END_SRC = 0x00000020;
 static const uint32_t AL_PICT_INFO_USE_LT = 0x00000040;
+static const uint32_t AL_PICT_INFO_IS_GOLDREF = 0x0000080;
+
 
 #define AL_IS_IDR(PicInfo) ((PicInfo).uFlags & AL_PICT_INFO_IS_IDR)
 #define AL_IS_REF(PicInfo) ((PicInfo).uFlags & AL_PICT_INFO_IS_REF)
 #define AL_SCN_CHG(PicInfo) ((PicInfo).uFlags & AL_PICT_INFO_SCN_CHG)
 #define AL_USE_LT(PicInfo) ((PicInfo).uFlags & AL_PICT_INFO_USE_LT)
+#define AL_END_SRC(PicInfo) ((PicInfo).uFlags & AL_PICT_INFO_END_SRC)
+#define AL_IS_GOLDREF(PicInfo) ((PicInfo).uFlags & AL_PICT_INFO_IS_GOLDREF)
 
 /*************************************************************************//*!
    \brief Picture informations
@@ -97,7 +101,6 @@ typedef struct AL_t_PictureInfo
 
   uint16_t uGdrPos; /*!< Gradual Refresh position */
   AL_EGdrMode eGdrMode; /*!< Gradual Refresh Mode */
-  bool bIsGoldenRef;
 }AL_TPictureInfo;
 
 /*@}*/

@@ -78,7 +78,7 @@ static bool AL_Buffer_InitData(AL_TBufferImpl* pBuf, AL_TAllocator* pAllocator, 
   pBuf->iMetaCount = 0;
 
   pBuf->iRefCount = 0;
-  pBuf->pLock = Rtos_CreateMutex(false);
+  pBuf->pLock = Rtos_CreateMutex();
 
   if(!pBuf->pLock)
     return false;

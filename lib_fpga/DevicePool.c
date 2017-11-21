@@ -63,7 +63,7 @@ struct DevicePool
 
 static bool DevicePool_Init(struct DevicePool* pDP)
 {
-  pDP->pLock = Rtos_CreateMutex(false);
+  pDP->pLock = Rtos_CreateMutex();
 
   if(!pDP->pLock)
     return false;

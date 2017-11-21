@@ -187,7 +187,7 @@ static bool Fifo_Init(App_Fifo* pFifo, size_t zMaxElem)
   }
 
   pFifo->hSpaceSem = Rtos_CreateSemaphore(zMaxElem);
-  pFifo->hMutex = Rtos_CreateMutex(false);
+  pFifo->hMutex = Rtos_CreateMutex();
 
   if(!pFifo->hSpaceSem)
   {

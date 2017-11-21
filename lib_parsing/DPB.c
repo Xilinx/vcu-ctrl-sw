@@ -549,7 +549,7 @@ void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, AL_EDpbMode eMode, AL_TPictureM
   pDpb->m_iDltMvLstTail = 0;
   pDpb->m_iNumDltPic = 0;
 
-  pDpb->m_Mutex = Rtos_CreateMutex(false);
+  pDpb->m_Mutex = Rtos_CreateMutex();
 
   AL_DispFifo_sInit(&pDpb->m_DispFifo);
 
