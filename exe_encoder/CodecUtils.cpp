@@ -113,7 +113,7 @@ static uint32_t GetLumaRowSize(TFourCC fourCC, uint32_t uWidth)
 /*****************************************************************************/
 int GotoNextPicture(TYUVFileInfo const& FI, std::ifstream& File, int iEncFrameRate, int iEncPictCount, int iFilePictCount)
 {
-  int iMove = (((iEncPictCount + 1) * FI.FrameRate) / iEncFrameRate) - (iFilePictCount + 1);
+  int iMove = ((iEncPictCount * FI.FrameRate) / iEncFrameRate) - iFilePictCount;
 
   if(iMove != 0)
   {

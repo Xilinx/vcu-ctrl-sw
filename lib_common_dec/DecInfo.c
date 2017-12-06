@@ -43,7 +43,7 @@
 #include <assert.h>
 
 /******************************************************************************/
-bool AL_NeedsCropping(AL_TCropInfo* pInfo)
+bool AL_NeedsCropping(AL_TCropInfo const* pInfo)
 {
   if(pInfo->uCropOffsetLeft || pInfo->uCropOffsetRight)
     return true;
@@ -54,13 +54,32 @@ bool AL_NeedsCropping(AL_TCropInfo* pInfo)
   return false;
 }
 
+int AVC_GetMinOutputBuffersNeeded(int iDpbMaxBuf, int iStack)
+{
+  int const iRecBuf = REC_BUF;
+  int const iConcealBuf = CONCEAL_BUF;
+  return iDpbMaxBuf + iStack + iRecBuf + iConcealBuf;
+}
+
 /******************************************************************************/
 int AL_AVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iStack, AL_EDpbMode eMode)
 {
   int const iDpbMaxBuf = AL_AVC_GetMaxDPBSize(tStreamSettings.iLevel, tStreamSettings.tDim.iWidth, tStreamSettings.tDim.iHeight, eMode);
-  int const iRecBuf = REC_BUF;
+  return AVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, iStack);
+}
+
+int HEVC_GetMinOutputBuffersNeeded(int iDpbMaxBuf, int iStack)
+{
+  int const iRecBuf = 0;
   int const iConcealBuf = CONCEAL_BUF;
   return iDpbMaxBuf + iStack + iRecBuf + iConcealBuf;
+}
+
+/******************************************************************************/
+int AL_HEVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iStack, AL_EDpbMode eMode)
+{
+  int const iDpbMaxBuf = AL_HEVC_GetMaxDPBSize(tStreamSettings.iLevel, tStreamSettings.tDim.iWidth, tStreamSettings.tDim.iHeight, eMode);
+  return HEVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, iStack);
 }
 
 /******************************************************************************/
@@ -138,15 +157,6 @@ int AL_AVC_GetMaxDPBSize(int iLevel, int iWidth, int iHeight, AL_EDpbMode eMode)
 
   int const iNumMbs = ((iWidth / 16) * (iHeight / 16));
   return Clip3(iMaxDpbMbs / iNumMbs, 2, MAX_REF);
-}
-
-/******************************************************************************/
-int AL_HEVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iStack, AL_EDpbMode eMode)
-{
-  int const iDpbMaxBuf = AL_HEVC_GetMaxDPBSize(tStreamSettings.iLevel, tStreamSettings.tDim.iWidth, tStreamSettings.tDim.iHeight, eMode);
-  int const iRecBuf = 0;
-  int const iConcealBuf = CONCEAL_BUF;
-  return iDpbMaxBuf + iStack + iRecBuf + iConcealBuf;
 }
 
 /******************************************************************************/

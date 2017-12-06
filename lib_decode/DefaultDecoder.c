@@ -187,7 +187,7 @@ static void AL_sDecoder_CallDisplay(AL_TDecCtx* pCtx)
     assert(AL_Buffer_GetData(pFrameToDisplay));
 
     pCtx->m_displayCB.func(pFrameToDisplay, &pInfo, pCtx->m_displayCB.userParam);
-    AL_PictMngr_SignalBufferDisplayed(&pCtx->m_PictMngr, pFrameToDisplay);
+    AL_PictMngr_SignalCallbackDisplayIsDone(&pCtx->m_PictMngr, pFrameToDisplay);
   }
 }
 
@@ -308,7 +308,7 @@ static void ReleaseFramePictureUnused(AL_TDecCtx* pCtx)
 
     pCtx->m_displayCB.func(pFrameToRelease, NULL, pCtx->m_displayCB.userParam);
 
-    AL_PictMngr_SignalBufferDisplayed(&pCtx->m_PictMngr, pFrameToRelease);
+    AL_PictMngr_SignalCallbackReleaseIsDone(&pCtx->m_PictMngr, pFrameToRelease);
   }
 }
 
@@ -335,6 +335,8 @@ void AL_Default_Decoder_Destroy(AL_TDecoder* pAbsDec)
   DeinitPictureManager(pCtx);
 
   AL_IDecChannel_Destroy(pCtx->m_pDecChannel);
+
+  MemDesc_Free(&pCtx->circularBuf.tMD);
 
   Rtos_Free(pCtx->m_BufNoAE.tMD.pVirtualAddr);
 
@@ -385,7 +387,7 @@ static bool enoughStartCode(int iNumStartCode)
 }
 
 /*****************************************************************************/
-static bool SearchNextDecodUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* pLastNalInAU, int* iLastVclNalInAU)
+static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* pLastNalInDecodingUnit, int* iLastVclNalInDecodingUnit)
 {
   if(!enoughStartCode(pCtx->m_uNumSC))
     return false;
@@ -424,7 +426,7 @@ static bool SearchNextDecodUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* pLa
 
       bool const IsFirstSlice = pBuf[uPos] & 0x80;
       bool bFind = false;
-      switch(pCtx->m_eDecUnit)
+      switch(pCtx->m_chanParam.eDecUnit)
       {
       case AL_AU_UNIT:
       {
@@ -442,8 +444,8 @@ static bool SearchNextDecodUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* pLa
 
       if(bFind)
       {
-        *pLastNalInAU = Max(iLastNonVclNal - 1, iLastVclNal);
-        *iLastVclNalInAU = IsFirstSlice ? iLastVclNal : notFound;
+        *pLastNalInDecodingUnit = Max(iLastNonVclNal - 1, iLastVclNal);
+        *iLastVclNalInDecodingUnit = IsFirstSlice ? iLastVclNal : notFound;
         return true;
       }
 
@@ -461,11 +463,11 @@ static bool SearchNextDecodUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* pLa
         if(iLastVclNal == notFound)
           continue;
 
-        *pLastNalInAU = iNal;
+        *pLastNalInDecodingUnit = iNal;
 
         if(isAud(eCodec, eNUT))
-          *pLastNalInAU -= 1;
-        *iLastVclNalInAU = iLastVclNal;
+          *pLastNalInDecodingUnit -= 1;
+        *iLastVclNalInDecodingUnit = iLastVclNal;
         return true;
       }
     }
@@ -559,7 +561,7 @@ static int FindNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pBufStream, int* 
 {
   int iLastNalIdx = 0;
 
-  while(!SearchNextDecodUnit(pCtx, pBufStream, &iLastNalIdx, iLastVclNalInAU))
+  while(!SearchNextDecodingUnit(pCtx, pBufStream, &iLastNalIdx, iLastVclNalInAU))
   {
     if(!canStoreMoreStartCodes(pCtx))
     {
@@ -797,8 +799,7 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
   {
     int const iSizeYuv = AL_GetAllocSize_Frame(tStreamSettings.tDim, tStreamSettings.eChroma, tStreamSettings.iBitDepth, pCtx->m_chanParam.bFrameBufferCompression, pCtx->m_chanParam.eFBStorageMode);
     AL_TCropInfo const tCropInfo = { false, 0, 0, 0, 0 }; // XXX
-    AL_TPicFormat const tPicFmt = { tStreamSettings.eChroma, tStreamSettings.iBitDepth };
-    pCtx->m_resolutionFoundCB.func(iMaxBuf, iSizeYuv, tStreamSettings.tDim, tCropInfo, AL_GetSrcFourCC(tPicFmt), pCtx->m_resolutionFoundCB.userParam);
+    pCtx->m_resolutionFoundCB.func(iMaxBuf, iSizeYuv, &tStreamSettings, &tCropInfo, pCtx->m_resolutionFoundCB.userParam);
   }
 
   pCtx->m_bIsBuffersAllocated = true;
@@ -871,7 +872,6 @@ static void AssignSettings(AL_TDecCtx* const pCtx, AL_TDecSettings* const pSetti
 {
   pCtx->m_iStackSize = pSettings->iStackSize;
   pCtx->m_bForceFrameRate = pSettings->bForceFrameRate;
-  pCtx->m_eDecUnit = pSettings->eDecUnit;
   pCtx->m_eDpbMode = pSettings->eDpbMode;
   pCtx->m_tStreamSettings = pSettings->tStream;
 
@@ -887,6 +887,7 @@ static void AssignSettings(AL_TDecCtx* const pCtx, AL_TDecSettings* const pSetti
   pChan->bParallelWPP = pSettings->bParallelWPP;
   pChan->bLowLat = pSettings->bLowLat;
   pChan->eCodec = pSettings->bIsAvc ? AL_CODEC_AVC : AL_CODEC_HEVC;
+  pChan->eDecUnit = pSettings->eDecUnit;
 }
 
 /*****************************************************************************/
@@ -1105,7 +1106,11 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel,
     errorHandler,
     (void*)pDec
   };
-  pCtx->m_Feeder = AL_BufferFeeder_Create((AL_HDecoder)pDec, pAllocator, iBufferStreamSize, iInputFifoSize, &errorCallback);
+
+  if(!MemDesc_AllocNamed(&pCtx->circularBuf.tMD, pAllocator, iBufferStreamSize, "circular stream"))
+    goto cleanup;
+
+  pCtx->m_Feeder = AL_BufferFeeder_Create((AL_HDecoder)pDec, &pCtx->circularBuf, iInputFifoSize, &errorCallback);
 
   if(!pCtx->m_Feeder)
     goto cleanup;

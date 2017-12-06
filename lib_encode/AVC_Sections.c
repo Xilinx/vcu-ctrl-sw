@@ -47,7 +47,8 @@ void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatu
     AL_AVC_NUT_PPS,
     AL_AVC_NUT_AUD,
     AL_AVC_NUT_FD,
-    AL_AVC_NUT_SEI,
+    AL_AVC_NUT_PREFIX_SEI,
+    AL_AVC_NUT_SUFFIX_SEI,
   };
 
   NalsData nalsData = AL_ExtractNalsData(pCtx);

@@ -50,7 +50,7 @@
 #include "lib_common/SliceConsts.h"
 #include "lib_common/BufCommon.h"
 
-#define NUMCORE_AUTO 0xff
+#define NUMCORE_AUTO 0
 
 /***************************************************************************/
 static AL_INLINE int Clip3(int iVal, int iMin, int iMax)

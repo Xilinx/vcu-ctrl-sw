@@ -123,6 +123,8 @@ typedef struct AL_t_EncCtx
   int m_iCurStreamSent;
   int m_iCurStreamRecv;
 
+  AL_TBuffer* m_SourceSent[AL_MAX_SOURCE_BUFFER];
+
 
   AL_MUTEX m_Mutex;
   AL_SEMAPHORE m_PendingEncodings; // tracks the count of jobs sent to the scheduler

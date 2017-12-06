@@ -38,6 +38,8 @@
 #include "Sections.h"
 #include "NalWriters.h"
 
+#include <lib_common/SEI.h>
+
 #include <assert.h>
 
 static int getBytesOffset(AL_TBitStreamLite* pStream)
@@ -55,7 +57,7 @@ static int writeNalInBuffer(IRbspWriter* writer, uint8_t* buffer, AL_NalUnit* na
   return AL_BitStreamLite_GetBitsCount(&bitstream);
 }
 
-static void GenerateNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, AL_NalUnit* nal, AL_TStreamMetaData* pMeta)
+static void GenerateNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, AL_NalUnit* nal, AL_TStreamMetaData* pMeta, uint32_t uFlags)
 {
   uint8_t tmpBuffer[ENC_MAX_HEADER_SIZE];
 
@@ -65,20 +67,20 @@ static void GenerateNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, AL_Na
   FlushNAL(bitstream, nal->nut, nal->header, tmpBuffer, sizeInBits);
   int end = getBytesOffset(bitstream);
 
-  AL_StreamMetaData_AddSection(pMeta, start, end - start, SECTION_CONFIG_FLAG);
+  AL_StreamMetaData_AddSection(pMeta, start, end - start, uFlags);
 }
 
-static void GenerateNalUnits(IRbspWriter* writer, AL_NalUnit* nals, int nalsCount, AL_TBuffer* pStream)
+static void GenerateConfigNalUnits(IRbspWriter* writer, AL_NalUnit* nals, int nalsCount, AL_TBuffer* pStream)
 {
   AL_TBitStreamLite bitstream;
   AL_BitStreamLite_Init(&bitstream, AL_Buffer_GetData(pStream));
   AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
 
   for(int i = 0; i < nalsCount; i++)
-    GenerateNal(writer, &bitstream, &nals[i], pMetaData);
+    GenerateNal(writer, &bitstream, &nals[i], pMetaData, SECTION_CONFIG_FLAG);
 }
 
-static SeiCtx createSeiCtx(AL_TSps* sps, AL_TPps* pps, AL_THevcVps* vps, int initialCpbRemovalDelay, int cpbRemovalDelay, AL_TEncPicStatus const* pPicStatus)
+static SeiPrefixCtx createSeiPrefixCtx(AL_TSps* sps, AL_TPps* pps, AL_THevcVps* vps, int initialCpbRemovalDelay, int cpbRemovalDelay, AL_TEncPicStatus const* pPicStatus)
 {
   uint32_t uFlags = SEI_PT;
 
@@ -89,7 +91,14 @@ static SeiCtx createSeiCtx(AL_TSps* sps, AL_TPps* pps, AL_THevcVps* vps, int ini
     if(!pPicStatus->bIsIDR)
       uFlags |= SEI_RP;
   }
-  SeiCtx ctx = { sps, pps, vps, initialCpbRemovalDelay, cpbRemovalDelay, uFlags, pPicStatus };
+  SeiPrefixCtx ctx = { sps, pps, vps, initialCpbRemovalDelay, cpbRemovalDelay, uFlags, pPicStatus };
+  return ctx;
+}
+
+static SeiSuffixCtx createSeiSuffixCtx()
+{
+  SeiSuffixCtx ctx;
+  Rtos_Memcpy(&ctx.uuid, SEI_SUFFIX_USER_DATA_UNREGISTERED_UUID, 16);
   return ctx;
 }
 
@@ -108,8 +117,11 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
 
   if(pPicStatus->bIsFirstSlice)
   {
-    AL_NalUnit nals[4];
+    AL_NalUnit nals[5];
     int nalsCount = 0;
+
+    if(nalsData->shouldWriteAud)
+      nals[nalsCount++] = AL_CreateAud(nuts.audNut, pPicStatus->eType);
 
     if(pPicStatus->bIsIDR)
     {
@@ -122,18 +134,18 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
     if(pPicStatus->eType == SLICE_I)
       nals[nalsCount++] = AL_CreatePps(nuts.ppsNut, nalsData->pps);
 
-    SeiCtx ctx;
+    SeiPrefixCtx ctx;
 
     if(nalsData->seiData)
     {
-      ctx = createSeiCtx(nalsData->sps, nalsData->pps, nalsData->vps, nalsData->seiData->initialCpbRemovalDelay, nalsData->seiData->cpbRemovalDelay, pPicStatus);
-      nals[nalsCount++] = AL_CreateSei(&ctx, nuts.seiNut);
+      ctx = createSeiPrefixCtx(nalsData->sps, nalsData->pps, nalsData->vps, nalsData->seiData->initialCpbRemovalDelay, nalsData->seiData->cpbRemovalDelay, pPicStatus);
+      nals[nalsCount++] = AL_CreateSeiPrefix(&ctx, nuts.seiPrefixNut);
     }
 
     for(int i = 0; i < nalsCount; i++)
       nals[i].header = nuts.GetNalHeader(nals[i].nut, nals[i].idc);
 
-    GenerateNalUnits(writer, nals, nalsCount, pStream);
+    GenerateConfigNalUnits(writer, nals, nalsCount, pStream);
   }
 
   AL_TStreamPart* pStreamParts = (AL_TStreamPart*)(AL_Buffer_GetData(pStream) + pPicStatus->uStreamPartOffset);
@@ -154,12 +166,10 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
 
   if(pPicStatus->bIsLastSlice)
   {
-    if(nalsData->shouldWriteAud)
-    {
-      AL_NalUnit nal = AL_CreateAud(nuts.audNut, 2 /*pPicStatus->eType */);
-      nal.header = nuts.GetNalHeader(nal.nut, nal.idc);
-      GenerateNal(writer, &bs, &nal, pMetaData);
-    }
+    SeiSuffixCtx seiSufficCtx = createSeiSuffixCtx();
+    AL_NalUnit nal = AL_CreateSeiSuffix(&seiSufficCtx, nuts.seiSuffixNut);
+    nal.header = nuts.GetNalHeader(nal.nut, nal.idc);
+    GenerateNal(writer, &bs, &nal, pMetaData, 0);
     AL_StreamMetaData_AddSection(pMetaData, 0, 0, SECTION_END_FRAME_FLAG);
   }
 

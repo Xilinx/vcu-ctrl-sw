@@ -73,6 +73,7 @@ typedef struct AL_t_DecChannelParam
   AL_EFbStorageMode eFBStorageMode;
   AL_ECodec eCodec;
   int32_t iMaxSlices;
+  AL_EDecUnit eDecUnit;
 }AL_TDecChanParam;
 
 /*@}*/

@@ -64,7 +64,8 @@ typedef AL_HANDLE AL_HEncoder;
    \brief This callback is called when
    - a frame is encoded ((pStream != NULL) && (pSrc != NULL))
    - eos reached ((pStream == NULL) && (pSrc == NULL))
-   - release stream buffer ((pStream != NULL && (pSrc == NULL))
+   - release stream buffer ((pStream != NULL) && (pSrc == NULL))
+   - release source buffer ((pStream == NULL) && (pSrc != NULL))
    \param[out] pUserParam User parameter
    \param[out] pStream The stream buffer if any
    \param[out] pSrc The source buffer associated to the stream if any

@@ -53,15 +53,38 @@ void AL_Common_Encoder_WaitReadiness(AL_TEncCtx* pCtx)
 }
 
 /***************************************************************************/
+static void RemoveSourceSent(AL_TEncCtx* pCtx, AL_TBuffer const* const pSrc)
+{
+  for(int i = 0; i < AL_MAX_SOURCE_BUFFER; i++)
+  {
+    if(pCtx->m_SourceSent[i] == pSrc)
+    {
+      pCtx->m_SourceSent[i] = NULL;
+      return;
+    }
+  }
+
+  assert(0);
+}
+
+/***************************************************************************/
 void AL_Common_Encoder_EndEncoding2(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TBuffer* pSrc, AL_TBuffer* pQpTable, bool IsEndOfFrame, bool shouldReleaseSrc)
 {
   if(pCtx->m_callback.func)
     (*pCtx->m_callback.func)(pCtx->m_callback.userParam, pStream, pSrc);
 
+  if(!pStream && pSrc)
+  {
+    RemoveSourceSent(pCtx, pSrc);
+    AL_Buffer_Unref(pSrc);
+    return;
+  }
+
   if(IsEndOfFrame)
   {
     if(shouldReleaseSrc)
     {
+      RemoveSourceSent(pCtx, pSrc);
       AL_Buffer_Unref(pSrc);
 
       if(pQpTable)
@@ -157,6 +180,7 @@ void AL_Common_Encoder_InitCtx(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_
   pCtx->m_iNumLCU = iWidthInLcu * iHeightInLcu;
 
   Rtos_Memset(pCtx->m_Pool, 0, sizeof pCtx->m_Pool);
+  Rtos_Memset(pCtx->m_SourceSent, 0, sizeof(pCtx->m_SourceSent));
 
   pCtx->m_Mutex = Rtos_CreateMutex();
   assert(pCtx->m_Mutex);
@@ -194,16 +218,15 @@ bool AL_Common_Encoder_PutStreamBuffer(AL_TEncoder* pEnc, AL_TBuffer* pStream)
   AL_StreamMetaData_ClearAllSections(pMetaData);
   Rtos_GetMutex(pCtx->m_Mutex);
   pCtx->m_StreamSent[pCtx->m_iCurStreamSent] = pStream;
-  bool const bRet = AL_ISchedulerEnc_PutStreamBuffer(pCtx->m_pScheduler, pCtx->m_hChannel, pStream, pCtx->m_iCurStreamSent, ENC_MAX_HEADER_SIZE);
+  int curStreamSent = pCtx->m_iCurStreamSent;
+  pCtx->m_iCurStreamSent = (pCtx->m_iCurStreamSent + 1) % AL_MAX_STREAM_BUFFER;
+  AL_Buffer_Ref(pStream);
 
-  if(bRet)
-  {
-    pCtx->m_iCurStreamSent = (pCtx->m_iCurStreamSent + 1) % AL_MAX_STREAM_BUFFER;
-    AL_Buffer_Ref(pStream);
-  }
+  /* Can call AL_Common_Encoder_PutStreamBuffer again */
+  AL_ISchedulerEnc_PutStreamBuffer(pCtx->m_pScheduler, pCtx->m_hChannel, pStream, curStreamSent, ENC_MAX_HEADER_SIZE);
   Rtos_ReleaseMutex(pCtx->m_Mutex);
 
-  return bRet;
+  return true;
 }
 
 /***************************************************************************/
@@ -225,6 +248,22 @@ void AL_Common_Encoder_ReleaseRecPicture(AL_TEncoder* pEnc, TRecPic* pRecPic)
 }
 
 void AL_Common_Encoder_ConfigureZapper(AL_TEncCtx* pCtx, AL_TEncInfo* pEncInfo);
+
+/***************************************************************************/
+static void AddSourceSent(AL_TEncCtx* pCtx, AL_TBuffer* pSrc)
+{
+  for(int i = 0; i < AL_MAX_SOURCE_BUFFER; i++)
+  {
+    if(pCtx->m_SourceSent[i] == NULL)
+    {
+      pCtx->m_SourceSent[i] = pSrc;
+      return;
+    }
+  }
+
+  assert(0);
+}
+
 /***************************************************************************/
 bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer* pQpTable)
 {
@@ -289,6 +328,7 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
 
   pCtx->m_iCurPool = (pCtx->m_iCurPool + 1) % ENC_MAX_CMD;
 
+  AddSourceSent(pCtx, pFrame);
   bool bRet = AL_ISchedulerEnc_EncodeOneFrame(pCtx->m_pScheduler, pCtx->m_hChannel, pEI, pReqInfo, &addresses);
 
   Rtos_Memset(pReqInfo, 0, sizeof(*pReqInfo));
@@ -436,6 +476,15 @@ static void releaseStream(AL_TEncCtx* pCtx)
     AL_Common_Encoder_EndEncoding(pCtx, pCtx->m_StreamSent[streamId], NULL, NULL, false);
 }
 
+static void releaseSource(AL_TEncCtx* pCtx)
+{
+  for(int sourceId = 0; sourceId < AL_MAX_SOURCE_BUFFER; sourceId++)
+  {
+    if(pCtx->m_SourceSent[sourceId] != NULL)
+      AL_Common_Encoder_EndEncoding(pCtx, NULL, pCtx->m_SourceSent[sourceId], NULL, false);
+  }
+}
+
 /***************************************************************************/
 void AL_Common_Encoder_DestroyCtx(AL_TEncCtx* pCtx)
 {
@@ -443,6 +492,7 @@ void AL_Common_Encoder_DestroyCtx(AL_TEncCtx* pCtx)
   {
     AL_ISchedulerEnc_DestroyChannel(pCtx->m_pScheduler, pCtx->m_hChannel);
     releaseStream(pCtx);
+    releaseSource(pCtx);
   }
 
   Rtos_DeleteMutex(pCtx->m_Mutex);

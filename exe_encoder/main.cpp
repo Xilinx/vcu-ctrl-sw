@@ -236,6 +236,8 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addInt("--num-core", &cfg.Settings.tChParam.uNumCore, "Specify the number of cores to use (resolution needs to be sufficient)");
   opt.addString("--log", &cfg.RunInfo.logsFile, "A file where log event will be dumped");
   opt.addFlag("--loop", &cfg.RunInfo.bLoop, "loop at the end of the yuv file");
+  opt.addFlag("--slicelat", &cfg.Settings.tChParam.bSubframeLatency, "enable subframe latency");
+  opt.addFlag("--framelat", &cfg.Settings.tChParam.bSubframeLatency, "disable subframe latency", false);
 
   opt.addInt("--prefetch", &g_numFrameToRepeat, "prefetch n frames and loop between these frames for max picture count");
   opt.parse(argc, argv);
@@ -431,7 +433,7 @@ unique_ptr<IConvSrc> CreateSrcConverter(TFrameInfo const& FrameInfo, AL_ESrcMode
 }
 
 /*****************************************************************************/
-int SafeMain(int argc, char** argv)
+void SafeMain(int argc, char** argv)
 {
   ConfigFile cfg;
   SetDefaults(cfg);
@@ -451,7 +453,7 @@ int SafeMain(int argc, char** argv)
   SetMoreDefaults(cfg);
 
 
-  function<AL_TIpCtrl*(AL_TIpCtrl*)> wrapIpCtrl;
+  function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl;
   switch(RunInfo.ipCtrlMode)
   {
   default:
@@ -493,8 +495,7 @@ int SafeMain(int argc, char** argv)
     streamSize = (streamSize + 31) & ~31;
   }
 
-  StreamBufPoolConfig.uMinBuf = numStreams;
-  StreamBufPoolConfig.uMaxBuf = numStreams;
+  StreamBufPoolConfig.uNumBuf = numStreams;
   StreamBufPoolConfig.zBufSize = streamSize;
   StreamBufPoolConfig.pMetaData = (AL_TMetaData*)AL_StreamMetaData_Create(AL_MAX_SECTION);
   StreamBufPoolConfig.debugName = "stream";
@@ -512,8 +513,7 @@ int SafeMain(int argc, char** argv)
 
   if(cfg.Settings.eQpCtrlMode & (MASK_QP_TABLE_EXT))
   {
-    QpBufPoolConfig.uMinBuf = frameBuffersCount;
-    QpBufPoolConfig.uMaxBuf = frameBuffersCount;
+    QpBufPoolConfig.uNumBuf = frameBuffersCount;
     AL_TDimension tDim = { cfg.Settings.tChParam.uWidth, cfg.Settings.tChParam.uHeight };
     QpBufPoolConfig.zBufSize = GetAllocSizeEP2(tDim, cfg.Settings.tChParam.uMaxCuSize);
     QpBufPoolConfig.pMetaData = NULL;
@@ -570,7 +570,7 @@ int SafeMain(int argc, char** argv)
   }
 
 
-  for(unsigned int i = 0; i < StreamBufPoolConfig.uMaxBuf; ++i)
+  for(unsigned int i = 0; i < StreamBufPoolConfig.uNumBuf; ++i)
   {
     AL_TBuffer* pStream = AL_BufPool_GetBuffer(&StreamBufPool, AL_BUF_MODE_NONBLOCK);
     assert(pStream);
@@ -607,8 +607,7 @@ int SafeMain(int argc, char** argv)
 
   AL_TBufPoolConfig poolConfig {};
 
-  poolConfig.uMinBuf = frameBuffersCount;
-  poolConfig.uMaxBuf = frameBuffersCount;
+  poolConfig.uNumBuf = frameBuffersCount;
   poolConfig.zBufSize = pSrcConv->GetConvBufSize();
 
   poolConfig.pMetaData = (AL_TMetaData*)AL_SrcMetaData_Create({ FrameInfo.iWidth, FrameInfo.iHeight }, p, tOffsetYC, FourCC);
@@ -624,7 +623,8 @@ int SafeMain(int argc, char** argv)
 
   Rtos_WaitEvent(hFinished, AL_WAIT_FOREVER);
 
-  return int(GetEncoderLastError());
+  if(auto err = GetEncoderLastError())
+    throw codec_error(EncoderErrorToString(err), err);
 }
 
 /******************************************************************************/
@@ -633,7 +633,8 @@ int main(int argc, char** argv)
 {
   try
   {
-    return SafeMain(argc, argv);
+    SafeMain(argc, argv);
+    return 0;
   }
   catch(codec_error const& error)
   {

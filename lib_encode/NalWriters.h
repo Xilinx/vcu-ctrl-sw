@@ -55,7 +55,7 @@ AL_NalUnit AL_CreatePps(int nut, AL_TPps* pps);
 AL_NalUnit AL_CreateVps(AL_THevcVps* vps);
 
 #include "lib_common_enc/EncPicInfo.h"
-typedef struct t_SeiCtx
+typedef struct t_SeiPrefixCtx
 {
   AL_TSps* sps;
   AL_TPps* pps;
@@ -64,7 +64,14 @@ typedef struct t_SeiCtx
   int cpbRemovalDelay;
   uint32_t uFlags;
   AL_TEncPicStatus const* pPicStatus;
-}SeiCtx;
+}SeiPrefixCtx;
 
-AL_NalUnit AL_CreateSei(SeiCtx* ctx, int nut);
+AL_NalUnit AL_CreateSeiPrefix(SeiPrefixCtx* ctx, int nut);
+
+typedef struct t_SeiSuffixCtx
+{
+  uint8_t uuid[16];
+}SeiSuffixCtx;
+
+AL_NalUnit AL_CreateSeiSuffix(SeiSuffixCtx* ctx, int nut);
 

@@ -232,7 +232,7 @@ typedef enum e_NalUnitType
   AL_AVC_UNDEF_NUT = 0,
   AL_AVC_NUT_VCL_NON_IDR = 1,
   AL_AVC_NUT_VCL_IDR = 5,
-  AL_AVC_NUT_SEI = 6,
+  AL_AVC_NUT_PREFIX_SEI = 6,
   AL_AVC_NUT_SPS = 7,
   AL_AVC_NUT_PPS = 8,
   AL_AVC_NUT_AUD = 9,
@@ -241,6 +241,7 @@ typedef enum e_NalUnitType
   AL_AVC_NUT_FD = 12,
   AL_AVC_NUT_SPS_EXT = 13,
   AL_AVC_NUT_SUB_SPS = 15,
+  AL_AVC_NUT_SUFFIX_SEI = 24, /* nal_unit_type : [24..31] -> Content Unspecified */
   AL_AVC_NUT_ERR = 32,
   AL_HEVC_NUT_TRAIL_N = 0,
   AL_HEVC_NUT_TRAIL_R = 1,

@@ -198,7 +198,7 @@ static bool isFirstSPSCompatibleWithStreamSettings(AL_THevcSps tSPS, AL_TStreamS
 
   const AL_EChromaMode eSPSChromaMode = (AL_EChromaMode)tSPS.chroma_format_idc;
 
-  if((tStreamSettings.eChroma != CHROMA_MAX_ENUM) && (eSPSChromaMode != tStreamSettings.eChroma))
+  if((tStreamSettings.eChroma != CHROMA_MAX_ENUM) && (tStreamSettings.eChroma < eSPSChromaMode))
     return false;
 
   const AL_TCropInfo tSPSCropInfo = getCropInfo(&tSPS);
@@ -216,6 +216,8 @@ static bool isFirstSPSCompatibleWithStreamSettings(AL_THevcSps tSPS, AL_TStreamS
   return true;
 }
 
+int HEVC_GetMinOutputBuffersNeeded(int iDpbMaxBuf, int iStack);
+
 /*****************************************************************************/
 static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps tSps)
 {
@@ -232,9 +234,8 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps tSps)
     goto fail_alloc;
 
   const int iDpbMaxBuf = AL_HEVC_GetMaxDPBSize(iSPSLevel, tSPSDim.iWidth, tSPSDim.iHeight, pCtx->m_eDpbMode);
-  const int iRecBuf = 0; // Already include in GetMaxDPBSize
-  const int iConcealBuf = CONCEAL_BUF;
-  const int iMaxBuf = iDpbMaxBuf + pCtx->m_iStackSize + iRecBuf + iConcealBuf;
+  const int iMaxBuf = HEVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, pCtx->m_iStackSize);
+
   const int iSizeMV = AL_GetAllocSize_HevcMV(tSPSDim);
   const int iSizePOC = POCBUFF_PL_SIZE;
 
@@ -251,8 +252,15 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps tSps)
     const bool useFBC = pCtx->m_chanParam.bFrameBufferCompression;
     const int iSizeYuv = AL_GetAllocSize_Frame(tSPSDim, eSPSChromaMode, iSPSMaxBitDepth, useFBC, eStorageMode);
     const AL_TCropInfo tCropInfo = getCropInfo(&tSps);
-    const AL_TPicFormat tPicFmt = { eSPSChromaMode, iSPSMaxBitDepth };
-    pCtx->m_resolutionFoundCB.func(iMaxBuf, iSizeYuv, tSPSDim, tCropInfo, AL_GetSrcFourCC(tPicFmt), pCtx->m_resolutionFoundCB.userParam);
+
+    AL_TStreamSettings tSettings;
+    tSettings.tDim = tSPSDim;
+    tSettings.eChroma = eSPSChromaMode;
+    tSettings.iBitDepth = iSPSMaxBitDepth;
+    tSettings.iLevel = iSPSLevel;
+    tSettings.iProfileIdc = tSps.profile_and_level.general_profile_idc;
+
+    pCtx->m_resolutionFoundCB.func(iMaxBuf, iSizeYuv, &tSettings, &tCropInfo, pCtx->m_resolutionFoundCB.userParam);
   }
 
   return true;
@@ -484,7 +492,7 @@ static void endFrame(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_THevcSliceHdr* pSlice, A
   AL_HEVC_PictMngr_UpdateRecInfo(&pCtx->m_PictMngr, pSlice->m_pSPS, pPP, pCtx->m_chanParam.eFBStorageMode);
   AL_HEVC_PictMngr_EndFrame(&pCtx->m_PictMngr, pSlice->slice_pic_order_cnt_lsb, eNUT, pSlice, pic_output_flag);
 
-  if(pCtx->m_eDecUnit == AL_AU_UNIT) /* launch HW for each frame(default mode)*/
+  if(pCtx->m_chanParam.eDecUnit == AL_AU_UNIT) /* launch HW for each frame(default mode)*/
     AL_LaunchFrameDecoding(pCtx);
   else
     AL_LaunchSliceDecoding(pCtx, true);
@@ -504,7 +512,7 @@ static void finishPreviousFrame(AL_TDecCtx* pCtx)
   // copy stream offset from previous command
   pCtx->m_iStreamOffset[pCtx->m_iNumFrmBlk1 % pCtx->m_iStackSize] = pCtx->m_iStreamOffset[(pCtx->m_iNumFrmBlk1 + pCtx->m_iStackSize - 1) % pCtx->m_iStackSize];
 
-  if(pCtx->m_eDecUnit == AL_VCL_NAL_UNIT) /* launch HW for each vcl nal in sub_frame latency*/
+  if(pCtx->m_chanParam.eDecUnit == AL_VCL_NAL_UNIT) /* launch HW for each vcl nal in sub_frame latency*/
     --pCtx->m_PictMngr.m_uNumSlice;
 
   endFrame(pCtx, pSlice->nal_unit_type, pSlice, pPP, pSlice->pic_output_flag);
@@ -718,7 +726,7 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     endFrame(pCtx, eNUT, pSlice, pPP, pic_output_flag);
     return true;
   }
-  else if(pCtx->m_eDecUnit == AL_VCL_NAL_UNIT)
+  else if(pCtx->m_chanParam.eDecUnit == AL_VCL_NAL_UNIT)
     AL_LaunchSliceDecoding(pCtx, bIsLastAUNal);
 
   return false;

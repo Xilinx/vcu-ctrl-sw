@@ -40,14 +40,13 @@
 #include "lib_app/timing.h"
 #include "QPGenerator.h"
 
-static void PreprocessQP(uint8_t* pQPs, const AL_TEncSettings& Settings, int iFrameCountSent)
+static bool PreprocessQP(uint8_t* pQPs, const AL_TEncSettings& Settings, int iFrameCountSent)
 {
   uint8_t* pSegs = NULL;
-  bool bRet = GenerateQPBuffer(Settings.eQpCtrlMode, Settings.tChParam.tRCParam.iInitialQP,
-                               Settings.tChParam.tRCParam.iMinQP, Settings.tChParam.tRCParam.iMaxQP,
-                               AL_GetWidthInLCU(Settings.tChParam), AL_GetHeightInLCU(Settings.tChParam), Settings.tChParam.uMaxCuSize,
-                               Settings.tChParam.eProfile, iFrameCountSent, pQPs + EP2_BUF_QP_BY_MB.Offset, pSegs);
-  assert(bRet);
+  return GenerateQPBuffer(Settings.eQpCtrlMode, Settings.tChParam.tRCParam.iInitialQP,
+                          Settings.tChParam.tRCParam.iMinQP, Settings.tChParam.tRCParam.iMaxQP,
+                          AL_GetWidthInLCU(Settings.tChParam), AL_GetHeightInLCU(Settings.tChParam),
+                          Settings.tChParam.eProfile, iFrameCountSent, pQPs + EP2_BUF_QP_BY_MB.Offset, pSegs);
 }
 
 class QPBuffers
@@ -55,6 +54,23 @@ class QPBuffers
 public:
   QPBuffers(AL_TBufPool& bufpool, const AL_TEncSettings& settings) :
     bufpool(bufpool), isExternQpTable(settings.eQpCtrlMode & (MASK_QP_TABLE_EXT)), settings(settings)
+  {
+    auto& tChParam = settings.tChParam;
+    auto& tRcParam = tChParam.tRCParam;
+    // set QpBuf memory to 0 for traces
+    std::vector<AL_TBuffer*> qpBufs;
+
+    while(auto curQp = AL_BufPool_GetBuffer(&bufpool, AL_BUF_MODE_NONBLOCK))
+    {
+      qpBufs.push_back(curQp);
+      Rtos_Memset(AL_Buffer_GetData(curQp), 0, curQp->zSize);
+    }
+
+    for(auto qpBuf : qpBufs)
+      AL_Buffer_Unref(qpBuf);
+  }
+
+  ~QPBuffers()
   {
   }
 
@@ -64,8 +80,8 @@ public:
       return nullptr;
 
     AL_TBuffer* QpBuf = AL_BufPool_GetBuffer(&bufpool, AL_BUF_MODE_BLOCK);
-    PreprocessQP(AL_Buffer_GetData(QpBuf), settings, frameNum);
-    return QpBuf;
+    bool bRet = PreprocessQP(AL_Buffer_GetData(QpBuf), settings, frameNum);
+    return bRet ? QpBuf : nullptr;
   }
 
   void releaseBuffer(AL_TBuffer* buffer)
@@ -79,6 +95,7 @@ private:
   AL_TBufPool& bufpool;
   bool isExternQpTable;
   const AL_TEncSettings& settings;
+
 };
 
 class SceneChange
@@ -164,30 +181,39 @@ AL_ERR GetEncoderLastError()
 }
 
 static
-void ThrowEncoderError(AL_ERR eErr)
+const char* EncoderErrorToString(AL_ERR eErr)
 {
   switch(eErr)
   {
-  case AL_ERR_STREAM_OVERFLOW: Message(CC_RED, "Stream Error : Stream overflow\n");
-    break;
-  case AL_ERR_TOO_MANY_SLICES: Message(CC_RED, "Stream Error : Too many slices\n");
-    break;
-  case AL_ERR_CHAN_CREATION_NO_CHANNEL_AVAILABLE: throw codec_error("Encoder failed : Channel creation failed, no channel available", eErr);
-    break;
-  case AL_ERR_CHAN_CREATION_RESOURCE_UNAVAILABLE: throw codec_error("Encoder failed : Channel creation failed, processing power of the available cores insufficient", eErr);
-    break;
-  case AL_ERR_CHAN_CREATION_NOT_ENOUGH_CORES: throw codec_error("Encoder failed : Channel creation failed, couldn't spread the load on enough cores", eErr);
-    break;
-  case AL_ERR_REQUEST_MALFORMED: throw codec_error("Encoder failed : Channel creation failed, request was malformed", eErr);
-    break;
-  case AL_ERR_NO_MEMORY: throw codec_error("Encoder failed : Memory shortage detected (dma, embedded memory or virtual memory shortage)", eErr);
-    break;
-  case AL_WARN_LCU_OVERFLOW: Message(CC_RED, "Warning some LCU exceed the maximum allowed bits\n");
-    break;
-  case AL_SUCCESS: /* do nothing */ break;
+  case AL_ERR_STREAM_OVERFLOW: return "Stream Error : Stream overflow";
+  case AL_ERR_TOO_MANY_SLICES: return "Stream Error : Too many slices";
+  case AL_ERR_CHAN_CREATION_NO_CHANNEL_AVAILABLE: return "Channel creation failed, no channel available";
+  case AL_ERR_CHAN_CREATION_RESOURCE_UNAVAILABLE: return "Channel creation failed, processing power of the available cores insufficient";
+  case AL_ERR_CHAN_CREATION_NOT_ENOUGH_CORES: return "Channel creation failed, couldn't spread the load on enough cores";
+  case AL_ERR_REQUEST_MALFORMED: return "Channel creation failed, request was malformed";
+  case AL_ERR_NO_MEMORY: return "Memory shortage detected (DMA, embedded memory or virtual memory)";
+  case AL_WARN_LCU_OVERFLOW: return "Warning some LCU exceed the maximum allowed bits";
+  case AL_SUCCESS: return "Success";
+  default: return "Unknown error";
+  }
+}
 
-  default: throw codec_error("Encoder failed : Unknown error !!", eErr);
+static
+void ThrowEncoderError(AL_ERR eErr)
+{
+  auto const msg = EncoderErrorToString(eErr);
+
+  Message(CC_RED, "%s\n");
+  switch(eErr)
+  {
+  case AL_SUCCESS:
+  case AL_ERR_STREAM_OVERFLOW:
+  case AL_WARN_LCU_OVERFLOW:
+    // do nothing
     break;
+
+  default:
+    throw codec_error(msg, eErr);
   }
 
   if(eErr != AL_SUCCESS)
@@ -266,27 +292,21 @@ private:
   LongTermRef LT;
   QPBuffers qpBuffers;
 
-  static inline bool isEOS(AL_TBuffer* pStream, AL_TBuffer const* pSrc)
-  {
-    return !pStream && !pSrc;
-  }
-
-  static inline bool isEncodedFrame(AL_TBuffer* pStream, AL_TBuffer const* pSrc)
-  {
-    return pStream && pSrc;
-  }
-
   static inline bool isStreamReleased(AL_TBuffer* pStream, AL_TBuffer const* pSrc)
   {
     return pStream && !pSrc;
   }
 
+  static inline bool isSourceReleased(AL_TBuffer* pStream, AL_TBuffer const* pSrc)
+  {
+    return !pStream && pSrc;
+  }
+
   static void EndEncoding(void* userParam, AL_TBuffer* pStream, AL_TBuffer const* pSrc)
   {
-    assert(isEncodedFrame(pStream, pSrc) || isEOS(pStream, pSrc) || isStreamReleased(pStream, pSrc));
     auto pThis = (EncoderSink*)userParam;
 
-    if(isStreamReleased(pStream, pSrc))
+    if(isStreamReleased(pStream, pSrc) || isSourceReleased(pStream, pSrc))
       return;
 
     pThis->processOutput(pStream);

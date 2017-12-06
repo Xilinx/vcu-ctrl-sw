@@ -47,9 +47,10 @@ typedef struct rbspWriter
   void (* WriteVPS)(AL_TBitStreamLite* writer, AL_THevcVps const* pVps);
   void (* WriteSPS)(AL_TBitStreamLite* writer, AL_TSps const* pSps);
   void (* WritePPS)(AL_TBitStreamLite* writer, AL_TPps const* pPps);
-  void (* WriteSEI_APS)(AL_TBitStreamLite* writer, AL_THevcVps const* pVps, AL_TSps const* pISps);
-  void (* WriteSEI_BP)(AL_TBitStreamLite* writer, AL_TSps const* pISps, int iInitialCpbRemovalDelay, int iInitialCpbRemovalOffset);
-  void (* WriteSEI_RP)(AL_TBitStreamLite* writer);
-  void (* WriteSEI_PT)(AL_TBitStreamLite* writer, AL_TSps const* pISps, int iAuCpbRemovalDelay, int iPicDpbOutputDelay, int iPicStruct);
+  void (* WriteSEI_ActiveParameterSets)(AL_TBitStreamLite* writer, AL_THevcVps const* pVps, AL_TSps const* pISps);
+  void (* WriteSEI_BufferingPeriod)(AL_TBitStreamLite* writer, AL_TSps const* pISps, int iInitialCpbRemovalDelay, int iInitialCpbRemovalOffset);
+  void (* WriteSEI_RecoveryPoint)(AL_TBitStreamLite* writer);
+  void (* WriteSEI_PictureTiming)(AL_TBitStreamLite* writer, AL_TSps const* pISps, int iAuCpbRemovalDelay, int iPicDpbOutputDelay, int iPicStruct);
+  void (* WriteSEI_UserDataUnregistered)(AL_TBitStreamLite* writer, uint8_t uuid[16]);
 }IRbspWriter;
 

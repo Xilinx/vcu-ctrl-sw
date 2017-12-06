@@ -110,7 +110,6 @@ typedef struct t_Dec_Ctx
   uint8_t m_uCurID; // ID of the last independent slice
 
   AL_TDecChanParam m_chanParam;
-  AL_EDecUnit m_eDecUnit;
   AL_EDpbMode m_eDpbMode;
   bool m_bUseBoard;
   bool m_bConceal;
@@ -167,6 +166,8 @@ typedef struct t_Dec_Ctx
   bool m_bIsBuffersAllocated;
   AL_TStreamSettings m_tStreamSettings;
   AL_TBuffer* m_eosBuffer;
+
+  TCircBuffer circularBuf;
 }AL_TDecCtx;
 
 /****************************************************************************/

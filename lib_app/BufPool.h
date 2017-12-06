@@ -57,9 +57,8 @@
 *****************************************************************************/
 typedef struct al_t_BufPoolConfig
 {
-  uint32_t uMinBuf; /*!< Minimum size of the pool (Buffer that will be allocated at init time)*/
-  uint32_t uMaxBuf;/*!< Maximum size of the pool */
-  size_t zBufSize;/*!< Size of the buffer that will fill the pool */
+  uint32_t uNumBuf; /*!< number of buffer in the pool */
+  size_t zBufSize;/*!< Size of the buffers that will fill the pool */
   char const* debugName;
   AL_TMetaData* pMetaData;/*!< Metadata of the buffer that will fill the pool */
 }AL_TBufPoolConfig;
@@ -83,7 +82,7 @@ typedef struct
   AL_TAllocator* pAllocator; /*! Allocator used to allocate the buffers */
 
   AL_TBuffer** pPool; /*! pool of allocated buffers */
-  uint8_t uNumBuf; /*! Minimum number of buffer in the pool */
+  uint8_t uNumBuf; /*! Number of buffer in the pool */
 
   AL_TBufPoolConfig config;
 

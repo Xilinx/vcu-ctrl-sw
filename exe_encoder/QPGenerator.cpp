@@ -459,33 +459,39 @@ void Generate_Random_WithFlag(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int
 }
 
 /****************************************************************************/
-bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, uint8_t uLcuSize, AL_EProfile eProf, int iFrameID, uint8_t* pQPs, uint8_t* pSegs)
+static void GetQPBufferParameters(int iLCUWidth, int iLCUHeight, AL_EProfile eProf, int& iNumQPPerLCU, int& iNumBytesPerLCU, int& iNumLCUs, uint8_t* pQPs)
 {
   (void)eProf;
-  (void)uLcuSize;
-  bool bIsVp9 = false;
 
 #if AL_BLK16X16_QP_TABLE
-  int iNumQPPerLCU = AL_IS_HEVC(eProf) ? 5 : 1;
-  int iNumBytesPerLCU = AL_IS_HEVC(eProf) ? 8 : 1;
+  iNumQPPerLCU = AL_IS_HEVC(eProf) ? 5 : 1;
+  iNumBytesPerLCU = AL_IS_HEVC(eProf) ? 8 : 1;
 #else
-  int iNumQPPerLCU = 1;
-  int iNumBytesPerLCU = 1;
+  iNumQPPerLCU = 1;
+  iNumBytesPerLCU = 1;
 #endif
 
-  bool bRelative = (eMode & RELATIVE_QP) ? true : false;
-  const int iMaxLCUs = iLCUWidth * iLCUHeight;
-  int iSize = RoundUp(iMaxLCUs * iNumBytesPerLCU, 128);
-  const int iNumLCUs = iMaxLCUs;
-  int iQPMode = eMode & 0x0F; // exclusive mode
-  bool bRet = false;
-  static int iRandFlag = 0;
+  iNumLCUs = iLCUWidth * iLCUHeight;
+  int iSize = RoundUp(iNumLCUs * iNumBytesPerLCU, 128);
 
   assert(pQPs);
   Rtos_Memset(pQPs, 0, iSize);
+}
+
+
+/****************************************************************************/
+bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, int iFrameID, uint8_t* pQPs, uint8_t* pSegs)
+{
+  bool bRet = false;
+  int iNumQPPerLCU, iNumBytesPerLCU, iNumLCUs;
+  static int iRandFlag = 0;
+  bool bIsVp9 = false;
 
   if(bIsVp9)
     Rtos_Memset(pSegs, 0, 8 * sizeof(int16_t));
+
+  int iQPMode = eMode & 0x0F; // exclusive mode
+  bool bRelative = (eMode & RELATIVE_QP) ? true : false;
 
   if(bRelative)
   {
@@ -503,6 +509,7 @@ bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, in
       iMaxQP = (iSliceQP + iPlus > iMaxQP) ? iMaxQP - iSliceQP : iPlus;
     }
   }
+  GetQPBufferParameters(iLCUWidth, iLCUHeight, eProf, iNumQPPerLCU, iNumBytesPerLCU, iNumLCUs, pQPs);
   /////////////////////////////////  QPs  /////////////////////////////////////
   switch(iQPMode)
   {

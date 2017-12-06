@@ -83,7 +83,7 @@ static unique_ptr<CIpDevice> createMcuIpDevice()
 }
 
 
-shared_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, AL_EDecUnit eDecUnit, function<AL_TIpCtrl*(AL_TIpCtrl*)> wrapIpCtrl, bool trackDma, int uNumCore, int hangers)
+shared_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, AL_EDecUnit eDecUnit, function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl, bool trackDma, int uNumCore, int hangers)
 {
   (void)iUseBoard, (void)eDecUnit, (void)wrapIpCtrl, (void)uNumCore, (void)trackDma, (void)hangers;
 

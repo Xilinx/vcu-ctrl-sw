@@ -61,7 +61,7 @@ static bool AL_sBufPool_AllocBuf(AL_TBufPool* pBufPool)
 {
   AL_TMetaData* pMeta = NULL;
 
-  assert(pBufPool->uNumBuf < pBufPool->config.uMaxBuf);
+  assert(pBufPool->uNumBuf < pBufPool->config.uNumBuf);
 
   AL_TBuffer* pBuf = AL_Buffer_Create_And_AllocateNamed(pBufPool->pAllocator, pBufPool->config.zBufSize, FreeBufInPool, pBufPool->config.debugName);
 
@@ -107,13 +107,13 @@ bool AL_BufPool_Init(AL_TBufPool* pBufPool, AL_TAllocator* pAllocator, AL_TBufPo
 
   pBufPool->pAllocator = pAllocator;
 
-  if(!Fifo_Init(&pBufPool->fifo, pConfig->uMaxBuf))
+  if(!Fifo_Init(&pBufPool->fifo, pConfig->uNumBuf))
     goto fail_init;
 
   pBufPool->config = *pConfig;
   pBufPool->uNumBuf = 0;
 
-  size_t zMemPoolSize = pConfig->uMaxBuf * sizeof(AL_TBuffer*);
+  size_t zMemPoolSize = pConfig->uNumBuf * sizeof(AL_TBuffer*);
 
   pBufPool->pPool = (AL_TBuffer**)Rtos_Malloc(zMemPoolSize);
 
@@ -121,7 +121,7 @@ bool AL_BufPool_Init(AL_TBufPool* pBufPool, AL_TAllocator* pAllocator, AL_TBufPo
     goto fail_alloc_pool;
 
   // Create uMin free buffers
-  while(pBufPool->uNumBuf < pConfig->uMinBuf)
+  while(pBufPool->uNumBuf < pConfig->uNumBuf)
     if(!AL_sBufPool_AllocBuf(pBufPool))
       goto fail_alloc_pool;
 

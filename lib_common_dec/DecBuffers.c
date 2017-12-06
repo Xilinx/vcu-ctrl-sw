@@ -54,15 +54,16 @@
 /*****************************************************************************/
 int32_t RndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode)
 {
-  // set alignment to minimum if not raster
-  int const iAlignment = eFrameBufferStorageMode == AL_FB_RASTER ? AL_ALIGN_PITCH : 32;
-  return ComputeRndPitch(iWidth, uBitDepth, eFrameBufferStorageMode, iAlignment);
+  int const iBurstAlignment = eFrameBufferStorageMode == AL_FB_RASTER ? 256 : 32;
+  int const iRndWidth = RoundUp(iWidth, 64);
+  return ComputeRndPitch(iRndWidth, uBitDepth, eFrameBufferStorageMode, iBurstAlignment);
 }
 
 /******************************************************************************/
 int32_t RndHeight(int32_t iHeight)
 {
-  return RoundUp(iHeight, AL_ALIGN_HEIGHT);
+  int const iAlignment = 64;
+  return RoundUp(iHeight, iAlignment);
 }
 
 /****************************************************************************/

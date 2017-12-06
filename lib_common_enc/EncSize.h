@@ -41,8 +41,9 @@
 
 #define RES_SIZE_16x16_AVC 832/*!< residuals size of a 16x16 LCU */
 #define RES_SIZE_16x16_HEVC 768/*!< residuals size of a 16x16 LCU */
-#define SIZE_COMPRESS_LCU 1312/*!< header + MVDs + residuals words size */
 #define SIZE_LCU_INFO 16 /*!< LCU compressed size + LCU offset */
+
+int GetCompLcuSize();
 
 
 #define AL_MAX_SUPPORTED_LCU_SIZE 6
@@ -58,4 +59,6 @@ static const int SCLST_SIZE_ENC = 1024;
 
 #define AL_MAX_SLICES_SUBFRAME 32
 #define AL_MAX_STREAM_BUFFER (AL_MAX_SLICES_SUBFRAME * 10)
+
+#define AL_MAX_SOURCE_BUFFER (AL_MAX_NUM_B_PICT * 2 + 1)
 

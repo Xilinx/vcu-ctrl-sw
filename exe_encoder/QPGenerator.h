@@ -58,7 +58,8 @@
    \note iMinQp <= iMaxQP
    \return true on success, false on error
 *****************************************************************************/
-bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, uint8_t uLcuSize, AL_EProfile eProf, int iFrameID, uint8_t* pQPs, uint8_t* pSegs);
+bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, int iFrameID, uint8_t* pQPs, uint8_t* pSegs);
+
 
 /****************************************************************************/
 

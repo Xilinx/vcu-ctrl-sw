@@ -324,7 +324,7 @@ static void writePps(AL_TBitStreamLite* pBS, AL_TPps const* pIPps)
 }
 
 /******************************************************************************/
-static void writeSeiBp(AL_TBitStreamLite* pBS, AL_TSps const* pISps, int iCpbInitialDelay, int iCpbInitialOffset)
+static void writeSeiBufferingPeriod(AL_TBitStreamLite* pBS, AL_TSps const* pISps, int iCpbInitialDelay, int iCpbInitialOffset)
 {
   (void)iCpbInitialOffset;
   AL_TAvcSps* pSps = (AL_TAvcSps*)pISps;
@@ -344,7 +344,7 @@ static void writeSeiBp(AL_TBitStreamLite* pBS, AL_TSps const* pISps, int iCpbIni
 }
 
 /******************************************************************************/
-static void writeSeiRp(AL_TBitStreamLite* pBS)
+static void writeSeiRecoveryPoint(AL_TBitStreamLite* pBS)
 {
   // recovery_point
   int bookmark = AL_RbspEncoding_BeginSEI(pBS, 6);
@@ -358,7 +358,7 @@ static void writeSeiRp(AL_TBitStreamLite* pBS)
 }
 
 /******************************************************************************/
-static void writeSeiPt(AL_TBitStreamLite* pBS, AL_TSps const* pISps, int iCpbRemovalDelay, int iDpbOutputDelay, int iPicStruct)
+static void writeSeiPictureTiming(AL_TBitStreamLite* pBS, AL_TSps const* pISps, int iCpbRemovalDelay, int iDpbOutputDelay, int iPicStruct)
 {
   AL_TAvcSps* pSps = (AL_TAvcSps*)pISps;
   // Table D-1
@@ -392,13 +392,14 @@ static void writeSeiPt(AL_TBitStreamLite* pBS, AL_TSps const* pISps, int iCpbRem
 static IRbspWriter writer =
 {
   AL_RbspEncoding_WriteAUD,
-  NULL, /* WriteVPS */
+  NULL, /* writeVps */
   writeSps,
   writePps,
-  NULL, /* WriteSEIAPS */
-  writeSeiBp,
-  writeSeiRp,
-  writeSeiPt,
+  NULL, /* writeSeiActiveParameterSets */
+  writeSeiBufferingPeriod,
+  writeSeiRecoveryPoint,
+  writeSeiPictureTiming,
+  AL_RbspEncoding_WriteUserDataUnregistered,
 };
 
 IRbspWriter* AL_GetAvcRbspWriter()

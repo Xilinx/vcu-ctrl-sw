@@ -82,7 +82,7 @@ typedef struct t_InfoDecode
 }AL_TInfoDecode;
 
 /******************************************************************************/
-bool AL_NeedsCropping(AL_TCropInfo* pInfo);
+bool AL_NeedsCropping(AL_TCropInfo const* pInfo);
 /******************************************************************************/
 int AL_AVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iStack, AL_EDpbMode eMode);
 /******************************************************************************/

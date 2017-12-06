@@ -48,6 +48,7 @@ void HEVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStat
     AL_HEVC_NUT_AUD,
     AL_HEVC_NUT_FD,
     AL_HEVC_NUT_PREFIX_SEI,
+    AL_HEVC_NUT_SUFFIX_SEI,
   };
 
   NalsData nalsData = AL_ExtractNalsData(pCtx);

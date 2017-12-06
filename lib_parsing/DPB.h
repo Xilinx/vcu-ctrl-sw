@@ -84,12 +84,12 @@ typedef enum e_PicStatus
 *****************************************************************************/
 typedef struct AL_t_PictureManagerCallbacks
 {
-  void (* PfnReleaseFrmBuf)(void* pUserParam, int iFrameID);/*!< Callback Callback Function to signal that a frame buffer is no more used by the DPB */
-  void (* PfnIncrementFrmBuf)(void* pUserParam, int iFrameID);/*!< Callback Callback Function to signal that a Frame Buffer is used by the DPB */
-  void (* PfnOutputFrmBuf)(void* pUserParam, int iFrameID);  /*!< Callback Function to signal that a frame buffer need to be displayed */
+  void (* pfnIncrementFrmBuf)(void* pUserParam, int iFrameID);/*!< Callback Callback Function to signal that a Frame Buffer is used by the DPB */
+  void (* pfnDecrementFrmBuf)(void* pUserParam, int iFrameID);/*!< Callback Callback Function to signal that a frame buffer is no more used by the DPB */
+  void (* pfnOutputFrmBuf)(void* pUserParam, int iFrameID);  /*!< Callback Function to signal that a frame buffer need to be displayed */
 
-  void (* PfnIncrementMvBuf)(void* pUserParam, uint8_t MvID); /*!< Callback Callback Function to signal that a Motion_vector buffer is used by the DPB */
-  void (* PfnReleaseMvBuf)(void* pUserParam, uint8_t MvID);   /*!< Callback Callback Function to signal that a Motion_vector buffer is no more used by the DPB */
+  void (* pfnIncrementMvBuf)(void* pUserParam, uint8_t MvID); /*!< Callback Callback Function to signal that a Motion_vector buffer is used by the DPB */
+  void (* pfnDecrementMvBuf)(void* pUserParam, uint8_t MvID);   /*!< Callback Callback Function to signal that a Motion_vector buffer is no more used by the DPB */
 
   void* pUserParam;/*!< pointer to be passed each time one to the following callback is called */
 }AL_TPictureManagerCallbacks;

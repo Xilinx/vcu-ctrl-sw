@@ -48,7 +48,7 @@
 
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common_enc/Settings.h"
-#include "Utils_enc.h"
+#include "lib_common/ChannelResources.h"
 #include "lib_common/Utils.h"
 #include "lib_common/StreamBufferPrivate.h"
 #include "lib_common_enc/EncBuffers.h"
@@ -600,8 +600,8 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pSettings->tChParam.tRCParam.eOptions = AL_RC_OPT_NONE;
 
   pSettings->tChParam.tRCParam.bUseGoldenRef = false;
-  pSettings->tChParam.tRCParam.uGoldenRefFrequency = -1;
-  pSettings->tChParam.tRCParam.uPGoldenDelta = -1;
+  pSettings->tChParam.tRCParam.uGoldenRefFrequency = 10;
+  pSettings->tChParam.tRCParam.uPGoldenDelta = 2;
 
   pSettings->tChParam.iCbSliceQpOffset = 0;
   pSettings->tChParam.iCrSliceQpOffset = 0;

@@ -35,13 +35,20 @@
 *
 ******************************************************************************/
 
-#pragma once
+#include "lib_rtos/types.h"
 
-#ifndef AL_MAX_ENC_SLICE
-#define AL_MAX_ENC_SLICE 200
-#endif
+#define AL_MAX_RESSOURCE ((AL_SCHEDULER_CORE_FREQUENCY - ((AL_SCHEDULER_CORE_FREQUENCY / 100) * AL_SCHEDULER_FREQUENCY_MARGIN)) / AL_SCHEDULER_BLK_32X32_CYCLE)
 
-/* Fixed LCU Size chosen for resources calculs */
-#define AL_LCU_BASIC_WIDTH 32
-#define AL_LCU_BASIC_HEIGHT 32
+/*************************************************************************//*!
+   \brief The GetNumCore function retrieves the minimum of cores needed to encode the channel
+   \param[in] uWidth Channel Width resolution
+   \param[in] uHeight Channel Height resolution
+   \param[in] uFrameRate Channel frame-rate per clk_ratio
+   \param[in] uClkRatio  Channel Clk-Ratio : number of frame per seconds : uFrameRate / uClkRatio
+   \return return the number of cores needed to encode the channel
+ ****************************************************************************/
+uint8_t AL_GetNumCore(uint16_t uWidth, uint16_t uHeight, uint16_t uFrameRate, uint16_t uClkRatio);
+
+int ChannelResources_GetResources(int width, int height, int frameRate, int clockRatio);
+int ChannelResources_GetOptimalCoresCount(int channelResources, int resourcesByCore);
 

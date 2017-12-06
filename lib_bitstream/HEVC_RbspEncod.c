@@ -586,7 +586,7 @@ static void writePps(AL_TBitStreamLite* pBS, AL_TPps const* pPps)
 }
 
 /******************************************************************************/
-static void writeSeiAps(AL_TBitStreamLite* pBS, AL_THevcVps const* pVps, AL_TSps const* pISps)
+static void writeSeiActiveParameterSets(AL_TBitStreamLite* pBS, AL_THevcVps const* pVps, AL_TSps const* pISps)
 {
   AL_THevcSps* pSps = (AL_THevcSps*)pISps;
 
@@ -610,7 +610,7 @@ static void writeSeiAps(AL_TBitStreamLite* pBS, AL_THevcVps const* pVps, AL_TSps
 }
 
 /******************************************************************************/
-static void writeSeiBp(AL_TBitStreamLite* pBS, AL_TSps const* pISps, int iInitialCpbRemovalDelay, int iInitialCpbRemovalOffset)
+static void writeSeiBufferingPeriod(AL_TBitStreamLite* pBS, AL_TSps const* pISps, int iInitialCpbRemovalDelay, int iInitialCpbRemovalOffset)
 {
   AL_THevcSps* pSps = (AL_THevcSps*)pISps;
 
@@ -676,7 +676,7 @@ static void writeSeiBp(AL_TBitStreamLite* pBS, AL_TSps const* pISps, int iInitia
 }
 
 /******************************************************************************/
-static void writeSeiRp(AL_TBitStreamLite* pBS)
+static void writeSeiRecoveryPoint(AL_TBitStreamLite* pBS)
 {
   int bookmark = AL_RbspEncoding_BeginSEI(pBS, 6);
 
@@ -689,7 +689,7 @@ static void writeSeiRp(AL_TBitStreamLite* pBS)
 }
 
 /******************************************************************************/
-static void writeSeiPt(AL_TBitStreamLite* pBS, AL_TSps const* pISps, int iAuCpbRemovalDelay, int iPicDpbOutputDelay, int iPicStruct)
+static void writeSeiPictureTiming(AL_TBitStreamLite* pBS, AL_TSps const* pISps, int iAuCpbRemovalDelay, int iPicDpbOutputDelay, int iPicStruct)
 {
   AL_THevcSps* pSps = (AL_THevcSps*)pISps;
 
@@ -752,10 +752,11 @@ static IRbspWriter writer =
   writeVps,
   writeSps,
   writePps,
-  writeSeiAps,
-  writeSeiBp,
-  writeSeiRp,
-  writeSeiPt,
+  writeSeiActiveParameterSets,
+  writeSeiBufferingPeriod,
+  writeSeiRecoveryPoint,
+  writeSeiPictureTiming,
+  AL_RbspEncoding_WriteUserDataUnregistered,
 };
 
 IRbspWriter* AL_GetHevcRbspWriter()

@@ -143,8 +143,8 @@ static uint32_t ConsiderChromaForAllocSize(AL_EChromaMode eChromaMode, uint32_t 
 
 int AL_CalculatePitchValue(int iWidth, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode)
 {
-  int const iAlignment = 32;
-  return ComputeRndPitch(iWidth, uBitDepth, eStorageMode, iAlignment);
+  int const iBurstAlignment = 32;
+  return ComputeRndPitch(iWidth, uBitDepth, eStorageMode, iBurstAlignment);
 }
 
 /****************************************************************************/
@@ -268,7 +268,7 @@ uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, AL_
 uint32_t GetAllocSize_CompData(AL_TDimension tDim)
 {
   uint32_t uBlk16x16 = GetBlk16x16(tDim);
-  return SIZE_COMPRESS_LCU * uBlk16x16;
+  return GetCompLcuSize() * uBlk16x16;
 }
 
 /****************************************************************************/

@@ -35,17 +35,14 @@
 *
 ******************************************************************************/
 
-#include "lib_rtos/types.h"
+#include "EncSize.h"
 
-#define AL_MAX_RESSOURCE ((AL_SCHEDULER_CORE_FREQUENCY - ((AL_SCHEDULER_CORE_FREQUENCY / 100) * AL_SCHEDULER_FREQUENCY_MARGIN)) / AL_SCHEDULER_BLK_32X32_CYCLE)
+/****************************************************************************/
+int GetCompLcuSize()
+{
+  // header + MVDs + residuals words size
+  return 1312;
+}
 
-/*************************************************************************//*!
-   \brief The GetNumCore function retrieves the minimum of cores needed to encode the channel
-   \param[in] iWidth Channel Width resolution
-   \param[in] iHeight Channel Height resolution
-   \param[in] uFrameRate Channel frame-rate per clk_ratio
-   \param[in] uClkRatio  Channel Clk-Ratio : number of frame per seconds : uFrameRate / uClkRatio
-   \return return the maximum number of tile rows allowed by the specified level
- ****************************************************************************/
-uint8_t AL_GetNumCore(uint16_t iWidth, uint16_t iHeight, uint16_t uFrameRate, uint16_t uClkRatio);
+/****************************************************************************/
 

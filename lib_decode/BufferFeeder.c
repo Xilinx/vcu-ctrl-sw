@@ -100,11 +100,10 @@ void AL_BufferFeeder_Destroy(AL_TBufferFeeder* this)
   AL_DecoderFeeder_Destroy(this->decoderFeeder);
   AL_Patchworker_Deinit(&this->patchworker);
   AL_Fifo_Deinit(&this->fifo);
-  MemDesc_Free(&this->circularBuf.tMD);
   Rtos_Free(this);
 }
 
-AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, AL_TAllocator* pAllocator, size_t zCircularBufferSize, AL_UINT uMaxBufNum, AL_CB_Error* errorCallback)
+AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, TCircBuffer* circularBuf, AL_UINT uMaxBufNum, AL_CB_Error* errorCallback)
 {
   AL_TBufferFeeder* this = Rtos_Malloc(sizeof(*this));
 
@@ -113,16 +112,13 @@ AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, AL_TAllocator* pAllocat
 
   this->eosBuffer = NULL;
 
-  if(!MemDesc_AllocNamed(&this->circularBuf.tMD, pAllocator, zCircularBufferSize, "circular stream"))
-    goto fail_circular_buffer_allocation;
-
   if(uMaxBufNum == 0 || !AL_Fifo_Init(&this->fifo, uMaxBufNum))
     goto fail_queue_allocation;
 
-  if(!AL_Patchworker_Init(&this->patchworker, &this->circularBuf, &this->fifo))
+  if(!AL_Patchworker_Init(&this->patchworker, circularBuf, &this->fifo))
     goto fail_patchworker_allocation;
 
-  this->decoderFeeder = AL_DecoderFeeder_Create(&this->circularBuf.tMD, hDec, &this->patchworker, errorCallback);
+  this->decoderFeeder = AL_DecoderFeeder_Create(&circularBuf->tMD, hDec, &this->patchworker, errorCallback);
 
   if(!this->decoderFeeder)
     goto fail_decoder_feeder_creation;
@@ -134,8 +130,6 @@ AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, AL_TAllocator* pAllocat
   fail_patchworker_allocation:
   AL_Fifo_Deinit(&this->fifo);
   fail_queue_allocation:
-  MemDesc_Free(&this->circularBuf.tMD);
-  fail_circular_buffer_allocation:
   Rtos_Free(this);
   return NULL;
 }

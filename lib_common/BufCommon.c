@@ -76,7 +76,7 @@ static inline int GetWidthRound(AL_EFbStorageMode eStorageMode)
 }
 
 /******************************************************************************/
-int32_t ComputeRndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode, int iAlignment)
+int32_t ComputeRndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode, int iBurstAlignment)
 {
   int32_t iVal = 0;
   int const iRndWidth = RoundUp(iWidth, GetWidthRound(eFrameBufferStorageMode));
@@ -103,8 +103,8 @@ int32_t ComputeRndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFr
     assert(false);
   }
 
-  assert(iAlignment > 0 && (iAlignment % 32) == 0); // IP requirement
-  return RoundUp(iVal, iAlignment);
+  assert(iBurstAlignment > 0 && (iBurstAlignment % 32) == 0); // IP requirement
+  return RoundUp(iVal, iBurstAlignment);
 }
 
 /****************************************************************************/

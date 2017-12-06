@@ -51,7 +51,8 @@ typedef struct t_nuts
   int ppsNut;
   int audNut;
   int fdNut;
-  int seiNut;
+  int seiPrefixNut;
+  int seiSuffixNut;
 }Nuts;
 
 typedef struct

@@ -35,13 +35,22 @@
 *
 ******************************************************************************/
 
-#include "lib_common/Utils.h"
-#include "Utils_enc.h"
+#include "ChannelResources.h"
+#include "Utils.h"
+
+/****************************************************************************/
+static int getLcuCount(int width, int height)
+{
+  /* Fixed LCU Size chosen for resources calculs */
+  int const lcuHeight = 32;
+  int const lcuWidth = 32;
+  return ((width + lcuWidth - 1) / lcuWidth) * ((height + lcuHeight - 1) / lcuHeight);
+}
 
 /****************************************************************************/
 uint8_t AL_GetNumCore(uint16_t uWidth, uint16_t uHeight, uint16_t uFrameRate, uint16_t uClkRatio)
 {
-  int LcuNumber = ((uWidth + AL_LCU_BASIC_WIDTH - 1) / AL_LCU_BASIC_WIDTH) * ((uHeight + AL_LCU_BASIC_HEIGHT - 1) / AL_LCU_BASIC_HEIGHT);
+  int LcuNumber = getLcuCount(uWidth, uHeight);
 
   if(uClkRatio == 0)
     return 0;
@@ -49,5 +58,20 @@ uint8_t AL_GetNumCore(uint16_t uWidth, uint16_t uHeight, uint16_t uFrameRate, ui
   int iChanResource = (LcuNumber * uFrameRate * 1000LL) / uClkRatio;
   uint8_t uWidthNumCore = (uWidth + AL_CORE_MAX_WIDTH - 1) / AL_CORE_MAX_WIDTH;
   return Max(uWidthNumCore, (iChanResource + AL_MAX_RESSOURCE - 1) / AL_MAX_RESSOURCE);
+}
+
+int ChannelResources_GetOptimalCoresCount(int channelResources, int resourcesByCore)
+{
+  return (channelResources + resourcesByCore - 1) / resourcesByCore;
+}
+
+int ChannelResources_GetResources(int width, int height, int frameRate, int clockRatio)
+{
+  if(clockRatio == 0)
+    return 0;
+
+  int lcuCount = getLcuCount(width, height);
+  int fps = frameRate / clockRatio;
+  return lcuCount * fps;
 }
 

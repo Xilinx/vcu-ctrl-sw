@@ -86,18 +86,6 @@
 #ifndef AL_L2P_MAX_SIZE
 #define AL_L2P_MAX_SIZE (26 * 40 * 4096)
 #endif
-#ifndef AL_ALIGN_HEIGHT
-#define AL_ALIGN_HEIGHT 64
-#endif
-#ifndef AL_ALIGN_PITCH
-#define AL_ALIGN_PITCH 256
-#endif
-#ifndef AL_LCU_BASIC_WIDTH
-#define AL_LCU_BASIC_WIDTH 32
-#endif
-#ifndef AL_LCU_BASIC_HEIGHT
-#define AL_LCU_BASIC_HEIGHT 32
-#endif
 #ifndef AL_MAX_ENC_SLICE
 #define AL_MAX_ENC_SLICE 200
 #endif

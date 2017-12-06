@@ -82,30 +82,30 @@ AL_NalUnit AL_CreateVps(AL_THevcVps* vps)
   return nal;
 }
 
-static void seiWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param)
+static void seiPrefixWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param)
 {
-  SeiCtx* pCtx = (SeiCtx*)param;
+  SeiPrefixCtx* pCtx = (SeiPrefixCtx*)param;
   uint32_t uFlags = pCtx->uFlags;
 
   while(uFlags)
   {
     if(uFlags & SEI_BP)
     {
-      if(writer->WriteSEI_APS)
-        writer->WriteSEI_APS(bitstream, pCtx->vps, pCtx->sps);
-      writer->WriteSEI_BP(bitstream, pCtx->sps, pCtx->cpbInitialRemovalDelay, 0);
+      if(writer->WriteSEI_ActiveParameterSets)
+        writer->WriteSEI_ActiveParameterSets(bitstream, pCtx->vps, pCtx->sps);
+      writer->WriteSEI_BufferingPeriod(bitstream, pCtx->sps, pCtx->cpbInitialRemovalDelay, 0);
       uFlags &= ~SEI_BP;
     }
     else if(uFlags & SEI_RP)
     {
-      writer->WriteSEI_RP(bitstream);
+      writer->WriteSEI_RecoveryPoint(bitstream);
       uFlags &= ~SEI_RP;
     }
     else if(uFlags & SEI_PT)
     {
-      writer->WriteSEI_PT(bitstream, pCtx->sps,
-                          pCtx->cpbRemovalDelay,
-                          pCtx->pPicStatus->uDpbOutputDelay, pCtx->pPicStatus->ePicStruct);
+      writer->WriteSEI_PictureTiming(bitstream, pCtx->sps,
+                                     pCtx->cpbRemovalDelay,
+                                     pCtx->pPicStatus->uDpbOutputDelay, pCtx->pPicStatus->ePicStruct);
       uFlags &= ~SEI_PT;
     }
 
@@ -114,9 +114,21 @@ static void seiWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void con
   }
 }
 
-AL_NalUnit AL_CreateSei(SeiCtx* ctx, int nut)
+AL_NalUnit AL_CreateSeiPrefix(SeiPrefixCtx* ctx, int nut)
 {
-  AL_NalUnit nal = { &seiWrite, ctx, nut, 0 };
+  AL_NalUnit nal = { &seiPrefixWrite, ctx, nut, 0 };
+  return nal;
+}
+
+static void seiSuffixWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param)
+{
+  SeiSuffixCtx* pCtx = (SeiSuffixCtx*)param;
+  writer->WriteSEI_UserDataUnregistered(bitstream, pCtx->uuid);
+}
+
+AL_NalUnit AL_CreateSeiSuffix(SeiSuffixCtx* ctx, int nut)
+{
+  AL_NalUnit nal = { &seiSuffixWrite, ctx, nut, 0 };
   return nal;
 }
 

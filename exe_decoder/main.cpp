@@ -56,6 +56,7 @@ extern "C"
 #include "lib_common_dec/DecBuffers.h"
 #include "lib_common/FourCC.h"
 #include "lib_common/StreamBuffer.h"
+#include "lib_common/Utils.h"
 }
 
 #include "lib_app/console.h"
@@ -112,7 +113,7 @@ AL_TDecSettings getDefaultDecSettings()
 
   settings.iStackSize = 2;
   settings.iBitDepth = -1;
-  settings.uNumCore = 0; // AUTO
+  settings.uNumCore = NUMCORE_AUTO;
   settings.uFrameRate = 60000;
   settings.uClkRatio = 1000;
   settings.uDDRWidth = 32;
@@ -209,9 +210,9 @@ void parsePreAllocArgs(AL_TStreamSettings* settings, string& toParse)
   getExpectedSeparator(ss, ':');
   ss >> settings->iBitDepth;
   getExpectedSeparator(ss, ':');
-  ss >> settings->iLevel;
-  getExpectedSeparator(ss, ':');
   ss >> settings->iProfileIdc;
+  getExpectedSeparator(ss, ':');
+  ss >> settings->iLevel;
 
   if(string(chroma) == "400")
     settings->eChroma = CHROMA_4_0_0;
@@ -284,6 +285,14 @@ static Config ParseCommandLine(int argc, char* argv[])
               "Specify decoder DPB Low ref (stream musn't have B-frame & reference must be at best 1",
               AL_DPB_LOW_REF);
 
+  opt.addFlag("-slicelat", &Config.tDecSettings.eDecUnit,
+              "Specify decoder latency (default: Frame Latency)",
+              AL_VCL_NAL_UNIT);
+
+  opt.addFlag("-framelat", &Config.tDecSettings.eDecUnit,
+              "Specify decoder latency (default: Frame Latency)",
+              AL_AU_UNIT);
+
   opt.addFlag("-avc", &Config.tDecSettings.bIsAvc,
               "Specify the input bitstream codec (default: HEVC)",
               true);
@@ -303,7 +312,7 @@ static Config ParseCommandLine(int argc, char* argv[])
 
   string preAllocArgs = "";
   opt.addInt("--timeout", &Config.iTimeOutInSeconds, "Specify timeout in seconds");
-  opt.addString("--prealloc-args", &preAllocArgs, "Specify the stream dimension: 1920x1080:422:10:level:profile-idc");
+  opt.addString("--prealloc-args", &preAllocArgs, "Specify the stream dimension: 1920x1080:422:10:profile-idc:level");
 
   opt.parse(argc, argv);
 
@@ -756,7 +765,7 @@ static string FourCCToString(TFourCC tFourCC)
   return ss.str();
 };
 
-static void sResolutionFound(int BufferNumber, int BufferSize, AL_TDimension tDim, AL_TCropInfo tCropInfo, TFourCC tFourCC, void* pUserParam)
+static void sResolutionFound(int BufferNumber, int BufferSize, AL_TStreamSettings const* pSettings, AL_TCropInfo const* pCropInfo, void* pUserParam)
 {
   ResChgParam* p = (ResChgParam*)pUserParam;
 
@@ -765,20 +774,25 @@ static void sResolutionFound(int BufferNumber, int BufferSize, AL_TDimension tDi
   if(!p->hDec)
     return;
 
+  auto tFourCC = AL_GetSrcFourCC({ pSettings->eChroma, (uint8_t)pSettings->iBitDepth });
+  auto& tDim = pSettings->tDim;
+
   stringstream ss;
   int iWidth = tDim.iWidth;
   int iHeight = tDim.iHeight;
   ss << "Resolution : " << iWidth << "x" << iHeight << endl;
   ss << "FourCC : " << FourCCToString(tFourCC) << endl;
+  ss << "Profile : " << pSettings->iProfileIdc << endl;
+  ss << "Level : " << pSettings->iLevel << endl;
 
-  if(AL_NeedsCropping(&tCropInfo))
+  if(AL_NeedsCropping(pCropInfo))
   {
-    auto uCropWidth = tCropInfo.uCropOffsetLeft + tCropInfo.uCropOffsetRight;
-    auto uCropHeight = tCropInfo.uCropOffsetTop + tCropInfo.uCropOffsetBottom;
-    ss << "Crop top    : " << tCropInfo.uCropOffsetTop << endl;
-    ss << "Crop bottom : " << tCropInfo.uCropOffsetBottom << endl;
-    ss << "Crop left   : " << tCropInfo.uCropOffsetLeft << endl;
-    ss << "Crop right  : " << tCropInfo.uCropOffsetRight << endl;
+    auto uCropWidth = pCropInfo->uCropOffsetLeft + pCropInfo->uCropOffsetRight;
+    auto uCropHeight = pCropInfo->uCropOffsetTop + pCropInfo->uCropOffsetBottom;
+    ss << "Crop top    : " << pCropInfo->uCropOffsetTop << endl;
+    ss << "Crop bottom : " << pCropInfo->uCropOffsetBottom << endl;
+    ss << "Crop left   : " << pCropInfo->uCropOffsetLeft << endl;
+    ss << "Crop right  : " << pCropInfo->uCropOffsetRight << endl;
     ss << "Display Resolution : " << iWidth - uCropWidth << "x" << iHeight - uCropHeight << endl;
   }
   ss << "Buffer needed : " << BufferNumber << " of size " << BufferSize << endl;
@@ -792,8 +806,7 @@ static void sResolutionFound(int BufferNumber, int BufferSize, AL_TDimension tDi
   const int buffersHeldByNextComponent = 1; /* We need at least 1 buffer to copy the output on a file */
   AL_TBufPoolConfig BufPoolConfig;
   BufPoolConfig.zBufSize = BufferSize;
-  BufPoolConfig.uMaxBuf = BufferNumber + buffersHeldByNextComponent;
-  BufPoolConfig.uMinBuf = BufferNumber + buffersHeldByNextComponent;
+  BufPoolConfig.uNumBuf = BufferNumber + buffersHeldByNextComponent;
   BufPoolConfig.debugName = "yuv";
 
   AL_TPitches tPitches {};
@@ -877,7 +890,7 @@ void SafeMain(int argc, char** argv)
   // IP Device ------------------------------------------------------------
   auto iUseBoard = Config.iUseBoard;
 
-  function<AL_TIpCtrl*(AL_TIpCtrl*)> wrapIpCtrl;
+  function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl;
   switch(Config.ipCtrlMode)
   {
   default:
@@ -914,8 +927,7 @@ void SafeMain(int argc, char** argv)
     AL_TBufPoolConfig BufPoolConfig {};
 
     BufPoolConfig.zBufSize = Config.zInputBufferSize;
-    BufPoolConfig.uMaxBuf = Config.uInputBufferNum;
-    BufPoolConfig.uMinBuf = Config.uInputBufferNum;
+    BufPoolConfig.uNumBuf = Config.uInputBufferNum;
     BufPoolConfig.pMetaData = nullptr;
     BufPoolConfig.debugName = "stream";
 

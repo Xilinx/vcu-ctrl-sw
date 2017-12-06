@@ -292,22 +292,20 @@ static __u32 getFd(AL_TBuffer* b)
   return (__u32)AL_LinuxDmaAllocator_GetFd((AL_TLinuxDmaAllocator*)b->pAllocator, b->hBuf);
 }
 
-static bool putStreamBuffer(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuffer* streamBuffer, AL_64U streamUserPtr, uint32_t uOffset)
+static void putStreamBuffer(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuffer* streamBuffer, AL_64U streamUserPtr, uint32_t uOffset)
 {
+  assert(streamBuffer);
   AL_TSchedulerMcu* schedulerMcu = (AL_TSchedulerMcu*)pScheduler;
   Channel* chan = (Channel*)hChannel;
   struct al5_buffer driverBuffer;
   Rtos_Memset(&driverBuffer, 0, sizeof(driverBuffer));
-
-  if(streamBuffer == NULL)
-    return false;
 
   driverBuffer.handle = getFd(streamBuffer);
   driverBuffer.offset = uOffset;
   driverBuffer.stream_buffer_ptr = streamUserPtr;
   driverBuffer.size = streamBuffer->zSize;
 
-  return AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_PUT_STREAM_BUFFER, &driverBuffer);
+  AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_PUT_STREAM_BUFFER, &driverBuffer);
 }
 
 

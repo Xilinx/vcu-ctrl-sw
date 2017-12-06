@@ -53,5 +53,5 @@ struct CIpDevice
   std::shared_ptr<AL_TAllocator> m_pAllocator;
 };
 
-std::shared_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, AL_EDecUnit eDecUnit, std::function<AL_TIpCtrl*(AL_TIpCtrl*)> wrapIpCtrl, bool trackDma = false, int uNumCore = 0, int hangers = 0);
+std::shared_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, AL_EDecUnit eDecUnit, std::function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl, bool trackDma = false, int uNumCore = 0, int hangers = 0);
 

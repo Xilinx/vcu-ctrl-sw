@@ -64,19 +64,18 @@ typedef struct
 *****************************************************************************/
 typedef struct
 {
-  AL_TBuffer* pDisplayBuffer;
+  AL_TBuffer* pFrameBuffer;
   int iNext;
-  int iAccessCntByDPB;
-  bool bAccessByDisplay;
-  bool bDisplayIsDone;
+  int iAccessCnt;
+  bool bWillBeOutputed;
   uint32_t uCRC;
   AL_TBitDepth tBitDepth;
   AL_TCropInfo tCrop;
-}AL_TDisplayFrameFifo;
+}AL_TFrameFifo;
 
 typedef struct t_FrmBufPool
 {
-  AL_TDisplayFrameFifo array[FRM_BUF_POOL_SIZE];
+  AL_TFrameFifo array[FRM_BUF_POOL_SIZE];
   int iFifoHead;
   int iFifoTail;
 
@@ -276,8 +275,6 @@ void AL_PictMngr_EndDecoding(AL_TPictMngrCtx* pCtx, int iFrameID, uint8_t uMvID)
 
 /*************************************************************************//*!
    \brief This function returns the next picture buffer to be displayed
-       when it's possible. The function HEVC_ReleaseDisplayBuffer must be called
-       as soon as the buffer is no more used.
    \param[in]  pCtx      Pointer to a Picture manager context object
    \param[out] pInfo     Pointer to retrieve information about the decoded frame
    \return Pointer on the picture buffer to be displayed if it exists
@@ -286,10 +283,9 @@ void AL_PictMngr_EndDecoding(AL_TPictMngrCtx* pCtx, int iFrameID, uint8_t uMvID)
 AL_TBuffer* AL_PictMngr_GetDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo);
 
 /*************************************************************************//*!
-   \brief This function releases a picture buffer previoulsy
-       obtained through HEVC_GetDispalyBuffer
+   \brief This function add a frame buffer in the picture manager
    \param[in] pCtx   Pointer to a Picture manager context object
-   \param[in] pBuf   Pointer to the picture buffer to release
+   \param[in] pBuf   Pointer to the picture buffer to be added
 *****************************************************************************/
 void AL_PictMngr_PutDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TBuffer* pBuf);
 
@@ -304,7 +300,8 @@ AL_TBuffer* AL_PictMngr_GetDisplayBufferFromID(AL_TPictMngrCtx* pCtx, int iFrame
 void AL_PictMngr_UpdateDisplayBufferCRC(AL_TPictMngrCtx* pCtx, int iFrameID, uint32_t uCRC);
 void AL_PictMngr_UpdateDisplayBufferBitDepth(AL_TPictMngrCtx* pCtx, int iFrameID, AL_TBitDepth tBitDepth);
 void AL_PictMngr_UpdateDisplayBufferCrop(AL_TPictMngrCtx* pCtx, int iFrameID, AL_TCropInfo tCrop);
-void AL_PictMngr_SignalBufferDisplayed(AL_TPictMngrCtx* pCtx, AL_TBuffer* pDisplayedFrame);
+void AL_PictMngr_SignalCallbackDisplayIsDone(AL_TPictMngrCtx* pCtx, AL_TBuffer* pDisplayedFrame);
+void AL_PictMngr_SignalCallbackReleaseIsDone(AL_TPictMngrCtx* pCtx, AL_TBuffer* pReleasedFrame);
 AL_TBuffer* AL_PictMngr_GetUnusedDisplayBuffer(AL_TPictMngrCtx* pCtx);
 
 /*****************************************************************************/

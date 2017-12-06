@@ -127,7 +127,7 @@ static void AL_Dpb_sAddToDisplayList(AL_TDpb* pDpb, uint8_t uNode)
   pDpb->m_DispFifo.pFrmIDs[uID % FRM_BUF_POOL_SIZE] = pDpb->m_Nodes[uNode].uFrmID;
   pDpb->m_DispFifo.pPicLatency[pDpb->m_Nodes[uNode].uFrmID] = pDpb->m_Nodes[uNode].uPicLatency;
 
-  pDpb->m_tCallbacks.PfnOutputFrmBuf(pDpb->m_tCallbacks.pUserParam, pDpb->m_Nodes[uNode].uFrmID);
+  pDpb->m_tCallbacks.pfnOutputFrmBuf(pDpb->m_tCallbacks.pUserParam, pDpb->m_Nodes[uNode].uFrmID);
 }
 
 /*****************************************************************************/
@@ -473,8 +473,8 @@ static void AL_Dpb_sReleaseUnusedBuf(AL_TDpb* pDpb, bool bAll)
 
   while(iNum--)
   {
-    pDpb->m_tCallbacks.PfnReleaseFrmBuf(pDpb->m_tCallbacks.pUserParam, pDpb->m_pDltFrmIDLst[pDpb->m_iDltFrmLstHead++]);
-    pDpb->m_tCallbacks.PfnReleaseMvBuf(pDpb->m_tCallbacks.pUserParam, pDpb->m_pDltMvIDLst[pDpb->m_iDltMvLstHead++]);
+    pDpb->m_tCallbacks.pfnDecrementFrmBuf(pDpb->m_tCallbacks.pUserParam, pDpb->m_pDltFrmIDLst[pDpb->m_iDltFrmLstHead++]);
+    pDpb->m_tCallbacks.pfnDecrementMvBuf(pDpb->m_tCallbacks.pUserParam, pDpb->m_pDltMvIDLst[pDpb->m_iDltMvLstHead++]);
 
     pDpb->m_iDltFrmLstHead %= FRM_BUF_POOL_SIZE;
     pDpb->m_iDltMvLstHead %= MAX_DPB_SIZE;
@@ -554,12 +554,13 @@ void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, AL_EDpbMode eMode, AL_TPictureM
   AL_DispFifo_sInit(&pDpb->m_DispFifo);
 
   pDpb->m_tCallbacks.pUserParam = tCallbacks.pUserParam;
-  pDpb->m_tCallbacks.PfnIncrementFrmBuf = tCallbacks.PfnIncrementFrmBuf;
-  pDpb->m_tCallbacks.PfnReleaseFrmBuf = tCallbacks.PfnReleaseFrmBuf;
-  pDpb->m_tCallbacks.PfnOutputFrmBuf = tCallbacks.PfnOutputFrmBuf;
+  pDpb->m_tCallbacks.pfnIncrementFrmBuf = tCallbacks.pfnIncrementFrmBuf;
+  pDpb->m_tCallbacks.pfnDecrementFrmBuf = tCallbacks.pfnDecrementFrmBuf;
 
-  pDpb->m_tCallbacks.PfnIncrementMvBuf = tCallbacks.PfnIncrementMvBuf;
-  pDpb->m_tCallbacks.PfnReleaseMvBuf = tCallbacks.PfnReleaseMvBuf;
+  pDpb->m_tCallbacks.pfnOutputFrmBuf = tCallbacks.pfnOutputFrmBuf;
+
+  pDpb->m_tCallbacks.pfnIncrementMvBuf = tCallbacks.pfnIncrementMvBuf;
+  pDpb->m_tCallbacks.pfnDecrementMvBuf = tCallbacks.pfnDecrementMvBuf;
 }
 
 /*************************************************************************/
@@ -916,7 +917,7 @@ uint8_t AL_Dpb_ReleaseDisplayBuffer(AL_TDpb* pDpb)
     pDpb->m_DispFifo.uFirstFrm = (pDpb->m_DispFifo.uFirstFrm + 1) % FRM_BUF_POOL_SIZE;
     pDpb->m_DispFifo.uNumFrm--;
     pDpb->m_DispFifo.pFrmStatus[uFrmID] = AL_NOT_NEEDED_FOR_OUTPUT;
-    pDpb->m_tCallbacks.PfnReleaseFrmBuf(pDpb->m_tCallbacks.pUserParam, uFrmID);
+    pDpb->m_tCallbacks.pfnDecrementFrmBuf(pDpb->m_tCallbacks.pUserParam, uFrmID);
   }
   DPB_RELEASE_MUTEX(pDpb);
   return uFrmID;
@@ -1265,10 +1266,10 @@ void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, uint32_t uPocLsb, uint8_t uNode
     ++pDpb->m_uNumOutputPic;
 
   if(uFrmID != uEndOfList)
-    pDpb->m_tCallbacks.PfnIncrementFrmBuf(pDpb->m_tCallbacks.pUserParam, uFrmID);
+    pDpb->m_tCallbacks.pfnIncrementFrmBuf(pDpb->m_tCallbacks.pUserParam, uFrmID);
 
   if(uMvID != uEndOfList)
-    pDpb->m_tCallbacks.PfnIncrementMvBuf(pDpb->m_tCallbacks.pUserParam, uMvID);
+    pDpb->m_tCallbacks.pfnIncrementMvBuf(pDpb->m_tCallbacks.pUserParam, uMvID);
   DPB_RELEASE_MUTEX(pDpb);
 }
 

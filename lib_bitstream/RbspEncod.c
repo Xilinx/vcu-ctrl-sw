@@ -88,5 +88,17 @@ void AL_RbspEncoding_CloseSEI(AL_TBitStreamLite* pBS)
   AL_BitStreamLite_AlignWithBits(pBS, 0);
 }
 
+/******************************************************************************/
+void AL_RbspEncoding_WriteUserDataUnregistered(AL_TBitStreamLite* pBS, uint8_t uuid[16])
+{
+  int const bookmark = AL_RbspEncoding_BeginSEI(pBS, 5);
+
+  for(int i = 0; i < 16; i++)
+    AL_BitStreamLite_PutU(pBS, 8, uuid[i]);
+
+  AL_RbspEncoding_EndSEI(pBS, bookmark);
+  AL_RbspEncoding_CloseSEI(pBS);
+}
+
 /*@}*/
 
