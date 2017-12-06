@@ -88,7 +88,7 @@ static bool AL_Buffer_InitData(AL_TBufferImpl* pBuf, AL_TAllocator* pAllocator, 
 
 static AL_TBuffer* createBuffer(AL_TAllocator* pAllocator, AL_HANDLE hBuf, size_t zSize, PFN_RefCount_CallBack pCallBack)
 {
-  if(!hBuf)
+  if(zSize && !hBuf)
     return NULL;
 
   AL_TBufferImpl* pBuf = Rtos_Malloc(sizeof(*pBuf));
