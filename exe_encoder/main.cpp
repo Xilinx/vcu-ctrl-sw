@@ -236,6 +236,8 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addInt("--num-core", &cfg.Settings.tChParam.uNumCore, "Specify the number of cores to use (resolution needs to be sufficient)");
   opt.addString("--log", &cfg.RunInfo.logsFile, "A file where log event will be dumped");
   opt.addFlag("--loop", &cfg.RunInfo.bLoop, "loop at the end of the yuv file");
+  opt.addFlag("--slicelat", &cfg.Settings.tChParam.bSubframeLatency, "enable subframe latency");
+  opt.addFlag("--framelat", &cfg.Settings.tChParam.bSubframeLatency, "disable subframe latency", false);
 
   opt.addInt("--prefetch", &g_numFrameToRepeat, "prefetch n frames and loop between these frames for max picture count");
   opt.parse(argc, argv);
@@ -482,6 +484,16 @@ void SafeMain(int argc, char** argv)
   auto numStreams = 2 + 2 + Settings.tChParam.tGopParam.uNumB;
   AL_TDimension dim = { FileInfo.PictWidth, FileInfo.PictHeight };
   auto streamSize = AL_GetMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam.ePicFormat));
+
+  if(Settings.tChParam.bSubframeLatency)
+  {
+    numStreams *= Settings.tChParam.uNumSlices;
+    streamSize /= Settings.tChParam.uNumSlices;
+    /* we need space for the headers on each slice */
+    streamSize += 4096 * 2;
+    /* stream size is required to be 32bytes aligned */
+    streamSize = (streamSize + 31) & ~31;
+  }
 
   StreamBufPoolConfig.uNumBuf = numStreams;
   StreamBufPoolConfig.zBufSize = streamSize;
