@@ -285,14 +285,6 @@ static Config ParseCommandLine(int argc, char* argv[])
               "Specify decoder DPB Low ref (stream musn't have B-frame & reference must be at best 1",
               AL_DPB_LOW_REF);
 
-  opt.addFlag("-slicelat", &Config.tDecSettings.eDecUnit,
-              "Specify decoder latency (default: Frame Latency)",
-              AL_VCL_NAL_UNIT);
-
-  opt.addFlag("-framelat", &Config.tDecSettings.eDecUnit,
-              "Specify decoder latency (default: Frame Latency)",
-              AL_AU_UNIT);
-
   opt.addFlag("-avc", &Config.tDecSettings.bIsAvc,
               "Specify the input bitstream codec (default: HEVC)",
               true);
