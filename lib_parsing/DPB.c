@@ -1280,6 +1280,22 @@ static bool AL_Dpb_sIsLowRef(AL_TDpb* pDpb)
 }
 
 /*****************************************************************************/
+static uint8_t Dpb_GetNodeFromFrmID(AL_TDpb* pDpb, int iFrameID)
+{
+  AL_TDpbNode const * pNodes = pDpb->m_Nodes;
+  uint8_t uNode = pDpb->m_uHeadDecOrder;
+
+  while(uNode != uEndOfList)
+  {
+    if(pNodes[uNode].uFrmID == iFrameID)
+      break;
+    uNode = pNodes[uNode].uNextDecOrder;
+  }
+
+  return uNode;
+}
+
+/*****************************************************************************/
 void AL_Dpb_EndDecoding(AL_TDpb* pDpb, int iFrmID)
 {
   DPB_GET_MUTEX(pDpb);
@@ -1291,8 +1307,13 @@ void AL_Dpb_EndDecoding(AL_TDpb* pDpb, int iFrmID)
   {
     pDpb->m_DispFifo.pFrmStatus[iFrmID] = AL_READY_FOR_OUTPUT;
 
-    if(AL_Dpb_sIsLowRef(pDpb) && AL_Dpb_GetOutputFlag(pDpb, pDpb->m_uHeadPOC))
-      AL_Dpb_Display(pDpb, pDpb->m_uHeadPOC);
+    if(AL_Dpb_sIsLowRef(pDpb))
+    {
+      uint8_t const uNode = Dpb_GetNodeFromFrmID(pDpb, iFrmID);
+      bool const isInDisplayList = (uNode == uEndOfList);
+      if(!isInDisplayList && AL_Dpb_GetOutputFlag(pDpb, uNode))
+        AL_Dpb_Display(pDpb, uNode);
+    }
   }
 
   DPB_RELEASE_MUTEX(pDpb);
