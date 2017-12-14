@@ -55,16 +55,19 @@ void AL_Common_Encoder_WaitReadiness(AL_TEncCtx* pCtx)
 /***************************************************************************/
 static void RemoveSourceSent(AL_TEncCtx* pCtx, AL_TBuffer const* const pSrc)
 {
+  Rtos_GetMutex(pCtx->m_Mutex);
   for(int i = 0; i < AL_MAX_SOURCE_BUFFER; i++)
   {
     if(pCtx->m_SourceSent[i] == pSrc)
     {
       pCtx->m_SourceSent[i] = NULL;
+      Rtos_ReleaseMutex(pCtx->m_Mutex);
       return;
     }
   }
 
   assert(0);
+  Rtos_ReleaseMutex(pCtx->m_Mutex);
 }
 
 /***************************************************************************/
@@ -252,16 +255,19 @@ void AL_Common_Encoder_ConfigureZapper(AL_TEncCtx* pCtx, AL_TEncInfo* pEncInfo);
 /***************************************************************************/
 static void AddSourceSent(AL_TEncCtx* pCtx, AL_TBuffer* pSrc)
 {
+  Rtos_GetMutex(pCtx->m_Mutex);
   for(int i = 0; i < AL_MAX_SOURCE_BUFFER; i++)
   {
     if(pCtx->m_SourceSent[i] == NULL)
     {
       pCtx->m_SourceSent[i] = pSrc;
+      Rtos_ReleaseMutex(pCtx->m_Mutex);
       return;
     }
   }
 
   assert(0);
+  Rtos_ReleaseMutex(pCtx->m_Mutex);
 }
 
 /***************************************************************************/
