@@ -77,13 +77,19 @@ typedef struct AL_t_ScBufferAddrs
 /*************************************************************************//*!
    \brief Start Code Detector Output
 *****************************************************************************/
-typedef struct AL_t_SCTable
+typedef struct AL_t_StartCode
 {
   uint32_t uPosition;  /* Position of the detected NAL in the circular buffer*/
   uint8_t uNUT;       /* Nal Unit Type of the corresponding NAL */
   uint8_t TemporalID; /* Temporal ID of the detected NAL*/
   uint16_t Reserved;
-}AL_TScTable;
+}AL_TStartCode;
+
+typedef struct AL_t_Nal
+{
+  AL_TStartCode tStartCode;
+  uint32_t uSize; /* Nal size */
+}AL_TNal;
 
 /*************************************************************************//*!
    \brief Start Code Detector Status

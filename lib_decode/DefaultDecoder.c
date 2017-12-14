@@ -212,7 +212,6 @@ void AL_Default_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus)
   AL_PictMngr_EndDecoding(&pCtx->m_PictMngr, uFrameID, uMotionVectorID);
   int iOffset = pCtx->m_iNumFrmBlk2 % MAX_STACK_SIZE;
   AL_PictMngr_UnlockRefMvID(&pCtx->m_PictMngr, pCtx->m_uNumRef[iOffset], pCtx->m_uMvIDRefList[iOffset]);
-
   Rtos_GetMutex(pCtx->m_DecMutex);
   pCtx->m_iCurOffset = pCtx->m_iStreamOffset[pCtx->m_iNumFrmBlk2 % pCtx->m_iStackSize];
   ++pCtx->m_iNumFrmBlk2;
@@ -375,9 +374,18 @@ static bool isAud(AL_ECodec codec, int nut)
 }
 
 /*****************************************************************************/
+static bool isSuffixSei(AL_ECodec codec, int nut)
+{
+  if(isAVC(codec))
+    return nut == AL_AVC_NUT_SUFFIX_SEI;
+  else
+    return nut == AL_HEVC_NUT_SUFFIX_SEI;
+}
+
+/*****************************************************************************/
 static bool isEndOfFrameDelimiter(AL_ECodec codec, int nut)
 {
-  return isAud(codec, nut);
+  return isAud(codec, nut) || isSuffixSei(codec, nut);
 }
 
 /*****************************************************************************/
@@ -386,8 +394,26 @@ static bool enoughStartCode(int iNumStartCode)
   return iNumStartCode > 1;
 }
 
+static bool checkSEI_UUID(uint8_t* pBufs, AL_TNal nal, AL_ECodec codec)
+{
+  uint32_t const uTotalUUIDSize = isAVC(codec) ? 23 : 24;
+
+  if(nal.uSize != uTotalUUIDSize)
+    return false;
+
+  int const iStart = isAVC(codec) ? 6 : 7;
+
+  for(int i = 0; i < 16; i++)
+  {
+    if(SEI_SUFFIX_USER_DATA_UNREGISTERED_UUID[i] != pBufs[nal.tStartCode.uPosition + iStart + i])
+      return false;
+  }
+
+  return true;
+}
+
 /*****************************************************************************/
-static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* pLastNalInDecodingUnit, int* iLastVclNalInDecodingUnit)
+static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* pLastStartCodeInDecodingUnit, int* iLastVclNalInDecodingUnit)
 {
   if(!enoughStartCode(pCtx->m_uNumSC))
     return false;
@@ -398,16 +424,16 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
   int iLastVclNal = notFound;
   int iLastNonVclNal = notFound;
 
-  AL_TScTable* pTable = (AL_TScTable*)pCtx->m_SCTable.tMD.pVirtualAddr;
+  AL_TNal* pTable = (AL_TNal*)pCtx->m_SCTable.tMD.pVirtualAddr;
   uint8_t* pBuf = pStream->tMD.pVirtualAddr;
   uint32_t uSize = pStream->tMD.uSize;
 
   for(int iNal = 0; iNal < iNalCount; ++iNal)
   {
-    AL_ENut eNUT = pTable[iNal].uNUT;
+    AL_ENut eNUT = pTable[iNal].tStartCode.uNUT;
 
     // The NAL returned by the last start code of the SCD may not be complete
-    if((iNal == iNalCount - 1) && !isAud(eCodec, eNUT))
+    if((iNal == iNalCount - 1) && !isAud(eCodec, eNUT) && !(isSuffixSei(eCodec, eNUT) && checkSEI_UUID(pBuf, pTable[iNal], eCodec)))
       return false;
 
     bool bIsVcl = isAVC(eCodec) ? AL_AVC_IsVcl(eNUT) : AL_HEVC_IsVcl(eNUT);
@@ -415,7 +441,7 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
     if(bIsVcl)
     {
       // Start Code
-      uint32_t uPos = pTable[iNal].uPosition;
+      uint32_t uPos = pTable[iNal].tStartCode.uPosition;
 
       assert(pBuf[uPos % uSize] == 0x00);
       assert(pBuf[(uPos + 1) % uSize] == 0x00);
@@ -444,7 +470,7 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
 
       if(bFind)
       {
-        *pLastNalInDecodingUnit = Max(iLastNonVclNal - 1, iLastVclNal);
+        *pLastStartCodeInDecodingUnit = Max(iLastNonVclNal - 1, iLastVclNal);
         *iLastVclNalInDecodingUnit = IsFirstSlice ? iLastVclNal : notFound;
         return true;
       }
@@ -463,10 +489,14 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
         if(iLastVclNal == notFound)
           continue;
 
-        *pLastNalInDecodingUnit = iNal;
+        if(isSuffixSei(eCodec, eNUT) && !(checkSEI_UUID(pBuf, pTable[iNal], eCodec)))
+          continue;
+
+        *pLastStartCodeInDecodingUnit = iNal;
 
         if(isAud(eCodec, eNUT))
-          *pLastNalInDecodingUnit -= 1;
+          *pLastStartCodeInDecodingUnit -= 1;
+
         *iLastVclNalInDecodingUnit = iLastVclNal;
         return true;
       }
@@ -477,24 +507,24 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
 }
 
 /*****************************************************************************/
-static bool DecodeOneNAL(AL_TDecCtx* pCtx, AL_TScTable ScTable, int* pNumSlice, bool bIsLastVclNal)
+static bool DecodeOneNAL(AL_TDecCtx* pCtx, AL_TNal ScTable, int* pNumSlice, bool bIsLastVclNal)
 {
   if(*pNumSlice > 0 && *pNumSlice > pCtx->m_chanParam.iMaxSlices)
     return true;
 
   if(isAVC(pCtx->m_chanParam.eCodec))
   {
-    if(ScTable.uNUT >= AL_AVC_NUT_ERR)
+    if(ScTable.tStartCode.uNUT >= AL_AVC_NUT_ERR)
       return false;
 
-    return AL_AVC_DecodeOneNAL(&pCtx->m_aup, pCtx, ScTable.uNUT, bIsLastVclNal, pNumSlice);
+    return AL_AVC_DecodeOneNAL(&pCtx->m_aup, pCtx, ScTable.tStartCode.uNUT, bIsLastVclNal, pNumSlice);
   }
   else
   {
-    if(ScTable.uNUT >= AL_HEVC_NUT_ERR)
+    if(ScTable.tStartCode.uNUT >= AL_HEVC_NUT_ERR)
       return false;
 
-    return AL_HEVC_DecodeOneNAL(&pCtx->m_aup, pCtx, ScTable.uNUT, bIsLastVclNal, pNumSlice);
+    return AL_HEVC_DecodeOneNAL(&pCtx->m_aup, pCtx, ScTable.tStartCode.uNUT, bIsLastVclNal, pNumSlice);
   }
 }
 
@@ -511,13 +541,22 @@ static void GenerateIpTraces(AL_TDecCtx* pCtx, AL_TScParam ScP, AL_TScBufferAddr
 /*****************************************************************************/
 static bool canStoreMoreStartCodes(AL_TDecCtx* pCtx)
 {
-  return (pCtx->m_uNumSC + 1) * sizeof(AL_TScTable) <= pCtx->m_SCTable.tMD.uSize - pCtx->m_BufSCD.tMD.uSize;
+  return (pCtx->m_uNumSC + 1) * sizeof(AL_TNal) <= pCtx->m_SCTable.tMD.uSize - pCtx->m_BufSCD.tMD.uSize;
 }
 
 /*****************************************************************************/
 static void ResetStartCodes(AL_TDecCtx* pCtx)
 {
   pCtx->m_uNumSC = 0;
+}
+
+/*****************************************************************************/
+static size_t DeltaPosition(uint32_t uFirstPos, uint32_t uSecondPos, uint32_t uSize)
+{
+  if(uFirstPos < uSecondPos)
+    return uSecondPos - uFirstPos;
+  else
+    return uSize + uSecondPos - uFirstPos;
 }
 
 /*****************************************************************************/
@@ -549,9 +588,25 @@ static bool RefillStartCodes(AL_TDecCtx* pCtx, TCircBuffer* pBufStream)
   pBufStream->uOffset = (pBufStream->uOffset + pCtx->m_ScdStatus.uNumBytes) % pBufStream->tMD.uSize;
   pBufStream->uAvailSize -= pCtx->m_ScdStatus.uNumBytes;
 
-  Rtos_Memcpy(pCtx->m_SCTable.tMD.pVirtualAddr + pCtx->m_uNumSC * sizeof(AL_TScTable), scBuffer.pVirtualAddr, pCtx->m_ScdStatus.uNumSC * sizeof(AL_TScTable));
+  if(pCtx->m_uNumSC && pCtx->m_ScdStatus.uNumSC)
+  {
+    AL_TNal* dst = (AL_TNal*)pCtx->m_SCTable.tMD.pVirtualAddr;
+    AL_TStartCode const* src = (AL_TStartCode const*)scBuffer.pVirtualAddr;
+    dst[pCtx->m_uNumSC - 1].uSize = DeltaPosition(dst[pCtx->m_uNumSC - 1].tStartCode.uPosition, src[0].uPosition, scBuffer.uSize);
+  }
 
-  pCtx->m_uNumSC += pCtx->m_ScdStatus.uNumSC;
+  for(int i = 0; i < pCtx->m_ScdStatus.uNumSC; i++)
+  {
+    AL_TNal* dst = (AL_TNal*)pCtx->m_SCTable.tMD.pVirtualAddr;
+    AL_TStartCode const* src = (AL_TStartCode const*)scBuffer.pVirtualAddr;
+    dst[pCtx->m_uNumSC].tStartCode = src[i];
+
+    if(i + 1 == pCtx->m_ScdStatus.uNumSC)
+      dst[pCtx->m_uNumSC].uSize = DeltaPosition(src[i].uPosition, pBufStream->uOffset, scBuffer.uSize);
+    else
+      dst[pCtx->m_uNumSC].uSize = DeltaPosition(src[i].uPosition, src[i + 1].uPosition, scBuffer.uSize);
+    pCtx->m_uNumSC++;
+  }
 
   return pCtx->m_ScdStatus.uNumSC > 0;
 }
@@ -559,9 +614,9 @@ static bool RefillStartCodes(AL_TDecCtx* pCtx, TCircBuffer* pBufStream)
 /*****************************************************************************/
 static int FindNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pBufStream, int* iLastVclNalInAU)
 {
-  int iLastNalIdx = 0;
+  int iLastStartCodeIdx = 0;
 
-  while(!SearchNextDecodingUnit(pCtx, pBufStream, &iLastNalIdx, iLastVclNalInAU))
+  while(!SearchNextDecodingUnit(pCtx, pBufStream, &iLastStartCodeIdx, iLastVclNalInAU))
   {
     if(!canStoreMoreStartCodes(pCtx))
     {
@@ -574,22 +629,13 @@ static int FindNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pBufStream, int* 
       return 0;
   }
 
-  return iLastNalIdx + 1;
-}
-
-/*****************************************************************************/
-static size_t DeltaPosition(uint32_t uFirstPos, uint32_t uSecondPos, uint32_t uSize)
-{
-  if(uFirstPos < uSecondPos)
-    return uSecondPos - uFirstPos;
-  else
-    return uSize + uSecondPos - uFirstPos;
+  return iLastStartCodeIdx + 1;
 }
 
 /*****************************************************************************/
 static bool DecodeOneUnit(AL_TDecCtx* pCtx, TCircBuffer* pBufStream, int iNalCount, int iLastVclNalInAU)
 {
-  AL_TScTable* nals = (AL_TScTable*)pCtx->m_SCTable.tMD.pVirtualAddr;
+  AL_TNal* nals = (AL_TNal*)pCtx->m_SCTable.tMD.pVirtualAddr;
 
   /* copy start code buffer stream information into decoder stream buffer */
   pCtx->m_Stream.tMD = pBufStream->tMD;
@@ -600,11 +646,11 @@ static bool DecodeOneUnit(AL_TDecCtx* pCtx, TCircBuffer* pBufStream, int iNalCou
   {
     bool bIsLastVclNal = (iNal == iLastVclNalInAU);
 
-    AL_TScTable CurNal = nals[iNal];
-    AL_TScTable NextNal = nals[iNal + 1];
+    AL_TNal CurNal = nals[iNal];
+    AL_TNal NextStartCode = nals[iNal + 1];
 
-    pCtx->m_Stream.uOffset = CurNal.uPosition;
-    pCtx->m_Stream.uAvailSize = DeltaPosition(CurNal.uPosition, NextNal.uPosition, pBufStream->tMD.uSize);
+    pCtx->m_Stream.uOffset = CurNal.tStartCode.uPosition;
+    pCtx->m_Stream.uAvailSize = DeltaPosition(CurNal.tStartCode.uPosition, NextStartCode.tStartCode.uPosition, pBufStream->tMD.uSize);
 
     DecodeOneNAL(pCtx, CurNal, &iNumSlice, bIsLastVclNal);
 
@@ -619,7 +665,7 @@ static bool DecodeOneUnit(AL_TDecCtx* pCtx, TCircBuffer* pBufStream, int iNalCou
   }
 
   pCtx->m_uNumSC -= iNalCount;
-  Rtos_Memmove(nals, nals + iNalCount, pCtx->m_uNumSC * sizeof(AL_TScTable));
+  Rtos_Memmove(nals, nals + iNalCount, pCtx->m_uNumSC * sizeof(AL_TNal));
 
   return true;
 }
@@ -1062,7 +1108,7 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel,
   SAFE_ALLOC(pCtx, &pCtx->m_BufSCD.tMD, SCD_SIZE, "scd");
   AL_CleanupMemory(pCtx->m_BufSCD.tMD.pVirtualAddr, pCtx->m_BufSCD.tMD.uSize);
 
-  SAFE_ALLOC(pCtx, &pCtx->m_SCTable.tMD, pCtx->m_iStackSize * MAX_NAL_UNIT * sizeof(AL_TScTable), "sctable");
+  SAFE_ALLOC(pCtx, &pCtx->m_SCTable.tMD, pCtx->m_iStackSize * MAX_NAL_UNIT * sizeof(AL_TNal), "sctable");
   AL_CleanupMemory(pCtx->m_SCTable.tMD.pVirtualAddr, pCtx->m_SCTable.tMD.uSize);
 
   pCtx->m_uNumSC = 0;
