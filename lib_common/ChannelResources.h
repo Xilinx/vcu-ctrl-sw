@@ -49,6 +49,6 @@
  ****************************************************************************/
 uint8_t AL_GetNumCore(uint16_t uWidth, uint16_t uHeight, uint16_t uFrameRate, uint16_t uClkRatio);
 
-int ChannelResources_GetResources(int width, int height, int frameRate, int clockRatio);
+int ChannelResources_GetResources(int width, int height, uint32_t frameRate, uint32_t clockRatio);
 int ChannelResources_GetOptimalCoresCount(int channelResources, int resourcesByCore);
 

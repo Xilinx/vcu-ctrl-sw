@@ -65,13 +65,12 @@ int ChannelResources_GetOptimalCoresCount(int channelResources, int resourcesByC
   return (channelResources + resourcesByCore - 1) / resourcesByCore;
 }
 
-int ChannelResources_GetResources(int width, int height, int frameRate, int clockRatio)
+int ChannelResources_GetResources(int width, int height, uint32_t frameRate, uint32_t clockRatio)
 {
   if(clockRatio == 0)
     return 0;
 
-  int lcuCount = getLcuCount(width, height);
-  int fps = frameRate / clockRatio;
-  return lcuCount * fps;
+  uint64_t lcuCount = getLcuCount(width, height);
+  return (lcuCount * frameRate + clockRatio - 1) / clockRatio;
 }
 
