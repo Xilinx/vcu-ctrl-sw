@@ -84,7 +84,10 @@
 #define AL_CORE_MAX_WIDTH 4096
 #endif
 #ifndef AL_L2P_MAX_SIZE
-#define AL_L2P_MAX_SIZE (26 * 40 * 4096)
+#define AL_L2P_MAX_SIZE (696 * 1024)
+#endif
+#ifndef AL_L2P_10BIT
+#define AL_L2P_10BIT false
 #endif
 #ifndef AL_MAX_ENC_SLICE
 #define AL_MAX_ENC_SLICE 200
