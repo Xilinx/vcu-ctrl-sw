@@ -57,6 +57,7 @@ struct DmaBuffer
   /* given to us with mmap */
   AL_VADDR vaddr;
   size_t offset;
+  bool shouldCloseFd;
 };
 
 struct LinuxDmaCtx
@@ -139,7 +140,9 @@ static bool LinuxDma_Free(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
     perror("munmap");
   }
   /* we try closing the fd anyway */
-  close(pDmaBuffer->info.fd);
+  if(pDmaBuffer->shouldCloseFd)
+	  close(pDmaBuffer->info.fd);
+
   free(pDmaBuffer);
 
   return bRet;
@@ -197,6 +200,7 @@ static AL_HANDLE LinuxDma_Alloc_256B_Aligned(AL_TAllocator* pAllocator, size_t z
       return NULL;
   }
 
+  p->shouldCloseFd = true;
   LOG_ALLOCATION(p);
 
   return (AL_HANDLE)p;
@@ -308,7 +312,6 @@ static AL_HANDLE LinuxDma_ImportFromFd(AL_TLinuxDmaAllocator* pAllocator, int fd
   return pDmaBuffer;
 
   fail:
-  close(pDmaBuffer->info.fd);
   free(pDmaBuffer);
   return NULL;
 }
