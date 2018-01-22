@@ -994,7 +994,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
     {
       AL_TDimension tDim = { pSettings->tChParam.uWidth, pSettings->tChParam.uHeight };
       uint32_t maxNalSizeInByte = GetMaxVclNalSize(tDim, eInputChromaMode);
-      uint32_t maxBitRate = 8 * maxNalSizeInByte * pSettings->tChParam.tRCParam.uFrameRate;
+      uint64_t maxBitRate = 8LL * maxNalSizeInByte * pSettings->tChParam.tRCParam.uFrameRate;
 
       if(pSettings->tChParam.tRCParam.uTargetBitRate > maxBitRate)
       {
@@ -1037,7 +1037,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
   {
     if(pSettings->tChParam.tRCParam.eRCMode != AL_RC_CONST_QP)
     {
-      uint32_t uCPBSize = ((AL_64U)pSettings->tChParam.tRCParam.uCPBSize * pSettings->tChParam.tRCParam.uMaxBitRate) / 90000;
+      uint64_t uCPBSize = ((AL_64U)pSettings->tChParam.tRCParam.uCPBSize * pSettings->tChParam.tRCParam.uMaxBitRate) / 90000LL;
       uint32_t uMaxCPBSize = AL_sSettings_GetMaxCPBSize(pSettings);
 
       if(uCPBSize > uMaxCPBSize)
