@@ -19,6 +19,11 @@ OBJCOPY:=$(CROSS_COMPILE)objcopy
 RANLIB:=$(CROSS_COMPILE)ranlib
 STRIP:=$(CROSS_COMPILE)strip
 SIZE:=$(CROSS_COMPILE)size
+INSTALL = /usr/bin/install -c
+INSTALL_DIR = $(INSTALL) -d
+INSTALL_HDR = $(INSTALL) -m 0644
+prefix = /usr
+includedir = ${prefix}/include
 
 TARGET:=$(shell $(CC) -dumpmachine)
 
@@ -112,6 +117,19 @@ endif
 ##############################################################
 -include app_mcu/integration_tests.mk
 -include exe_vip/project.mk
+
+SUBDIR_ROOTS_HDR = "include/"
+SRC_DIRECTORY_HDR = $(sort $(dir $(wildcard include/*/)))
+DEST_DIRECTORY_HDR = $(SRC_DIRECTORY_HDR:include/%=%)
+INSTALL_HDR_PATH = ${includedir}
+
+install_headers:
+	@echo $(DEST_DIRECTORY_HDR)
+	for dirname in $(DEST_DIRECTORY_HDR); do \
+		$(INSTALL_DIR) $(SUBDIR_ROOTS_HDR)$$dirname $(INSTALL_HDR_PATH)/$$dirname; \
+		$(INSTALL_HDR) $(SUBDIR_ROOTS_HDR)/*.h $(INSTALL_HDR_PATH); \
+		$(INSTALL_HDR)  $(SUBDIR_ROOTS_HDR)/$$dirname/*.h $(INSTALL_HDR_PATH)/$$dirname; \
+	done
 
 true_all: $(TARGETS)
 
