@@ -70,57 +70,60 @@ static bool CircBuffer_IsFull(TCircBuffer* pBuf)
 
 static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
 {
-  do
+  AL_HANDLE hDec = slave->hDec;
+
+  uint32_t uNewOffset = AL_Decoder_GetStrOffset(hDec);
+
+  CircBuffer_ConsumeUpToOffset(slave->patchworker->outputCirc, uNewOffset);
+
+  size_t transferedBytes = AL_Patchworker_Transfer(slave->patchworker);
+
+  if(transferedBytes)
+    Rtos_SetEvent(slave->incomingWorkEvent);
+
+  decodeBuffer->uAvailSize += transferedBytes;
+
+  // Decode Max AU as possible with this data
+  AL_ERR eErr = AL_SUCCESS;
+
+  while(eErr != AL_ERR_NO_FRAME_DECODED)
   {
-    AL_HANDLE hDec = slave->hDec;
+    eErr = AL_Decoder_TryDecodeOneAU(hDec, decodeBuffer);
+
+    if(eErr != AL_ERR_NO_FRAME_DECODED)
+    {
+      slave->stopped = false;
+      Rtos_SetEvent(slave->incomingWorkEvent);
+    }
+
+    if(eErr == AL_ERR_INIT_FAILED)
+      return false;
+  }
+
+  if(CircBuffer_IsFull(slave->patchworker->outputCirc))
+  {
+    AL_Default_Decoder_WaitFrameSent(hDec);
 
     uint32_t uNewOffset = AL_Decoder_GetStrOffset(hDec);
-
     CircBuffer_ConsumeUpToOffset(slave->patchworker->outputCirc, uNewOffset);
-
-    decodeBuffer->uAvailSize += AL_Patchworker_Transfer(slave->patchworker);
-
-    // Decode Max AU as possible with this data
-    AL_ERR eErr = AL_SUCCESS;
-
-    while(eErr != AL_ERR_NO_FRAME_DECODED)
-    {
-      eErr = AL_Decoder_TryDecodeOneAU(hDec, decodeBuffer);
-
-      if(eErr != AL_ERR_NO_FRAME_DECODED)
-        slave->stopped = false;
-
-      if(eErr == AL_ERR_INIT_FAILED)
-        return false;
-    }
 
     if(CircBuffer_IsFull(slave->patchworker->outputCirc))
     {
-      AL_Default_Decoder_WaitFrameSent(hDec);
-
-      uint32_t uNewOffset = AL_Decoder_GetStrOffset(hDec);
-      CircBuffer_ConsumeUpToOffset(slave->patchworker->outputCirc, uNewOffset);
-
-      if(CircBuffer_IsFull(slave->patchworker->outputCirc))
-      {
-        // no more AU to get from a full circular buffer:
-        // empty it to avoid a stall
-        AL_Decoder_FlushInput(hDec);
-      }
-
-      AL_Default_Decoder_ReleaseFrames(hDec);
-      AL_DecoderFeeder_Process(slave);
+      // no more AU to get from a full circular buffer:
+      // empty it to avoid a stall
+      AL_Decoder_FlushInput(hDec);
     }
 
-    // Leave when end of input [all the data were processed in the previous TryDecodeOneAU]
-    if(AL_Patchworker_IsAllDataTransfered(slave->patchworker))
-    {
-      AL_Decoder_InternalFlush(slave->hDec);
-      slave->stopped = true;
-      break;
-    }
+    AL_Default_Decoder_ReleaseFrames(hDec);
+    Rtos_SetEvent(slave->incomingWorkEvent);
   }
-  while(AL_Patchworker_IsEndOfInput(slave->patchworker));
+
+  // Leave when end of input [all the data were processed in the previous TryDecodeOneAU]
+  if(AL_Patchworker_IsAllDataTransfered(slave->patchworker))
+  {
+    AL_Decoder_InternalFlush(slave->hDec);
+    slave->stopped = true;
+  }
 
   return true;
 }

@@ -45,6 +45,7 @@
 
 #include <cstring>
 #include <cassert>
+#include <iostream>
 
 extern "C" {
 #include "lib_rtos/lib_rtos.h"
@@ -580,7 +581,7 @@ void Y800_To_RX0A(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
   AL_TSrcMetaData* pDstMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pDst, AL_META_TYPE_SOURCE);
 
   assert(pDstMeta->tPitches.iLuma % 4 == 0);
-  assert(pDstMeta->tPitches.iLuma > (pDstMeta->tDim.iWidth + 2) / 3 * 4);
+  assert(pDstMeta->tPitches.iLuma >= (pDstMeta->tDim.iWidth + 2) / 3 * 4);
 
   uint8_t* pSrcData = AL_Buffer_GetData(pSrc);
   uint8_t* pDstData = AL_Buffer_GetData(pDst);

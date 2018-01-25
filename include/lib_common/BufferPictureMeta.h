@@ -37,21 +37,18 @@
 
 #pragma once
 
-#include "lib_rtos/lib_rtos.h"
+#include "lib_common/BufferMeta.h"
+#include "lib_common/SliceConsts.h"
 
-typedef struct
+/*************************************************************************//*!
+   \brief MetaData for picture
+*****************************************************************************/
+typedef struct AL_t_PictureMetaData
 {
-  size_t m_zMaxElem;
-  size_t m_zTail;
-  size_t m_zHead;
-  void** m_ElemBuffer;
-  AL_MUTEX hMutex;
-  AL_SEMAPHORE hCountSem;
-  AL_SEMAPHORE hSpaceSem;
-}AL_TFifo;
+  AL_TMetaData tMeta;
+  AL_ESliceType eType;
+}AL_TPictureMetaData;
 
-bool AL_Fifo_Init(AL_TFifo* pFifo, size_t zMaxElem);
-void AL_Fifo_Deinit(AL_TFifo* pFifo);
-bool AL_Fifo_Queue(AL_TFifo* pFifo, void* pElem, uint32_t uWait);
-void* AL_Fifo_Dequeue(AL_TFifo* pFifo, uint32_t uWait);
+AL_TPictureMetaData* AL_PictureMetaData_Create();
+AL_TPictureMetaData* AL_PictureMetaData_Clone(AL_TPictureMetaData* pMeta);
 

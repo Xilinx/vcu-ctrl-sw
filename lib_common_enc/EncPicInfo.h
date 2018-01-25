@@ -48,6 +48,7 @@
 #include "lib_common/SliceConsts.h"
 #include "lib_common/BufCommon.h"
 #include "lib_common/Error.h"
+#include "lib_common_enc/EncChanParam.h"
 
 /*************************************************************************//*!
    \brief Encoding tool enum
@@ -74,15 +75,25 @@ typedef struct AL_t_EncInfo
 
 typedef enum
 {
+  AL_NO_OPT = 0,
   AL_OPT_SCENE_CHANGE = 0x0001,
   AL_OPT_USE_LONG_TERM = 0x0004,
+  AL_OPT_RESTART_GOP = 0x0002,
+  AL_OPT_UPDATE_PARAMS = 0x0008,
 }AL_ERequestEncOption;
+
+typedef struct
+{
+  AL_TRCParam rc;
+  AL_TGopParam gop;
+}AL_TEncSmartParams;
 
 typedef struct AL_t_EncRequestInfo
 {
   AL_ERequestEncOption eReqOptions;
   uint32_t uSceneChangeDelay;
-}AL_TEncRequestInfo __AL_ALIGNED__ (8);
+  AL_TEncSmartParams smartParams;
+}AL_TEncRequestInfo;
 
 /*************************************************************************//*!
    \brief Stream partition structure

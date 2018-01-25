@@ -35,23 +35,44 @@
 *
 ******************************************************************************/
 
-#pragma once
-
+#include "lib_common/BufferPictureMeta.h"
 #include "lib_rtos/lib_rtos.h"
+#include <assert.h>
 
-typedef struct
+static bool PictureMeta_Destroy(AL_TMetaData* pMeta)
 {
-  size_t m_zMaxElem;
-  size_t m_zTail;
-  size_t m_zHead;
-  void** m_ElemBuffer;
-  AL_MUTEX hMutex;
-  AL_SEMAPHORE hCountSem;
-  AL_SEMAPHORE hSpaceSem;
-}AL_TFifo;
+  AL_TPictureMetaData* pPictureMeta = (AL_TPictureMetaData*)pMeta;
+  Rtos_Free(pPictureMeta);
+  return true;
+}
 
-bool AL_Fifo_Init(AL_TFifo* pFifo, size_t zMaxElem);
-void AL_Fifo_Deinit(AL_TFifo* pFifo);
-bool AL_Fifo_Queue(AL_TFifo* pFifo, void* pElem, uint32_t uWait);
-void* AL_Fifo_Dequeue(AL_TFifo* pFifo, uint32_t uWait);
+AL_TPictureMetaData* AL_PictureMetaData_Create()
+{
+  AL_TPictureMetaData* pMeta;
+
+  pMeta = Rtos_Malloc(sizeof(*pMeta));
+
+  if(!pMeta)
+    return NULL;
+
+  pMeta->tMeta.eType = AL_META_TYPE_PICTURE;
+  pMeta->tMeta.MetaDestroy = PictureMeta_Destroy;
+
+  pMeta->eType = SLICE_MAX_ENUM;
+
+  return pMeta;
+}
+
+AL_TPictureMetaData* AL_PictureMetaData_Clone(AL_TPictureMetaData* pMeta)
+{
+  if(!pMeta)
+    return NULL;
+
+  AL_TPictureMetaData* pPictureMeta = AL_PictureMetaData_Create();
+
+  if(!pPictureMeta)
+    return NULL;
+  pPictureMeta->eType = pMeta->eType;
+  return pPictureMeta;
+}
 

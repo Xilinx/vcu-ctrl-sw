@@ -173,9 +173,8 @@ static void AL_sReduction(uint32_t* pN, uint32_t* pD)
     2, 3, 5, 7, 11, 13, 17, 19, 23
   };
   const int iNumPrime = sizeof(Prime) / sizeof(int);
-  int i;
 
-  for(i = 0; i < iNumPrime; i++)
+  for(int i = 0; i < iNumPrime; i++)
   {
     while(((*pN % Prime[i]) == 0) && ((*pD % Prime[i]) == 0))
     {
@@ -216,15 +215,13 @@ static void fillScalingList(AL_TEncSettings const* pSettings, uint8_t* pSL, int 
 void AL_AVC_SelectScalingList(AL_TSps* pISPS, AL_TEncSettings const* pSettings)
 {
   AL_TAvcSps* pSPS = (AL_TAvcSps*)pISPS;
-
-  int iDir, i;
   AL_EScalingList eScalingList = pSettings->eScalingList;
 
   if(eScalingList == AL_SCL_CUSTOM)
   {
     pSPS->seq_scaling_matrix_present_flag = 1;
 
-    for(iDir = 0; iDir < 2; ++iDir)
+    for(int iDir = 0; iDir < 2; ++iDir)
     {
       fillScalingList(pSettings, pSPS->scaling_list_param.ScalingList[1][3 * iDir], 1, iDir * 3, iDir, &pSPS->seq_scaling_list_present_flag[iDir + 6]);
       fillScalingList(pSettings, pSPS->scaling_list_param.ScalingList[0][3 * iDir], 0, iDir * 3, iDir, &pSPS->seq_scaling_list_present_flag[iDir * 3]);
@@ -236,10 +233,10 @@ void AL_AVC_SelectScalingList(AL_TSps* pISPS, AL_TEncSettings const* pSettings)
   {
     pSPS->seq_scaling_matrix_present_flag = 1;
 
-    for(i = 0; i < 8; i++)
+    for(int i = 0; i < 8; i++)
       pSPS->seq_scaling_list_present_flag[i] = 0;
 
-    for(iDir = 0; iDir < 2; ++iDir)
+    for(int iDir = 0; iDir < 2; ++iDir)
     {
       Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[1][3 * iDir], AL_AVC_DefaultScalingLists8x8[iDir], 64);
       Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[0][3 * iDir], AL_AVC_DefaultScalingLists4x4[iDir], 16);
@@ -251,7 +248,7 @@ void AL_AVC_SelectScalingList(AL_TSps* pISPS, AL_TEncSettings const* pSettings)
   {
     pSPS->seq_scaling_matrix_present_flag = 0;
 
-    for(i = 0; i < 8; i++)
+    for(int i = 0; i < 8; i++)
       pSPS->seq_scaling_list_present_flag[i] = 0;
   }
 }
@@ -729,10 +726,18 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
 }
 
 /****************************************************************************/
+static void InitHEVC_Sps(AL_THevcSps* pSPS)
+{
+  pSPS->sample_adaptive_offset_enabled_flag = 0;
+  pSPS->pcm_enabled_flag = 0;
+  pSPS->vui_parameters_present_flag = 1;
+}
+
+/****************************************************************************/
 void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize)
 {
   AL_THevcSps* pSPS = (AL_THevcSps*)pISPS;
-  int i;
+  InitHEVC_Sps(pSPS);
 
   int iLcuWidth = (pSettings->tChParam.uWidth + ((1 << pSettings->tChParam.uMaxCuSize) - 1)) >> pSettings->tChParam.uMaxCuSize;
   int iLcuHeight = (pSettings->tChParam.uHeight + ((1 << pSettings->tChParam.uMaxCuSize) - 1)) >> pSettings->tChParam.uMaxCuSize;
@@ -783,14 +788,21 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int i
   pSPS->scaling_list_enabled_flag = (pSettings->tChParam.eOptions & AL_OPT_SCL_LST) ? 1 : 0;
 
   pSPS->amp_enabled_flag = 0;
-  pSPS->sample_adaptive_offset_enabled_flag = 0; // not supported yet
-  pSPS->pcm_enabled_flag = 0; // not supported yet
+
+  if(pSPS->pcm_enabled_flag)
+  {
+    pSPS->pcm_sample_bit_depth_luma_minus1 = AL_GET_BITDEPTH_LUMA(pSettings->tChParam.ePicFormat) - 1;
+    pSPS->pcm_sample_bit_depth_chroma_minus1 = AL_GET_BITDEPTH_LUMA(pSettings->tChParam.ePicFormat) - 1;
+    pSPS->log2_min_pcm_luma_coding_block_size_minus3 = pSettings->tChParam.uMaxCuSize - 3;
+    pSPS->log2_diff_max_min_pcm_luma_coding_block_size = 0;
+    pSPS->pcm_loop_filter_disabled_flag = (pSettings->tChParam.eOptions & AL_OPT_LF) ? 0 : 1;
+  }
 
   if(pSettings->tChParam.tGopParam.eMode == AL_GOP_MODE_DEFAULT || (pSettings->tChParam.tGopParam.eMode & AL_GOP_FLAG_LOW_DELAY))
   {
     pSPS->num_short_term_ref_pic_sets = pSettings->tChParam.tGopParam.uNumB > 2 ? AL_NUM_RPS_EXT : AL_NUM_RPS;
 
-    for(i = 0; i < pSPS->num_short_term_ref_pic_sets; ++i)
+    for(int i = 0; i < pSPS->num_short_term_ref_pic_sets; ++i)
     {
       pSPS->short_term_ref_pic_set[i].inter_ref_pic_set_prediction_flag = 0;
       pSPS->short_term_ref_pic_set[i].num_negative_pics = AL_HEVC_RPS[i].uNumNegPics;
@@ -817,15 +829,14 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int i
     pSPS->num_short_term_ref_pic_sets = NumB + 1;
     AL_TGopFrm* pGopFrms = getPyramidalFrames(NumB, false);
 
-    for(i = 0; i < pSPS->num_short_term_ref_pic_sets; ++i)
+    for(int i = 0; i < pSPS->num_short_term_ref_pic_sets; ++i)
     {
       AL_TGopFrm* pFrm = pGopFrms + i;
-      int iPic;
       int iNumNegPics = 0;
       int iNumPosPics = 0;
       int8_t iOldPOC = 0;
 
-      for(iPic = 0; iPic < (long)sizeof(pFrm->pDPB); ++iPic)
+      for(int iPic = 0; iPic < (long)sizeof(pFrm->pDPB); ++iPic)
         if(pFrm->pDPB[iPic] != 0)
           if(pFrm->pDPB[iPic] < 0)
             ++iNumNegPics;
@@ -839,7 +850,7 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int i
       pSPS->short_term_ref_pic_set[i].num_positive_pics = iNumPosPics;
 
       // process negative pictures
-      for(iPic = 0; iPic < pSPS->short_term_ref_pic_set[i].num_negative_pics; ++iPic)
+      for(int iPic = 0; iPic < pSPS->short_term_ref_pic_set[i].num_negative_pics; ++iPic)
       {
         int8_t iPOC;
         assert(((iNumNegPics - iPic - 1) >= 0) && ((iNumNegPics - iPic - 1) < 5));
@@ -853,7 +864,7 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int i
       // process positive pictures
       iOldPOC = 0;
 
-      for(iPic = 0; iPic < pSPS->short_term_ref_pic_set[i].num_positive_pics; ++iPic)
+      for(int iPic = 0; iPic < pSPS->short_term_ref_pic_set[i].num_positive_pics; ++iPic)
       {
         int8_t iPOC;
         assert(((iNumNegPics + iPic) >= 0) && ((iNumNegPics + iPic) < 5));
@@ -875,8 +886,6 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int i
 
 #if __ANDROID_API__
   pSPS->vui_parameters_present_flag = 0;
-#else
-  pSPS->vui_parameters_present_flag = 1;
 #endif
 
   pSPS->vui_param.chroma_loc_info_present_flag = 1;

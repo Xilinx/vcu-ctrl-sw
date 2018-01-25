@@ -204,6 +204,7 @@ static bool GetValue(const string& sLine, size_t zStartPos, int& Value, size_t& 
   else IF_KEYWORD_0(RAMP_QP)
   else IF_KEYWORD_0(RANDOM_QP)
   else IF_KEYWORD_0(BORDER_QP)
+  else IF_KEYWORD_0(ROI_QP)
   else IF_KEYWORD_0(AUTO_QP)
   else IF_KEYWORD_0(ADAPTIVE_AUTO_QP)
   else IF_KEYWORD_0(RELATIVE_QP)
@@ -213,6 +214,7 @@ static bool GetValue(const string& sLine, size_t zStartPos, int& Value, size_t& 
   else IF_KEYWORD_P(AL_RC_, CBR)
   else IF_KEYWORD_P(AL_RC_, VBR)
   else IF_KEYWORD_P(AL_RC_, LOW_LATENCY)
+  else IF_KEYWORD_P(AL_RC_, PLUGIN)
   else IF_KEYWORD_1(DEFAULT_GOP, AL_GOP_MODE_DEFAULT)
   else IF_KEYWORD_1(PYRAMIDAL_GOP, AL_GOP_MODE_PYRAMIDAL)
   else IF_KEYWORD_1(LOW_DELAY_P, AL_GOP_MODE_LOW_DELAY_P)
@@ -488,8 +490,8 @@ static bool ParseInput(string & sLine, ConfigFile& cfg)
   else if(KEYWORD("Width"))        cfg.FileInfo.PictWidth  = GetValue(sLine);
   else if(KEYWORD("Height"))       cfg.FileInfo.PictHeight = GetValue(sLine);
   else if(KEYWORD("Format"))       cfg.FileInfo.FourCC = TFourCC(GetFourCC(sLine));
-  else if(KEYWORD("ScnChgFile"))   GetString(sLine, cfg.sScnChgFileName);
-  else if(KEYWORD("LTFile"))       GetString(sLine, cfg.sLTFileName);
+  else if(KEYWORD("CmdFile"))      GetString(sLine, cfg.sCmdFileName);
+  else if(KEYWORD("RoiFile"))      GetString(sLine, cfg.sRoiFileName);
   else if(KEYWORD("FrameRate"))    cfg.FileInfo.FrameRate  = GetValue(sLine);
   else
     return false;
@@ -1024,8 +1026,8 @@ void ParseConfigFile(const string& sCfgFileName, ConfigFile& cfg)
   ToNativePath(cfg.BitstreamFileName);
   ToNativePath(cfg.RecFileName);
   ToNativePath(cfg.CfgTrace.sPath);
-  ToNativePath(cfg.sLTFileName);
-  ToNativePath(cfg.sScnChgFileName);
+  ToNativePath(cfg.sCmdFileName);
+  ToNativePath(cfg.sRoiFileName);
 
   WarningNoTraceFrame(iLine, cfg.CfgTrace, cfg.RunInfo);
   GetScalingList(cfg.Settings, sScalingListFile);

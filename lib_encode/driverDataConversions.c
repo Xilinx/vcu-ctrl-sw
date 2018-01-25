@@ -41,14 +41,19 @@
 #include "lib_rtos/types.h"
 #include <string.h>
 
-void setChannelParam(struct al5_params* param, AL_TEncChanParam* pChParam, AL_PADDR pEP1)
+static void write(struct al5_params* msg, void* data, int size)
 {
-  static_assert(sizeof(*pChParam) <= 4 * 128, "Driver channel_param struct is too small");
-  int channel_param_size = sizeof(*pChParam);
-  int ep1_size = sizeof(pEP1);
-  param->size = channel_param_size + ep1_size;
-  memcpy(param->opaque_params, pChParam, channel_param_size);
-  memcpy(param->opaque_params + channel_param_size / 4, &pEP1, ep1_size);
+  assert(size % 4 == 0);
+  memcpy(msg->opaque_params + (msg->size / 4), data, size);
+  msg->size += size;
+}
+
+void setChannelParam(struct al5_params* msg, AL_TEncChanParam* pChParam, AL_PADDR pEP1)
+{
+  static_assert(sizeof(*pChParam) <= sizeof(msg->opaque_params), "Driver channel_param struct is too small");
+  msg->size = 0;
+  write(msg, pChParam, sizeof(*pChParam));
+  write(msg, &pEP1, sizeof(pEP1));
 }
 
 static
@@ -56,20 +61,24 @@ void setPicParam(struct al5_params* msg, AL_TEncInfo* encInfo, AL_TEncRequestInf
 {
   static_assert(sizeof(*encInfo) + sizeof(*reqInfo) <= sizeof(msg->opaque_params), "Driver struct is too small for AL_TEncInfo & AL_TEncRequestInfo");
   msg->size = 0;
+  write(msg, encInfo, sizeof(*encInfo));
 
-  memcpy(msg->opaque_params, encInfo, sizeof(*encInfo));
-  msg->size += sizeof(*encInfo);
+  write(msg, &reqInfo->eReqOptions, sizeof(reqInfo->eReqOptions));
 
-  memcpy(msg->opaque_params + (msg->size / 4), reqInfo, sizeof(*reqInfo));
-  msg->size += sizeof(*reqInfo);
+  if(reqInfo->eReqOptions & AL_OPT_SCENE_CHANGE)
+    write(msg, &reqInfo->uSceneChangeDelay, sizeof(reqInfo->uSceneChangeDelay));
+
+
+  if(reqInfo->eReqOptions & AL_OPT_UPDATE_PARAMS)
+    write(msg, &reqInfo->smartParams, sizeof(reqInfo->smartParams));
 }
 
 static
 void setBuffersAddrs(struct al5_params* msg, AL_TEncPicBufAddrs* pBuffersAddrs)
 {
   static_assert(sizeof(*pBuffersAddrs) <= sizeof(msg->opaque_params), "Driver struct is too small for AL_TEncPicBufAddrs");
-  msg->size = sizeof(*pBuffersAddrs);
-  memcpy(msg->opaque_params, pBuffersAddrs, msg->size);
+  msg->size = 0;
+  write(msg, pBuffersAddrs, sizeof(*pBuffersAddrs));
 }
 
 void setEncodeMsg(struct al5_encode_msg* msg, AL_TEncInfo* encInfo, AL_TEncRequestInfo* reqInfo, AL_TEncPicBufAddrs* pBuffersAddrs)

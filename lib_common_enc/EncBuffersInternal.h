@@ -124,28 +124,32 @@ uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, AL_
 /*************************************************************************//*!
    \brief Retrieves the size of a compressed buffer(LCU header + MVDs + Residuals)
    \param[in] tDim Frame dimensions
+   \param[in] uLCUSize Max size of a coding unit
+   \param[in] bUseEnt Do we use entropy compression
    \return maximum size (in bytes) needed for the compressed buffer
 *****************************************************************************/
-uint32_t GetAllocSize_CompData(AL_TDimension tDim);
+uint32_t GetAllocSize_CompData(AL_TDimension tDim, uint8_t uLCUSize, bool bUseEnt);
 
 /*************************************************************************//*!
    \brief Retrieves the offset of the current LCU Hdr_MVDs words
    \param[in] tDim Frame dimensions
+   \param[in] uLCUSize Max size of a coding unit
+   \param[in] bUseEnt Do we use entropy compression
    \return maximum size (in bytes) needed for the LCU Info buffer
 *****************************************************************************/
-uint32_t GetAllocSize_CompMap(AL_TDimension tDim);
+uint32_t GetAllocSize_CompMap(AL_TDimension tDim, uint8_t uLCUSize, bool bUseEnt);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a colocated frame buffer
    \param[in] tDim Frame dimensions
-   \param[in] uLCUSize Max Size of a Coding Unit
+   \param[in] uLcuSize Max size of a coding unit
    \param[in] Codec Flag which specifies the codec used
    \return the size (in bytes) needed for the colocated frame buffer
 *****************************************************************************/
-uint32_t GetAllocSize_MV(AL_TDimension tDim, uint8_t uLCUSize, AL_ECodec Codec);
+uint32_t GetAllocSize_MV(AL_TDimension tDim, uint8_t uLcuSize, AL_ECodec Codec);
 
 /*************************************************************************//*!
-   \brief Retrieves the size of a entry_points size buffer
+   \brief Retrieves the size of an entry_points size buffer
    \param[in] iLCUHeight Frame Height in pixel
    \param[in] iNumSlices Number of slices within the frame
    \param[in] uNumCore Number of used core

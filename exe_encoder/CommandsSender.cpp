@@ -35,23 +35,41 @@
 *
 ******************************************************************************/
 
-#pragma once
+#include "CommandsSender.h"
 
-#include "lib_rtos/lib_rtos.h"
-
-typedef struct
+void CommandsSender::notifySceneChange(int lookAhead)
 {
-  size_t m_zMaxElem;
-  size_t m_zTail;
-  size_t m_zHead;
-  void** m_ElemBuffer;
-  AL_MUTEX hMutex;
-  AL_SEMAPHORE hCountSem;
-  AL_SEMAPHORE hSpaceSem;
-}AL_TFifo;
+  AL_Encoder_NotifySceneChange(hEnc, lookAhead);
+}
 
-bool AL_Fifo_Init(AL_TFifo* pFifo, size_t zMaxElem);
-void AL_Fifo_Deinit(AL_TFifo* pFifo);
-bool AL_Fifo_Queue(AL_TFifo* pFifo, void* pElem, uint32_t uWait);
-void* AL_Fifo_Dequeue(AL_TFifo* pFifo, uint32_t uWait);
+void CommandsSender::notifyLongTerm()
+{
+  AL_Encoder_NotifyLongTerm(hEnc);
+}
+
+void CommandsSender::restartGop()
+{
+  AL_Encoder_RestartGop(hEnc);
+}
+
+void CommandsSender::setGopLength(int gopLength)
+{
+  AL_Encoder_SetGopLength(hEnc, gopLength);
+}
+
+void CommandsSender::setNumB(int numB)
+{
+  AL_Encoder_SetGopNumB(hEnc, numB);
+}
+
+void CommandsSender::setFrameRate(int frameRate, int clockRatio)
+{
+  AL_Encoder_SetFrameRate(hEnc, frameRate, clockRatio);
+}
+
+void CommandsSender::setBitRate(int bitRate)
+{
+  AL_Encoder_SetBitRate(hEnc, bitRate);
+}
+
 

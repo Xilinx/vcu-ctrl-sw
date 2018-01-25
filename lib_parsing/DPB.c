@@ -553,14 +553,7 @@ void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, AL_EDpbMode eMode, AL_TPictureM
 
   AL_DispFifo_sInit(&pDpb->m_DispFifo);
 
-  pDpb->m_tCallbacks.pUserParam = tCallbacks.pUserParam;
-  pDpb->m_tCallbacks.pfnIncrementFrmBuf = tCallbacks.pfnIncrementFrmBuf;
-  pDpb->m_tCallbacks.pfnDecrementFrmBuf = tCallbacks.pfnDecrementFrmBuf;
-
-  pDpb->m_tCallbacks.pfnOutputFrmBuf = tCallbacks.pfnOutputFrmBuf;
-
-  pDpb->m_tCallbacks.pfnIncrementMvBuf = tCallbacks.pfnIncrementMvBuf;
-  pDpb->m_tCallbacks.pfnDecrementMvBuf = tCallbacks.pfnDecrementMvBuf;
+  pDpb->m_tCallbacks = tCallbacks;
 }
 
 /*************************************************************************/
@@ -1282,7 +1275,7 @@ static bool AL_Dpb_sIsLowRef(AL_TDpb* pDpb)
 /*****************************************************************************/
 static uint8_t Dpb_GetNodeFromFrmID(AL_TDpb* pDpb, int iFrameID)
 {
-  AL_TDpbNode const * pNodes = pDpb->m_Nodes;
+  AL_TDpbNode const* pNodes = pDpb->m_Nodes;
   uint8_t uNode = pDpb->m_uHeadDecOrder;
 
   while(uNode != uEndOfList)
@@ -1311,6 +1304,7 @@ void AL_Dpb_EndDecoding(AL_TDpb* pDpb, int iFrmID)
     {
       uint8_t const uNode = Dpb_GetNodeFromFrmID(pDpb, iFrmID);
       bool const isInDisplayList = (uNode == uEndOfList);
+
       if(!isInDisplayList && AL_Dpb_GetOutputFlag(pDpb, uNode))
         AL_Dpb_Display(pDpb, uNode);
     }

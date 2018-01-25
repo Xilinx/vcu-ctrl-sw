@@ -477,12 +477,15 @@ bool Rtos_WaitEvent(AL_EVENT Event, uint32_t Wait)
   }
   else
   {
-    struct timespec Ts;
-    Ts.tv_sec = Wait / 1000;
-    Ts.tv_nsec = (Wait % 1000) * 1000000;
+    struct timeval now;
+    gettimeofday(&now, NULL);
+
+    struct timespec deadline;
+    deadline.tv_sec = now.tv_sec + Wait / 1000;
+    deadline.tv_nsec = (now.tv_usec + 1000UL * (Wait % 1000)) * 1000UL;
 
     while(bRet && !pEvt->bSignaled)
-      bRet = (pthread_cond_timedwait(&pEvt->Cond, &pEvt->Mutex, &Ts) == 0);
+      bRet = (pthread_cond_timedwait(&pEvt->Cond, &pEvt->Mutex, &deadline) == 0);
   }
 
   if(bRet)

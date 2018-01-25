@@ -178,6 +178,7 @@ typedef enum __AL_ALIGNED__ (4) AL_e_RateCtrlMode
   AL_RC_VBR = 0x02,
   AL_RC_LOW_LATENCY = 0x03,
   AL_RC_BYPASS = 0x3F,
+  AL_RC_PLUGIN = 0x40,
   AL_TEST_RC_FILLER = 0xF1,
   AL_RC_MAX_ENUM,
 } AL_ERateCtrlMode;

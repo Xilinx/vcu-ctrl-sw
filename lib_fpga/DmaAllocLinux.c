@@ -139,9 +139,9 @@ static bool LinuxDma_Free(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
     bRet = false;
     perror("munmap");
   }
-  /* we try closing the fd anyway */
+
   if(pDmaBuffer->shouldCloseFd)
-	  close(pDmaBuffer->info.fd);
+    close(pDmaBuffer->info.fd);
 
   free(pDmaBuffer);
 
@@ -201,6 +201,7 @@ static AL_HANDLE LinuxDma_Alloc_256B_Aligned(AL_TAllocator* pAllocator, size_t z
   }
 
   p->shouldCloseFd = true;
+
   LOG_ALLOCATION(p);
 
   return (AL_HANDLE)p;

@@ -265,15 +265,17 @@ uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, AL_
 }
 
 /****************************************************************************/
-uint32_t GetAllocSize_CompData(AL_TDimension tDim)
+uint32_t GetAllocSize_CompData(AL_TDimension tDim, uint8_t uLCUSize, bool bUseEnt)
 {
   uint32_t uBlk16x16 = GetBlk16x16(tDim);
-  return GetCompLcuSize() * uBlk16x16;
+  return GetCompLcuSize(uLCUSize, bUseEnt) * uBlk16x16;
 }
 
 /****************************************************************************/
-uint32_t GetAllocSize_CompMap(AL_TDimension tDim)
+uint32_t GetAllocSize_CompMap(AL_TDimension tDim, uint8_t uLCUSize, bool bUseEnt)
 {
+  (void)uLCUSize;
+  (void)bUseEnt;
   uint32_t uBlk16x16 = GetBlk16x16(tDim);
   return RoundUp(SIZE_LCU_INFO * uBlk16x16, 32);
 }

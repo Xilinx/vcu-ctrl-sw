@@ -44,6 +44,8 @@
  *****************************************************************************/
 #pragma once
 
+extern "C"
+{
 #include "lib_rtos/types.h"
 #include "lib_rtos/lib_rtos.h"
 
@@ -51,6 +53,7 @@
 #include "lib_common/BufferAPI.h"
 #include "lib_common/BufferMeta.h"
 #include "lib_common/BufferAccess.h"
+}
 
 /*************************************************************************//*!
    \brief AL_TBufPoolConfig: Used to configure the AL_TBufPool
@@ -132,9 +135,14 @@ struct BufPool
     AL_BufPool_Deinit(&m_pool);
   }
 
-  AL_TBufPool* operator & ()
+  int Init(AL_TAllocator* pAllocator, AL_TBufPoolConfig& config)
   {
-    return &m_pool;
+    return AL_BufPool_Init(&m_pool, pAllocator, &config);
+  }
+
+  AL_TBuffer* GetBuffer(AL_EBufMode mode = AL_BUF_MODE_BLOCK)
+  {
+    return AL_BufPool_GetBuffer(&m_pool, mode);
   }
 
   AL_TBufPool m_pool {};

@@ -1,7 +1,7 @@
 #define IDI_ICON1 101
 
-#define IP_VERSION 1, 0, 38
-#define IP_VERSION_STR "1,0,38"
+#define IP_VERSION 1, 0, 39
+#define IP_VERSION_STR "1,0,39"
 
 #define IP_DECODER_COMMENTS "Confidential material"
 #define IP_DECODER_COMPANY "Allegro DVT"

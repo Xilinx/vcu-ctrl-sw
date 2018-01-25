@@ -57,6 +57,8 @@
 #include "lib_common_enc/EncSliceBuffer.h"
 #include "lib_common_enc/EncSize.h"
 #include "lib_encode/lib_encoder.h"
+#include "lib_common/Fifo.h"
+
 
 
 typedef struct t_Scheduler TScheduler;
@@ -74,18 +76,29 @@ typedef struct t_Scheduler TScheduler;
 typedef struct AL_t_FrameInfo
 {
   AL_TEncInfo tEncInfo;
-  AL_TEncRequestInfo tRequestInfo;
   AL_TBuffer* pQpTable;
 }AL_TFrameInfo;
 
 
 typedef AL_TEncSliceStatus TStreamInfo;
 
+typedef struct AL_t_EncCtx AL_TEncCtx;
+
+typedef struct
+{
+  void (* configureChannel)(struct AL_t_EncCtx* pCtx, AL_TEncSettings const* pSettings);
+  void (* generateSkippedPictureData)(struct AL_t_EncCtx* pCtx);
+  void (* generateNals)(AL_TEncCtx* pCtx);
+  void (* updateHlsAndWriteSections)(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_TBuffer* pStream);
+}HighLevelEncoder;
+
 /*************************************************************************//*!
    \brief Encoder Context structure
 *****************************************************************************/
 typedef struct AL_t_EncCtx
 {
+  HighLevelEncoder encoder;
+
   AL_TEncSettings m_Settings;
 
   AL_HANDLE m_hChannel;
@@ -104,6 +117,7 @@ typedef struct AL_t_EncCtx
   AL_SeiData m_seiData;
 
   AL_TSrcBufferChecker m_srcBufferChecker;
+  AL_TEncRequestInfo m_currentRequestInfo;
   int m_iMaxNumRef;
 
   AL_TSkippedPicture m_pSkippedPicture;
@@ -117,6 +131,7 @@ typedef struct AL_t_EncCtx
   TBufferEP m_tBufEP1;
 
   AL_TFrameInfo m_Pool[ENC_MAX_CMD];
+  AL_TFifo m_iPoolIds;
   int m_iCurPool;
 
   AL_TBuffer* m_StreamSent[AL_MAX_STREAM_BUFFER];

@@ -37,21 +37,23 @@
 
 #pragma once
 
-#include "lib_rtos/lib_rtos.h"
+#include "ICommandsSender.h"
+#include "lib_encode/lib_encoder.h"
 
-typedef struct
+class CommandsSender : public ICommandsSender
 {
-  size_t m_zMaxElem;
-  size_t m_zTail;
-  size_t m_zHead;
-  void** m_ElemBuffer;
-  AL_MUTEX hMutex;
-  AL_SEMAPHORE hCountSem;
-  AL_SEMAPHORE hSpaceSem;
-}AL_TFifo;
+public:
+  CommandsSender(AL_HEncoder hEnc) : hEnc(hEnc) {};
+  ~CommandsSender() {};
+  virtual void notifySceneChange(int lookAhead);
+  virtual void notifyLongTerm();
+  virtual void restartGop();
+  virtual void setGopLength(int gopLength);
+  virtual void setNumB(int numB);
+  virtual void setFrameRate(int frameRate, int clockRatio);
+  virtual void setBitRate(int bitRate);
 
-bool AL_Fifo_Init(AL_TFifo* pFifo, size_t zMaxElem);
-void AL_Fifo_Deinit(AL_TFifo* pFifo);
-bool AL_Fifo_Queue(AL_TFifo* pFifo, void* pElem, uint32_t uWait);
-void* AL_Fifo_Dequeue(AL_TFifo* pFifo, uint32_t uWait);
+private:
+  AL_HEncoder hEnc;
+};
 

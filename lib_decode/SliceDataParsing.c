@@ -245,14 +245,10 @@ static void AL_InitIntermediateBuffers(AL_TDecCtx* pCtx, AL_TDecPicBuffers* pBuf
 void AL_InitFrameBuffers(AL_TDecCtx* pCtx, AL_TDecPicBuffers* pBufs, AL_TDimension tDim, AL_TDecPicParam* pPP)
 {
   Rtos_GetSemaphore(pCtx->m_Sem, AL_WAIT_FOREVER);
-  bool bRes = AL_PictMngr_BeginFrame(&pCtx->m_PictMngr, tDim);
-
-  if(bRes)
-  {
-    pPP->FrmID = AL_PictMngr_GetCurrentFrmID(&pCtx->m_PictMngr);
-    pPP->MvID = AL_PictMngr_GetCurrentMvID(&pCtx->m_PictMngr);
-    AL_InitIntermediateBuffers(pCtx, pBufs);
-  }
+  AL_PictMngr_BeginFrame(&pCtx->m_PictMngr, tDim);
+  pPP->FrmID = AL_PictMngr_GetCurrentFrmID(&pCtx->m_PictMngr);
+  pPP->MvID = AL_PictMngr_GetCurrentMvID(&pCtx->m_PictMngr);
+  AL_InitIntermediateBuffers(pCtx, pBufs);
 }
 
 /*****************************************************************************/

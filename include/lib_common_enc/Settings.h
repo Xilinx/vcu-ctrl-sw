@@ -96,6 +96,7 @@ typedef enum e_QPCtrlMode
   RANDOM_QP = 0x03, /*!< used for test purpose */
   LOAD_QP = 0x04, /*!< used for test purpose */
   BORDER_QP = 0x05, /*!< used for test purpose */
+  ROI_QP = 0x06,
   MASK_QP_TABLE = 0x07,
 
   // additional modes
@@ -127,8 +128,8 @@ typedef struct t_EncSettings
   AL_TEncChanParam tChParam;
   bool bEnableAUD;
   bool bEnableFillerData;
-
   uint32_t uEnableSEI;
+
   AL_EAspectRatio eAspectRatio; /*!< specifies the display aspect ratio */
   AL_EColourDescription eColourDescription;
   AL_EScalingList eScalingList;

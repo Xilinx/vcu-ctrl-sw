@@ -37,21 +37,15 @@
 
 #pragma once
 
-#include "lib_rtos/lib_rtos.h"
-
-typedef struct
+struct ICommandsSender
 {
-  size_t m_zMaxElem;
-  size_t m_zTail;
-  size_t m_zHead;
-  void** m_ElemBuffer;
-  AL_MUTEX hMutex;
-  AL_SEMAPHORE hCountSem;
-  AL_SEMAPHORE hSpaceSem;
-}AL_TFifo;
-
-bool AL_Fifo_Init(AL_TFifo* pFifo, size_t zMaxElem);
-void AL_Fifo_Deinit(AL_TFifo* pFifo);
-bool AL_Fifo_Queue(AL_TFifo* pFifo, void* pElem, uint32_t uWait);
-void* AL_Fifo_Dequeue(AL_TFifo* pFifo, uint32_t uWait);
+  virtual ~ICommandsSender() {};
+  virtual void notifySceneChange(int lookAhead) = 0;
+  virtual void notifyLongTerm() = 0;
+  virtual void restartGop() = 0;
+  virtual void setGopLength(int gopLength) = 0;
+  virtual void setNumB(int numB) = 0;
+  virtual void setFrameRate(int frameRate, int clockRatio) = 0;
+  virtual void setBitRate(int bitRate) = 0;
+};
 

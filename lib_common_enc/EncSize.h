@@ -43,7 +43,7 @@
 #define RES_SIZE_16x16_HEVC 768/*!< residuals size of a 16x16 LCU */
 #define SIZE_LCU_INFO 16 /*!< LCU compressed size + LCU offset */
 
-int GetCompLcuSize();
+int GetCompLcuSize(uint8_t uLcuSize, bool bUseEnt);
 
 
 #define AL_MAX_SUPPORTED_LCU_SIZE 6

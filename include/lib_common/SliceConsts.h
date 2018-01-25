@@ -112,7 +112,6 @@ typedef enum __AL_ALIGNED__ (4) AL_e_Profile
 #define AL_IS_422_PROFILE(Prof) (((((Prof) & 0xFF0000FF) == AL_PROFILE_HEVC_RExt) && !((Prof) & 0x000C0000)) || ((Prof) == AL_PROFILE_AVC_HIGH_422) || ((Prof) == AL_PROFILE_AVC_HIGH_422_INTRA))
 #define AL_IS_10BIT_PROFILE(Prof) (((((Prof) & 0xFF0000FF) == AL_PROFILE_HEVC_RExt) && !((Prof) & 0x00200000)) || ((Prof) == AL_PROFILE_HEVC_MAIN10) || ((Prof) == AL_PROFILE_AVC_HIGH10) || ((Prof) == AL_PROFILE_AVC_HIGH_422) || ((Prof) == AL_PROFILE_AVC_HIGH_422_INTRA))
 #define AL_IS_LOW_BITRATE_PROFILE(Prof) ((Prof) & 0x00008000)
-
 /****************************************************************************/
 #define AL_IS_AVC(Prof) (((Prof) & 0xFF000000) == AL_PROFILE_AVC)
 #define AL_IS_HEVC(Prof) (((Prof) & 0xFF000000) == AL_PROFILE_HEVC)
@@ -167,7 +166,7 @@ typedef enum e_SliceType
   SLICE_SKIP = 7, /*< slice skip */
   SLICE_REPEAT = 8,
   /* should always be last */
-  SLICE_MAX_ENUM
+  SLICE_MAX_ENUM,
 }AL_ESliceType;
 
 /*************************************************************************//*!
@@ -465,9 +464,8 @@ typedef enum e_SeiFlag
 
   SEI_BP = 0x00000001, // Buffering period
   SEI_PT = 0x00000002, // Picture Timing
-  SEI_FILL = 0x00000004, // Filler
-  SEI_RP = 0x00000008, // Recovery Point
-  SEI_SVI = 0x00010000, // Stereo Video Info
+  SEI_RP = 0x00000004, // Recovery Point
+  SEI_EOF = 0x00000008, // End of frame
 
   SEI_ALL = 0x00FFFFFF, // All supported SEI
 }AL_SeiFlag;

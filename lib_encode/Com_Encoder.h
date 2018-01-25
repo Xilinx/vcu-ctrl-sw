@@ -63,6 +63,8 @@
 
 void AL_Common_Encoder_InitCtx(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TAllocator* pAllocator);
 
+AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncCtx* pCtx, TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings);
+
 /*************************************************************************//*!
    \brief The Encoder_NotifySceneChange function informs the encoder that a scene
    change will shortly happen.
@@ -108,7 +110,6 @@ void AL_Common_Encoder_ReleaseRecPicture(AL_TEncoder* pEnc, TRecPic* pRecPic);
 *****************************************************************************/
 bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer* pQPTable);
 
-
 /*************************************************************************//*!
    \brief The Encoder_GetLastError function return the last error if any
    \param[in] pEnc Pointer on an encoder context object
@@ -124,14 +125,6 @@ AL_ERR AL_Common_Encoder_GetLastError(AL_TEncoder* pEnc);
    If the function fails the return value is zero (false)
 *****************************************************************************/
 void AL_Common_Encoder_WaitReadiness(AL_TEncCtx* pCtx);
-void AL_Common_Encoder_EndEncoding(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TBuffer* pSrc, AL_TBuffer* pQpTable, bool bIsEndOfFrame);
-void AL_Common_Encoder_EndEncoding2(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TBuffer* pSrc, AL_TBuffer* pQpTable, bool bIsEndOfFrame, bool shouldReleaseSrc);
-
-/*************************************************************************//*!
-   \brief The Encoder_DestroyCtx deinitialize an encoder context
-   \param[in] pCtx Pointer on an encoder context object
-*****************************************************************************/
-void AL_Common_Encoder_DestroyCtx(AL_TEncCtx* pCtx);
 
 /*************************************************************************//*!
    \brief The Encoder_Destroy function destroy an encoder object
@@ -139,14 +132,50 @@ void AL_Common_Encoder_DestroyCtx(AL_TEncCtx* pCtx);
 *****************************************************************************/
 void AL_Common_Encoder_Destroy(AL_TEncoder* pEnc);
 
+/*************************************************************************//*!
+   \brief The AL_Encoder_RestartGop requests the encoder to insert a Keyframe
+   and restart a new Gop.
+   \param[in] pEnc Pointer on an encoder object
+*****************************************************************************/
+void AL_Common_Encoder_RestartGop(AL_TEncoder* pEnc);
 
 /*************************************************************************//*!
-   \brief The AL_Common_Encoder_InitChannelParam function translate some TSettings
-   parameter to TChannelParam Options
-   \param[in] pCtx Pointer on an encoder context object
-   \param[in] pSettings Pointer on a AL_TEncSettings structure
+   \brief The AL_Encoder_SetGopLength changes the GopLength. If the on-going
+   Gop is already longer than the new GopLength the encoder will restart a new
+   Gop immediately. If the on-going GOP is shorter than the new GopLength,
+   the encoder will restart the gop when the on-going one will reach the new
+   GopLength
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] iGopLength New Gop Length
 *****************************************************************************/
-AL_TEncChanParam* AL_Common_Encoder_InitChannelParam(AL_TEncCtx* pCtx, AL_TEncSettings const* pSettings);
+void AL_Common_Encoder_SetGopLength(AL_TEncoder* pEnc, int iGopLength);
+
+/*************************************************************************//*!
+   \brief The AL_Encoder_SetGopNumB changes the Number of consecutive B
+   frame in-between 2 I/P frames.
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] iNumB the new number of B frames
+*****************************************************************************/
+void AL_Common_Encoder_SetGopNumB(AL_TEncoder* pEnc, int iNumB);
+
+/*************************************************************************//*!
+   \brief The AL_Encoder_SetBitRate changes the target bitrate
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] iGopLength New Gop Length
+*****************************************************************************/
+void AL_Common_Encoder_SetBitRate(AL_TEncoder* pEnc, int iBitRate);
+
+/*************************************************************************//*!
+   \brief The AL_Encoder_SetFrameRate changes the encoding frame rate
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] uFrameRate the new frame rate
+   \param[in] uClkRatio the ClkRatio
+   \note Fps = uFrameRate * 1000 / uClkRatio. for example uFrameRate = 60 and
+   uClkRatio = 1001 gives 59.94 fps
+*****************************************************************************/
+void AL_Common_Encoder_SetFrameRate(AL_TEncoder* pEnc, uint16_t uFrameRate, uint16_t uClkRatio);
+
+
 
 /*************************************************************************//*!
    \brief The SetME function initializes the motion estimation parameters
@@ -158,19 +187,11 @@ AL_TEncChanParam* AL_Common_Encoder_InitChannelParam(AL_TEncCtx* pCtx, AL_TEncSe
 *****************************************************************************/
 void AL_Common_Encoder_SetME(int iHrzRange_P, int iVrtRange_P, int iHrzRange_B, int iVrtRange_B, AL_TEncChanParam* pChParam);
 
-/*************************************************************************//*!
-   \brief The Encoder_PreprocessEncoderParam function preprocess Rate control and quantization params
-   \param[in] pCtx Pointer on an encoder context object
-   \param[in] pPictOptions Pointer to encoding options
-*****************************************************************************/
-void AL_Common_Encoder_PreprocessEncoderParam(AL_TEncCtx* pCtx, AL_EPicEncOption* pPictOptions);
-
 
 void AL_Common_Encoder_SetHlsParam(AL_TEncChanParam* pChParam);
 bool AL_Common_Encoder_IsInitialQpProvided(AL_TEncChanParam* pChParam);
 uint32_t AL_Common_Encoder_ComputeBitPerPixel(AL_TEncChanParam* pChParam);
 int8_t AL_Common_Encoder_GetInitialQP(uint32_t iBitPerPixel);
-void AL_Common_Encoder_SetMaxNumRef(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam);
 
 /*@}*/
 

@@ -527,7 +527,7 @@ int32_t AL_PictMngr_GetCurrentPOC(AL_TPictMngrCtx* pCtx)
 }
 
 /***************************************************************************/
-bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, AL_TDimension tDim)
+void AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, AL_TDimension tDim)
 {
   pCtx->m_uRecID = sFrmBufPoolFifo_Pop(&pCtx->m_FrmBufPool);
   assert(pCtx->m_uRecID != UndefID);
@@ -537,8 +537,6 @@ bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, AL_TDimension tDim)
 
   AL_TSrcMetaData* pMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(sFrmBufPool_GetBufferFromID(&pCtx->m_FrmBufPool, pCtx->m_uRecID), AL_META_TYPE_SOURCE);
   pMeta->tDim = tDim;
-
-  return true;
 }
 
 /*****************************************************************************/

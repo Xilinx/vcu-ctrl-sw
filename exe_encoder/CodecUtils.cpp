@@ -528,16 +528,13 @@ void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection)
 int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream)
 {
   AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
-  int iNumSectionWritten = 0;
   int iNumFrame = 0;
-  int i = 0;
 
-  while(i < pStreamMeta->uNumSection)
+  for(int curSection = 0; curSection < pStreamMeta->uNumSection; ++curSection)
   {
-    if(pStreamMeta->pSections[i].uFlags & SECTION_END_FRAME_FLAG)
+    if(pStreamMeta->pSections[curSection].uFlags & SECTION_END_FRAME_FLAG)
       ++iNumFrame;
-    WriteOneSection(HEVCFile, pStream, i++);
-    ++iNumSectionWritten;
+    WriteOneSection(HEVCFile, pStream, curSection);
   }
 
   return iNumFrame;

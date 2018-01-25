@@ -113,10 +113,24 @@ void AL_Encoder_NotifySceneChange(AL_HEncoder hEnc, int iAhead);
 *****************************************************************************/
 void AL_Encoder_NotifyLongTerm(AL_HEncoder hEnc);
 
-/***************************************************************************/
+/*************************************************************************//*!
+   \brief When the encoder has been created with bEnableRecOutput set to
+   true, the AL_Encoder_GetRecPicture function allows to retrieve the
+   reconstructed frame picture in Display order.
+   \param[in] hEnc Handle to an encoder object
+   \param[in] pRecPic pointer to structure that receives the buffer information.
+   \return true if a reconstructed buffer is available, false otherwise.
+   \see AL_Encoder_ReleaseRecPicture
+*****************************************************************************/
 bool AL_Encoder_GetRecPicture(AL_HEncoder hEnc, TRecPic* pRecPic);
 
-/***************************************************************************/
+/*************************************************************************//*!
+   \brief Release Reconstructed buffer previously obtains through
+   AL_Encoder_GetRecPicture.
+   \param[in] hEnc Handle to an encoder object
+   \param[in] pRecPic Buffer to be released.
+   \see AL_Encoder_GetRecPicture
+*****************************************************************************/
 void AL_Encoder_ReleaseRecPicture(AL_HEncoder hEnc, TRecPic* pRecPic);
 
 /*************************************************************************//*!
@@ -157,6 +171,50 @@ bool AL_Encoder_Process(AL_HEncoder hEnc, AL_TBuffer* pFrame, AL_TBuffer* pQpTab
    \param[in] hEnc Handle to an encoder object
 *****************************************************************************/
 AL_ERR AL_Encoder_GetLastError(AL_HEncoder hEnc);
+
+/*************************************************************************//*!
+   \brief The AL_Encoder_RestartGop requests the encoder to insert a Keyframe
+   and restart a new Gop.
+   \param[in] hEnc Handle to an encoder object
+*****************************************************************************/
+void AL_Encoder_RestartGop(AL_HEncoder hEnc);
+
+/*************************************************************************//*!
+   \brief The AL_Encoder_SetGopLength changes the GopLength. If the on-going
+   Gop is already longer than the new GopLength the encoder will restart a new
+   Gop immediately. If the on-going GOP is shorter than the new GopLength,
+   the encoder will restart the gop when the on-going one will reach the new
+   GopLength
+   \param[in] hEnc Handle to an encoder object
+   \param[in] iGopLength New Gop Length
+*****************************************************************************/
+void AL_Encoder_SetGopLength(AL_HEncoder hEnc, int iGopLength);
+
+/*************************************************************************//*!
+   \brief The AL_Encoder_SetGopNumB changes the Number of consecutive B
+   frame in-between 2 I/P frames.
+   \param[in] hEnc Handle to an encoder object
+   \param[in] iNumB the new number of B frames
+*****************************************************************************/
+void AL_Encoder_SetGopNumB(AL_HEncoder hEnc, int iNumB);
+
+/*************************************************************************//*!
+   \brief The AL_Encoder_SetBitRate changes the target bitrate
+   \param[in] hEnc Handle to an encoder object
+   \param[in] iGopLength New Gop Length
+*****************************************************************************/
+void AL_Encoder_SetBitRate(AL_HEncoder hEnc, int iBitRate);
+
+/*************************************************************************//*!
+   \brief The AL_Encoder_SetFrameRate changes the encoding frame rate
+   \param[in] hEnc Handle to an encoder object
+   \param[in] uFrameRate the new frame rate
+   \param[in] uClkRatio the ClkRatio
+   \note Fps = iFrameRate * 1000 / iClkRatio. for example uFrameRate = 60 and
+   uClkRatio = 1001 gives 59.94 fps
+*****************************************************************************/
+void AL_Encoder_SetFrameRate(AL_HEncoder hEnc, uint16_t uFrameRate, uint16_t uClkRatio);
+
 
 
 #ifdef __cplusplus

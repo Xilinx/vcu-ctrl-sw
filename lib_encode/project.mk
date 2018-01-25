@@ -22,6 +22,18 @@ LIB_ENCODE_SRC+=\
 	lib_encode/IScheduler.c\
 	lib_encode/SourceBufferChecker.c\
 
+ifneq ($(ENABLE_VP9),0)
+	LIB_ENCODE_SRC+=\
+    lib_encode/VP9_Probs.c\
+
+endif
+
+ifneq ($(ENABLE_JPEG),0)
+	LIB_ENCODE_SRC+=\
+    lib_encode/JpegTables.c\
+
+endif
+
 LIB_ENCODER_SRC:=\
   $(LIB_FPGA_SRC)\
   $(LIB_COMMON_SRC)\

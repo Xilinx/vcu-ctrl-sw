@@ -453,7 +453,11 @@ static void writeSpsData(AL_TBitStreamLite* pBS, AL_THevcSps const* pSps)
 
   if(pSps->pcm_enabled_flag)
   {
-    // TODO
+    AL_BitStreamLite_PutU(pBS, 4, pSps->pcm_sample_bit_depth_luma_minus1);
+    AL_BitStreamLite_PutU(pBS, 4, pSps->pcm_sample_bit_depth_chroma_minus1);
+    AL_BitStreamLite_PutUE(pBS, pSps->log2_min_pcm_luma_coding_block_size_minus3);
+    AL_BitStreamLite_PutUE(pBS, pSps->log2_diff_max_min_pcm_luma_coding_block_size);
+    AL_BitStreamLite_PutBit(pBS, pSps->pcm_loop_filter_disabled_flag);
   }
 
   AL_BitStreamLite_PutUE(pBS, pSps->num_short_term_ref_pic_sets);
@@ -607,6 +611,7 @@ static void writeSeiActiveParameterSets(AL_TBitStreamLite* pBS, AL_THevcVps cons
   AL_BitStreamLite_EndOfSEIPayload(pBS);
 
   AL_RbspEncoding_EndSEI(pBS, bookmark);
+  AL_RbspEncoding_CloseSEI(pBS);
 }
 
 /******************************************************************************/

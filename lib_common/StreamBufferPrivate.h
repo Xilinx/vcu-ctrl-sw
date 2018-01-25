@@ -46,7 +46,10 @@ static const uint16_t AL_PCM_SIZE[4][3] =
 #define AL_MAX_SLICE_HEADER_SIZE 512
 
 /****************************************************************************/
-int GetMaxVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode);
+int GetMaxVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth);
+
+/****************************************************************************/
+int GetPcmVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth);
 
 /****************************************************************************/
 int GetBlk64x64(AL_TDimension tDim);

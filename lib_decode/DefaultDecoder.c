@@ -121,22 +121,29 @@ static bool IsAtLeastOneStreamSettingsSet(AL_TStreamSettings tStreamSettings)
 static int const bitstreamRequestSize = 4096;
 
 /*****************************************************************************/
-static int GetCircularBufferSizeAVC(int iStack, AL_TStreamSettings tStreamSettings)
+static int GetCircularBufferSize(bool isAvc, int iStack, AL_TStreamSettings tStreamSettings)
 {
-  int const zMaxDPBSize = 120 * 1024 * 1024;
-  int const zWorstCaseNalSize = 2 << 24;
-  int const zNalSize = IsAllStreamSettingsSet(tStreamSettings) ? AL_GetMaxNalSize(tStreamSettings.tDim, tStreamSettings.eChroma) : zWorstCaseNalSize;
-  int const bufferSize = UnsignedMin(zNalSize * iStack, zMaxDPBSize);
-  return RoundUp(bufferSize, bitstreamRequestSize);
-}
+  int const zMaxCPBSize = (isAvc ? 120 : 50) * 1024 * 1024; /* CPB default worst case */
+  int const zWorstCaseNalSize = 2 << (isAvc ? 24 : 23); /* Single frame worst case */
 
-/*****************************************************************************/
-static int GetCircularBufferSizeHEVC(int iStack, AL_TStreamSettings tStreamSettings)
-{
-  int const zMaxDPBSize = 50 * 1024 * 1024;
-  int const zWorstCaseNalSize = 2 << 23;
-  int const zNalSize = IsAllStreamSettingsSet(tStreamSettings) ? AL_GetMaxNalSize(tStreamSettings.tDim, tStreamSettings.eChroma) : zWorstCaseNalSize;
-  int const bufferSize = UnsignedMin(zNalSize * iStack, zMaxDPBSize);
+  int circularBufferSize = 0;
+
+  if(IsAllStreamSettingsSet(tStreamSettings))
+  {
+    /* Circular buffer always should be able to hold one frame, therefore compute the worst case and use it as a lower bound.  */
+    int const zMaxNalSize = AL_GetMaxNalSize(tStreamSettings.tDim, tStreamSettings.eChroma, tStreamSettings.iBitDepth); /* Worst case: (5/3)*PCM + Worst case slice Headers */
+    int const zRealworstcaseNalSize = AL_GetMitigatedMaxNalSize(tStreamSettings.tDim, tStreamSettings.eChroma, tStreamSettings.iBitDepth); /* Reasonnable: PCM + Slice Headers */
+    circularBufferSize = UnsignedMax(zMaxNalSize, iStack * zRealworstcaseNalSize);
+  }
+  else
+  {
+    circularBufferSize = zWorstCaseNalSize * iStack;
+  }
+
+  /* Get minimum between absolute CPB worst case and computed value. */
+  int const bufferSize = UnsignedMin(circularBufferSize, zMaxCPBSize);
+
+  /* Round up for hardware. */
   return RoundUp(bufferSize, bitstreamRequestSize);
 }
 
@@ -1145,7 +1152,7 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel,
 
   AL_Buffer_Ref(pCtx->m_eosBuffer);
 
-  int const iBufferStreamSize = isAVC(pCtx->m_chanParam.eCodec) ? GetCircularBufferSizeAVC(pCtx->m_iStackSize, pCtx->m_tStreamSettings) : GetCircularBufferSizeHEVC(pCtx->m_iStackSize, pCtx->m_tStreamSettings);
+  int const iBufferStreamSize = GetCircularBufferSize(isAVC(pCtx->m_chanParam.eCodec), pCtx->m_iStackSize, pCtx->m_tStreamSettings);
   int const iInputFifoSize = 256;
   AL_CB_Error errorCallback =
   {

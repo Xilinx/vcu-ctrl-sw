@@ -78,7 +78,7 @@ bool AL_SchedulerMcu_Destroy(AL_TSchedulerMcu* schedulerMcu);
 
 #define DCACHE_OFFSET 0x80000000
 
-static void updateChannelParam(AL_TEncChanParam* pChParam, struct al5_channel_status* msg);
+static void setChannelFeedback(AL_TEncChanParam* pChParam, struct al5_channel_status* msg);
 static void setCallbacks(Channel* chan, AL_TISchedulerCallBacks* pCBs);
 static bool getStatusMsg(Channel* chan, struct al5_params* msg);
 static void processStatusMsg(Channel* chan, struct al5_params* msg);
@@ -116,7 +116,7 @@ static AL_ERR createChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEnc
   }
 
   assert(msg.status.error_code == 0);
-  updateChannelParam(pChParam, &msg.status);
+  setChannelFeedback(pChParam, &msg.status);
 
   setCallbacks(chan, pCBs);
 
@@ -228,7 +228,7 @@ static bool releaseRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPi
   return true;
 }
 
-static void updateChannelParam(AL_TEncChanParam* pChParam, struct al5_channel_status* msg)
+static void setChannelFeedback(AL_TEncChanParam* pChParam, struct al5_channel_status* msg)
 {
   pChParam->eOptions = msg->options;
   pChParam->uNumCore = msg->num_core;

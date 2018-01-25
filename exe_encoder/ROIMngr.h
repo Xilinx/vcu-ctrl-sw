@@ -37,21 +37,66 @@
 
 #pragma once
 
-#include "lib_rtos/lib_rtos.h"
-
-typedef struct
+extern "C"
 {
-  size_t m_zMaxElem;
-  size_t m_zTail;
-  size_t m_zHead;
-  void** m_ElemBuffer;
-  AL_MUTEX hMutex;
-  AL_SEMAPHORE hCountSem;
-  AL_SEMAPHORE hSpaceSem;
-}AL_TFifo;
+#include <lib_common_enc/EncBuffers.h>
+}
 
-bool AL_Fifo_Init(AL_TFifo* pFifo, size_t zMaxElem);
-void AL_Fifo_Deinit(AL_TFifo* pFifo);
-bool AL_Fifo_Queue(AL_TFifo* pFifo, void* pElem, uint32_t uWait);
-void* AL_Fifo_Dequeue(AL_TFifo* pFifo, uint32_t uWait);
+typedef enum al_eRoiQuality
+{
+  AL_ROI_QUALITY_HIGH = -5,
+  AL_ROI_QUALITY_MEDIUM = 0,
+  AL_ROI_QUALITY_LOW = +5,
+  AL_ROI_QUALITY_DONT_CARE = +31,
+  AL_ROI_QUALITY_STATIC = MASK_FORCE_MV0,
+}AL_ERoiQuality;
+
+typedef enum al_eRoiOrder
+{
+  AL_ROI_INCOMING_ORDER,
+  AL_ROI_QUALITY_ORDER,
+}AL_ERoiOrder;
+
+struct AL_TRoiNode
+{
+  AL_TRoiNode* pPrev;
+  AL_TRoiNode* pNext;
+
+  int iPosX;
+  int iPosY;
+  int iWidth;
+  int iHeight;
+
+  int8_t iDeltaQP;
+};
+
+struct AL_TRoiMngrCtx
+{
+  int8_t iMinQP;
+  int8_t iMaxQP;
+
+  int iPicWidth;
+  int iPicHeight;
+
+  int iLcuWidth;
+  int iLcuHeight;
+  int iNumLCUs;
+  uint8_t uLcuSize;
+
+  AL_ERoiQuality eBkgQuality;
+  AL_ERoiOrder eOrder;
+
+  AL_TRoiNode* pFirstNode;
+  AL_TRoiNode* pLastNode;
+};
+
+AL_TRoiMngrCtx* AL_RoiMngr_Create(int iPicWidth, int iPicHeight, AL_EProfile eProf, AL_ERoiQuality eBkgQuality, AL_ERoiOrder eOrder);
+
+void AL_RoiMngr_Destroy(AL_TRoiMngrCtx* pCtx);
+
+void AL_RoiMngr_Clear(AL_TRoiMngrCtx* pCtx);
+
+bool AL_RoiMngr_AddROI(AL_TRoiMngrCtx* pCtx, int iPosX, int iPosY, int iWidth, int iHeight, AL_ERoiQuality eQuality);
+
+void AL_RoiMngr_FillBuff(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerLCU, uint8_t* pBuf);
 

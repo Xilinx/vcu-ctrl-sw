@@ -71,11 +71,6 @@ bool AL_Fifo_Init(AL_TFifo* pFifo, size_t zMaxElem)
   return true;
 }
 
-bool AL_Fifo_Empty(AL_TFifo* pFifo)
-{
-  return pFifo->m_zHead == pFifo->m_zTail;
-}
-
 void AL_Fifo_Deinit(AL_TFifo* pFifo)
 {
   Rtos_Free(pFifo->m_ElemBuffer);

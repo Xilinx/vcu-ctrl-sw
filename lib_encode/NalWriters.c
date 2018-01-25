@@ -40,7 +40,7 @@
 
 static void audWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param)
 {
-  return writer->WriteAUD(bitstream, (int)(uintptr_t)param);
+  writer->WriteAUD(bitstream, (int)(uintptr_t)param);
 }
 
 AL_NalUnit AL_CreateAud(int nut, AL_ESliceType eSliceType)
@@ -51,7 +51,7 @@ AL_NalUnit AL_CreateAud(int nut, AL_ESliceType eSliceType)
 
 static void spsWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param)
 {
-  return writer->WriteSPS(bitstream, param);
+  writer->WriteSPS(bitstream, param);
 }
 
 AL_NalUnit AL_CreateSps(int nut, AL_TSps* sps)
@@ -62,7 +62,7 @@ AL_NalUnit AL_CreateSps(int nut, AL_TSps* sps)
 
 static void ppsWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param)
 {
-  return writer->WritePPS(bitstream, param);
+  writer->WritePPS(bitstream, param);
 }
 
 AL_NalUnit AL_CreatePps(int nut, AL_TPps* pps)
@@ -73,12 +73,24 @@ AL_NalUnit AL_CreatePps(int nut, AL_TPps* pps)
 
 static void vpsWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param)
 {
-  return writer->WriteVPS(bitstream, param);
+  writer->WriteVPS(bitstream, param);
 }
 
 AL_NalUnit AL_CreateVps(AL_THevcVps* vps)
 {
   AL_NalUnit nal = { &vpsWrite, vps, AL_HEVC_NUT_VPS, 1 };
+  return nal;
+}
+
+static void seiPrefixAPSWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param)
+{
+  SeiPrefixAPSCtx* pCtx = (SeiPrefixAPSCtx*)param;
+  writer->WriteSEI_ActiveParameterSets(bitstream, pCtx->vps, pCtx->sps);
+}
+
+AL_NalUnit AL_CreateSeiPrefixAPS(SeiPrefixAPSCtx* ctx, int nut)
+{
+  AL_NalUnit nal = { &seiPrefixAPSWrite, ctx, nut, 0 };
   return nal;
 }
 
@@ -91,8 +103,6 @@ static void seiPrefixWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, vo
   {
     if(uFlags & SEI_BP)
     {
-      if(writer->WriteSEI_ActiveParameterSets)
-        writer->WriteSEI_ActiveParameterSets(bitstream, pCtx->vps, pCtx->sps);
       writer->WriteSEI_BufferingPeriod(bitstream, pCtx->sps, pCtx->cpbInitialRemovalDelay, 0);
       uFlags &= ~SEI_BP;
     }

@@ -43,7 +43,17 @@
    \brief Retrieves the maximum size of one VCL NAL unit
    \param[in] tDim Frame dimension
    \param[in] eMode Chroma subsampling
+   \param[in] iBitDepth Bitdepth
    \return maximum size of one NAL unit
 *****************************************************************************/
-int AL_GetMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode);
+int AL_GetMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth);
+
+/*************************************************************************//*!
+   \brief Retrieves the maximum size of one VCL NAL unit
+   \param[in] tDim Frame dimension
+   \param[in] eMode Chroma subsampling
+   \param[in] iBitDepth Bitdepth
+   \return maximum size of one NAL unit
+*****************************************************************************/
+int AL_GetMitigatedMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth);
 

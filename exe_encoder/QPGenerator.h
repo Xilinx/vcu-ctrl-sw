@@ -40,6 +40,8 @@
 #pragma once
 
 #include "lib_common_enc/Settings.h"
+#include <string>
+#include "ROIMngr.h"
 
 /*************************************************************************//*!
    \brief Fill QP part of the buffer pointed to by pQP with a QP for each
@@ -60,6 +62,20 @@
 *****************************************************************************/
 bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, int iFrameID, uint8_t* pQPs, uint8_t* pSegs);
 
+/*************************************************************************//*!
+   \brief Fill QP part of the buffer pointed to by pQP with a QP for each
+        Macroblock of the slice with roi information
+   \param[in]  pRoiCtx    Pointer to the roi object holding roi information
+   \param[in]  sRoiFileName path and file name of the ROI description
+   \param[in]  eMode      Specifies the way QP values are computed. see EQpCtrlMode
+   \param[in]  iLCUWidth  Width in Lcu Unit of the picture
+   \param[in]  iLCUHeight Height in Lcu Unit of the picture
+   \param[in]  eProf      Profile used for the encoding
+   \param[in]  iFrameID   Frame identifier
+   \param[out] pQPs       Pointer to the buffer that receives the computed QPs
+   \return true on success, false on error
+*****************************************************************************/
+bool GenerateROIBuffer(AL_TRoiMngrCtx* pRoiCtx, std::string const& sRoiFileName, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, int iFrameID, uint8_t* pQPs);
 
 /****************************************************************************/
 

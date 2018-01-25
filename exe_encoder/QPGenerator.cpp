@@ -47,13 +47,20 @@
 
 extern "C"
 {
-#include "lib_rtos/lib_rtos.h"
+#include <lib_rtos/lib_rtos.h>
+#include <lib_common_enc/EncBuffers.h>
 }
-#include "lib_common_enc/EncBuffers.h"
-#include "lib_common/Utils.h"
+
 #include "QPGenerator.h"
+#include "ROIMngr.h"
 
 using namespace std;
+
+/****************************************************************************/
+static AL_INLINE int RoundUp(int iVal, int iRnd)
+{
+  return (iVal + iRnd - 1) & (~(iRnd - 1));
+}
 
 /****************************************************************************/
 static int FromHex2(char a, char b)
@@ -388,6 +395,202 @@ bool Load_QPTable_FromFile(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iN
   return true;
 }
 
+/****************************************************************************/
+static bool get_motif(char* sLine, string motif, int& iPos)
+{
+  int iState = 0;
+  int iNumState = motif.length();
+  iPos = 0;
+
+  while(iState < iNumState && sLine[iPos] != '\0')
+  {
+    if(sLine[iPos] == motif[iState])
+      ++iState;
+    else
+      iState = 0;
+
+    ++iPos;
+  }
+
+  return iState == iNumState;
+}
+
+/****************************************************************************/
+static int get_id(char* sLine, int iPos)
+{
+  int iID = atoi(sLine + iPos);
+  return iID;
+}
+
+/****************************************************************************/
+static bool check_frame_id(char* sLine, int iFrameID)
+{
+  int iPos;
+
+  if(get_motif(sLine, "frame", iPos))
+  {
+    int iID = get_id(sLine, iPos);
+
+    if(iID == iFrameID)
+      return true;
+  }
+  return false;
+}
+
+/****************************************************************************/
+string getStringOnKeyword(char* sLine, int iPos)
+{
+  while(sLine[iPos] == ' ' || sLine[iPos] == '\t' || sLine[iPos] == '=')
+    ++iPos;
+
+  int iLength = 0;
+
+  while(sLine[iPos + iLength] != ',' && sLine[iPos + iLength] != '\0')
+    ++iLength;
+
+  return string(sLine + iPos, iLength);
+}
+
+/****************************************************************************/
+static AL_ERoiQuality get_roi_quality(char* sLine, int iPos)
+{
+  auto s = getStringOnKeyword(sLine, iPos);
+
+  if(s.compare("HIGH_QUALITY") == 0)
+    return AL_ROI_QUALITY_HIGH;
+
+  if(s.compare("MEDIUM_QUALITY") == 0)
+    return AL_ROI_QUALITY_MEDIUM;
+
+  if(s.compare("LOW_QUALITY") == 0)
+    return AL_ROI_QUALITY_LOW;
+
+  if(s.compare("NO_QUALITY") == 0)
+    return AL_ROI_QUALITY_DONT_CARE;
+  return AL_ROI_QUALITY_STATIC;
+}
+
+/****************************************************************************/
+static AL_ERoiOrder get_roi_order(char* sLine, int iPos)
+{
+  auto s = getStringOnKeyword(sLine, iPos);
+
+  if(s.compare("INCOMING_ORDER") == 0)
+    return AL_ROI_INCOMING_ORDER;
+  return AL_ROI_QUALITY_ORDER;
+}
+
+/****************************************************************************/
+static bool ReadRoiHdr(ifstream& RoiFile, int iFrameID, AL_ERoiQuality& eBkgQuality, AL_ERoiOrder& eRoiOrder)
+{
+  char sLine[256];
+  bool bFind = false;
+
+  while(!bFind && !RoiFile.eof())
+  {
+    RoiFile.getline(sLine, 256);
+    bFind = check_frame_id(sLine, iFrameID);
+
+    if(bFind)
+    {
+      int iPos;
+
+      if(get_motif(sLine, "BkgQuality", iPos))
+        eBkgQuality = get_roi_quality(sLine, iPos);
+
+      if(get_motif(sLine, "Order", iPos))
+        eRoiOrder = get_roi_order(sLine, iPos);
+    }
+  }
+
+  return bFind;
+}
+
+/****************************************************************************/
+static bool line_is_empty(char* sLine)
+{
+  int iPos = 0;
+
+  while(sLine[iPos] != '\0')
+  {
+    if((sLine[iPos] >= 'a' && sLine[iPos] <= 'z') || (sLine[iPos] >= 'A' && sLine[iPos] <= 'Z') || (sLine[iPos] >= '0' && sLine[iPos] <= '9'))
+      return false;
+    ++iPos;
+  }
+
+  return true;
+}
+
+/****************************************************************************/
+static void get_dual_value(char* sLine, char separator, int& iPos, int& iValue1, int& iValue2)
+{
+  iValue1 = atoi(sLine + iPos);
+
+  while(sLine[++iPos] != separator)
+  {
+  }
+
+  ++iPos;
+
+  iValue2 = atoi(sLine + iPos);
+
+  while(sLine[++iPos] != ',')
+  {
+  }
+
+  ++iPos;
+}
+
+/****************************************************************************/
+static bool get_new_roi(ifstream& RoiFile, int& iPosX, int& iPosY, int& iWidth, int& iHeight, AL_ERoiQuality& eQuality)
+{
+  char sLine[256];
+  bool bFind = false;
+
+  while(!RoiFile.eof())
+  {
+    RoiFile.getline(sLine, 256);
+    int iPos;
+
+    if(get_motif(sLine, "frame", iPos))
+      return bFind;
+
+    if(!line_is_empty(sLine))
+    {
+      iPos = 0;
+      get_dual_value(sLine, ':', iPos, iPosX, iPosY);
+      get_dual_value(sLine, 'x', iPos, iWidth, iHeight);
+      eQuality = get_roi_quality(sLine, iPos);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/****************************************************************************/
+bool Load_QPTable_FromRoiFile(AL_TRoiMngrCtx* pCtx, string const& sRoiFileName, uint8_t* pQPs, int iFrameID, int iNumQPPerLCU, int iNumBytesPerLCU)
+{
+  ifstream file(sRoiFileName);
+
+  if(!file.is_open())
+    return false;
+
+  bool bHasData = ReadRoiHdr(file, iFrameID, pCtx->eBkgQuality, pCtx->eOrder);
+
+  if(bHasData)
+  {
+    AL_RoiMngr_Clear(pCtx);
+    int iPosX = 0, iPosY = 0, iWidth = 0, iHeight = 0;
+    AL_ERoiQuality eQuality;
+
+    while(get_new_roi(file, iPosX, iPosY, iWidth, iHeight, eQuality))
+      AL_RoiMngr_AddROI(pCtx, iPosX, iPosY, iWidth, iHeight, eQuality);
+  }
+  AL_RoiMngr_FillBuff(pCtx, iNumQPPerLCU, iNumBytesPerLCU, pQPs);
+  return true;
+}
+
 
 /****************************************************************************/
 void Generate_FullSkip(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBytesPerLCU)
@@ -476,6 +679,14 @@ static void GetQPBufferParameters(int iLCUWidth, int iLCUHeight, AL_EProfile ePr
 
   assert(pQPs);
   Rtos_Memset(pQPs, 0, iSize);
+}
+
+/****************************************************************************/
+bool GenerateROIBuffer(AL_TRoiMngrCtx* pRoiCtx, string const& sRoiFileName, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, int iFrameID, uint8_t* pQPs)
+{
+  int iNumQPPerLCU, iNumBytesPerLCU, iNumLCUs;
+  GetQPBufferParameters(iLCUWidth, iLCUHeight, eProf, iNumQPPerLCU, iNumBytesPerLCU, iNumLCUs, pQPs);
+  return Load_QPTable_FromRoiFile(pRoiCtx, sRoiFileName, pQPs, iFrameID, iNumQPPerLCU, iNumBytesPerLCU);
 }
 
 

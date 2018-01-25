@@ -71,6 +71,7 @@ typedef struct tCfgRunInfo
   IpCtrlMode ipCtrlMode;
   std::string logsFile = "";
   bool trackDma = false;
+  bool printPictureType = false;
 }TCfgRunInfo;
 
 /*************************************************************************//*!
@@ -99,11 +100,11 @@ struct ConfigFile
 
   // \brief Name of the file specifying the frame numbers where scene changes
   // happen
-  string sScnChgFileName;
+  string sCmdFileName;
 
-  // \brief Name of the file specifying on which frames long term references
-  // are used
-  string sLTFileName;
+  // \brief Name of the file specifying the region of interest per frame is specified
+  // happen
+  string sRoiFileName;
 
 
   // \brief Information relative to YUV input file (from section INPUT)

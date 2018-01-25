@@ -52,6 +52,7 @@
 #include <string>
 #include <vector>
 
+#include "lib_app/BufPool.h"
 #include "lib_app/console.h"
 #include "lib_app/utils.h"
 
@@ -65,9 +66,9 @@
 
 extern "C"
 {
-#include "lib_app/BufPool.h"
 #include "lib_common/BufferSrcMeta.h"
 #include "lib_common/BufferStreamMeta.h"
+#include "lib_common/BufferPictureMeta.h"
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/Utils.h"
 #include "lib_common/versions.h"
@@ -208,7 +209,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addInt("--level", &cfg.Settings.tChParam.uLevel, "Specify the level we want to encode with (10 to 62)");
   opt.addCustom("--ip-bitdepth", &ipbitdepth, &GetCmdlineValue, "Specify bitdepth of ip input (8 : 10)");
   opt.addCustom("--input-format", &cfg.FileInfo.FourCC, &GetCmdlineFourCC, "Specify YUV input format (I420, IYUV, YV12, NV12, Y800, Y010, P010, I0AL ...)");
-  opt.addCustom("--output-format", &cfg.RecFourCC, &GetCmdlineFourCC, "Specify output format");
+  opt.addCustom("--rec-format", &cfg.RecFourCC, &GetCmdlineFourCC, "Specify output format");
   opt.addCustom("--ratectrl-mode", &cfg.Settings.tChParam.tRCParam.eRCMode, &GetCmdlineValue,
                 "Specify rate control mode (CONST_QP, CBR, VBR"
                 ", LOW_LATENCY"
@@ -231,6 +232,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addInt("--sliceQP", &cfg.Settings.tChParam.tRCParam.iInitialQP, "Specify the initial slice QP");
   opt.addInt("--gop-length", &cfg.Settings.tChParam.tGopParam.uGopLength, "Specify the GOP length, 0 means I slice only");
   opt.addInt("--gop-numB", &cfg.Settings.tChParam.tGopParam.uNumB, "Number of consecutive B frame (0 .. 4)");
+  opt.addCustom("--gop-mode", &cfg.Settings.tChParam.tGopParam.eMode, &GetCmdlineValue, "Specify gop control mode (DEFAULT, PYRAMIDAL_GOP)");
   opt.addInt("--max-picture", &cfg.RunInfo.iMaxPict, "Maximum number of pictures encoded (1,2 .. -1 for ALL)");
   opt.addInt("--num-slices", &cfg.Settings.tChParam.uNumSlices, "Specify the number of slices to use");
   opt.addInt("--num-core", &cfg.Settings.tChParam.uNumCore, "Specify the number of cores to use (resolution needs to be sufficient)");
@@ -240,6 +242,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addFlag("--framelat", &cfg.Settings.tChParam.bSubframeLatency, "disable subframe latency", false);
 
   opt.addInt("--prefetch", &g_numFrameToRepeat, "prefetch n frames and loop between these frames for max picture count");
+  opt.addFlag("--print-picture-type", &cfg.RunInfo.printPictureType, "write picture type for each frame in the file", true);
   opt.parse(argc, argv);
 
   if(help)
@@ -361,9 +364,9 @@ shared_ptr<AL_TBuffer> AllocateConversionBuffer(vector<uint8_t>& YuvBuffer, int 
   return shared_ptr<AL_TBuffer>(Yuv, &AL_Buffer_Destroy);
 }
 
-shared_ptr<AL_TBuffer> ReadSourceFrame(AL_TBufPool* pBufPool, AL_TBuffer* conversionBuffer, ifstream& YuvFile, ConfigFile const& cfg, IConvSrc* hConv)
+shared_ptr<AL_TBuffer> ReadSourceFrame(BufPool* pBufPool, AL_TBuffer* conversionBuffer, ifstream& YuvFile, ConfigFile const& cfg, IConvSrc* hConv)
 {
-  shared_ptr<AL_TBuffer> sourceBuffer(AL_BufPool_GetBuffer(pBufPool, AL_BUF_MODE_BLOCK), &AL_Buffer_Unref);
+  shared_ptr<AL_TBuffer> sourceBuffer(pBufPool->GetBuffer(), &AL_Buffer_Unref);
   assert(sourceBuffer);
 
   if(!ReadOneFrameYuv(YuvFile, hConv ? conversionBuffer : sourceBuffer.get(), cfg.RunInfo.bLoop))
@@ -483,7 +486,7 @@ void SafeMain(int argc, char** argv)
 
   auto numStreams = 2 + 2 + Settings.tChParam.tGopParam.uNumB;
   AL_TDimension dim = { FileInfo.PictWidth, FileInfo.PictHeight };
-  auto streamSize = AL_GetMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam.ePicFormat));
+  auto streamSize = AL_GetMitigatedMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam.ePicFormat), AL_GET_BITDEPTH(cfg.Settings.tChParam.ePicFormat));
 
   if(Settings.tChParam.bSubframeLatency)
   {
@@ -519,12 +522,7 @@ void SafeMain(int argc, char** argv)
     QpBufPoolConfig.pMetaData = NULL;
     QpBufPoolConfig.debugName = "qp-ext";
   }
-  AL_TBufPool QpBufPool;
-  AL_BufPool_Init(&QpBufPool, pAllocator, &QpBufPoolConfig);
-
-  auto scopeQpBufPool = scopeExit([&]() {
-    AL_BufPool_Deinit(&QpBufPool);
-  });
+  BufPool QpBufPool(pAllocator, QpBufPoolConfig);
 
   unique_ptr<EncoderSink> enc;
 
@@ -572,8 +570,16 @@ void SafeMain(int argc, char** argv)
 
   for(unsigned int i = 0; i < StreamBufPoolConfig.uNumBuf; ++i)
   {
-    AL_TBuffer* pStream = AL_BufPool_GetBuffer(&StreamBufPool, AL_BUF_MODE_NONBLOCK);
+    AL_TBuffer* pStream = StreamBufPool.GetBuffer(AL_BUF_MODE_NONBLOCK);
     assert(pStream);
+
+    if(cfg.RunInfo.printPictureType)
+    {
+      AL_TMetaData* pMeta = (AL_TMetaData*)AL_PictureMetaData_Create();
+      assert(pMeta);
+      auto const attached = AL_Buffer_AddMetaData(pStream, pMeta);
+      assert(attached);
+    }
     auto bRet = AL_Encoder_PutStreamBuffer(enc->hEnc, pStream);
     assert(bRet);
     AL_Buffer_Unref(pStream);
@@ -613,7 +619,7 @@ void SafeMain(int argc, char** argv)
   poolConfig.pMetaData = (AL_TMetaData*)AL_SrcMetaData_Create({ FrameInfo.iWidth, FrameInfo.iHeight }, p, tOffsetYC, FourCC);
   poolConfig.debugName = "src";
 
-  bool ret = AL_BufPool_Init(&SrcBufPool, pAllocator, &poolConfig);
+  bool ret = SrcBufPool.Init(pAllocator, poolConfig);
   assert(ret);
 
   if(!shouldConvert)

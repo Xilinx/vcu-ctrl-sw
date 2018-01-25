@@ -218,10 +218,8 @@ int32_t AL_PictMngr_GetCurrentPOC(AL_TPictMngrCtx* pCtx);
        encoding; it shall be called before of each frame encoding.
    \param[in] pCtx    Pointer to a Picture manager context object
    \param[in] tDim    Picture dimension (width, height) in pixel unit
-   \return return true if free buffer identifiers have been found
-               false otherwise
 *****************************************************************************/
-bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, AL_TDimension tDim);
+void AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, AL_TDimension tDim);
 
 /*************************************************************************//*!
    \brief This function prepares the Picture Manager context to new frame

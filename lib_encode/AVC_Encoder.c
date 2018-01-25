@@ -37,12 +37,19 @@
 
 #include "Com_Encoder.h"
 #include "AVC_Sections.h"
-#include "lib_common/BufferStreamMeta.h"
 #include "lib_common/Utils.h"
 #include "lib_common/Error.h"
-#include "lib_preprocess/LoadLda.h"
 
-#define DEBUG_PATH "."
+static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_TBuffer* pStream)
+{
+  AL_AVC_UpdatePPS(&pCtx->m_pps, pPicStatus);
+  AVC_GenerateSections(pCtx, pStream, pPicStatus);
+
+  if(pPicStatus->eType == SLICE_I)
+    pCtx->m_seiData.cpbRemovalDelay = 0;
+
+  pCtx->m_seiData.cpbRemovalDelay += PictureDisplayToFieldNumber[pPicStatus->ePicStruct];
+}
 
 /***************************************************************************/
 static void GenerateSkippedPictureData(AL_TEncCtx* pCtx)
@@ -58,54 +65,7 @@ static void GenerateSkippedPictureData(AL_TEncCtx* pCtx)
   AL_AVC_GenerateSkippedPicture(&(pCtx->m_pSkippedPicture), pCtx->m_iNumLCU, true, 0);
 }
 
-/***************************************************************************/
-static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_TBuffer* pStream)
-{
-  AL_TEncCtx* pCtx = (AL_TEncCtx*)pUserParam;
-  assert(pCtx);
-  assert(pPicStatus->iNumParts > 0);
-  int iPoolID = pPicStatus->UserParam;
-  AL_TFrameInfo* pFI = &pCtx->m_Pool[iPoolID];
-
-  Rtos_GetMutex(pCtx->m_Mutex);
-  pCtx->m_eError = pPicStatus->eErrorCode;
-  Rtos_ReleaseMutex(pCtx->m_Mutex);
-
-  if(!(pPicStatus->eErrorCode & AL_ERROR || pPicStatus->bSkip))
-  {
-    AL_AVC_UpdatePPS(&pCtx->m_pps, pPicStatus);
-    AVC_GenerateSections(pCtx, pStream, pPicStatus);
-
-    if(pPicStatus->eType == SLICE_I)
-      pCtx->m_seiData.cpbRemovalDelay = 0;
-    pCtx->m_seiData.cpbRemovalDelay += PictureDisplayToFieldNumber[pPicStatus->ePicStruct];
-  }
-
-  AL_TBuffer* pSrc = (AL_TBuffer*)(uintptr_t)pPicStatus->SrcHandle;
-  AL_Common_Encoder_EndEncoding(pCtx, pStream, pSrc, pFI->pQpTable, pPicStatus->bIsLastSlice);
-}
-
-static void EndEncodingWrap(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U streamUserPtr)
-{
-  AL_TEncCtx* pCtx = (AL_TEncCtx*)pUserParam;
-
-  if(!pPicStatus)
-  {
-    AL_Common_Encoder_EndEncoding(pCtx, NULL, NULL, NULL, false);
-    return;
-  }
-
-  int streamId = (int)streamUserPtr;
-
-  /* we require the stream to come back in the same order we sent them */
-  assert(streamId >= 0 && streamId < AL_MAX_STREAM_BUFFER);
-  assert(pCtx->m_iCurStreamRecv == streamId);
-
-  pCtx->m_iCurStreamRecv = (pCtx->m_iCurStreamRecv + 1) % AL_MAX_STREAM_BUFFER;
-  EndEncoding(pUserParam, pPicStatus, pCtx->m_StreamSent[streamId]);
-}
-
-static void UpdateHls(AL_TEncChanParam* pChParam)
+static void initHls(AL_TEncChanParam* pChParam)
 {
   // Update SPS & PPS Flags ------------------------------------------------
   pChParam->uSpsParam = 0x4A | AL_SPS_TEMPORAL_MVP_EN_FLAG; // TODO
@@ -113,7 +73,7 @@ static void UpdateHls(AL_TEncChanParam* pChParam)
   AL_Common_Encoder_SetHlsParam(pChParam);
 }
 
-static void UpdateMotionEstimationRange(AL_TEncChanParam* pChParam)
+static void SetMotionEstimationRange(AL_TEncChanParam* pChParam)
 {
   AL_Common_Encoder_SetME(AVC_MAX_HORIZONTAL_RANGE_P, AVC_MAX_VERTICAL_RANGE_P, AVC_MAX_HORIZONTAL_RANGE_B, AVC_MAX_VERTICAL_RANGE_B, pChParam);
 }
@@ -152,27 +112,24 @@ static void ComputeQPInfo(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
                                         pChParam->tRCParam.iMaxQP);
 }
 
-AL_ERR AL_AVC_Encoder_Create(AL_TEncCtx** hCtx, TScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TEncSettings const* pSettings)
+static void generateNals(AL_TEncCtx* pCtx)
 {
-  assert(pSettings);
-  AL_ERR errorCode = AL_ERROR;
+  AL_TEncChanParam* pChParam = &pCtx->m_Settings.tChParam;
 
-  // Create New encoder context --------------------------------------------
-  *hCtx = Rtos_Malloc(sizeof(AL_TEncCtx));
-  AL_TEncCtx* pCtx = *hCtx;
+  uint32_t uCpbBitSize = (uint32_t)((uint64_t)pChParam->tRCParam.uCPBSize * (uint64_t)pChParam->tRCParam.uMaxBitRate / 90000LL);
+  AL_AVC_GenerateSPS(&pCtx->m_sps, &pCtx->m_Settings, pCtx->m_iMaxNumRef, uCpbBitSize);
+  AL_AVC_GeneratePPS(&pCtx->m_pps, &pCtx->m_Settings, pCtx->m_iMaxNumRef);
 
-  if(!pCtx)
-    return errorCode;
+  if(pCtx->m_Settings.eScalingList != AL_SCL_FLAT)
+    AL_AVC_PreprocessScalingList(&pCtx->m_sps.m_AvcSPS.scaling_list_param, &pCtx->m_tBufEP1);
+}
 
-  AL_TEncChanParam* pChParam = AL_Common_Encoder_InitChannelParam(pCtx, pSettings);
-  AL_Common_Encoder_InitCtx(pCtx, pChParam, pAllocator);
-
-  UpdateHls(pChParam);
-  UpdateMotionEstimationRange(pChParam);
+static void ConfigureChannel(AL_TEncCtx* pCtx, AL_TEncSettings const* pSettings)
+{
+  AL_TEncChanParam* pChParam = &pCtx->m_Settings.tChParam;
+  initHls(pChParam);
+  SetMotionEstimationRange(pChParam);
   ComputeQPInfo(pCtx, pChParam);
-
-  // Initialize Scheduler -------------------------------------------------
-  pCtx->m_pScheduler = pScheduler;
 
   if(pSettings->eScalingList != AL_SCL_FLAT)
     pChParam->eOptions |= AL_OPT_SCL_LST;
@@ -180,51 +137,14 @@ AL_ERR AL_AVC_Encoder_Create(AL_TEncCtx** hCtx, TScheduler* pScheduler, AL_TAllo
   if(pSettings->tChParam.eLdaCtrlMode != DEFAULT_LDA)
     pChParam->eOptions |= AL_OPT_CUSTOM_LDA;
 
+}
 
-  AL_TISchedulerCallBacks CBs = { 0 };
-  CBs.pfnEndEncodingCallBack = EndEncodingWrap;
-  CBs.pEndEncodingCBParam = pCtx;
-
-  /* We don't want to send a cmd the scheduler can't store */
-  pCtx->m_PendingEncodings = Rtos_CreateSemaphore(ENC_MAX_CMD - 1);
-
-  GenerateSkippedPictureData(pCtx);
-
-  // Lambdas ----------------------------------------------------------------
-  if(pSettings->tChParam.eLdaCtrlMode != DEFAULT_LDA)
-  {
-    pCtx->m_tBufEP1.uFlags |= EP1_BUF_LAMBDAS.Flag;
-
-    if(pSettings->tChParam.eLdaCtrlMode == LOAD_LDA)
-    {
-      char const* ldaFilename = DEBUG_PATH "/Lambdas.hex";
-      LoadLambdaFromFile(ldaFilename, &pCtx->m_tBufEP1);
-    }
-    else
-      GetLambda(pSettings->tChParam.eLdaCtrlMode, &pSettings->tChParam, pCtx->m_tBufEP1.tMD.pVirtualAddr, true);
-  }
-
-  errorCode = AL_ISchedulerEnc_CreateChannel(&pCtx->m_hChannel, pCtx->m_pScheduler, pChParam, pCtx->m_tBufEP1.tMD.uPhysicalAddr, &CBs);
-
-  if(pCtx->m_hChannel == AL_INVALID_CHANNEL)
-    goto fail_create_channel; // cannot create channel, probably not enough core for the resolution
-
-
-  AL_Common_Encoder_SetMaxNumRef(pCtx, pChParam);
-
-  AL_AVC_GenerateSPS(&pCtx->m_sps, &pCtx->m_Settings, pCtx->m_iMaxNumRef, pChParam->tRCParam.uCPBSize);
-  AL_AVC_GeneratePPS(&pCtx->m_pps, &pCtx->m_Settings, pCtx->m_iMaxNumRef);
-
-  if(pSettings->eScalingList != AL_SCL_FLAT)
-    AL_AVC_PreprocessScalingList(&pCtx->m_sps.m_AvcSPS.scaling_list_param, &pCtx->m_tBufEP1);
-
-  // Return pointer to the Encoder Context as handle ------------------------
-  return AL_SUCCESS;
-
-  fail_create_channel:
-  AL_Common_Encoder_DestroyCtx(pCtx);
-  *hCtx = NULL;
-  return errorCode;
+void AL_CreateAvcEncoder(HighLevelEncoder* pCtx)
+{
+  pCtx->configureChannel = &ConfigureChannel;
+  pCtx->generateSkippedPictureData = &GenerateSkippedPictureData;
+  pCtx->generateNals = &generateNals;
+  pCtx->updateHlsAndWriteSections = &updateHlsAndWriteSections;
 }
 
 

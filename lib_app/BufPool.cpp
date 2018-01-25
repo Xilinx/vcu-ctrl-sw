@@ -36,11 +36,14 @@
 ******************************************************************************/
 
 #include <assert.h>
+extern "C"
+{
 #include "lib_rtos/lib_rtos.h"
+#include "lib_common/Allocator.h"
+#include "BufferMetaFactory.h"
+}
 
 #include "BufPool.h"
-#include "BufferMetaFactory.h"
-#include "lib_common/Allocator.h"
 
 /* lockless, one producer, one consumer */
 
@@ -52,7 +55,7 @@ static void* Fifo_Dequeue(App_Fifo* pFifo, uint32_t uWait);
 /****************************************************************************/
 static void FreeBufInPool(AL_TBuffer* pBuf)
 {
-  AL_TBufPool* pBufPool = AL_Buffer_GetUserData(pBuf);
+  auto pBufPool = (AL_TBufPool*)AL_Buffer_GetUserData(pBuf);
   Fifo_Queue(&pBufPool->fifo, pBuf, AL_WAIT_FOREVER);
 }
 
@@ -99,6 +102,8 @@ static bool AL_sBufPool_AllocBuf(AL_TBufPool* pBufPool)
 
 bool AL_BufPool_Init(AL_TBufPool* pBufPool, AL_TAllocator* pAllocator, AL_TBufPoolConfig* pConfig)
 {
+  size_t zMemPoolSize = 0;
+
   if(!pBufPool)
     return false;
 
@@ -113,7 +118,7 @@ bool AL_BufPool_Init(AL_TBufPool* pBufPool, AL_TAllocator* pAllocator, AL_TBufPo
   pBufPool->config = *pConfig;
   pBufPool->uNumBuf = 0;
 
-  size_t zMemPoolSize = pConfig->uNumBuf * sizeof(AL_TBuffer*);
+  zMemPoolSize = pConfig->uNumBuf * sizeof(AL_TBuffer*);
 
   pBufPool->pPool = (AL_TBuffer**)Rtos_Malloc(zMemPoolSize);
 
@@ -156,7 +161,7 @@ AL_TBuffer* AL_BufPool_GetBuffer(AL_TBufPool* pBufPool, AL_EBufMode eMode)
 {
   uint32_t Wait = AL_GetWaitMode(eMode);
 
-  AL_TBuffer* pBuf = Fifo_Dequeue(&pBufPool->fifo, Wait);
+  auto pBuf = (AL_TBuffer*)Fifo_Dequeue(&pBufPool->fifo, Wait);
 
   if(!pBuf)
     return NULL;
@@ -172,7 +177,7 @@ static bool Fifo_Init(App_Fifo* pFifo, size_t zMaxElem)
   pFifo->m_zHead = 0;
 
   size_t zElemSize = pFifo->m_zMaxElem * sizeof(void*);
-  pFifo->m_ElemBuffer = Rtos_Malloc(zElemSize);
+  pFifo->m_ElemBuffer = (void**)Rtos_Malloc(zElemSize);
 
   if(!pFifo->m_ElemBuffer)
     return false;

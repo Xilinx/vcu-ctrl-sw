@@ -42,39 +42,55 @@
 #include "lib_encode/lib_encoder.h"
 #include "IP_EncoderCtx.h"
 
-/****************************************************************************/
-
-AL_ERR AL_HEVC_Encoder_Create(AL_TEncCtx** hCtx, TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings);
-AL_ERR AL_AVC_Encoder_Create(AL_TEncCtx** hCtx, TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings);
+void AL_CreateHevcEncoder(HighLevelEncoder* pCtx);
+void AL_CreateAvcEncoder(HighLevelEncoder* pCtx);
 
 /****************************************************************************/
 AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings, AL_CB_EndEncoding callback)
 {
+  if(!pSettings)
+    return AL_ERROR;
+
   *hEnc = (AL_HEncoder)Rtos_Malloc(sizeof(AL_TEncoder));
   AL_TEncoder* pEncoder = (AL_TEncoder*)*hEnc;
-  AL_ERR errorCode = AL_ERROR;
 
   if(!pEncoder)
-    goto fail;
+    return AL_ERROR;
 
   Rtos_Memset(pEncoder, 0, sizeof(AL_TEncoder));
 
+  AL_ERR errorCode = AL_ERROR;
+  AL_TEncCtx* pCtx = Rtos_Malloc(sizeof(AL_TEncCtx));
+
+  if(!pCtx)
+    goto fail;
+
+  Rtos_Memset(pCtx, 0, sizeof *pCtx);
+
 
   if(AL_IS_HEVC(pSettings->tChParam.eProfile))
-    errorCode = AL_HEVC_Encoder_Create(&pEncoder->pCtx, pScheduler, pAlloc, pSettings);
+    AL_CreateHevcEncoder(&pCtx->encoder);
 
   if(AL_IS_AVC(pSettings->tChParam.eProfile))
-    errorCode = AL_AVC_Encoder_Create(&pEncoder->pCtx, pScheduler, pAlloc, pSettings);
+    AL_CreateAvcEncoder(&pCtx->encoder);
 
-  if(!pEncoder->pCtx)
+  if(!pCtx->encoder.configureChannel)
+    goto fail;
+
+  errorCode = AL_Common_Encoder_CreateChannel(pCtx, pScheduler, pAlloc, pSettings);
+
+  if(errorCode != AL_SUCCESS)
     goto fail;
 
   if(callback.func)
-    pEncoder->pCtx->m_callback = callback;
+    pCtx->m_callback = callback;
+
+  pEncoder->pCtx = pCtx;
 
   return AL_SUCCESS;
 
   fail:
+  Rtos_Free(pCtx);
   Rtos_Free(pEncoder);
   *hEnc = NULL;
   return errorCode;
@@ -103,6 +119,7 @@ void AL_Encoder_NotifyLongTerm(AL_HEncoder hEnc)
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
   AL_Common_Encoder_NotifyLongTerm(pEnc);
 }
+
 
 /****************************************************************************/
 bool AL_Encoder_GetRecPicture(AL_HEncoder hEnc, TRecPic* pRecPic)
@@ -138,6 +155,41 @@ AL_ERR AL_Encoder_GetLastError(AL_HEncoder hEnc)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
   return AL_Common_Encoder_GetLastError(pEnc);
+}
+
+/****************************************************************************/
+void AL_Encoder_RestartGop(AL_HEncoder hEnc)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  AL_Common_Encoder_RestartGop(pEnc);
+}
+
+/****************************************************************************/
+void AL_Encoder_SetGopLength(AL_HEncoder hEnc, int iGopLength)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  AL_Common_Encoder_SetGopLength(pEnc, iGopLength);
+}
+
+/****************************************************************************/
+void AL_Encoder_SetGopNumB(AL_HEncoder hEnc, int iNumB)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  AL_Common_Encoder_SetGopNumB(pEnc, iNumB);
+}
+
+/****************************************************************************/
+void AL_Encoder_SetBitRate(AL_HEncoder hEnc, int iBitRate)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  AL_Common_Encoder_SetBitRate(pEnc, iBitRate);
+}
+
+/****************************************************************************/
+void AL_Encoder_SetFrameRate(AL_HEncoder hEnc, uint16_t uFrameRate, uint16_t uClkRatio)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  AL_Common_Encoder_SetFrameRate(pEnc, uFrameRate, uClkRatio);
 }
 
 

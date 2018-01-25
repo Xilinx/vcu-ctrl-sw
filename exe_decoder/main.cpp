@@ -38,6 +38,8 @@
 #include <cassert>
 #include <cstdarg>
 #include <stdlib.h>
+#include <limits.h>
+#include <atomic>
 #include <memory>
 #include <fstream>
 #include <iostream>
@@ -50,7 +52,6 @@
 #include <map>
 extern "C"
 {
-#include "lib_app/BufPool.h"
 #include "lib_common/BufferSrcMeta.h"
 #include "lib_decode/lib_decode.h"
 #include "lib_common_dec/DecBuffers.h"
@@ -59,6 +60,7 @@ extern "C"
 #include "lib_common/Utils.h"
 }
 
+#include "lib_app/BufPool.h"
 #include "lib_app/console.h"
 #include "lib_app/convert.h"
 #include "lib_app/timing.h"
@@ -152,7 +154,8 @@ struct Config
   bool trackDma = false;
   int hangers = 0;
   int iLoop = 1;
-  int iTimeOutInSeconds = 0;
+  int iTimeoutInSeconds = -1;
+  int iMaxFrames = INT_MAX;
 };
 
 /******************************************************************************/
@@ -213,6 +216,12 @@ void parsePreAllocArgs(AL_TStreamSettings* settings, string& toParse)
   ss >> settings->iProfileIdc;
   getExpectedSeparator(ss, ':');
   ss >> settings->iLevel;
+
+  /* For pre-allocation, we must use 8x8 (HEVC) or MB (AVC) rounded dimensions, like the SPS. */
+  /* Actually, round up to the LCU so we're able to support resolution changes with the same LCU sizes. */
+  /* And because we don't know the codec here, always use 64 as MB/LCU size. */
+  settings->tDim.iWidth = RoundUp(settings->tDim.iWidth, 64);
+  settings->tDim.iHeight = RoundUp(settings->tDim.iHeight, 64);
 
   if(string(chroma) == "400")
     settings->eChroma = CHROMA_4_0_0;
@@ -311,7 +320,8 @@ static Config ParseCommandLine(int argc, char* argv[])
 
 
   string preAllocArgs = "";
-  opt.addInt("--timeout", &Config.iTimeOutInSeconds, "Specify timeout in seconds");
+  opt.addInt("--timeout", &Config.iTimeoutInSeconds, "Specify timeout in seconds");
+  opt.addInt("--max-frames", &Config.iMaxFrames, "Abort after max number of decoded frames (approximative abort)");
   opt.addString("--prealloc-args", &preAllocArgs, "Specify the stream dimension: 1920x1080:422:10:profile-idc:level");
 
   opt.parse(argc, argv);
@@ -354,7 +364,7 @@ static Config ParseCommandLine(int argc, char* argv[])
     // silently correct user settings
     Config.uInputBufferNum = max(1u, Config.uInputBufferNum);
     Config.zInputBufferSize = max(size_t(1), Config.zInputBufferSize);
-    Config.zInputBufferSize = (!preAllocArgs.empty() && Config.zInputBufferSize == zDefaultInputBufferSize) ? AL_GetMaxNalSize(Config.tDecSettings.tStream.tDim, Config.tDecSettings.tStream.eChroma) : Config.zInputBufferSize;
+    Config.zInputBufferSize = (!preAllocArgs.empty() && Config.zInputBufferSize == zDefaultInputBufferSize) ? AL_GetMaxNalSize(Config.tDecSettings.tStream.tDim, Config.tDecSettings.tStream.eChroma, Config.tDecSettings.tStream.iBitDepth) : Config.zInputBufferSize;
     Config.tDecSettings.iStackSize = max(1, Config.tDecSettings.iStackSize);
   }
 
@@ -669,22 +679,31 @@ static void ProcessFrame(AL_TBuffer& tRecBuf, AL_TBuffer& tYuvBuf, AL_TInfoDecod
 }
 
 /******************************************************************************/
-struct TCbParam
+struct Display
 {
-  ~TCbParam()
+  Display()
   {
-    Rtos_DeleteEvent(hFinished);
+    hExitMain = Rtos_CreateEvent(false);
   }
 
-  AL_HDecoder hDec;
-  AL_EVENT hFinished;
-  ofstream& YuvFile;
-  ofstream& IpCrcFile;
-  ofstream& CertCrcFile;
-  AL_TBuffer* YuvBuffer;
-  int iBitDepth;
-  AL_UINT num_frame;
+  ~Display()
+  {
+    Rtos_DeleteEvent(hExitMain);
+  }
+
+  void Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo);
+
+  AL_HDecoder hDec = NULL;
+  AL_EVENT hExitMain = NULL;
+  ofstream YuvFile;
+  ofstream IpCrcFile;
+  ofstream CertCrcFile;
+  AL_TBuffer* YuvBuffer = NULL;
+  int iBitDepth = 8;
+  AL_UINT NumFrames = 0;
+  AL_UINT MaxFrames = UINT_MAX;
   mutex hMutex;
+  int iNumFrameConceal = 0;
 };
 
 struct ResChgParam
@@ -699,7 +718,7 @@ struct ResChgParam
 struct DecodeParam
 {
   AL_HDecoder hDec;
-  int decodedFrames;
+  atomic<int> decodedFrames;
 };
 
 /******************************************************************************/
@@ -731,31 +750,54 @@ static bool isReleaseFrame(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
 /******************************************************************************/
 static void sFrameDisplay(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo, void* pUserParam)
 {
-  auto pParam = reinterpret_cast<TCbParam*>(pUserParam);
-  unique_lock<mutex> lck(pParam->hMutex);
+  auto pDisplay = reinterpret_cast<Display*>(pUserParam);
+  pDisplay->Process(pFrame, pInfo);
+}
+
+void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
+{
+  unique_lock<mutex> lock(hMutex);
+
+  auto eErr = AL_Decoder_GetLastError(hDec);
+
+  if(eErr == AL_WARN_CONCEAL_DETECT)
+  {
+    iNumFrameConceal++;
+    eErr = AL_SUCCESS;
+  }
+
+  if(eErr)
+  {
+    Message(CC_RED, "Error: %d", eErr);
+    Rtos_SetEvent(hExitMain);
+    return;
+  }
 
   if(isEOS(pFrame, pInfo))
   {
     Message(CC_GREY, "Complete");
-    Rtos_SetEvent(pParam->hFinished);
+    Rtos_SetEvent(hExitMain);
     return;
   }
 
   if(isReleaseFrame(pFrame, pInfo))
     return;
 
-  if(pParam->iBitDepth == 0)
-    pParam->iBitDepth = max(pInfo->uBitDepthY, pInfo->uBitDepthC);
-  else if(pParam->iBitDepth == -1)
-    pParam->iBitDepth = AL_Decoder_GetMaxBD(pParam->hDec);
+  if(iBitDepth == 0)
+    iBitDepth = max(pInfo->uBitDepthY, pInfo->uBitDepthC);
+  else if(iBitDepth == -1)
+    iBitDepth = AL_Decoder_GetMaxBD(hDec);
 
   assert(AL_Buffer_GetData(pFrame));
 
-  ProcessFrame(*pFrame, *pParam->YuvBuffer, *pInfo, pParam->iBitDepth, pParam->YuvFile, pParam->IpCrcFile, pParam->CertCrcFile);
-  AL_Decoder_PutDisplayPicture(pParam->hDec, pFrame);
+  ProcessFrame(*pFrame, *YuvBuffer, *pInfo, iBitDepth, YuvFile, IpCrcFile, CertCrcFile);
+  AL_Decoder_PutDisplayPicture(hDec, pFrame);
 
-  DisplayFrameStatus(pParam->num_frame);
-  pParam->num_frame++;
+  DisplayFrameStatus(NumFrames);
+  NumFrames++;
+
+  if(NumFrames > MaxFrames)
+    Rtos_SetEvent(hExitMain);
 }
 
 static string FourCCToString(TFourCC tFourCC)
@@ -769,7 +811,7 @@ static void sResolutionFound(int BufferNumber, int BufferSize, AL_TStreamSetting
 {
   ResChgParam* p = (ResChgParam*)pUserParam;
 
-  unique_lock<mutex> lck(p->hMutex);
+  unique_lock<mutex> lock(p->hMutex);
 
   if(!p->hDec)
     return;
@@ -814,14 +856,14 @@ static void sResolutionFound(int BufferNumber, int BufferSize, AL_TStreamSetting
   AL_TDimension tDimension = { iWidth, iHeight };
   BufPoolConfig.pMetaData = (AL_TMetaData*)AL_SrcMetaData_Create(tDimension, tPitches, tOffsetYC, tFourCC);
 
-  if(!AL_BufPool_Init(&p->bufPool, p->pAllocator, &BufPoolConfig))
+  if(!p->bufPool.Init(p->pAllocator, BufPoolConfig))
     throw codec_error(AL_ERR_NO_MEMORY);
 
   p->bPoolIsInit = true;
 
   for(int i = 0; i < BufferNumber; ++i)
   {
-    auto pDecPict = AL_BufPool_GetBuffer(&p->bufPool, AL_BUF_MODE_NONBLOCK);
+    auto pDecPict = p->bufPool.GetBuffer(AL_BUF_MODE_NONBLOCK);
     assert(pDecPict);
     AL_Decoder_PutDisplayPicture(p->hDec, pDecPict);
     AL_Buffer_Unref(pDecPict);
@@ -832,23 +874,76 @@ static void sResolutionFound(int BufferNumber, int BufferSize, AL_TStreamSetting
 static uint32_t ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream)
 {
   uint8_t* pBuf = AL_Buffer_GetData(pBufStream);
-  auto zSize = pBufStream->zSize;
 
-  ifFileStream.read((char*)pBuf, zSize);
+  ifFileStream.read((char*)pBuf, pBufStream->zSize);
   return (uint32_t)ifFileStream.gcount();
 }
 
 /******************************************************************************/
-static void AddBuffer(AL_HDecoder hDec, AL_TBuffer* pBufStream, size_t zAvailSize)
+
+
+void ShowStatistics(double durationInSeconds, int iNumFrameConceal, int decodedFrameNumber, bool timeoutOccured)
 {
-  assert(pBufStream);
-  assert(hDec);
+  string guard = "Decoded time = ";
 
-  auto bRet = AL_Decoder_PushBuffer(hDec, pBufStream, zAvailSize, AL_BUF_MODE_BLOCK);
+  if(timeoutOccured)
+    guard = "TIMEOUT = ";
 
-  if(!bRet)
-    throw runtime_error("Failed to push buffer");
+  auto msg = "\n\n" + guard + "%.4f s;  Decoding FrameRate ~ %.4f Fps; Frame(s) conceal = %d\n";
+  Message(CC_DEFAULT, msg.c_str(),
+          durationInSeconds,
+          decodedFrameNumber / durationInSeconds,
+          iNumFrameConceal);
 }
+
+/******************************************************************************/
+struct AsyncFileInput
+{
+  AsyncFileInput(AL_HDecoder hDec_, string path, BufPool& bufPool_)
+    : hDec(hDec_), bufPool(bufPool_)
+  {
+    exit = false;
+    OpenInput(ifFileStream, path);
+    m_thread = thread(&AsyncFileInput::run, this);
+  }
+
+  ~AsyncFileInput()
+  {
+    exit = true;
+    m_thread.join();
+  }
+
+private:
+  void run()
+  {
+    while(!exit)
+    {
+      auto pBufStream = shared_ptr<AL_TBuffer>(
+        bufPool.GetBuffer(),
+        &AL_Buffer_Unref);
+
+      auto uAvailSize = ReadStream(ifFileStream, pBufStream.get());
+
+      if(!uAvailSize)
+      {
+        // end of input
+        AL_Decoder_Flush(hDec);
+        break;
+      }
+
+      auto bRet = AL_Decoder_PushBuffer(hDec, pBufStream.get(), uAvailSize, AL_BUF_MODE_BLOCK);
+
+      if(!bRet)
+        throw runtime_error("Failed to push buffer");
+    }
+  }
+
+  const AL_HDecoder hDec;
+  ifstream ifFileStream;
+  BufPool& bufPool;
+  atomic<bool> exit;
+  thread m_thread;
+};
 
 /******************************************************************************/
 void SafeMain(int argc, char** argv)
@@ -858,33 +953,7 @@ void SafeMain(int argc, char** argv)
   if(Config.help)
     return;
 
-  int iNumFrameConceal = 0;
-
   DisplayVersionInfo();
-
-  ifstream ifFileStream;
-  OpenInput(ifFileStream, Config.sIn);
-
-  ofstream ofYuvFile;
-
-  if(Config.bEnableYUVOutput)
-    OpenOutput(ofYuvFile, Config.sOut);
-
-  ofstream CertCrcFile;
-
-  if(bCertCRC)
-  {
-    OpenOutput(CertCrcFile, "crc_certif_res.hex", false);
-    CertCrcFile << hex << uppercase;
-  }
-
-  ofstream IpCrcFile;
-
-  if(!Config.sCrc.empty())
-  {
-    OpenOutput(IpCrcFile, Config.sCrc, false);
-    IpCrcFile << hex << uppercase;
-  }
 
 
   // IP Device ------------------------------------------------------------
@@ -931,17 +1000,32 @@ void SafeMain(int argc, char** argv)
     BufPoolConfig.pMetaData = nullptr;
     BufPoolConfig.debugName = "stream";
 
-    auto ret = AL_BufPool_Init(&bufPool, AL_GetDefaultAllocator(), &BufPoolConfig);
+    auto ret = bufPool.Init(AL_GetDefaultAllocator(), BufPoolConfig);
 
     if(!ret)
       throw runtime_error("Can't create BufPool");
   }
 
-  TCbParam tDisplayParam =
+  Display display;
+
+  if(Config.bEnableYUVOutput)
+    OpenOutput(display.YuvFile, Config.sOut);
+
+  if(bCertCRC)
   {
-    NULL, NULL, ofYuvFile, IpCrcFile, CertCrcFile, YuvBuffer, Config.tDecSettings.iBitDepth, 0, {}
-  };
-  tDisplayParam.hFinished = Rtos_CreateEvent(false);
+    OpenOutput(display.CertCrcFile, "crc_certif_res.hex", false);
+    display.CertCrcFile << hex << uppercase;
+  }
+
+  if(!Config.sCrc.empty())
+  {
+    OpenOutput(display.IpCrcFile, Config.sCrc, false);
+    display.IpCrcFile << hex << uppercase;
+  }
+
+  display.YuvBuffer = YuvBuffer;
+  display.iBitDepth = Config.tDecSettings.iBitDepth;
+  display.MaxFrames = Config.iMaxFrames;
 
   ResChgParam ResolutionFoundParam;
   ResolutionFoundParam.pAllocator = pAllocator;
@@ -952,7 +1036,7 @@ void SafeMain(int argc, char** argv)
 
   AL_TDecCallBacks CB {};
   CB.endDecodingCB = { &sFrameDecoded, &tDecodeParam };
-  CB.displayCB = { &sFrameDisplay, &tDisplayParam };
+  CB.displayCB = { &sFrameDisplay, &display };
   CB.resolutionFoundCB = { &sResolutionFound, &ResolutionFoundParam };
 
   Settings.iBitDepth = HW_IP_BIT_DEPTH;
@@ -963,14 +1047,14 @@ void SafeMain(int argc, char** argv)
   if(!hDec || error != AL_SUCCESS)
     throw codec_error(AL_ERR_INIT_FAILED);
 
-  bool timeoutOccured = false;
+  auto decoderAlreadyDestroyed = false;
   auto scopeDecoder = scopeExit([&]() {
-    if(!timeoutOccured)
+    if(!decoderAlreadyDestroyed)
       AL_Decoder_Destroy(hDec);
   });
 
   // Param of Display Callback assignment
-  tDisplayParam.hDec = hDec;
+  display.hDec = hDec;
   tDecodeParam.hDec = hDec;
   ResolutionFoundParam.hDec = hDec;
 
@@ -985,75 +1069,25 @@ void SafeMain(int argc, char** argv)
 
   // Initial stream buffer filling
   auto const uBegin = GetPerfTime();
-  int iLoop = 0;
-  int iTimeOutInMilliSeconds = Config.iTimeOutInSeconds * 1000.0;
+  bool timeoutOccured = false;
 
-  for(;;)
+  for(int iLoop = 0; iLoop < Config.iLoop; ++iLoop)
   {
-    for(;;)
-    {
-      auto pBufStream = shared_ptr<AL_TBuffer>(
-        AL_BufPool_GetBuffer(&bufPool, AL_BUF_MODE_BLOCK),
-        &AL_Buffer_Unref);
+    if(iLoop > 0)
+      Message(CC_GREY, "  Looping\n");
 
-      auto uAvailSize = ReadStream(ifFileStream, pBufStream.get());
+    AsyncFileInput producer(hDec, Config.sIn, bufPool);
 
-      if(!uAvailSize)
-        break;
+    auto const maxWait = Config.iTimeoutInSeconds * 1000;
+    auto const timeout = maxWait >= 0 ? maxWait : AL_WAIT_FOREVER;
 
-      AddBuffer(hDec, pBufStream.get(), uAvailSize);
-
-      auto eErr = AL_Decoder_GetLastError(hDec);
-
-      if(eErr == AL_WARN_CONCEAL_DETECT)
-      {
-        iNumFrameConceal++;
-        eErr = AL_SUCCESS;
-      }
-
-      if(eErr)
-        throw codec_error(eErr);
-
-      if(iTimeOutInMilliSeconds > 0)
-      {
-        auto const uTimeOut = GetPerfTime();
-        auto const durationInMilliSeconds = (uTimeOut - uBegin);
-
-        if(durationInMilliSeconds >= (unsigned)iTimeOutInMilliSeconds)
-        {
-          timeoutOccured = true;
-          unique_lock<mutex> res_lock(ResolutionFoundParam.hMutex);
-          AL_Decoder_Destroy(hDec);
-          Rtos_WaitEvent(tDisplayParam.hFinished, AL_WAIT_FOREVER);
-          ResolutionFoundParam.hDec = nullptr;
-
-          unique_lock<mutex> lck(tDisplayParam.hMutex);
-          auto const durationInSeconds = durationInMilliSeconds / 1000.0;
-          Message(CC_DEFAULT, "\n\nTIMEOUT = %.4f s;  Decoding FrameRate ~ %.4f Fps; Frame(s) conceal = %d\n",
-                  durationInSeconds,
-                  tDecodeParam.decodedFrames / durationInSeconds,
-                  iNumFrameConceal);
-          return;
-        }
-      }
-    }
-
-    // Flush decoding request
-    AL_Decoder_Flush(hDec);
-    Rtos_WaitEvent(tDisplayParam.hFinished, AL_WAIT_FOREVER);
-
-    if(++iLoop >= Config.iLoop)
-      break;
-
-    // Rewind
-    ifFileStream.clear();
-    ifFileStream.seekg(0);
-    Message(CC_GREY, "  Looping\n");
+    if(!Rtos_WaitEvent(display.hExitMain, timeout))
+      timeoutOccured = true;
   }
 
   auto const uEnd = GetPerfTime();
 
-  unique_lock<mutex> lck(tDisplayParam.hMutex);
+  unique_lock<mutex> lock(display.hMutex);
 
   if(auto eErr = AL_Decoder_GetLastError(hDec))
     throw codec_error(eErr);
@@ -1062,10 +1096,7 @@ void SafeMain(int argc, char** argv)
     throw codec_error(AL_ERR_NO_FRAME_DECODED);
 
   auto const duration = (uEnd - uBegin) / 1000.0;
-  Message(CC_DEFAULT, "\n\nDecoded time = %.4f s;  Decoding FrameRate ~ %.4f Fps; Frame(s) conceal = %d\n",
-          duration,
-          tDecodeParam.decodedFrames / duration,
-          iNumFrameConceal);
+  ShowStatistics(duration, display.iNumFrameConceal, tDecodeParam.decodedFrames, timeoutOccured);
 }
 
 /******************************************************************************/

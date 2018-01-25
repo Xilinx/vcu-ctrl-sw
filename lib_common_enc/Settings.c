@@ -159,6 +159,12 @@ static int AL_sSettings_GetCpbVclFactor(AL_EProfile eProfile)
 }
 
 /****************************************************************************/
+static int AL_sSettings_GetHbrFactor(AL_EProfile eProfile)
+{
+  return (AL_IS_HEVC(eProfile) && !AL_IS_LOW_BITRATE_PROFILE(eProfile)) ? 2 : 1;
+}
+
+/****************************************************************************/
 static uint32_t AL_sSettings_GetMaxCPBSize(AL_TEncSettings const* pSettings)
 {
   int iCpbVclFactor = AL_sSettings_GetCpbVclFactor(pSettings->tChParam.eProfile);
@@ -417,7 +423,7 @@ static uint8_t AL_sSettings_GetMinLevelHEVC(AL_TEncSettings const* pSettings)
   uint32_t uMaxSample = pSettings->tChParam.uWidth * pSettings->tChParam.uHeight;
 
   int iCpbVclFactor = AL_sSettings_GetCpbVclFactor(pSettings->tChParam.eProfile);
-  int iHbrFactor = (AL_IS_HEVC(pSettings->tChParam.eProfile) && !AL_IS_LOW_BITRATE_PROFILE(pSettings->tChParam.eProfile)) ? 2 : 1;
+  int iHbrFactor = AL_sSettings_GetHbrFactor(pSettings->tChParam.eProfile);
   int iBrVclFactor = iCpbVclFactor * iHbrFactor;
   uint32_t uBitRate = (pSettings->tChParam.tRCParam.uMaxBitRate + (iBrVclFactor - 1)) / iBrVclFactor;
 
@@ -547,10 +553,10 @@ static uint8_t AL_sSettings_GetMinLevel(AL_TEncSettings const* pSettings)
 {
   if(AL_IS_HEVC(pSettings->tChParam.eProfile))
     return AL_sSettings_GetMinLevelHEVC(pSettings);
-  else if(AL_IS_AVC(pSettings->tChParam.eProfile))
+
+  if(AL_IS_AVC(pSettings->tChParam.eProfile))
     return AL_sSettings_GetMinLevelAVC(pSettings);
-  else
-    return -1;
+  return -1;
 }
 
 /***************************************************************************/
@@ -578,12 +584,10 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 
   pSettings->tChParam.tGopParam.eMode = AL_GOP_MODE_DEFAULT;
   pSettings->tChParam.tGopParam.uFreqIDR = 0x7FFFFFFF;
-  pSettings->tChParam.tGopParam.uFreqLT = 0;
 
   pSettings->tChParam.tGopParam.uGopLength = 30;
-  pSettings->tChParam.tGopParam.uNumB = 0;
   pSettings->tChParam.tGopParam.eGdrMode = AL_GDR_OFF;
-  pSettings->tChParam.tGopParam.uFreqGoldenRef = 0;
+
 
   pSettings->tChParam.tRCParam.eRCMode = AL_RC_CONST_QP;
   pSettings->tChParam.tRCParam.uTargetBitRate = 4000000;
@@ -603,19 +607,11 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pSettings->tChParam.tRCParam.uGoldenRefFrequency = 10;
   pSettings->tChParam.tRCParam.uPGoldenDelta = 2;
 
-  pSettings->tChParam.iCbSliceQpOffset = 0;
-  pSettings->tChParam.iCrSliceQpOffset = 0;
-  pSettings->tChParam.iCbPicQpOffset = 0;
-  pSettings->tChParam.iCrPicQpOffset = 0;
-
-
   pSettings->tChParam.iTcOffset = -1;
   pSettings->tChParam.iBetaOffset = -1;
 
   pSettings->tChParam.eColorSpace = UNKNOWN;
 
-  pSettings->tChParam.uCuQPDeltaDepth = 0;
-  pSettings->tChParam.uSliceSize = 0;
   pSettings->tChParam.uNumCore = NUMCORE_AUTO;
   pSettings->tChParam.uNumSlices = 1;
 
@@ -630,12 +626,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 
   pSettings->eScalingList = AL_SCL_DEFAULT;
 
-  pSettings->bDisIntra = false;
   pSettings->bForceLoad = true;
-  pSettings->iPrefetchLevel2 = 0;
-  pSettings->uL2PSize = 0;
-  pSettings->uClipHrzRange = 0;
-  pSettings->uClipVrtRange = 0;
   pSettings->tChParam.pMeRange[SLICE_P][0] = -1; // Horz
   pSettings->tChParam.pMeRange[SLICE_P][1] = -1; // Vert
   pSettings->tChParam.pMeRange[SLICE_B][0] = -1; // Horz
@@ -654,12 +645,6 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pSettings->tChParam.eSrcMode = AL_SRC_NVX;
 
 
-  pSettings->bScalingListPresentFlags = 0;
-
-
-  pSettings->bEnableWatchdog = false;
-
-  pSettings->tChParam.bSubframeLatency = false;
 }
 
 /***************************************************************************/
@@ -700,7 +685,10 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, FILE* pOut)
   uint8_t uNumCore = pSettings->tChParam.uNumCore;
 
   if(uNumCore == NUMCORE_AUTO)
-    uNumCore = AL_GetNumCore(pSettings->tChParam.uWidth, pSettings->tChParam.uHeight, pSettings->tChParam.tRCParam.uFrameRate, pSettings->tChParam.tRCParam.uClkRatio);
+  {
+    const int maximumResourcesForOneCore = GetCoreResources(ENCODER_CORE_FREQUENCY, ENCODER_CORE_FREQUENCY_MARGIN, ENCODER_CYCLES_FOR_BLK_32X32);
+    uNumCore = ChoseCoresCount(pSettings->tChParam.uWidth, pSettings->tChParam.uHeight, pSettings->tChParam.tRCParam.uFrameRate, pSettings->tChParam.tRCParam.uClkRatio, maximumResourcesForOneCore);
+  }
 
   if(!AL_sSettings_CheckProfile(pSettings->tChParam.eProfile))
   {
@@ -960,6 +948,10 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
     ++numIncoherency;
   }
 
+
+  if((pSettings->eQpCtrlMode & MASK_QP_TABLE) == ROI_QP)
+    pSettings->eQpCtrlMode |= RELATIVE_QP;
+
   if(pSettings->eQpCtrlMode & (MASK_AUTO_QP | MASK_QP_TABLE))
   {
     if((pSettings->tChParam.uMaxCuSize - pSettings->tChParam.uCuQPDeltaDepth) < pSettings->tChParam.uMinCuSize)
@@ -993,7 +985,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
     if(pSettings->tChParam.tRCParam.eRCMode == AL_RC_CBR)
     {
       AL_TDimension tDim = { pSettings->tChParam.uWidth, pSettings->tChParam.uHeight };
-      uint32_t maxNalSizeInByte = GetMaxVclNalSize(tDim, eInputChromaMode);
+      uint32_t maxNalSizeInByte = GetPcmVclNalSize(tDim, eInputChromaMode, iBitDepth);
       uint64_t maxBitRate = 8LL * maxNalSizeInByte * pSettings->tChParam.tRCParam.uFrameRate;
 
       if(pSettings->tChParam.tRCParam.uTargetBitRate > maxBitRate)
@@ -1095,6 +1087,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
   if(AL_IS_AVC(pSettings->tChParam.eProfile))
   {
     pSettings->tChParam.uMaxTuSize = 3;
+    pSettings->tChParam.iCbSliceQpOffset = pSettings->tChParam.iCrSliceQpOffset = 0;
 
     if(pSettings->tChParam.eOptions & AL_OPT_WPP)
       pSettings->tChParam.eOptions &= ~AL_OPT_WPP;
@@ -1221,10 +1214,11 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
   if(AL_IS_HEVC(pSettings->tChParam.eProfile))
   {
     uint8_t uNumCore = pSettings->tChParam.uNumCore;
+    int maximumResourcesForOneCore = GetCoreResources(ENCODER_CORE_FREQUENCY, ENCODER_CORE_FREQUENCY_MARGIN, ENCODER_CYCLES_FOR_BLK_32X32);
 
     if(uNumCore == NUMCORE_AUTO)
-      uNumCore = AL_GetNumCore(pSettings->tChParam.uWidth, pSettings->tChParam.uHeight,
-                               pSettings->tChParam.tRCParam.uFrameRate, pSettings->tChParam.tRCParam.uClkRatio);
+      uNumCore = ChoseCoresCount(pSettings->tChParam.uWidth, pSettings->tChParam.uHeight,
+                                 pSettings->tChParam.tRCParam.uFrameRate, pSettings->tChParam.tRCParam.uClkRatio, maximumResourcesForOneCore);
 
     if(uNumCore > 1 && pSettings->tChParam.uNumSlices > GetHevcMaxTileRow(pSettings))
     {

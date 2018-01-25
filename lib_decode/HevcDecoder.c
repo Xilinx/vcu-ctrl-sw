@@ -58,7 +58,7 @@
 
 
 /******************************************************************************/
-static AL_TCropInfo getCropInfo(const AL_THevcSps* pSPS)
+static AL_TCropInfo getCropInfo(AL_THevcSps const* pSPS)
 {
   AL_TCropInfo tCropInfo =
   {
@@ -184,33 +184,33 @@ static int calculatePOC(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pSlice, uint8_t
 }
 
 /*****************************************************************************/
-static bool isFirstSPSCompatibleWithStreamSettings(AL_THevcSps tSPS, AL_TStreamSettings tStreamSettings)
+static bool isFirstSPSCompatibleWithStreamSettings(AL_THevcSps const* pSPS, AL_TStreamSettings const* pStreamSettings)
 {
-  const int iSPSMaxBitDepth = getMaxBitDepth(tSPS.profile_and_level);
+  const int iSPSMaxBitDepth = getMaxBitDepth(pSPS->profile_and_level);
 
-  if((tStreamSettings.iBitDepth > 0) && (tStreamSettings.iBitDepth < iSPSMaxBitDepth))
+  if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSMaxBitDepth))
     return false;
 
-  const int iSPSLevel = tSPS.profile_and_level.general_level_idc / 3;
+  const int iSPSLevel = pSPS->profile_and_level.general_level_idc / 3;
 
-  if((tStreamSettings.iLevel > 0) && (tStreamSettings.iLevel < iSPSLevel))
+  if((pStreamSettings->iLevel > 0) && (pStreamSettings->iLevel < iSPSLevel))
     return false;
 
-  const AL_EChromaMode eSPSChromaMode = (AL_EChromaMode)tSPS.chroma_format_idc;
+  const AL_EChromaMode eSPSChromaMode = (AL_EChromaMode)pSPS->chroma_format_idc;
 
-  if((tStreamSettings.eChroma != CHROMA_MAX_ENUM) && (tStreamSettings.eChroma < eSPSChromaMode))
+  if((pStreamSettings->eChroma != CHROMA_MAX_ENUM) && (pStreamSettings->eChroma < eSPSChromaMode))
     return false;
 
-  const AL_TCropInfo tSPSCropInfo = getCropInfo(&tSPS);
+  const AL_TCropInfo tSPSCropInfo = getCropInfo(pSPS);
   const int iSPSCropWidth = tSPSCropInfo.uCropOffsetLeft + tSPSCropInfo.uCropOffsetRight;
-  const AL_TDimension tSPSDim = { tSPS.pic_width_in_luma_samples, tSPS.pic_height_in_luma_samples };
+  const AL_TDimension tSPSDim = { pSPS->pic_width_in_luma_samples, pSPS->pic_height_in_luma_samples };
 
-  if((tStreamSettings.tDim.iWidth > 0) && (tStreamSettings.tDim.iWidth < (tSPSDim.iWidth - iSPSCropWidth)))
+  if((pStreamSettings->tDim.iWidth > 0) && (pStreamSettings->tDim.iWidth < (tSPSDim.iWidth - iSPSCropWidth)))
     return false;
 
   const int iSPSCropHeight = tSPSCropInfo.uCropOffsetTop + tSPSCropInfo.uCropOffsetBottom;
 
-  if((tStreamSettings.tDim.iHeight > 0) && (tStreamSettings.tDim.iHeight < (tSPSDim.iHeight - iSPSCropHeight)))
+  if((pStreamSettings->tDim.iHeight > 0) && (pStreamSettings->tDim.iHeight < (tSPSDim.iHeight - iSPSCropHeight)))
     return false;
 
   return true;
@@ -219,14 +219,14 @@ static bool isFirstSPSCompatibleWithStreamSettings(AL_THevcSps tSPS, AL_TStreamS
 int HEVC_GetMinOutputBuffersNeeded(int iDpbMaxBuf, int iStack);
 
 /*****************************************************************************/
-static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps tSps)
+static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
 {
-  const AL_TDimension tSPSDim = { tSps.pic_width_in_luma_samples, tSps.pic_height_in_luma_samples };
-  const int iSPSLevel = tSps.profile_and_level.general_level_idc / 3;
+  const AL_TDimension tSPSDim = { pSPS->pic_width_in_luma_samples, pSPS->pic_height_in_luma_samples };
+  const int iSPSLevel = pSPS->profile_and_level.general_level_idc / 3;
   const int iSPSMaxSlices = getMaxSlicesCount(iSPSLevel);
   const int iSizeWP = iSPSMaxSlices * WP_SLICE_SIZE;
   const int iSizeSP = iSPSMaxSlices * sizeof(AL_TDecSliceParam);
-  const AL_EChromaMode eSPSChromaMode = (AL_EChromaMode)tSps.chroma_format_idc;
+  const AL_EChromaMode eSPSChromaMode = (AL_EChromaMode)pSPS->chroma_format_idc;
   const int iSizeCompData = AL_GetAllocSize_HevcCompData(tSPSDim, eSPSChromaMode);
   const int iSizeCompMap = AL_GetAllocSize_CompMap(tSPSDim);
 
@@ -242,23 +242,23 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps tSps)
   if(!AL_Default_Decoder_AllocMv(pCtx, iSizeMV, iSizePOC, iMaxBuf))
     goto fail_alloc;
 
-  const int iDpbRef = Min(tSps.sps_max_dec_pic_buffering_minus1[tSps.sps_max_sub_layers_minus1] + 1, iDpbMaxBuf);
+  const int iDpbRef = Min(pSPS->sps_max_dec_pic_buffering_minus1[pSPS->sps_max_sub_layers_minus1] + 1, iDpbMaxBuf);
   const AL_EFbStorageMode eStorageMode = pCtx->m_chanParam.eFBStorageMode;
   AL_PictMngr_Init(&pCtx->m_PictMngr, iMaxBuf, iSizeMV, iDpbRef, pCtx->m_eDpbMode, eStorageMode);
 
   if(pCtx->m_resolutionFoundCB.func)
   {
-    const int iSPSMaxBitDepth = getMaxBitDepth(tSps.profile_and_level);
+    const int iSPSMaxBitDepth = getMaxBitDepth(pSPS->profile_and_level);
     const bool useFBC = pCtx->m_chanParam.bFrameBufferCompression;
     const int iSizeYuv = AL_GetAllocSize_Frame(tSPSDim, eSPSChromaMode, iSPSMaxBitDepth, useFBC, eStorageMode);
-    const AL_TCropInfo tCropInfo = getCropInfo(&tSps);
+    const AL_TCropInfo tCropInfo = getCropInfo(pSPS);
 
     AL_TStreamSettings tSettings;
     tSettings.tDim = tSPSDim;
     tSettings.eChroma = eSPSChromaMode;
     tSettings.iBitDepth = iSPSMaxBitDepth;
     tSettings.iLevel = iSPSLevel;
-    tSettings.iProfileIdc = tSps.profile_and_level.general_profile_idc;
+    tSettings.iProfileIdc = pSPS->profile_and_level.general_profile_idc;
 
     pCtx->m_resolutionFoundCB.func(iMaxBuf, iSizeYuv, &tSettings, &tCropInfo, pCtx->m_resolutionFoundCB.userParam);
   }
@@ -271,20 +271,20 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps tSps)
 }
 
 /******************************************************************************/
-static bool initChannel(AL_TDecCtx* pCtx, AL_THevcSps tSps)
+static bool initChannel(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
 {
-  const AL_TDimension tSPSDim = { tSps.pic_width_in_luma_samples, tSps.pic_height_in_luma_samples };
+  const AL_TDimension tSPSDim = { pSPS->pic_width_in_luma_samples, pSPS->pic_height_in_luma_samples };
   AL_TDecChanParam* pChan = &pCtx->m_chanParam;
   pChan->iWidth = tSPSDim.iWidth;
   pChan->iHeight = tSPSDim.iHeight;
-  const int iSPSLevel = tSps.profile_and_level.general_level_idc / 3;
+  const int iSPSLevel = pSPS->profile_and_level.general_level_idc / 3;
   const int iSPSMaxSlices = getMaxSlicesCount(iSPSLevel);
   pChan->iMaxSlices = iSPSMaxSlices;
 
-  if(!pCtx->m_bForceFrameRate && tSps.vui_parameters_present_flag && tSps.vui_param.vui_timing_info_present_flag)
+  if(!pCtx->m_bForceFrameRate && pSPS->vui_parameters_present_flag && pSPS->vui_param.vui_timing_info_present_flag)
   {
-    pChan->uFrameRate = tSps.vui_param.vui_time_scale;
-    pChan->uClkRatio = tSps.vui_param.vui_num_units_in_tick;
+    pChan->uFrameRate = pSPS->vui_param.vui_time_scale;
+    pChan->uClkRatio = pSPS->vui_param.vui_num_units_in_tick;
   }
 
   AL_CB_EndFrameDecoding endFrameDecodingCallback = { AL_Default_Decoder_EndDecoding, pCtx };
@@ -310,7 +310,7 @@ static bool initSlice(AL_TDecCtx* pCtx, AL_THevcSliceHdr* pSlice)
 
   if(!pCtx->m_bIsFirstSPSChecked)
   {
-    if(!isFirstSPSCompatibleWithStreamSettings(*pSlice->m_pSPS, pCtx->m_tStreamSettings))
+    if(!isFirstSPSCompatibleWithStreamSettings(pSlice->m_pSPS, &pCtx->m_tStreamSettings))
     {
       pSlice->m_pPPS = &aup->m_pPPS[pCtx->m_tConceal.m_iLastPPSId];
       pSlice->m_pSPS = pSlice->m_pPPS->m_pSPS;
@@ -321,13 +321,13 @@ static bool initSlice(AL_TDecCtx* pCtx, AL_THevcSliceHdr* pSlice)
 
     if(!pCtx->m_bIsBuffersAllocated)
     {
-      if(!allocateBuffers(pCtx, *pSlice->m_pSPS))
+      if(!allocateBuffers(pCtx, pSlice->m_pSPS))
         return false;
 
       pCtx->m_bIsBuffersAllocated = true;
     }
 
-    if(!initChannel(pCtx, *pSlice->m_pSPS))
+    if(!initChannel(pCtx, pSlice->m_pSPS))
       return false;
   }
 

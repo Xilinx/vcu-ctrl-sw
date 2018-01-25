@@ -66,17 +66,49 @@ int GetBlk16x16(AL_TDimension tDim)
 }
 
 /****************************************************************************/
-int GetMaxVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode)
+static int GetPcmSizeWithFractionalCoefficient(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth, int coeffNumerator, int coeffDenominator)
 {
-  return GetBlk64x64(tDim) * AL_PCM_SIZE[eMode][2];
+  const int bitdepthNumerator = iBitDepth;
+  const int bitdepthDenominator = 8;
+
+  /* Careful round up (at the 64x64 MB/LCU level) while calculating fraction. */
+  const int iLcu64PcmSizeMultipliedByFraction = ((AL_PCM_SIZE[eMode][2] * bitdepthNumerator * coeffNumerator + (bitdepthDenominator * coeffDenominator - 1)) / (bitdepthDenominator * coeffDenominator));
+  return GetBlk64x64(tDim) * iLcu64PcmSizeMultipliedByFraction;
 }
 
 /****************************************************************************/
-int AL_GetMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode)
+int GetPcmVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth)
 {
-  int iMaxPCM = GetMaxVclNalSize(tDim, eMode);
+  return GetPcmSizeWithFractionalCoefficient(tDim, eMode, iBitDepth, 1, 1);
+}
 
-  iMaxPCM += 2048 + (((tDim.iHeight + 15) / 16) * AL_MAX_SLICE_HEADER_SIZE);
+/****************************************************************************/
+int GetMaxVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth)
+{
+  /* Spec. A.3.2, A.3.3: Number of bits in the macroblock is at most: 5 * RawCtuBits / 3. */
+  return GetPcmSizeWithFractionalCoefficient(tDim, eMode, iBitDepth, 5, 3);
+}
+
+/****************************************************************************/
+int AL_GetMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth)
+{
+  /* Actual worst case: 5/3*PCM + one slice per MB/LCU. */
+  int iMaxPCM = GetMaxVclNalSize(tDim, eMode, iBitDepth);
+
+  const int iNumSlices = ((tDim.iHeight + 15) / 16) * ((tDim.iWidth + 15) / 16);
+  iMaxPCM += 2048 + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
+
+  return RoundUp(iMaxPCM, 32);
+}
+
+/****************************************************************************/
+int AL_GetMitigatedMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth)
+{
+  /* Mitigated worst case: PCM + one slice per row. */
+  int iMaxPCM = GetPcmVclNalSize(tDim, eMode, iBitDepth);
+
+  const int iNumSlices = ((tDim.iHeight + 15) / 16);
+  iMaxPCM += 2048 + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
 
   return RoundUp(iMaxPCM, 32);
 }

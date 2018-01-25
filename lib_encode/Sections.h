@@ -69,6 +69,7 @@ typedef struct
   bool shouldWriteAud;
   bool shouldWriteFillerData;
   AL_SeiData* seiData;
+  uint32_t seiFlags;
 }NalsData;
 
 void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus);

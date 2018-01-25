@@ -39,6 +39,8 @@
 
 #include "lib_app/timing.h"
 #include "QPGenerator.h"
+#include "EncCmdMngr.h"
+#include "CommandsSender.h"
 
 static bool PreprocessQP(uint8_t* pQPs, const AL_TEncSettings& Settings, int iFrameCountSent)
 {
@@ -52,15 +54,15 @@ static bool PreprocessQP(uint8_t* pQPs, const AL_TEncSettings& Settings, int iFr
 class QPBuffers
 {
 public:
-  QPBuffers(AL_TBufPool& bufpool, const AL_TEncSettings& settings) :
+  QPBuffers(BufPool& bufpool, const AL_TEncSettings& settings) :
     bufpool(bufpool), isExternQpTable(settings.eQpCtrlMode & (MASK_QP_TABLE_EXT)), settings(settings)
   {
     auto& tChParam = settings.tChParam;
-    auto& tRcParam = tChParam.tRCParam;
+    pRoiCtx = AL_RoiMngr_Create(tChParam.uWidth, tChParam.uHeight, tChParam.eProfile, AL_ROI_QUALITY_LOW, AL_ROI_QUALITY_ORDER);
     // set QpBuf memory to 0 for traces
     std::vector<AL_TBuffer*> qpBufs;
 
-    while(auto curQp = AL_BufPool_GetBuffer(&bufpool, AL_BUF_MODE_NONBLOCK))
+    while(auto curQp = bufpool.GetBuffer(AL_BUF_MODE_NONBLOCK))
     {
       qpBufs.push_back(curQp);
       Rtos_Memset(AL_Buffer_GetData(curQp), 0, curQp->zSize);
@@ -72,6 +74,7 @@ public:
 
   ~QPBuffers()
   {
+    AL_RoiMngr_Destroy(pRoiCtx);
   }
 
   AL_TBuffer* getBuffer(int frameNum)
@@ -79,9 +82,20 @@ public:
     if(!isExternQpTable)
       return nullptr;
 
-    AL_TBuffer* QpBuf = AL_BufPool_GetBuffer(&bufpool, AL_BUF_MODE_BLOCK);
+    AL_TBuffer* QpBuf = bufpool.GetBuffer();
     bool bRet = PreprocessQP(AL_Buffer_GetData(QpBuf), settings, frameNum);
-    return bRet ? QpBuf : nullptr;
+
+    if(!bRet)
+      bRet = GenerateROIBuffer(pRoiCtx, sRoiFileName, AL_GetWidthInLCU(settings.tChParam), AL_GetHeightInLCU(settings.tChParam),
+                               settings.tChParam.eProfile, frameNum, AL_Buffer_GetData(QpBuf) + EP2_BUF_QP_BY_MB.Offset);
+
+    if(!bRet)
+    {
+      releaseBuffer(QpBuf);
+      return nullptr;
+    }
+
+    return QpBuf;
   }
 
   void releaseBuffer(AL_TBuffer* buffer)
@@ -91,85 +105,19 @@ public:
     AL_Buffer_Unref(buffer);
   }
 
+  void setRoiFileName(string const& roiFileName)
+  {
+    sRoiFileName = roiFileName;
+  }
+
+
 private:
-  AL_TBufPool& bufpool;
+  BufPool& bufpool;
   bool isExternQpTable;
   const AL_TEncSettings& settings;
 
-};
-
-class SceneChange
-{
-public:
-  SceneChange(string sScnChgFileName, int lookahead, int inputFrameRate, int outputFrameRate) :
-    lookahead(lookahead),
-    inputFrameRate(inputFrameRate),
-    outputFrameRate(outputFrameRate)
-  {
-    if(!sScnChgFileName.empty())
-    {
-      OpenInput(ScnChgFile, sScnChgFileName, false);
-
-      bScnChgFileIn = true;
-      iNextScnChg = ReadNextFrame(ScnChgFile);
-    }
-  }
-
-  void notify(AL_HEncoder hEnc, unsigned int iPictCount, int framesRead)
-  {
-    if(bScnChgFileIn)
-    {
-      int iAheadCount = ((iPictCount + lookahead) * inputFrameRate) / outputFrameRate;
-
-      while((iNextScnChg != -1) && (framesRead < iNextScnChg) && (iAheadCount >= iNextScnChg))
-      {
-        AL_Encoder_NotifySceneChange(hEnc, lookahead);
-        iNextScnChg = ReadNextFrame(ScnChgFile);
-      }
-    }
-  }
-
-private:
-  ifstream ScnChgFile;
-  bool bScnChgFileIn = false;
-  int iNextScnChg = -1;
-  int const lookahead;
-  int const inputFrameRate;
-  int const outputFrameRate;
-};
-
-class LongTermRef
-{
-public:
-  LongTermRef(string sLTFileName, int longTermFreq) : longTermFreq(longTermFreq)
-  {
-    if(!sLTFileName.empty())
-    {
-      OpenInput(LTFile, sLTFileName, false);
-
-      iNextLT = ReadNextFrame(LTFile);
-    }
-  }
-
-  void notify(AL_HEncoder hEnc)
-  {
-    if(LTFile.is_open() && longTermFreq > 0)
-    {
-      if((iNextLT != -1) && (iCurFrame == iNextLT))
-      {
-        AL_Encoder_NotifyLongTerm(hEnc);
-        iNextLT = ReadNextFrame(LTFile);
-      }
-
-      iCurFrame++;
-    }
-  }
-
-private:
-  ifstream LTFile;
-  int iNextLT = -1;
-  int iCurFrame = 0;
-  int const longTermFreq;
+  string sRoiFileName;
+  AL_TRoiMngrCtx* pRoiCtx;
 };
 
 
@@ -203,7 +151,7 @@ void ThrowEncoderError(AL_ERR eErr)
 {
   auto const msg = EncoderErrorToString(eErr);
 
-  Message(CC_RED, "%s\n");
+  Message(CC_RED, "%s\n", msg);
   switch(eErr)
   {
   case AL_SUCCESS:
@@ -222,14 +170,13 @@ void ThrowEncoderError(AL_ERR eErr)
 
 struct EncoderSink : IFrameSink
 {
-  EncoderSink(ConfigFile const& cfg, TScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TBufPool& qpBufPool) :
-    ScnChg(cfg.sScnChgFileName,
-           cfg.RunInfo.iScnChgLookAhead,
-           cfg.FileInfo.FrameRate,
-           cfg.Settings.tChParam.tRCParam.uFrameRate),
-    LT(cfg.sLTFileName, cfg.Settings.tChParam.tGopParam.uFreqLT),
+  EncoderSink(ConfigFile const& cfg, TScheduler* pScheduler, AL_TAllocator* pAllocator, BufPool& qpBufPool) :
+    CmdFile(cfg.sCmdFileName),
+    EncCmd(CmdFile, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam.tGopParam.uFreqLT),
     qpBuffers(qpBufPool, cfg.Settings)
   {
+    qpBuffers.setRoiFileName(cfg.sRoiFileName);
+
     AL_CB_EndEncoding onEndEncoding = { &EncoderSink::EndEncoding, this };
 
     AL_ERR errorCode = AL_Encoder_Create(&hEnc, pScheduler, pAllocator, &cfg.Settings, onEndEncoding);
@@ -237,8 +184,10 @@ struct EncoderSink : IFrameSink
     if(errorCode)
       ThrowEncoderError(errorCode);
 
+    commandsSender.reset(new CommandsSender(hEnc));
     BitstreamOutput.reset(new NullFrameSink);
     RecOutput.reset(new NullFrameSink);
+    m_pictureType = cfg.RunInfo.printPictureType ? SLICE_MAX_ENUM : -1;
   }
 
   ~EncoderSink()
@@ -265,9 +214,7 @@ struct EncoderSink : IFrameSink
 
     if(Src)
     {
-      ScnChg.notify(hEnc, m_picCount, m_picCount + 1);
-
-      LT.notify(hEnc);
+      EncCmd.Process(commandsSender.get(), m_picCount);
       QpBuf = qpBuffers.getBuffer(m_picCount);
     }
 
@@ -286,11 +233,13 @@ struct EncoderSink : IFrameSink
 
 private:
   int m_picCount = 0;
+  int m_pictureType = -1;
   uint64_t m_StartTime = 0;
   uint64_t m_EndTime = 0;
-  SceneChange ScnChg;
-  LongTermRef LT;
+  ifstream CmdFile;
+  CEncCmdMngr EncCmd;
   QPBuffers qpBuffers;
+  unique_ptr<CommandsSender> commandsSender;
 
   static inline bool isStreamReleased(AL_TBuffer* pStream, AL_TBuffer const* pSrc)
   {
@@ -317,6 +266,12 @@ private:
     if(AL_ERR eErr = AL_Encoder_GetLastError(hEnc))
       ThrowEncoderError(eErr);
 
+    if(pStream && m_pictureType != -1)
+    {
+      auto const pMeta = (AL_TPictureMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_PICTURE);
+      m_pictureType = pMeta->eType;
+      Message(CC_DEFAULT, "Picture Type %i\n", m_pictureType);
+    }
     BitstreamOutput->ProcessFrame(pStream);
 
     if(pStream)

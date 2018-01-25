@@ -37,21 +37,46 @@
 
 #pragma once
 
-#include "lib_rtos/lib_rtos.h"
+#include <list>
+#include <iostream>
+#include <string>
 
-typedef struct
+#include "ICommandsSender.h"
+
+class CEncCmdMngr
 {
-  size_t m_zMaxElem;
-  size_t m_zTail;
-  size_t m_zHead;
-  void** m_ElemBuffer;
-  AL_MUTEX hMutex;
-  AL_SEMAPHORE hCountSem;
-  AL_SEMAPHORE hSpaceSem;
-}AL_TFifo;
+public:
+  CEncCmdMngr(std::istream& CmdInput, int iLookAhead, int iFreqLT);
 
-bool AL_Fifo_Init(AL_TFifo* pFifo, size_t zMaxElem);
-void AL_Fifo_Deinit(AL_TFifo* pFifo);
-bool AL_Fifo_Queue(AL_TFifo* pFifo, void* pElem, uint32_t uWait);
-void* AL_Fifo_Dequeue(AL_TFifo* pFifo, uint32_t uWait);
+  void Process(ICommandsSender* sender, int iFrame);
+
+private:
+  struct TFrmCmd
+  {
+    int iFrame = 0;
+    bool bSceneChange = false;
+    bool bIsLongTerm = false;
+    bool bUseLongTerm = false;
+    bool bKeyFrame = false;
+    bool bChangeGopLength = false;
+    int iGopLength = 0;
+    bool bChangeGopNumB = false;
+    int iGopNumB = 0;
+    bool bChangeBitRate = false;
+    int iBitRate = 0;
+    bool bChangeFrameRate = false;
+    int iFrameRate = 0;
+    int iClkRatio = 0;
+  };
+
+  void Refill(int iCurFrame);
+  bool ReadNextCmd(TFrmCmd& Cmd);
+  bool ParseCmd(std::string sLine, TFrmCmd& Cmd, bool bSameFrame);
+
+private:
+  std::istream& m_CmdInput;
+  int const m_iLookAhead;
+  int const m_iFreqLT;
+  std::list<TFrmCmd> m_Cmds;
+};
 

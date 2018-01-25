@@ -38,8 +38,16 @@
 #include "EncSize.h"
 
 /****************************************************************************/
-int GetCompLcuSize()
+int GetCompLcuSize(uint8_t uLcuSize, bool bUseEnt)
 {
+#if AL_ENABLE_ENTROPY_COMP
+
+  if(bUseEnt)
+    return uLcuSize * uLcuSize * 3;
+#endif
+
+  (void)uLcuSize;
+  (void)bUseEnt;
   // header + MVDs + residuals words size
   return 1312;
 }

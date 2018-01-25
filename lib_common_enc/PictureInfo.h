@@ -72,6 +72,8 @@ static const uint32_t AL_PICT_INFO_END_SRC = 0x00000020;
 static const uint32_t AL_PICT_INFO_USE_LT = 0x00000040;
 static const uint32_t AL_PICT_INFO_IS_GOLDREF = 0x0000080;
 
+static const uint32_t AL_PICT_INFO_NOT_SHOWABLE = 0x80000000;
+#define AL_IS_SHOWABLE(PicInfo) (!((PicInfo).uFlags & AL_PICT_INFO_NOT_SHOWABLE))
 
 #define AL_IS_IDR(PicInfo) ((PicInfo).uFlags & AL_PICT_INFO_IS_IDR)
 #define AL_IS_REF(PicInfo) ((PicInfo).uFlags & AL_PICT_INFO_IS_REF)

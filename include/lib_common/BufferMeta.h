@@ -47,6 +47,7 @@ typedef enum
   AL_META_TYPE_SOURCE,
   AL_META_TYPE_STREAM,
   AL_META_TYPE_CIRCULAR,
+  AL_META_TYPE_PICTURE,
   /* sentinel */
   AL_META_TYPE_MAX,
   /* user define */
