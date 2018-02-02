@@ -353,6 +353,15 @@ AL_ERR AL_Common_Encoder_GetLastError(AL_TEncoder* pEnc)
   return eError;
 }
 
+/***************************************************************************/
+void AL_Common_SetError(AL_TEncCtx* pCtx, AL_ERR eErrorCode)
+{
+  Rtos_GetMutex(pCtx->m_Mutex);
+  pCtx->m_eError = eErrorCode;
+  Rtos_ReleaseMutex(pCtx->m_Mutex);
+}
+
+/***************************************************************************/
 static void setMaxNumRef(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
 {
   pCtx->m_iMaxNumRef = AL_GET_PPS_NUM_ACT_REF_L0(pChParam->uPpsParam);
@@ -543,12 +552,23 @@ void AL_Common_Encoder_Destroy(AL_TEncoder* pEnc)
 }
 
 /****************************************************************************/
-void AL_Common_Encoder_RestartGop(AL_TEncoder* pEnc)
+#define AL_RETURN_ERROR(e) { AL_Common_SetError(pCtx, e); return false; }
+
+/****************************************************************************/
+bool AL_Common_Encoder_RestartGop(AL_TEncoder* pEnc)
 {
+  AL_TEncCtx* pCtx = pEnc->pCtx;
+
+  if(pCtx->m_Settings.tChParam.tGopParam.eMode != AL_GOP_MODE_DEFAULT)
+    AL_RETURN_ERROR(AL_ERR_CMD_NOT_ALLOWED);
+
   AL_TEncRequestInfo* pReqInfo = getCurrentCommands(pEnc->pCtx);
   pReqInfo->eReqOptions |= AL_OPT_RESTART_GOP;
+
+  return true;
 }
 
+/****************************************************************************/
 static void sendNewParams(AL_TEncCtx* pCtx)
 {
   AL_TEncRequestInfo* pReqInfo = getCurrentCommands(pCtx);
@@ -558,23 +578,38 @@ static void sendNewParams(AL_TEncCtx* pCtx)
 }
 
 /****************************************************************************/
-void AL_Common_Encoder_SetGopLength(AL_TEncoder* pEnc, int iGopLength)
+bool AL_Common_Encoder_SetGopLength(AL_TEncoder* pEnc, int iGopLength)
 {
   AL_TEncCtx* pCtx = pEnc->pCtx;
+
+  if(pCtx->m_Settings.tChParam.tGopParam.eMode != AL_GOP_MODE_DEFAULT)
+    AL_RETURN_ERROR(AL_ERR_CMD_NOT_ALLOWED);
+
   pCtx->m_Settings.tChParam.tGopParam.uGopLength = iGopLength;
   sendNewParams(pCtx);
+
+  return true;
 }
 
 /****************************************************************************/
-void AL_Common_Encoder_SetGopNumB(AL_TEncoder* pEnc, int iNumB)
+bool AL_Common_Encoder_SetGopNumB(AL_TEncoder* pEnc, int iNumB)
 {
   AL_TEncCtx* pCtx = pEnc->pCtx;
+
+  if(pCtx->m_Settings.tChParam.tGopParam.eMode != AL_GOP_MODE_DEFAULT)
+    AL_RETURN_ERROR(AL_ERR_CMD_NOT_ALLOWED);
+
+  if(iNumB > pCtx->iInitialNumB)
+    AL_RETURN_ERROR(AL_ERR_INVALID_CMD_VALUE);
+
   pCtx->m_Settings.tChParam.tGopParam.uNumB = iNumB;
   sendNewParams(pCtx);
+
+  return true;
 }
 
 /****************************************************************************/
-void AL_Common_Encoder_SetBitRate(AL_TEncoder* pEnc, int iBitRate)
+bool AL_Common_Encoder_SetBitRate(AL_TEncoder* pEnc, int iBitRate)
 {
   AL_TEncCtx* pCtx = pEnc->pCtx;
   pCtx->m_Settings.tChParam.tRCParam.uTargetBitRate = iBitRate;
@@ -582,15 +617,23 @@ void AL_Common_Encoder_SetBitRate(AL_TEncoder* pEnc, int iBitRate)
   if(pCtx->m_Settings.tChParam.tRCParam.eRCMode == AL_RC_CBR)
     pCtx->m_Settings.tChParam.tRCParam.uMaxBitRate = iBitRate;
   sendNewParams(pCtx);
+
+  return true;
 }
 
 /****************************************************************************/
-void AL_Common_Encoder_SetFrameRate(AL_TEncoder* pEnc, uint16_t uFrameRate, uint16_t uClkRatio)
+bool AL_Common_Encoder_SetFrameRate(AL_TEncoder* pEnc, uint16_t uFrameRate, uint16_t uClkRatio)
 {
   AL_TEncCtx* pCtx = pEnc->pCtx;
+
+  if(uFrameRate > pCtx->uInitialFrameRate)
+    AL_RETURN_ERROR(AL_ERR_INVALID_CMD_VALUE);
+
   pCtx->m_Settings.tChParam.tRCParam.uFrameRate = uFrameRate;
   pCtx->m_Settings.tChParam.tRCParam.uClkRatio = uClkRatio;
   sendNewParams(pCtx);
+
+  return true;
 }
 
 
@@ -640,9 +683,7 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
 
   pCtx->m_iCurStreamRecv = (pCtx->m_iCurStreamRecv + 1) % AL_MAX_STREAM_BUFFER;
 
-  Rtos_GetMutex(pCtx->m_Mutex);
-  pCtx->m_eError = pPicStatus->eErrorCode;
-  Rtos_ReleaseMutex(pCtx->m_Mutex);
+  AL_Common_SetError(pCtx, pPicStatus->eErrorCode);
 
   AL_TBuffer* pStream = pCtx->m_StreamSent[streamId];
 
@@ -724,6 +765,9 @@ AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncCtx* pCtx, TScheduler* pScheduler,
 
   setMaxNumRef(pCtx, pChParam);
   pCtx->encoder.generateNals(pCtx);
+
+  pCtx->iInitialNumB = pChParam->tGopParam.uNumB;
+  pCtx->uInitialFrameRate = pChParam->tRCParam.uFrameRate;
 
   return AL_SUCCESS;
 

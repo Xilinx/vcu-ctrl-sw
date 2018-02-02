@@ -47,29 +47,35 @@ void CommandsSender::notifyLongTerm()
   AL_Encoder_NotifyLongTerm(hEnc);
 }
 
+#include <iostream>
+
+#define CHECK(statement) \
+  if(!statement) \
+    std::cerr << # statement << " failed with error : " << AL_Encoder_GetLastError(hEnc) << std::endl
+
 void CommandsSender::restartGop()
 {
-  AL_Encoder_RestartGop(hEnc);
+  CHECK(AL_Encoder_RestartGop(hEnc));
 }
 
 void CommandsSender::setGopLength(int gopLength)
 {
-  AL_Encoder_SetGopLength(hEnc, gopLength);
+  CHECK(AL_Encoder_SetGopLength(hEnc, gopLength));
 }
 
 void CommandsSender::setNumB(int numB)
 {
-  AL_Encoder_SetGopNumB(hEnc, numB);
+  CHECK(AL_Encoder_SetGopNumB(hEnc, numB));
 }
 
 void CommandsSender::setFrameRate(int frameRate, int clockRatio)
 {
-  AL_Encoder_SetFrameRate(hEnc, frameRate, clockRatio);
+  CHECK(AL_Encoder_SetFrameRate(hEnc, frameRate, clockRatio));
 }
 
 void CommandsSender::setBitRate(int bitRate)
 {
-  AL_Encoder_SetBitRate(hEnc, bitRate);
+  CHECK(AL_Encoder_SetBitRate(hEnc, bitRate));
 }
 
 

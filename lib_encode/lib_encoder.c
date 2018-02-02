@@ -158,38 +158,38 @@ AL_ERR AL_Encoder_GetLastError(AL_HEncoder hEnc)
 }
 
 /****************************************************************************/
-void AL_Encoder_RestartGop(AL_HEncoder hEnc)
+bool AL_Encoder_RestartGop(AL_HEncoder hEnc)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
-  AL_Common_Encoder_RestartGop(pEnc);
+  return AL_Common_Encoder_RestartGop(pEnc);
 }
 
 /****************************************************************************/
-void AL_Encoder_SetGopLength(AL_HEncoder hEnc, int iGopLength)
+bool AL_Encoder_SetGopLength(AL_HEncoder hEnc, int iGopLength)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
-  AL_Common_Encoder_SetGopLength(pEnc, iGopLength);
+  return AL_Common_Encoder_SetGopLength(pEnc, iGopLength);
 }
 
 /****************************************************************************/
-void AL_Encoder_SetGopNumB(AL_HEncoder hEnc, int iNumB)
+bool AL_Encoder_SetGopNumB(AL_HEncoder hEnc, int iNumB)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
-  AL_Common_Encoder_SetGopNumB(pEnc, iNumB);
+  return AL_Common_Encoder_SetGopNumB(pEnc, iNumB);
 }
 
 /****************************************************************************/
-void AL_Encoder_SetBitRate(AL_HEncoder hEnc, int iBitRate)
+bool AL_Encoder_SetBitRate(AL_HEncoder hEnc, int iBitRate)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
-  AL_Common_Encoder_SetBitRate(pEnc, iBitRate);
+  return AL_Common_Encoder_SetBitRate(pEnc, iBitRate);
 }
 
 /****************************************************************************/
-void AL_Encoder_SetFrameRate(AL_HEncoder hEnc, uint16_t uFrameRate, uint16_t uClkRatio)
+bool AL_Encoder_SetFrameRate(AL_HEncoder hEnc, uint16_t uFrameRate, uint16_t uClkRatio)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
-  AL_Common_Encoder_SetFrameRate(pEnc, uFrameRate, uClkRatio);
+  return AL_Common_Encoder_SetFrameRate(pEnc, uFrameRate, uClkRatio);
 }
 
 

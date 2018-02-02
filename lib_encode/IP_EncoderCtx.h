@@ -148,6 +148,8 @@ typedef struct AL_t_EncCtx
 
   AL_CB_EndEncoding m_callback;
 
+  int iInitialNumB;
+  uint16_t uInitialFrameRate;
 }AL_TEncCtx;
 
 NalsData AL_ExtractNalsData(AL_TEncCtx* pCtx);

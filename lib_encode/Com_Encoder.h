@@ -136,8 +136,10 @@ void AL_Common_Encoder_Destroy(AL_TEncoder* pEnc);
    \brief The AL_Encoder_RestartGop requests the encoder to insert a Keyframe
    and restart a new Gop.
    \param[in] pEnc Pointer on an encoder object
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError
+   to retrieve the error code
 *****************************************************************************/
-void AL_Common_Encoder_RestartGop(AL_TEncoder* pEnc);
+bool AL_Common_Encoder_RestartGop(AL_TEncoder* pEnc);
 
 /*************************************************************************//*!
    \brief The AL_Encoder_SetGopLength changes the GopLength. If the on-going
@@ -147,33 +149,41 @@ void AL_Common_Encoder_RestartGop(AL_TEncoder* pEnc);
    GopLength
    \param[in] pEnc Pointer on an encoder object
    \param[in] iGopLength New Gop Length
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError
+   to retrieve the error code
 *****************************************************************************/
-void AL_Common_Encoder_SetGopLength(AL_TEncoder* pEnc, int iGopLength);
+bool AL_Common_Encoder_SetGopLength(AL_TEncoder* pEnc, int iGopLength);
 
 /*************************************************************************//*!
    \brief The AL_Encoder_SetGopNumB changes the Number of consecutive B
    frame in-between 2 I/P frames.
    \param[in] pEnc Pointer on an encoder object
    \param[in] iNumB the new number of B frames
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError
+   to retrieve the error code
 *****************************************************************************/
-void AL_Common_Encoder_SetGopNumB(AL_TEncoder* pEnc, int iNumB);
+bool AL_Common_Encoder_SetGopNumB(AL_TEncoder* pEnc, int iNumB);
 
 /*************************************************************************//*!
    \brief The AL_Encoder_SetBitRate changes the target bitrate
    \param[in] pEnc Pointer on an encoder object
    \param[in] iGopLength New Gop Length
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError
+   to retrieve the error code
 *****************************************************************************/
-void AL_Common_Encoder_SetBitRate(AL_TEncoder* pEnc, int iBitRate);
+bool AL_Common_Encoder_SetBitRate(AL_TEncoder* pEnc, int iBitRate);
 
 /*************************************************************************//*!
    \brief The AL_Encoder_SetFrameRate changes the encoding frame rate
    \param[in] pEnc Pointer on an encoder object
    \param[in] uFrameRate the new frame rate
    \param[in] uClkRatio the ClkRatio
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError
+   to retrieve the error code
    \note Fps = uFrameRate * 1000 / uClkRatio. for example uFrameRate = 60 and
    uClkRatio = 1001 gives 59.94 fps
 *****************************************************************************/
-void AL_Common_Encoder_SetFrameRate(AL_TEncoder* pEnc, uint16_t uFrameRate, uint16_t uClkRatio);
+bool AL_Common_Encoder_SetFrameRate(AL_TEncoder* pEnc, uint16_t uFrameRate, uint16_t uClkRatio);
 
 
 
