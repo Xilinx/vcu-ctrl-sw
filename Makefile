@@ -19,11 +19,6 @@ OBJCOPY:=$(CROSS_COMPILE)objcopy
 RANLIB:=$(CROSS_COMPILE)ranlib
 STRIP:=$(CROSS_COMPILE)strip
 SIZE:=$(CROSS_COMPILE)size
-INSTALL = /usr/bin/install -c
-INSTALL_DIR = $(INSTALL) -d
-INSTALL_HDR = $(INSTALL) -m 0644
-prefix = /usr
-includedir = ${prefix}/include
 
 TARGET:=$(shell $(CC) -dumpmachine)
 
@@ -118,18 +113,22 @@ endif
 -include app_mcu/integration_tests.mk
 -include exe_vip/project.mk
 
-SUBDIR_ROOTS_HDR = "include/"
-SRC_DIRECTORY_HDR = $(sort $(dir $(wildcard include/*/)))
-DEST_DIRECTORY_HDR = $(SRC_DIRECTORY_HDR:include/%=%)
-INSTALL_HDR_PATH = ${includedir}
+INSTALL ?= install -c
+PREFIX ?= /usr
+HDR_INSTALL_OPT = -m 0644
+
+INCLUDE_DIR := include
+HEADER_DIRS_TMP := $(sort $(dir $(wildcard $(INCLUDE_DIR)/*/)))
+HEADER_DIRS := $(HEADER_DIRS_TMP:$(INCLUDE_DIR)/%=%)
+INSTALL_HDR_PATH := ${PREFIX}/include
 
 install_headers:
-	@echo $(DEST_DIRECTORY_HDR)
-	for dirname in $(DEST_DIRECTORY_HDR); do \
-		$(INSTALL_DIR) $(SUBDIR_ROOTS_HDR)$$dirname $(INSTALL_HDR_PATH)/$$dirname; \
-		$(INSTALL_HDR) $(SUBDIR_ROOTS_HDR)/*.h $(INSTALL_HDR_PATH); \
-		$(INSTALL_HDR)  $(SUBDIR_ROOTS_HDR)/$$dirname/*.h $(INSTALL_HDR_PATH)/$$dirname; \
-	done
+	@echo $(HEADER_DIRS)
+	for dirname in $(HEADER_DIRS); do \
+		$(INSTALL) -d "$(INCLUDE_DIR)/$$dirname" "$(INSTALL_HDR_PATH)/$$dirname"; \
+		$(INSTALL) $(HDR_INSTALL_OPT) "$(INCLUDE_DIR)/$$dirname"/*.h "$(INSTALL_HDR_PATH)/$$dirname"; \
+	done; \
+	$(INSTALL) $(HDR_INSTALL_OPT) "$(INCLUDE_DIR)"/*.h "$(INSTALL_HDR_PATH)";
 
 true_all: $(TARGETS)
 
