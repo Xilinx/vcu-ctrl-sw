@@ -1168,7 +1168,15 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
     MSG("!! The specified Gop.Length value in low delay B mode is not allowed, value will be adjusted !!");
     ++numIncoherency;
   }
-
+  
+  if(pSettings->tChParam.tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL && ((pSettings->tChParam.tGopParam.uGopLength - 1) % (pSettings->tChParam.tGopParam.uNumB + 1)) != 0)
+  {
+    int iRound = pSettings->tChParam.tGopParam.uNumB + 1;
+    pSettings->tChParam.tGopParam.uGopLength = (((pSettings->tChParam.tGopParam.uGopLength + iRound - 1) / iRound) * iRound) + 1;
+    MSG("!! The specified Gop.Length value in pyramidal gop mode is not reachable, value will be adjusted !!");
+    ++numIncoherency;
+  }
+  
   if((pSettings->eQpCtrlMode == ADAPTIVE_AUTO_QP || pSettings->eQpCtrlMode == AUTO_QP) && pSettings->tChParam.tRCParam.iInitialQP >= 0)
   {
     if(AL_IS_HEVC(pSettings->tChParam.eProfile))

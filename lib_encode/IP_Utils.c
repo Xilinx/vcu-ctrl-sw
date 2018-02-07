@@ -827,7 +827,7 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int i
   {
     int const NumB = pSettings->tChParam.tGopParam.uNumB;
     pSPS->num_short_term_ref_pic_sets = NumB + 1;
-    AL_TGopFrm* pGopFrms = getPyramidalFrames(NumB, false);
+    AL_TGopFrm* pGopFrms = getPyramidalFrames(NumB);
 
     for(int i = 0; i < pSPS->num_short_term_ref_pic_sets; ++i)
     {
