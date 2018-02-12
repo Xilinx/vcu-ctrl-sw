@@ -456,18 +456,19 @@ static AL_ERoiQuality get_roi_quality(char* sLine, int iPos)
 {
   auto s = getStringOnKeyword(sLine, iPos);
 
-  if(s.compare("HIGH_QUALITY") == 0)
+  if(s == "HIGH_QUALITY")
     return AL_ROI_QUALITY_HIGH;
 
-  if(s.compare("MEDIUM_QUALITY") == 0)
+  if(s == "MEDIUM_QUALITY")
     return AL_ROI_QUALITY_MEDIUM;
 
-  if(s.compare("LOW_QUALITY") == 0)
+  if(s == "LOW_QUALITY")
     return AL_ROI_QUALITY_LOW;
 
-  if(s.compare("NO_QUALITY") == 0)
+  if(s == "NO_QUALITY")
     return AL_ROI_QUALITY_DONT_CARE;
-  return AL_ROI_QUALITY_STATIC;
+
+  return AL_ROI_QUALITY_MAX_ENUM;
 }
 
 /****************************************************************************/

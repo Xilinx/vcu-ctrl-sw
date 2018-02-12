@@ -48,7 +48,7 @@ typedef enum al_eRoiQuality
   AL_ROI_QUALITY_MEDIUM = 0,
   AL_ROI_QUALITY_LOW = +5,
   AL_ROI_QUALITY_DONT_CARE = +31,
-  AL_ROI_QUALITY_STATIC = MASK_FORCE_MV0,
+  AL_ROI_QUALITY_MAX_ENUM,
 }AL_ERoiQuality;
 
 typedef enum al_eRoiOrder
