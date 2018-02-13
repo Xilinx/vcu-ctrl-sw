@@ -918,9 +918,17 @@ private:
   {
     while(!exit)
     {
-      auto pBufStream = shared_ptr<AL_TBuffer>(
-        bufPool.GetBuffer(),
-        &AL_Buffer_Unref);
+      shared_ptr<AL_TBuffer> pBufStream;
+      try
+      {
+        pBufStream = shared_ptr<AL_TBuffer>(
+          bufPool.GetBuffer(),
+          &AL_Buffer_Unref);
+      }
+      catch(bufpool_decommited_error &)
+      {
+        continue;
+      }
 
       auto uAvailSize = ReadStream(ifFileStream, pBufStream.get());
 
@@ -1083,6 +1091,7 @@ void SafeMain(int argc, char** argv)
 
     if(!Rtos_WaitEvent(display.hExitMain, timeout))
       timeoutOccured = true;
+    bufPool.Decommit();
   }
 
   auto const uEnd = GetPerfTime();

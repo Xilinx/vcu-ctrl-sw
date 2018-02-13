@@ -73,7 +73,9 @@ typedef struct
   size_t m_zHead;
   void** m_ElemBuffer;
   AL_MUTEX hMutex;
-  AL_SEMAPHORE hCountSem;
+  AL_EVENT hEvent;
+  int m_iBufNumber;
+  bool m_isDecommited;
   AL_SEMAPHORE hSpaceSem;
 }App_Fifo;
 
@@ -114,11 +116,27 @@ void AL_BufPool_Deinit(AL_TBufPool* pBufPool);
 *****************************************************************************/
 AL_TBuffer* AL_BufPool_GetBuffer(AL_TBufPool* pBufPool, AL_EBufMode eMode);
 
+/*************************************************************************//*!
+   \brief AL_BufPool_Decommit Decommit the pool. This deblocks all the blocking
+   call to AL_BufPool_GetBuffer.
+   \param[in] pBufPool Pointer to an AL_TBufPool.
+*****************************************************************************/
+void AL_BufPool_Decommit(AL_TBufPool* pBufPool);
+
 /*****************************************************************************/
 
 /*@}*/
 
 #ifdef __cplusplus
+
+#include <stdexcept>
+class bufpool_decommited_error : public std::runtime_error
+{
+public:
+  explicit bufpool_decommited_error() : std::runtime_error("bufpool_decommited_error")
+  {
+  }
+};
 
 // RAII wrapper
 struct BufPool
@@ -142,7 +160,16 @@ struct BufPool
 
   AL_TBuffer* GetBuffer(AL_EBufMode mode = AL_BUF_MODE_BLOCK)
   {
-    return AL_BufPool_GetBuffer(&m_pool, mode);
+    AL_TBuffer* pBuf = AL_BufPool_GetBuffer(&m_pool, mode);
+
+    if(mode == AL_BUF_MODE_BLOCK && pBuf == nullptr)
+      throw bufpool_decommited_error();
+    return pBuf;
+  }
+
+  void Decommit()
+  {
+    AL_BufPool_Decommit(&m_pool);
   }
 
   AL_TBufPool m_pool {};

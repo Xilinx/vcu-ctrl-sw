@@ -51,6 +51,7 @@ static bool Fifo_Init(App_Fifo* pFifo, size_t zMaxElem);
 static void Fifo_Deinit(App_Fifo* pFifo);
 static bool Fifo_Queue(App_Fifo* pFifo, void* pElem, uint32_t uWait);
 static void* Fifo_Dequeue(App_Fifo* pFifo, uint32_t uWait);
+static void Fifo_Decommit(App_Fifo* pFifo);
 
 /****************************************************************************/
 static void FreeBufInPool(AL_TBuffer* pBuf)
@@ -170,11 +171,18 @@ AL_TBuffer* AL_BufPool_GetBuffer(AL_TBufPool* pBufPool, AL_EBufMode eMode)
   return pBuf;
 }
 
+void AL_BufPool_Decommit(AL_TBufPool* pBufPool)
+{
+  Fifo_Decommit(&pBufPool->fifo);
+}
+
 static bool Fifo_Init(App_Fifo* pFifo, size_t zMaxElem)
 {
   pFifo->m_zMaxElem = zMaxElem + 1;
   pFifo->m_zTail = 0;
   pFifo->m_zHead = 0;
+  pFifo->m_iBufNumber = 0;
+  pFifo->m_isDecommited = false;
 
   size_t zElemSize = pFifo->m_zMaxElem * sizeof(void*);
   pFifo->m_ElemBuffer = (void**)Rtos_Malloc(zElemSize);
@@ -183,9 +191,9 @@ static bool Fifo_Init(App_Fifo* pFifo, size_t zMaxElem)
     return false;
   Rtos_Memset(pFifo->m_ElemBuffer, 0xCD, zElemSize);
 
-  pFifo->hCountSem = Rtos_CreateSemaphore(0);
+  pFifo->hEvent = Rtos_CreateEvent(0);
 
-  if(!pFifo->hCountSem)
+  if(!pFifo->hEvent)
   {
     Rtos_Free(pFifo->m_ElemBuffer);
     return false;
@@ -196,7 +204,7 @@ static bool Fifo_Init(App_Fifo* pFifo, size_t zMaxElem)
 
   if(!pFifo->hSpaceSem)
   {
-    Rtos_DeleteSemaphore(pFifo->hCountSem);
+    Rtos_DeleteEvent(pFifo->hEvent);
     Rtos_Free(pFifo->m_ElemBuffer);
     return false;
   }
@@ -207,7 +215,7 @@ static bool Fifo_Init(App_Fifo* pFifo, size_t zMaxElem)
 static void Fifo_Deinit(App_Fifo* pFifo)
 {
   Rtos_Free(pFifo->m_ElemBuffer);
-  Rtos_DeleteSemaphore(pFifo->hCountSem);
+  Rtos_DeleteEvent(pFifo->hEvent);
   Rtos_DeleteSemaphore(pFifo->hSpaceSem);
   Rtos_DeleteMutex(pFifo->hMutex);
 }
@@ -220,9 +228,9 @@ static bool Fifo_Queue(App_Fifo* pFifo, void* pElem, uint32_t uWait)
   Rtos_GetMutex(pFifo->hMutex);
   pFifo->m_ElemBuffer[pFifo->m_zTail] = pElem;
   pFifo->m_zTail = (pFifo->m_zTail + 1) % pFifo->m_zMaxElem;
+  ++pFifo->m_iBufNumber;
+  Rtos_SetEvent(pFifo->hEvent);
   Rtos_ReleaseMutex(pFifo->hMutex);
-
-  Rtos_ReleaseSemaphore(pFifo->hCountSem);
 
   /* new item was added in the queue */
   return true;
@@ -231,16 +239,43 @@ static bool Fifo_Queue(App_Fifo* pFifo, void* pElem, uint32_t uWait)
 static void* Fifo_Dequeue(App_Fifo* pFifo, uint32_t uWait)
 {
   /* wait if no items */
-  if(!Rtos_GetSemaphore(pFifo->hCountSem, uWait))
-    return NULL;
-
   Rtos_GetMutex(pFifo->hMutex);
+  bool failed = false;
+
+  while(true)
+  {
+    if(pFifo->m_iBufNumber > 0)
+      break;
+
+    if(failed || pFifo->m_isDecommited)
+    {
+      Rtos_ReleaseMutex(pFifo->hMutex);
+      return NULL;
+    }
+
+    Rtos_ReleaseMutex(pFifo->hMutex);
+
+    if(!Rtos_WaitEvent(pFifo->hEvent, uWait))
+      failed = true;
+
+    Rtos_GetMutex(pFifo->hMutex);
+  }
+
   void* pElem = pFifo->m_ElemBuffer[pFifo->m_zHead];
   pFifo->m_zHead = (pFifo->m_zHead + 1) % pFifo->m_zMaxElem;
+  --pFifo->m_iBufNumber;
   Rtos_ReleaseMutex(pFifo->hMutex);
 
   /* new empty space available */
   Rtos_ReleaseSemaphore(pFifo->hSpaceSem);
   return pElem;
+}
+
+static void Fifo_Decommit(App_Fifo* pFifo)
+{
+  Rtos_GetMutex(pFifo->hMutex);
+  pFifo->m_isDecommited = true;
+  Rtos_SetEvent(pFifo->hEvent);
+  Rtos_ReleaseMutex(pFifo->hMutex);
 }
 
