@@ -217,12 +217,21 @@ static void sFrmBufPool_DecrementBufID(AL_TFrmBufPool* pPool, int iFrameID)
   assert(pFrame->iAccessCnt >= 1);
   pFrame->iAccessCnt--;
 
-  if(pFrame->iAccessCnt == 0 && !pFrame->bWillBeOutputed)
+  if(pFrame->iAccessCnt == 0)
   {
-    AL_TBuffer* pBuffer = sFrmBufPool_GetBufferFromID(pPool, iFrameID);
-    sFrmBufPool_RemoveID(pPool, iFrameID);
-    assert(sFrmBufPoolFifo_IsInFifo(pPool, pBuffer) == false);
-    sFrmBufPoolFifo_PushBack(pPool, pBuffer);
+    if(pFrame->bWillBeOutputed)
+    {
+      AL_TBuffer* pBuffer = sFrmBufPool_GetBufferFromID(pPool, iFrameID);
+      sFrmBufPool_RemoveID(pPool, iFrameID);
+      AL_Buffer_Unref(pBuffer);
+    }
+    else
+    {
+      AL_TBuffer* pBuffer = sFrmBufPool_GetBufferFromID(pPool, iFrameID);
+      sFrmBufPool_RemoveID(pPool, iFrameID);
+      assert(sFrmBufPoolFifo_IsInFifo(pPool, pBuffer) == false);
+      sFrmBufPoolFifo_PushBack(pPool, pBuffer);
+    }
   }
 
   Rtos_ReleaseMutex(pPool->Mutex);
@@ -757,6 +766,7 @@ void AL_PictMngr_PutDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TBuffer* pBuf)
 void AL_PictMngr_SignalCallbackDisplayIsDone(AL_TPictMngrCtx* pCtx, AL_TBuffer* pBuffer)
 {
   sFrmBufPool_SignalCallbackDisplayIsDone(&pCtx->m_FrmBufPool, pBuffer);
+  AL_Dpb_ReleaseDisplayBuffer(&pCtx->m_DPB);
 }
 
 /*****************************************************************************/

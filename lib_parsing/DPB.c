@@ -127,6 +127,7 @@ static void AL_Dpb_sAddToDisplayList(AL_TDpb* pDpb, uint8_t uNode)
   pDpb->m_DispFifo.pFrmIDs[uID % FRM_BUF_POOL_SIZE] = pDpb->m_Nodes[uNode].uFrmID;
   pDpb->m_DispFifo.pPicLatency[pDpb->m_Nodes[uNode].uFrmID] = pDpb->m_Nodes[uNode].uPicLatency;
 
+  pDpb->m_tCallbacks.pfnIncrementFrmBuf(pDpb->m_tCallbacks.pUserParam, pDpb->m_Nodes[uNode].uFrmID);
   pDpb->m_tCallbacks.pfnOutputFrmBuf(pDpb->m_tCallbacks.pUserParam, pDpb->m_Nodes[uNode].uFrmID);
 }
 
@@ -883,14 +884,7 @@ uint8_t AL_Dpb_GetDisplayBuffer(AL_TDpb* pDpb)
   {
     uFrmID = pDpb->m_DispFifo.pFrmIDs[pDpb->m_DispFifo.uFirstFrm];
 
-    if(uFrmID != UndefID && pDpb->m_DispFifo.pFrmStatus[uFrmID] == AL_READY_FOR_OUTPUT)
-    {
-      pDpb->m_DispFifo.pFrmIDs[pDpb->m_DispFifo.uFirstFrm] = UndefID;
-      pDpb->m_DispFifo.pFrmStatus[uFrmID] = AL_NOT_NEEDED_FOR_OUTPUT;
-      pDpb->m_DispFifo.uFirstFrm = (pDpb->m_DispFifo.uFirstFrm + 1) % FRM_BUF_POOL_SIZE;
-      --pDpb->m_DispFifo.uNumFrm;
-    }
-    else
+    if(pDpb->m_DispFifo.pFrmStatus[uFrmID] != AL_READY_FOR_OUTPUT)
       uFrmID = UndefID;
   }
 
