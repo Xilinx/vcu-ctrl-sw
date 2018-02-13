@@ -68,6 +68,13 @@ static bool CircBuffer_IsFull(TCircBuffer* pBuf)
   return pBuf->uAvailSize == (int32_t)pBuf->tMD.uSize;
 }
 
+static bool shouldKeepGoing(AL_TDecoderFeeder* slave)
+{
+  int32_t keepGoing = Rtos_AtomicDecrement(&slave->keepGoing);
+  Rtos_AtomicIncrement(&slave->keepGoing);
+  return keepGoing >= 0;
+}
+
 static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
 {
   AL_HANDLE hDec = slave->hDec;
@@ -86,7 +93,7 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
   // Decode Max AU as possible with this data
   AL_ERR eErr = AL_SUCCESS;
 
-  while(eErr != AL_ERR_NO_FRAME_DECODED)
+  while(eErr != AL_ERR_NO_FRAME_DECODED && shouldKeepGoing(slave))
   {
     eErr = AL_Decoder_TryDecodeOneAU(hDec, decodeBuffer);
 
@@ -126,13 +133,6 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
   }
 
   return true;
-}
-
-static bool shouldKeepGoing(AL_TDecoderFeeder* slave)
-{
-  int32_t keepGoing = Rtos_AtomicDecrement(&slave->keepGoing);
-  Rtos_AtomicIncrement(&slave->keepGoing);
-  return keepGoing >= 0;
 }
 
 static void Slave_EntryPoint(AL_TDecoderFeeder* slave)
