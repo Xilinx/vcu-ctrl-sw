@@ -559,7 +559,9 @@ bool AL_Common_Encoder_RestartGop(AL_TEncoder* pEnc)
 {
   AL_TEncCtx* pCtx = pEnc->pCtx;
 
-  if(pCtx->m_Settings.tChParam.tGopParam.eMode != AL_GOP_MODE_DEFAULT)
+  if(pCtx->m_Settings.tChParam.tGopParam.eMode != AL_GOP_MODE_DEFAULT &&
+     pCtx->m_Settings.tChParam.tGopParam.eMode != AL_GOP_MODE_LOW_DELAY_P &&
+     pCtx->m_Settings.tChParam.tGopParam.eMode != AL_GOP_MODE_LOW_DELAY_B)
     AL_RETURN_ERROR(AL_ERR_CMD_NOT_ALLOWED);
 
   AL_TEncRequestInfo* pReqInfo = getCurrentCommands(pEnc->pCtx);
