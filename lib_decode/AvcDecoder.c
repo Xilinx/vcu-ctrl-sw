@@ -549,7 +549,9 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   if(!(*bBeginFrameIsValid) && pSlice->m_pSPS)
   {
     AL_TDimension const tDim = { (pSlice->m_pSPS->pic_width_in_mbs_minus1 + 1) * 16, (pSlice->m_pSPS->pic_height_in_map_units_minus1 + 1) * 16 };
-    AL_InitFrameBuffers(pCtx, pBufs, tDim, pPP);
+
+    if(!AL_InitFrameBuffers(pCtx, pBufs, tDim, pPP))
+      return false;
     *bBeginFrameIsValid = true;
   }
 

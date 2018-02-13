@@ -77,6 +77,23 @@ static bool sFrmBufPoolFifo_IsInFifo(AL_TFrmBufPool* pPool, AL_TBuffer* pFrameBu
   return false;
 }
 
+static void AddBufferToFifo(AL_TFrmBufPool* pPool, int iFrameID, AL_TBuffer* pFrameBuffer)
+{
+  pPool->array[iFrameID].pFrameBuffer = pFrameBuffer;
+
+  if(pPool->iFifoTail == -1 && pPool->iFifoHead == -1)
+    pPool->iFifoHead = iFrameID;
+  else
+    pPool->array[pPool->iFifoTail].iNext = iFrameID;
+
+  pPool->iFifoTail = iFrameID;
+
+  pPool->array[iFrameID].iAccessCnt = 0;
+  pPool->array[iFrameID].bWillBeOutputed = false;
+
+  ++pPool->iBufNumber;
+}
+
 /*************************************************************************/
 static void sFrmBufPoolFifo_PushBack(AL_TFrmBufPool* pPool, AL_TBuffer* pFrameBuffer)
 {
@@ -92,20 +109,9 @@ static void sFrmBufPoolFifo_PushBack(AL_TFrmBufPool* pPool, AL_TBuffer* pFrameBu
        (pPool->array[i].bWillBeOutputed == false)
        )
     {
-      pPool->array[i].pFrameBuffer = pFrameBuffer;
-
-      if(pPool->iFifoTail == -1 && pPool->iFifoHead == -1)
-        pPool->iFifoHead = i;
-      else
-        pPool->array[pPool->iFifoTail].iNext = i;
-
-      pPool->iFifoTail = i;
-
-      pPool->array[i].iAccessCnt = 0;
-      pPool->array[i].bWillBeOutputed = false;
-
+      AddBufferToFifo(pPool, i, pFrameBuffer);
+      Rtos_SetEvent(pPool->Event);
       Rtos_ReleaseMutex(pPool->Mutex);
-      Rtos_ReleaseSemaphore(pPool->Semaphore);
       return;
     }
   }
@@ -114,16 +120,10 @@ static void sFrmBufPoolFifo_PushBack(AL_TFrmBufPool* pPool, AL_TBuffer* pFrameBu
   assert(0);
 }
 
-/*************************************************************************/
-static int sFrmBufPoolFifo_Pop(AL_TFrmBufPool* pPool)
+static int RemoveBufferFromFifo(AL_TFrmBufPool* pPool)
 {
-  Rtos_GetSemaphore(pPool->Semaphore, AL_WAIT_FOREVER);
-  Rtos_GetMutex(pPool->Mutex);
-  assert(pPool->iFifoHead != -1);
-  assert(pPool->array[pPool->iFifoHead].pFrameBuffer != NULL);
-  assert(pPool->array[pPool->iFifoHead].iAccessCnt == 0);
-  assert(pPool->array[pPool->iFifoHead].bWillBeOutputed == false);
   int const iFrameID = pPool->iFifoHead;
+  --pPool->iBufNumber;
 
   pPool->iFifoHead = pPool->array[pPool->iFifoHead].iNext;
 
@@ -132,9 +132,46 @@ static int sFrmBufPoolFifo_Pop(AL_TFrmBufPool* pPool)
 
   if(pPool->iFifoHead == -1)
     pPool->iFifoTail = pPool->iFifoHead;
+  return iFrameID;
+}
+
+/*************************************************************************/
+static int sFrmBufPoolFifo_Pop(AL_TFrmBufPool* pPool)
+{
+  Rtos_GetMutex(pPool->Mutex);
+
+  while(true)
+  {
+    if(pPool->iBufNumber > 0)
+      break;
+
+    if(pPool->isDecommited)
+    {
+      Rtos_ReleaseMutex(pPool->Mutex);
+      return UndefID;
+    }
+
+    Rtos_ReleaseMutex(pPool->Mutex);
+    Rtos_WaitEvent(pPool->Event, AL_WAIT_FOREVER);
+    Rtos_GetMutex(pPool->Mutex);
+  }
+
+  assert(pPool->iFifoHead != -1);
+  assert(pPool->array[pPool->iFifoHead].pFrameBuffer != NULL);
+  assert(pPool->array[pPool->iFifoHead].iAccessCnt == 0);
+  assert(pPool->array[pPool->iFifoHead].bWillBeOutputed == false);
+  int const iFrameID = RemoveBufferFromFifo(pPool);
 
   Rtos_ReleaseMutex(pPool->Mutex);
   return iFrameID;
+}
+
+static void sFrmBufPoolFifo_Decommit(AL_TFrmBufPool* pPool)
+{
+  Rtos_GetMutex(pPool->Mutex);
+  pPool->isDecommited = true;
+  Rtos_SetEvent(pPool->Event);
+  Rtos_ReleaseMutex(pPool->Mutex);
 }
 
 /*************************************************************************/
@@ -187,9 +224,11 @@ static bool sFrmBufPool_Init(AL_TFrmBufPool* pPool)
   if(!pPool->Mutex)
     goto fail_alloc_mutex;
 
-  pPool->Semaphore = Rtos_CreateSemaphore(0);
+  pPool->Event = Rtos_CreateEvent(0);
+  pPool->iBufNumber = 0;
+  pPool->isDecommited = false;
 
-  if(!pPool->Semaphore)
+  if(!pPool->Event)
     goto fail_alloc_sem_free;
 
   sFrmBufPoolFifo_Init(pPool);
@@ -204,7 +243,7 @@ static bool sFrmBufPool_Init(AL_TFrmBufPool* pPool)
 /*************************************************************************/
 static void sFrmBufPool_Deinit(AL_TFrmBufPool* pPool)
 {
-  Rtos_DeleteSemaphore(pPool->Semaphore);
+  Rtos_DeleteEvent(pPool->Event);
   Rtos_DeleteMutex(pPool->Mutex);
 }
 
@@ -536,16 +575,20 @@ int32_t AL_PictMngr_GetCurrentPOC(AL_TPictMngrCtx* pCtx)
 }
 
 /***************************************************************************/
-void AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, AL_TDimension tDim)
+bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, AL_TDimension tDim)
 {
   pCtx->m_uRecID = sFrmBufPoolFifo_Pop(&pCtx->m_FrmBufPool);
-  assert(pCtx->m_uRecID != UndefID);
+
+  if(pCtx->m_uRecID == UndefID)
+    return false;
 
   pCtx->m_uMvID = sMvBufPool_GetFreeBufID(&pCtx->m_MvBufPool);
   assert(pCtx->m_uMvID != UndefID);
 
   AL_TSrcMetaData* pMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(sFrmBufPool_GetBufferFromID(&pCtx->m_FrmBufPool, pCtx->m_uRecID), AL_META_TYPE_SOURCE);
   pMeta->tDim = tDim;
+
+  return true;
 }
 
 /*****************************************************************************/
@@ -775,6 +818,14 @@ void AL_PictMngr_SignalCallbackReleaseIsDone(AL_TPictMngrCtx* pCtx, AL_TBuffer* 
   sFrmBufPool_SignalCallbackReleaseIsDone(&pCtx->m_FrmBufPool, pBuffer);
 }
 
+void AL_PictMngr_DecommitPool(AL_TPictMngrCtx* pCtx)
+{
+  if(!pCtx->m_bFirstInit)
+    return;
+
+  sFrmBufPoolFifo_Decommit(&pCtx->m_FrmBufPool);
+}
+
 /*****************************************************************************/
 static AL_TBuffer* sFrmBufPoolFifo_FlushOneDisplayBuffer(AL_TFrmBufPool* pPool)
 {
@@ -786,20 +837,13 @@ static AL_TBuffer* sFrmBufPoolFifo_FlushOneDisplayBuffer(AL_TFrmBufPool* pPool)
     return NULL;
   }
 
-  Rtos_GetSemaphore(pPool->Semaphore, AL_WAIT_FOREVER);
   assert(pPool->iFifoHead != -1);
   assert(pPool->array[pPool->iFifoHead].iAccessCnt == 0);
   assert(pPool->array[pPool->iFifoHead].bWillBeOutputed == false);
-  int const iFrameID = pPool->iFifoHead;
 
-  pPool->iFifoHead = pPool->array[pPool->iFifoHead].iNext;
-
-  pPool->array[iFrameID].iNext = -1;
-
+  int const iFrameID = RemoveBufferFromFifo(pPool);
+  pPool->array[iFrameID].iAccessCnt = 0;
   pPool->array[iFrameID].bWillBeOutputed = true;
-
-  if(pPool->iFifoHead == -1)
-    pPool->iFifoTail = pPool->iFifoHead;
 
   AL_TBuffer* pBuffer = sFrmBufPool_GetBufferFromID(pPool, iFrameID);
   Rtos_ReleaseMutex(pPool->Mutex);

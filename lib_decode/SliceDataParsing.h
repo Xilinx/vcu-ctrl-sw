@@ -71,7 +71,7 @@ void AL_LaunchSliceDecoding(AL_TDecCtx* pCtx, bool bIsLastAUNal);
    \param[in]  tDim              Picture dimension (width, height) in pixel unit
    \param[in]  pPP               Pointer to the current picture parameters
 *****************************************************************************/
-void AL_InitFrameBuffers(AL_TDecCtx* pCtx, AL_TDecPicBuffers* pBufs, AL_TDimension tDim, AL_TDecPicParam* pPP);
+bool AL_InitFrameBuffers(AL_TDecCtx* pCtx, AL_TDecPicBuffers* pBufs, AL_TDimension tDim, AL_TDecPicParam* pPP);
 
 /*************************************************************************//*!
    \brief The AL_CancelFrameBuffers function reverts the frame buffers initialization done by AL_InitFrameBuffers in case of late error detection

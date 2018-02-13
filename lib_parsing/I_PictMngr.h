@@ -80,7 +80,9 @@ typedef struct t_FrmBufPool
   int iFifoTail;
 
   AL_MUTEX Mutex;
-  AL_SEMAPHORE Semaphore;
+  AL_EVENT Event;
+  int iBufNumber;
+  bool isDecommited;
 }AL_TFrmBufPool;
 
 /*************************************************************************//*!
@@ -219,7 +221,7 @@ int32_t AL_PictMngr_GetCurrentPOC(AL_TPictMngrCtx* pCtx);
    \param[in] pCtx    Pointer to a Picture manager context object
    \param[in] tDim    Picture dimension (width, height) in pixel unit
 *****************************************************************************/
-void AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, AL_TDimension tDim);
+bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, AL_TDimension tDim);
 
 /*************************************************************************//*!
    \brief This function prepares the Picture Manager context to new frame
@@ -301,6 +303,7 @@ void AL_PictMngr_UpdateDisplayBufferCrop(AL_TPictMngrCtx* pCtx, int iFrameID, AL
 void AL_PictMngr_SignalCallbackDisplayIsDone(AL_TPictMngrCtx* pCtx, AL_TBuffer* pDisplayedFrame);
 void AL_PictMngr_SignalCallbackReleaseIsDone(AL_TPictMngrCtx* pCtx, AL_TBuffer* pReleasedFrame);
 AL_TBuffer* AL_PictMngr_GetUnusedDisplayBuffer(AL_TPictMngrCtx* pCtx);
+void AL_PictMngr_DecommitPool(AL_TPictMngrCtx* pCtx);
 
 /*****************************************************************************/
 bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, TBufferListRef* pListRef, TBuffer* pListAddr, TBufferPOC** ppPOC, TBufferMV** ppMV, AL_TBuffer** ppRec, AL_EFbStorageMode eFBStorageMode);

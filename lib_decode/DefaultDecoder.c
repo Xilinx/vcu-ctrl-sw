@@ -335,6 +335,8 @@ void AL_Default_Decoder_Destroy(AL_TDecoder* pAbsDec)
   AL_TDecCtx* pCtx = &pDec->ctx;
   assert(pCtx);
 
+  AL_PictMngr_DecommitPool(&pCtx->m_PictMngr);
+
   if(pCtx->m_Feeder)
     AL_BufferFeeder_Destroy(pCtx->m_Feeder);
 
