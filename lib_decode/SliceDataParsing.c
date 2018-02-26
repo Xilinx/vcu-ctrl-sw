@@ -90,22 +90,25 @@ static void pushCommandParameters(AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP, bool
 /******************************************************************************/
 static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecPicBuffers* pBufs)
 {
-  AL_TDimension tDim = { pPP->PicWidth * 8, pPP->PicHeight * 8 };
-  int iLumaSize = AL_GetAllocSize_DecReference(tDim, CHROMA_MONO,
-                                               pPP->MaxBitDepth, pCtx->m_chanParam.eFBStorageMode);
-  uint16_t uPitch = RndPitch(tDim.iWidth, pPP->MaxBitDepth, pCtx->m_chanParam.eFBStorageMode);
+  AL_TDimension const tDim = { pPP->PicWidth * 8, pPP->PicHeight * 8 };
+  int const iMaxBitDepth = pPP->MaxBitDepth;
+  AL_EFbStorageMode const eStorage = pCtx->m_chanParam.eFBStorageMode;
+  uint16_t const uPitch = RndPitch(tDim.iWidth, iMaxBitDepth, eStorage);
+  uint32_t const u10BitsFlag = (iMaxBitDepth == 8) ? 0x00000000 : 0x80000000;
+  pBufs->uPitch = uPitch | u10BitsFlag;
 
-  uint32_t u10BitsFlag = (pPP->MaxBitDepth == 8) ? 0x00000000 : 0x80000000;
-
+  AL_TBuffer* pRec = pCtx->m_pRec;
   uint8_t* pRecData = AL_Buffer_GetData(pCtx->m_pRec);
+  AL_TAllocator* pRecAllocator = pRec->pAllocator;
+  AL_HANDLE hRecHandle = pRec->hBuf;
 
   /* put addresses */
-  pBufs->tRecY.tMD.uPhysicalAddr = AL_Allocator_GetPhysicalAddr(pCtx->m_pRec->pAllocator, pCtx->m_pRec->hBuf);
+  pBufs->tRecY.tMD.uPhysicalAddr = AL_Allocator_GetPhysicalAddr(pRecAllocator, hRecHandle);
   pBufs->tRecY.tMD.pVirtualAddr = pRecData;
 
-  pBufs->tRecC.tMD.uPhysicalAddr = AL_Allocator_GetPhysicalAddr(pCtx->m_pRec->pAllocator, pCtx->m_pRec->hBuf) + iLumaSize;
+  int const iLumaSize = AL_GetAllocSize_DecReference(tDim, CHROMA_MONO, iMaxBitDepth, eStorage);
+  pBufs->tRecC.tMD.uPhysicalAddr = AL_Allocator_GetPhysicalAddr(pRecAllocator, hRecHandle) + iLumaSize;
   pBufs->tRecC.tMD.pVirtualAddr = pRecData + iLumaSize;
-
 
   pBufs->tPoc.tMD.uPhysicalAddr = pCtx->m_pPOC->tMD.uPhysicalAddr;
   pBufs->tPoc.tMD.pVirtualAddr = pCtx->m_pPOC->tMD.pVirtualAddr;
@@ -113,7 +116,6 @@ static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecP
   pBufs->tMV.tMD.uPhysicalAddr = pCtx->m_pMV->tMD.uPhysicalAddr;
   pBufs->tMV.tMD.pVirtualAddr = pCtx->m_pMV->tMD.pVirtualAddr;
 
-  pBufs->uPitch = uPitch | u10BitsFlag;
 }
 
 /*****************************************************************************/
