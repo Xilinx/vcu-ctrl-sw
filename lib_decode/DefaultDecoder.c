@@ -172,9 +172,9 @@ static void AL_Decoder_Free(TMemDesc* pMD)
 }
 
 /*****************************************************************************/
-static void AL_sDecoder_CallDecode(AL_TDecCtx* pCtx, uint8_t const uFrameID)
+static void AL_sDecoder_CallDecode(AL_TDecCtx* pCtx, int iFrameID)
 {
-  AL_TBuffer* pDecodedFrame = AL_PictMngr_GetDisplayBufferFromID(&pCtx->m_PictMngr, uFrameID);
+  AL_TBuffer* pDecodedFrame = AL_PictMngr_GetDisplayBufferFromID(&pCtx->m_PictMngr, iFrameID);
   assert(pDecodedFrame);
 
   pCtx->m_decodeCB.func(pDecodedFrame, pCtx->m_decodeCB.userParam);
@@ -199,10 +199,10 @@ static void AL_sDecoder_CallDisplay(AL_TDecCtx* pCtx)
 }
 
 /*****************************************************************************/
-static void AL_sDecoder_CallBacks(AL_TDecCtx* pCtx, uint8_t const uFrameID)
+static void AL_sDecoder_CallBacks(AL_TDecCtx* pCtx, int iFrameID)
 {
   if(pCtx->m_decodeCB.func)
-    AL_sDecoder_CallDecode(pCtx, uFrameID);
+    AL_sDecoder_CallDecode(pCtx, iFrameID);
 
   if(pCtx->m_displayCB.func)
     AL_sDecoder_CallDisplay(pCtx);
