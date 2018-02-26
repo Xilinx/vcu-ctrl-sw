@@ -131,6 +131,16 @@ static int getMaxNumberOfSlices(AL_TAvcSps const* pSPS)
 /*****************************************************************************/
 static bool isFirstSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, AL_TStreamSettings const* pStreamSettings)
 {
+  const int iSPSLumaBitDepth = pSPS->bit_depth_luma_minus8 + 8;
+
+  if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSLumaBitDepth))
+    return false;
+
+  const int iSPSChromaBitDepth = pSPS->bit_depth_chroma_minus8 + 8;
+
+  if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSChromaBitDepth))
+    return false;
+
   const int iSPSMaxBitDepth = getMaxBitDepth(pSPS->profile_idc);
 
   if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSMaxBitDepth))

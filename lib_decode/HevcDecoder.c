@@ -186,6 +186,16 @@ static int calculatePOC(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pSlice, uint8_t
 /*****************************************************************************/
 static bool isFirstSPSCompatibleWithStreamSettings(AL_THevcSps const* pSPS, AL_TStreamSettings const* pStreamSettings)
 {
+  const int iSPSLumaBitDepth = pSPS->bit_depth_luma_minus8 + 8;
+
+  if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSLumaBitDepth))
+    return false;
+
+  const int iSPSChromaBitDepth = pSPS->bit_depth_chroma_minus8 + 8;
+
+  if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSChromaBitDepth))
+    return false;
+
   const int iSPSMaxBitDepth = getMaxBitDepth(pSPS->profile_and_level);
 
   if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSMaxBitDepth))
