@@ -253,14 +253,13 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
     const int iSizeYuv = AL_GetAllocSize_Frame(tSPSDim, eSPSChromaMode, iSPSMaxBitDepth, useFBC, eStorageMode);
     const AL_TCropInfo tCropInfo = getCropInfo(pSPS);
 
-    AL_TStreamSettings tSettings;
-    tSettings.tDim = tSPSDim;
-    tSettings.eChroma = eSPSChromaMode;
-    tSettings.iBitDepth = iSPSMaxBitDepth;
-    tSettings.iLevel = iSPSLevel;
-    tSettings.iProfileIdc = pSPS->profile_and_level.general_profile_idc;
+    pCtx->m_tStreamSettings.tDim = tSPSDim;
+    pCtx->m_tStreamSettings.eChroma = eSPSChromaMode;
+    pCtx->m_tStreamSettings.iBitDepth = iSPSMaxBitDepth;
+    pCtx->m_tStreamSettings.iLevel = iSPSLevel;
+    pCtx->m_tStreamSettings.iProfileIdc = pSPS->profile_and_level.general_profile_idc;
 
-    pCtx->m_resolutionFoundCB.func(iMaxBuf, iSizeYuv, &tSettings, &tCropInfo, pCtx->m_resolutionFoundCB.userParam);
+    pCtx->m_resolutionFoundCB.func(iMaxBuf, iSizeYuv, &pCtx->m_tStreamSettings, &tCropInfo, pCtx->m_resolutionFoundCB.userParam);
   }
 
   return true;
