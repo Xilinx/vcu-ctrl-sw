@@ -680,10 +680,7 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     if(!(*bFirstIsValid))
     {
       if(bIsRAP)
-      {
         *bFirstIsValid = true;
-        pCtx->m_uMaxBD = getMaxBitDepth(pSlice->m_pSPS->profile_and_level);
-      }
       else
       {
         pCtx->m_bIsFirstPicture = false;

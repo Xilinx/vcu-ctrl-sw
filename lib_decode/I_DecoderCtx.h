@@ -130,7 +130,6 @@ typedef struct t_Dec_Ctx
   int m_iCurOffset;
   uint32_t m_uCurPocLsb;
   uint8_t m_uNoRaslOutputFlag;
-  uint8_t m_uMaxBD;
   uint8_t m_uMvIDRefList[MAX_STACK_SIZE][AL_MAX_NUM_REF];
   uint8_t m_uNumRef[MAX_STACK_SIZE];
 

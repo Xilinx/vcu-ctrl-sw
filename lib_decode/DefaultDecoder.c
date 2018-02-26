@@ -788,7 +788,7 @@ int AL_Default_Decoder_GetMaxBD(AL_TDecoder* pAbsDec)
   AL_TDefaultDecoder* pDec = (AL_TDefaultDecoder*)pAbsDec;
   AL_TDecCtx* pCtx = AL_sGetContext(pDec);
 
-  return pCtx->m_uMaxBD;
+  return pCtx->m_tStreamSettings.iBitDepth;
 }
 
 /*****************************************************************************/
