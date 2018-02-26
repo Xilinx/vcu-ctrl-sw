@@ -49,7 +49,6 @@
 
 #include "lib_parsing/I_PictMngr.h"
 #include "lib_parsing/Concealment.h"
-#include "lib_parsing/VideoConfiguration.h"
 
 #include "NalUnitParser.h"
 #include "lib_decode/I_DecChannel.h"
@@ -137,7 +136,6 @@ typedef struct t_Dec_Ctx
 
   // error concealment context
   AL_TConceal m_tConceal;
-  AL_TVideoConfiguration m_VideoConfiguration;
 
   // tile data management
   uint16_t m_uCurTileID;      // Tile offset of the current tile within the frame

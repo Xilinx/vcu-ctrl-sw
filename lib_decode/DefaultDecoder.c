@@ -1086,9 +1086,6 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel,
 
   AL_Conceal_Init(&pCtx->m_tConceal);
 
-  // initialize video configuration
-  Rtos_Memset(&pCtx->m_VideoConfiguration, 0, sizeof(pCtx->m_VideoConfiguration));
-
   // initialize decoder counters
   pCtx->m_uCurPocLsb = 0xFFFFFFFF;
   pCtx->m_uToggle = 0;

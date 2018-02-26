@@ -598,10 +598,7 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     uint8_t ppsid = pSlice->slice_pic_parameter_set_id;
     uint8_t spsid = pAUP->m_pPPS[ppsid].pps_seq_parameter_set_id;
 
-    if(!pCtx->m_VideoConfiguration.bInit)
-      AL_HEVC_UpdateVideoConfiguration(&pCtx->m_VideoConfiguration, &pAUP->m_pSPS[spsid]);
-
-    isValid = AL_HEVC_IsVideoConfigurationCompatible(&pCtx->m_VideoConfiguration, &pAUP->m_pSPS[spsid]);
+    isValid = isFirstSPSCompatibleWithStreamSettings(&pAUP->m_pSPS[spsid], &pCtx->m_tStreamSettings);
 
     if(!isValid)
       pAUP->m_pSPS[spsid].bConceal = true;
