@@ -129,7 +129,7 @@ static int getMaxNumberOfSlices(AL_TAvcSps const* pSPS)
 }
 
 /*****************************************************************************/
-static bool isFirstSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, AL_TStreamSettings const* pStreamSettings)
+static bool isSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, AL_TStreamSettings const* pStreamSettings)
 {
   const int iSPSLumaBitDepth = pSPS->bit_depth_luma_minus8 + 8;
 
@@ -267,7 +267,7 @@ static bool initSlice(AL_TDecCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 
   if(!pCtx->m_bIsFirstSPSChecked)
   {
-    if(!isFirstSPSCompatibleWithStreamSettings(pSlice->m_pSPS, &pCtx->m_tStreamSettings))
+    if(!isSPSCompatibleWithStreamSettings(pSlice->m_pSPS, &pCtx->m_tStreamSettings))
     {
       pSlice->m_pPPS = &aup->m_pPPS[pCtx->m_tConceal.m_iLastPPSId];
       pSlice->m_pSPS = pSlice->m_pPPS->m_pSPS;
@@ -525,7 +525,7 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     uint8_t ppsid = pSlice->pic_parameter_set_id;
     uint8_t spsid = pAUP->m_pPPS[ppsid].seq_parameter_set_id;
 
-    isValid = isFirstSPSCompatibleWithStreamSettings(&pAUP->m_pSPS[spsid], &pCtx->m_tStreamSettings);
+    isValid = isSPSCompatibleWithStreamSettings(&pAUP->m_pSPS[spsid], &pCtx->m_tStreamSettings);
 
     if(!isValid)
       pAUP->m_pSPS[spsid].bConceal = true;
