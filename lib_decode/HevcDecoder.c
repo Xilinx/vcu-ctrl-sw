@@ -323,8 +323,9 @@ static bool initSlice(AL_TDecCtx* pCtx, AL_THevcSliceHdr* pSlice)
       if(!allocateBuffers(pCtx, pSlice->m_pSPS))
         return false;
 
-      pCtx->m_bIsBuffersAllocated = true;
     }
+
+    pCtx->m_bIsBuffersAllocated = true;
 
     if(!initChannel(pCtx, pSlice->m_pSPS))
       return false;
