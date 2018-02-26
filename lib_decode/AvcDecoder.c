@@ -261,6 +261,19 @@ static bool initChannel(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
 }
 
 /******************************************************************************/
+static int slicePpsId(AL_TAvcSliceHdr const* pSlice)
+{
+  return pSlice->pic_parameter_set_id;
+}
+
+/******************************************************************************/
+static int sliceSpsId(AL_TAvcPps const* pPps, AL_TAvcSliceHdr const* pSlice)
+{
+  int const ppsid = slicePpsId(pSlice);
+  return pPps[ppsid].seq_parameter_set_id;
+}
+
+/******************************************************************************/
 static bool initSlice(AL_TDecCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 {
   AL_TAvcAup* aup = &pCtx->m_aup.avcAup;
@@ -289,9 +302,7 @@ static bool initSlice(AL_TDecCtx* pCtx, AL_TAvcSliceHdr* pSlice)
       return false;
   }
 
-  int ppsid = pSlice->pic_parameter_set_id;
-  int spsid = aup->m_pPPS[ppsid].seq_parameter_set_id;
-
+  int const spsid = sliceSpsId(aup->m_pPPS, pSlice);
   aup->m_pActiveSPS = &aup->m_pSPS[spsid];
 
   return true;
@@ -522,9 +533,7 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
 
   if(isValid)
   {
-    uint8_t ppsid = pSlice->pic_parameter_set_id;
-    uint8_t spsid = pAUP->m_pPPS[ppsid].seq_parameter_set_id;
-
+    int const spsid = sliceSpsId(pAUP->m_pPPS, pSlice);
     isValid = isSPSCompatibleWithStreamSettings(&pAUP->m_pSPS[spsid], &pCtx->m_tStreamSettings);
 
     if(!isValid)

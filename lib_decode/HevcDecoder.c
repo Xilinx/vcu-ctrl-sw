@@ -312,6 +312,19 @@ static bool initChannel(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
   return true;
 }
 
+/******************************************************************************/
+static int slicePpsId(AL_THevcSliceHdr const* pSlice)
+{
+  return pSlice->slice_pic_parameter_set_id;
+}
+
+/******************************************************************************/
+static int sliceSpsId(AL_THevcPps const* pPps, AL_THevcSliceHdr const* pSlice)
+{
+  int const ppsid = slicePpsId(pSlice);
+  return pPps[ppsid].pps_seq_parameter_set_id;
+}
+
 /*****************************************************************************/
 static bool initSlice(AL_TDecCtx* pCtx, AL_THevcSliceHdr* pSlice)
 {
@@ -341,9 +354,7 @@ static bool initSlice(AL_TDecCtx* pCtx, AL_THevcSliceHdr* pSlice)
       return false;
   }
 
-  int ppsid = pSlice->slice_pic_parameter_set_id;
-  int spsid = aup->m_pPPS[ppsid].pps_seq_parameter_set_id;
-
+  int const spsid = sliceSpsId(aup->m_pPPS, pSlice);
   aup->m_pActiveSPS = &aup->m_pSPS[spsid];
 
   const AL_TDimension tDim = { pSlice->m_pSPS->pic_width_in_luma_samples, pSlice->m_pSPS->pic_height_in_luma_samples };
@@ -455,7 +466,7 @@ static void copyScalingList(AL_THevcPps* pPPS, AL_TScl* pSCL)
 /*****************************************************************************/
 static void processScalingList(AL_THevcAup* pAUP, AL_THevcSliceHdr* pSlice, AL_TScl* pScl)
 {
-  int ppsid = pSlice->slice_pic_parameter_set_id;
+  int const ppsid = slicePpsId(pSlice);
 
   AL_CleanupMemory(pScl, sizeof(*pScl));
 
@@ -595,9 +606,7 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
 
   if(isValid)
   {
-    uint8_t ppsid = pSlice->slice_pic_parameter_set_id;
-    uint8_t spsid = pAUP->m_pPPS[ppsid].pps_seq_parameter_set_id;
-
+    int const spsid = sliceSpsId(pAUP->m_pPPS, pSlice);
     isValid = isSPSCompatibleWithStreamSettings(&pAUP->m_pSPS[spsid], &pCtx->m_tStreamSettings);
 
     if(!isValid)
