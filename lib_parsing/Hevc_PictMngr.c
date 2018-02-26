@@ -139,7 +139,7 @@ void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, AL
     }
   }
 
-  AL_TBitDepth const tBitDepth = { pPP->BitDepthY, pPP->BitDepthC };
+  AL_TBitDepth const tBitDepth = { pPP->BitDepthLuma, pPP->BitDepthChroma };
   AL_PictMngr_UpdateDisplayBufferBitDepth(pCtx, pCtx->m_uRecID, tBitDepth);
   AL_PictMngr_UpdateDisplayBufferCrop(pCtx, pCtx->m_uRecID, cropInfo);
 }

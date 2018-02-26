@@ -100,8 +100,6 @@ typedef struct AL_t_DecPictParam
   uint8_t QpOffLstSize;
   uint8_t ParallelMerge;
   uint8_t ColocPicID;
-  uint8_t BitDepthY;   // max(BitDepthLuma, BitDepthChroma)
-  uint8_t BitDepthC;   // max(BitDepthLuma, BitDepthChroma)
   uint8_t MaxBitDepth; // max(BitDepthLuma, BitDepthChroma)
 
   int8_t PicCbQpOffset;
