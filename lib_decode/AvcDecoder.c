@@ -362,7 +362,7 @@ static void createConcealSlice(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSl
 }
 
 /*****************************************************************************/
-static void updatePictManager(AL_TPictMngrCtx* pCtx, AL_ENut eNUT, AL_TDecPicParam* pPP, AL_TAvcSliceHdr* pSlice, AL_EFbStorageMode eFBStorageMode)
+static void updatePictManager(AL_TPictMngrCtx* pCtx, AL_ENut eNUT, AL_TDecPicParam* pPP, AL_TAvcSliceHdr* pSlice)
 {
   bool bClearRef = AL_AVC_IsIDR(eNUT);
   AL_EMarkingRef eMarkingFlag = ((pSlice->nal_ref_idc > 0) || bClearRef) ? (pSlice->long_term_reference_flag ? LONG_TERM_REF : SHORT_TERM_REF) : UNUSED_FOR_REF;
@@ -371,7 +371,7 @@ static void updatePictManager(AL_TPictMngrCtx* pCtx, AL_ENut eNUT, AL_TDecPicPar
   pCtx->m_iPrevFrameNum = pSlice->frame_num;
   pCtx->m_bLastIsIDR = bClearRef ? true : false;
 
-  AL_AVC_PictMngr_UpdateRecInfo(pCtx, pSlice->m_pSPS, pPP, eFBStorageMode);
+  AL_AVC_PictMngr_UpdateRecInfo(pCtx, pSlice->m_pSPS, pPP);
   AL_AVC_PictMngr_EndParsing(pCtx, bClearRef, eMarkingFlag);
 
   if(pSlice->nal_ref_idc)
@@ -390,7 +390,7 @@ static void updatePictManager(AL_TPictMngrCtx* pCtx, AL_ENut eNUT, AL_TDecPicPar
 /******************************************************************************/
 static void endFrame(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_TAvcSliceHdr* pSlice, AL_TDecPicParam* pPP)
 {
-  updatePictManager(&pCtx->m_PictMngr, eNUT, pPP, pSlice, pCtx->m_chanParam.eFBStorageMode);
+  updatePictManager(&pCtx->m_PictMngr, eNUT, pPP, pSlice);
 
   if(pCtx->m_chanParam.eDecUnit == AL_AU_UNIT)
     AL_LaunchFrameDecoding(pCtx);

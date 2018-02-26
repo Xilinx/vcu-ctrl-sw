@@ -489,7 +489,7 @@ static void createConcealSlice(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSl
 /*****************************************************************************/
 static void endFrame(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_THevcSliceHdr* pSlice, AL_TDecPicParam* pPP, uint8_t pic_output_flag)
 {
-  AL_HEVC_PictMngr_UpdateRecInfo(&pCtx->m_PictMngr, pSlice->m_pSPS, pPP, pCtx->m_chanParam.eFBStorageMode);
+  AL_HEVC_PictMngr_UpdateRecInfo(&pCtx->m_PictMngr, pSlice->m_pSPS, pPP);
   AL_HEVC_PictMngr_EndFrame(&pCtx->m_PictMngr, pSlice->slice_pic_order_cnt_lsb, eNUT, pSlice, pic_output_flag);
 
   if(pCtx->m_chanParam.eDecUnit == AL_AU_UNIT) /* launch HW for each frame(default mode)*/

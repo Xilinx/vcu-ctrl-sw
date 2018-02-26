@@ -860,7 +860,7 @@ AL_TBuffer* AL_PictMngr_GetUnusedDisplayBuffer(AL_TPictMngrCtx* pCtx)
 }
 
 /*****************************************************************************/
-bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, TBufferListRef* pListRef, TBuffer* pListAddr, TBufferPOC** ppPOC, TBufferMV** ppMV, AL_TBuffer** ppRec, AL_EFbStorageMode eFBStorageMode)
+bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, TBufferListRef* pListRef, TBuffer* pListAddr, TBufferPOC** ppPOC, TBufferMV** ppMV, AL_TBuffer** ppRec)
 {
   // Rec buffer
   if(ppRec)
@@ -919,7 +919,7 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDec
     uint32_t* pFbcList = (uint32_t*)(pListAddr->tMD.pVirtualAddr + FBC_LIST_OFFSET);
 
     AL_TDimension tDim = { pPP->PicWidth * 8, pPP->PicHeight * 8 };
-    int iLumaSize = AL_GetAllocSize_DecReference(tDim, CHROMA_MONO, pPP->MaxBitDepth, eFBStorageMode);
+    int iLumaSize = AL_GetAllocSize_DecReference(tDim, CHROMA_MONO, pPP->MaxBitDepth, pCtx->m_eFbStorageMode);
 
     for(int i = 0; i < PIC_ID_POOL_SIZE; ++i)
     {

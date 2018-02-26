@@ -61,9 +61,8 @@ bool AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlic
    \param[in] pCtx Pointer to a Picture manager context object
    \param[in] pSPS Pointer to a ACV SPS structure
    \param[in] pPP  Pointer to the current picture parameters
-   \param[in] eFBStorageMode the way frame buffer is stored
 *****************************************************************************/
-void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_TDecPicParam* pPP, AL_EFbStorageMode eFBStorageMode);
+void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_TDecPicParam* pPP);
 
 /*************************************************************************//*!
    \brief This function updates the Picture Manager context each time a picture have been parsed.
@@ -97,7 +96,7 @@ void AL_AVC_PictMngr_CleanDPB(AL_TPictMngrCtx* pCtx);
    \return If the function succeeds the return value is nonzero (true)
         If the function fails the return value is zero (false)
 *****************************************************************************/
-bool AL_AVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef, TBuffer* pListAddr, TBufferPOC** ppPOC, TBufferMV** ppMV, TBuffer* pWP, AL_TBuffer** ppRec, AL_EFbStorageMode eFBStorageMode);
+bool AL_AVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef, TBuffer* pListAddr, TBufferPOC** ppPOC, TBufferMV** ppMV, TBuffer* pWP, AL_TBuffer** ppRec);
 
 /*************************************************************************//*!
    \brief Initializes the reference picture list for the current slice

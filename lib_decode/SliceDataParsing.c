@@ -335,7 +335,7 @@ void AL_AVC_PrepareCommand(AL_TDecCtx* pCtx, AL_TScl* pSCL, AL_TDecPicParam* pPP
 
     if(!pSlice->first_mb_in_slice)
       AL_AVC_WriteDecHwScalingList((AL_TScl const*)pSCL, pBufs->tScl.tMD.pVirtualAddr);
-    AL_AVC_PictMngr_GetBuffers(&pCtx->m_PictMngr, pPP, pSP, pSlice, &pCtx->m_ListRef, &pBufs->tListRef, &pCtx->m_pPOC, &pCtx->m_pMV, &pBufs->tWP, &pCtx->m_pRec, pCtx->m_chanParam.eFBStorageMode);
+    AL_AVC_PictMngr_GetBuffers(&pCtx->m_PictMngr, pPP, pSP, pSlice, &pCtx->m_ListRef, &pBufs->tListRef, &pCtx->m_pPOC, &pCtx->m_pMV, &pBufs->tWP, &pCtx->m_pRec);
 
     // stock command registers in memory
     if(pSP->FirstLCU)
@@ -373,7 +373,7 @@ void AL_HEVC_PrepareCommand(AL_TDecCtx* pCtx, AL_TScl* pSCL, AL_TDecPicParam* pP
 
     if(pSlice->first_slice_segment_in_pic_flag)
       AL_HEVC_WriteDecHwScalingList((const AL_TScl*)pSCL, pBufs->tScl.tMD.pVirtualAddr);
-    AL_HEVC_PictMngr_GetBuffers(&pCtx->m_PictMngr, pPP, pSP, pSlice, &pCtx->m_ListRef, &pBufs->tListRef, &pCtx->m_pPOC, &pCtx->m_pMV, &pBufs->tWP, &pCtx->m_pRec, pCtx->m_chanParam.eFBStorageMode);
+    AL_HEVC_PictMngr_GetBuffers(&pCtx->m_PictMngr, pPP, pSP, pSlice, &pCtx->m_ListRef, &pBufs->tListRef, &pCtx->m_pPOC, &pCtx->m_pMV, &pBufs->tWP, &pCtx->m_pRec);
 
     // stock command registers in memory
     if(pSP->FirstLcuSliceSegment)

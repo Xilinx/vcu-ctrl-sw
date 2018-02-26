@@ -261,12 +261,12 @@ bool AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlic
 }
 
 /*****************************************************************************/
-void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_TDecPicParam* pPP, AL_EFbStorageMode eFBStorageMode)
+void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_TDecPicParam* pPP)
 {
   AL_TBuffer* pFrmBuf = AL_PictMngr_GetDisplayBufferFromID(pCtx, pCtx->m_uRecID);
   AL_TSrcMetaData* pFrmMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pFrmBuf, AL_META_TYPE_SOURCE);
 
-  pFrmMeta->tPitches.iLuma = RndPitch(pFrmMeta->tDim.iWidth, pPP->MaxBitDepth, eFBStorageMode);
+  pFrmMeta->tPitches.iLuma = RndPitch(pFrmMeta->tDim.iWidth, pPP->MaxBitDepth, pCtx->m_eFbStorageMode);
   pFrmMeta->tPitches.iChroma = pFrmMeta->tPitches.iLuma;
 
   // update cropping information
@@ -343,10 +343,10 @@ void AL_AVC_PictMngr_CleanDPB(AL_TPictMngrCtx* pCtx)
 }
 
 /***************************************************************************/
-bool AL_AVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef, TBuffer* pListAddr, TBufferPOC** ppPOC, TBufferMV** ppMV, TBuffer* pWP, AL_TBuffer** ppRec, AL_EFbStorageMode eFBStorageMode)
+bool AL_AVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef, TBuffer* pListAddr, TBufferPOC** ppPOC, TBufferMV** ppMV, TBuffer* pWP, AL_TBuffer** ppRec)
 {
   bool bOk;
-  bOk = AL_PictMngr_GetBuffers(pCtx, pPP, pSP, pListRef, pListAddr, ppPOC, ppMV, ppRec, eFBStorageMode);
+  bOk = AL_PictMngr_GetBuffers(pCtx, pPP, pSP, pListRef, pListAddr, ppPOC, ppMV, ppRec);
 
   if(!bOk)
     return false;

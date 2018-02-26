@@ -53,9 +53,8 @@
    \param[in] pCtx Pointer to a Picture manager context object
    \param[in] pSPS Pointer to a HECV SPS structure
    \param[in] pPP  Pointer to the current picture parameters
-   \param[in] eFBStorageMode the way frame buffer is stored
 *****************************************************************************/
-void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, AL_TDecPicParam* pPP, AL_EFbStorageMode eFBStorageMode);
+void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, AL_TDecPicParam* pPP);
 
 /*************************************************************************//*!
    \brief Remove from the DPB all unused pictures(non-reference and not needed for output
@@ -103,11 +102,10 @@ bool AL_HEVC_PictMngr_HasPictInDPB(AL_TPictMngrCtx* pCtx);
    \param[out] pWP           Receives slices Weighted Pred tables
    \param[out] ppRec         Receives pointer to the frame buffer where
                           reconstructed picture should be stored.
-   \param[in] eFBStorageMode the way frame buffer is stored
    \return If the function succeeds the return value is nonzero (true)
         If the function fails the return value is zero (false)
 *****************************************************************************/
-bool AL_HEVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, AL_THevcSliceHdr* pSlice, TBufferListRef* pListRef, TBuffer* pListAddr, TBufferPOC** ppPOC, TBufferMV** ppMV, TBuffer* pWP, AL_TBuffer** ppRec, AL_EFbStorageMode eFBStorageMode);
+bool AL_HEVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, AL_THevcSliceHdr* pSlice, TBufferListRef* pListRef, TBuffer* pListAddr, TBufferPOC** ppPOC, TBufferMV** ppMV, TBuffer* pWP, AL_TBuffer** ppRec);
 
 /*************************************************************************//*!
    \brief Prepares the reference picture set for the current slice reference picture list construction
