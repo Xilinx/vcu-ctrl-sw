@@ -851,7 +851,7 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
 
   int const iDpbRef = iDpbMaxBuf;
   AL_EFbStorageMode const eStorageMode = pCtx->m_chanParam.eFBStorageMode;
-  AL_PictMngr_Init(&pCtx->m_PictMngr, iMaxBuf, iSizeMV, iDpbRef, pCtx->m_eDpbMode, eStorageMode);
+  AL_PictMngr_Init(&pCtx->m_PictMngr, iMaxBuf, iSizeMV, iDpbRef, pCtx->m_eDpbMode, eStorageMode, tStreamSettings.iBitDepth);
 
   if(pCtx->m_resolutionFoundCB.func)
   {

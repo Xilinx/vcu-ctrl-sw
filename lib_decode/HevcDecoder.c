@@ -254,11 +254,11 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
 
   const int iDpbRef = Min(pSPS->sps_max_dec_pic_buffering_minus1[pSPS->sps_max_sub_layers_minus1] + 1, iDpbMaxBuf);
   const AL_EFbStorageMode eStorageMode = pCtx->m_chanParam.eFBStorageMode;
-  AL_PictMngr_Init(&pCtx->m_PictMngr, iMaxBuf, iSizeMV, iDpbRef, pCtx->m_eDpbMode, eStorageMode);
+  const int iSPSMaxBitDepth = getMaxBitDepth(pSPS->profile_and_level);
+  AL_PictMngr_Init(&pCtx->m_PictMngr, iMaxBuf, iSizeMV, iDpbRef, pCtx->m_eDpbMode, eStorageMode, iSPSMaxBitDepth);
 
   if(pCtx->m_resolutionFoundCB.func)
   {
-    const int iSPSMaxBitDepth = getMaxBitDepth(pSPS->profile_and_level);
     const bool useFBC = pCtx->m_chanParam.bFrameBufferCompression;
     const int iSizeYuv = AL_GetAllocSize_Frame(tSPSDim, eSPSChromaMode, iSPSMaxBitDepth, useFBC, eStorageMode);
     const AL_TCropInfo tCropInfo = getCropInfo(pSPS);
@@ -508,9 +508,9 @@ static void createConcealSlice(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSl
 }
 
 /*****************************************************************************/
-static void endFrame(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_THevcSliceHdr* pSlice, AL_TDecPicParam* pPP, uint8_t pic_output_flag)
+static void endFrame(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_THevcSliceHdr* pSlice, uint8_t pic_output_flag)
 {
-  AL_HEVC_PictMngr_UpdateRecInfo(&pCtx->m_PictMngr, pSlice->m_pSPS, pPP);
+  AL_HEVC_PictMngr_UpdateRecInfo(&pCtx->m_PictMngr, pSlice->m_pSPS);
   AL_HEVC_PictMngr_EndFrame(&pCtx->m_PictMngr, pSlice->slice_pic_order_cnt_lsb, eNUT, pSlice, pic_output_flag);
 
   if(pCtx->m_chanParam.eDecUnit == AL_AU_UNIT) /* launch HW for each frame(default mode)*/
@@ -536,7 +536,7 @@ static void finishPreviousFrame(AL_TDecCtx* pCtx)
   if(pCtx->m_chanParam.eDecUnit == AL_VCL_NAL_UNIT) /* launch HW for each vcl nal in sub_frame latency*/
     --pCtx->m_PictMngr.m_uNumSlice;
 
-  endFrame(pCtx, pSlice->nal_unit_type, pSlice, pPP, pSlice->pic_output_flag);
+  endFrame(pCtx, pSlice->nal_unit_type, pSlice, pSlice->pic_output_flag);
 }
 
 /*****************************************************************************/
@@ -738,7 +738,7 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   if(bIsLastAUNal || bLastSlice)
   {
     uint8_t pic_output_flag = (AL_HEVC_IsRASL(eNUT) && pCtx->m_uNoRaslOutputFlag) ? 0 : pSlice->pic_output_flag;
-    endFrame(pCtx, eNUT, pSlice, pPP, pic_output_flag);
+    endFrame(pCtx, eNUT, pSlice, pic_output_flag);
     return true;
   }
   else if(pCtx->m_chanParam.eDecUnit == AL_VCL_NAL_UNIT)

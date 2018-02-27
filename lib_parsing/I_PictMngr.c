@@ -436,7 +436,7 @@ static void sPictMngr_DecrementMvBuf(void* pUserParam, uint8_t uMvID)
 /***************************************************************************/
 
 /*****************************************************************************/
-static bool CheckPictMngrInitParameter(int iNumMV, int iSizeMV, int iNumDPBRef, AL_EDpbMode eDPBMode, AL_EFbStorageMode eFbStorageMode)
+static bool CheckPictMngrInitParameter(int iNumMV, int iSizeMV, int iNumDPBRef, AL_EDpbMode eDPBMode, AL_EFbStorageMode eFbStorageMode, int iBitdepth)
 {
   if(iSizeMV < 0)
     return false;
@@ -456,16 +456,19 @@ static bool CheckPictMngrInitParameter(int iNumMV, int iSizeMV, int iNumDPBRef, 
   if(eFbStorageMode >= AL_FB_MAX_ENUM)
     return false;
 
+  if(iBitdepth < 0)
+    return false;
+
   return true;
 }
 
 /*****************************************************************************/
-bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, int iNumMV, int iSizeMV, int iNumDPBRef, AL_EDpbMode eDPBMode, AL_EFbStorageMode eFbStorageMode)
+bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, int iNumMV, int iSizeMV, int iNumDPBRef, AL_EDpbMode eDPBMode, AL_EFbStorageMode eFbStorageMode, int iBitdepth)
 {
   if(!pCtx)
     return false;
 
-  if(!CheckPictMngrInitParameter(iNumMV, iSizeMV, iNumDPBRef, eDPBMode, eFbStorageMode))
+  if(!CheckPictMngrInitParameter(iNumMV, iSizeMV, iNumDPBRef, eDPBMode, eFbStorageMode, iBitdepth))
     return false;
 
   if(!sMvBufPool_Init(&pCtx->m_MvBufPool, iNumMV))
@@ -487,6 +490,7 @@ bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, int iNumMV, int iSizeMV, int iNumDP
   AL_Dpb_Init(&pCtx->m_DPB, iNumDPBRef, eDPBMode, tCallbacks);
 
   pCtx->m_eFbStorageMode = eFbStorageMode;
+  pCtx->m_iBitdepth = iBitdepth;
   pCtx->m_uSizeMV = iSizeMV;
   pCtx->m_uSizePOC = POCBUFF_PL_SIZE;
   pCtx->m_iCurFramePOC = 0;
@@ -672,23 +676,10 @@ static void sFrmBufPool_UpdateCRC(AL_TFrmBufPool* pPool, int iFrameID, uint32_t 
 }
 
 /***************************************************************************/
-static void sFrmBufPool_UpdateBitDepth(AL_TFrmBufPool* pPool, int iFrameID, AL_TBitDepth tBitDepth)
-{
-  assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
-  pPool->array[iFrameID].tBitDepth = tBitDepth;
-}
-
-/***************************************************************************/
 void sFrmBufPool_UpdateCrop(AL_TFrmBufPool* pPool, int iFrameID, AL_TCropInfo tCrop)
 {
   assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
   pPool->array[iFrameID].tCrop = tCrop;
-}
-
-/***************************************************************************/
-void AL_PictMngr_UpdateDisplayBufferBitDepth(AL_TPictMngrCtx* pCtx, int iFrameID, AL_TBitDepth tBitDepth)
-{
-  sFrmBufPool_UpdateBitDepth(&pCtx->m_FrmBufPool, iFrameID, tBitDepth);
 }
 
 /***************************************************************************/
@@ -712,7 +703,7 @@ void AL_PictMngr_EndDecoding(AL_TPictMngrCtx* pCtx, int iFrameID, uint8_t uMvID)
 }
 
 /***************************************************************************/
-static void sFrmBufPool_GetInfoDecode(AL_TFrmBufPool* pPool, int iFrameID, AL_TInfoDecode* pInfo, AL_EFbStorageMode eFbStorageMode)
+static void sFrmBufPool_GetInfoDecode(AL_TFrmBufPool* pPool, int iFrameID, AL_TInfoDecode* pInfo, AL_EFbStorageMode eFbStorageMode, int iBitdepth)
 {
   assert(pInfo);
 
@@ -723,8 +714,7 @@ static void sFrmBufPool_GetInfoDecode(AL_TFrmBufPool* pPool, int iFrameID, AL_TI
   assert(pMetaSrc);
 
   pInfo->tCrop = pPool->array[iFrameID].tCrop;
-  pInfo->uBitDepthY = pPool->array[iFrameID].tBitDepth.iLuma;
-  pInfo->uBitDepthC = pPool->array[iFrameID].tBitDepth.iChroma;
+  pInfo->uBitDepthY = pInfo->uBitDepthC = iBitdepth;
   pInfo->uCRC = pPool->array[iFrameID].uCRC;
   pInfo->tDim = pMetaSrc->tDim;
   pInfo->eFbStorageMode = eFbStorageMode;
@@ -744,7 +734,7 @@ AL_TBuffer* AL_PictMngr_GetDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* 
     return NULL;
 
   if(pInfo)
-    sFrmBufPool_GetInfoDecode(&pCtx->m_FrmBufPool, iFrameID, pInfo, pCtx->m_eFbStorageMode);
+    sFrmBufPool_GetInfoDecode(&pCtx->m_FrmBufPool, iFrameID, pInfo, pCtx->m_eFbStorageMode, pCtx->m_iBitdepth);
 
   return sFrmBufPool_GetBufferFromID(&pCtx->m_FrmBufPool, iFrameID);
 }
@@ -919,7 +909,7 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDec
     uint32_t* pFbcList = (uint32_t*)(pListAddr->tMD.pVirtualAddr + FBC_LIST_OFFSET);
 
     AL_TDimension tDim = { pPP->PicWidth * 8, pPP->PicHeight * 8 };
-    int iLumaSize = AL_GetAllocSize_DecReference(tDim, CHROMA_MONO, pPP->MaxBitDepth, pCtx->m_eFbStorageMode);
+    int iLumaSize = AL_GetAllocSize_DecReference(tDim, CHROMA_MONO, pCtx->m_iBitdepth, pCtx->m_eFbStorageMode);
 
     for(int i = 0; i < PIC_ID_POOL_SIZE; ++i)
     {

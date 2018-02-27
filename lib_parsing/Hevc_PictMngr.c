@@ -99,12 +99,12 @@ static void AL_HEVC_sBuildWPCoeff(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pSlic
 /***************************************************************************/
 
 /*****************************************************************************/
-void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, AL_TDecPicParam* pPP)
+void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS)
 {
   AL_TBuffer* pFrmBuf = AL_PictMngr_GetDisplayBufferFromID(pCtx, pCtx->m_uRecID);
   AL_TSrcMetaData* pFrmMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pFrmBuf, AL_META_TYPE_SOURCE);
 
-  pFrmMeta->tPitches.iLuma = RndPitch(pFrmMeta->tDim.iWidth, pPP->MaxBitDepth, pCtx->m_eFbStorageMode);
+  pFrmMeta->tPitches.iLuma = RndPitch(pFrmMeta->tDim.iWidth, pCtx->m_iBitdepth, pCtx->m_eFbStorageMode);
   pFrmMeta->tPitches.iChroma = pFrmMeta->tPitches.iLuma;
 
   // update cropping information
@@ -139,8 +139,6 @@ void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, AL
     }
   }
 
-  AL_TBitDepth const tBitDepth = { pPP->BitDepthLuma, pPP->BitDepthChroma };
-  AL_PictMngr_UpdateDisplayBufferBitDepth(pCtx, pCtx->m_uRecID, tBitDepth);
   AL_PictMngr_UpdateDisplayBufferCrop(pCtx, pCtx->m_uRecID, cropInfo);
 }
 

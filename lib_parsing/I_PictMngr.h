@@ -52,12 +52,6 @@
 #include "lib_common_dec/DecInfo.h"
 #include "DPB.h"
 
-typedef struct
-{
-  int iLuma;
-  int iChroma;
-}AL_TBitDepth;
-
 /*************************************************************************//*!
    \ingroup BufPool
    \brief Frame Buffer Pool object
@@ -69,7 +63,6 @@ typedef struct
   int iAccessCnt;
   bool bWillBeOutputed;
   uint32_t uCRC;
-  AL_TBitDepth tBitDepth;
   AL_TCropInfo tCrop;
 }AL_TFrameFifo;
 
@@ -111,6 +104,7 @@ typedef struct t_PictMngrCtx
 {
   bool m_bFirstInit;
   AL_EFbStorageMode m_eFbStorageMode;
+  int m_iBitdepth;
 
   AL_TFrmBufPool m_FrmBufPool;
   AL_TMvBufPool m_MvBufPool;
@@ -162,9 +156,10 @@ typedef struct t_PictMngrCtx
    \param[in] iNumDPBRef  Number of reference to manage
    \param[in] eDPBMode    Mode of the DPB
    \param[in] eFbStorageMode Frame buffer storage mode
+   \param[in] iBitdepth   Bitdepth of the outputed frames
    \return If the function succeeds the return true. Return false otherwise
 *****************************************************************************/
-bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, int iNumMV, int iSizeMV, int iNumDPBRef, AL_EDpbMode eDPBMode, AL_EFbStorageMode eFbStorageMode);
+bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, int iNumMV, int iSizeMV, int iNumDPBRef, AL_EDpbMode eDPBMode, AL_EFbStorageMode eFbStorageMode, int iBitdepth);
 
 /*************************************************************************//*!
    \brief Flush all pictures so all buffers are fully released
@@ -298,7 +293,6 @@ void AL_PictMngr_PutDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TBuffer* pBuf);
 AL_TBuffer* AL_PictMngr_GetDisplayBufferFromID(AL_TPictMngrCtx* pCtx, int iFrameID);
 
 void AL_PictMngr_UpdateDisplayBufferCRC(AL_TPictMngrCtx* pCtx, int iFrameID, uint32_t uCRC);
-void AL_PictMngr_UpdateDisplayBufferBitDepth(AL_TPictMngrCtx* pCtx, int iFrameID, AL_TBitDepth tBitDepth);
 void AL_PictMngr_UpdateDisplayBufferCrop(AL_TPictMngrCtx* pCtx, int iFrameID, AL_TCropInfo tCrop);
 void AL_PictMngr_SignalCallbackDisplayIsDone(AL_TPictMngrCtx* pCtx, AL_TBuffer* pDisplayedFrame);
 void AL_PictMngr_SignalCallbackReleaseIsDone(AL_TPictMngrCtx* pCtx, AL_TBuffer* pReleasedFrame);

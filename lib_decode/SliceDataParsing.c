@@ -91,7 +91,7 @@ static void pushCommandParameters(AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP, bool
 static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecPicBuffers* pBufs)
 {
   AL_TDimension const tDim = { pPP->PicWidth * 8, pPP->PicHeight * 8 };
-  int const iMaxBitDepth = pPP->MaxBitDepth;
+  int const iMaxBitDepth = pCtx->m_tStreamSettings.iBitDepth;
   AL_EFbStorageMode const eStorage = pCtx->m_chanParam.eFBStorageMode;
   uint16_t const uPitch = RndPitch(tDim.iWidth, iMaxBitDepth, eStorage);
   uint32_t const u10BitsFlag = (iMaxBitDepth == 8) ? 0x00000000 : 0x80000000;

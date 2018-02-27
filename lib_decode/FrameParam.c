@@ -112,7 +112,6 @@ void AL_AVC_FillPictParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx* 
   AL_SET_DEC_OPT(pPP, Direct8x8Infer, pSps->direct_8x8_inference_flag);
 
   // StandBy
-  pPP->MaxBitDepth = (pPP->BitDepthLuma > pPP->BitDepthChroma) ? pPP->BitDepthLuma : pPP->BitDepthChroma;
   pPP->LcuWidth = pSps->pic_width_in_mbs_minus1 + 1;
   pPP->LcuHeight = pSps->pic_height_in_map_units_minus1 + 1;
 
@@ -283,7 +282,6 @@ void AL_HEVC_FillPictParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx
   pPP->ChromaQpOffsetDepth = pPps->chroma_qp_offset_list_enabled_flag ? pPps->diff_cu_chroma_qp_offset_depth : 0;
 
   // StandBy
-  pPP->MaxBitDepth = (pPP->BitDepthLuma > pPP->BitDepthChroma) ? pPP->BitDepthLuma : pPP->BitDepthChroma;
   pPP->LcuWidth = (pSps->pic_width_in_luma_samples + (1 << pPP->MaxCUSize) - 1) >> pPP->MaxCUSize;
   pPP->LcuHeight = (pSps->pic_height_in_luma_samples + (1 << pPP->MaxCUSize) - 1) >> pPP->MaxCUSize;
 
