@@ -67,6 +67,7 @@ static bool AL_sSettings_CheckProfile(AL_EProfile eProfile)
   case AL_PROFILE_HEVC_MAIN10:
   case AL_PROFILE_HEVC_MAIN_STILL:
   case AL_PROFILE_HEVC_MONO:
+  case AL_PROFILE_HEVC_MONO10:
   case AL_PROFILE_HEVC_MAIN_422:
   case AL_PROFILE_HEVC_MAIN_422_10:
   case AL_PROFILE_HEVC_MAIN_INTRA:
