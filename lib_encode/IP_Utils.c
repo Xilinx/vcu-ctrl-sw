@@ -151,7 +151,7 @@ static void AL_sDecomposition(uint32_t* y, uint8_t* x)
 {
   *x = 0;
 
-  while(*y != 0)
+  while(*y != 0 && *x < 15)
   {
     if(*y % 2 == 0)
     {
