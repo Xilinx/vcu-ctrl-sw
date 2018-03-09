@@ -61,8 +61,6 @@ void AL_L2P_GetL2PrefetchMaxRange(AL_TEncChanParam const* pChParam, AL_ESliceTyp
   if(eSliceType == SLICE_B)
     iPrefetchSize >>= 1;
 
-  iPrefetchSize = iPrefetchSize * 8 / HW_IP_BIT_DEPTH;
-
   if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == CHROMA_4_2_0)
     iPrefetchSize = (iPrefetchSize * 2) / 3;
   else if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == CHROMA_4_2_2)
@@ -127,7 +125,6 @@ void AL_L2P_GetL2PrefetchMaxRange(AL_TEncChanParam const* pChParam, AL_ESliceTyp
 /****************************************************************************/
 static uint32_t AL_sL2Prefetch_GetL2PrefetchSize(AL_TEncChanParam const* pChParam, uint8_t uNumCore, int iHRange, int iVRange)
 {
-  uint32_t uPrefetchMinSize = 0;
 
   int iLcuSize;
 
@@ -139,6 +136,7 @@ static uint32_t AL_sL2Prefetch_GetL2PrefetchSize(AL_TEncChanParam const* pChPara
   iHRange = ALIGN_UP(iHRange, L2P_W);
   iVRange = ALIGN_UP(iVRange, L2P_H);
 
+  uint32_t uPrefetchMinSize = 0;
   if(pChParam->eOptions & AL_OPT_WPP)
   {
     int iPrefetchWidth = ALIGN_UP(pChParam->uWidth, L2P_W);
@@ -162,8 +160,6 @@ static uint32_t AL_sL2Prefetch_GetL2PrefetchSize(AL_TEncChanParam const* pChPara
   else if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == CHROMA_4_2_2)
     uPrefetchMinSize += uPrefetchMinSize;
 
-  uPrefetchMinSize = uPrefetchMinSize * HW_IP_BIT_DEPTH / 8;
-
   if(pChParam->tGopParam.uNumB || (pChParam->tGopParam.eMode == AL_GOP_MODE_LOW_DELAY_B && pChParam->tGopParam.uGopLength))
     uPrefetchMinSize <<= 1;
 
@@ -182,32 +178,28 @@ uint32_t AL_L2P_GetL2PrefetchMinSize(AL_TEncChanParam const* pChParam, uint8_t u
 /****************************************************************************/
 uint32_t AL_L2P_GetL2PrefetchMaxSize(AL_TEncChanParam const* pChParam, uint8_t uNumCore)
 {
-  uint32_t uResMax;
-  uint32_t uMin = AL_L2P_GetL2PrefetchMinSize(pChParam, uNumCore);
-  int iLcuSize = 1 << pChParam->uMaxCuSize;
+  // Max Size from Max Range
   int iHRange = ALIGN_UP(pChParam->uWidth, L2P_W);
   int iVRange = ALIGN_UP(pChParam->uHeight, L2P_H);
-  uint32_t uMax1, uMax2, uMax3;
 
-  // Max Size from Max Range
-  uMax1 = AL_sL2Prefetch_GetL2PrefetchSize(pChParam, uNumCore, iHRange, iVRange);
+  uint32_t uMax1 = AL_sL2Prefetch_GetL2PrefetchSize(pChParam, uNumCore, iHRange, iVRange);
 
   // Max size from picture Width
-  uMax2 = (iVRange + iLcuSize + iVRange) * ALIGN_UP(pChParam->uWidth, L2P_W);
+  int iLcuSize = 1 << pChParam->uMaxCuSize;
+  uint32_t uMax2 = (iVRange + iLcuSize + iVRange) * ALIGN_UP(pChParam->uWidth, L2P_W);
 
   if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == CHROMA_4_2_0)
     uMax2 += (uMax2 >> 1);
   else if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == CHROMA_4_2_2)
     uMax2 += uMax2;
-  uMax2 = uMax2 * HW_IP_BIT_DEPTH / 8;
 
   // Max Size shall not exceed the maximum number of L2P block addr in the L2P controller
-  uMax3 = ((pChParam->eOptions & AL_OPT_WPP) && pChParam->uNumCore > 1) ? L2P_MAX_BLOCK * 2 : L2P_MAX_BLOCK;
+  uint32_t uMax3 = ((pChParam->eOptions & AL_OPT_WPP) && pChParam->uNumCore > 1) ? L2P_MAX_BLOCK * 2 : L2P_MAX_BLOCK;
 
   if(pChParam->tGopParam.uNumB > 0 || pChParam->tGopParam.eMode == AL_GOP_MODE_LOW_DELAY_B)
     uMax3 /= 2; // half/half split  for 2 references
   uMax3 -= (ALIGN_UP(pChParam->uWidth, L2P_W) / L2P_W) * ((1 << pChParam->uMaxCuSize) / L2P_H); // 1 LCU Row margin for loop-back
-  uMax3 *= L2P_W * L2P_H; // size in number of block to size in bytes (luma)
+  uMax3 *= L2P_W * L2P_H;
 
   if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == CHROMA_4_2_0)
     uMax3 += (uMax3 >> 1);
@@ -217,13 +209,15 @@ uint32_t AL_L2P_GetL2PrefetchMaxSize(AL_TEncChanParam const* pChParam, uint8_t u
   if(pChParam->tGopParam.uNumB > 0 || pChParam->tGopParam.eMode == AL_GOP_MODE_LOW_DELAY_B)
     uMax3 *= 2; // Total size with the 2 ref.
 
-  uResMax = uMax1;
+  uint32_t uResMax = uMax1;
 
   if(uResMax > uMax2)
     uResMax = uMax2;
 
   if(uResMax > uMax3)
     uResMax = uMax3;
+
+  uint32_t uMin = AL_L2P_GetL2PrefetchMinSize(pChParam, uNumCore);
 
   return uResMax < uMin ? uMin : uResMax;
 }

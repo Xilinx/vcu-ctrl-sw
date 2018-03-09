@@ -52,7 +52,6 @@
 #include "lib_common/Utils.h"
 #include "lib_common/StreamBufferPrivate.h"
 #include "lib_common_enc/EncBuffers.h"
-#include "L2PrefetchParam.h"
 #include "lib_common/SEI.h"
 #ifndef HW_IP_BIT_DEPTH
 #define HW_IP_BIT_DEPTH 10
@@ -784,40 +783,6 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, FILE* pOut)
     }
   }
 
-
-  if(pSettings->iPrefetchLevel2)
-  {
-    uint32_t uPrefetchSize = (pSettings->iPrefetchLevel2 > 0) ? (uint32_t)pSettings->iPrefetchLevel2 : pSettings->uL2PSize;
-    uint32_t uPrefetchMinSize = AL_L2P_GetL2PrefetchMinSize(&pSettings->tChParam, uNumCore);
-
-    if(uPrefetchMinSize > uPrefetchSize)
-    {
-      ++err;
-      MSG("Level2 Prefetch too small for this resolution ! ");
-    }
-
-    if(uPrefetchSize > AL_L2P_MAX_SIZE)
-    {
-      ++err;
-      MSG("Level2 Prefetch is bigger than physical memory available !");
-    }
-  }
-
-  if((pSettings->iPrefetchLevel2 < 0) || (pSettings->tChParam.eOptions & AL_OPT_FORCE_MV_CLIP))
-  {
-    if(pSettings->uClipHrzRange < 64 || pSettings->uClipHrzRange > pSettings->tChParam.uWidth)
-    {
-      ++err;
-      MSG("Level2 cache Horizontal range must be between 64 and Picture width! ");
-    }
-
-    if(pSettings->uClipVrtRange < 8 || pSettings->uClipVrtRange > pSettings->tChParam.uHeight)
-    {
-      ++err;
-      MSG("Vertical clipping range must be between 8 and Picture Height! ");
-    }
-  }
-
   if(pSettings->tChParam.uWidth % 8 != 0 || pSettings->tChParam.uHeight % 8 != 0)
   {
     ++err;
@@ -1242,22 +1207,6 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
     pSettings->tChParam.tGopParam.uFreqLT = 0;
     MSG("!! Long Term reference are not allowed with PYRAMIDAL GOP, it will be adjusted !!");
     ++numIncoherency;
-  }
-
-  if(pSettings->iPrefetchLevel2)
-  {
-    uint32_t uCacheSize = (pSettings->iPrefetchLevel2 > 0) ? (uint32_t)pSettings->iPrefetchLevel2 : pSettings->uL2PSize;
-    uint32_t uCacheMaxSize = AL_L2P_GetL2PrefetchMaxSize(&pSettings->tChParam, pSettings->tChParam.uNumCore > 0 ? pSettings->tChParam.uNumCore : AL_ENC_NUM_CORES);
-
-    if(uCacheSize > uCacheMaxSize)
-    {
-      if(pSettings->iPrefetchLevel2 > 0)
-        pSettings->iPrefetchLevel2 = uCacheMaxSize;
-      else
-        pSettings->uL2PSize = uCacheMaxSize;
-      MSG("L2 cache size too big for current resolution and/or for L2 cache controller, it will be adjusted !!");
-      ++numIncoherency;
-    }
   }
 
   if(pSettings->tChParam.tGopParam.eGdrMode == AL_GDR_VERTICAL)
