@@ -890,21 +890,33 @@ static uint32_t GetHevcMaxTileRow(AL_TEncSettings const* pSettings)
 int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE* pOut)
 {
   int numIncoherency = 0;
-  int iBitDepth;
-  AL_EChromaMode eInputChromaMode;
 
   int16_t iMaxPRange = AL_IS_AVC(pSettings->tChParam.eProfile) ? AVC_MAX_HORIZONTAL_RANGE_P : HEVC_MAX_HORIZONTAL_RANGE_P;
   int16_t iMaxBRange = AL_IS_AVC(pSettings->tChParam.eProfile) ? AVC_MAX_HORIZONTAL_RANGE_B : HEVC_MAX_HORIZONTAL_RANGE_B;
 
   assert(pSettings);
 
-  iBitDepth = AL_GET_BITDEPTH(pSettings->tChParam.ePicFormat);
+  int iBitDepth = AL_GET_BITDEPTH(pSettings->tChParam.ePicFormat);
 
-  if((!AL_IS_10BIT_PROFILE(pSettings->tChParam.eProfile) && (iBitDepth != 8))
-     || (AL_IS_10BIT_PROFILE(pSettings->tChParam.eProfile) && (iBitDepth < 8 || iBitDepth > 10)))
+  printf("iBitDepth:%i\n", iBitDepth);
+  if((iBitDepth == 10) && !AL_IS_10BIT_PROFILE(pSettings->tChParam.eProfile))
   {
-    MSG("!! The specified BitDepth is not allowed in this profile; the stream will be encoded in 8 bit !!");
-    pSettings->tChParam.ePicFormat = AL_420_8BITS;
+    MSG("!! Warning : Adapting profile to support input bit depth");
+    pSettings->tChParam.eProfile = ((pSettings->tChParam.eProfile & AL_PROFILE_AVC) == AL_PROFILE_AVC) ? AL_PROFILE_AVC_HIGH10 : AL_PROFILE_HEVC_MAIN10;
+    ++numIncoherency;
+  }
+
+  AL_EChromaMode eInputChromaMode = AL_GET_CHROMA_MODE(pSettings->tChParam.ePicFormat);
+  printf("eInputChromaMode 0x%.8X\n", eInputChromaMode);
+  printf("eProfile 0x%.8X\n", pSettings->tChParam.eProfile);
+  if((eInputChromaMode == CHROMA_4_2_2) && !AL_IS_422_PROFILE(pSettings->tChParam.eProfile))
+  {
+    MSG("!! Warning : Adapting profile to support input chroma format");
+    if((pSettings->tChParam.eProfile & AL_PROFILE_AVC) == AL_PROFILE_AVC)
+      pSettings->tChParam.eProfile = AL_PROFILE_AVC_HIGH_422;
+    else
+      pSettings->tChParam.eProfile = (iBitDepth == 10) ? AL_PROFILE_HEVC_MAIN_422_10 : AL_PROFILE_HEVC_MAIN_422;
+
     ++numIncoherency;
   }
 
@@ -913,7 +925,6 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
     MSG("!! Warning : The input BitDepth is smaller than encoding bitdepth !!");
     ++numIncoherency;
   }
-
 
   if((pSettings->eQpCtrlMode & MASK_QP_TABLE) == ROI_QP)
     pSettings->eQpCtrlMode |= RELATIVE_QP;
@@ -943,9 +954,6 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
   {
     pSettings->tChParam.tRCParam.uMaxBitRate = pSettings->tChParam.tRCParam.uTargetBitRate;
   }
-
-  // ChromaMode and profile depend on input format
-  eInputChromaMode = AL_GetChromaMode(tFourCC);
 
   {
     if(pSettings->tChParam.tRCParam.eRCMode == AL_RC_CBR)
@@ -1021,17 +1029,6 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
   AL_sCheckRange(&pSettings->tChParam.pMeRange[SLICE_P][1], iMaxPRange, pOut);
   AL_sCheckRange(&pSettings->tChParam.pMeRange[SLICE_B][0], iMaxBRange, pOut);
   AL_sCheckRange(&pSettings->tChParam.pMeRange[SLICE_B][1], iMaxBRange, pOut);
-
-  if((eInputChromaMode == CHROMA_4_2_2 && (!AL_IS_422_PROFILE(pSettings->tChParam.eProfile) || AL_GET_CHROMA_MODE(pSettings->tChParam.ePicFormat) == CHROMA_4_2_0)) ||
-     (eInputChromaMode == CHROMA_4_2_0 && AL_GET_CHROMA_MODE(pSettings->tChParam.ePicFormat) == CHROMA_4_2_2))
-  {
-    if(eInputChromaMode == CHROMA_4_2_2)
-      pSettings->tChParam.eProfile = ((pSettings->tChParam.eProfile & AL_PROFILE_AVC) == AL_PROFILE_AVC) ? AL_PROFILE_AVC_HIGH_422 : AL_PROFILE_HEVC_MAIN_422_10;
-
-    AL_SET_CHROMA_MODE(pSettings->tChParam.ePicFormat, (eInputChromaMode == CHROMA_4_2_2) ? CHROMA_4_2_2 : CHROMA_4_2_0);
-    MSG("!! The specified ChromaMode and Profile are not allowed with this input format; they will be adjusted!!");
-    ++numIncoherency;
-  }
 
   if((pSettings->tChParam.uSliceSize > 0) && (pSettings->tChParam.eOptions & AL_OPT_WPP))
   {
