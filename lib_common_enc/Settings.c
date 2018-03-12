@@ -898,7 +898,6 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
 
   int iBitDepth = AL_GET_BITDEPTH(pSettings->tChParam.ePicFormat);
 
-  printf("iBitDepth:%i\n", iBitDepth);
   if((iBitDepth == 10) && !AL_IS_10BIT_PROFILE(pSettings->tChParam.eProfile))
   {
     MSG("!! Warning : Adapting profile to support input bit depth");
@@ -907,8 +906,6 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
   }
 
   AL_EChromaMode eInputChromaMode = AL_GET_CHROMA_MODE(pSettings->tChParam.ePicFormat);
-  printf("eInputChromaMode 0x%.8X\n", eInputChromaMode);
-  printf("eProfile 0x%.8X\n", pSettings->tChParam.eProfile);
   if((eInputChromaMode == CHROMA_4_2_2) && !AL_IS_422_PROFILE(pSettings->tChParam.eProfile))
   {
     MSG("!! Warning : Adapting profile to support input chroma format");
