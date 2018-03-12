@@ -196,11 +196,6 @@ static bool isSPSCompatibleWithStreamSettings(AL_THevcSps const* pSPS, AL_TStrea
   if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSChromaBitDepth))
     return false;
 
-  const int iSPSMaxBitDepth = getMaxBitDepth(pSPS->profile_and_level);
-
-  if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSMaxBitDepth))
-    return false;
-
   const int iSPSLevel = pSPS->profile_and_level.general_level_idc / 3;
 
   if((pStreamSettings->iLevel > 0) && (pStreamSettings->iLevel < iSPSLevel))
