@@ -887,6 +887,106 @@ static uint32_t GetHevcMaxTileRow(AL_TEncSettings const* pSettings)
 }
 
 /***************************************************************************/
+bool checkProfileCoherency(int iBitDepth, AL_EChromaMode eChroma, AL_EProfile eProfile)
+{
+  switch(iBitDepth)
+  {
+  case 8: break;  // 8 bits is supported by all profiles
+  case 10:
+  {
+    if(!AL_IS_10BIT_PROFILE(eProfile))
+      return false;
+    break;
+  }
+  default: return false;
+  }
+  switch(eChroma)
+  {
+  case CHROMA_4_0_0:
+  {
+    if(!AL_IS_MONO_PROFILE(eProfile))
+      return false;
+    break;
+  }
+  case CHROMA_4_2_0: break; // 420 is supported by all profiles
+  case CHROMA_4_2_2:
+  {
+    if(!AL_IS_422_PROFILE(eProfile))
+      return false;
+    break;
+  }
+  default: return false;
+  }
+
+  return true;
+}
+
+/***************************************************************************/
+AL_EProfile getHevcMinimumProfile(int iBitDepth, AL_EChromaMode eChroma)
+{
+  switch(iBitDepth)
+  {
+  case 8:
+  {
+    switch(eChroma)
+    {
+    case CHROMA_4_0_0: return AL_PROFILE_HEVC_MONO;
+    case CHROMA_4_2_0: return AL_PROFILE_HEVC_MAIN;
+    case CHROMA_4_2_2: return AL_PROFILE_HEVC_MAIN_422;
+    default: assert(0);
+    }
+  }
+  case 10:
+    switch(eChroma)
+    {
+    case CHROMA_4_0_0: return AL_PROFILE_HEVC_MONO10;
+    case CHROMA_4_2_0: return AL_PROFILE_HEVC_MAIN10;
+    case CHROMA_4_2_2: return AL_PROFILE_HEVC_MAIN_422_10;
+    default: assert(0);
+    }
+
+  default:
+    assert(0);
+  }
+
+  return AL_PROFILE_HEVC;
+}
+
+/***************************************************************************/
+AL_EProfile getAvcMinimiumProfile(int iBitDepth, AL_EChromaMode eChroma)
+{
+  switch(iBitDepth)
+  {
+  case 8:
+  {
+    switch(eChroma)
+    {
+    case CHROMA_4_0_0: return AL_PROFILE_AVC_HIGH;
+    case CHROMA_4_2_0: return AL_PROFILE_AVC_C_BASELINE;
+    case CHROMA_4_2_2: return AL_PROFILE_AVC_HIGH_422;
+    default: assert(0);
+    }
+  }
+  case 10:
+  {
+    switch(eChroma)
+    {
+    case CHROMA_4_0_0: return AL_PROFILE_AVC_HIGH10;
+    case CHROMA_4_2_0: return AL_PROFILE_AVC_HIGH10;
+    case CHROMA_4_2_2: return AL_PROFILE_AVC_HIGH_422;
+    default: assert(0);
+    }
+  }
+  default:
+    assert(0);
+  }
+
+  assert(0);
+
+  return AL_PROFILE_AVC;
+}
+
+/***************************************************************************/
 int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE* pOut)
 {
   int numIncoherency = 0;
@@ -898,28 +998,18 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
 
   int iBitDepth = AL_GET_BITDEPTH(pSettings->tChParam.ePicFormat);
 
-  if((iBitDepth == 10) && !AL_IS_10BIT_PROFILE(pSettings->tChParam.eProfile))
-  {
-    MSG("!! Warning : Adapting profile to support input bit depth");
-    pSettings->tChParam.eProfile = ((pSettings->tChParam.eProfile & AL_PROFILE_AVC) == AL_PROFILE_AVC) ? AL_PROFILE_AVC_HIGH10 : AL_PROFILE_HEVC_MAIN10;
-    ++numIncoherency;
-  }
-
-  AL_EChromaMode eInputChromaMode = AL_GET_CHROMA_MODE(pSettings->tChParam.ePicFormat);
-  if((eInputChromaMode == CHROMA_4_2_2) && !AL_IS_422_PROFILE(pSettings->tChParam.eProfile))
-  {
-    MSG("!! Warning : Adapting profile to support input chroma format");
-    if((pSettings->tChParam.eProfile & AL_PROFILE_AVC) == AL_PROFILE_AVC)
-      pSettings->tChParam.eProfile = AL_PROFILE_AVC_HIGH_422;
-    else
-      pSettings->tChParam.eProfile = (iBitDepth == 10) ? AL_PROFILE_HEVC_MAIN_422_10 : AL_PROFILE_HEVC_MAIN_422;
-
-    ++numIncoherency;
-  }
-
   if(AL_GetBitDepth(tFourCC) < iBitDepth)
   {
     MSG("!! Warning : The input BitDepth is smaller than encoding bitdepth !!");
+    ++numIncoherency;
+  }
+
+  AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pSettings->tChParam.ePicFormat);
+
+  if(!checkProfileCoherency(iBitDepth, eChromaMode, pSettings->tChParam.eProfile))
+  {
+    MSG("!! Warning : Adapting profile to support bitdepth and chroma mode");
+    pSettings->tChParam.eProfile = AL_IS_AVC(pSettings->tChParam.ePicFormat) ? getAvcMinimiumProfile(iBitDepth, eChromaMode) : getHevcMinimumProfile(iBitDepth, eChromaMode);
     ++numIncoherency;
   }
 
@@ -956,6 +1046,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
     if(pSettings->tChParam.tRCParam.eRCMode == AL_RC_CBR)
     {
       AL_TDimension tDim = { pSettings->tChParam.uWidth, pSettings->tChParam.uHeight };
+      AL_EChromaMode eInputChromaMode = AL_GetChromaMode(tFourCC);
       uint32_t maxNalSizeInByte = GetPcmVclNalSize(tDim, eInputChromaMode, iBitDepth);
       uint64_t maxBitRate = 8LL * maxNalSizeInByte * pSettings->tChParam.tRCParam.uFrameRate;
 
