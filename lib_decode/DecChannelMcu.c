@@ -592,7 +592,13 @@ AL_TIDecChannel* AL_DecChannelMcu_Create()
   if(!decChannel)
     return NULL;
   decChannel->vtable = &DecChannelMcu;
-  DecChannelMcu_Init(decChannel);
+
+  if(!DecChannelMcu_Init(decChannel))
+  {
+    Rtos_Free(decChannel);
+    return NULL;
+  }
+
   return (AL_TIDecChannel*)decChannel;
 }
 
