@@ -1009,7 +1009,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE
   if(!checkProfileCoherency(iBitDepth, eChromaMode, pSettings->tChParam.eProfile))
   {
     MSG("!! Warning : Adapting profile to support bitdepth and chroma mode");
-    pSettings->tChParam.eProfile = AL_IS_AVC(pSettings->tChParam.ePicFormat) ? getAvcMinimiumProfile(iBitDepth, eChromaMode) : getHevcMinimumProfile(iBitDepth, eChromaMode);
+    pSettings->tChParam.eProfile = AL_IS_AVC(pSettings->tChParam.eProfile) ? getAvcMinimiumProfile(iBitDepth, eChromaMode) : getHevcMinimumProfile(iBitDepth, eChromaMode);
     ++numIncoherency;
   }
 
