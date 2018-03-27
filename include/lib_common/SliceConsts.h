@@ -137,6 +137,7 @@ typedef enum __AL_ALIGNED__ (4) AL_e_Profile
 #define AL_IS_422_PROFILE(Prof) (((AL_GET_PROFILE_CODED_AND_IDC(Prof) == AL_PROFILE_HEVC_RExt) && !(AL_GET_RExt_FLAGS(Prof) & 0x0C00)) || (AL_GET_PROFILE_CODED_AND_IDC(Prof) == AL_PROFILE_AVC_HIGH_422))
 #define AL_IS_10BIT_PROFILE(Prof) (((AL_GET_PROFILE_CODED_AND_IDC(Prof) == AL_PROFILE_HEVC_RExt) && !(AL_GET_RExt_FLAGS(Prof) & 0x2000)) || (AL_GET_PROFILE_CODED_AND_IDC(Prof) == AL_PROFILE_HEVC_MAIN10) || (AL_GET_PROFILE_CODED_AND_IDC(Prof) == AL_PROFILE_AVC_HIGH10) || (AL_GET_PROFILE_CODED_AND_IDC(Prof) == AL_PROFILE_AVC_HIGH_422))
 #define AL_IS_LOW_BITRATE_PROFILE(Prof) ((AL_GET_PROFILE_CODED_AND_IDC(Prof) == AL_PROFILE_HEVC_RExt) && (AL_GET_RExt_FLAGS(Prof) & 0x0080))
+#define AL_IS_420_PROFILE(Prof) (!((AL_GET_PROFILE_CODED_AND_IDC(Prof) == AL_PROFILE_HEVC_RExt) && (AL_GET_RExt_FLAGS(Prof) & 0x0400)))
 
 /****************************************************************************/
 typedef enum AL_e_Codec

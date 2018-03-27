@@ -908,7 +908,12 @@ bool checkProfileCoherency(int iBitDepth, AL_EChromaMode eChroma, AL_EProfile eP
       return false;
     break;
   }
-  case CHROMA_4_2_0: break; // 420 is supported by all profiles
+  case CHROMA_4_2_0:
+  {
+    if(!AL_IS_420_PROFILE(eProfile))
+      return false;
+    break;
+  }
   case CHROMA_4_2_2:
   {
     if(!AL_IS_422_PROFILE(eProfile))
