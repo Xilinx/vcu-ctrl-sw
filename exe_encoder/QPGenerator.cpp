@@ -276,7 +276,7 @@ void Generate_BorderQP_VP9(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, int iLCU
 /****************************************************************************/
 static void ReadQPs(ifstream& qpFile, uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBytesPerLCU)
 {
-  char sLine[256];
+  string sLine;
 
   int iNumQPPerLine = (iNumQPPerLCU == 5) ? 5 : 1;
   int iNumDigit = iNumQPPerLine * 2;
@@ -290,7 +290,7 @@ static void ReadQPs(ifstream& qpFile, uint8_t* pQPs, int iNumLCUs, int iNumQPPer
     for(int iQP = 0; iQP < iNumQPPerLCU; ++iQP)
     {
       if(iIdx == 0)
-        qpFile.read(sLine, 256);
+        getline(qpFile, sLine);
 
       pQPs[iFirst + iQP] = FromHex2(sLine[iNumDigit - 2 * iIdx - 2], sLine[iNumDigit - 2 * iIdx - 1]);
 
