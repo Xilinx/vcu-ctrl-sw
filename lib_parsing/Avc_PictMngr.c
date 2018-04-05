@@ -360,7 +360,8 @@ void AL_AVC_PictMngr_Fill_Gap_In_FrameNum(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr
 {
   uint32_t uMaxFrameNum = 1 << (pSlice->m_pSPS->log2_max_frame_num_minus4 + 4);
 
-  if(pSlice->frame_num != pCtx->m_iPrevFrameNum &&
+  if(pSlice->nal_unit_type != 5 && /*non-IDR picture*/
+     pSlice->frame_num != pCtx->m_iPrevFrameNum &&
      pSlice->frame_num != (int)((pCtx->m_iPrevFrameNum + 1) % uMaxFrameNum))
   {
     if(pSlice->m_pSPS->gaps_in_frame_num_value_allowed_flag)
