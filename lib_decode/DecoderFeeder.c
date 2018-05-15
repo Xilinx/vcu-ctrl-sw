@@ -57,6 +57,7 @@ typedef struct AL_TDecoderFeederS
   TCircBuffer decodeBuffer;
   int32_t keepGoing;
   bool stopped;
+  bool endWithAU;
   AL_CB_Error errorCallback;
 }AL_TDecoderFeeder;
 
@@ -72,7 +73,7 @@ static bool shouldKeepGoing(AL_TDecoderFeeder* slave)
 {
   int32_t keepGoing = Rtos_AtomicDecrement(&slave->keepGoing);
   Rtos_AtomicIncrement(&slave->keepGoing);
-  return keepGoing >= 0;
+  return keepGoing >= 0 || !slave->endWithAU;
 }
 
 static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
@@ -92,11 +93,13 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
 
   // Decode Max AU as possible with this data
   AL_ERR eErr = AL_SUCCESS;
-  bool isEndOfFrame = false;
-
   while(eErr != AL_ERR_NO_FRAME_DECODED && shouldKeepGoing(slave))
   {
+  bool isEndOfFrame = false;
     eErr = AL_Decoder_TryDecodeOneAU(hDec, decodeBuffer, &isEndOfFrame);
+
+    if(eErr == AL_SUCCESS)
+	    slave->endWithAU = isEndOfFrame;
 
     if(eErr != AL_ERR_NO_FRAME_DECODED)
     {
@@ -229,6 +232,7 @@ AL_TDecoderFeeder* AL_DecoderFeeder_Create(TMemDesc* decodeMemoryDescriptor, AL_
 
   this->keepGoing = 1;
   this->stopped = true;
+  this->endWithAU = true;
   this->hDec = hDec;
 
   if(!CreateSlave(this))

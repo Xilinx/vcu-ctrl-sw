@@ -97,6 +97,8 @@ void AL_BufferFeeder_Reset(AL_TBufferFeeder* this)
 
 void AL_BufferFeeder_Destroy(AL_TBufferFeeder* this)
 {
+  if(this->eosBuffer)
+    AL_BufferFeeder_PushBuffer(this, this->eosBuffer, AL_BUF_MODE_BLOCK, this->eosBuffer->zSize, false);
   AL_DecoderFeeder_Destroy(this->decoderFeeder);
   AL_Patchworker_Deinit(&this->patchworker);
   AL_Fifo_Deinit(&this->fifo);
