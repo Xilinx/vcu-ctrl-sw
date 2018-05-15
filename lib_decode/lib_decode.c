@@ -63,10 +63,10 @@ void AL_Decoder_SetParam(AL_HDecoder hDec, bool bConceal, bool bUseBoard, int iF
 }
 
 /*****************************************************************************/
-AL_ERR AL_Decoder_TryDecodeOneAU(AL_HDecoder hDec, TCircBuffer* pBufStream)
+AL_ERR AL_Decoder_TryDecodeOneAU(AL_HDecoder hDec, TCircBuffer* pBufStream, bool* pEndOfFrame)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)hDec;
-  return pDec->vtable->pfnTryDecodeOneAU(pDec, pBufStream);
+  return pDec->vtable->pfnTryDecodeOneAU(pDec, pBufStream, pEndOfFrame);
 }
 
 /*****************************************************************************/

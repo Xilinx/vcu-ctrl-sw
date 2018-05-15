@@ -62,7 +62,7 @@ typedef struct
   bool (* pfnPreallocateBuffers)(AL_TDecoder* pDec);
 
   // only for the feeders
-  AL_ERR (* pfnTryDecodeOneAU)(AL_TDecoder* pDec, TCircBuffer* pBufStream);
+  AL_ERR (* pfnTryDecodeOneAU)(AL_TDecoder* pDec, TCircBuffer* pBufStream, bool* pEndOfFrame);
   void (* pfnInternalFlush)(AL_TDecoder* pDec);
   int (* pfnGetStrOffset)(AL_TDecoder* pDec);
   void (* pfnFlushInput)(AL_TDecoder* pDec);

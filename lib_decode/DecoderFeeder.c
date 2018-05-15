@@ -41,7 +41,7 @@
 #include "lib_common/Utils.h"
 
 int AL_Decoder_GetStrOffset(AL_HANDLE hDec);
-AL_ERR AL_Decoder_TryDecodeOneAU(AL_HDecoder hDec, TCircBuffer* pBufStream);
+AL_ERR AL_Decoder_TryDecodeOneAU(AL_HDecoder hDec, TCircBuffer* pBufStream, bool* pEndOfFrame);
 void AL_Decoder_InternalFlush(AL_HDecoder hDec);
 void AL_Default_Decoder_WaitFrameSent(AL_HDecoder hDec);
 void AL_Default_Decoder_ReleaseFrames(AL_HDecoder hDec);
@@ -92,10 +92,11 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
 
   // Decode Max AU as possible with this data
   AL_ERR eErr = AL_SUCCESS;
+  bool isEndOfFrame = false;
 
   while(eErr != AL_ERR_NO_FRAME_DECODED && shouldKeepGoing(slave))
   {
-    eErr = AL_Decoder_TryDecodeOneAU(hDec, decodeBuffer);
+    eErr = AL_Decoder_TryDecodeOneAU(hDec, decodeBuffer, &isEndOfFrame);
 
     if(eErr != AL_ERR_NO_FRAME_DECODED)
     {

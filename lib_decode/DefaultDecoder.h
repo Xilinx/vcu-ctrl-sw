@@ -61,10 +61,11 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel,
    \brief This function performs the decoding of one AU
    \param[in] pAbsDec decoder handle
    \param[in] pBufStream circular buffer containing input bitstream to decode
+   \param[out] pEndOfFrame signal if we encountered an end of frame
    \return If the function returns true (true)
          Otherwise (false)
 *****************************************************************************/
-AL_ERR AL_Default_Decoder_TryDecodeOneAU(AL_TDecoder* pAbsDec, TCircBuffer* pBufStream);
+AL_ERR AL_Default_Decoder_TryDecodeOneAU(AL_TDecoder* pAbsDec, TCircBuffer* pBufStream, bool* pEndOfFrame);
 
 /*************************************************************************//*!
    \brief This function performs DPB operations after frames decoding

@@ -645,7 +645,7 @@ static int FindNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pBufStream, int* 
 }
 
 /*****************************************************************************/
-static bool DecodeOneUnit(AL_TDecCtx* pCtx, TCircBuffer* pBufStream, int iNalCount, int iLastVclNalInAU)
+static bool DecodeOneUnit(AL_TDecCtx* pCtx, TCircBuffer* pBufStream, int iNalCount, int iLastVclNalInAU, bool* pEndOfFrame)
 {
   AL_TNal* nals = (AL_TNal*)pCtx->m_SCTable.tMD.pVirtualAddr;
 
@@ -654,10 +654,12 @@ static bool DecodeOneUnit(AL_TDecCtx* pCtx, TCircBuffer* pBufStream, int iNalCou
 
   int iNumSlice = 0;
 
+  *pEndOfFrame = false;
   for(int iNal = 0; iNal < iNalCount; ++iNal)
   {
     bool bIsLastVclNal = (iNal == iLastVclNalInAU);
-
+    if(bIsLastVclNal)
+      *pEndOfFrame = true;
     AL_TNal CurNal = nals[iNal];
     AL_TNal NextStartCode = nals[iNal + 1];
 
@@ -683,7 +685,7 @@ static bool DecodeOneUnit(AL_TDecCtx* pCtx, TCircBuffer* pBufStream, int iNalCou
 }
 
 /*****************************************************************************/
-AL_ERR AL_Default_Decoder_TryDecodeOneAU(AL_TDecoder* pAbsDec, TCircBuffer* pBufStream)
+AL_ERR AL_Default_Decoder_TryDecodeOneAU(AL_TDecoder* pAbsDec, TCircBuffer* pBufStream, bool* pEndOfFrame)
 {
   AL_TDefaultDecoder* pDec = (AL_TDefaultDecoder*)pAbsDec;
   AL_TDecCtx* pCtx = AL_sGetContext(pDec);
@@ -694,7 +696,7 @@ AL_ERR AL_Default_Decoder_TryDecodeOneAU(AL_TDecoder* pAbsDec, TCircBuffer* pBuf
   if(iNalCount == 0)
     return AL_ERR_NO_FRAME_DECODED; /* no AU found */
 
-  if(!DecodeOneUnit(pCtx, pBufStream, iNalCount, iLastVclNalInAU))
+  if(!DecodeOneUnit(pCtx, pBufStream, iNalCount, iLastVclNalInAU, pEndOfFrame))
     return AL_ERR_INIT_FAILED;
 
   return AL_SUCCESS;
