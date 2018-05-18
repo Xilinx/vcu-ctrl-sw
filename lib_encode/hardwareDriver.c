@@ -53,7 +53,7 @@ void Close(Driver* driver, int fd)
   Rtos_DriverClose((void*)(uintptr_t)fd);
 }
 
-bool PostMessage(Driver* driver, int fd, long unsigned int messageId, void* data)
+AL_ERR PostMessage(Driver* driver, int fd, long unsigned int messageId, void* data)
 {
   (void)driver;
   /* must keep the errno from ioctl */
@@ -69,7 +69,16 @@ bool PostMessage(Driver* driver, int fd, long unsigned int messageId, void* data
     isDone = true;
   }
 
-  return iRet >= 0;
+  if(iRet < 0)
+  {
+    switch(errno)
+    {
+      case ENOMEM: return AL_ERR_NO_MEMORY;
+      default: return AL_ERROR;
+    }
+  }
+
+  return AL_SUCCESS;
 }
 
 static Driver hardwareDriver =

@@ -106,12 +106,18 @@ static AL_ERR createChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEnc
   struct al5_channel_config msg = { 0 };
   setChannelParam(&msg.param, pChParam, pEP1);
 
-  if(!AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_CONFIG_CHANNEL, &msg))
+  auto err = AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_CONFIG_CHANNEL, &msg);
+  if(err != AL_SUCCESS)
   {
-    /* the ioctl might not have been called at all,
-     * so the error_code might no be set. leave it to AL_ERROR in this case */
-    if(msg.status.error_code)
-      errorCode = msg.status.error_code;
+    errorCode = err;
+    if(errorCode == AL_ERROR) // error from channel
+    {
+      /* the ioctl might not have been called at all,
+       * so the error_code might no be set. leave it to AL_ERROR in this case */
+      if(msg.status.error_code)
+        errorCode = msg.status.error_code;
+
+    }
     goto fail;
   }
 
@@ -189,7 +195,7 @@ static bool getRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPic* p
   AL_TSchedulerMcu* schedulerMcu = (AL_TSchedulerMcu*)pScheduler;
   Channel* chan = hChannel;
   struct al5_reconstructed_info msg = { 0 };
-  bool isSuccess = AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_GET_REC_PICTURE, &msg);
+  bool isSuccess = AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_GET_REC_PICTURE, &msg) == AL_SUCCESS;
 
   if(!isSuccess)
     return false;
@@ -222,7 +228,7 @@ static bool releaseRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPi
   AL_TAllocator* pAllocator = schedulerMcu->allocator;
   __u32 fd = AL_LinuxDmaAllocator_GetFd((AL_TLinuxDmaAllocator*)pAllocator, hRecBuf);
 
-  if(!AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_RELEASE_REC_PICTURE, &fd))
+  if(AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_RELEASE_REC_PICTURE, &fd) != AL_SUCCESS)
     return false;
   AL_Allocator_Free(pAllocator, hRecBuf);
   return true;
@@ -243,7 +249,7 @@ static void setCallbacks(Channel* chan, AL_TISchedulerCallBacks* pCBs)
 
 static bool getStatusMsg(Channel* chan, struct al5_params* msg)
 {
-  return AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_WAIT_FOR_STATUS, msg);
+  return AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_WAIT_FOR_STATUS, msg) == AL_SUCCESS;
 }
 
 static void processStatusMsg(Channel* chan, struct al5_params* msg)

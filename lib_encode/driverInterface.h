@@ -36,6 +36,7 @@
 ******************************************************************************/
 
 #pragma once
+#include "lib_common/Error.h"
 #include "lib_rtos/types.h"
 
 typedef struct t_driver Driver;
@@ -43,7 +44,7 @@ struct t_driver
 {
   int (* Open)(Driver* driver, const char* device);
   void (* Close)(Driver* driver, int fd);
-  bool (* PostMessage)(Driver* driver, int fd, long unsigned int messageId, void* data);
+  AL_ERR (* PostMessage)(Driver* driver, int fd, long unsigned int messageId, void* data);
 };
 
 static inline
@@ -59,7 +60,7 @@ void AL_Driver_Close(Driver* driver, int fd)
 }
 
 static inline
-bool AL_Driver_PostMessage(Driver* driver, int fd, long unsigned int messageId, void* data)
+AL_ERR AL_Driver_PostMessage(Driver* driver, int fd, long unsigned int messageId, void* data)
 {
   return driver->PostMessage(driver, fd, messageId, data);
 }
