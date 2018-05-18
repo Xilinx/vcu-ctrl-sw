@@ -164,7 +164,7 @@ static bool encodeOneFrame(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TEncIn
     setEncodeMsg(&msg, pEncInfo, pReqInfo, pBuffersAddrs);
   }
 
-  return AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_ENCODE_ONE_FRM, &msg);
+  return AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_ENCODE_ONE_FRM, &msg) == AL_SUCCESS;
 }
 
 static bool destroyChannel(TScheduler* pScheduler, AL_HANDLE hChannel)
