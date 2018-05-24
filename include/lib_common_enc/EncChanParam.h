@@ -302,6 +302,8 @@ typedef enum e_SrcConvMode // [0] : CompMode | [3:1] : SourceFormat
 typedef enum AL_e_VideoMode
 {
   AL_VM_PROGRESSIVE = 0, /*!< Progressive */
+  AL_VM_INTERLACED_TOP = 1, /*!< interlaced top filed first */
+  AL_VM_INTERLACED_BOTTOM = 2, /*!< interlaced bottom field first */
   AL_VM_MAX_ENUM
 }AL_EVideoMode;
 

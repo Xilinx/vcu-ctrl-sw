@@ -283,6 +283,9 @@ static bool GetValue(const string& sLine, size_t zStartPos, int& Value, size_t& 
   else IF_KEYWORD_1(AUTO, 0xFFFFFFFF)
   else IF_KEYWORD_1(GDR_HORIZONTAL, AL_GDR_HORIZONTAL)
   else IF_KEYWORD_1(GDR_VERTICAL, AL_GDR_VERTICAL)
+  else IF_KEYWORD_P(AL_VM_, PROGRESSIVE)
+  else IF_KEYWORD_P(AL_VM_, INTERLACED_TOP)
+  else IF_KEYWORD_P(AL_VM_, INTERLACED_BOTTOM)
   return false;
 
 #undef IF_KEYWORD_0
@@ -634,6 +637,7 @@ static bool ParseSettings(string & sLine, AL_TEncSettings & Settings, string& sS
   else if(KEYWORD("LowLatInterrupt"))        Settings.tChParam[0].bSubframeLatency = GetBoolValue(sLine); // Deprecated : same behaviour as slicelat
   else if(KEYWORD("NumCore"))                Settings.tChParam[0].uNumCore = GetValue(sLine);
   else if(KEYWORD("CostMode"))               GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_RDO_COST_MODE, sLine);
+  else if(KEYWORD("VideoMode"))              Settings.tChParam[0].eVideoMode = AL_EVideoMode(GetValue(sLine));
   // backward compatibility
   else
     return false;

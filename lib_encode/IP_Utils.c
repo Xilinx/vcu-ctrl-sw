@@ -131,6 +131,12 @@ static void AL_sUpdateProfileTierLevel(AL_TProfilevel* pPTL, AL_TEncChanParam co
       pPTL->general_progressive_source_flag = 1;
       pPTL->general_frame_only_constraint_flag = 1;
     }
+    else
+    {
+      pPTL->general_progressive_source_flag = 0;
+      pPTL->general_interlaced_source_flag = 1;
+      pPTL->general_frame_only_constraint_flag = 0;
+    }
 
     if(pPTL->general_profile_idc == 7)
     {
@@ -944,6 +950,11 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   {
     pSPS->vui_param.field_seq_flag = 0;
     pSPS->vui_param.frame_field_info_present_flag = 0;
+  }
+  else
+  {
+    pSPS->vui_param.field_seq_flag = 1;
+    pSPS->vui_param.frame_field_info_present_flag = 1;
   }
   pSPS->vui_param.default_display_window_flag = 0;
 

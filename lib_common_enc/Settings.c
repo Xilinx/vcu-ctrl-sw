@@ -887,6 +887,12 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   }
 
 
+  if(pChParam->eVideoMode != AL_VM_PROGRESSIVE && !AL_IS_HEVC(pChParam->eProfile))
+  {
+    ++err;
+    MSG("!! Interlaced Video mode is not supported in this profile !!");
+  }
+
   return err;
 }
 
@@ -1341,6 +1347,12 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
   if(pChParam->tGopParam.eGdrMode == AL_GDR_VERTICAL)
     pChParam->eOptions |= AL_OPT_CONST_INTRA_PRED;
+
+  if(pChParam->eVideoMode != AL_VM_PROGRESSIVE)
+  {
+    assert(AL_IS_HEVC(pChParam->eProfile));
+    pSettings->uEnableSEI |= SEI_PT;
+  }
   return numIncoherency;
 }
 

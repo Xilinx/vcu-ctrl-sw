@@ -258,8 +258,18 @@ typedef enum e_SliceType
 typedef enum e_PicStruct
 {
   PS_FRM = 0,
+  PS_TOP_FLD = 1,
+  PS_BOT_FLD = 2,
+  PS_TOP_BOT = 3,
+  PS_BOT_TOP = 4,
+  PS_TOP_BOT_TOP = 5,
+  PS_BOT_TOP_BOT = 6,
   PS_FRM_x2 = 7,
   PS_FRM_x3 = 8,
+  PS_TOP_FLD_WITH_PREV_BOT = 9,
+  PS_BOT_FLD_WITH_PREV_TOP = 10,
+  PS_TOP_FLD_WITH_NEXT_BOT = 11,
+  PS_BOT_FLD_WITH_NEXT_TOP = 12,
   /* should always be last */
   PS_FRM_MAX_ENUM, /* sentinel */
 }AL_EPicStruct;
