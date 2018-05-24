@@ -52,6 +52,7 @@ extern "C"
 #include <limits.h>
 #include <math.h>
 #include <string.h>
+#include <vector>
 
 /*****************************************************************************/
 static bool strict_mode = false;
@@ -214,17 +215,20 @@ static bool GetValue(const string& sLine, size_t zStartPos, int& Value, size_t& 
   else IF_KEYWORD_P(AL_RC_, CBR)
   else IF_KEYWORD_P(AL_RC_, VBR)
   else IF_KEYWORD_P(AL_RC_, LOW_LATENCY)
-  else IF_KEYWORD_P(AL_RC_, PLUGIN)
+  else IF_KEYWORD_P(AL_RC_, CAPPED_VBR)
   else IF_KEYWORD_1(DEFAULT_GOP, AL_GOP_MODE_DEFAULT)
   else IF_KEYWORD_1(PYRAMIDAL_GOP, AL_GOP_MODE_PYRAMIDAL)
+  else IF_KEYWORD_1(ADAPTIVE_GOP, AL_GOP_MODE_ADAPTIVE)
   else IF_KEYWORD_1(LOW_DELAY_P, AL_GOP_MODE_LOW_DELAY_P)
   else IF_KEYWORD_1(LOW_DELAY_B, AL_GOP_MODE_LOW_DELAY_B)
   else IF_KEYWORD_0(DEFAULT_LDA)
   else IF_KEYWORD_0(CUSTOM_LDA)
   else IF_KEYWORD_0(AUTO_LDA)
+  else IF_KEYWORD_0(TEST_LDA)
   else IF_KEYWORD_0(DYNAMIC_LDA)
   else IF_KEYWORD_0(LOAD_LDA)
   else IF_KEYWORD_1(SC_ONLY, 0x7FFFFFFF)
+  else IF_KEYWORD_P(AL_PROFILE_, HEVC_MONO10)
   else IF_KEYWORD_P(AL_PROFILE_, HEVC_MONO)
   else IF_KEYWORD_P(AL_PROFILE_, HEVC_MAIN_422_10_INTRA)
   else IF_KEYWORD_P(AL_PROFILE_, HEVC_MAIN_422_10)
@@ -265,7 +269,6 @@ static bool GetValue(const string& sLine, size_t zStartPos, int& Value, size_t& 
   else IF_KEYWORD_P(AL_, ASPECT_RATIO_4_3)
   else IF_KEYWORD_0(COLOUR_DESC_BT_470_PAL)
   else IF_KEYWORD_0(COLOUR_DESC_BT_709)
-  else IF_KEYWORD_1(ADAPTIVE_B, AL_ADAPTIVE_B)
   else IF_KEYWORD_0(CHROMA_MONO)
   else IF_KEYWORD_0(CHROMA_4_2_0)
   else IF_KEYWORD_0(CHROMA_4_2_2)
@@ -274,15 +277,7 @@ static bool GetValue(const string& sLine, size_t zStartPos, int& Value, size_t& 
   else IF_KEYWORD_P(AL_SCL_, DEFAULT)
   else IF_KEYWORD_P(AL_SCL_, CUSTOM)
   else IF_KEYWORD_P(AL_SCL_, RANDOM)
-  else IF_KEYWORD_A(TRACE_NONE)
-  else IF_KEYWORD_A(TRACE_FRAME)
-  else IF_KEYWORD_A(TRACE_ALL)
-  else IF_KEYWORD_A(TRACE_STATUS)
-  else IF_KEYWORD_1(TRACE_ALWAYS, AL_TRACE_ALL) // backward compatibility
   else IF_KEYWORD_1(ALL, -1)
-  else IF_KEYWORD_A(BURST_256)
-  else IF_KEYWORD_A(BURST_128)
-  else IF_KEYWORD_A(BURST_64)
   else IF_KEYWORD_0(LOAD_QP)
   else IF_KEYWORD_0(LOAD_LDA)
   else IF_KEYWORD_1(AUTO, 0xFFFFFFFF)
@@ -413,6 +408,12 @@ static TFourCC GetFourCCValue(const string & sVal)
     return FOURCC(Y800);
   else if(!sVal.compare("FILE_YUV_4_2_0"))
     return FOURCC(I420);
+  else if(!sVal.compare("RXMA"))
+    return FOURCC(XV10);
+  else if(!sVal.compare("RX0A"))
+    return FOURCC(XV15);
+  else if(!sVal.compare("RX2A"))
+    return FOURCC(XV20);
 
   // read FourCC
   uint32_t uFourCC = 0;
@@ -458,11 +459,9 @@ typedef enum e_Section
   CFG_SEC_INPUT       ,
   CFG_SEC_OUTPUT      ,
   CFG_SEC_SETTINGS    ,
-  CFG_SEC_TRACE       ,
   CFG_SEC_RUN         ,
   CFG_SEC_RATE_CONTROL,
   CFG_SEC_GOP,
-  CFG_SEC_HARDWARE,
 } ESection;
 
 
@@ -473,15 +472,14 @@ static bool ParseSection(string& sLine, ESection & Section)
   else if(KEYWORD("[OUTPUT]"))       Section = CFG_SEC_OUTPUT;
   else if(KEYWORD("[SETTINGS]"))     Section = CFG_SEC_SETTINGS;
   else if(KEYWORD("[RUN]"))          Section = CFG_SEC_RUN;
-  else if(KEYWORD("[TRACE]"))        Section = CFG_SEC_TRACE;
   else if(KEYWORD("[RATE_CONTROL]")) Section = CFG_SEC_RATE_CONTROL;
   else if(KEYWORD("[GOP]"))          Section = CFG_SEC_GOP;
-  else if(KEYWORD("[HARDWARE]"))     Section = CFG_SEC_HARDWARE;
   else
     return false;
 
   return true;
 }
+
 
 /*****************************************************************************/
 static bool ParseInput(string & sLine, ConfigFile& cfg)
@@ -500,13 +498,11 @@ static bool ParseInput(string & sLine, ConfigFile& cfg)
 }
 
 /*****************************************************************************/
-static bool ParseOutput(string & sLine, string & BitstreamFileName,
-                                 string & RecFileName,
-                                 TFourCC & RecFourCC)
+static bool ParseOutput(string & sLine, ConfigFile& cfg)
 {
-       if(KEYWORD("BitstreamFile")) return GetString(sLine, BitstreamFileName);
-  else if(KEYWORD("RecFile"))       return GetString(sLine, RecFileName);
-  else if(KEYWORD("Format"))        RecFourCC = TFourCC(GetFourCC(sLine));
+       if(KEYWORD("BitstreamFile")) return GetString(sLine, cfg.BitstreamFileName);
+  else if(KEYWORD("RecFile"))       return GetString(sLine, cfg.RecFileName);
+  else if(KEYWORD("Format"))        cfg.RecFourCC = TFourCC(GetFourCC(sLine));
   else
     return false;
 
@@ -514,26 +510,36 @@ static bool ParseOutput(string & sLine, string & BitstreamFileName,
 }
 
 /*****************************************************************************/
-static bool ParseRateControl(string & sLine, AL_TEncSettings & Settings)
+static bool GetBoolValue(const string& sLine)
 {
-       if(KEYWORD("RateCtrlMode"))    Settings.tChParam.tRCParam.eRCMode        = AL_ERateCtrlMode(GetValue(sLine));
-  else if(KEYWORD("BitRate"))         Settings.tChParam.tRCParam.uTargetBitRate = GetValue(sLine)*1000;
-  else if(KEYWORD("MaxBitRate"))      Settings.tChParam.tRCParam.uMaxBitRate    = GetValue(sLine)*1000;
-  else if(KEYWORD("FrameRate"))       GetFps(sLine, Settings.tChParam.tRCParam.uFrameRate, Settings.tChParam.tRCParam.uClkRatio);
-  else if(KEYWORD("SliceQP"))         Settings.tChParam.tRCParam.iInitialQP     = GetValue(sLine);
-  else if(KEYWORD("MaxQP"))           Settings.tChParam.tRCParam.iMaxQP         = GetValue(sLine);
-  else if(KEYWORD("MinQP"))           Settings.tChParam.tRCParam.iMinQP         = GetValue(sLine);
+  return bool(GetValue(sLine));
+}
 
-  else if(KEYWORD("InitialDelay"))    Settings.tChParam.tRCParam.uInitialRemDelay  = uint32_t(GetFloat(sLine) * 90000);
-  else if(KEYWORD("CPBSize"))         Settings.tChParam.tRCParam.uCPBSize          = uint32_t(GetFloat(sLine) * 90000);
-  else if(KEYWORD("IPDelta"))         Settings.tChParam.tRCParam.uIPDelta          = GetValue(sLine);
-  else if(KEYWORD("PBDelta"))         Settings.tChParam.tRCParam.uPBDelta          = GetValue(sLine);
+/*****************************************************************************/
+static bool ParseRateControl(string & sLine, AL_TRCParam & RCParam)
+{
+       if(KEYWORD("RateCtrlMode"))    RCParam.eRCMode        = AL_ERateCtrlMode(GetValue(sLine));
+  else if(KEYWORD("BitRate"))         RCParam.uTargetBitRate = GetValue(sLine)*1000;
+  else if(KEYWORD("MaxBitRate"))      RCParam.uMaxBitRate    = GetValue(sLine)*1000;
+  else if(KEYWORD("FrameRate"))       GetFps(sLine, RCParam.uFrameRate, RCParam.uClkRatio);
+  else if(KEYWORD("SliceQP"))         RCParam.iInitialQP     = GetValue(sLine);
+  else if(KEYWORD("MaxQP"))           RCParam.iMaxQP         = GetValue(sLine);
+  else if(KEYWORD("MinQP"))           RCParam.iMinQP         = GetValue(sLine);
+
+  else if(KEYWORD("InitialDelay"))    RCParam.uInitialRemDelay  = uint32_t(GetFloat(sLine) * 90000);
+  else if(KEYWORD("CPBSize"))         RCParam.uCPBSize          = uint32_t(GetFloat(sLine) * 90000);
+  else if(KEYWORD("IPDelta"))         RCParam.uIPDelta          = GetValue(sLine);
+  else if(KEYWORD("PBDelta"))         RCParam.uPBDelta          = GetValue(sLine);
+
+  else if(KEYWORD("ScnChgResilience")) GetFlag(&RCParam.eOptions, AL_RC_OPT_SCN_CHG_RES, sLine);
+
+  else if (KEYWORD("UseGoldenRef"))   RCParam.bUseGoldenRef = GetBoolValue(sLine);
+  else if (KEYWORD("GoldenRefFrequency"))   RCParam.uGoldenRefFrequency = GetValue(sLine);
+  else if (KEYWORD("PGoldenDelta"))   RCParam.uPGoldenDelta = GetValue(sLine);
+
+  else if (KEYWORD("MaxPSNR"))   RCParam.uMaxPSNR = GetFloat(sLine) * 100;
   
-  else if(KEYWORD("ScnChgResilience")) GetFlag(&Settings.tChParam.tRCParam.eOptions, AL_RC_OPT_SCN_CHG_RES, sLine);
-
-  else if (KEYWORD("UseGoldenRef"))   Settings.tChParam.tRCParam.bUseGoldenRef = GetValue(sLine) ? true : false;
-  else if (KEYWORD("GoldenRefFrequency"))   Settings.tChParam.tRCParam.uGoldenRefFrequency = GetValue(sLine);
-  else if (KEYWORD("PGoldenDelta"))   Settings.tChParam.tRCParam.uPGoldenDelta = GetValue(sLine);
+  else if (KEYWORD("MaxPictureSize")) RCParam.uMaxPictureSize = GetValue(sLine) * 1000;
   else
     return false;
 
@@ -543,27 +549,26 @@ static bool ParseRateControl(string & sLine, AL_TEncSettings & Settings)
 /*****************************************************************************/
 static bool ParseGop(string & sLine, AL_TEncSettings & Settings)
 {
-       if(KEYWORD("GopCtrlMode")) Settings.tChParam.tGopParam.eMode      = AL_EGopCtrlMode(GetValue(sLine));
-  else if(KEYWORD("Gop.Length"))  Settings.tChParam.tGopParam.uGopLength = GetValue(sLine);
-  else if(KEYWORD("Gop.FreqIDR")) Settings.tChParam.tGopParam.uFreqIDR   = GetValue(sLine);
-  else if(KEYWORD("Gop.FreqLT"))  Settings.tChParam.tGopParam.uFreqLT    = GetValue(sLine);
-  else if(Settings.tChParam.tGopParam.eMode == AL_GOP_MODE_DEFAULT)
+  if(KEYWORD("GopCtrlMode")) Settings.tChParam[0].tGopParam.eMode      = AL_EGopCtrlMode(GetValue(sLine));
+  else if(KEYWORD("Gop.Length"))  Settings.tChParam[0].tGopParam.uGopLength = GetValue(sLine);
+  else if(KEYWORD("Gop.FreqIDR")) Settings.tChParam[0].tGopParam.uFreqIDR   = GetValue(sLine);
+  else if(KEYWORD("Gop.EnableLT")) Settings.tChParam[0].tGopParam.bEnableLT  = GetBoolValue(sLine);
+  else if(KEYWORD("Gop.FreqLT"))  Settings.tChParam[0].tGopParam.uFreqLT    = GetValue(sLine);
+  else if(
+      (Settings.tChParam[0].tGopParam.eMode == AL_GOP_MODE_DEFAULT)
+      ||(Settings.tChParam[0].tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL)
+      ||(Settings.tChParam[0].tGopParam.eMode == AL_GOP_MODE_ADAPTIVE)
+      )
   {
-    if(KEYWORD("Gop.NumB"))        Settings.tChParam.tGopParam.uNumB      = GetValue(sLine);
+    if(KEYWORD("Gop.NumB"))        Settings.tChParam[0].tGopParam.uNumB      = GetValue(sLine);
     else
       return false;
   }
-  else if(Settings.tChParam.tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL)
+  else if(Settings.tChParam[0].tGopParam.eMode & AL_GOP_FLAG_LOW_DELAY)
   {
-    if(KEYWORD("Gop.NumB"))   Settings.tChParam.tGopParam.uNumB      = GetValue(sLine);
+    if(KEYWORD("Gop.GdrMode"))     Settings.tChParam[0].tGopParam.eGdrMode   = AL_EGdrMode(GetValue(sLine));
     else
       return false;
-  }
-  else if(Settings.tChParam.tGopParam.eMode & AL_GOP_FLAG_LOW_DELAY)
-  {
-    if(KEYWORD("Gop.GdrMode"))     Settings.tChParam.tGopParam.eGdrMode   = AL_EGdrMode(GetValue(sLine));
-    else
-	    return false;
   }
 
   return true;
@@ -572,63 +577,63 @@ static bool ParseGop(string & sLine, AL_TEncSettings & Settings)
 /*****************************************************************************/
 static bool ParseSettings(string & sLine, AL_TEncSettings & Settings, string& sScalingListFile)
 {
-       if(KEYWORD("Profile"))                Settings.tChParam.eProfile  = AL_EProfile(GetValue(sLine));
-  else if(KEYWORD("Level"))                  Settings.tChParam.uLevel    = uint8_t((GetFloat(sLine) + 0.01f)*10);
-  else if(KEYWORD("Tier"))                   Settings.tChParam.uTier     = GetValue(sLine);
+       if(KEYWORD("Profile"))                Settings.tChParam[0].eProfile  = AL_EProfile(GetValue(sLine));
+  else if(KEYWORD("Level"))                  Settings.tChParam[0].uLevel    = uint8_t((GetFloat(sLine) + 0.01f)*10);
+  else if(KEYWORD("Tier"))                   Settings.tChParam[0].uTier     = GetValue(sLine);
 
-  else if(KEYWORD("NumSlices"))              Settings.tChParam.uNumSlices = GetValue(sLine);
-  else if(KEYWORD("SliceSize"))              Settings.tChParam.uSliceSize = GetValue(sLine) * 95 / 100; //add entropy precision error, explicit ceil() for Windows/Unix rounding mismatch.
-  else if(KEYWORD("DependentSlice"))         Settings.bDependentSlice     = GetValue(sLine) ? true : false;
-  else if(KEYWORD("SubframeLatency"))        Settings.tChParam.bSubframeLatency = GetValue(sLine);
+  else if(KEYWORD("NumSlices"))              Settings.tChParam[0].uNumSlices = GetValue(sLine);
+  else if(KEYWORD("SliceSize"))              Settings.tChParam[0].uSliceSize = GetValue(sLine) * 95 / 100; //add entropy precision error, explicit ceil() for Windows/Unix rounding mismatch.
+  else if(KEYWORD("DependentSlice"))         Settings.bDependentSlice     = GetBoolValue(sLine);
+  else if(KEYWORD("SubframeLatency"))        Settings.tChParam[0].bSubframeLatency = GetValue(sLine);
 
   else if(KEYWORD("EnableSEI"))              Settings.uEnableSEI         = uint32_t(GetValue(sLine));
-  else if(KEYWORD("EnableAUD"))              Settings.bEnableAUD         = GetValue(sLine) ? true : false;
-  else if(KEYWORD("EnableFillerData"))       Settings.bEnableFillerData  = GetValue(sLine) ? true : false;
+  else if(KEYWORD("EnableAUD"))              Settings.bEnableAUD         = GetBoolValue(sLine);
+  else if(KEYWORD("EnableFillerData"))       Settings.bEnableFillerData  = GetBoolValue(sLine);
 
   else if(KEYWORD("AspectRatio"))            Settings.eAspectRatio       = AL_EAspectRatio(GetValue(sLine));
   else if(KEYWORD("ColourDescription"))      Settings.eColourDescription = AL_EColourDescription(GetValue(sLine));
-  else if(KEYWORD("ChromaMode"))             AL_SET_CHROMA_MODE(Settings.tChParam.ePicFormat, AL_EChromaMode(GetValue(sLine)));
+  else if(KEYWORD("ChromaMode"))             AL_SET_CHROMA_MODE(Settings.tChParam[0].ePicFormat, AL_EChromaMode(GetValue(sLine)));
 
-  else if(KEYWORD("EntropyMode"))            Settings.tChParam.eEntropyMode = AL_EEntropyMode(GetValue(sLine));
-  else if(KEYWORD("BitDepth"))               AL_SET_BITDEPTH(Settings.tChParam.ePicFormat, GetValue(sLine));
+  else if(KEYWORD("EntropyMode"))            Settings.tChParam[0].eEntropyMode = AL_EEntropyMode(GetValue(sLine));
+  else if(KEYWORD("BitDepth"))               AL_SET_BITDEPTH(Settings.tChParam[0].ePicFormat, GetValue(sLine));
   else if(KEYWORD("ScalingList"))            Settings.eScalingList         = (AL_EScalingList)GetValue(sLine);
   else if(KEYWORD("FileScalingList"))        GetString(sLine, sScalingListFile);
   else if(KEYWORD("QPCtrlMode"))             Settings.eQpCtrlMode          = AL_EQpCtrlMode(GetValue(sLine));
-  else if(KEYWORD("LambdaCtrlMode"))         Settings.tChParam.eLdaCtrlMode         = AL_ELdaCtrlMode(GetValue(sLine));
+  else if(KEYWORD("LambdaCtrlMode"))         Settings.tChParam[0].eLdaCtrlMode         = AL_ELdaCtrlMode(GetValue(sLine));
 
-  else if(KEYWORD("CabacInit"))              Settings.tChParam.uCabacInitIdc    = uint8_t(GetValue(sLine));
-  else if(KEYWORD("PicCbQpOffset"))          Settings.tChParam.iCbPicQpOffset   = int8_t(GetValue(sLine));
-  else if(KEYWORD("PicCrQpOffset"))          Settings.tChParam.iCrPicQpOffset   = int8_t(GetValue(sLine));
-  else if(KEYWORD("SliceCbQpOffset"))        Settings.tChParam.iCbSliceQpOffset = int8_t(GetValue(sLine));
-  else if(KEYWORD("SliceCrQpOffset"))        Settings.tChParam.iCrSliceQpOffset = int8_t(GetValue(sLine));
+  else if(KEYWORD("CabacInit"))              Settings.tChParam[0].uCabacInitIdc    = uint8_t(GetValue(sLine));
+  else if(KEYWORD("PicCbQpOffset"))          Settings.tChParam[0].iCbPicQpOffset   = int8_t(GetValue(sLine));
+  else if(KEYWORD("PicCrQpOffset"))          Settings.tChParam[0].iCrPicQpOffset   = int8_t(GetValue(sLine));
+  else if(KEYWORD("SliceCbQpOffset"))        Settings.tChParam[0].iCbSliceQpOffset = int8_t(GetValue(sLine));
+  else if(KEYWORD("SliceCrQpOffset"))        Settings.tChParam[0].iCrSliceQpOffset = int8_t(GetValue(sLine));
 
 
-  else if(KEYWORD("CuQpDeltaDepth"))         Settings.tChParam.uCuQPDeltaDepth  = int8_t(GetValue(sLine));
+  else if(KEYWORD("CuQpDeltaDepth"))         Settings.tChParam[0].uCuQPDeltaDepth  = int8_t(GetValue(sLine));
 
-  else if(KEYWORD("LoopFilter.BetaOffset"))  Settings.tChParam.iBetaOffset = int8_t(GetValue(sLine));
-  else if(KEYWORD("LoopFilter.TcOffset"))    Settings.tChParam.iTcOffset   = int8_t(GetValue(sLine));
-  else if(KEYWORD("LoopFilter.CrossSlice"))  GetFlag(&Settings.tChParam.eOptions, AL_OPT_LF_X_SLICE, sLine);
-  else if(KEYWORD("LoopFilter.CrossTile"))   GetFlag(&Settings.tChParam.eOptions, AL_OPT_LF_X_TILE, sLine);
-  else if(KEYWORD("LoopFilter"))             GetFlag(&Settings.tChParam.eOptions, AL_OPT_LF, sLine);
+  else if(KEYWORD("LoopFilter.BetaOffset"))  Settings.tChParam[0].iBetaOffset = int8_t(GetValue(sLine));
+  else if(KEYWORD("LoopFilter.TcOffset"))    Settings.tChParam[0].iTcOffset   = int8_t(GetValue(sLine));
+  else if(KEYWORD("LoopFilter.CrossSlice"))  GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_LF_X_SLICE, sLine);
+  else if(KEYWORD("LoopFilter.CrossTile"))   GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_LF_X_TILE, sLine);
+  else if(KEYWORD("LoopFilter"))             GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_LF, sLine);
 
-  else if(KEYWORD("ConstrainedIntraPred"))   GetFlag(&Settings.tChParam.eOptions, AL_OPT_CONST_INTRA_PRED, sLine);
+  else if(KEYWORD("ConstrainedIntraPred"))   GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_CONST_INTRA_PRED, sLine);
 
-  else if(KEYWORD("WaveFront"))              GetFlag(&Settings.tChParam.eOptions, AL_OPT_WPP, sLine);
-  //else if(KEYWORD("Tile"))                   GetFlag((uint32_t *)&Settings.tChParam.eOptions, AL_OPT_TILE, sLine);
-  else if(KEYWORD("ForceLoad"))              Settings.bForceLoad   = GetValue(sLine) ? true : false;
-  else if(KEYWORD("ForceMvOut"))             GetFlag(&Settings.tChParam.eOptions, AL_OPT_FORCE_MV_OUT, sLine);
-  else if(KEYWORD("ForceMvClip"))            GetFlag(&Settings.tChParam.eOptions, AL_OPT_FORCE_MV_CLIP, sLine);
-  else if(KEYWORD("CacheLevel2"))            Settings.iPrefetchLevel2     = GetValue(sLine) * 1024;
+  else if(KEYWORD("WaveFront"))              GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_WPP, sLine);
+  else if(KEYWORD("ForceLoad"))              Settings.bForceLoad   = GetBoolValue(sLine);
+  else if(KEYWORD("ForceMvOut"))             GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_FORCE_MV_OUT, sLine);
+  else if(KEYWORD("ForceMvClip"))            GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_FORCE_MV_CLIP, sLine);
+  else if(KEYWORD("CacheLevel2"))            Settings.iPrefetchLevel2 = GetBoolValue(sLine);
   else if(KEYWORD("ClipHrzRange"))           Settings.uClipHrzRange = uint32_t(GetValue(sLine));
   else if(KEYWORD("ClipVrtRange"))           Settings.uClipVrtRange = uint32_t(GetValue(sLine));
-  else if(KEYWORD("FixPredictor"))           GetFlag(&Settings.tChParam.eOptions, AL_OPT_FIX_PREDICTOR, sLine);
-  else if(KEYWORD("VrtRange_P"))             Settings.tChParam.pMeRange[SLICE_P][1] = GetValue(sLine);
-  else if(KEYWORD("SrcFormat"))              Settings.tChParam.eSrcMode = (AL_ESrcMode)GetValue(sLine);
-  else if(KEYWORD("DisableIntra"))           Settings.bDisIntra  = bool(GetValue(sLine));
-  else if(KEYWORD("AvcLowLat"))              GetFlag(&Settings.tChParam.eOptions, AL_OPT_LOWLAT_SYNC, sLine);
-  else if(KEYWORD("LowLatInterrupt"))        GetFlag(&Settings.tChParam.eOptions, AL_OPT_LOWLAT_INT, sLine);
-  else if(KEYWORD("NumCore"))                Settings.tChParam.uNumCore = GetValue(sLine);
-  else if(KEYWORD("CostMode"))               GetFlag(&Settings.tChParam.eOptions, AL_OPT_RDO_COST_MODE, sLine);
+  else if(KEYWORD("FixPredictor"))           GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_FIX_PREDICTOR, sLine);
+  else if(KEYWORD("VrtRange_P"))             Settings.tChParam[0].pMeRange[SLICE_P][1] = GetValue(sLine);
+  else if(KEYWORD("SrcFormat"))              Settings.tChParam[0].eSrcMode = (AL_ESrcMode)GetValue(sLine);
+  else if(KEYWORD("DisableIntra"))           Settings.bDisIntra  = GetBoolValue(sLine);
+  else if(KEYWORD("AvcLowLat"))              GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_LOWLAT_SYNC, sLine);
+  else if(KEYWORD("SliceLat"))               Settings.tChParam[0].bSubframeLatency = GetBoolValue(sLine);
+  else if(KEYWORD("LowLatInterrupt"))        Settings.tChParam[0].bSubframeLatency = GetBoolValue(sLine); // Deprecated : same behaviour as slicelat
+  else if(KEYWORD("NumCore"))                Settings.tChParam[0].uNumCore = GetValue(sLine);
+  else if(KEYWORD("CostMode"))               GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_RDO_COST_MODE, sLine);
   // backward compatibility
   else
     return false;
@@ -650,24 +655,8 @@ static bool ParseRun(string& sLine, TCfgRunInfo&  RunInfo)
   return true;
 }
 
-/*****************************************************************************/
-static bool ParseTraces(string& sLine, TConfigTrace& CfgTrace)
-{
-       if(KEYWORD("Path"))  GetString(sLine, CfgTrace.sPath);
-  else if(KEYWORD("Mode"))  CfgTrace.eMode = AL_ETraceMode(GetValue(sLine));
-  else if(KEYWORD("Frame")) CfgTrace.iFrame = GetValue(sLine);
-  else
-    return false;
 
-  return true;
-}
 /*****************************************************************************/
-static bool ParseHardware(string& , AL_TEncSettings & )
-{
-  return false;
-}
-/*****************************************************************************/
-
 static string chomp(string sLine)
 {
   // Trim left
@@ -767,7 +756,13 @@ static bool ParseMatrice(ifstream &SLFile, string& sLine, int &iLine, AL_TEncSet
         return false;
     }
   }
-  Settings.bScalingListPresentFlags |= 1 << (iSizeID * 4 + iMatrixID);
+  if (Mode == SL_DC)
+  {
+    int iSizeMatrixID = (iSizeID == 3 && iMatrixID == 3) ? 7 : (iSizeID - 2) * 6 + iMatrixID;
+    Settings.DcCoeffFlag[iSizeMatrixID] = 1;
+  }
+  else
+    Settings.SclFlag[iSizeID][iMatrixID] = 1;
   return true;
 }
 /*****************************************************************************/
@@ -799,13 +794,13 @@ static void GenerateMatrice(AL_TEncSettings & Settings)
 }
 /*****************************************************************************/
 
-static bool ParseScalingListFileWrapped(const string& sSLFileName, AL_TEncSettings & Settings, ostream &errstream)
+static bool ParseScalingListFile(const string& sSLFileName, AL_TEncSettings & Settings, ostream &warnstream)
 {
   ifstream SLFile(sSLFileName.c_str());
 
   if(!SLFile.is_open())
   {
-    errstream << " => No Scaling list file, using Default" << endl;
+    warnstream << " => No Scaling list file, using Default" << endl;
     return false;
   }
   ESLMode eMode;
@@ -834,16 +829,16 @@ static bool ParseScalingListFileWrapped(const string& sSLFileName, AL_TEncSettin
     }
     else if(sLine[0] == '[') // Mode select
     {
-      if(!ParseScalingListMode(sLine, eMode) || (AL_IS_AVC(Settings.tChParam.eProfile) && !ISAVCModeAllowed[eMode]))
+      if(!ParseScalingListMode(sLine, eMode) || (AL_IS_AVC(Settings.tChParam[0].eProfile) && !ISAVCModeAllowed[eMode]))
       {
-        errstream << iLine << " => Invalid command line in Scaling list file, using Default" << endl;
+        warnstream << iLine << " => Invalid command line in Scaling list file, using Default" << endl;
         return false;
       }
       if(eMode < SL_ERR)
       {
         if(!ParseMatrice(SLFile, sLine, iLine, Settings, eMode))
         {
-          errstream << iLine << " => Invalid Matrice in Scaling list file, using Default" << endl;
+          warnstream << iLine << " => Invalid Matrice in Scaling list file, using Default" << endl;
           return false;
         }
       }
@@ -856,10 +851,12 @@ static bool ParseScalingListFileWrapped(const string& sSLFileName, AL_TEncSettin
 static void ParseOneLine(int &iLine,
                          ESection &Section,
                          string& sScalingListFile,
+                         string& sZapperFile,
                          string& sLine,
                          ConfigFile& cfg,
                          ostream & output)
 {
+  (void)sZapperFile;
   auto& Settings = cfg.Settings;
   // Remove comments
   string::size_type pos = sLine.find_first_of('#');
@@ -887,12 +884,10 @@ static void ParseOneLine(int &iLine,
       output << iLine << " => Invalid command line in section INPUT : " << endl << sLine << endl;
       ConfigError();
     }
-    Settings.tChParam.uWidth = cfg.FileInfo.PictWidth;
-    Settings.tChParam.uHeight = cfg.FileInfo.PictHeight;
   }
   else if(Section == CFG_SEC_OUTPUT)
   {
-    if(!ParseOutput(sLine, cfg.BitstreamFileName, cfg.RecFileName, cfg.RecFourCC))
+    if(!ParseOutput(sLine, cfg))
     {
       output << iLine << " => Invalid command line in section OUTPUT : " << endl << sLine << endl;
       ConfigError();
@@ -900,7 +895,7 @@ static void ParseOneLine(int &iLine,
   }
   else if(Section == CFG_SEC_RATE_CONTROL)
   {
-    if(!ParseRateControl(sLine, Settings))
+    if(!ParseRateControl(sLine, Settings.tChParam[0].tRCParam))
     {
       output << iLine << " => Invalid command line in section RATE_CONTROL : " << endl << sLine << endl;
       ConfigError();
@@ -930,37 +925,6 @@ static void ParseOneLine(int &iLine,
       ConfigError();
     }
   }
-  else if(Section == CFG_SEC_TRACE)
-  {
-    if(!ParseTraces(sLine, cfg.CfgTrace))
-    {
-      output << iLine << " => Invalid command line in section TRACE : " << endl << sLine << endl;
-      ConfigError();
-    }
-  }
-  else if(Section == CFG_SEC_HARDWARE)
-  {
-    if(!ParseHardware(sLine, Settings))
-    {
-      output << iLine << " => Invalid command line in section HARDWARE : " << endl << sLine << endl;
-      ConfigError();
-    }
-  }
-}
-
-inline
-static bool ParseScalingListFile(const string& sSLFileName, AL_TEncSettings & Settings)
-{
-  return ParseScalingListFileWrapped(sSLFileName, Settings, std::cerr);
-}
-
-static void WarningNoTraceFrameWrapped(int& iLine, TConfigTrace& CfgTrace, TCfgRunInfo& RunInfo, ostream& errstream)
-{
-    if((CfgTrace.eMode == AL_TRACE_FRAME) && (CfgTrace.iFrame == UINT_MAX)) {
-        errstream << iLine << " Warning : no frame specified for TRACE_FRAME.";
-        errstream << "Use MaxPicture from [RUN] Section instead. " << endl;
-        CfgTrace.iFrame = RunInfo.iMaxPict - 1;
-    }
 }
 
 /* Perform some settings coherence checks after complete parsing. */
@@ -970,15 +934,10 @@ static void PostParsingChecks(AL_TEncSettings & Settings)
 }
 
 
-static void WarningNoTraceFrame(int& iLine, TConfigTrace& CfgTrace, TCfgRunInfo& RunInfo)
-{
-  WarningNoTraceFrameWrapped(iLine, CfgTrace, RunInfo, std::cerr);
-}
-
-static void GetScalingListWrapped(AL_TEncSettings& Settings, string& sScalingListFile, ostream& errstream)
+static void GetScalingList(AL_TEncSettings& Settings, string& sScalingListFile, ostream& errstream)
 {
     if(Settings.eScalingList == AL_SCL_CUSTOM) {
-        if(!ParseScalingListFileWrapped(sScalingListFile, Settings, errstream)) {
+        if(!ParseScalingListFile(sScalingListFile, Settings, errstream)) {
             Settings.eScalingList = AL_SCL_DEFAULT;
         }
     } else if(Settings.eScalingList == AL_SCL_RANDOM) {
@@ -987,14 +946,9 @@ static void GetScalingListWrapped(AL_TEncSettings& Settings, string& sScalingLis
     }
 }
 
-static void GetScalingList(AL_TEncSettings& Settings, string& sScalingListFile)
-{
-  GetScalingListWrapped(Settings, sScalingListFile, std::cerr);
-}
-
 /*****************************************************************************/
 
-void ParseConfigFile(const string& sCfgFileName, ConfigFile& cfg)
+void ParseConfigFile(const string& sCfgFileName, ConfigFile& cfg, ostream& warnStream = cerr)
 {
   strict_mode = cfg.strict_mode;
   ifstream CfgFile(sCfgFileName);
@@ -1004,8 +958,8 @@ void ParseConfigFile(const string& sCfgFileName, ConfigFile& cfg)
 
   ESection Section = CFG_SEC_GLOBAL;
 
-  cfg.CfgTrace.iFrame = UINT_MAX;
   string sScalingListFile = "";
+  string sZapperFile = "";
   int iLine = 0;
   for(;;)
   {
@@ -1013,11 +967,14 @@ void ParseConfigFile(const string& sCfgFileName, ConfigFile& cfg)
     getline(CfgFile, sLine);
     if(CfgFile.fail()) break;
 
-    ParseOneLine(iLine, Section, sScalingListFile,
-      sLine, cfg, cerr);
+    ParseOneLine(iLine, Section, sScalingListFile, sZapperFile, sLine, cfg, cerr);
 
     ++iLine;
   }
+
+
+  AL_SetSrcWidth(&cfg.Settings.tChParam[0], cfg.FileInfo.PictWidth);
+  AL_SetSrcHeight(&cfg.Settings.tChParam[0], cfg.FileInfo.PictHeight);
 
   PostParsingChecks(cfg.Settings);
 
@@ -1025,11 +982,9 @@ void ParseConfigFile(const string& sCfgFileName, ConfigFile& cfg)
   ToNativePath(cfg.YUVFileName);
   ToNativePath(cfg.BitstreamFileName);
   ToNativePath(cfg.RecFileName);
-  ToNativePath(cfg.CfgTrace.sPath);
   ToNativePath(cfg.sCmdFileName);
   ToNativePath(cfg.sRoiFileName);
 
-  WarningNoTraceFrame(iLine, cfg.CfgTrace, cfg.RunInfo);
-  GetScalingList(cfg.Settings, sScalingListFile);
+  GetScalingList(cfg.Settings, sScalingListFile, warnStream);
 }
 /*****************************************************************************/

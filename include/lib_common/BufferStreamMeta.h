@@ -35,6 +35,11 @@
 *
 ******************************************************************************/
 
+/**************************************************************************//*!
+   \addtogroup Buffers
+   @{
+   \file
+ *****************************************************************************/
 #pragma once
 
 #include "lib_common/BufferMeta.h"
@@ -43,33 +48,40 @@
 #define AL_MAX_SECTION (2 * (AL_MAX_ENC_SLICE + 2))
 
 /*************************************************************************//*!
-   \brief MetaData for Stream buffer
+   \brief Useful section of the buffer containing the bitstream
 *****************************************************************************/
 typedef struct AL_t_StreamMetaData
 {
   AL_TMetaData tMeta;
   AL_TStreamSection* pSections;  /*!< Array of sections */
-  uint16_t uNumSection;
-  uint16_t uMaxNumSection;
+  uint16_t uNumSection; /*!< number of sections inside the buffer */
+  uint16_t uMaxNumSection /*!< maximum number of sections available */;
 }AL_TStreamMetaData;
 
+/*************************************************************************//*!
+   \brief Create a stream metadata.
+   \param[in] uMaxNumSection maximum number of sections the user is expecting
+   inside the stream. The library can produce in the worst case AL_MAX_SECTION.
+   The user might want to add his own section and should allocate in consequence.
+*****************************************************************************/
 AL_TStreamMetaData* AL_StreamMetaData_Create(uint16_t uMaxNumSection);
 AL_TStreamMetaData* AL_StreamMetaData_Clone(AL_TStreamMetaData* pMeta);
 
 /*************************************************************************//*!
-   \brief AddSection add a section to the stream. Sections represent the stream
+   \brief Add a section to the stream. Sections represent the stream
    parts where relevant data can be found. They act as a kind of scatter gather
    list.
+   You can add a maximum of uMaxNumSection to a stream metadata.
    \param[in] pMetaData Pointer to the stream metadata
    \param[in] uOffset offset in the stream data of the section
    \param[in] uLength size of the data of the section
    \param[in] uFlags stream section bitfield (see SECTION_xxxxx_FLAG)
-   \return return the id given to the added section
+   \return return the id given to the added section, -1 if the section couldn't be added
 *****************************************************************************/
-uint16_t AL_StreamMetaData_AddSection(AL_TStreamMetaData* pMetaData, uint32_t uOffset, uint32_t uLength, uint32_t uFlags);
+int AL_StreamMetaData_AddSection(AL_TStreamMetaData* pMetaData, uint32_t uOffset, uint32_t uLength, uint32_t uFlags);
 
 /*************************************************************************//*!
-   \brief ChangeSection: Change the information of a previously added section
+   \brief Change the information of a previously added section
    \param[in] pMetaData Pointer to the stream metadata
    \param[in] uSectionID id representing the section you want to change
    \param[in] uOffset new offset of the section
@@ -78,7 +90,7 @@ uint16_t AL_StreamMetaData_AddSection(AL_TStreamMetaData* pMetaData, uint32_t uO
 void AL_StreamMetaData_ChangeSection(AL_TStreamMetaData* pMetaData, uint16_t uSectionID, uint32_t uOffset, uint32_t uLength);
 
 /*************************************************************************//*!
-   \brief SetSectionFlags: Change the flags related to a section (see SECTION_xxxxx_FLAG)
+   \brief Change the flags related to a section (see SECTION_xxxxx_FLAG)
    \param[in] pMetaData Pointer to the stream metadata
    \param[in] uSectionID id representing the section you want to change
    \param[in] uFlags stream section bitfield (see SECTION_xxxxx_FLAG)
@@ -86,8 +98,10 @@ void AL_StreamMetaData_ChangeSection(AL_TStreamMetaData* pMetaData, uint16_t uSe
 void AL_StreamMetaData_SetSectionFlags(AL_TStreamMetaData* pMetaData, uint16_t uSectionID, uint32_t uFlags);
 
 /*************************************************************************//*!
-   \brief ClearAllSections: Remove all the sections of a particular stream metadata
+   \brief Remove all the sections of a particular stream metadata
    \param[in] pMetaData Pointer to the stream metadata
 *****************************************************************************/
 void AL_StreamMetaData_ClearAllSections(AL_TStreamMetaData* pMetaData);
+
+/*@}*/
 

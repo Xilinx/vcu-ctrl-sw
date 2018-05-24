@@ -82,11 +82,12 @@ AL_TStreamMetaData* AL_StreamMetaData_Clone(AL_TStreamMetaData* pMeta)
   return AL_StreamMetaData_Create(pMeta->uMaxNumSection);
 }
 
-uint16_t AL_StreamMetaData_AddSection(AL_TStreamMetaData* pMetaData, uint32_t uOffset, uint32_t uLength, uint32_t uFlags)
+int AL_StreamMetaData_AddSection(AL_TStreamMetaData* pMetaData, uint32_t uOffset, uint32_t uLength, uint32_t uFlags)
 {
-  assert(pMetaData && pMetaData->uNumSection < AL_MAX_SECTION);
-
   uint16_t uSectionID = pMetaData->uNumSection;
+
+  if(!pMetaData || uSectionID >= pMetaData->uMaxNumSection)
+    return -1;
 
   pMetaData->pSections[uSectionID].uOffset = uOffset;
   pMetaData->pSections[uSectionID].uLength = uLength;

@@ -24,36 +24,39 @@ TARGET:=$(shell $(CC) -dumpmachine)
 
 all: true_all
 
--include compiler.mk
-
 ##############################################################
 # basic build rules and external variables
 ##############################################################
 include ctrlsw_version.mk
 include encoder_defs.mk
 include base.mk
+-include compiler.mk
 
 ##############################################################
 # Libraries
 ##############################################################
 -include lib_fpga/project.mk
 include lib_app/project.mk
-
-include lib_cfg/project.mk
 -include lib_common/project.mk
--include lib_common_enc/project.mk
 -include lib_rtos/project.mk
--include lib_preprocess/project.mk
+-include lib_scheduler/project.mk
+-include lib_perfs/project.mk
 
+ifneq ($(ENABLE_TRACES),0)
+-include lib_trace/project.mk
+endif
+ifneq ($(ENABLE_ENCODER),0)
+-include lib_common_enc/project.mk
 -include lib_buf_mngt/project.mk
 -include lib_rate_ctrl/project.mk
 -include lib_bitstream/project.mk
--include lib_scheduler/project.mk
 -include lib_scheduler_enc/project.mk
--include lib_perfs/project.mk
 -include lib_encode/project.mk
-
+ifneq ($(ENABLE_TILE_SRC),0)
+  -include lib_fbc_standalone/project.mk
+endif
 -include lib_conv_yuv/project.mk
+endif
 
 ifneq ($(ENABLE_DECODER),0)
 -include lib_common_dec/project.mk
@@ -74,12 +77,15 @@ endif
 ##############################################################
 # AL_Encoder
 ##############################################################
--include exe_encoder/project.mk
+ifneq ($(ENABLE_ENCODER),0)
+  -include exe_encoder/project.mk
+endif
 
 ##############################################################
 # AL_Compress
 ##############################################################
 ifneq ($(ENABLE_COMP),0)
+  -include lib_fbc_standalone/project.mk
   -include exe_compress/project.mk
 endif
 
@@ -88,6 +94,13 @@ endif
 ##############################################################
 ifneq ($(ENABLE_COMP),0)
   -include exe_decompress/project.mk
+endif
+
+##############################################################
+# AL_Resize
+##############################################################
+ifneq ($(ENABLE_RESIZE),0)
+  -include exe_resize/project.mk
 endif
 
 ##############################################################
@@ -128,7 +141,7 @@ install_headers:
 		$(INSTALL) -d "$(INCLUDE_DIR)/$$dirname" "$(INSTALL_HDR_PATH)/$$dirname"; \
 		$(INSTALL) $(HDR_INSTALL_OPT) "$(INCLUDE_DIR)/$$dirname"/*.h "$(INSTALL_HDR_PATH)/$$dirname"; \
 	done; \
-	$(INSTALL) $(HDR_INSTALL_OPT) "$(INCLUDE_DIR)"/*.h "$(INSTALL_HDR_PATH)";
+	$(INSTALL) $(HDR_INSTALL_OPT) "$(INCLUDE_DIR)"/*.h "$(INSTALL_HDR_PATH)/";
 
 true_all: $(TARGETS)
 

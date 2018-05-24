@@ -36,14 +36,10 @@
 ******************************************************************************/
 
 #pragma once
-#include "lib_common_enc/EncChanParam.h"
+#include "lib_common_enc/EncBuffersInternal.h"
+#include "lib_common_enc/Settings.h"
 
-static const TBufInfo EP1_BUF_LAMBDAS =
-{
-  1, 256, 0
-}; // only 208 bytes used
+bool LoadLambdaFromFile(char const* lambdaFileName, TBufferEP* pEP);
 
-bool GetLambda(AL_ELdaCtrlMode eMode, AL_TEncChanParam const* pChParam, uint8_t* pEP, bool NotGoldenFrame);
-
-/*@}*/
+void LoadCustomLda(TBufferEP* pEP);
 

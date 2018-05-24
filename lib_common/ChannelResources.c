@@ -76,3 +76,4 @@ int GetCoreResources(int coreFrequency, int margin, int hardwareCyclesCount)
   return (coreFrequency - (coreFrequency / 100) * margin) / hardwareCyclesCount;
 }
 
+

@@ -39,4 +39,6 @@ else
 endif
 endif
 
-
+# to be fixed
+$(BIN)/lib_encode/unittests/encode.cpp.o: CFLAGS+=-Wno-deprecated-declarations
+$(BIN)/test/integration/dmabuf/test_dmabuf_encode.cpp.o: CFLAGS+=-Wno-deprecated-declarations

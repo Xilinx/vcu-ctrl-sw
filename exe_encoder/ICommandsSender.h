@@ -41,7 +41,8 @@ struct ICommandsSender
 {
   virtual ~ICommandsSender() {};
   virtual void notifySceneChange(int lookAhead) = 0;
-  virtual void notifyLongTerm() = 0;
+  virtual void notifyIsLongTerm() = 0;
+  virtual void notifyUseLongTerm() = 0;
   virtual void restartGop() = 0;
   virtual void setGopLength(int gopLength) = 0;
   virtual void setNumB(int numB) = 0;

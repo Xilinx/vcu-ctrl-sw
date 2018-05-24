@@ -99,10 +99,10 @@ void AL_AVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufEP
 /****************************************************************************/
 void AL_HEVC_GenerateVPS(AL_THevcVps* pVPS, AL_TEncSettings const* pSettings, int iMaxRef);
 
-void AL_HEVC_GenerateSPS(AL_TSps* pSPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize);
+void AL_HEVC_GenerateSPS(AL_TSps* pSPS, AL_TEncSettings const* pSettings, AL_TEncChanParam const* pChanParam, int iMaxRef, int iCpbSize, int iLayerId);
 void AL_AVC_GenerateSPS(AL_TSps* pSPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize);
 
-void AL_HEVC_GeneratePPS(AL_TPps* pPPS, AL_TEncSettings const* pSettings, int iMaxRef);
+void AL_HEVC_GeneratePPS(AL_TPps* pPPS, AL_TEncSettings const* pSettings, AL_TEncChanParam const* pChanParam, int iMaxRef, int iLayerId);
 void AL_AVC_GeneratePPS(AL_TPps* pPPS, AL_TEncSettings const* pSettings, int iMaxRef);
 
 void AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus);

@@ -38,10 +38,13 @@
 #include "NalDecoder.h"
 #include "NalUnitParserPrivate.h"
 
-bool AL_DecodeOneNal(AL_NonVclNuts nuts, AL_NalParser parser, AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut nut, bool bIsLastAUNal, int* iNumSlice)
+void AL_DecodeOneNal(AL_NonVclNuts nuts, AL_NalParser parser, AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut nut, bool bIsLastAUNal, int* iNumSlice)
 {
   if(parser.isSliceData(nut))
-    return parser.decodeSliceData(pAUP, pCtx, nut, bIsLastAUNal, iNumSlice);
+  {
+    parser.decodeSliceData(pAUP, pCtx, nut, bIsLastAUNal, iNumSlice);
+    return;
+  }
 
   if(nut == nuts.sei && parser.parseSei)
   {
@@ -69,10 +72,8 @@ bool AL_DecodeOneNal(AL_NonVclNuts nuts, AL_NalParser parser, AL_TAup* pAUP, AL_
 
   if(nut == nuts.eos)
   {
-    pCtx->m_bIsFirstPicture = true;
-    pCtx->m_bLastIsEOS = true;
+    pCtx->bIsFirstPicture = true;
+    pCtx->bLastIsEOS = true;
   }
-
-  return false;
 }
 

@@ -57,17 +57,18 @@ void DisplayFrameStatus(int iFrameNum)
 #endif
 }
 
+
 /*****************************************************************************/
 void DisplayVersionInfo()
 {
-  Message("%s - %s v%d.%d.%d - %s\n", IP_DECODER_COMPANY,
-          IP_DECODER_PRODUCT_NAME,
-          IP_VERSION,
-          IP_DECODER_COPYRIGHT);
+  Message("%s - %s v%d.%d.%d - %s\n", AL_DECODER_COMPANY,
+          AL_DECODER_PRODUCT_NAME,
+          AL_DECODER_VERSION,
+          AL_DECODER_COPYRIGHT);
 
   SetConsoleColor(CC_YELLOW);
 
-  Message("%s\n", IP_DECODER_COMMENTS);
+  Message("%s\n", AL_DECODER_COMMENTS);
 
   SetConsoleColor(CC_DEFAULT);
 

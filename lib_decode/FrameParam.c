@@ -57,8 +57,8 @@
 /******************************************************************************/
 static void FillRefPicID(AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP)
 {
-  AL_TDpb* pDpb = &pCtx->m_PictMngr.m_DPB;
-  TBufferListRef* pListRef = &pCtx->m_ListRef;
+  AL_TDpb* pDpb = &pCtx->PictMngr.DPB;
+  TBufferListRef* pListRef = &pCtx->ListRef;
 
   // Reg 9 ~ C
   for(uint8_t uRef = 0; uRef < MAX_REF; ++uRef)
@@ -73,22 +73,22 @@ static void FillRefPicID(AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP)
 /******************************************************************************/
 static void FillConcealValue(AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP)
 {
-  AL_TDpb* pDpb = &pCtx->m_PictMngr.m_DPB;
+  AL_TDpb* pDpb = &pCtx->PictMngr.DPB;
 
-  if(pDpb->m_uLastPOC == 0xFF)
+  if(pDpb->uLastPOC == 0xFF)
     pSP->ValidConceal = false;
   else
   {
     pSP->ValidConceal = true;
-    pSP->ColocPicID = pDpb->m_Nodes[pCtx->m_PictMngr.m_DPB.m_uLastPOC].uPicID;
+    pSP->ColocPicID = pDpb->Nodes[pCtx->PictMngr.DPB.uLastPOC].uPicID;
   }
 }
 
 /******************************************************************************/
 void AL_AVC_FillPictParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx* pCtx, AL_TDecPicParam* pPP)
 {
-  const AL_TAvcSps* pSps = pSlice->m_pSPS;
-  const AL_TAvcPps* pPps = pSlice->m_pPPS;
+  const AL_TAvcSps* pSps = pSlice->pSPS;
+  const AL_TAvcPps* pPps = pSlice->pPPS;
 
   pPP->num_tile_columns = 1;
   pPP->num_tile_rows = 1;
@@ -129,7 +129,9 @@ void AL_AVC_FillPictParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx* 
   AL_SET_DEC_OPT(pPP, ConstrainedIntraPred, pPps->constrained_intra_pred_flag);
 
   // Reg 0x13
-  pPP->CurrentPOC = pCtx->m_PictMngr.m_iCurFramePOC;
+  pPP->CurrentPOC = pCtx->PictMngr.iCurFramePOC;
+
+  pPP->ePicStruct = PS_FRM;
 
   AL_SET_DEC_OPT(pPP, Tile, 0);
 }
@@ -137,7 +139,7 @@ void AL_AVC_FillPictParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx* 
 /******************************************************************************/
 void AL_AVC_FillSliceParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP, AL_TDecPicParam* pPP, bool bConceal)
 {
-  const AL_TAvcPps* pPps = pSlice->m_pPPS;
+  const AL_TAvcPps* pPps = pSlice->pPPS;
 
   Rtos_Memset(pSP, 0, sizeof(AL_TDecSliceParam));
 
@@ -158,14 +160,14 @@ void AL_AVC_FillSliceParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx*
   pSP->beta_offset_div2 = pSlice->slice_beta_offset_div2;
   pSP->LoopFilter = (pSlice->disable_deblocking_filter_idc & FILT_DISABLE);
   pSP->XSliceLoopFilter = !(pSlice->disable_deblocking_filter_idc & FILT_DIS_SLICE);
-  pSP->WPTableID = pCtx->m_PictMngr.m_uNumSlice;
+  pSP->WPTableID = pCtx->PictMngr.uNumSlice;
 
   // Reg 5
   if(pSP->eSliceType == SLICE_CONCEAL)
   {
-    pSP->FirstLCU = pCtx->m_PictMngr.m_uNumSlice;
-    pSP->FirstLcuSliceSegment = pCtx->m_PictMngr.m_uNumSlice;
-    pSP->FirstLcuSlice = pCtx->m_PictMngr.m_uNumSlice;
+    pSP->FirstLCU = pCtx->PictMngr.uNumSlice;
+    pSP->FirstLcuSliceSegment = pCtx->PictMngr.uNumSlice;
+    pSP->FirstLcuSlice = pCtx->PictMngr.uNumSlice;
   }
   else
   {
@@ -189,7 +191,7 @@ void AL_AVC_FillSliceParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx*
   }
   else if(pSP->eSliceType == SLICE_B)
   {
-    switch(pSlice->m_pPPS->weighted_bipred_idc)
+    switch(pSlice->pPPS->weighted_bipred_idc)
     {
     case 0: // WP_DEFAULT
       pSP->WeightedPred = 0;
@@ -214,8 +216,8 @@ void AL_AVC_FillSliceParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx*
 /******************************************************************************/
 void AL_AVC_FillSlicePicIdRegister(AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP)
 {
-  AL_TDpb* pDpb = &pCtx->m_PictMngr.m_DPB;
-  TBufferListRef* pListRef = &pCtx->m_ListRef;
+  AL_TDpb* pDpb = &pCtx->PictMngr.DPB;
+  TBufferListRef* pListRef = &pCtx->ListRef;
 
   FillRefPicID(pCtx, pSP);
 
@@ -232,8 +234,8 @@ void AL_AVC_FillSlicePicIdRegister(AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP)
 void AL_HEVC_FillPictParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx* pCtx, AL_TDecPicParam* pPP)
 {
   // fast access
-  AL_THevcSps* pSps = pSlice->m_pSPS;
-  const AL_THevcPps* pPps = pSlice->m_pPPS;
+  AL_THevcSps* pSps = pSlice->pSPS;
+  const AL_THevcPps* pPps = pSlice->pPPS;
 
   pPP->MaxTransfoDepthIntra = pSps->max_transform_hierarchy_depth_intra;
   pPP->MaxTransfoDepthInter = pSps->max_transform_hierarchy_depth_inter;
@@ -311,7 +313,9 @@ void AL_HEVC_FillPictParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx
   }
 
   // Reg J
-  pPP->CurrentPOC = pCtx->m_PictMngr.m_iCurFramePOC;
+  pPP->CurrentPOC = pCtx->PictMngr.iCurFramePOC;
+
+  pPP->ePicStruct = (AL_EPicStruct)pCtx->aup.hevcAup.ePicStruct;
 
   if(pPps->tiles_enabled_flag)
   {
@@ -326,9 +330,8 @@ void AL_HEVC_FillPictParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx
 /******************************************************************************/
 void AL_HEVC_FillSliceParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP, bool bConceal)
 {
-  int i;
   // fast access
-  const AL_THevcPps* pPps = pSlice->m_pPPS;
+  const AL_THevcPps* pPps = pSlice->pPPS;
 
   pSP->MaxMergeCand = 5 - pSlice->five_minus_max_num_merge_cand;
   pSP->ColocFromL0 = pSlice->collocated_from_l0_flag;
@@ -353,7 +356,7 @@ void AL_HEVC_FillSliceParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCt
   pSP->LoopFilter = (bool)pSlice->slice_deblocking_filter_disabled_flag;
   pSP->XSliceLoopFilter = (bool)pSlice->slice_loop_filter_across_slices_enabled_flag;
   pSP->CuChromaQpOffset = (bool)pSlice->cu_chroma_qp_offset_enabled_flag;
-  pSP->WPTableID = pCtx->m_PictMngr.m_uNumSlice;
+  pSP->WPTableID = pCtx->PictMngr.uNumSlice;
 
   // Reg 5
   pSP->NumRefIdxL0Minus1 = pSlice->num_ref_idx_l0_active_minus1;
@@ -369,8 +372,8 @@ void AL_HEVC_FillSliceParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCt
   if(pSP->eSliceType == SLICE_CONCEAL)
   {
     // search prev slice
-    uint16_t uSliceID = pCtx->m_PictMngr.m_uNumSlice;
-    AL_TDecSliceParam* pPrevSP = uSliceID ? &(((AL_TDecSliceParam*)pCtx->m_PoolSP[pCtx->m_uToggle].tMD.pVirtualAddr)[uSliceID - 1]) : NULL;
+    uint16_t uSliceID = pCtx->PictMngr.uNumSlice;
+    AL_TDecSliceParam* pPrevSP = uSliceID ? &(((AL_TDecSliceParam*)pCtx->PoolSP[pCtx->uToggle].tMD.pVirtualAddr)[uSliceID - 1]) : NULL;
 
     if(pPrevSP)
     {
@@ -379,8 +382,8 @@ void AL_HEVC_FillSliceParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCt
     }
     else
     {
-      pSP->FirstLcuSliceSegment = pCtx->m_PictMngr.m_uNumSlice;
-      pSP->FirstLcuSlice = pCtx->m_PictMngr.m_uNumSlice;
+      pSP->FirstLcuSliceSegment = pCtx->PictMngr.uNumSlice;
+      pSP->FirstLcuSlice = pCtx->PictMngr.uNumSlice;
     }
   }
   else
@@ -388,21 +391,21 @@ void AL_HEVC_FillSliceParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCt
     pSP->FirstLcuSliceSegment = pSlice->slice_segment_address;
     pSP->FirstLcuSlice = pSlice->slice_segment_address;
   }
-  pSP->FirstLcuTileID = pCtx->m_uCurTileID;
+  pSP->FirstLcuTileID = pCtx->uCurTileID;
 
   // Reg E
   pSP->WeightedPred = pPps->weighted_pred_flag;
   pSP->WeightedBiPred = pPps->weighted_bipred_flag;
 
-  for(i = 0; i <= pSlice->num_entry_point_offsets; ++i)
+  for(int i = 0; i <= pSlice->num_entry_point_offsets; ++i)
     pSP->entry_point_offset[i] = pSlice->entry_point_offset_minus1[i];
 }
 
 /******************************************************************************/
 void AL_HEVC_FillSlicePicIdRegister(const AL_THevcSliceHdr* pSlice, AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP)
 {
-  TBufferListRef* pListRef = &pCtx->m_ListRef;
-  AL_TDpb* pDpb = &pCtx->m_PictMngr.m_DPB;
+  TBufferListRef* pListRef = &pCtx->ListRef;
+  AL_TDpb* pDpb = &pCtx->PictMngr.DPB;
 
   FillRefPicID(pCtx, pSP);
 

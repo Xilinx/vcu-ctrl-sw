@@ -48,7 +48,7 @@ class IConvSrc
 public:
   virtual ~IConvSrc() {};
 
-  virtual AL_UINT GetConvBufSize() = 0;
+  virtual unsigned int GetSrcBufSize(int iPitch, int iStrideHeight) = 0;
   virtual void ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut) = 0;
 };
 

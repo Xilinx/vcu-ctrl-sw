@@ -55,7 +55,7 @@ extern "C"
 #include "lib_common/BufferSrcMeta.h"
 #include "lib_decode/lib_decode.h"
 #include "lib_common_dec/DecBuffers.h"
-#include "lib_common/FourCC.h"
+#include "lib_common_dec/IpDecFourCC.h"
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/Utils.h"
 }
@@ -66,6 +66,7 @@ extern "C"
 #include "lib_app/timing.h"
 #include "lib_app/utils.h"
 #include "lib_app/CommandLineParser.h"
+#include "lib_app/FileIOUtils.h"
 
 #include "Conversion.h"
 #include "al_resource.h"
@@ -73,22 +74,16 @@ extern "C"
 #include "CodecUtils.h"
 #include "crc.h"
 
-#ifndef HW_IP_BIT_DEPTH
-#define HW_IP_BIT_DEPTH 10
-#endif
-
 using namespace std;
 
 const char* ToString(AL_ERR eErrCode)
 {
   switch(eErrCode)
   {
-  case AL_ERR_INIT_FAILED: return "Failed to initialize the decoder due to parameters inconsistency";
   case AL_ERR_CHAN_CREATION_NO_CHANNEL_AVAILABLE: return "Channel not created, no channel available";
   case AL_ERR_CHAN_CREATION_RESOURCE_UNAVAILABLE: return "Channel not created, processing power of the available cores insufficient";
   case AL_ERR_CHAN_CREATION_NOT_ENOUGH_CORES: return "Channel not created, couldn't spread the load on enough cores";
   case AL_ERR_REQUEST_MALFORMED: return "Channel not created: request was malformed";
-  case AL_ERR_NO_FRAME_DECODED: return "No frame decoded";
   case AL_ERR_RESOLUTION_CHANGE: return "Resolution Change is not supported";
   case AL_ERR_NO_MEMORY: return "Memory shortage detected (dma, embedded memory or virtual memory shortage)";
   case AL_SUCCESS: return "Success";
@@ -107,6 +102,7 @@ struct codec_error : public runtime_error
 
 /******************************************************************************/
 
+static const uint32_t uDefaultNumBuffersHeldByNextComponent = 1; /* We need at least 1 buffer to copy the output on a file */
 static bool bCertCRC = false;
 
 AL_TDecSettings getDefaultDecSettings()
@@ -126,6 +122,8 @@ AL_TDecSettings getDefaultDecSettings()
   settings.tStream.eChroma = CHROMA_MAX_ENUM;
   settings.tStream.iBitDepth = -1;
   settings.tStream.iProfileIdc = -1;
+  settings.eCodec = AL_CODEC_HEVC;
+
 
   return settings;
 }
@@ -173,6 +171,7 @@ static void Usage(CommandLineParser const& opt, char* ExeName)
   cerr << "Examples:" << endl;
   cerr << "  " << ExeName << " -avc  -in bitstream.264 -out decoded.yuv -bd 8 " << endl;
   cerr << "  " << ExeName << " -hevc -in bitstream.265 -out decoded.yuv -bd 10" << endl;
+  cerr << "  " << ExeName << " -jpeg -in bitstream.jpg -out decoded.yuv" << endl;
   cerr << endl;
 }
 
@@ -180,6 +179,16 @@ template<int Offset>
 static int IntWithOffset(const string& word)
 {
   return atoi(word.c_str()) + Offset;
+}
+
+/******************************************************************************/
+static AL_EFbStorageMode getOutputStorageMode(const AL_TDecSettings& decSettings, bool& bOutputCompression)
+{
+  AL_EFbStorageMode eOutputStorageMode = decSettings.eFBStorageMode;
+  bOutputCompression = decSettings.bFrameBufferCompression;
+
+
+  return eOutputStorageMode;
 }
 
 void getExpectedSeparator(stringstream& ss, char expectedSep)
@@ -248,10 +257,12 @@ static Config ParseCommandLine(int argc, char* argv[])
 
   bool quiet = false;
   int fps = 0;
+  bool version = false;
 
   auto opt = CommandLineParser();
 
   opt.addFlag("--help,-h", &Config.help, "Shows this help");
+  opt.addFlag("--version", &version, "Show version");
   opt.addString("-in,-i", &Config.sIn, "Input bitstream");
   opt.addString("-out,-o", &Config.sOut, "Output YUV");
   opt.addInt("-nbuf", &Config.uInputBufferNum, "Specify the number of input feeder buffer");
@@ -282,6 +293,7 @@ static Config ParseCommandLine(int argc, char* argv[])
   }, "Store frame buffers in tiles format");
 
 
+
   opt.addOption("-t", [&]()
   {
     Config.iNumTrace = opt.popInt();
@@ -302,13 +314,14 @@ static Config ParseCommandLine(int argc, char* argv[])
               "Specify decoder latency (default: Frame Latency)",
               AL_AU_UNIT);
 
-  opt.addFlag("-avc", &Config.tDecSettings.bIsAvc,
+  opt.addFlag("-avc", &Config.tDecSettings.eCodec,
               "Specify the input bitstream codec (default: HEVC)",
-              true);
+              AL_CODEC_AVC);
 
-  opt.addFlag("-hevc", &Config.tDecSettings.bIsAvc,
+  opt.addFlag("-hevc", &Config.tDecSettings.eCodec,
               "Specify the input bitstream codec (default: HEVC)",
-              false);
+              AL_CODEC_HEVC);
+
 
   opt.addFlag("-noyuv", &Config.bEnableYUVOutput,
               "Disable writing output YUV file",
@@ -332,12 +345,24 @@ static Config ParseCommandLine(int argc, char* argv[])
     return Config;
   }
 
-  if(Config.tDecSettings.bFrameBufferCompression)
+  if(version)
   {
-    if(!Config.sOut.empty())
-      throw runtime_error("Output unavaible with fbc");
-    Config.bEnableYUVOutput = false;
+    DisplayVersionInfo();
+    exit(0);
   }
+
+  bool bOutputCompression;
+  getOutputStorageMode(Config.tDecSettings, bOutputCompression);
+
+  if(bOutputCompression)
+  {
+    if(bCertCRC)
+    {
+      throw runtime_error("Certification CRC unavaible with fbc");
+    }
+    bCertCRC = false;
+  }
+
 
   if(Config.sOut.empty())
     Config.sOut = "dec.yuv";
@@ -401,58 +426,6 @@ static int GetPictureSizeInSamples(AL_TSrcMetaData* meta)
   return sampleCount;
 }
 
-static TFourCC GetInternalFourCC(AL_EChromaMode eChromaMode, uint8_t uBitDepth, AL_EFbStorageMode eFBStorageMode)
-{
-  if(eFBStorageMode == AL_FB_RASTER)
-  {
-    if(uBitDepth == 8)
-    {
-      switch(eChromaMode)
-      {
-      case CHROMA_4_2_0: return FOURCC(I420);
-      case CHROMA_4_2_2: return FOURCC(I422);
-      case CHROMA_MONO: return FOURCC(Y800);
-      default: assert(0);
-      }
-    }
-    else
-    {
-      switch(eChromaMode)
-      {
-      case CHROMA_4_2_0: return FOURCC(I0AL);
-      case CHROMA_4_2_2: return FOURCC(I2AL);
-      case CHROMA_MONO: return FOURCC(Y010);
-      default: assert(0);
-      }
-    }
-  }
-  else
-  {
-    if(uBitDepth == 8)
-    {
-      switch(eChromaMode)
-      {
-      case CHROMA_4_2_0: return FOURCC(T608);
-      case CHROMA_4_2_2: return FOURCC(T628);
-      case CHROMA_MONO: return FOURCC(T608);
-      default: assert(0);
-      }
-    }
-    else
-    {
-      switch(eChromaMode)
-      {
-      case CHROMA_4_2_0: return FOURCC(T60A);
-      case CHROMA_4_2_2: return FOURCC(T62A);
-      case CHROMA_MONO: return FOURCC(T60A);
-      default: assert(0);
-      }
-    }
-  }
-  assert(0);
-  return FOURCC(I420);
-}
-
 AL_TO_IP Get8BitsConversionFunction(int iPicFmt)
 {
   auto const CHROMA_MONO_8bitTo8bit = 0x00080800;
@@ -493,22 +466,20 @@ AL_TO_IP Get10BitsConversionFunction(int iPicFmt)
 
   auto const CHROMA_422_10bitTo10bit = 0x000A0A02;
   auto const CHROMA_422_10bitTo8bit = 0x00080A02;
-
-  bool bPlanar = false;
   switch(iPicFmt)
   {
   case CHROMA_420_10bitTo10bit:
-    return bPlanar ? P010_To_I0AL : RX0A_To_I0AL;
+    return XV15_To_I0AL;
   case CHROMA_420_10bitTo8bit:
-    return bPlanar ? P010_To_I420 : RX0A_To_I420;
+    return XV15_To_I420;
   case CHROMA_422_10bitTo10bit:
-    return bPlanar ? P210_To_I2AL : RX2A_To_I2AL;
+    return XV20_To_I2AL;
   case CHROMA_422_10bitTo8bit:
-    return bPlanar ? P210_To_I422 : RX2A_To_I422;
+    return XV20_To_I422;
   case CHROMA_MONO_10bitTo10bit:
-    return bPlanar ? P010_To_Y010 : RX0A_To_Y010;
+    return XV15_To_Y010;
   case CHROMA_MONO_10bitTo8bit:
-    return bPlanar ? P010_To_Y800 : RX0A_To_Y800;
+    return XV15_To_Y800;
   default:
     assert(0);
     return nullptr;
@@ -586,21 +557,25 @@ AL_TO_IP GetConversionFunction(TFourCC input, int iBdOut)
 
 static void FillInternalOffsets(AL_TSrcMetaData* pMeta, AL_EFbStorageMode eFBStorageMode)
 {
-  auto iBdIn = AL_GetBitDepth(pMeta->tFourCC);
-
   pMeta->tOffsetYC.iLuma = 0;
   AL_TDimension tDim = pMeta->tDim;
-  pMeta->tOffsetYC.iChroma = AL_GetAllocSize_DecReference(tDim, CHROMA_MONO, iBdIn, eFBStorageMode);
+  pMeta->tOffsetYC.iChroma = AL_GetAllocSize_DecReference(tDim, pMeta->tPitches.iLuma, CHROMA_MONO, eFBStorageMode);
 }
 
-static void ConvertFrameBuffer(AL_TBuffer& input, int iBdIn, AL_TBuffer& output, int iBdOut, AL_EFbStorageMode eFBStorageMode)
+static void ConvertFrameBuffer(AL_TBuffer& input, int iBdIn, AL_TBuffer& output, int iBdOut)
 {
   auto pRecMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(&input, AL_META_TYPE_SOURCE);
-  auto eChromaMode = AL_GetChromaMode(pRecMeta->tFourCC);
-  pRecMeta->tFourCC = GetInternalFourCC(eChromaMode, iBdIn, eFBStorageMode);
+  AL_TPicFormat tPicFormat =
+  {
+    AL_GetChromaMode(pRecMeta->tFourCC),
+    (uint8_t)iBdIn,
+    AL_GetStorageMode(pRecMeta->tFourCC)
+  };
+
+  pRecMeta->tFourCC = AL_GetDecFourCC(tPicFormat);
   auto const iSizePix = (iBdOut + 7) >> 3;
   uint32_t uSize = GetPictureSizeInSamples(pRecMeta) * iSizePix;
-  FillInternalOffsets(pRecMeta, eFBStorageMode);
+  FillInternalOffsets(pRecMeta, tPicFormat.eStorageMode);
 
   if(uSize != output.zSize)
   {
@@ -614,68 +589,13 @@ static void ConvertFrameBuffer(AL_TBuffer& input, int iBdIn, AL_TBuffer& output,
   pYuvMeta->tDim.iWidth = pRecMeta->tDim.iWidth;
   pYuvMeta->tDim.iHeight = pRecMeta->tDim.iHeight;
   pYuvMeta->tPitches.iLuma = iSizePix * pRecMeta->tDim.iWidth;
-  pYuvMeta->tPitches.iChroma = iSizePix * ((eChromaMode == CHROMA_4_4_4) ? pRecMeta->tDim.iWidth : pRecMeta->tDim.iWidth >> 1);
-  pYuvMeta->tOffsetYC.iLuma = pYuvMeta->tPitches.iLuma / iSizePix * pYuvMeta->tDim.iHeight;
-  int iCScale = eChromaMode == CHROMA_4_2_2 ? 2 : eChromaMode == CHROMA_4_2_0 ? 4 : 1;
-  pYuvMeta->tOffsetYC.iChroma = pYuvMeta->tOffsetYC.iLuma + pYuvMeta->tOffsetYC.iLuma / iCScale;
+  pYuvMeta->tPitches.iChroma = iSizePix * ((tPicFormat.eChromaMode == CHROMA_4_4_4) ? pRecMeta->tDim.iWidth : pRecMeta->tDim.iWidth >> 1);
+  /* unused */
+  pYuvMeta->tOffsetYC.iLuma = 0;
+  pYuvMeta->tOffsetYC.iChroma = 0;
 
   auto AllegroConvert = GetConversionFunction(pRecMeta->tFourCC, iBdOut);
   AllegroConvert(&input, &output);
-}
-
-/******************************************************************************/
-static void ProcessFrame(AL_TBuffer& tRecBuf, AL_TBuffer& tYuvBuf, AL_TInfoDecode info, int iBdOut, std::ofstream& ofYuvFile, std::ofstream& ofIPCrcFile, std::ofstream& ofCertCrcFile)
-{
-  auto pRecMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(&tRecBuf, AL_META_TYPE_SOURCE);
-  auto pYuvMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(&tYuvBuf, AL_META_TYPE_SOURCE);
-
-  if(ofIPCrcFile.is_open())
-    ofIPCrcFile << std::setfill('0') << std::setw(8) << (int)info.uCRC << std::endl;
-
-  if(ofYuvFile.is_open() || ofCertCrcFile.is_open())
-  {
-    int iBdIn = max(info.uBitDepthY, info.uBitDepthC);
-
-    if(iBdIn > 8)
-      iBdIn = 10;
-
-    if(iBdOut > 8)
-      iBdOut = 10;
-
-    auto const iSizePix = (iBdOut + 7) >> 3;
-
-    ConvertFrameBuffer(tRecBuf, iBdIn, tYuvBuf, iBdOut, info.eFbStorageMode);
-
-    if(info.tCrop.bCropping)
-      CropFrame(&tYuvBuf, iSizePix, info.tCrop.uCropOffsetLeft, info.tCrop.uCropOffsetRight, info.tCrop.uCropOffsetTop, info.tCrop.uCropOffsetBottom);
-
-    if(ofCertCrcFile.is_open())
-    {
-      // compute crc
-      int sx = 1, sy = 1;
-      AL_GetSubsampling(pRecMeta->tFourCC, &sx, &sy);
-      int const iNumPix = pYuvMeta->tDim.iHeight * pYuvMeta->tDim.iWidth;
-      int const iNumPixC = iNumPix / sx / sy;
-      auto eChromaMode = AL_GetChromaMode(pRecMeta->tFourCC);
-
-      if(iBdOut == 8)
-      {
-        uint8_t* pBuf = AL_Buffer_GetData(&tYuvBuf);
-        Compute_CRC(info.uBitDepthY, info.uBitDepthC, iBdOut, iNumPix, iNumPixC, eChromaMode, pBuf, ofCertCrcFile);
-      }
-      else
-      {
-        uint16_t* pBuf = (uint16_t*)AL_Buffer_GetData(&tYuvBuf);
-        Compute_CRC(info.uBitDepthY, info.uBitDepthC, iBdOut, iNumPix, iNumPixC, eChromaMode, pBuf, ofCertCrcFile);
-      }
-    }
-
-    if(ofYuvFile.is_open())
-    {
-      auto uSize = GetPictureSizeInSamples(pYuvMeta) * iSizePix;
-      ofYuvFile.write((const char*)AL_Buffer_GetData(&tYuvBuf), uSize);
-    }
-  }
 }
 
 /******************************************************************************/
@@ -692,6 +612,9 @@ struct Display
   }
 
   void Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo);
+  void ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut);
+  void ProcessCompressedFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info);
+  void ProcessNotCompressedFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut);
 
   AL_HDecoder hDec = NULL;
   AL_EVENT hExitMain = NULL;
@@ -700,8 +623,8 @@ struct Display
   ofstream CertCrcFile;
   AL_TBuffer* YuvBuffer = NULL;
   int iBitDepth = 8;
-  AL_UINT NumFrames = 0;
-  AL_UINT MaxFrames = UINT_MAX;
+  unsigned int NumFrames = 0;
+  unsigned int MaxFrames = UINT_MAX;
   mutex hMutex;
   int iNumFrameConceal = 0;
 };
@@ -711,7 +634,9 @@ struct ResChgParam
   AL_HDecoder hDec;
   bool bPoolIsInit;
   BufPool bufPool;
+  AL_TDecSettings* pDecSettings;
   AL_TAllocator* pAllocator;
+  AL_TDecSettings* pSettings;
   mutex hMutex;
 };
 
@@ -790,7 +715,7 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
 
   assert(AL_Buffer_GetData(pFrame));
 
-  ProcessFrame(*pFrame, *YuvBuffer, *pInfo, iBitDepth, YuvFile, IpCrcFile, CertCrcFile);
+  ProcessFrame(*pFrame, *pInfo, iBitDepth);
   AL_Decoder_PutDisplayPicture(hDec, pFrame);
 
   DisplayFrameStatus(NumFrames);
@@ -800,6 +725,69 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
     Rtos_SetEvent(hExitMain);
 }
 
+/******************************************************************************/
+void Display::ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut)
+{
+  if(IpCrcFile.is_open())
+    IpCrcFile << std::setfill('0') << std::setw(8) << (int)info.uCRC << std::endl;
+
+  {
+    ProcessNotCompressedFrame(tRecBuf, info, iBdOut);
+  }
+}
+
+
+void Display::ProcessNotCompressedFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut)
+{
+  auto pRecMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(&tRecBuf, AL_META_TYPE_SOURCE);
+  auto pYuvMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(YuvBuffer, AL_META_TYPE_SOURCE);
+
+  if(YuvFile.is_open() || CertCrcFile.is_open())
+  {
+    int iBdIn = max(info.uBitDepthY, info.uBitDepthC);
+
+    if(iBdIn > 8)
+      iBdIn = 10;
+
+    if(iBdOut > 8)
+      iBdOut = 10;
+
+    auto const iSizePix = (iBdOut + 7) >> 3;
+
+    ConvertFrameBuffer(tRecBuf, iBdIn, *YuvBuffer, iBdOut);
+
+    if(info.tCrop.bCropping)
+      CropFrame(YuvBuffer, iSizePix, info.tCrop.uCropOffsetLeft, info.tCrop.uCropOffsetRight, info.tCrop.uCropOffsetTop, info.tCrop.uCropOffsetBottom);
+
+    if(CertCrcFile.is_open())
+    {
+      // compute crc
+      int sx = 1, sy = 1;
+      AL_GetSubsampling(pRecMeta->tFourCC, &sx, &sy);
+      int const iNumPix = pYuvMeta->tDim.iHeight * pYuvMeta->tDim.iWidth;
+      int const iNumPixC = iNumPix / sx / sy;
+      auto eChromaMode = AL_GetChromaMode(pRecMeta->tFourCC);
+
+      if(iBdOut == 8)
+      {
+        uint8_t* pBuf = AL_Buffer_GetData(YuvBuffer);
+        Compute_CRC(info.uBitDepthY, info.uBitDepthC, iBdOut, iNumPix, iNumPixC, eChromaMode, pBuf, CertCrcFile);
+      }
+      else
+      {
+        uint16_t* pBuf = (uint16_t*)AL_Buffer_GetData(YuvBuffer);
+        Compute_CRC(info.uBitDepthY, info.uBitDepthC, iBdOut, iNumPix, iNumPixC, eChromaMode, pBuf, CertCrcFile);
+      }
+    }
+
+    if(YuvFile.is_open())
+    {
+      auto uSize = GetPictureSizeInSamples(pYuvMeta) * iSizePix;
+      YuvFile.write((const char*)AL_Buffer_GetData(YuvBuffer), uSize);
+    }
+  }
+}
+
 static string FourCCToString(TFourCC tFourCC)
 {
   stringstream ss;
@@ -807,21 +795,13 @@ static string FourCCToString(TFourCC tFourCC)
   return ss.str();
 };
 
-static void sResolutionFound(int BufferNumber, int BufferSize, AL_TStreamSettings const* pSettings, AL_TCropInfo const* pCropInfo, void* pUserParam)
+static void showResolutionInfo(int BufferNumber, int BufferSize, AL_TStreamSettings const* pSettings, AL_TCropInfo const* pCropInfo, TFourCC tFourCC)
 {
-  ResChgParam* p = (ResChgParam*)pUserParam;
-
-  unique_lock<mutex> lock(p->hMutex);
-
-  if(!p->hDec)
-    return;
-
-  auto tFourCC = AL_GetSrcFourCC({ pSettings->eChroma, (uint8_t)pSettings->iBitDepth });
   auto& tDim = pSettings->tDim;
-
-  stringstream ss;
   int iWidth = tDim.iWidth;
   int iHeight = tDim.iHeight;
+
+  stringstream ss;
   ss << "Resolution : " << iWidth << "x" << iHeight << endl;
   ss << "FourCC : " << FourCCToString(tFourCC) << endl;
   ss << "Profile : " << pSettings->iProfileIdc << endl;
@@ -839,22 +819,53 @@ static void sResolutionFound(int BufferNumber, int BufferSize, AL_TStreamSetting
   }
   ss << "Buffer needed : " << BufferNumber << " of size " << BufferSize << endl;
 
-  Message(CC_DARK_BLUE, "%s", ss.str().c_str());
+  Message(CC_DARK_BLUE, "%s\n", ss.str().c_str());
+}
+
+static void sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSettings const* pSettings, AL_TCropInfo const* pCropInfo, void* pUserParam)
+{
+  ResChgParam* p = (ResChgParam*)pUserParam;
+  AL_TDecSettings* pDecSettings = p->pDecSettings;
+
+  unique_lock<mutex> lock(p->hMutex);
+
+  if(!p->hDec)
+    return;
+
+  bool bOutputCompression;
+  AL_e_FbStorageMode eOutputStorageMode = getOutputStorageMode(*pDecSettings, bOutputCompression);
+
+  AL_TPicFormat tPicFormat =
+  {
+    pSettings->eChroma,
+    (uint8_t)pSettings->iBitDepth,
+    eOutputStorageMode
+  };
+
+  auto tFourCC = AL_GetDecFourCC(tPicFormat);
+
+  int minPitch = AL_Decoder_GetMinPitch(pSettings->tDim.iWidth, pSettings->iBitDepth, eOutputStorageMode);
+  int BufferSize = AL_DecGetAllocSize_Frame(pSettings->tDim, minPitch, pSettings->eChroma, bOutputCompression, eOutputStorageMode);
+  assert(BufferSize >= BufferSizeLib);
+
+  showResolutionInfo(BufferNumber, BufferSize, pSettings, pCropInfo, tFourCC);
 
   /* We do not support in stream resolution change */
   if(p->bPoolIsInit)
     throw codec_error(AL_ERR_RESOLUTION_CHANGE);
 
-  const int buffersHeldByNextComponent = 1; /* We need at least 1 buffer to copy the output on a file */
   AL_TBufPoolConfig BufPoolConfig;
   BufPoolConfig.zBufSize = BufferSize;
-  BufPoolConfig.uNumBuf = BufferNumber + buffersHeldByNextComponent;
+  BufPoolConfig.uNumBuf = BufferNumber + uDefaultNumBuffersHeldByNextComponent;
   BufPoolConfig.debugName = "yuv";
 
-  AL_TPitches tPitches {};
+  AL_TDimension tDimension = { pSettings->tDim.iWidth, pSettings->tDim.iHeight };
+  AL_TPitches tPitches {
+    minPitch, minPitch
+  };
   AL_TOffsetYC tOffsetYC {};
-  AL_TDimension tDimension = { iWidth, iHeight };
-  BufPoolConfig.pMetaData = (AL_TMetaData*)AL_SrcMetaData_Create(tDimension, tPitches, tOffsetYC, tFourCC);
+  AL_TSrcMetaData* pSrcMeta = AL_SrcMetaData_Create(tDimension, tPitches, tOffsetYC, tFourCC);
+  BufPoolConfig.pMetaData = (AL_TMetaData*)pSrcMeta;
 
   if(!p->bufPool.Init(p->pAllocator, BufPoolConfig))
     throw codec_error(AL_ERR_NO_MEMORY);
@@ -939,7 +950,7 @@ private:
         break;
       }
 
-      auto bRet = AL_Decoder_PushBuffer(hDec, pBufStream.get(), uAvailSize, AL_BUF_MODE_BLOCK);
+      auto bRet = AL_Decoder_PushBuffer(hDec, pBufStream.get(), uAvailSize);
 
       if(!bRet)
         throw runtime_error("Failed to push buffer");
@@ -963,9 +974,9 @@ void SafeMain(int argc, char** argv)
 
   DisplayVersionInfo();
 
-
   // IP Device ------------------------------------------------------------
   auto iUseBoard = Config.iUseBoard;
+
 
   function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl;
   switch(Config.ipCtrlMode)
@@ -978,7 +989,8 @@ void SafeMain(int argc, char** argv)
     break;
   }
 
-  auto pIpDevice = CreateIpDevice(&iUseBoard, Config.iSchedulerType, Config.tDecSettings.eDecUnit, wrapIpCtrl, Config.trackDma, Config.tDecSettings.uNumCore, Config.hangers);
+  auto pIpDevice = CreateIpDevice(&iUseBoard, Config.iSchedulerType, wrapIpCtrl, Config.trackDma, Config.tDecSettings.uNumCore, Config.hangers);
+
 
   auto pAllocator = pIpDevice->m_pAllocator.get();
   auto pDecChannel = pIpDevice->m_pDecChannel;
@@ -994,7 +1006,6 @@ void SafeMain(int argc, char** argv)
   AL_Buffer_AddMetaData(YuvBuffer, Meta);
 
   auto scopeBuffer = scopeExit([&]() {
-    AL_Allocator_Free(YuvBuffer->pAllocator, YuvBuffer->hBuf);
     AL_Buffer_Destroy(YuvBuffer);
   });
 
@@ -1017,7 +1028,10 @@ void SafeMain(int argc, char** argv)
   Display display;
 
   if(Config.bEnableYUVOutput)
+  {
     OpenOutput(display.YuvFile, Config.sOut);
+
+  }
 
   if(bCertCRC)
   {
@@ -1035,12 +1049,14 @@ void SafeMain(int argc, char** argv)
   display.iBitDepth = Config.tDecSettings.iBitDepth;
   display.MaxFrames = Config.iMaxFrames;
 
+  AL_TDecSettings Settings = Config.tDecSettings;
+
   ResChgParam ResolutionFoundParam;
   ResolutionFoundParam.pAllocator = pAllocator;
   ResolutionFoundParam.bPoolIsInit = false;
+  ResolutionFoundParam.pDecSettings = &Settings;
 
   DecodeParam tDecodeParam {};
-  AL_TDecSettings Settings = Config.tDecSettings;
 
   AL_TDecCallBacks CB {};
   CB.endDecodingCB = { &sFrameDecoded, &tDecodeParam };
@@ -1052,8 +1068,10 @@ void SafeMain(int argc, char** argv)
   AL_HDecoder hDec;
   auto error = AL_Decoder_Create(&hDec, (AL_TIDecChannel*)pDecChannel, pAllocator, &Settings, &CB);
 
-  if(!hDec || error != AL_SUCCESS)
-    throw codec_error(AL_ERR_INIT_FAILED);
+  if(error != AL_SUCCESS)
+    throw codec_error(error);
+
+  assert(hDec);
 
   auto decoderAlreadyDestroyed = false;
   auto scopeDecoder = scopeExit([&]() {
@@ -1102,7 +1120,7 @@ void SafeMain(int argc, char** argv)
     throw codec_error(eErr);
 
   if(!tDecodeParam.decodedFrames)
-    throw codec_error(AL_ERR_NO_FRAME_DECODED);
+    throw runtime_error("No frame decoded");
 
   auto const duration = (uEnd - uBegin) / 1000.0;
   ShowStatistics(duration, display.iNumFrameConceal, tDecodeParam.decodedFrames, timeoutOccured);

@@ -45,18 +45,20 @@
 typedef struct
 {
   // Context
-  AL_THevcPps m_pPPS[AL_HEVC_MAX_PPS]; // Holds received PPSs.
-  AL_THevcSps m_pSPS[AL_HEVC_MAX_SPS]; // Holds received SPSs.
-  AL_THevcVps m_pVPS[AL_MAX_VPS];      // Holds received VPSs.
-  AL_THevcSps* m_pActiveSPS;          // Holds only the currently active SPS.
+  AL_THevcPps pPPS[AL_HEVC_MAX_PPS]; // Holds received PPSs.
+  AL_THevcSps pSPS[AL_HEVC_MAX_SPS]; // Holds received SPSs.
+  AL_THevcVps pVPS[AL_MAX_VPS];      // Holds received VPSs.
+  AL_THevcSps* pActiveSPS;          // Holds only the currently active SPS.
+
+  AL_EPicStruct ePicStruct;
 }AL_THevcAup;
 
 typedef struct
 {
   // Context
-  AL_TAvcSps m_pSPS[AL_AVC_MAX_SPS]; // Holds all already received SPSs.
-  AL_TAvcSps* m_pActiveSPS;    // Holds only the currently active ParserSPS.
-  AL_TAvcPps m_pPPS[AL_AVC_MAX_PPS]; // Holds all already received PPSs.
+  AL_TAvcSps pSPS[AL_AVC_MAX_SPS]; // Holds all already received SPSs.
+  AL_TAvcPps pPPS[AL_AVC_MAX_PPS]; // Holds all already received PPSs.
+  AL_TAvcSps* pActiveSPS;    // Holds only the currently active ParserSPS.
 
   AL_ESliceType ePictureType;
 }AL_TAvcAup;

@@ -38,7 +38,6 @@
 #pragma once
 
 #include "lib_common/BufferAPI.h"
-#include "lib_common/BufferAccess.h"
 #include "lib_common/Fifo.h"
 
 #include "lib_decode/lib_decode.h"

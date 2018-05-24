@@ -35,19 +35,17 @@
 *
 ******************************************************************************/
 
-#pragma once
+#include <fstream>
+#include "lib_app/InputFiles.h"
+#include "lib_encode/lib_encoder.h"
 
-#include "lib_rtos/lib_rtos.h"
-/*************************************************************************//*!
-   \brief Buffer Access mode: Do we want to wait if no buffer is available or to fail fast.
-*****************************************************************************/
-typedef enum
+using namespace std;
+
+void WriteContainerHeader(ofstream& fp, AL_TEncSettings const& Settings, TYUVFileInfo const& FileInfo, int numFrames)
 {
-  AL_BUF_MODE_BLOCK,
-  AL_BUF_MODE_NONBLOCK,
-  /* sentinel */
-  AL_BUF_MODE_MAX
-}AL_EBufMode;
-
-uint32_t AL_GetWaitMode(AL_EBufMode eMode);
+  (void)fp;
+  (void)Settings;
+  (void)FileInfo;
+  (void)numFrames;
+}
 

@@ -52,8 +52,9 @@
    \brief This function updates the reconstructed resolution information
    \param[in] pCtx Pointer to a Picture manager context object
    \param[in] pSPS Pointer to a HECV SPS structure
+   \param[in] pPP  Pointer to the current picture parameters
 *****************************************************************************/
-void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS);
+void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, AL_TDecPicParam* pPP);
 
 /*************************************************************************//*!
    \brief Remove from the DPB all unused pictures(non-reference and not needed for output
@@ -93,18 +94,18 @@ bool AL_HEVC_PictMngr_HasPictInDPB(AL_TPictMngrCtx* pCtx);
    \param[in]  pSP           Pointer to the current slice parameters
    \param[in]  pSlice        Pointer to the slice header of the current slice
    \param[in]  pListRef      Pointer to the current picture reference lists
+   \param[out] pListVirtAddr used for traces
    \param[out] pListAddr     Pointer to the buffer that will receive the references, colocated POC and colocated motion vectors address list
-   \param[out] ppPOC         Receives pointer to the POC buffer where
+   \param[out] pPOC         Receives pointer to the POC buffer where
                           reference Pictures order count are stored.
-   \param[out] ppMV          Receives pointer to the MV buffer where
+   \param[out] pMV          Receives pointer to the MV buffer where
                           Motion Vectors should be stored.
    \param[out] pWP           Receives slices Weighted Pred tables
-   \param[out] ppRec         Receives pointer to the frame buffer where
-                          reconstructed picture should be stored.
+   \param[out] pRecs         Receives pointer to the frame buffers where reconstructed pictures should be stored.
    \return If the function succeeds the return value is nonzero (true)
         If the function fails the return value is zero (false)
 *****************************************************************************/
-bool AL_HEVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, AL_THevcSliceHdr* pSlice, TBufferListRef* pListRef, TBuffer* pListAddr, TBufferPOC** ppPOC, TBufferMV** ppMV, TBuffer* pWP, AL_TBuffer** ppRec);
+bool AL_HEVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, AL_THevcSliceHdr* pSlice, TBufferListRef* pListRef, TBuffer* pListVirtAddr, TBuffer* pListAddr, TBufferPOC* pPOC, TBufferMV* pMV, TBuffer* pWP, AL_TRecBuffers* pRecs);
 
 /*************************************************************************//*!
    \brief Prepares the reference picture set for the current slice reference picture list construction

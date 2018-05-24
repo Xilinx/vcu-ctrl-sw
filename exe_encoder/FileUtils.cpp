@@ -35,57 +35,37 @@
 *
 ******************************************************************************/
 
-#if __linux__
+#include <iostream>
+#include <string>
+#include <sstream>
+#include <fstream>
 
-#include "driverDataConversions.h"
-#include "lib_rtos/types.h"
-#include <string.h>
+#include "FileUtils.h"
 
-static void write(struct al5_params* msg, void* data, int size)
+std::string createFileNameWithID(const std::string& path, const std::string& motif, const std::string& extension, int iFrameID)
 {
-  assert(size % 4 == 0);
-  memcpy(msg->opaque_params + (msg->size / 4), data, size);
-  msg->size += size;
+  std::ostringstream filename;
+  filename << path << motif << "_" << iFrameID << extension;
+  return filename.str();
 }
 
-void setChannelParam(struct al5_params* msg, AL_TEncChanParam* pChParam, AL_PADDR pEP1)
+/****************************************************************************/
+int FromHex2(char a, char b)
 {
-  static_assert(sizeof(*pChParam) <= sizeof(msg->opaque_params), "Driver channel_param struct is too small");
-  msg->size = 0;
-  write(msg, pChParam, sizeof(*pChParam));
-  write(msg, &pEP1, sizeof(pEP1));
+  int A = ((a >= 'a') && (a <= 'f')) ? (a - 'a') + 10 :
+          ((a >= 'A') && (a <= 'F')) ? (a - 'A') + 10 :
+          ((a >= '0') && (a <= '9')) ? (a - '0') : 0;
+
+  int B = ((b >= 'a') && (b <= 'f')) ? (b - 'a') + 10 :
+          ((b >= 'A') && (b <= 'F')) ? (b - 'A') + 10 :
+          ((b >= '0') && (b <= '9')) ? (b - '0') : 0;
+
+  return (A << 4) + B;
 }
 
-static
-void setPicParam(struct al5_params* msg, AL_TEncInfo* encInfo, AL_TEncRequestInfo* reqInfo)
+/****************************************************************************/
+int FromHex4(char a, char b, char c, char d)
 {
-  static_assert(sizeof(*encInfo) + sizeof(*reqInfo) <= sizeof(msg->opaque_params), "Driver struct is too small for AL_TEncInfo & AL_TEncRequestInfo");
-  msg->size = 0;
-  write(msg, encInfo, sizeof(*encInfo));
-
-  write(msg, &reqInfo->eReqOptions, sizeof(reqInfo->eReqOptions));
-
-  if(reqInfo->eReqOptions & AL_OPT_SCENE_CHANGE)
-    write(msg, &reqInfo->uSceneChangeDelay, sizeof(reqInfo->uSceneChangeDelay));
-
-
-  if(reqInfo->eReqOptions & AL_OPT_UPDATE_PARAMS)
-    write(msg, &reqInfo->smartParams, sizeof(reqInfo->smartParams));
+  return (FromHex2(a, b) << 8) + FromHex2(c, d);
 }
-
-static
-void setBuffersAddrs(struct al5_params* msg, AL_TEncPicBufAddrs* pBuffersAddrs)
-{
-  static_assert(sizeof(*pBuffersAddrs) <= sizeof(msg->opaque_params), "Driver struct is too small for AL_TEncPicBufAddrs");
-  msg->size = 0;
-  write(msg, pBuffersAddrs, sizeof(*pBuffersAddrs));
-}
-
-void setEncodeMsg(struct al5_encode_msg* msg, AL_TEncInfo* encInfo, AL_TEncRequestInfo* reqInfo, AL_TEncPicBufAddrs* pBuffersAddrs)
-{
-  setPicParam(&msg->params, encInfo, reqInfo);
-  setBuffersAddrs(&msg->addresses, pBuffersAddrs);
-}
-
-#endif
 

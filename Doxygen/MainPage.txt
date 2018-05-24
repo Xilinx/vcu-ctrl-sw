@@ -1,6 +1,6 @@
 /*!
 
-\mainpage AL_Encoder/AL_Decoder Software
+\mainpage Encoder / Decoder Control Software
 
 
 */

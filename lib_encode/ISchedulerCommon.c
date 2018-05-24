@@ -49,7 +49,14 @@ void SetChannelInfo(AL_TCommonChannelInfo* pChanInfo, AL_TEncChanParam* pChParam
   AL_TDimension tDim = { pChParam->uWidth, pChParam->uHeight };
   pChanInfo->uRecSizeY = AL_GetAllocSize_EncReference(tDim, uBitDepth, CHROMA_MONO, 0);
   pChanInfo->uRecSize = AL_GetAllocSize_EncReference(tDim, uBitDepth, eChromaMode, bComp);
-  AL_TPicFormat picRecFormat = { eChromaMode, uBitDepth, AL_FB_TILE_64x4 };
+
+  AL_TPicFormat picRecFormat =
+  {
+    eChromaMode,
+    uBitDepth,
+    AL_FB_TILE_64x4
+  };
+
   pChanInfo->RecFourCC = AL_GetRecFourCC(picRecFormat);
   pChanInfo->uRecPitchY = AL_GetRecPitch(uBitDepth, pChParam->uWidth);
   pChanInfo->uRecPitchC = pChanInfo->uRecPitchY;

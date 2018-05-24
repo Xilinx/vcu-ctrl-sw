@@ -305,9 +305,7 @@ static unsigned int AL_sHEVC_GenerateSkippedPictureCabac(AL_TBitStreamLite* pBS,
 
   unsigned int uBins = 0;
 
-  uint32_t uLCU;
-
-  for(uLCU = 0; uLCU < uNumLCU; uLCU++)
+  for(uint32_t uLCU = 0; uLCU < uNumLCU; uLCU++)
   {
     int iR = (uLCU % uWidthLCU == uWidthLCU - 1); // Right Column
     int iB = (uLCU / uWidthLCU == uHeightLCU); // Bottom Row

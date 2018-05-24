@@ -230,8 +230,8 @@ AL_THREAD Rtos_CreateThread(void* (*pFunc)(void* pParam), void* pParam)
 /****************************************************************************/
 bool Rtos_JoinThread(AL_THREAD Thread)
 {
-  UINT bRet = WaitForSingleObject(GetNative(Thread), INFINITE);
-  return bRet == WAIT_OBJECT_0 ? true : false;
+  DWORD uRet = WaitForSingleObject(GetNative(Thread), INFINITE);
+  return uRet == WAIT_OBJECT_0;
 }
 
 /****************************************************************************/
@@ -253,7 +253,7 @@ void Rtos_DriverClose(void* drv)
   // not implemented
 }
 
-int Rtos_DriverIoctl(void* drv, int req, void* data)
+int Rtos_DriverIoctl(void* drv, unsigned long int req, void* data)
 {
   (void)drv;
   (void)req;
@@ -526,7 +526,7 @@ bool Rtos_JoinThread(AL_THREAD Thread)
 {
   int iRet;
   iRet = pthread_join(GetNative(Thread), NULL);
-  return iRet == 0 ? true : false;
+  return iRet == 0;
 }
 
 /****************************************************************************/
@@ -544,18 +544,18 @@ void* Rtos_DriverOpen(char const* name)
 
   if(fd == -1)
     return NULL;
-  return (void*)(uintptr_t)fd;
+  return (void*)(intptr_t)fd;
 }
 
 void Rtos_DriverClose(void* drv)
 {
-  int fd = (uintptr_t)drv;
+  int fd = (int)(intptr_t)drv;
   close(fd);
 }
 
-int Rtos_DriverIoctl(void* drv, int req, void* data)
+int Rtos_DriverIoctl(void* drv, unsigned long int req, void* data)
 {
-  int fd = (uintptr_t)drv;
+  int fd = (int)(intptr_t)drv;
   return ioctl(fd, req, data);
 }
 
@@ -629,8 +629,8 @@ bool Rtos_ReleaseSemaphore(AL_SEMAPHORE Semaphore)
 
 typedef struct
 {
-  int m_iCount;
-  int m_iMaxBeforeWait;
+  int iCount;
+  int iMaxBeforeWait;
 }SyncCtx;
 
 /****************************************************************************/
@@ -661,8 +661,8 @@ bool Rtos_ReleaseMutex(AL_MUTEX Mutex)
 AL_SEMAPHORE Rtos_CreateSemaphore(int iInitialCount)
 {
   SyncCtx* pCtx = Rtos_Malloc(sizeof(SyncCtx));
-  pCtx->m_iCount = iInitialCount;
-  pCtx->m_iMaxBeforeWait = iMaxCount;
+  pCtx->iCount = iInitialCount;
+  pCtx->iMaxBeforeWait = iMaxCount;
   return (AL_SEMAPHORE)pCtx;
 }
 
@@ -677,11 +677,11 @@ bool Rtos_GetSemaphore(AL_SEMAPHORE Semaphore, uint32_t Wait)
 {
   SyncCtx* pCtx = (SyncCtx*)Semaphore;
 
-  while(pCtx->m_iCount >= pCtx->m_iMaxBeforeWait)
+  while(pCtx->iCount >= pCtx->iMaxBeforeWait)
   {
   }
 
-  ++pCtx->m_iCount;
+  ++pCtx->iCount;
   return true;
 }
 
@@ -689,7 +689,7 @@ bool Rtos_GetSemaphore(AL_SEMAPHORE Semaphore, uint32_t Wait)
 bool Rtos_ReleaseSemaphore(AL_SEMAPHORE Semaphore)
 {
   SyncCtx* pCtx = (SyncCtx*)Semaphore;
-  --pCtx->m_iCount;
+  --pCtx->iCount;
   return true;
 }
 

@@ -71,9 +71,7 @@ static void AL_AVC_sGenFwdLvl4x4(uint8_t const* pMtx, int iQpRem, AL_TLevels4x4*
     { 7282, 4559, 7282, 4559, 4559, 2893, 4559, 2893, 7282, 4559, 7282, 4559, 4559, 2893, 4559, 2893 }
   };
 
-  int i;
-
-  for(i = 0; i < 16; i++)
+  for(int i = 0; i < 16; i++)
   {
     (*pFwd)[i] = X16_DIV(quant_coef4[iQpRem][i], pMtx[i]);
   }
@@ -146,9 +144,7 @@ static void AL_AVC_sGenFwdLvl8x8(uint8_t const* pMtx, int iQpRem, AL_TLevels8x8*
     }
   };
 
-  int i;
-
-  for(i = 0; i < 64; i++)
+  for(int i = 0; i < 64; i++)
   {
     (*pFwd)[i] = X16_DIV(quant_coef8[iQpRem][i], pMtx[i]);
   }
@@ -157,9 +153,7 @@ static void AL_AVC_sGenFwdLvl8x8(uint8_t const* pMtx, int iQpRem, AL_TLevels8x8*
 /******************************************************************************/
 void AL_AVC_GenerateHwScalingList(AL_TSCLParam const* pSclLst, AL_THwScalingList* pHwSclLst)
 {
-  int iQpRem;
-
-  for(iQpRem = 0; iQpRem < 6; iQpRem++)
+  for(int iQpRem = 0; iQpRem < 6; iQpRem++)
   {
     // Intra
     AL_AVC_sGenFwdLvl8x8(pSclLst->ScalingList[1][(3 * AL_SL_INTRA)], iQpRem, &(*pHwSclLst)[0][iQpRem].t8x8Y);
@@ -187,27 +181,21 @@ static void AL_HEVC_sGenFwdDC(AL_TSCLParam const* pSclLst, int iQpRem, int iDir,
 /******************************************************************************/
 static void AL_HEVC_sGenFwdLvl4x4(uint8_t const* pMtx, int iQpRem, AL_TLevels4x4* pFwd)
 {
-  int i;
-
-  for(i = 0; i < 16; i++)
+  for(int i = 0; i < 16; i++)
     (*pFwd)[i] = g_quantScales[iQpRem] / pMtx[i];
 }
 
 /******************************************************************************/
 static void AL_HEVC_sGenFwdLvl8x8(uint8_t const* pMtx, int iQpRem, AL_TLevels8x8* pFwd)
 {
-  int i;
-
-  for(i = 0; i < 64; i++)
+  for(int i = 0; i < 64; i++)
     (*pFwd)[i] = g_quantScales[iQpRem] / pMtx[i];
 }
 
 /******************************************************************************/
 void AL_HEVC_GenerateHwScalingList(AL_TSCLParam const* pSclLst, AL_THwScalingList* pHwSclLst)
 {
-  int iQpRem;
-
-  for(iQpRem = 0; iQpRem < 6; iQpRem++)
+  for(int iQpRem = 0; iQpRem < 6; iQpRem++)
   {
     // Intra
     AL_HEVC_sGenFwdLvl8x8(pSclLst->ScalingList[3][(3 * AL_SL_INTRA)], iQpRem, &(*pHwSclLst)[0][iQpRem].t32x32);

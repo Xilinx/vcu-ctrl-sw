@@ -42,11 +42,11 @@
  *****************************************************************************/
 #pragma once
 
-#include "lib_common/BufferAccess.h"
 #include "lib_rtos/types.h"
 
 #include "lib_common_dec/DecBuffers.h"
 #include "lib_common_dec/DecInfo.h"
+#include "InternalError.h"
 
 typedef struct AL_s_TDecoder AL_TDecoder;
 
@@ -54,7 +54,7 @@ typedef struct
 {
   void (* pfnDecoderDestroy)(AL_TDecoder* pDec);
   void (* pfnSetParam)(AL_TDecoder* pDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm);
-  bool (* pfnPushBuffer)(AL_TDecoder* pDec, AL_TBuffer* pBuf, size_t uSize, AL_EBufMode eMode);
+  bool (* pfnPushBuffer)(AL_TDecoder* pDec, AL_TBuffer* pBuf, size_t uSize);
   void (* pfnFlush)(AL_TDecoder* pDec);
   void (* pfnPutDisplayPicture)(AL_TDecoder* pDec, AL_TBuffer* pDisplay);
   int (* pfnGetMaxBD)(AL_TDecoder* pDec);
@@ -62,7 +62,7 @@ typedef struct
   bool (* pfnPreallocateBuffers)(AL_TDecoder* pDec);
 
   // only for the feeders
-  AL_ERR (* pfnTryDecodeOneAU)(AL_TDecoder* pDec, TCircBuffer* pBufStream, bool* pEndOfFrame);
+  UNIT_ERROR (* pfnTryDecodeOneUnit)(AL_TDecoder* pDec, TCircBuffer* pBufStream);
   void (* pfnInternalFlush)(AL_TDecoder* pDec);
   int (* pfnGetStrOffset)(AL_TDecoder* pDec);
   void (* pfnFlushInput)(AL_TDecoder* pDec);

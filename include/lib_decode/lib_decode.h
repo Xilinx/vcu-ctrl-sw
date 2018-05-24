@@ -35,10 +35,17 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \defgroup lib_decode_hls lib_decode
+/**************************************************************************//*!
+   \defgroup Decoder
+
+   The diagram below shows the usual usage of the encoder control software API
+   \htmlonly
+    <br/><object data="Decoder.svg"/>
+   \endhtmlonly
+
+   \defgroup Decoder_API API
+   \ingroup Decoder
+
    @{
    \file
  *****************************************************************************/
@@ -47,14 +54,13 @@
 
 #include "lib_rtos/types.h"
 
-#include "lib_common/BufferAccess.h"
 #include "lib_common/BufferAPI.h"
 #include "lib_common/Error.h"
 #include "lib_common/FourCC.h"
 
 #include "lib_common_dec/DecInfo.h"
 #include "lib_common_dec/DecDpbMode.h"
-#include "lib_common_dec/DecChanParam.h"
+#include "lib_common_dec/DecSynchro.h"
 
 typedef struct AL_t_IDecChannel AL_TIDecChannel;
 
@@ -71,6 +77,7 @@ typedef struct
 
 /*************************************************************************//*!
    \brief Display callback definition.
+   It is called every time a frame can be displayed
    a null frame indicates the end of the stream
 *****************************************************************************/
 typedef struct
@@ -91,116 +98,155 @@ typedef struct
 }AL_CB_ResolutionFound;
 
 /*************************************************************************//*!
-   \brief Handle to IP_Decoder.
+   \brief Handle to the decoder object.
    \see AL_Decoder_Create
    \see AL_Decoder_Destroy
 *****************************************************************************/
 typedef AL_HANDLE AL_HDecoder;
 
+/*************************************************************************//*!
+   \brief Decoder Settings
+   \ingroup Decoder_Settings
+*****************************************************************************/
 typedef struct
 {
-  int iStackSize;        // !< Size of the command stack handled by the decoder
-  int iBitDepth;         // !< Output BitDepth
-  uint8_t uNumCore;           // !< Number of hevc decoder core used for the decoding
-  uint32_t uFrameRate;        // !< User Frame Rate value which is used if syntax element isn't present
-  uint32_t uClkRatio;         // !< User Clock Ratio value which is used if syntax element isn't present
-  bool bIsAvc;           // !< Flag specifying which codec is used : true : AVC | Al_FALSE : HEVC
-  bool bParallelWPP;     // !< Flag specifying wavefront parallelization processing activation
-  uint8_t uDDRWidth;        // !< Width of the DDR uses by the decoder
-  bool bDisableCache;    // !< Flag specifying if the decoder disable cache
-  bool bLowLat;          // !< LowLatency decoding activation flag
-  bool bForceFrameRate;  // !< Indicate to ignore stream frame rate and use the one defined by user
-  bool bFrameBufferCompression; // !< Flag specifying if internal frame buffer compression should be used
-  AL_EFbStorageMode eFBStorageMode;
-  AL_EDecUnit eDecUnit;     // !< SubFrame latency control activation flag
-  AL_EDpbMode eDpbMode;     // !< Low ref mode control activation flag
-  AL_TStreamSettings tStream; // !< Stream's settings
+  int iStackSize;       /*!< Size of the command stack handled by the decoder */
+  int iBitDepth;        /*!< Output bitDepth */
+  uint8_t uNumCore;     /*!< Number of hevc decoder core used for the decoding */
+  uint32_t uFrameRate;  /*!< Frame rate value used if syntax element isn't present */
+  uint32_t uClkRatio;   /*!< Clock ratio value used if syntax element isn't present */
+  AL_ECodec eCodec;     /*!< Specify which codec is used */
+  bool bParallelWPP;    /*!< Should wavefront parallelization processing be used (might be ignored if not available) */
+  uint8_t uDDRWidth;    /*!< Width of the DDR uses by the decoder */
+  bool bDisableCache;   /*!< Should the decoder disable the cache */
+  bool bLowLat;         /*!< Should low latency decoding be used */
+  bool bForceFrameRate; /*!< Should stream frame rate be ignored and replaced by user defined one */
+  bool bFrameBufferCompression; /*!< Should internal frame buffer compression be used */
+  AL_EFbStorageMode eFBStorageMode; /*!< Specifies the storage mode the decoder should use for the frame buffers*/
+  AL_EDecUnit eDecUnit; /*!< Should subframe latency mode be used */
+  AL_EDpbMode eDpbMode; /*!< Should low ref mode be used */
+  AL_TStreamSettings tStream; /*!< Stream's settings. These need to be set if you want to preallocate the buffer. memset to 0 otherwise */
+
 }AL_TDecSettings;
 
+/*************************************************************************//*!
+   \brief Decoder callbacks
+*****************************************************************************/
 typedef struct
 {
-  AL_CB_EndDecoding endDecodingCB; // !< Called when a frame is decoded
-  AL_CB_Display displayCB; // !< Called when a buffer is ready to be displayed
-  AL_CB_ResolutionFound resolutionFoundCB;// !< Called when a resolution change occurs
+  AL_CB_EndDecoding endDecodingCB; /*!< Called when a frame is decoded */
+  AL_CB_Display displayCB; /*!< Called when a buffer is ready to be displayed */
+  AL_CB_ResolutionFound resolutionFoundCB; /*!< Called when a resolution change occurs */
 }AL_TDecCallBacks;
 
 /*************************************************************************//*!
-   \brief The AL_Decoder_Create function creates a new instance of the Decoder
-   \param[out] hDec           handle to the new created decoder
-   \param[in] pDecChannel     Pointer to a Scheduler structure.
+   \brief Creates a new instance of the Decoder
+   \param[out] hDec           handle to the created decoder
+   \param[in] pDecChannel     Pointer to an dec channel structure.
    \param[in] pAllocator      Pointer to an allocator handle
    \param[in] pSettings       Pointer to the decoder settings
    \param[in] pCB             Pointer to the decoder callbacks
-   \return errorcode specifying why this decoder couldn't be created
+   \return error code specifying why this decoder couldn't be created
    \see AL_Decoder_Destroy
 *****************************************************************************/
 AL_ERR AL_Decoder_Create(AL_HDecoder* hDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
 
 /*************************************************************************//*!
-   \brief The AL_Decoder_Destroy function releases all allocated ressources
+   \brief Releases all allocated and/or owned ressources
    \param[in] hDec Handle to Decoder object previously created with AL_Decoder_Create
    \see AL_Decoder_Create
 *****************************************************************************/
 void AL_Decoder_Destroy(AL_HDecoder hDec);
 
 /****************************************************************************/
-void AL_Decoder_SetParam(AL_HDecoder hDec, bool bConceal, bool bUseBoard, int iNumTrace, int iNumberTrace);
+/* internal. Used for traces */
+void AL_Decoder_SetParam(AL_HDecoder hDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm);
 
 /*************************************************************************//*!
    \brief Pushes a buffer to the decoder queue. It will be decoded when possible
-   \param[in] hDec Handle to an decoder object.
+   \param[in] hDec Handle to a decoder object.
    \param[in] pBuf Pointer to the encoded bitstream buffer
    \param[in] uSize Size in bytes of actual data in pBuf
-   \param[in] eMode Blocking strategy.
    \return return the current error status
 *****************************************************************************/
-bool AL_Decoder_PushBuffer(AL_HDecoder hDec, AL_TBuffer* pBuf, size_t uSize, AL_EBufMode eMode);
+bool AL_Decoder_PushBuffer(AL_HDecoder hDec, AL_TBuffer* pBuf, size_t uSize);
 
 /*************************************************************************//*!
-   \brief The AL_Decoder_Flush function allows to flush the decoding request stack when the stream parsing is finished.
-   \param[in]  hDec Handle to an decoder object.
+   \brief Flushes the decoding request stack when the stream parsing is finished.
+   \param[in]  hDec Handle to a decoder object.
 *****************************************************************************/
 void AL_Decoder_Flush(AL_HDecoder hDec);
 
 /*************************************************************************//*!
-   \brief The AL_Decoder_PutDisplayPicture function put the display buffer inside the decoder internal bufpool
+   \brief Puts the display buffer inside the decoder internal bufpool
    It is used to give the decoder buffers where it will output the decoded pictures
-   \param[in] hDec   Handle to an decoder object.
+   \param[in] hDec   Handle to a decoder object.
    \param[in] pDisplay Pointer to the decoded picture buffer
 *****************************************************************************/
 void AL_Decoder_PutDisplayPicture(AL_HDecoder hDec, AL_TBuffer* pDisplay);
 
 /*************************************************************************//*!
-   \brief The AL_Decoder_GetMaxBD function retrieves the maximum bitdepth allowed by the stream profile
-   \param[in] hDec Handle to an decoder object.
+   \brief Retrieves the maximum bitdepth allowed by the stream profile
+   \param[in] hDec Handle to a decoder object.
    \return return the maximum bidepth allowed byu the current stream profile
 *****************************************************************************/
 int AL_Decoder_GetMaxBD(AL_HDecoder hDec);
 
 /*************************************************************************//*!
    \brief Retrieves the last decoder error state
-   \param[in]  hDec  Handle to an decoder object.
+   \param[in]  hDec  Handle to a decoder object.
    \return return the current error status
 *****************************************************************************/
 AL_ERR AL_Decoder_GetLastError(AL_HDecoder hDec);
 
 /*************************************************************************//*!
-   \brief Preallocate required buffers. This is only usable if Stream settings are set
-   \param[in]  hDec  Handle to an decoder object.
+   \brief Preallocates internal buffers.
+   This is only usable if Stream settings are set. Calling this function without
+   the stream settings will assert.
+   Internal buffers of the decoder are normally allocated after determining
+   what kind of stream is being decoded. If you know the stream settings
+   in advance, you can override this behavior by giving these informations at
+   the decoder creation and calling AL_Decoder_PreallocateBuffers.
+   Giving wrong information about the stream will lead to undefined behaviour.
+   Calling this function will reduce the memory footprint of the decoder and
+   will remove the latency of the allocation of the internal buffer at runtime.
+   \param[in]  hDec  Handle to a decoder object.
    \return return false if the allocation failed. True otherwise
 *****************************************************************************/
 bool AL_Decoder_PreallocateBuffers(AL_HDecoder hDec);
 
 /*************************************************************************//*!
-   \brief Force to flush decoder input context (e.g. pending SC)
-   \param[in]  hDec  Handle to an decoder object.
+   \brief Give the minimum stride supported by the decoder for its reconstructed buffers
+   \param[in] uWidth width of the reconstructed buffers in pixels
+   \param[in] uBitDepth of the stream (8 or 10)
+   \param[in] eFrameBufferStorageMode frame buffer storage mode
 *****************************************************************************/
-void AL_Decoder_FlushInput(AL_HDecoder hDec);
+uint32_t AL_Decoder_GetMinPitch(uint32_t uWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode);
 
-uint32_t AL_Decoder_RoundPitch(uint32_t uWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode);
+/*************************************************************************//*!
+   \brief Give the minimum stride height supported by the decoder
+   Restriction: The decoder still only supports a stride height set to AL_Decoder_GetMinStrideHeight.
+   all other strideHeight will be ignored
+   \param[in] uHeight height of the picture in pixels
+*****************************************************************************/
+uint32_t AL_Decoder_GetMinStrideHeight(uint32_t uHeight);
 
-uint32_t AL_Decoder_RoundHeight(uint32_t uHeight);
-
-int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bFrameBufferCompression, AL_EFbStorageMode eFrameBufferStorageMode);
+/*************************************************************************//*!
+   \brief Give the size of a reconstructed picture buffer
+   Restriction: The strideHeight is supposed to be the minimum stride height
+   \param[in] tDim dimensions of the picture
+   \param[in] iPitch luma pitch in bytes of the picture
+   \param[in] eChromaMode chroma mode of the picture
+   \param[in] bFrameBufferCompression will the frame buffer be compressed
+   \param[in] eFbStorage frame buffer storage mode
+*****************************************************************************/
+int AL_DecGetAllocSize_Frame(AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode, bool bFrameBufferCompression, AL_EFbStorageMode eFbStorage);
 /*@}*/
+
+AL_DEPRECATED("Renamed. Use AL_Decoder_GetMinPitch. Will be deleted in 0.9")
+uint32_t AL_Decoder_RoundPitch(uint32_t uWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode);
+AL_DEPRECATED("Renamed. Use AL_Decoder_GetMinStrideHeight. Will be deleted in 0.9")
+uint32_t AL_Decoder_RoundHeight(uint32_t uHeight);
+// AL_DEPRECATED("Use AL_DecGetAllocSize_Frame. This function doesn't take the stride of the allocated buffer in consideration. Will be deleted in 0.9")
+int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bFrameBufferCompression, AL_EFbStorageMode eFbStorage);
 

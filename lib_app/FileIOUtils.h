@@ -36,8 +36,40 @@
 ******************************************************************************/
 
 #pragma once
-#include "lib_common_enc/EncBuffersInternal.h"
-#include "lib_common_enc/Settings.h"
 
-bool LoadLambdaFromFile(char const* lambdaFileName, TBufferEP* pEP);
+extern "C"
+{
+#include "lib_common/BufferAPI.h"
+#include "lib_common/FourCC.h"
+}
+
+#include <fstream>
+
+class CompFrameWriter
+{
+public:
+  CompFrameWriter(std::ofstream& recFile, std::ofstream& mapFile, std::ofstream& mapLogFile, bool isAvc, uint32_t mapLHeightRouding = 16);
+
+  bool IsHeaderWritten();
+  void WriteHeader(uint32_t uWidth, uint32_t uHeight, const TFourCC& tCompFourCC, uint8_t uTileDesc);
+  bool WriteFrame(AL_TBuffer* pBuf);
+
+private:
+  std::ofstream& m_recFile;
+  std::ofstream& m_mapFile;
+  std::ofstream& m_mapLogFile;
+  bool m_bIsAvc;
+  uint32_t m_uMapLHeightRouding;
+  bool m_bIsHeaderWritten = false;
+
+  int RoundUp(uint32_t iVal, uint32_t iRound);
+  int RoundUpAndMul(uint32_t iVal, uint32_t iRound, uint8_t iDivLog2);
+  int RoundUpAndDivide(uint32_t iVal, uint32_t iRound, uint8_t iMulLog2);
+};
+
+/****************************************************************************/
+inline bool CompFrameWriter::IsHeaderWritten()
+{
+  return m_bIsHeaderWritten;
+}
 

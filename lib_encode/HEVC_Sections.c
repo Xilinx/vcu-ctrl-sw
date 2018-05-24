@@ -38,7 +38,7 @@
 #include "HEVC_Sections.h"
 #include "lib_bitstream/HEVC_RbspEncod.h"
 
-void HEVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus)
+void HEVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayerID)
 {
   Nuts nuts =
   {
@@ -51,7 +51,7 @@ void HEVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStat
     AL_HEVC_NUT_SUFFIX_SEI,
   };
 
-  NalsData nalsData = AL_ExtractNalsData(pCtx);
-  GenerateSections(AL_GetHevcRbspWriter(), nuts, &nalsData, pStream, pPicStatus);
+  NalsData nalsData = AL_ExtractNalsData(pCtx, iLayerID);
+  GenerateSections(AL_GetHevcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, pCtx->Settings.NumLayer);
 }
 

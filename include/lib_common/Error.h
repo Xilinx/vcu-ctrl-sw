@@ -35,6 +35,16 @@
 *
 ******************************************************************************/
 
+/**************************************************************************//*!
+   \addtogroup Errors
+
+   This regroups all the errors and warnings that can be launched
+   from the decoder or the encoder libraries.
+
+   @{
+   \file
+ *****************************************************************************/
+
 #pragma once
 
 #include "lib_rtos/types.h"
@@ -42,37 +52,48 @@
 #define AL_DEF_WARNING(N) ((AL_ERR)(0x00 + (N)))
 #define AL_DEF_ERROR(N) ((AL_ERR)(0x80 + (N)))
 
-#define AL_WARN_CONCEAL_DETECT AL_DEF_WARNING(1)
-#define AL_WARN_LCU_OVERFLOW AL_DEF_WARNING(2)
+enum
+{
+  /*! The decoder had to conceal some errors in the stream */
+  AL_WARN_CONCEAL_DETECT = AL_DEF_WARNING(1),
+  /*! Some LCU exceed the maximum allowed bits in the stream */
+  AL_WARN_LCU_OVERFLOW = AL_DEF_WARNING(2)
+};
 
 enum
 {
+  /*! The operation succeeded without encountering any error */
   AL_SUCCESS = ((AL_ERR)0x00000000),
+  /*! Unknown error */
   AL_ERROR = AL_DEF_ERROR(0),
-  AL_ERR_INIT_FAILED = AL_DEF_ERROR(1),
-  AL_ERR_NO_FRAME_DECODED = AL_DEF_ERROR(2),
+  /*! Resolution change is not supported */
   AL_ERR_RESOLUTION_CHANGE = AL_DEF_ERROR(5),
-  /* Couldn't allocate a resource because no memory was left
+  /*! Couldn't allocate a resource because no memory was left
    * This can be dma memory, mcu specific memory if available or
    * simply virtual memory shortage */
   AL_ERR_NO_MEMORY = AL_DEF_ERROR(7),
+  /*! The generated stream couldn't fit inside the allocated stream buffer */
   AL_ERR_STREAM_OVERFLOW = AL_DEF_ERROR(8),
+  /*! If SliceSize mode is supported, the constraint couldn't be respected
+   * as too many slices were required to respect it */
   AL_ERR_TOO_MANY_SLICES = AL_DEF_ERROR(9),
+  /* internal */
   AL_ERR_STRM_BUF_NOT_READY = AL_DEF_ERROR(12),
-
-  /* The scheduler can't handle more channel (fixed limit of AL_SCHEDULER_MAX_CHANNEL) */
+  /*! The scheduler can't handle more channel (fixed limit of AL_SCHEDULER_MAX_CHANNEL) */
   AL_ERR_CHAN_CREATION_NO_CHANNEL_AVAILABLE = AL_DEF_ERROR(13),
-  /* The processing power of the available cores is insufficient to handle this channel */
+  /*! The processing power of the available cores is insufficient to handle this channel */
   AL_ERR_CHAN_CREATION_RESOURCE_UNAVAILABLE = AL_DEF_ERROR(14),
-  /* Couldn't spread the load on enough cores (special case of ERROR_RESOURCE_UNAVAILABLE)
+  /*! Couldn't spread the load on enough cores (special case of ERROR_RESOURCE_UNAVAILABLE)
    * or the load can't be spread so much (each core has a requirement on the minimal number
    * of resources it can handle) */
   AL_ERR_CHAN_CREATION_NOT_ENOUGH_CORES = AL_DEF_ERROR(15),
-  /* Some parameters in the request have an invalid value */
+  /*! Some parameters in the request have an invalid value */
   AL_ERR_REQUEST_MALFORMED = AL_DEF_ERROR(16),
-  /* the dynamic command is not allowed in some configuration */
+  /*! The dynamic command is not allowed in some configuration */
   AL_ERR_CMD_NOT_ALLOWED = AL_DEF_ERROR(17),
-  /* the value associated with the command is invalid (in the current configuration) */
+  /*! The value associated with the command is invalid (in the current configuration) */
   AL_ERR_INVALID_CMD_VALUE = AL_DEF_ERROR(18),
 };
+
+/*@}*/
 

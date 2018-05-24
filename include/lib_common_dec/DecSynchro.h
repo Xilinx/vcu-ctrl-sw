@@ -35,7 +35,21 @@
 *
 ******************************************************************************/
 
-typedef struct t_driver Driver;
+/*************************************************************************//*!
+   \addtogroup Decoder_Settings
+   @{
+   \file
+*****************************************************************************/
+#pragma once
 
-Driver* AL_GetHardwareDriver();
+/*************************************************************************//*!
+   \brief Decoder synchronization mode
+*****************************************************************************/
+typedef enum AL_e_DecUnit
+{
+  AL_AU_UNIT = 0, /*< decode at the Access Unit level (frame) */
+  AL_VCL_NAL_UNIT = 1, /*< decode at the NAL Unit level (slice) */
+}AL_EDecUnit;
+
+/*@}*/
 

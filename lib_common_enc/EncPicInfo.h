@@ -35,9 +35,7 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
+/**************************************************************************//*!
    \addtogroup lib_base
    @{
    \file
@@ -46,9 +44,10 @@
 #pragma once
 
 #include "lib_common/SliceConsts.h"
-#include "lib_common/BufCommon.h"
+#include "lib_common/BufCommonInternal.h"
 #include "lib_common/Error.h"
 #include "lib_common_enc/EncChanParam.h"
+#include "lib_common/BufferAPI.h"
 
 /*************************************************************************//*!
    \brief Encoding tool enum
@@ -68,7 +67,6 @@ typedef struct AL_t_EncInfo
   int16_t iPpsQP;
 
 
-
   AL_64U UserParam;
   AL_64U SrcHandle;
 }AL_TEncInfo;
@@ -77,10 +75,13 @@ typedef enum
 {
   AL_NO_OPT = 0,
   AL_OPT_SCENE_CHANGE = 0x0001,
+  AL_OPT_IS_LONG_TERM = 0x0002,
   AL_OPT_USE_LONG_TERM = 0x0004,
-  AL_OPT_RESTART_GOP = 0x0002,
-  AL_OPT_UPDATE_PARAMS = 0x0008,
+  AL_OPT_RESTART_GOP = 0x0008,
+  AL_OPT_UPDATE_PARAMS = 0x0010,
 }AL_ERequestEncOption;
+
+
 
 typedef struct
 {
@@ -136,14 +137,13 @@ typedef struct AL_t_EncPicStatus
 
   AL_ERR eErrorCode;
 
-  // Segment ID
-
   AL_ESliceType eType;
   AL_EPicStruct ePicStruct;
   bool bIsIDR;
   bool bIsFirstSlice;
   bool bIsLastSlice;
   int16_t iPpsQP;
+
 }AL_TEncPicStatus;
 
 #define AL_ERR_SRC_BUF_NOT_READY AL_DEF_ERROR(20)

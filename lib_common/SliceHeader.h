@@ -117,8 +117,8 @@ typedef struct t_AvcSliceHeader
   int8_t slice_beta_offset_div2;
   int slice_header_length;
 
-  const AL_TAvcPps* m_pPPS;
-  const AL_TAvcSps* m_pSPS;
+  const AL_TAvcPps* pPPS;
+  const AL_TAvcSps* pSPS;
 }AL_TAvcSliceHdr;
 
 /*************************************************************************//*!
@@ -159,6 +159,8 @@ typedef struct t_HevcSliceHeader
   uint8_t num_ref_idx_l0_active_minus1;
   uint8_t num_ref_idx_l1_active_minus1;
 
+  uint8_t inter_layer_pred_enabled_flag;
+
   AL_TRefPicModif ref_pic_modif;
 
   uint8_t mvd_l1_zero_flag;
@@ -185,8 +187,8 @@ typedef struct t_HevcSliceHeader
   uint8_t offset_len_minus1;
   uint32_t entry_point_offset_minus1[AL_MAX_ENTRY_POINT];
 
-  AL_THevcPps const* m_pPPS;
-  AL_THevcSps* m_pSPS;
+  AL_THevcPps const* pPPS;
+  AL_THevcSps* pSPS;
 
   // Variables
   uint8_t RapPicFlag;

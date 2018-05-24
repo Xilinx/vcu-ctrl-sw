@@ -38,6 +38,7 @@
 #include "UtilsQp.h"
 #include "lib_rtos/lib_rtos.h" // Rtos_Memcpy
 #include "Utils.h" // Clip3
+#include <assert.h>
 
 /****************************************************************************/
 static void AL_sCopyCtrlQP(uint8_t* pBuf, const AL_TQPCtrl* pQPCtrl)
@@ -76,6 +77,10 @@ void AL_UpdateAutoQpCtrl(uint8_t* pQpCtrl, int iSumCplx, int iNumLCU, int iSlice
   }
   else
   {
+    // scale vp9 qp to [0..51]
+    if(bVP9)
+      iSliceQP /= 5;
+    assert(iSliceQP < 52);
     int iLambda = AL_LAMBDAs_AUTO_QP[iSliceQP];
     int iAvgCplx = iSumCplx / iNumLCU;
     int ThM2, ThM1, ThM0, ThP0, ThP1, ThP2;

@@ -1,8 +1,6 @@
 LIB_DECODER_A=$(BIN)/liballegro_decode.a
 LIB_DECODER_DLL=$(BIN)/liballegro_decode.so
 
--include lib_decode/project_mcu.mk
-
 ifneq ($(findstring mingw,$(TARGET)),mingw)
 	CFLAGS+=-fPIC
 endif
@@ -19,6 +17,7 @@ LIB_DECODE_SRC+=\
 		lib_decode/BufferFeeder.c\
 		lib_decode/Patchworker.c\
 		lib_decode/DecoderFeeder.c\
+		lib_decode/DecChannelMcu.c\
 
 LIB_DECODER_SRC:=\
   $(LIB_RTOS_SRC)\

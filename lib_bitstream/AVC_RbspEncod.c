@@ -275,7 +275,7 @@ static void writeSpsData(AL_TBitStreamLite* pBS, AL_TAvcSps const* pSps)
 /******************************************************************************/
 static void writeSps(AL_TBitStreamLite* pBS, AL_TSps const* pSps)
 {
-  writeSpsData(pBS, &pSps->m_AvcSPS);
+  writeSpsData(pBS, &pSps->AvcSPS);
 
   // Write rbsp_trailing_bits.
   AL_BitStreamLite_PutU(pBS, 1, 1);

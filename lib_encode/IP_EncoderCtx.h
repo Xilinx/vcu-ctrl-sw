@@ -86,11 +86,45 @@ typedef struct AL_t_EncCtx AL_TEncCtx;
 
 typedef struct
 {
-  void (* configureChannel)(struct AL_t_EncCtx* pCtx, AL_TEncSettings const* pSettings);
-  void (* generateSkippedPictureData)(struct AL_t_EncCtx* pCtx);
-  void (* generateNals)(AL_TEncCtx* pCtx);
-  void (* updateHlsAndWriteSections)(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_TBuffer* pStream);
+  bool (* shouldReleaseSource)(AL_TEncPicStatus* pPicStatus);
+  void (* preprocessEp1)(AL_TEncCtx* pCtx, TBufferEP* pEP1);
+  void (* configureChannel)(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TEncSettings const* pSettings);
+  void (* generateSkippedPictureData)(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TSkippedPicture* pSkipPicture);
+  void (* generateNals)(AL_TEncCtx* pCtx, int iLayerID, bool bWriteVps);
+  void (* updateHlsAndWriteSections)(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_TBuffer* pStream, int iLayerID);
 }HighLevelEncoder;
+
+typedef struct
+{
+  AL_TEncCtx* pCtx;
+  int iLayerID;
+}AL_TCbUserParam;
+
+typedef struct
+{
+  AL_HANDLE hChannel;
+
+  AL_TSps sps;
+  AL_TPps pps;
+
+  AL_TSrcBufferChecker srcBufferChecker;
+  AL_TSkippedPicture pSkippedPicture;
+  AL_TEncRequestInfo currentRequestInfo;
+  TBufferEP tBufEP1;
+
+  int iCurStreamSent;
+  int iCurStreamRecv;
+  AL_TBuffer* StreamSent[AL_MAX_STREAM_BUFFER];
+
+  AL_TCbUserParam callback_user_param;
+  AL_CB_EndEncoding callback;
+}AL_TLayerCtx;
+
+typedef struct
+{
+  AL_TFrameInfo* pFI;
+  AL_TBuffer* pSrc;
+}AL_TFrameCtx;
 
 /*************************************************************************//*!
    \brief Encoder Context structure
@@ -98,61 +132,44 @@ typedef struct
 typedef struct AL_t_EncCtx
 {
   HighLevelEncoder encoder;
+  AL_TEncSettings Settings;
+  AL_TLayerCtx tLayerCtx[MAX_NUM_LAYER];
 
-  AL_TEncSettings m_Settings;
+  AL_THevcVps vps;
 
-  AL_HANDLE m_hChannel;
+  TStreamInfo StreamInfo;
 
-  AL_TSps m_sps;
-  AL_TPps m_pps;
-  AL_THevcVps m_vps;
+  int iLastIdrId;
 
-  TStreamInfo m_StreamInfo;
+  AL_SeiData seiData;
 
-  int32_t m_uAltRefRecPOC;
-  uint8_t m_uAltRefRecID;
-  uint8_t m_uLastRecID;
-  int m_iLastIdrId;
+  int iMaxNumRef;
 
-  AL_SeiData m_seiData;
+  int iFrameCountDone;
+  AL_ERR eError;
+  int iNumLCU;
+  int iMinQP;
+  int iMaxQP;
 
-  AL_TSrcBufferChecker m_srcBufferChecker;
-  AL_TEncRequestInfo m_currentRequestInfo;
-  int m_iMaxNumRef;
+  /* O(1) access to a frame info */
+  AL_TFrameInfo Pool[MAX_NUM_LAYER * ENC_MAX_CMD];
+  AL_TFifo iPoolIds;
+  int iCurPool;
 
-  AL_TSkippedPicture m_pSkippedPicture;
-
-  int m_iFrameCountDone;
-  AL_ERR m_eError;
-  int m_iNumLCU;
-  int m_iMinQP;
-  int m_iMaxQP;
-
-  TBufferEP m_tBufEP1;
-
-  AL_TFrameInfo m_Pool[ENC_MAX_CMD];
-  AL_TFifo m_iPoolIds;
-  int m_iCurPool;
-
-  AL_TBuffer* m_StreamSent[AL_MAX_STREAM_BUFFER];
-  int m_iCurStreamSent;
-  int m_iCurStreamRecv;
-
-  AL_TBuffer* m_SourceSent[AL_MAX_SOURCE_BUFFER];
+  /* O(n) as you need to search for the source inside */
+  AL_TFrameCtx SourceSent[AL_MAX_SOURCE_BUFFER];
 
 
-  AL_MUTEX m_Mutex;
-  AL_SEMAPHORE m_PendingEncodings; // tracks the count of jobs sent to the scheduler
+  AL_MUTEX Mutex;
+  AL_SEMAPHORE PendingEncodings; // tracks the count of jobs sent to the scheduler
 
-  TScheduler* m_pScheduler;
-
-  AL_CB_EndEncoding m_callback;
+  TScheduler* pScheduler;
 
   int iInitialNumB;
   uint16_t uInitialFrameRate;
 }AL_TEncCtx;
 
-NalsData AL_ExtractNalsData(AL_TEncCtx* pCtx);
+NalsData AL_ExtractNalsData(AL_TEncCtx* pCtx, int iLayerID);
 
 /*@}*/
 

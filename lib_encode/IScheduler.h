@@ -76,8 +76,8 @@ typedef struct t_Scheduler
 
 typedef struct t_SchedulerVtable
 {
-  bool (* destroy)(TScheduler* pScheduler);
-  AL_ERR (* createChannel)(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEncChanParam* pChParam, AL_PADDR pEP1, AL_TISchedulerCallBacks* pCBs);
+  void (* destroy)(TScheduler* pScheduler);
+  AL_ERR (* createChannel)(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEncChanParam* pChParam, TMemDesc* pEP1, AL_TISchedulerCallBacks* pCBs);
   bool (* destroyChannel)(TScheduler* pScheduler, AL_HANDLE hChannel);
   bool (* encodeOneFrame)(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TEncInfo* pEncInfo, AL_TEncRequestInfo* pReqInfo, AL_TEncPicBufAddrs* pBufferAddrs);
   void (* putStreamBuffer)(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuffer* pStream, AL_64U streamUserPtr, uint32_t uOffset);
@@ -86,7 +86,7 @@ typedef struct t_SchedulerVtable
 
 }TSchedulerVtable;
 
-bool AL_ISchedulerEnc_Destroy(TScheduler* pScheduler);
+void AL_ISchedulerEnc_Destroy(TScheduler* pScheduler);
 
 /*************************************************************************//*!
    \brief Channel creation
@@ -96,7 +96,7 @@ bool AL_ISchedulerEnc_Destroy(TScheduler* pScheduler);
    \return errorcode explaining why the channel creation failed
 *****************************************************************************/
 static inline
-AL_ERR AL_ISchedulerEnc_CreateChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEncChanParam* pChParam, AL_PADDR pEP1, AL_TISchedulerCallBacks* pCBs)
+AL_ERR AL_ISchedulerEnc_CreateChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEncChanParam* pChParam, TMemDesc* pEP1, AL_TISchedulerCallBacks* pCBs)
 {
   return pScheduler->vtable->createChannel(hChannel, pScheduler, pChParam, pEP1, pCBs);
 }

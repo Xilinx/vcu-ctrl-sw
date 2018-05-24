@@ -54,27 +54,29 @@
 *****************************************************************************/
 typedef struct t_RbspParser
 {
-  uint32_t m_iTrailingBitOneIndex;
-  uint32_t m_iTotalBitIndex;
-  uint32_t m_iTrailingBitOneIndexConceal;
-  uint8_t m_uNumScDetect;
-  uint8_t m_uZeroBytesCount;
+  uint32_t iTrailingBitOneIndex;
+  uint32_t iTotalBitIndex;
+  uint32_t iTrailingBitOneIndexConceal;
+  uint8_t uNumScDetect;
+  uint8_t uZeroBytesCount;
 
-  uint8_t* m_pBuffer;
-  const uint8_t* m_pByte;
+  uint8_t* pBuffer;
+  const uint8_t* pByte;
 
-  uint8_t* m_pBufIn;
-  uint32_t m_uBufInSize;
-  uint32_t m_uBufInOffset;
+  uint8_t* pBufIn;
+  uint32_t uBufInSize;
+  uint32_t uBufInOffset;
+  bool bHasSC;
 }AL_TRbspParser;
 
 /*************************************************************************//*!
    \brief The InitRbspParser function intializes a Rbsp Parser structure
    \param[in]  pStream       Pointer to the circular stream buffer
    \param[in]  pBuffer       Pointer to the buffer with the antiemulated bits of the NAL unit
+   \param[in]  bHasSC        Flag which specifies with the stream has start code delimiters
    \param[out] pRP           Pointer to the rbsp parser structure that will be initialized
 *****************************************************************************/
-void InitRbspParser(TCircBuffer const* pStream, uint8_t* pBuffer, AL_TRbspParser* pRP);
+void InitRbspParser(TCircBuffer const* pStream, uint8_t* pBuffer, bool bHasSC, AL_TRbspParser* pRP);
 
 /*************************************************************************//*!
    \brief The read_bit function read the bit_index'th bit of the current NAL

@@ -70,9 +70,9 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 
   COMPLY(tempPPS.seq_parameter_set_id < AL_AVC_MAX_SPS);
 
-  tempPPS.m_pSPS = &pIAup->avcAup.m_pSPS[tempPPS.seq_parameter_set_id];
+  tempPPS.pSPS = &pIAup->avcAup.pSPS[tempPPS.seq_parameter_set_id];
 
-  COMPLY(!tempPPS.m_pSPS->bConceal);
+  COMPLY(!tempPPS.pSPS->bConceal);
 
   tempPPS.entropy_coding_mode_flag = u(pRP, 1);
   tempPPS.bottom_field_pic_order_in_frame_present_flag = u(pRP, 1);
@@ -84,16 +84,12 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 
     if(tempPPS.slice_group_map_type == 0)
     {
-      int iGroup;
-
-      for(iGroup = 0; iGroup <= tempPPS.num_slice_groups_minus1; iGroup++)
+      for(int iGroup = 0; iGroup <= tempPPS.num_slice_groups_minus1; iGroup++)
         tempPPS.run_length_minus1[iGroup] = ue(pRP);
     }
     else if(tempPPS.slice_group_map_type == 2)
     {
-      int iGroup;
-
-      for(iGroup = 0; iGroup <= tempPPS.num_slice_groups_minus1; iGroup++)
+      for(int iGroup = 0; iGroup <= tempPPS.num_slice_groups_minus1; iGroup++)
       {
         tempPPS.top_left[iGroup] = ue(pRP);
         tempPPS.bottom_right[iGroup] = ue(pRP);
@@ -108,10 +104,9 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
     }
     else if(tempPPS.slice_group_map_type == 6)
     {
-      int i;
       tempPPS.pic_size_in_map_units_minus1 = ue(pRP);
 
-      for(i = 0; i <= tempPPS.pic_size_in_map_units_minus1; i++)
+      for(int i = 0; i <= tempPPS.pic_size_in_map_units_minus1; i++)
       {
         int slicegroupsize = tempPPS.pic_size_in_map_units_minus1 + 1;
         tempPPS.slice_group_id[i] = u(pRP, slicegroupsize);
@@ -128,7 +123,7 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   tempPPS.weighted_pred_flag = u(pRP, 1);
   tempPPS.weighted_bipred_idc = Clip3(u(pRP, 2), 0, AL_MAX_WP_IDC);
 
-  QpBdOffset = 6 * tempPPS.m_pSPS->bit_depth_luma_minus8;
+  QpBdOffset = 6 * tempPPS.pSPS->bit_depth_luma_minus8;
   tempPPS.pic_init_qp_minus26 = Clip3(se(pRP), -(26 + QpBdOffset), AL_MAX_INIT_QP);
   tempPPS.pic_init_qs_minus26 = Clip3(se(pRP), AL_MIN_INIT_QP, AL_MAX_INIT_QP);
 
@@ -147,9 +142,7 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 
     if(tempPPS.pic_scaling_matrix_present_flag)
     {
-      int i;
-
-      for(i = 0; i < 6 + 2 * tempPPS.transform_8x8_mode_flag; i++)
+      for(int i = 0; i < 6 + 2 * tempPPS.transform_8x8_mode_flag; i++)
       {
         if(i < 6)
           tempPPS.UseDefaultScalingMatrix4x4Flag[i] = 0;
@@ -167,7 +160,7 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
         }
         else
         {
-          if(!tempPPS.m_pSPS->seq_scaling_matrix_present_flag)
+          if(!tempPPS.pSPS->seq_scaling_matrix_present_flag)
           {
             if(i < 6)
             {
@@ -190,10 +183,10 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
             {
               if(i == 0 || i == 3)
               {
-                if(tempPPS.m_pSPS->UseDefaultScalingMatrix4x4Flag[i])
+                if(tempPPS.pSPS->UseDefaultScalingMatrix4x4Flag[i])
                   tempPPS.UseDefaultScalingMatrix4x4Flag[i] = 1;
                 else
-                  Rtos_Memcpy(tempPPS.ScalingList4x4[i], tempPPS.m_pSPS->ScalingList4x4[i], 16);
+                  Rtos_Memcpy(tempPPS.ScalingList4x4[i], tempPPS.pSPS->ScalingList4x4[i], 16);
               }
               else
               {
@@ -205,34 +198,32 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
             }
             else
             {
-              if(tempPPS.m_pSPS->UseDefaultScalingMatrix8x8Flag[i - 6])
+              if(tempPPS.pSPS->UseDefaultScalingMatrix8x8Flag[i - 6])
                 tempPPS.UseDefaultScalingMatrix8x8Flag[i - 6] = 1;
               else
-                Rtos_Memcpy(tempPPS.ScalingList8x8[i - 6], tempPPS.m_pSPS->ScalingList8x8[i - 6], 64);
+                Rtos_Memcpy(tempPPS.ScalingList8x8[i - 6], tempPPS.pSPS->ScalingList8x8[i - 6], 64);
             }
           }
         }
       }
     }
-    else if(tempPPS.m_pSPS)
+    else if(tempPPS.pSPS)
     {
-      int i;
-
-      for(i = 0; i < 8; ++i)
+      for(int i = 0; i < 8; ++i)
       {
         if(i < 6)
         {
-          if(tempPPS.m_pSPS->UseDefaultScalingMatrix4x4Flag[i])
+          if(tempPPS.pSPS->UseDefaultScalingMatrix4x4Flag[i])
             tempPPS.UseDefaultScalingMatrix4x4Flag[i] = 1;
           else
-            Rtos_Memcpy(tempPPS.ScalingList4x4[i], tempPPS.m_pSPS->ScalingList4x4[i], 16);
+            Rtos_Memcpy(tempPPS.ScalingList4x4[i], tempPPS.pSPS->ScalingList4x4[i], 16);
         }
         else
         {
-          if(tempPPS.m_pSPS->UseDefaultScalingMatrix8x8Flag[i - 6])
+          if(tempPPS.pSPS->UseDefaultScalingMatrix8x8Flag[i - 6])
             tempPPS.UseDefaultScalingMatrix8x8Flag[i - 6] = 1;
           else
-            Rtos_Memcpy(tempPPS.ScalingList8x8[i - 6], tempPPS.m_pSPS->ScalingList8x8[i - 6], 64);
+            Rtos_Memcpy(tempPPS.ScalingList8x8[i - 6], tempPPS.pSPS->ScalingList8x8[i - 6], 64);
         }
       }
     }
@@ -241,23 +232,21 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   }
   else
   {
-    int i;
-
-    for(i = 0; i < 8; ++i)
+    for(int i = 0; i < 8; ++i)
     {
       if(i < 6)
       {
-        if(tempPPS.m_pSPS->UseDefaultScalingMatrix4x4Flag[i])
+        if(tempPPS.pSPS->UseDefaultScalingMatrix4x4Flag[i])
           tempPPS.UseDefaultScalingMatrix4x4Flag[i] = 1;
         else
-          Rtos_Memcpy(tempPPS.ScalingList4x4[i], tempPPS.m_pSPS->ScalingList4x4[i], 16);
+          Rtos_Memcpy(tempPPS.ScalingList4x4[i], tempPPS.pSPS->ScalingList4x4[i], 16);
       }
       else
       {
-        if(tempPPS.m_pSPS->UseDefaultScalingMatrix8x8Flag[i - 6])
+        if(tempPPS.pSPS->UseDefaultScalingMatrix8x8Flag[i - 6])
           tempPPS.UseDefaultScalingMatrix8x8Flag[i - 6] = 1;
         else
-          Rtos_Memcpy(tempPPS.ScalingList8x8[i - 6], tempPPS.m_pSPS->ScalingList8x8[i - 6], 64);
+          Rtos_Memcpy(tempPPS.ScalingList8x8[i - 6], tempPPS.pSPS->ScalingList8x8[i - 6], 64);
       }
     }
   }
@@ -271,7 +260,7 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 
   COMPLY(tempPPS.num_slice_groups_minus1 == 0); // baseline profile only
 
-  pIAup->avcAup.m_pPPS[pps_id] = tempPPS;
+  pIAup->avcAup.pPPS[pps_id] = tempPPS;
   return AL_OK;
 }
 
@@ -484,7 +473,7 @@ AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   // validate current SPS
   tempSPS.bConceal = false;
 
-  pIAup->avcAup.m_pSPS[sps_id] = tempSPS;
+  pIAup->avcAup.pSPS[sps_id] = tempSPS;
   return AL_OK;
 }
 
@@ -506,10 +495,9 @@ static bool bufferingPeriod(AL_TRbspParser* pRP, AL_TAvcSps* pSpsTable, AL_TAvcB
 
   if(pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag)
   {
-    uint8_t i;
     uint8_t syntax_size = pSPS->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 + 1;
 
-    for(i = 0; i <= pSPS->vui_param.hrd_param.cpb_cnt_minus1[0]; ++i)
+    for(uint8_t i = 0; i <= pSPS->vui_param.hrd_param.cpb_cnt_minus1[0]; ++i)
     {
       pBufPeriod->initial_cpb_removal_delay[i] = u(pRP, syntax_size);
       pBufPeriod->initial_cpb_removal_delay_offset[i] = u(pRP, syntax_size);
@@ -518,10 +506,9 @@ static bool bufferingPeriod(AL_TRbspParser* pRP, AL_TAvcSps* pSpsTable, AL_TAvcB
 
   if(pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag)
   {
-    uint8_t i;
     uint8_t syntax_size = pSPS->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 + 1;
 
-    for(i = 0; i <= pSPS->vui_param.hrd_param.cpb_cnt_minus1[0]; ++i)
+    for(uint8_t i = 0; i <= pSPS->vui_param.hrd_param.cpb_cnt_minus1[0]; ++i)
     {
       pBufPeriod->initial_cpb_removal_delay[i] = u(pRP, syntax_size);
       pBufPeriod->initial_cpb_removal_delay_offset[i] = u(pRP, syntax_size);
@@ -562,7 +549,6 @@ static bool spic_timing(AL_TRbspParser* pRP, AL_TAvcSps* pSPS, AL_TAvcPicTiming*
 
   if(pSPS->vui_param.pic_struct_present_flag)
   {
-    uint8_t iter;
     const int NumClockTS[] =
     {
       1, 1, 1, 2, 2, 3, 3, 2, 3
@@ -571,7 +557,7 @@ static bool spic_timing(AL_TRbspParser* pRP, AL_TAvcSps* pSPS, AL_TAvcPicTiming*
 
     pPicTiming->pic_struct = u(pRP, 4);
 
-    for(iter = 0; iter < NumClockTS[pPicTiming->pic_struct]; ++iter)
+    for(uint8_t iter = 0; iter < NumClockTS[pPicTiming->pic_struct]; ++iter)
     {
       pClockTS = &pPicTiming->clock_ts[iter];
 
@@ -665,7 +651,7 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP)
     case 0: // buffering_period parsing
     {
       uint32_t uOffset = offset(pRP);
-      bool bRet = bufferingPeriod(pRP, aup->m_pSPS, &sei.buffering_period, &aup->m_pActiveSPS);
+      bool bRet = bufferingPeriod(pRP, aup->pSPS, &sei.buffering_period, &aup->pActiveSPS);
 
       if(!bRet)
       {
@@ -678,9 +664,9 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP)
 
     case 1: // picture_timing parsing
 
-      if(aup->m_pActiveSPS)
+      if(aup->pActiveSPS)
       {
-        bool bRet = spic_timing(pRP, aup->m_pActiveSPS, &sei.picture_timing);
+        bool bRet = spic_timing(pRP, aup->pActiveSPS, &sei.picture_timing);
 
         if(!bRet)
           skip(pRP, payload_size << 3);

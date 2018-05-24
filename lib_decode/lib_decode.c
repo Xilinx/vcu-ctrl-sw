@@ -40,12 +40,35 @@
 #include "I_Decoder.h"
 #include "lib_common_dec/DecBuffers.h"
 
-AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** pDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
+AL_ERR CreateAvcDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
+AL_ERR CreateHevcDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
 
 /*****************************************************************************/
 AL_ERR AL_Decoder_Create(AL_HDecoder* hDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB)
 {
-  return AL_CreateDefaultDecoder((AL_TDecoder**)hDec, pDecChannel, pAllocator, pSettings, pCB);
+  if(!pSettings)
+    return AL_ERROR;
+
+  if(!pCB)
+    return AL_ERROR;
+
+  if(!pAllocator)
+    return AL_ERROR;
+
+  if(!pDecChannel)
+    return AL_ERROR;
+
+  if(!hDec)
+    return AL_ERROR;
+
+  if(pSettings->eCodec == AL_CODEC_AVC)
+    return CreateAvcDecoder((AL_TDecoder**)hDec, pDecChannel, pAllocator, pSettings, pCB);
+
+  if(pSettings->eCodec == AL_CODEC_HEVC)
+    return CreateHevcDecoder((AL_TDecoder**)hDec, pDecChannel, pAllocator, pSettings, pCB);
+
+
+  return AL_ERROR;
 }
 
 /*****************************************************************************/
@@ -63,17 +86,17 @@ void AL_Decoder_SetParam(AL_HDecoder hDec, bool bConceal, bool bUseBoard, int iF
 }
 
 /*****************************************************************************/
-AL_ERR AL_Decoder_TryDecodeOneAU(AL_HDecoder hDec, TCircBuffer* pBufStream, bool* pEndOfFrame)
+UNIT_ERROR AL_Decoder_TryDecodeOneUnit(AL_HDecoder hDec, TCircBuffer* pBufStream)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)hDec;
-  return pDec->vtable->pfnTryDecodeOneAU(pDec, pBufStream, pEndOfFrame);
+  return pDec->vtable->pfnTryDecodeOneUnit(pDec, pBufStream);
 }
 
 /*****************************************************************************/
-bool AL_Decoder_PushBuffer(AL_HDecoder hDec, AL_TBuffer* pBuf, size_t uSize, AL_EBufMode eMode)
+bool AL_Decoder_PushBuffer(AL_HDecoder hDec, AL_TBuffer* pBuf, size_t uSize)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)hDec;
-  return pDec->vtable->pfnPushBuffer(pDec, pBuf, uSize, eMode);
+  return pDec->vtable->pfnPushBuffer(pDec, pBuf, uSize);
 }
 
 /*****************************************************************************/
@@ -132,13 +155,26 @@ void AL_Decoder_FlushInput(AL_HDecoder hDec)
   pDec->vtable->pfnFlushInput(pDec);
 }
 
-uint32_t AL_Decoder_RoundPitch(uint32_t uWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode)
+int32_t RndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode);
+int32_t RndHeight(int32_t iHeight);
+
+uint32_t AL_Decoder_GetMinPitch(uint32_t uWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode)
 {
   return RndPitch(uWidth, uBitDepth, eFrameBufferStorageMode);
 }
 
-uint32_t AL_Decoder_RoundHeight(uint32_t uHeight)
+uint32_t AL_Decoder_GetMinStrideHeight(uint32_t uHeight)
 {
   return RndHeight(uHeight);
+}
+
+uint32_t AL_Decoder_RoundPitch(uint32_t uWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode)
+{
+  return AL_Decoder_GetMinPitch(uWidth, uBitDepth, eFrameBufferStorageMode);
+}
+
+uint32_t AL_Decoder_RoundHeight(uint32_t uHeight)
+{
+  return AL_Decoder_GetMinStrideHeight(uHeight);
 }
 

@@ -37,6 +37,7 @@
 
 #ifndef _AL_DEC_IOCTL_H_
 #define _AL_DEC_IOCTL_H_
+#include <linux/ioctl.h>
 #include <linux/types.h>
 
 #define AL_MCU_CONFIG_CHANNEL  _IOWR('q', 2, struct al5_channel_config)

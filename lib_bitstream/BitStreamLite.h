@@ -51,8 +51,8 @@
 *****************************************************************************/
 typedef struct AL_t_BitStreamLite
 {
-  uint8_t* m_pData; /*!< Pointer to an array of bytes used as bistream */
-  int m_iBitCount; /*!< Bits already written */
+  uint8_t* pData; /*!< Pointer to an array of bytes used as bistream */
+  int iBitCount; /*!< Bits already written */
 }AL_TBitStreamLite;
 
 /*************************************************************************//*!
@@ -137,6 +137,12 @@ void AL_BitStreamLite_PutSE(AL_TBitStreamLite* pBS, int32_t iValue);
    \param[in] pBS Pointer to a TBitStreamLite object
  *************************************************************************/
 uint8_t* AL_BitStreamLite_GetData(AL_TBitStreamLite* pBS);
+
+/*************************************************************************//*!
+   \brief Returns pointer to the begining of the bitstream
+   \param[in] pBS Pointer to a TBitStreamLite object
+ *************************************************************************/
+uint8_t* AL_BitStreamLite_GetCurData(AL_TBitStreamLite* pBS);
 
 /*************************************************************************//*!
    \brief Returns the current numbers of bits in the bitstream

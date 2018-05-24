@@ -42,10 +42,16 @@ void CommandsSender::notifySceneChange(int lookAhead)
   AL_Encoder_NotifySceneChange(hEnc, lookAhead);
 }
 
-void CommandsSender::notifyLongTerm()
+void CommandsSender::notifyIsLongTerm()
 {
-  AL_Encoder_NotifyLongTerm(hEnc);
+  AL_Encoder_NotifyIsLongTerm(hEnc);
 }
+
+void CommandsSender::notifyUseLongTerm()
+{
+  AL_Encoder_NotifyUseLongTerm(hEnc);
+}
+
 
 #include <iostream>
 

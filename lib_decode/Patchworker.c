@@ -53,7 +53,7 @@ static size_t GetCopiedAreaSize(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, TCirc
    * we keep a chunk of memory always free after the used area to be able to write
    * the EOS at any moment.
    */
-  size_t unusedAreaSize = stream->tMD.uSize - stream->uAvailSize;
+  size_t unusedAreaSize = stream->tMD.uSize - stream->iAvailSize;
 
   /* if no metadata, assume offset = 0 and available size = buffer size */
   if(!pMeta)
@@ -76,7 +76,7 @@ static size_t GetNotCopiedAreaSize(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, si
 
 static void CopyAreaToStream(uint8_t* pData, uint32_t uOffset, size_t zCopySize, TCircBuffer* stream)
 {
-  uint32_t uEndStream = (stream->uOffset + stream->uAvailSize) % stream->tMD.uSize;
+  uint32_t uEndStream = (stream->iOffset + stream->iAvailSize) % stream->tMD.uSize;
 
   if(uEndStream + zCopySize > stream->tMD.uSize)
   {
@@ -97,7 +97,7 @@ static size_t TryCopyBufferToStream(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, T
 
   CopyAreaToStream(AL_Buffer_GetData(pBuf), uBufOffset, zCopySize, stream);
 
-  stream->uAvailSize += zCopySize;
+  stream->iAvailSize += zCopySize;
 
   return zCopySize;
 }
@@ -164,9 +164,14 @@ bool AL_Patchworker_Init(AL_TPatchworker* this, TCircBuffer* pCircularBuf, AL_TF
 void AL_Patchworker_Deinit(AL_TPatchworker* this)
 {
   if(this->workBuf)
+    AL_Buffer_Unref(this->workBuf);
+
+  this->workBuf = AL_Fifo_Dequeue(this->inputFifo, AL_NO_WAIT);
+
+  while(this->workBuf)
   {
     AL_Buffer_Unref(this->workBuf);
-    this->workBuf = NULL;
+    this->workBuf = AL_Fifo_Dequeue(this->inputFifo, AL_NO_WAIT);
   }
 
   Rtos_DeleteMutex(this->lock);

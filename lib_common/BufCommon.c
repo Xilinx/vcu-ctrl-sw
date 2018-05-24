@@ -43,7 +43,7 @@
 #include "Utils.h"
 
 /*****************************************************************************/
-int GetNumLinesInPitch(AL_EFbStorageMode eFrameBufferStorageMode)
+int AL_GetNumLinesInPitch(AL_EFbStorageMode eFrameBufferStorageMode)
 {
   switch(eFrameBufferStorageMode)
   {
@@ -96,7 +96,7 @@ int32_t ComputeRndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFr
   case AL_FB_TILE_64x4:
   {
     int const uDepth = uBitDepth > 8 ? 10 : 8;
-    iVal = iRndWidth * GetNumLinesInPitch(eFrameBufferStorageMode) * uDepth / 8;
+    iVal = iRndWidth * AL_GetNumLinesInPitch(eFrameBufferStorageMode) * uDepth / 8;
     break;
   }
   default:

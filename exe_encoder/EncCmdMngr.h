@@ -77,6 +77,7 @@ private:
   std::istream& m_CmdInput;
   int const m_iLookAhead;
   int const m_iFreqLT;
+  bool m_bHasLT;
   std::list<TFrmCmd> m_Cmds;
 };
 

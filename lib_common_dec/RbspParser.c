@@ -95,89 +95,93 @@ static uint32_t al_log2(uint32_t value)
 /*****************************************************************************/
 static void remove_trailing_bits(AL_TRbspParser* pRP)
 {
-  uint32_t i = pRP->m_iTrailingBitOneIndex;
+  uint32_t i = pRP->iTrailingBitOneIndex;
 
   while(read_bit(pRP, i) == 0 && i >= 1)
     --i;
 
-  pRP->m_iTrailingBitOneIndex = i;
+  pRP->iTrailingBitOneIndex = i;
 
-  if(pRP->m_iTrailingBitOneIndex < pRP->m_iTotalBitIndex)
-    pRP->m_iTrailingBitOneIndex = pRP->m_iTotalBitIndex;
+  if(pRP->iTrailingBitOneIndex < pRP->iTotalBitIndex)
+    pRP->iTrailingBitOneIndex = pRP->iTotalBitIndex;
 
-  pRP->m_iTrailingBitOneIndexConceal = ((pRP->m_iTrailingBitOneIndex + 8) & ~7);
+  pRP->iTrailingBitOneIndexConceal = ((pRP->iTrailingBitOneIndex + 8) & ~7);
 }
 
 /*****************************************************************************/
 static bool fetch_data(AL_TRbspParser* pRP)
 {
-  if(pRP->m_uNumScDetect == 2)
+  if(pRP->uNumScDetect == 2)
     return false;
 
   uint32_t uWrite = 0;
 
-  int byte_offset = (int)(pRP->m_iTrailingBitOneIndex >> 3);
-  uint8_t* pBuf = pRP->m_pBufIn;
-  uint8_t* pBufOut = &pRP->m_pBuffer[byte_offset];
+  int byte_offset = (int)(pRP->iTrailingBitOneIndex >> 3);
+  uint8_t* pBuf = pRP->pBufIn;
+  uint8_t* pBufOut = &pRP->pBuffer[byte_offset];
 
-  uint32_t uOffset = pRP->m_uBufInOffset;
+  uint32_t uOffset = pRP->uBufInOffset;
   uint32_t uEnd = uOffset + ANTI_EMUL_GRANULARITY;
 
   if(uEnd > uOffset + NON_VCL_NAL_SIZE)
     uEnd = uOffset + NON_VCL_NAL_SIZE;
 
-  // Replaces in m_pBuffer all sequences such as 0x00 0x00 0x03 0xZZ with 0x00 0x00 0xZZ (0x03 removal)
+  // Replaces in pBuffer all sequences such as 0x00 0x00 0x03 0xZZ with 0x00 0x00 0xZZ (0x03 removal)
   // iff 0xZZ == 0x00 or 0x01 or 0x02 or 0x03.
   for(uint32_t uRead = uOffset; uRead < uEnd; ++uRead)
   {
-    pRP->m_uBufInOffset = (pRP->m_uBufInOffset + 1) % pRP->m_uBufInSize;
+    pRP->uBufInOffset = (pRP->uBufInOffset + 1) % pRP->uBufInSize;
 
-    const uint8_t read = pBuf[uRead % pRP->m_uBufInSize];
+    const uint8_t read = pBuf[uRead % pRP->uBufInSize];
 
-    if((pRP->m_uZeroBytesCount == 2) && (read == 0x03))
+    if(pRP->bHasSC)
     {
-      pRP->m_uZeroBytesCount = 0;
-      continue;
+      if((pRP->uZeroBytesCount == 2) && (read == 0x03))
+      {
+        pRP->uZeroBytesCount = 0;
+        continue;
+      }
+
+      if((pRP->uZeroBytesCount >= 2) && (read == 0x01))
+      {
+        ++pRP->uNumScDetect;
+
+        if(pRP->uNumScDetect == 2)
+          break;
+      }
+
+      if(read == 0x00)
+        ++pRP->uZeroBytesCount;
+      else
+        pRP->uZeroBytesCount = 0;
     }
 
-    if((pRP->m_uZeroBytesCount >= 2) && (read == 0x01))
-    {
-      ++pRP->m_uNumScDetect;
-
-      if(pRP->m_uNumScDetect == 2)
-        break;
-    }
-
-    pRP->m_iTrailingBitOneIndex += 8;
-    pRP->m_iTrailingBitOneIndexConceal += 8;
+    pRP->iTrailingBitOneIndex += 8;
+    pRP->iTrailingBitOneIndexConceal += 8;
     pBufOut[uWrite++] = read;
-
-    if(read == 0x00)
-      ++pRP->m_uZeroBytesCount;
-    else
-      pRP->m_uZeroBytesCount = 0;
   }
 
-  if(pRP->m_uNumScDetect == 2)
+  if(pRP->uNumScDetect == 2)
     remove_trailing_bits(pRP);
   return true;
 }
 
 /*****************************************************************************/
-void InitRbspParser(TCircBuffer const* pStream, uint8_t* pBuffer, AL_TRbspParser* pRP)
+void InitRbspParser(TCircBuffer const* pStream, uint8_t* pBuffer, bool bHasSC, AL_TRbspParser* pRP)
 {
-  pRP->m_pBuffer = pBuffer;
+  pRP->pBuffer = pBuffer;
 
-  pRP->m_iTotalBitIndex = 0;
-  pRP->m_iTrailingBitOneIndex = 0;
-  pRP->m_iTrailingBitOneIndexConceal = 0;
-  pRP->m_uNumScDetect = 0;
-  pRP->m_uZeroBytesCount = 0;
-  pRP->m_pByte = pBuffer;
+  pRP->iTotalBitIndex = 0;
+  pRP->iTrailingBitOneIndex = 0;
+  pRP->iTrailingBitOneIndexConceal = 0;
+  pRP->uNumScDetect = 0;
+  pRP->uZeroBytesCount = 0;
+  pRP->pByte = pBuffer;
 
-  pRP->m_pBufIn = pStream->tMD.pVirtualAddr;
-  pRP->m_uBufInSize = pStream->tMD.uSize;
-  pRP->m_uBufInOffset = pStream->uOffset;
+  pRP->pBufIn = pStream->tMD.pVirtualAddr;
+  pRP->uBufInSize = pStream->tMD.uSize;
+  pRP->uBufInOffset = pStream->iOffset;
+  pRP->bHasSC = bHasSC;
 }
 
 /*****************************************************************************/
@@ -186,13 +190,13 @@ uint8_t read_bit(AL_TRbspParser* pRP, uint32_t iBitIndex)
   uint32_t iByteOffset = iBitIndex >> 3;
   int iBitOffset = (int)(7 - (iBitIndex & 7));
 
-  return pRP->m_pBuffer[iByteOffset] & (1 << iBitOffset);
+  return pRP->pBuffer[iByteOffset] & (1 << iBitOffset);
 }
 
 /*****************************************************************************/
 bool byte_aligned(AL_TRbspParser* pRP)
 {
-  return (pRP->m_iTotalBitIndex & 7) == 0;
+  return (pRP->iTotalBitIndex & 7) == 0;
 }
 
 /*****************************************************************************/
@@ -218,13 +222,13 @@ bool byte_alignment(AL_TRbspParser* pRP)
 bool more_rbsp_data(AL_TRbspParser* pRP)
 {
   fetch_data(pRP);
-  return pRP->m_iTotalBitIndex < pRP->m_iTrailingBitOneIndex;
+  return pRP->iTotalBitIndex < pRP->iTrailingBitOneIndex;
 }
 
 /*****************************************************************************/
 bool more_rbsp_data_conceal(AL_TRbspParser* pRP)
 {
-  return pRP->m_iTotalBitIndex <= pRP->m_iTrailingBitOneIndexConceal;
+  return pRP->iTotalBitIndex <= pRP->iTrailingBitOneIndexConceal;
 }
 
 /*****************************************************************************/
@@ -232,10 +236,10 @@ bool rbsp_trailing_bits(AL_TRbspParser* pRP)
 {
   remove_trailing_bits(pRP);
 
-  if(pRP->m_iTotalBitIndex != pRP->m_iTrailingBitOneIndex)
+  if(pRP->iTotalBitIndex != pRP->iTrailingBitOneIndex)
     return false;
 
-  pRP->m_iTrailingBitOneIndex = pRP->m_iTrailingBitOneIndexConceal;
+  pRP->iTrailingBitOneIndex = pRP->iTrailingBitOneIndexConceal;
   uint8_t rbsp_stop_one_bit = u(pRP, 1);
 
   if(!rbsp_stop_one_bit)
@@ -255,47 +259,47 @@ bool rbsp_trailing_bits(AL_TRbspParser* pRP)
 /*****************************************************************************/
 uint8_t getbyte(AL_TRbspParser* pRP)
 {
-  assert(pRP->m_iTotalBitIndex % 8 == 0);
+  assert(pRP->iTotalBitIndex % 8 == 0);
 
-  int byte_offset = (int)(pRP->m_iTotalBitIndex >> 3);
+  int byte_offset = (int)(pRP->iTotalBitIndex >> 3);
 
-  if(pRP->m_iTrailingBitOneIndex < pRP->m_iTotalBitIndex + 8)
+  if(pRP->iTrailingBitOneIndex < pRP->iTotalBitIndex + 8)
   {
     if(!fetch_data(pRP))
     {
-      pRP->m_iTotalBitIndex = pRP->m_iTrailingBitOneIndexConceal;
-      pRP->m_pByte = &(pRP->m_pBuffer[pRP->m_iTotalBitIndex >> 3]);
+      pRP->iTotalBitIndex = pRP->iTrailingBitOneIndexConceal;
+      pRP->pByte = &(pRP->pBuffer[pRP->iTotalBitIndex >> 3]);
       return 0;
     }
   }
 
-  assert(pRP->m_iTotalBitIndex <= pRP->m_iTrailingBitOneIndex);
+  assert(pRP->iTotalBitIndex <= pRP->iTrailingBitOneIndex);
 
-  pRP->m_iTotalBitIndex += 8;
-  ++(pRP->m_pByte);
-  return pRP->m_pBuffer[byte_offset];
+  pRP->iTotalBitIndex += 8;
+  ++(pRP->pByte);
+  return pRP->pBuffer[byte_offset];
 }
 
 /*****************************************************************************/
 uint8_t get_next_bit(AL_TRbspParser* pRP)
 {
-  int bit_offset = (int)(pRP->m_iTotalBitIndex & 0x07);
+  int bit_offset = (int)(pRP->iTotalBitIndex & 0x07);
   uint8_t bit;
 
-  if(pRP->m_iTrailingBitOneIndex < pRP->m_iTotalBitIndex + 1)
+  if(pRP->iTrailingBitOneIndex < pRP->iTotalBitIndex + 1)
     if(!fetch_data(pRP))
       return -1;
 
-  if(*(pRP->m_pByte) & (0x80 >> bit_offset))
+  if(*(pRP->pByte) & (0x80 >> bit_offset))
     bit = 1;
   else
     bit = 0;
 
-  pRP->m_iTotalBitIndex++;
+  pRP->iTotalBitIndex++;
 
   // if it's the beginning of a new byte, advance pointer
   if(bit_offset == 7)
-    pRP->m_pByte++;
+    pRP->pByte++;
 
   return bit;
 }
@@ -303,16 +307,16 @@ uint8_t get_next_bit(AL_TRbspParser* pRP)
 /*****************************************************************************/
 uint32_t get_cache_24(AL_TRbspParser* pRP)
 {
-  if((pRP->m_iTrailingBitOneIndex - pRP->m_iTotalBitIndex) < 32)
+  if((pRP->iTrailingBitOneIndex - pRP->iTotalBitIndex) < 32)
     fetch_data(pRP);
 
-  int bit_offset = (int)(pRP->m_iTotalBitIndex & 0x7);
-  int byte_offset = (int)(pRP->m_iTotalBitIndex >> 3);
+  int bit_offset = (int)(pRP->iTotalBitIndex & 0x7);
+  int byte_offset = (int)(pRP->iTotalBitIndex >> 3);
 
-  uint32_t b0 = ((uint32_t)pRP->m_pBuffer[byte_offset + 0]) << 24;
-  uint32_t b1 = pRP->m_pBuffer[byte_offset + 1] << 16;
-  uint32_t b2 = pRP->m_pBuffer[byte_offset + 2] << 8;
-  uint32_t b3 = pRP->m_pBuffer[byte_offset + 3] << 0;
+  uint32_t b0 = ((uint32_t)pRP->pBuffer[byte_offset + 0]) << 24;
+  uint32_t b1 = pRP->pBuffer[byte_offset + 1] << 16;
+  uint32_t b2 = pRP->pBuffer[byte_offset + 2] << 8;
+  uint32_t b3 = pRP->pBuffer[byte_offset + 3] << 0;
   uint32_t aligned = b0 | b1 | b2 | b3;
   return (aligned >> (8 - bit_offset)) & 0x00FFFFFF;
 }
@@ -322,21 +326,21 @@ void skip(AL_TRbspParser* pRP, uint32_t iNumBits)
 {
   bool bRes = true;
 
-  while(bRes && ((pRP->m_iTrailingBitOneIndex - pRP->m_iTotalBitIndex) < iNumBits))
+  while(bRes && ((pRP->iTrailingBitOneIndex - pRP->iTotalBitIndex) < iNumBits))
     bRes = fetch_data(pRP);
 
   if(bRes)
-    pRP->m_iTotalBitIndex += iNumBits;
+    pRP->iTotalBitIndex += iNumBits;
   else
-    pRP->m_iTotalBitIndex = pRP->m_iTrailingBitOneIndex;
+    pRP->iTotalBitIndex = pRP->iTrailingBitOneIndex;
 
-  pRP->m_pByte = &(pRP->m_pBuffer[pRP->m_iTotalBitIndex >> 3]);
+  pRP->pByte = &(pRP->pBuffer[pRP->iTotalBitIndex >> 3]);
 }
 
 /*************************************************************************/
 uint32_t offset(AL_TRbspParser* pRP)
 {
-  return pRP->m_iTotalBitIndex;
+  return pRP->iTotalBitIndex;
 }
 
 /*****************************************************************************/

@@ -40,24 +40,27 @@
 #include "lib_common_enc/EncBuffers.h"
 #include "lib_common_enc/IpEncFourCC.h"
 
-static uint32_t getSourceBufferSize(AL_TEncChanParam const* pChParam)
+static uint32_t getExpectedSourceBufferSize(AL_TSrcBufferChecker* pCtx, int pitch, int strideHeight)
 {
-  AL_TDimension tDim = { pChParam->uWidth, pChParam->uHeight };
-  return GetAllocSize_Src(tDim, AL_GET_BITDEPTH(pChParam->ePicFormat), AL_GET_CHROMA_MODE(pChParam->ePicFormat), pChParam->eSrcMode);
+  AL_TDimension tDim = { pCtx->width, pCtx->height };
+  return AL_GetAllocSizeSrc(tDim, pCtx->picFmt.uBitDepth, pCtx->picFmt.eChromaMode, pCtx->srcMode, pitch, strideHeight);
 }
 
 void AL_SrcBuffersChecker_Init(AL_TSrcBufferChecker* pCtx, AL_TEncChanParam const* pChParam)
 {
-  pCtx->width = pChParam->uWidth;
-  pCtx->height = pChParam->uHeight;
-  AL_TPicFormat const picFmt =
+  pCtx->width = AL_GetSrcWidth(*pChParam);
+  pCtx->height = AL_GetSrcHeight(*pChParam);
+
+  AL_TPicFormat picFmt =
   {
     AL_GET_CHROMA_MODE(pChParam->ePicFormat),
     AL_GET_BITDEPTH(pChParam->ePicFormat),
     AL_GetSrcStorageMode(pChParam->eSrcMode)
   };
-  pCtx->fourCC = AL_EncGetSrcFourCC(picFmt);
-  pCtx->minimumSize = getSourceBufferSize(pChParam);
+
+  pCtx->picFmt = picFmt;
+  pCtx->fourCC = AL_EncGetSrcFourCC(pCtx->picFmt);
+  pCtx->srcMode = pChParam->eSrcMode;
 }
 
 static int GetPitchYValue(int iWidth)
@@ -65,10 +68,8 @@ static int GetPitchYValue(int iWidth)
   return (iWidth + 31) & 0xFFFFFFE0; // 32 bytes alignment
 }
 
-static bool CheckMetaData(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf)
+static bool CheckMetaData(AL_TSrcBufferChecker* pCtx, AL_TSrcMetaData* pMetaDataBuf)
 {
-  AL_TSrcMetaData* pMetaDataBuf = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
-
   if(pMetaDataBuf == NULL)
     return false;
 
@@ -86,9 +87,9 @@ static bool CheckMetaData(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf)
 
   int iMinPitch;
 
-  if((pMetaDataBuf->tFourCC == FOURCC(RX0A)) ||
-     (pMetaDataBuf->tFourCC == FOURCC(RX2A)) ||
-     (pMetaDataBuf->tFourCC == FOURCC(RXmA))
+  if((pMetaDataBuf->tFourCC == FOURCC(XV15)) ||
+     (pMetaDataBuf->tFourCC == FOURCC(XV20)) ||
+     (pMetaDataBuf->tFourCC == FOURCC(XV10))
      )
     iMinPitch = GetPitchYValue((pCtx->width + 2) / 3 * 4);
   else
@@ -127,9 +128,18 @@ bool AL_SrcBuffersChecker_CanBeUsed(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf
   if(pBuf == NULL)
     return false;
 
-  if((int)pBuf->zSize < pCtx->minimumSize)
+  AL_TSrcMetaData* pMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
+
+  if(!CheckMetaData(pCtx, pMeta))
     return false;
 
-  return CheckMetaData(pCtx, pBuf);
+  int const iPitch = pMeta->tPitches.iLuma;
+  int const strideHeight = pMeta->tOffsetYC.iChroma / iPitch;
+  uint32_t const minSize = getExpectedSourceBufferSize(pCtx, iPitch, strideHeight);
+
+  if(pBuf->zSize < minSize)
+    return false;
+
+  return true;
 }
 

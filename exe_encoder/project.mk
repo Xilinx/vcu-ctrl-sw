@@ -2,7 +2,9 @@ THIS_EXE_ENCODER:=$(call get-my-dir)
 
 EXE_ENCODER_SRCS:=\
   $(THIS_EXE_ENCODER)/CodecUtils.cpp\
+  $(THIS_EXE_ENCODER)/FileUtils.cpp\
   $(THIS_EXE_ENCODER)/IpDevice.cpp\
+  $(THIS_EXE_ENCODER)/container.cpp\
   $(THIS_EXE_ENCODER)/main.cpp\
   $(THIS_EXE_ENCODER)/sink_bitstream_writer.cpp\
   $(THIS_EXE_ENCODER)/sink_frame_writer.cpp\
@@ -12,7 +14,7 @@ EXE_ENCODER_SRCS:=\
   $(THIS_EXE_ENCODER)/EncCmdMngr.cpp\
   $(THIS_EXE_ENCODER)/QPGenerator.cpp\
   $(THIS_EXE_ENCODER)/CommandsSender.cpp\
-  $(LIB_CFG_SRC)\
+  $(THIS_EXE_ENCODER)/CfgParser.cpp\
   $(LIB_CONV_SRC)\
   $(LIB_APP_SRC)\
 
@@ -20,6 +22,7 @@ EXE_ENCODER_SRCS:=\
 
 UNITTEST+=$(shell find $(THIS_EXE_ENCODER)/unittests -name "*.cpp")
 UNITTEST+=$(THIS_EXE_ENCODER)/ROIMngr.cpp
+UNITTEST+=$(THIS_EXE_ENCODER)/FileUtils.cpp
 UNITTEST+=$(THIS_EXE_ENCODER)/QPGenerator.cpp
 UNITTEST+=$(THIS_EXE_ENCODER)/EncCmdMngr.cpp
 
@@ -36,3 +39,4 @@ $(BIN)/AL_Encoder.exe: $(EXE_ENCODER_OBJ) $(LIB_REFENC_A) $(LIB_ENCODER_A)
 
 TARGETS+=$(BIN)/AL_Encoder.exe
 
+$(BIN)/$(THIS_EXE_ENCODER)/unittests/commandsparser.cpp.o: CFLAGS+=-Wno-missing-field-initializers

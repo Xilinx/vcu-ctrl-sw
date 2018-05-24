@@ -55,6 +55,7 @@ typedef enum al_eRoiOrder
 {
   AL_ROI_INCOMING_ORDER,
   AL_ROI_QUALITY_ORDER,
+  AL_ROI_MAX_ORDER,
 }AL_ERoiOrder;
 
 struct AL_TRoiNode

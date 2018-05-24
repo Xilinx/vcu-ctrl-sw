@@ -39,22 +39,22 @@
 
 bool AL_Fifo_Init(AL_TFifo* pFifo, size_t zMaxElem)
 {
-  pFifo->m_zMaxElem = zMaxElem + 1;
-  pFifo->m_zTail = 0;
-  pFifo->m_zHead = 0;
+  pFifo->zMaxElem = zMaxElem + 1;
+  pFifo->zTail = 0;
+  pFifo->zHead = 0;
 
-  size_t zElemSize = pFifo->m_zMaxElem * sizeof(void*);
-  pFifo->m_ElemBuffer = Rtos_Malloc(zElemSize);
+  size_t zElemSize = pFifo->zMaxElem * sizeof(void*);
+  pFifo->ElemBuffer = Rtos_Malloc(zElemSize);
 
-  if(!pFifo->m_ElemBuffer)
+  if(!pFifo->ElemBuffer)
     return false;
-  Rtos_Memset(pFifo->m_ElemBuffer, 0xCD, zElemSize);
+  Rtos_Memset(pFifo->ElemBuffer, 0xCD, zElemSize);
 
   pFifo->hCountSem = Rtos_CreateSemaphore(0);
 
   if(!pFifo->hCountSem)
   {
-    Rtos_Free(pFifo->m_ElemBuffer);
+    Rtos_Free(pFifo->ElemBuffer);
     return false;
   }
 
@@ -64,7 +64,7 @@ bool AL_Fifo_Init(AL_TFifo* pFifo, size_t zMaxElem)
   if(!pFifo->hSpaceSem)
   {
     Rtos_DeleteSemaphore(pFifo->hCountSem);
-    Rtos_Free(pFifo->m_ElemBuffer);
+    Rtos_Free(pFifo->ElemBuffer);
     return false;
   }
 
@@ -73,7 +73,7 @@ bool AL_Fifo_Init(AL_TFifo* pFifo, size_t zMaxElem)
 
 void AL_Fifo_Deinit(AL_TFifo* pFifo)
 {
-  Rtos_Free(pFifo->m_ElemBuffer);
+  Rtos_Free(pFifo->ElemBuffer);
   Rtos_DeleteSemaphore(pFifo->hCountSem);
   Rtos_DeleteSemaphore(pFifo->hSpaceSem);
   Rtos_DeleteMutex(pFifo->hMutex);
@@ -85,8 +85,8 @@ bool AL_Fifo_Queue(AL_TFifo* pFifo, void* pElem, uint32_t uWait)
     return false;
 
   Rtos_GetMutex(pFifo->hMutex);
-  pFifo->m_ElemBuffer[pFifo->m_zTail] = pElem;
-  pFifo->m_zTail = (pFifo->m_zTail + 1) % pFifo->m_zMaxElem;
+  pFifo->ElemBuffer[pFifo->zTail] = pElem;
+  pFifo->zTail = (pFifo->zTail + 1) % pFifo->zMaxElem;
   Rtos_ReleaseMutex(pFifo->hMutex);
 
   Rtos_ReleaseSemaphore(pFifo->hCountSem);
@@ -102,8 +102,8 @@ void* AL_Fifo_Dequeue(AL_TFifo* pFifo, uint32_t uWait)
     return NULL;
 
   Rtos_GetMutex(pFifo->hMutex);
-  void* pElem = pFifo->m_ElemBuffer[pFifo->m_zHead];
-  pFifo->m_zHead = (pFifo->m_zHead + 1) % pFifo->m_zMaxElem;
+  void* pElem = pFifo->ElemBuffer[pFifo->zHead];
+  pFifo->zHead = (pFifo->zHead + 1) % pFifo->zMaxElem;
   Rtos_ReleaseMutex(pFifo->hMutex);
 
   /* new empty space available */

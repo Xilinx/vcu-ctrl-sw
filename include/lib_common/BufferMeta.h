@@ -35,6 +35,11 @@
 *
 ******************************************************************************/
 
+/**************************************************************************//*!
+   \addtogroup Buffers
+   @{
+   \file
+ *****************************************************************************/
 #pragma once
 
 #include "lib_rtos/types.h"
@@ -44,23 +49,26 @@
 *****************************************************************************/
 typedef enum
 {
-  AL_META_TYPE_SOURCE,
-  AL_META_TYPE_STREAM,
-  AL_META_TYPE_CIRCULAR,
-  AL_META_TYPE_PICTURE,
-  /* sentinel */
-  AL_META_TYPE_MAX,
-  /* user define */
-  AL_META_TYPE_EXTENDED = 0x7F000000
+  AL_META_TYPE_SOURCE, /*< useful information related to the reconstructed picture */
+  AL_META_TYPE_STREAM, /*< useful section of the buffer containing the bitstream */
+  AL_META_TYPE_CIRCULAR, /*< circular buffer implementation inside the buffer */
+  AL_META_TYPE_PICTURE, /*< useful information about the bitstream choices for the frame */
+  AL_META_TYPE_MAX, /* sentinel */
+  AL_META_TYPE_EXTENDED = 0x7F000000 /*< user can define their own metadatas after this value. */
 }AL_EMetaType;
 
 typedef struct al_t_MetaData AL_TMetaData;
-
 typedef bool (* AL_FCN_MetaDestroy) (AL_TMetaData* pMeta);
 
+/*************************************************************************//*!
+   \brief Metadatas are used to add useful informations to a buffer. The user
+   can also define his own metadata type and bind it to the buffer.
+*****************************************************************************/
 struct al_t_MetaData
 {
-  AL_EMetaType eType;
-  AL_FCN_MetaDestroy MetaDestroy;
+  AL_EMetaType eType; /*< tag of the metadata */
+  AL_FCN_MetaDestroy MetaDestroy; /*< custom deleter */
 };
+
+/*@}*/
 

@@ -78,6 +78,7 @@ public:
     m_MD5.Update(AL_Buffer_GetData(pBuf), pBuf->zSize);
   }
 
+
 private:
   ofstream m_Md5File;
   CMD5 m_MD5;

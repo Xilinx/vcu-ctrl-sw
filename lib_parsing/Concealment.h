@@ -41,11 +41,11 @@
 
 typedef struct t_Conceal
 {
-  bool m_bHasPPS;
-  bool m_bValidFrame;
-  int m_iLastPPSId;
-  int m_iActivePPS;
-  int m_iFirstLCU;
+  bool bHasPPS;
+  bool bValidFrame;
+  int iLastPPSId;
+  int iActivePPS;
+  int iFirstLCU;
 }AL_TConceal;
 
 void AL_Conceal_Init(AL_TConceal* pConceal);

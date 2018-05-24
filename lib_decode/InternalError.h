@@ -35,15 +35,13 @@
 *
 ******************************************************************************/
 
-#if __linux__
+#pragma once
 
-#include "allegro_ioctl_mcu_enc.h"
-#include "lib_common_enc/EncPicInfo.h"
-#include "lib_common_enc/EncChanParam.h"
-#include "lib_common/BufferAPI.h"
-
-void setChannelParam(struct al5_params* msg, AL_TEncChanParam* pChParam, AL_PADDR pEP1);
-void setEncodeMsg(struct al5_encode_msg* msg, AL_TEncInfo* encInfo, AL_TEncRequestInfo* reqInfo, AL_TEncPicBufAddrs* bufAddrs);
-
-#endif
+typedef enum
+{
+  ERR_ACCESS_UNIT_NONE,
+  ERR_NAL_UNIT_NONE,
+  ERR_UNIT_NOT_FOUND,
+  ERR_UNIT_INVALID_CHANNEL,
+}UNIT_ERROR;
 

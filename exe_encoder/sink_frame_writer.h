@@ -38,7 +38,7 @@
 #pragma once
 
 #include "sink.h"
-#include "lib_cfg/CfgParser.h"
+#include "CfgParser.h"
 
-std::unique_ptr<IFrameSink> createFrameWriter(std::string path, ConfigFile& cfg_, AL_TBuffer* Yuv_);
+std::unique_ptr<IFrameSink> createFrameWriter(std::string path, ConfigFile& cfg_, AL_TBuffer* Yuv_, int iLayerID_);
 

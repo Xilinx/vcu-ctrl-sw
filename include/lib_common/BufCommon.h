@@ -35,13 +35,11 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \addtogroup lib_base
+/**************************************************************************//*!
+   \addtogroup Buffers
    @{
    \file
- *****************************************************************************/
+******************************************************************************/
 #pragma once
 
 #include "lib_rtos/types.h"
@@ -49,61 +47,9 @@
 #include "lib_common/FourCC.h"
 #include "lib_common/OffsetYC.h"
 
-#define MAX_REF 16 /*!< max number of frame buffer */
-
-#define AL_MAX_COLUMNS_TILE 20 // warning : true only for main profile (4K = 10; 8K = 20)
-#define AL_MAX_ROWS_TILE 22  // warning : true only for main profile (4K = 11; 8K = 22)
-
-#define AL_MAX_NUM_TILE ((AL_MAX_COLUMNS_TILE)*(AL_MAX_ROWS_TILE))
-#define AL_MAX_NUM_WPP 528// max line number : sqrt(MaxLumaSample size * 8) / 32. (4K = 264; 8K = 528);
-
-#define AL_MAX_ENTRY_POINT (((AL_MAX_NUM_TILE) > (AL_MAX_NUM_WPP)) ? (AL_MAX_NUM_TILE) : (AL_MAX_NUM_WPP))
-
-/*************************************************************************//*!
-   \brief Generic Buffer
-*****************************************************************************/
-typedef struct AL_t_Buffer
-{
-  TMemDesc tMD; /*!< Memory descriptor associated to the buffer */
-}TBuffer;
-
-/*************************************************************************//*!
-   \brief Buffer with Motion Vectors content
-*****************************************************************************/
-typedef TBuffer TBufferMV;
-
-/*************************************************************************//*!
-   \brief Circular Buffer
-*****************************************************************************/
-typedef struct t_CircBuffer
-{
-  TMemDesc tMD; /*!< Memory descriptor associated to the buffer */
-
-  int32_t uOffset; /*!< Initial Offset in Circular Buffer */
-  int32_t uAvailSize; /*!< Avail Space in Circular Buffer */
-}TCircBuffer;
-
-#include <assert.h>
-static AL_INLINE void CircBuffer_ConsumeUpToOffset(TCircBuffer* stream, int32_t uNewOffset)
-{
-  if(uNewOffset < stream->uOffset)
-    stream->uAvailSize -= uNewOffset + stream->tMD.uSize - stream->uOffset;
-  else
-    stream->uAvailSize -= uNewOffset - stream->uOffset;
-  stream->uOffset = uNewOffset;
-
-  assert(stream->uAvailSize >= 0);
-}
-
-static AL_INLINE void CircBuffer_Init(TCircBuffer* pBuf)
-{
-  pBuf->uOffset = 0;
-  pBuf->uAvailSize = 0;
-}
-
-typedef struct AL_t_OffsetYC AL_TOffsetYC;
 /*************************************************************************//*!
    \brief Frame buffer stored as IYUV planar format (also called I420)
+   old interface. will soon be deprecated.
 *****************************************************************************/
 typedef struct t_BufferYuv
 {
@@ -121,12 +67,21 @@ typedef struct t_BufferYuv
   TFourCC tFourCC; /*!< FOURCC identifier */
 }TBufferYuv;
 
-/****************************************************************************/
-int GetNumLinesInPitch(AL_EFbStorageMode eFrameBufferStorageMode);
-int32_t ComputeRndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode, int iAlignment);
+/*************************************************************************//*!
+   If the framebuffer is stored in raster, the pitch represents the number of bytes
+   to go to the next line, so you get one line.
+   If the framebuffer is stored in tiles, the pitch represents the number of bytes
+   to go to the next line of tile. As a tile height is superior to one line,
+   you have to skip multiple lines to go to the next line of tile.
+   \param[in] eFrameBufferStorageMode how the framebuffer is stored in memory
+   \return Number of lines in the pitch
+*****************************************************************************/
+int AL_GetNumLinesInPitch(AL_EFbStorageMode eFrameBufferStorageMode);
 
 /****************************************************************************/
+/* Useful for traces */
 void AL_CleanupMemory(void* pDst, size_t uSize);
-
 extern int AL_CLEAN_BUFFERS;
+
+/*@}*/
 

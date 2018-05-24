@@ -35,25 +35,32 @@
 *
 ******************************************************************************/
 
+/**************************************************************************//*!
+   \addtogroup Buffers
+   @{
+   \file
+ **************************************************************************/
 #pragma once
 
 #include "lib_rtos/types.h"
 
-/*************************************************************************//*
-   \brief Stream section
- *****************************************************************************/
+/*************************************************************************//*!
+   \brief Stream section. Act as a kind of scatter gather list containing the
+   stream parts inside a buffer.
+*****************************************************************************/
 typedef struct
 {
-  uint32_t uOffset;        /*!< Start offset of the section (in bytes from
-                                  the begining of the buffer */
+  uint32_t uOffset; /*!< Start offset of the section (in bytes from the begining of the buffer) */
   uint32_t uLength; /*!< Length in bytes of the section */
   uint32_t uFlags; /*!< flags associated with the section; see macro SECTION_xxxxx_FLAG */
 }AL_TStreamSection;
 
 typedef enum
 {
-  SECTION_SYNC_FLAG = 0x40000000, // this section data is from an IDR
-  SECTION_END_FRAME_FLAG = 0x20000000, // this section denotes the end of a frame
-  SECTION_CONFIG_FLAG = 0x10000000 // section data is an sps, pps, vps, aud
+  SECTION_SYNC_FLAG = 0x40000000, /*< this section data is from an IDR */
+  SECTION_END_FRAME_FLAG = 0x20000000, /*< this section denotes the end of a frame */
+  SECTION_CONFIG_FLAG = 0x10000000 /*< section data is an sps, pps, vps, aud */
 }AL_SectionFlags;
+
+/*@}*/
 

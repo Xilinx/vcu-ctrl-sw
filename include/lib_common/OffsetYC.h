@@ -35,6 +35,12 @@
 *
 ******************************************************************************/
 
+/**************************************************************************//*!
+   \addtogroup Buffers
+   @{
+   \file
+ *****************************************************************************/
+
 #pragma once
 
 /*************************************************************************//*!
@@ -42,7 +48,9 @@
 *****************************************************************************/
 typedef struct AL_t_OffsetYC
 {
-  int iLuma; /*!< Begining of the luma */
-  int iChroma; /*!< Begining of the chroma */
+  int iLuma; /*!< Offset to the begining of the luma in bytes */
+  int iChroma; /*!< Offset to the begining of the chroma in bytes */
 }AL_TOffsetYC;
+
+/*@}*/
 

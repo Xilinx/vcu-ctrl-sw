@@ -102,14 +102,14 @@ typedef struct AL_t_IDecChannelVtable
 static inline
 void AL_IDecChannel_Destroy(AL_TIDecChannel* pThis)
 {
-  return pThis->vtable->Destroy(pThis);
+  pThis->vtable->Destroy(pThis);
 }
 
 /*************************************************************************//*!
    \brief Channel creation
    \param[in] pThis Decoder channel
    \param[in] pChParam Pointer to the channel parameter
-   \param[in] callback Start code callback structure
+   \param[in] callback end decoding code callback structure
    \return return the channel ID if the creation is successfull
               255 otherwise(invalide channel ID)
 *****************************************************************************/
@@ -130,7 +130,7 @@ AL_ERR AL_IDecChannel_Configure(AL_TIDecChannel* pThis, AL_TDecChanParam* pChPar
 static inline
 void AL_IDecChannel_SearchSC(AL_TIDecChannel* pThis, AL_TScParam* pScParam, AL_TScBufferAddrs* pBufferAddrs, AL_CB_EndStartCode callback)
 {
-  return pThis->vtable->SearchSC(pThis, pScParam, pBufferAddrs, callback);
+  pThis->vtable->SearchSC(pThis, pScParam, pBufferAddrs, callback);
 }
 
 /*************************************************************************//*!
@@ -144,8 +144,9 @@ void AL_IDecChannel_SearchSC(AL_TIDecChannel* pThis, AL_TScParam* pScParam, AL_T
 static inline
 void AL_IDecChannel_DecodeOneFrame(AL_TIDecChannel* pThis, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* pSliceParams)
 {
-  return pThis->vtable->DecodeOneFrame(pThis, pPictParam, pPictAddrs, pSliceParams);
+  pThis->vtable->DecodeOneFrame(pThis, pPictParam, pPictAddrs, pSliceParams);
 }
+
 
 /*************************************************************************//*!
    \brief Asks the scheduler to process a frame decoding
@@ -158,7 +159,7 @@ void AL_IDecChannel_DecodeOneFrame(AL_TIDecChannel* pThis, AL_TDecPicParam* pPic
 static inline
 void AL_IDecChannel_DecodeOneSlice(AL_TIDecChannel* pThis, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* pSliceParams)
 {
-  return pThis->vtable->DecodeOneSlice(pThis, pPictParam, pPictAddrs, pSliceParams);
+  pThis->vtable->DecodeOneSlice(pThis, pPictParam, pPictAddrs, pSliceParams);
 }
 
 /*@}*/

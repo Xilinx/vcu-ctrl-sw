@@ -35,13 +35,13 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \addtogroup lib_base
+/**************************************************************************//*!
+   \defgroup Encoder_Settings Settings
+   \ingroup Encoder
+
    @{
    \file
- *****************************************************************************/
+******************************************************************************/
 #pragma once
 
 #include "stdio.h"
@@ -51,8 +51,6 @@
 #include "EncChanParam.h"
 
 #define VP9_AUTO_FILT_LEVEL -1
-
-static const uint16_t AL_ADAPTIVE_B = 0xFFFF;
 
 /*************************************************************************//*!
    \brief Enable/Disable flag identifier
@@ -76,7 +74,7 @@ typedef enum e_AspectRatio
 }AL_EAspectRatio;
 
 /*************************************************************************//*!
-   \brief Coulour Description identifer (See Hevc Spec Table E.3)
+   \brief Colour Description identifer (See Hevc Spec Table E.3)
 *****************************************************************************/
 typedef enum e_ColourDescription
 {
@@ -125,7 +123,7 @@ typedef enum e_QPCtrlMode
 typedef struct t_EncSettings
 {
   // Stream
-  AL_TEncChanParam tChParam;
+  AL_TEncChanParam tChParam[MAX_NUM_LAYER];
   bool bEnableAUD;
   bool bEnableFillerData;
   uint32_t uEnableSEI;
@@ -138,21 +136,20 @@ typedef struct t_EncSettings
   bool bDisIntra;
   bool bForceLoad;
   int32_t iPrefetchLevel2;
-  uint32_t uL2PSize;
   uint16_t uClipHrzRange;
   uint16_t uClipVrtRange;
   AL_EQpCtrlMode eQpCtrlMode;
   int NumView;
+  int NumLayer;
   uint8_t ScalingList[4][6][64];
   uint8_t SclFlag[4][6];
-  uint32_t bScalingListPresentFlags;
   uint8_t DcCoeff[8];
   uint8_t DcCoeffFlag[8];
   bool bEnableWatchdog;
 }AL_TEncSettings;
 
 /*************************************************************************//*!
-   \brief The SetDefaultSettings function retrieves the default settings
+   \brief Retrieves the default settings
    \param[out] pSettings Pointer to TEncSettings structure that receives
    default Settings.
 *****************************************************************************/
@@ -160,10 +157,13 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings);
 
 void AL_Settings_SetDefaultParam(AL_TEncSettings* pSettings);
 
+void AL_Settings_SetDefaultRCParam(AL_TRCParam* pRCParam);
+
+
 /*************************************************************************//*!
-   \brief The CheckValidity function check that all encoding parameters are
-   valids
+   \brief Checks that all encoding parameters are valids
    \param[in] pSettings Pointer to TEncSettings to be checked
+   \param[in] pChParam Pointer to the channel parameters to be checked
    \param[in] pOut Optional standard stream on which verbose messages are
    written.
    \return If pSettings point to valid parameters the function returns false
@@ -171,14 +171,13 @@ void AL_Settings_SetDefaultParam(AL_TEncSettings* pSettings);
    the number of invalid parameters found (true);
    and this Settings can not be used with IP encoder.
 *****************************************************************************/
-
-int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, FILE* pOut);
+int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChParam, FILE* pOut);
 
 /**************************************************************************//*!
-   \brief The CheckCoherency function check that encoding parameters are
-   coherent between them. When incoherent parameter are found, the
-   function automatically correct them.
+   \brief Checks that encoding parameters are coherent between them.
+   When incoherent parameter are found, the function automatically correct them.
    \param[in] pSettings Pointer to TEncSettings to be checked
+   \param[in] pChParam Pointer to the channel parameters to be checked
    \param[in] tFourCC Encoding tFourCC format
    \param[in] pOut Optional standard stream on which verbose messages are
    written.
@@ -188,8 +187,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, FILE* pOut);
    Since the function automatically apply correction,
    the Settings can be then used with IP encoder.
  *****************************************************************************/
-int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, TFourCC tFourCC, FILE* pOut);
-
+int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pChParam, TFourCC tFourCC, FILE* pOut);
 
 /*@}*/
 

@@ -63,15 +63,18 @@ AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, TScheduler* pScheduler, AL_TAllocato
   AL_TEncCtx* pCtx = Rtos_Malloc(sizeof(AL_TEncCtx));
 
   if(!pCtx)
+  {
+    errorCode = AL_ERR_NO_MEMORY;
     goto fail;
+  }
 
   Rtos_Memset(pCtx, 0, sizeof *pCtx);
 
 
-  if(AL_IS_HEVC(pSettings->tChParam.eProfile))
+  if(AL_IS_HEVC(pSettings->tChParam[0].eProfile))
     AL_CreateHevcEncoder(&pCtx->encoder);
 
-  if(AL_IS_AVC(pSettings->tChParam.eProfile))
+  if(AL_IS_AVC(pSettings->tChParam[0].eProfile))
     AL_CreateAvcEncoder(&pCtx->encoder);
 
   if(!pCtx->encoder.configureChannel)
@@ -83,7 +86,7 @@ AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, TScheduler* pScheduler, AL_TAllocato
     goto fail;
 
   if(callback.func)
-    pCtx->m_callback = callback;
+    pCtx->tLayerCtx[0].callback = callback;
 
   pEncoder->pCtx = pCtx;
 
@@ -114,11 +117,20 @@ void AL_Encoder_NotifySceneChange(AL_HEncoder hEnc, int iAhead)
 }
 
 /****************************************************************************/
-void AL_Encoder_NotifyLongTerm(AL_HEncoder hEnc)
+void AL_Encoder_NotifyIsLongTerm(AL_HEncoder hEnc)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
-  AL_Common_Encoder_NotifyLongTerm(pEnc);
+  AL_Common_Encoder_NotifyIsLongTerm(pEnc);
 }
+
+/****************************************************************************/
+void AL_Encoder_NotifyUseLongTerm(AL_HEncoder hEnc)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  AL_Common_Encoder_NotifyUseLongTerm(pEnc);
+}
+
+
 
 
 /****************************************************************************/
@@ -126,28 +138,28 @@ bool AL_Encoder_GetRecPicture(AL_HEncoder hEnc, TRecPic* pRecPic)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
 
-  return AL_Common_Encoder_GetRecPicture(pEnc, pRecPic);
+  return AL_Common_Encoder_GetRecPicture(pEnc, pRecPic, 0);
 }
 
 /****************************************************************************/
 void AL_Encoder_ReleaseRecPicture(AL_HEncoder hEnc, TRecPic* pRecPic)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
-  AL_Common_Encoder_ReleaseRecPicture(pEnc, pRecPic);
+  AL_Common_Encoder_ReleaseRecPicture(pEnc, pRecPic, 0);
 }
 
 /****************************************************************************/
 bool AL_Encoder_PutStreamBuffer(AL_HEncoder hEnc, AL_TBuffer* pStream)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
-  return AL_Common_Encoder_PutStreamBuffer(pEnc, pStream);
+  return AL_Common_Encoder_PutStreamBuffer(pEnc, pStream, 0);
 }
 
 /****************************************************************************/
 bool AL_Encoder_Process(AL_HEncoder hEnc, AL_TBuffer* pFrame, AL_TBuffer* pQpTable)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
-  return AL_Common_Encoder_Process(pEnc, pFrame, pQpTable);
+  return AL_Common_Encoder_Process(pEnc, pFrame, pQpTable, 0);
 }
 
 /****************************************************************************/
@@ -182,7 +194,7 @@ bool AL_Encoder_SetGopNumB(AL_HEncoder hEnc, int iNumB)
 bool AL_Encoder_SetBitRate(AL_HEncoder hEnc, int iBitRate)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
-  return AL_Common_Encoder_SetBitRate(pEnc, iBitRate);
+  return AL_Common_Encoder_SetBitRate(pEnc, iBitRate, 0);
 }
 
 /****************************************************************************/

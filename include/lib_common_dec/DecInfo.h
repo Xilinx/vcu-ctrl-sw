@@ -35,6 +35,12 @@
 *
 ******************************************************************************/
 
+/**************************************************************************//*!
+   \defgroup Decoder_Settings Settings
+   \ingroup Decoder
+   @{
+   \file
+ *****************************************************************************/
 #pragma once
 
 #include "lib_rtos/types.h"
@@ -48,11 +54,11 @@
  *************************************************************************/
 typedef struct
 {
-  AL_TDimension tDim; // !< Stream's dimension (width / height)
-  AL_EChromaMode eChroma; // !< Stream's chroma mode (400/420/422/444)
-  int iBitDepth; // !< Stream's bit depth
-  int iLevel; // !< Stream's level
-  int iProfileIdc; // !< Stream's profile idc
+  AL_TDimension tDim; /*!< Stream's dimension (width / height) */
+  AL_EChromaMode eChroma; /*!< Stream's chroma mode (400/420/422/444) */
+  int iBitDepth; /*!< Stream's bit depth */
+  int iLevel; /*!< Stream's level */
+  int iProfileIdc; /*!< Stream's profile idc */
 }AL_TStreamSettings;
 
 /*************************************************************************//*!
@@ -72,19 +78,46 @@ typedef struct t_CropInfo
  ***************************************************************************/
 typedef struct t_InfoDecode
 {
-  bool bChroma;
-  AL_TDimension tDim;
-  uint8_t uBitDepthY;
-  uint8_t uBitDepthC;
-  AL_TCropInfo tCrop;
-  AL_EFbStorageMode eFbStorageMode;
-  uint32_t uCRC;
+  bool bChroma; /*!< Does the current framebuffer hold a chroma component or not (monochrome)*/
+  AL_TDimension tDim; /*!< Dimensions of the current framebuffer */
+  uint8_t uBitDepthY; /*!< Luma bitdepth of the current framebuffer */
+  uint8_t uBitDepthC; /*!< Chroma bitdepth of the current framebuffer */
+  AL_TCropInfo tCrop; /*!< Crop information of the current framebuffer */
+  AL_EFbStorageMode eFbStorageMode; /*! frame buffer storage mode */
+  AL_EPicStruct ePicStruct; /*!< structure (frame/field, top/Bottom) of the current framebuffer */
+  uint32_t uCRC; /*!< framebuffer data checksum */
 }AL_TInfoDecode;
 
-/******************************************************************************/
+/*************************************************************************//*!
+   \brief Specifies if the framebuffer bound to the crop info requires cropping
+   \param[in] pInfo Pointer to the crop info
+   \return Returns true if the framebuffer requires cropping. False otherwise.
+ ***************************************************************************/
 bool AL_NeedsCropping(AL_TCropInfo const* pInfo);
-/******************************************************************************/
+
+/*************************************************************************//*!
+   \brief Returns the minimum number of output buffers required to decode
+   the AVC stream in the specified dpb mode
+   \param[in] tStreamSettings Settings describing the stream to decode
+   \param[in] iStack Number of requests that should be stacked inside the decoder
+   at the same time (affects performances)
+   \param[in] eMode DPB mode used to decode the stream
+   \return Returns the minimum number of output buffers required to decode
+   the AVC stream in the specified dpb mode
+ ***************************************************************************/
 int AL_AVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iStack, AL_EDpbMode eMode);
-/******************************************************************************/
+
+/*************************************************************************//*!
+   \brief Returns the minimum number of output buffers required to decode
+   the HEVC stream in the specified dpb mode
+   \param[in] tStreamSettings Settings describing the stream to decode
+   \param[in] iStack Number of requests that should be stacked inside the decoder
+   at the same time (affects performances)
+   \param[in] eMode DPB Mode used to decode the stream
+   \return Returns the minimum number of output buffers required to decode
+   the HEVC stream in the specified dpb mode
+ ***************************************************************************/
 int AL_HEVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iStack, AL_EDpbMode eMode);
+
+/*@}*/
 

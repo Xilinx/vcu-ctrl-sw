@@ -35,33 +35,20 @@
 *
 ******************************************************************************/
 
+/**************************************************************************//*!
+   \addtogroup FourCC
+   @{
+   \file
+ *****************************************************************************/
 #pragma once
-#include "lib_common/Error.h"
-#include "lib_rtos/types.h"
+#include "lib_common/FourCC.h"
 
-typedef struct t_driver Driver;
-struct t_driver
-{
-  int (* Open)(Driver* driver, const char* device);
-  void (* Close)(Driver* driver, int fd);
-  AL_ERR (* PostMessage)(Driver* driver, int fd, long unsigned int messageId, void* data);
-};
-
-static inline
-int AL_Driver_Open(Driver* driver, const char* device)
-{
-  return driver->Open(driver, device);
-}
-
-static inline
-void AL_Driver_Close(Driver* driver, int fd)
-{
-  driver->Close(driver, fd);
-}
-
-static inline
-AL_ERR AL_Driver_PostMessage(Driver* driver, int fd, long unsigned int messageId, void* data)
-{
-  return driver->PostMessage(driver, fd, messageId, data);
-}
+/*************************************************************************//*!
+   \brief Returns the FOURCC identifier of the decoded frame buffer generated
+   by the decoder according to the chroma mode, the bitdepth of the stream
+   and the storage mode of the ip
+   \param[in] picFmt source picture format
+   \return return the corresponding TFourCC format
+*****************************************************************************/
+TFourCC AL_GetDecFourCC(AL_TPicFormat const picFmt);
 

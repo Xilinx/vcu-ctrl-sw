@@ -35,25 +35,67 @@
 *
 ******************************************************************************/
 
-#include "assert.h"
-#include "lib_common/BufferAccess.h"
+#include <errno.h>
+#include "lib_rtos/lib_rtos.h"
+#include "lib_common/IDriver.h"
 
-uint32_t AL_GetWaitMode(AL_EBufMode eMode)
+static int Open(AL_TDriver* driver, const char* device)
 {
-  uint32_t Wait = 0;
-  switch(eMode)
-  {
-  case AL_BUF_MODE_BLOCK:
-    Wait = AL_WAIT_FOREVER;
-    break;
-  case AL_BUF_MODE_NONBLOCK:
-    Wait = AL_NO_WAIT;
-    break;
-  default:
-    assert(eMode >= AL_BUF_MODE_MAX);
-    break;
-  }
+  (void)driver;
+  return (int)(intptr_t)Rtos_DriverOpen(device);
+}
 
-  return Wait;
+static void Close(AL_TDriver* driver, int fd)
+{
+  (void)driver;
+  Rtos_DriverClose((void*)(intptr_t)fd);
+}
+
+static AL_EDriverError ErrnoToDriverError(int err)
+{
+  if(err == ENOMEM)
+    return DRIVER_ERROR_NO_MEMORY;
+
+  if(err == EINVAL || err == EPERM)
+    return DRIVER_ERROR_CHANNEL;
+
+  return DRIVER_ERROR_UNKNOWN;
+}
+
+static AL_EDriverError PostMessage(AL_TDriver* driver, int fd, long unsigned int messageId, void* data)
+{
+  (void)driver;
+
+  while(true)
+  {
+    int iRet = Rtos_DriverIoctl((void*)(intptr_t)fd, messageId, data);
+    int errdrv = errno;
+
+    if(iRet < 0)
+    {
+      if((errdrv == EAGAIN) || (errdrv == EINTR))
+        continue;
+      return ErrnoToDriverError(errdrv);
+    }
+
+    return DRIVER_SUCCESS;
+  }
+}
+
+static AL_DriverVtable hardwareDriverVtable =
+{
+  &Open,
+  &Close,
+  &PostMessage,
+};
+
+static AL_TDriver hardwareDriver =
+{
+  &hardwareDriverVtable
+};
+
+AL_TDriver* AL_GetHardwareDriver()
+{
+  return &hardwareDriver;
 }
 

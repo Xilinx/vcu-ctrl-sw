@@ -57,10 +57,10 @@ CNvxConv::CNvxConv(TFrameInfo const& FrameInfo) : m_FrameInfo(FrameInfo)
 }
 
 /*****************************************************************************/
-AL_UINT CNvxConv::GetConvBufSize()
+unsigned int CNvxConv::GetSrcBufSize(int iPitch, int iStrideHeight)
 {
   AL_TDimension tDim = { m_FrameInfo.iWidth, m_FrameInfo.iHeight };
-  return GetAllocSize_Src(tDim, m_FrameInfo.iBitDepth, m_FrameInfo.eCMode, AL_SRC_NVX);
+  return AL_GetAllocSizeSrc(tDim, m_FrameInfo.iBitDepth, m_FrameInfo.eCMode, AL_SRC_NVX, iPitch, iStrideHeight);
 }
 
 #include <sstream>
@@ -168,30 +168,30 @@ static void convertToNV16(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   }
 }
 
-static void convertToRx0A(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+static void convertToXV15(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
   {
   case FOURCC(Y800):
-    Y800_To_RX0A(pSrcIn, pSrcOut);
+    Y800_To_XV15(pSrcIn, pSrcOut);
     break;
   case FOURCC(I420):
-    I420_To_RX0A(pSrcIn, pSrcOut);
+    I420_To_XV15(pSrcIn, pSrcOut);
     break;
   case FOURCC(IYUV):
-    IYUV_To_RX0A(pSrcIn, pSrcOut);
+    IYUV_To_XV15(pSrcIn, pSrcOut);
     break;
   case FOURCC(YV12):
-    YV12_To_RX0A(pSrcIn, pSrcOut);
+    YV12_To_XV15(pSrcIn, pSrcOut);
     break;
   case FOURCC(NV12):
-    NV12_To_RX0A(pSrcIn, pSrcOut);
+    NV12_To_XV15(pSrcIn, pSrcOut);
     break;
   case FOURCC(P010):
-    P010_To_RX0A(pSrcIn, pSrcOut);
+    P010_To_XV15(pSrcIn, pSrcOut);
     break;
   case FOURCC(I0AL):
-    I0AL_To_RX0A(pSrcIn, pSrcOut);
+    I0AL_To_XV15(pSrcIn, pSrcOut);
     break;
   default:
     cout << "No conversion known from " << FourCCToString(inFourCC) << endl;
@@ -199,21 +199,24 @@ static void convertToRx0A(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   }
 }
 
-static void convertToRx2A(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+static void convertToXV20(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
   {
   case FOURCC(I422):
-    I422_To_RX2A(pSrcIn, pSrcOut);
+    I422_To_XV20(pSrcIn, pSrcOut);
     break;
   case FOURCC(YV16):
-    I422_To_RX2A(pSrcIn, pSrcOut);
+    I422_To_XV20(pSrcIn, pSrcOut);
     break;
   case FOURCC(NV16):
-    NV16_To_RX2A(pSrcIn, pSrcOut);
+    NV16_To_XV20(pSrcIn, pSrcOut);
     break;
   case FOURCC(I2AL):
-    I2AL_To_RX2A(pSrcIn, pSrcOut);
+    I2AL_To_XV20(pSrcIn, pSrcOut);
+    break;
+  case FOURCC(P210):
+    P210_To_XV20(pSrcIn, pSrcOut);
     break;
   default:
     cout << "No conversion known from " << FourCCToString(inFourCC) << endl;
@@ -221,7 +224,7 @@ static void convertToRx2A(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   }
 }
 
-static void convertToRxmA(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+static void convertToXV10(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
   {
@@ -230,7 +233,7 @@ static void convertToRxmA(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(I2AL):
   case FOURCC(P010):
   case FOURCC(P210):
-    Y010_To_RXmA(pSrcIn, pSrcOut);
+    Y010_To_XV10(pSrcIn, pSrcOut);
     break;
 
   case FOURCC(Y800):
@@ -238,7 +241,7 @@ static void convertToRxmA(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(I422):
   case FOURCC(NV12):
   case FOURCC(NV16):
-    Y800_To_RXmA(pSrcIn, pSrcOut);
+    Y800_To_XV10(pSrcIn, pSrcOut);
     break;
 
   default:
@@ -246,6 +249,7 @@ static void convertToRxmA(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
     assert(0);
   }
 }
+
 
 static void convertToP010(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
@@ -307,7 +311,12 @@ static void convertToP210(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
 void CNvxConv::ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut)
 {
   AL_TSrcMetaData* pSrcInMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pSrcIn, AL_META_TYPE_SOURCE);
-  AL_TPicFormat const picFmt = { m_FrameInfo.eCMode, uBitDepth };
+  AL_TPicFormat const picFmt =
+  {
+    m_FrameInfo.eCMode,
+    uBitDepth,
+    AL_FB_RASTER
+  };
   TFourCC tSrcFourCC = AL_EncGetSrcFourCC(picFmt);
   switch(tSrcFourCC)
   {
@@ -327,16 +336,16 @@ void CNvxConv::ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBu
     convertToNV16(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
     break;
 
-  case FOURCC(RX0A):
-    convertToRx0A(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
+  case FOURCC(XV15):
+    convertToXV15(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
     break;
 
-  case FOURCC(RX2A):
-    convertToRx2A(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
+  case FOURCC(XV20):
+    convertToXV20(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
     break;
 
-  case FOURCC(RXmA):
-    convertToRxmA(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
+  case FOURCC(XV10):
+    convertToXV10(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
     break;
 
   case FOURCC(P010):

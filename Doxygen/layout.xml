@@ -10,7 +10,7 @@
     </tab>
     <tab type="classes" visible="no" title="">
       <tab type="classes" visible="yes" title=""/>
-      <tab type="classindex" visible="$ALPHABETICAL_INDEX" title=""/> 
+      <tab type="classindex" visible="$ALPHABETICAL_INDEX" title=""/>
       <tab type="hierarchy" visible="yes" title=""/>
       <tab type="classmembers" visible="yes" title=""/>
     </tab>
@@ -18,15 +18,13 @@
       <tab type="files" visible="yes" title=""/>
       <tab type="globals" visible="yes" title=""/>
     </tab>
-    <tab type="examples" visible="yes" title=""/>  
+    <tab type="examples" visible="yes" title=""/>
   </navindex>
 
   <!-- Layout definition for a class page -->
   <class>
     <briefdescription visible="yes"/>
-    <includes visible="$SHOW_INCLUDE_FILES"/>
-    <inheritancegraph visible="$CLASS_GRAPH"/>
-    <collaborationgraph visible="$COLLABORATION_GRAPH"/>
+    <detaileddescription title=""/>
     <allmemberslink visible="yes"/>
     <memberdecl>
       <membergroups visible="yes"/>
@@ -60,7 +58,6 @@
       <friends title=""/>
       <related title="" subtitle=""/>
     </memberdecl>
-    <detaileddescription title=""/>
     <memberdef>
       <typedefs title=""/>
       <enums title=""/>
@@ -72,6 +69,9 @@
       <events title=""/>
     </memberdef>
     <usedfiles visible="$SHOW_USED_FILES"/>
+    <includes visible="$SHOW_INCLUDE_FILES"/>
+    <inheritancegraph visible="$CLASS_GRAPH"/>
+    <collaborationgraph visible="$COLLABORATION_GRAPH"/>
     <authorsection visible="yes"/>
   </class>
 
@@ -80,18 +80,18 @@
     <briefdescription visible="yes"/>
     <memberdecl>
       <nestednamespaces visible="yes" title=""/>
+      <functions title=""/>
       <classes visible="yes" title=""/>
       <membergroups visible="yes"/>
       <typedefs title=""/>
       <enums title=""/>
-      <functions title=""/>
       <variables title=""/>
     </memberdecl>
     <detaileddescription title=""/>
     <memberdef>
+      <functions title=""/>
       <typedefs title=""/>
       <enums title=""/>
-      <functions title=""/>
       <variables title=""/>
     </memberdef>
     <authorsection visible="yes"/>
@@ -100,37 +100,36 @@
   <!-- Layout definition for a file page -->
   <file>
     <briefdescription visible="yes"/>
-    <includes visible="$SHOW_INCLUDE_FILES"/>
-    <includegraph visible="$INCLUDE_GRAPH"/>
-    <includedbygraph visible="$INCLUDED_BY_GRAPH"/>
-    <sourcelink visible="yes"/>
+    <detaileddescription title=""/>
     <memberdecl>
+      <functions title=""/>
       <classes visible="yes" title=""/>
       <namespaces visible="yes" title=""/>
       <defines title=""/>
       <typedefs title=""/>
       <enums title=""/>
-      <functions title=""/>
       <variables title=""/>
     </memberdecl>
-    <detaileddescription title=""/>
     <memberdef>
+      <functions title=""/>
       <defines title=""/>
       <typedefs title=""/>
       <enums title=""/>
-      <functions title=""/>
       <variables title=""/>
     </memberdef>
+    <includes visible="$SHOW_INCLUDE_FILES"/>
+    <includegraph visible="$INCLUDE_GRAPH"/>
+    <includedbygraph visible="$INCLUDED_BY_GRAPH"/>
+    <sourcelink visible="yes"/>
     <authorsection/>
   </file>
 
   <!-- Layout definition for a group page -->
   <group>
     <briefdescription visible="yes"/>
-    <groupgraph visible="$GROUP_GRAPHS"/>
+    <detaileddescription title=""/>
     <memberdecl>
-      <files visible="yes" title=""/>
-      <functions title=""/>      
+      <functions title=""/>
       <classes visible="yes" title=""/>
       <namespaces visible="yes" title=""/>
       <dirs visible="yes" title=""/>
@@ -138,7 +137,7 @@
       <defines title=""/>
       <typedefs title=""/>
       <enums title=""/>
-      <enumvalues title=""/>      
+      <enumvalues title=""/>
       <variables title=""/>
       <signals title=""/>
       <publicslots title=""/>
@@ -147,8 +146,8 @@
       <events title=""/>
       <properties title=""/>
       <friends title=""/>
+      <files visible="yes" title=""/>      
     </memberdecl>
-    <detaileddescription title=""/>
     <memberdef>
       <pagedocs/>
       <defines title=""/>
@@ -165,17 +164,18 @@
       <properties title=""/>
       <friends title=""/>
     </memberdef>
+    <groupgraph visible="$GROUP_GRAPHS"/>
     <authorsection visible="yes"/>
   </group>
 
   <!-- Layout definition for a directory page -->
   <directory>
     <briefdescription visible="yes"/>
-    <directorygraph visible="yes"/>
+    <detaileddescription title=""/>
     <memberdecl>
       <dirs visible="yes"/>
       <files visible="yes"/>
     </memberdecl>
-    <detaileddescription title=""/>
+    <directorygraph visible="yes"/>
   </directory>
 </doxygenlayout>

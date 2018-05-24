@@ -70,7 +70,7 @@ typedef struct AL_t_SliceStatus
   uint32_t uNumCU64x64; /*!< Number of 64x64 CUs */
   uint32_t uSumCplx; /*!< Sum of LCU complexity */
   int32_t uSumQP; /*!< Sum of QP value used to encode each block unit */
-  int16_t iSliceQP; /*!< Slice QP value */
+  int16_t iSliceQP;  /*!< Slice QP value */
   int16_t uMinQP; /*!< Minimum QP value */
   int16_t uMaxQP; /*!< Maximum QP value */
   uint16_t uNumSlices; /*!< Number of slices */

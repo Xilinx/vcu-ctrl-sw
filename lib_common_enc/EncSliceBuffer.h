@@ -37,7 +37,7 @@
 
 #pragma once
 
-#include "lib_common/BufCommon.h"
+#include "lib_common/BufCommonInternal.h"
 #include "lib_common_enc/EncRecBuffer.h"
 #include "EncEPBuffer.h"
 
@@ -64,6 +64,7 @@ typedef struct t_SliceBuffersEnc
   TBufferEP* pEP1; /*!< Pointer to the lambdas & SclMtx buffer */
   TBufferEP* pEP2; /*!< Pointer to the QP table buffer */
   TBufferEP* pEP3; /*!< Pointer to the HwRcCtx buffer */
+
 
   TCircBuffer Stream;
 }TSliceBuffersEnc;

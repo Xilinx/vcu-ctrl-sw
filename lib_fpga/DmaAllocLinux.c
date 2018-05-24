@@ -285,11 +285,6 @@ static size_t LinuxDma_GetDmabufSize(int fd)
   return zSize;
 }
 
-static int LinuxDma_ExportToFd(AL_TLinuxDmaAllocator* pAllocator, AL_HANDLE hBuf)
-{
-  return LinuxDma_GetFd(pAllocator, hBuf);
-}
-
 static AL_HANDLE LinuxDma_ImportFromFd(AL_TLinuxDmaAllocator* pAllocator, int fd)
 {
   struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)calloc(1, sizeof(*pDmaBuffer));
@@ -331,10 +326,9 @@ static const AL_DmaAllocLinuxVtable DmaAllocLinuxVtable =
   },
   &LinuxDma_GetFd,
   &LinuxDma_ImportFromFd,
-  &LinuxDma_ExportToFd,
 };
 
-AL_TAllocator* DmaAlloc_Create(const char* deviceFile)
+AL_TAllocator* AL_DmaAlloc_Create(const char* deviceFile)
 {
   struct LinuxDmaCtx* pCtx = calloc(1, sizeof(struct LinuxDmaCtx));
 

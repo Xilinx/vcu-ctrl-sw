@@ -35,45 +35,7 @@
 *
 ******************************************************************************/
 
-#include "lib_rtos/lib_rtos.h"
-#include "lib_common_enc/EncBuffersInternal.h"
-#include <string.h>
-#include <stdio.h>
+typedef struct AL_t_driver AL_TDriver;
 
-static int FromHex(char a, char b)
-{
-  int A = ((a >= 'a') && (a <= 'f')) ? (a - 'a') + 10 :
-          ((a >= 'A') && (a <= 'F')) ? (a - 'A') + 10 :
-          ((a >= '0') && (a <= '9')) ? (a - '0') : 0;
-
-  int B = ((b >= 'a') && (b <= 'f')) ? (b - 'a') + 10 :
-          ((b >= 'A') && (b <= 'F')) ? (b - 'A') + 10 :
-          ((b >= '0') && (b <= '9')) ? (b - '0') : 0;
-
-  return (A << 4) + B;
-}
-
-bool LoadLambdaFromFile(char const* lambdaFileName, TBufferEP* pEP)
-{
-  FILE* lambdaFile = fopen(lambdaFileName, "r");
-  AL_TLambdas* pLambdas = (AL_TLambdas*)(pEP->tMD.pVirtualAddr + EP1_BUF_LAMBDAS.Offset);
-
-  if(!lambdaFile)
-    return false;
-
-  char sLine[256];
-
-  for(int i = 0; i <= 51; i++)
-  {
-    fgets(sLine, 256, lambdaFile);
-    pLambdas[i][0] = FromHex(sLine[6], sLine[7]);
-    pLambdas[i][1] = FromHex(sLine[4], sLine[5]);
-    pLambdas[i][2] = FromHex(sLine[2], sLine[3]);
-    pLambdas[i][3] = FromHex(sLine[0], sLine[1]);
-  }
-
-  pEP->uFlags |= EP1_BUF_LAMBDAS.Flag;
-
-  return true;
-}
+AL_TDriver* AL_GetHardwareDriver();
 

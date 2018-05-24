@@ -35,61 +35,22 @@
 *
 ******************************************************************************/
 
-#include <stdio.h>
-#include <errno.h>
-#include "lib_rtos/lib_rtos.h"
+#include "lib_common_dec/IpDecFourCC.h"
+#include <assert.h>
 
-#include "lib_encode/driverInterface.h"
+TFourCC AL_GetSrcFourCC(AL_TPicFormat const picFmt);
+TFourCC GetTiledFourCC(AL_TPicFormat const picFmt);
 
-int Open(Driver* driver, const char* device)
+TFourCC AL_GetDecFourCC(AL_TPicFormat const picFmt)
 {
-  (void)driver;
-  return (uintptr_t)Rtos_DriverOpen(device);
-}
-
-void Close(Driver* driver, int fd)
-{
-  (void)driver;
-  Rtos_DriverClose((void*)(uintptr_t)fd);
-}
-
-AL_ERR PostMessage(Driver* driver, int fd, long unsigned int messageId, void* data)
-{
-  (void)driver;
-  /* must keep the errno from ioctl */
-  int iRet;
-  bool isDone = false;
-
-  while(!isDone)
+  switch(picFmt.eStorageMode)
   {
-    iRet = Rtos_DriverIoctl((void*)(uintptr_t)fd, messageId, data);
-
-    if(iRet < 0 && (errno == EAGAIN || errno == EINTR))
-      continue;
-    isDone = true;
+  case AL_FB_TILE_64x4:
+  case AL_FB_TILE_32x4:
+    return GetTiledFourCC(picFmt);
+  case AL_FB_RASTER: /* if frame buffer storage mode is unknown, default to raster */
+  default:
+    return AL_GetSrcFourCC(picFmt);
   }
-
-  if(iRet < 0)
-  {
-    switch(errno)
-    {
-      case ENOMEM: return AL_ERR_NO_MEMORY;
-      default: return AL_ERROR;
-    }
-  }
-
-  return AL_SUCCESS;
-}
-
-static Driver hardwareDriver =
-{
-  &Open,
-  &Close,
-  &PostMessage,
-};
-
-Driver* AL_GetHardwareDriver()
-{
-  return &hardwareDriver;
 }
 

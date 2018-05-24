@@ -55,14 +55,7 @@ static const int PicStructInfo[3] =
   6  // 2:frame tripling
 };
 
-/*************************************************************************//*!
-   \brief Video Mode
-*****************************************************************************/
-typedef enum AL_e_VideoMode
-{ // Warning obf reserved !
-  PROGRESSIVE = 0, /*!< Progressive */
-}AL_EVideoMode;
-
+/****************************************************************************/
 static const uint32_t AL_PICT_INFO_IS_IDR = 0x00000001;
 static const uint32_t AL_PICT_INFO_IS_REF = 0x00000002;
 static const uint32_t AL_PICT_INFO_SCN_CHG = 0x00000004;
@@ -103,6 +96,7 @@ typedef struct AL_t_PictureInfo
 
   uint16_t uGdrPos; /*!< Gradual Refresh position */
   AL_EGdrMode eGdrMode; /*!< Gradual Refresh Mode */
+
 }AL_TPictureInfo;
 
 /*@}*/

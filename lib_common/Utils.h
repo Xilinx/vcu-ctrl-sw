@@ -97,7 +97,7 @@ static AL_INLINE int Sign(int iVal)
 /***************************************************************************/
 static AL_INLINE int RoundUp(int iVal, int iRnd)
 {
-  return (iVal + iRnd - 1) & (~(iRnd - 1));
+  return (iVal + iRnd - 1) / iRnd * iRnd;
 }
 
 AL_INLINE static AL_ECodec AL_GetCodec(AL_EProfile eProf)

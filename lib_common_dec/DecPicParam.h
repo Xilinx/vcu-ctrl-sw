@@ -45,7 +45,7 @@
 #pragma once
 
 #include "lib_rtos/types.h"
-#include "lib_common/BufCommon.h"
+#include "lib_common/BufCommonInternal.h"
 #include "lib_common/SliceConsts.h"
 
 /*****************************************************************************/
@@ -121,6 +121,7 @@ typedef struct AL_t_DecPictParam
   uint16_t num_slice;
 
   int32_t CurrentPOC;
+  AL_EPicStruct ePicStruct;
 
   uint32_t OptionFlags;
 
@@ -138,6 +139,7 @@ typedef struct AL_t_PictBuffers
   TBuffer tCompMap;
   TBuffer tStream;
   TBuffer tListRef;
+  TBuffer tListVirtRef; // only used for traces
   TBuffer tRecY;
   TBuffer tRecC;
   TBuffer tRecFbcMapY;
@@ -148,6 +150,7 @@ typedef struct AL_t_PictBuffers
   TBuffer tWP;
 
   uint32_t uPitch;
+
 }AL_TDecPicBuffers;
 
 /****************************************************************************/
@@ -167,7 +170,9 @@ typedef struct AL_t_DecPicBufferAddrs
   AL_PADDR pPoc;
   AL_PADDR pMV;
   AL_PADDR pWP;
+
 }AL_TDecPicBufferAddrs;
+
 
 /*****************************************************************************/
 typedef struct AL_t_DecPicStatus

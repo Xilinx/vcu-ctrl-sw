@@ -51,7 +51,7 @@ void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatu
     AL_AVC_NUT_SUFFIX_SEI,
   };
 
-  NalsData nalsData = AL_ExtractNalsData(pCtx);
-  GenerateSections(AL_GetAvcRbspWriter(), nuts, &nalsData, pStream, pPicStatus);
+  NalsData nalsData = AL_ExtractNalsData(pCtx, 0);
+  GenerateSections(AL_GetAvcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, pCtx->Settings.NumLayer);
 }
 

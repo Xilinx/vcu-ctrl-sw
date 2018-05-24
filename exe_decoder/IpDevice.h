@@ -45,13 +45,15 @@
 typedef struct AL_t_Allocator AL_TAllocator;
 typedef struct AL_t_IDecChannel AL_TIDecChannel;
 typedef struct AL_t_IpCtrl AL_TIpCtrl;
+typedef struct AL_t_Timer AL_Timer;
 
 /*****************************************************************************/
 struct CIpDevice
 {
   AL_TIDecChannel* m_pDecChannel = nullptr;
   std::shared_ptr<AL_TAllocator> m_pAllocator;
+  AL_Timer* m_pTimer;
 };
 
-std::shared_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, AL_EDecUnit eDecUnit, std::function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl, bool trackDma = false, int uNumCore = 0, int hangers = 0);
+std::shared_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, std::function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl, bool trackDma = false, int uNumCore = 0, int hangers = 0);
 

@@ -57,13 +57,16 @@ static void* Realloc(void* pPtr, size_t zOldSize, size_t zNewSize)
 {
   void* pNewPtr = Rtos_Malloc(zNewSize);
 
+  if(!pNewPtr)
+    return NULL;
+
   if(pPtr)
   {
     size_t zSizeToCopy = zOldSize < zNewSize ? zOldSize : zNewSize;
     Rtos_Memcpy(pNewPtr, pPtr, zSizeToCopy);
+    Rtos_Free(pPtr);
   }
 
-  Rtos_Free(pPtr);
   return pNewPtr;
 }
 
@@ -109,7 +112,7 @@ static AL_TBuffer* createBuffer(AL_TAllocator* pAllocator, AL_HANDLE hBuf, size_
 AL_TBuffer* AL_Buffer_WrapData(uint8_t* pData, size_t zSize, PFN_RefCount_CallBack pCallBack)
 {
   AL_TAllocator* pAllocator = AL_GetWrapperAllocator();
-  AL_HANDLE hBuf = AL_WrapperAllocator_WrapData(pData);
+  AL_HANDLE hBuf = AL_WrapperAllocator_WrapData(pData, NULL, NULL);
 
   return createBuffer(pAllocator, hBuf, zSize, pCallBack);
 }
@@ -150,6 +153,7 @@ void AL_Buffer_Destroy(AL_TBuffer* hBuf)
     pBuf->pMeta[i]->MetaDestroy(pBuf->pMeta[i]);
 
   Rtos_Free(pBuf->pMeta);
+  AL_Allocator_Free(hBuf->pAllocator, hBuf->hBuf);
   Rtos_ReleaseMutex(pBuf->pLock);
 
   Rtos_DeleteMutex(pBuf->pLock);
@@ -255,7 +259,12 @@ bool AL_Buffer_RemoveMetaData(AL_TBuffer* hBuf, AL_TMetaData* pMeta)
     if(pBuf->pMeta[i] == pMeta)
     {
       pBuf->pMeta[i] = pBuf->pMeta[pBuf->iMetaCount - 1];
-      pBuf->pMeta = Realloc(pBuf->pMeta, sizeof(void*) * pBuf->iMetaCount, sizeof(void*) * (pBuf->iMetaCount - 1));
+      AL_TMetaData** pTmp = Realloc(pBuf->pMeta, sizeof(void*) * pBuf->iMetaCount, sizeof(void*) * (pBuf->iMetaCount - 1));
+
+      /* if we can't realloc, keep the old bigger buffer */
+      if(pTmp)
+        pBuf->pMeta = pTmp;
+
       pBuf->iMetaCount--;
       Rtos_ReleaseMutex(pBuf->pLock);
       return true;

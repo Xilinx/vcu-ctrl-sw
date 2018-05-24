@@ -41,10 +41,10 @@
 
 typedef struct
 {
-  size_t m_zMaxElem;
-  size_t m_zTail;
-  size_t m_zHead;
-  void** m_ElemBuffer;
+  size_t zMaxElem;
+  size_t zTail;
+  size_t zHead;
+  void** ElemBuffer;
   AL_MUTEX hMutex;
   AL_SEMAPHORE hCountSem;
   AL_SEMAPHORE hSpaceSem;

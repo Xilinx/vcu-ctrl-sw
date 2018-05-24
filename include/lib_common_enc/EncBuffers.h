@@ -35,10 +35,10 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \addtogroup lib_base
+/**************************************************************************//*!
+   \addtogroup Encoder_Buffers Buffer size
+   \ingroup Encoder
+
    @{
    \file
  *****************************************************************************/
@@ -61,37 +61,32 @@
 #define MASK_FORCE_MV0 0x80
 #define MASK_FORCE 0xC0
 
+
 // Encoder Parameter Buf 2 Flag,  Size, Offset
-static const TBufInfo EP2_BUF_QP_CTRL =
+static const AL_TBufInfo EP2_BUF_QP_CTRL =
 {
   1, 48, 0
 }; // only 20 bytes used
-static const TBufInfo EP2_BUF_SEG_CTRL =
+static const AL_TBufInfo EP2_BUF_SEG_CTRL =
 {
   2, 16, 48
 };
-static const TBufInfo EP2_BUF_QP_BY_MB =
+static const AL_TBufInfo EP2_BUF_QP_BY_MB =
 {
   4, 0, 64
 }; // no fixed size
 
+
 /*************************************************************************//*!
-   \brief  Retrieves the size of a Encoder parameters buffer 2 (QP Ctrl)
+   \brief Retrieves the size of a Encoder parameters buffer 2 (QP Ctrl)
    \param[in] tDim Frame size in pixels
    \param[in] uMaxCuSize Maximum Size of a Coding Unit
    \return maximum size (in bytes) needed to store
 *****************************************************************************/
-uint32_t GetAllocSizeEP2(AL_TDimension tDim, uint8_t uMaxCuSize);
+uint32_t AL_GetAllocSizeEP2(AL_TDimension tDim, uint8_t uMaxCuSize);
 
-/*************************************************************************//*!
-   \brief Retrieves the size of a Source YUV frame buffer
-   \param[in] tDim Frame size in pixels
-   \param[in] uBitDepth YUV bit-depth
-   \param[in] eChromaMode Chroma Mode
-   \param[in] eStorageMode Source Storage Mode
-   \return maximum size (in bytes) needed for the YUV frame buffer
-*****************************************************************************/
-uint32_t AL_GetAllocSize(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_EFbStorageMode eStorageMode);
+// AL_DEPRECATED("Doesn't support pitch different of AL_EncGetMinPitch. Use AL_GetAllocSizeSrc(). Will be removed in 0.9")
+uint32_t AL_GetAllocSize_Src(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a Source YUV frame buffer
@@ -99,17 +94,23 @@ uint32_t AL_GetAllocSize(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode e
    \param[in] uBitDepth YUV bit-depth
    \param[in] eChromaMode Chroma Mode
    \param[in] eSrcFmt Source format used by the HW IP
+   \param[in] iPitch pitch / stride of the source frame buffer
+   \param[in] iStrideHeight the offset to the chroma in line of pixels
    \return maximum size (in bytes) needed for the YUV frame buffer
 *****************************************************************************/
-uint32_t GetAllocSize_Src(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt);
+uint32_t AL_GetAllocSizeSrc(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight);
 
 /*************************************************************************//*!
-   \brief Retrieves the Pitch value depending on Source format
+   \brief Retrieves the minimal pitch value supported by the ip depending
+   on the source format
    \param[in] iWidth Frame width in pixel unit
    \param[in] uBitDepth YUV bit-depth
    \param[in] eStorageMode Source Storage Mode
    \return pitch value in bytes
 *****************************************************************************/
+int AL_EncGetMinPitch(int iWidth, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode);
+
+AL_DEPRECATED("Renamed as AL_EncGetMinPitch, Will be removed in 0.9")
 int AL_CalculatePitchValue(int iWidth, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode);
 
 /*************************************************************************//*!
@@ -118,6 +119,7 @@ int AL_CalculatePitchValue(int iWidth, uint8_t uBitDepth, AL_EFbStorageMode eSto
    \return Source Storage Mode
 *****************************************************************************/
 AL_EFbStorageMode AL_GetSrcStorageMode(AL_ESrcMode eSrcMode);
+
 
 
 /*@}*/

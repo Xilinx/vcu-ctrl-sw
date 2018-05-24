@@ -39,10 +39,10 @@
 
 void AL_Conceal_Init(AL_TConceal* pConceal)
 {
-  pConceal->m_iFirstLCU = -1;
-  pConceal->m_iActivePPS = -1;
-  pConceal->m_bValidFrame = false;
-  pConceal->m_iLastPPSId = -1;
-  pConceal->m_bHasPPS = false;
+  pConceal->iFirstLCU = -1;
+  pConceal->iActivePPS = -1;
+  pConceal->bValidFrame = false;
+  pConceal->iLastPPSId = -1;
+  pConceal->bHasPPS = false;
 }
 

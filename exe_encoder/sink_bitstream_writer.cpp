@@ -36,7 +36,6 @@
 ******************************************************************************/
 
 #include "sink_bitstream_writer.h"
-#include "lib_cfg/lib_cfg.h"
 #include "lib_app/utils.h" // OpenOutput
 #include "lib_app/InputFiles.h"
 #include "CodecUtils.h" // WriteStream
@@ -48,6 +47,7 @@ extern "C"
 }
 using namespace std;
 
+void WriteContainerHeader(ofstream& fp, AL_TEncSettings const& Settings, TYUVFileInfo const& FileInfo, int numFrames);
 
 struct BitstreamWriter : IFrameSink
 {
@@ -55,6 +55,7 @@ struct BitstreamWriter : IFrameSink
   {
     OpenOutput(m_file, path);
 
+    WriteContainerHeader(m_file, cfg.Settings, cfg.FileInfo, -1);
   }
 
   void ProcessFrame(AL_TBuffer* pStream)
@@ -62,16 +63,19 @@ struct BitstreamWriter : IFrameSink
     if(pStream == EndOfStream)
     {
       printBitrate();
+      // update container header
+      WriteContainerHeader(m_file, cfg.Settings, cfg.FileInfo, m_frameCount);
       return;
     }
 
     m_frameCount += WriteStream(m_file, pStream);
   }
 
+
   void printBitrate()
   {
     auto const outputSizeInBits = m_file.tellp() * 8;
-    auto const frameRate = (float)cfg.Settings.tChParam.tRCParam.uFrameRate / cfg.Settings.tChParam.tRCParam.uClkRatio;
+    auto const frameRate = (float)cfg.Settings.tChParam[0].tRCParam.uFrameRate / cfg.Settings.tChParam[0].tRCParam.uClkRatio;
     auto const durationInSeconds = m_frameCount / frameRate;
     auto bitrate = outputSizeInBits / durationInSeconds;
     Message(CC_DEFAULT, "\nAchieved bitrate = %.4f Kbps\n", (float)bitrate);

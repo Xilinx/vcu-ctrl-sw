@@ -39,12 +39,14 @@
 #include "DecoderFeeder.h"
 #include "lib_common/Error.h"
 #include "lib_common/Utils.h"
+#include "InternalError.h"
 
 int AL_Decoder_GetStrOffset(AL_HANDLE hDec);
-AL_ERR AL_Decoder_TryDecodeOneAU(AL_HDecoder hDec, TCircBuffer* pBufStream, bool* pEndOfFrame);
+UNIT_ERROR AL_Decoder_TryDecodeOneUnit(AL_HDecoder hDec, TCircBuffer* pBufStream);
 void AL_Decoder_InternalFlush(AL_HDecoder hDec);
 void AL_Default_Decoder_WaitFrameSent(AL_HDecoder hDec);
 void AL_Default_Decoder_ReleaseFrames(AL_HDecoder hDec);
+void AL_Decoder_FlushInput(AL_HDecoder hDec);
 
 typedef struct AL_TDecoderFeederS
 {
@@ -57,7 +59,7 @@ typedef struct AL_TDecoderFeederS
   TCircBuffer decodeBuffer;
   int32_t keepGoing;
   bool stopped;
-  bool endWithAU;
+  bool endWithAccessUnit;
   AL_CB_Error errorCallback;
 }AL_TDecoderFeeder;
 
@@ -66,14 +68,14 @@ typedef AL_TDecoderFeeder DecoderFeederSlave;
 
 static bool CircBuffer_IsFull(TCircBuffer* pBuf)
 {
-  return pBuf->uAvailSize == (int32_t)pBuf->tMD.uSize;
+  return pBuf->iAvailSize == (int32_t)pBuf->tMD.uSize;
 }
 
 static bool shouldKeepGoing(AL_TDecoderFeeder* slave)
 {
   int32_t keepGoing = Rtos_AtomicDecrement(&slave->keepGoing);
   Rtos_AtomicIncrement(&slave->keepGoing);
-  return keepGoing >= 0 || !slave->endWithAU;
+  return keepGoing >= 0 || !slave->endWithAccessUnit;
 }
 
 static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
@@ -89,25 +91,25 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
   if(transferedBytes)
     Rtos_SetEvent(slave->incomingWorkEvent);
 
-  decodeBuffer->uAvailSize += transferedBytes;
+  decodeBuffer->iAvailSize += transferedBytes;
 
   // Decode Max AU as possible with this data
-  AL_ERR eErr = AL_SUCCESS;
-  while(eErr != AL_ERR_NO_FRAME_DECODED && shouldKeepGoing(slave))
+  UNIT_ERROR eErr = ERR_ACCESS_UNIT_NONE;
+
+  while(eErr != ERR_UNIT_NOT_FOUND && shouldKeepGoing(slave))
   {
-  bool isEndOfFrame = false;
-    eErr = AL_Decoder_TryDecodeOneAU(hDec, decodeBuffer, &isEndOfFrame);
+    eErr = AL_Decoder_TryDecodeOneUnit(hDec, decodeBuffer);
 
-    if(eErr == AL_SUCCESS)
-	    slave->endWithAU = isEndOfFrame;
+    if(eErr == ERR_ACCESS_UNIT_NONE)
+      slave->endWithAccessUnit = true;
 
-    if(eErr != AL_ERR_NO_FRAME_DECODED)
-    {
+    if(eErr == ERR_NAL_UNIT_NONE)
+      slave->endWithAccessUnit = false;
+
+    if(eErr != ERR_UNIT_NOT_FOUND)
       slave->stopped = false;
-      Rtos_SetEvent(slave->incomingWorkEvent);
-    }
 
-    if(eErr == AL_ERR_INIT_FAILED)
+    if(eErr == ERR_UNIT_INVALID_CHANNEL)
       return false;
   }
 
@@ -129,7 +131,7 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
     Rtos_SetEvent(slave->incomingWorkEvent);
   }
 
-  // Leave when end of input [all the data were processed in the previous TryDecodeOneAU]
+  // Leave when end of input [all the data were processed in the previous TryDecodeOneUnit]
   if(AL_Patchworker_IsAllDataTransfered(slave->patchworker))
   {
     AL_Decoder_InternalFlush(slave->hDec);
@@ -232,7 +234,7 @@ AL_TDecoderFeeder* AL_DecoderFeeder_Create(TMemDesc* decodeMemoryDescriptor, AL_
 
   this->keepGoing = 1;
   this->stopped = true;
-  this->endWithAU = true;
+  this->endWithAccessUnit = true;
   this->hDec = hDec;
 
   if(!CreateSlave(this))

@@ -39,8 +39,8 @@
 
 #include "lib_common/Allocator.h"
 
-typedef struct t_driver Driver;
+typedef struct AL_t_driver AL_TDriver;
 typedef struct t_Scheduler TScheduler;
 
-TScheduler* AL_SchedulerMcu_Create(Driver* driver, AL_TAllocator* pDmaAllocator);
+TScheduler* AL_SchedulerMcu_Create(AL_TDriver* driver, AL_TAllocator* pDmaAllocator);
 

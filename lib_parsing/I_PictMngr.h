@@ -58,12 +58,20 @@
 *****************************************************************************/
 typedef struct
 {
-  AL_TBuffer* pFrameBuffer;
+  AL_TBuffer* pFrame;
+
+}AL_TRecBuffers;
+
+typedef struct
+{
+  AL_TRecBuffers tRecBuffers;
+
   int iNext;
   int iAccessCnt;
   bool bWillBeOutputed;
   uint32_t uCRC;
   AL_TCropInfo tCrop;
+  AL_EPicStruct ePicStruct;
 }AL_TFrameFifo;
 
 typedef struct t_FrmBufPool
@@ -76,6 +84,7 @@ typedef struct t_FrmBufPool
   AL_EVENT Event;
   int iBufNumber;
   bool isDecommited;
+
 }AL_TFrmBufPool;
 
 /*************************************************************************//*!
@@ -102,37 +111,33 @@ typedef struct t_MvBufPool
 *****************************************************************************/
 typedef struct t_PictMngrCtx
 {
-  bool m_bFirstInit;
-  AL_EFbStorageMode m_eFbStorageMode;
-  int m_iBitdepth;
+  bool bFirstInit;
+  AL_EFbStorageMode eFbStorageMode;
+  int iBitdepth;
 
-  AL_TFrmBufPool m_FrmBufPool;
-  AL_TMvBufPool m_MvBufPool;
-  AL_TDpb m_DPB;
+  AL_TFrmBufPool FrmBufPool;
+  AL_TMvBufPool MvBufPool;
+  AL_TDpb DPB;
 
-  uint16_t m_uNumSlice;
+  uint16_t uNumSlice;
 
   // Current Buffers/index
-  uint8_t m_uRecID;    /*!< Index of the Frame buffers currently used as reconstructed buffers */
-  uint8_t m_uMvID;     /*!< Index of the Motionvector buffers currently used as reconstructed buffers */
+  uint8_t uRecID;    /*!< Index of the Frame buffers currently used as reconstructed buffers */
+  uint8_t uMvID;     /*!< Index of the Motionvector buffers currently used as reconstructed buffers */
 
-  TBufferMV m_POC;   /*!< Structure with MB buffer location and information.
-                        This structure is re-mapped at each call to PictureManager_GetBuffers */
-  TBufferMV m_MV;    /*!< Structure with MB buffer location and information.
-                        This structure is re-mapped at each call to PictureManager_GetBuffers */
-  uint32_t m_uSizeMV;  /*!< Whole size of motion-vector Buffer */
-  uint32_t m_uSizePOC; /*!< Whole size of poc Buffer */
+  uint32_t uSizeMV;  /*!< Whole size of motion-vector Buffer */
+  uint32_t uSizePOC; /*!< Whole size of poc Buffer */
 
-  int m_iCurFramePOC;
+  int iCurFramePOC;
 
   /*info needed for POC calculation*/
-  int32_t m_iPrevPocMSB;
-  uint32_t m_uPrevPocLSB;
-  int m_iPrevFrameNumOffset;
-  int m_iPrevFrameNum;
-  int32_t m_iTopFieldOrderCnt;
-  int32_t m_iBotFieldOrderCnt;
-  bool m_bLastIsIDR;
+  int32_t iPrevPocMSB;
+  uint32_t uPrevPocLSB;
+  int iPrevFrameNumOffset;
+  int iPrevFrameNum;
+  int32_t iTopFieldOrderCnt;
+  int32_t iBotFieldOrderCnt;
+  bool bLastIsIDR;
 
   /* reference picture list contruction variables */
   int PocStCurrBefore[MAX_DPB_SIZE];
@@ -146,6 +151,8 @@ typedef struct t_PictMngrCtx
   uint8_t RefPicSetStFoll[MAX_DPB_SIZE];
   uint8_t RefPicSetLtCurr[MAX_DPB_SIZE];
   uint8_t RefPicSetLtFoll[MAX_DPB_SIZE];
+
+  AL_TAllocator* pAllocator;
 }AL_TPictMngrCtx;
 
 /*************************************************************************//*!
@@ -156,10 +163,11 @@ typedef struct t_PictMngrCtx
    \param[in] iNumDPBRef  Number of reference to manage
    \param[in] eDPBMode    Mode of the DPB
    \param[in] eFbStorageMode Frame buffer storage mode
-   \param[in] iBitdepth   Bitdepth of the outputed frames
+   \param[in] iBitdepth	  Bitdepth of the outputed frame
+   \param[in] bEnableRasterOutput Specifies if raster output in tile/compression mode is enabled
    \return If the function succeeds the return true. Return false otherwise
 *****************************************************************************/
-bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, int iNumMV, int iSizeMV, int iNumDPBRef, AL_EDpbMode eDPBMode, AL_EFbStorageMode eFbStorageMode, int iBitdepth);
+bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, AL_TAllocator* pAllocator, int iNumMV, int iSizeMV, int iNumDPBRef, AL_EDpbMode eDPBMode, AL_EFbStorageMode eFbStorageMode, int iBitdepth, bool bEnableRasterOutput);
 
 /*************************************************************************//*!
    \brief Flush all pictures so all buffers are fully released
@@ -273,36 +281,44 @@ void AL_PictMngr_EndDecoding(AL_TPictMngrCtx* pCtx, int iFrameID, uint8_t uMvID)
    \param[in]  pCtx      Pointer to a Picture manager context object
    \param[out] pInfo     Pointer to retrieve information about the decoded frame
    \return Pointer on the picture buffer to be displayed if it exists
-         NULL otherwise
+   NULL otherwise
 *****************************************************************************/
 AL_TBuffer* AL_PictMngr_GetDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo);
 
 /*************************************************************************//*!
-   \brief This function add a frame buffer in the picture manager
+   \brief This function add a display frame buffer in the picture manager
    \param[in] pCtx   Pointer to a Picture manager context object
-   \param[in] pBuf   Pointer to the picture buffer to be added
+   \param[in] pBuf   Pointer to the display picture buffer to be added
 *****************************************************************************/
 void AL_PictMngr_PutDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TBuffer* pBuf);
 
 /*************************************************************************//*!
-   \brief This function returns the picture buffer associated to iFrameID
+   \brief This function returns the display picture buffer associated to iFrameID
    \param[in]  pCtx      Pointer to a Picture manager context object
    \param[in]  iFrameID  Frame ID
    \return Picture buffer's pointer
 *****************************************************************************/
 AL_TBuffer* AL_PictMngr_GetDisplayBufferFromID(AL_TPictMngrCtx* pCtx, int iFrameID);
 
+/*************************************************************************//*!
+   \brief This function returns the reconstructed picture buffer associated to iFrameID
+   \param[in]  pCtx      Pointer to a Picture manager context object
+   \param[in]  iFrameID  Frame ID
+   \return Picture buffer's pointer
+*****************************************************************************/
+AL_TBuffer* AL_PictMngr_GetRecBufferFromID(AL_TPictMngrCtx* pCtx, int iFrameID);
+
 void AL_PictMngr_UpdateDisplayBufferCRC(AL_TPictMngrCtx* pCtx, int iFrameID, uint32_t uCRC);
 void AL_PictMngr_UpdateDisplayBufferCrop(AL_TPictMngrCtx* pCtx, int iFrameID, AL_TCropInfo tCrop);
+void AL_PictMngr_UpdateDisplayBufferPicStruct(AL_TPictMngrCtx* pCtx, int iFrameID, AL_EPicStruct ePicStruct);
 void AL_PictMngr_SignalCallbackDisplayIsDone(AL_TPictMngrCtx* pCtx, AL_TBuffer* pDisplayedFrame);
 void AL_PictMngr_SignalCallbackReleaseIsDone(AL_TPictMngrCtx* pCtx, AL_TBuffer* pReleasedFrame);
 AL_TBuffer* AL_PictMngr_GetUnusedDisplayBuffer(AL_TPictMngrCtx* pCtx);
 void AL_PictMngr_DecommitPool(AL_TPictMngrCtx* pCtx);
 
 /*****************************************************************************/
-bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, TBufferListRef* pListRef, TBuffer* pListAddr, TBufferPOC** ppPOC, TBufferMV** ppMV, AL_TBuffer** ppRec);
+bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, TBufferListRef* pListRef, TBuffer* pListVirtAddr, TBuffer* pListAddr, TBufferPOC* pPOC, TBufferMV* pMV, AL_TRecBuffers* pRecs);
 
-/*****************************************************************************/
 
 /*@}*/
 

@@ -53,9 +53,9 @@ typedef struct
   AL_PARSE_RESULT (* parsePps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
   void (* parseVps)(AL_TAup*, AL_TRbspParser*);
   bool (* parseSei)(AL_TAup*, AL_TRbspParser*);
-  bool (* decodeSliceData)(AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
+  void (* decodeSliceData)(AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
   bool (* isSliceData)(AL_ENut nut);
 }AL_NalParser;
 
-bool AL_DecodeOneNal(AL_NonVclNuts, AL_NalParser, AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
+void AL_DecodeOneNal(AL_NonVclNuts, AL_NalParser, AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
 

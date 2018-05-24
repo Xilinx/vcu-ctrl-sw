@@ -47,21 +47,29 @@
 #include "lib_common/BufferSrcMeta.h"
 
 /*****************************************************************************/
+static bool isIDRPicture(int nal_unit_type)
+{
+  return nal_unit_type == 5;
+}
+
+/*****************************************************************************/
 static void AL_sGetPocType0(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 {
   int iPrevPocMSB = 0;
   uint32_t uPrevPocLSB = 0;
-  uint32_t uMaxPocLSB = 1u << (pSlice->m_pSPS->log2_max_pic_order_cnt_lsb_minus4 + 4);
+  uint32_t uMaxPocLSB = 1u << (pSlice->pSPS->log2_max_pic_order_cnt_lsb_minus4 + 4);
 
-  if(pSlice->nal_unit_type != 5)/*the current picture isn't an IDR picture*/
+  if(!isIDRPicture(pSlice->nal_unit_type))
   {
-    if(AL_Dpb_LastHasMMCO5(&pCtx->m_DPB))
+    if(AL_Dpb_LastHasMMCO5(&pCtx->DPB))
+    {
       /*warning : work in frame only*/
-      uPrevPocLSB = pCtx->m_iTopFieldOrderCnt;
+      uPrevPocLSB = pCtx->iTopFieldOrderCnt;
+    }
     else
     {
-      iPrevPocMSB = pCtx->m_iPrevPocMSB;
-      uPrevPocLSB = pCtx->m_uPrevPocLSB;
+      iPrevPocMSB = pCtx->iPrevPocMSB;
+      uPrevPocLSB = pCtx->uPrevPocLSB;
     }
   }
 
@@ -74,97 +82,99 @@ static void AL_sGetPocType0(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
     iPrevPocMSB = iPrevPocMSB - uMaxPocLSB;
 
   /*warning : work in frame only*/
-  pCtx->m_iTopFieldOrderCnt = iPrevPocMSB + pSlice->pic_order_cnt_lsb;
-  pCtx->m_iBotFieldOrderCnt = pCtx->m_iTopFieldOrderCnt + pSlice->delta_pic_order_cnt_bottom;
+  pCtx->iTopFieldOrderCnt = iPrevPocMSB + pSlice->pic_order_cnt_lsb;
+  pCtx->iBotFieldOrderCnt = pCtx->iTopFieldOrderCnt + pSlice->delta_pic_order_cnt_bottom;
 
   if(pSlice->nal_ref_idc)
   {
-    pCtx->m_uPrevPocLSB = pSlice->pic_order_cnt_lsb;
-    pCtx->m_iPrevPocMSB = iPrevPocMSB;
+    pCtx->uPrevPocLSB = pSlice->pic_order_cnt_lsb;
+    pCtx->iPrevPocMSB = iPrevPocMSB;
   }
 }
 
 /*****************************************************************************/
 static void AL_sGetPocType1(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 {
-  int i;
-  int iFrameNumOffset;
-  int iAbsFrameNum = 0;
-  int iPicOrderCntCycleCnt;
-  int iFrameNumInPicOrderCntCycle;
-  int iExpectedPicOrderCnt = 0;
   int iExpectedDeltaPerPicOrderCntCycle = 0;
-  bool bIsIDR = (pSlice->nal_unit_type == 5) ? true : false;
-  uint32_t uMaxFrameNum = 1 << (pSlice->m_pSPS->log2_max_frame_num_minus4 + 4);
+  bool bIsIDR = isIDRPicture(pSlice->nal_unit_type);
 
-  for(i = 0; i < pSlice->m_pSPS->num_ref_frames_in_pic_order_cnt_cycle; ++i)
-    iExpectedDeltaPerPicOrderCntCycle += pSlice->m_pSPS->offset_for_ref_frame[i];
+  for(int i = 0; i < pSlice->pSPS->num_ref_frames_in_pic_order_cnt_cycle; ++i)
+    iExpectedDeltaPerPicOrderCntCycle += pSlice->pSPS->offset_for_ref_frame[i];
 
   if(!bIsIDR)
   {
-    if(AL_Dpb_LastHasMMCO5(&pCtx->m_DPB))
+    if(AL_Dpb_LastHasMMCO5(&pCtx->DPB))
     {
-      pCtx->m_iPrevFrameNumOffset = 0;
-      pCtx->m_iPrevFrameNum = 0;
+      pCtx->iPrevFrameNumOffset = 0;
+      pCtx->iPrevFrameNum = 0;
     }
   }
 
+  int iFrameNumOffset;
+  uint32_t uMaxFrameNum = 1 << (pSlice->pSPS->log2_max_frame_num_minus4 + 4);
+
   if(bIsIDR)
     iFrameNumOffset = 0;
-  else if(pCtx->m_iPrevFrameNum > pSlice->frame_num)
-    iFrameNumOffset = pCtx->m_iPrevFrameNumOffset + uMaxFrameNum;
+  else if(pCtx->iPrevFrameNum > pSlice->frame_num)
+    iFrameNumOffset = pCtx->iPrevFrameNumOffset + uMaxFrameNum;
   else
-    iFrameNumOffset = pCtx->m_iPrevFrameNumOffset;
+    iFrameNumOffset = pCtx->iPrevFrameNumOffset;
 
-  if(pSlice->m_pSPS->num_ref_frames_in_pic_order_cnt_cycle)
+  int iAbsFrameNum = 0;
+
+  if(pSlice->pSPS->num_ref_frames_in_pic_order_cnt_cycle)
     iAbsFrameNum = iFrameNumOffset + pSlice->frame_num;
 
   if(!pSlice->nal_ref_idc && iAbsFrameNum > 0)
     iAbsFrameNum -= 1;
 
+  int iExpectedPicOrderCnt = 0;
+
   if(iAbsFrameNum > 0)
   {
-    iPicOrderCntCycleCnt = (iAbsFrameNum - 1) / pSlice->m_pSPS->num_ref_frames_in_pic_order_cnt_cycle;
-    iFrameNumInPicOrderCntCycle = (iAbsFrameNum - 1) % pSlice->m_pSPS->num_ref_frames_in_pic_order_cnt_cycle;
+    int iPicOrderCntCycleCnt = (iAbsFrameNum - 1) / pSlice->pSPS->num_ref_frames_in_pic_order_cnt_cycle;
+    int iFrameNumInPicOrderCntCycle = (iAbsFrameNum - 1) % pSlice->pSPS->num_ref_frames_in_pic_order_cnt_cycle;
     iExpectedPicOrderCnt = iPicOrderCntCycleCnt * iExpectedDeltaPerPicOrderCntCycle;
 
-    for(i = 0; i <= iFrameNumInPicOrderCntCycle; ++i)
-      iExpectedPicOrderCnt += pSlice->m_pSPS->offset_for_ref_frame[i];
+    for(int i = 0; i <= iFrameNumInPicOrderCntCycle; ++i)
+      iExpectedPicOrderCnt += pSlice->pSPS->offset_for_ref_frame[i];
   }
 
   if(!pSlice->nal_ref_idc)
-    iExpectedPicOrderCnt += pSlice->m_pSPS->offset_for_non_ref_pic;
+    iExpectedPicOrderCnt += pSlice->pSPS->offset_for_non_ref_pic;
 
-  pCtx->m_iPrevFrameNumOffset = iFrameNumOffset;
+  pCtx->iPrevFrameNumOffset = iFrameNumOffset;
   /*warning : work only in frame mode*/
-  pCtx->m_iTopFieldOrderCnt = iExpectedPicOrderCnt + pSlice->delta_pic_order_cnt[0];
-  pCtx->m_iBotFieldOrderCnt = pCtx->m_iTopFieldOrderCnt + pSlice->m_pSPS->offset_for_top_to_bottom_field +
-                              pSlice->delta_pic_order_cnt[1];
+  pCtx->iTopFieldOrderCnt = iExpectedPicOrderCnt + pSlice->delta_pic_order_cnt[0];
+  pCtx->iBotFieldOrderCnt = pCtx->iTopFieldOrderCnt + pSlice->pSPS->offset_for_top_to_bottom_field +
+                            pSlice->delta_pic_order_cnt[1];
 }
 
 /*****************************************************************************/
 static void AL_sGetPocType2(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 {
-  int iFrameNumOffset;
-  int iTempPicOrderCnt;
-  uint32_t uMaxFrameNum = 1 << (pSlice->m_pSPS->log2_max_frame_num_minus4 + 4);
-  bool bIsIDR = (pSlice->nal_unit_type == 5) ? true : false;
+  bool bIsIDR = isIDRPicture(pSlice->nal_unit_type);
 
   if(!bIsIDR)
   {
-    if(AL_Dpb_LastHasMMCO5(&pCtx->m_DPB))
+    if(AL_Dpb_LastHasMMCO5(&pCtx->DPB))
     {
-      pCtx->m_iPrevFrameNumOffset = 0;
-      pCtx->m_iPrevFrameNum = 0;
+      pCtx->iPrevFrameNumOffset = 0;
+      pCtx->iPrevFrameNum = 0;
     }
   }
 
+  int iFrameNumOffset;
+  uint32_t uMaxFrameNum = 1 << (pSlice->pSPS->log2_max_frame_num_minus4 + 4);
+
   if(bIsIDR)
     iFrameNumOffset = 0;
-  else if(pCtx->m_iPrevFrameNum > pSlice->frame_num)
-    iFrameNumOffset = pCtx->m_iPrevFrameNumOffset + uMaxFrameNum;
+  else if(pCtx->iPrevFrameNum > pSlice->frame_num)
+    iFrameNumOffset = pCtx->iPrevFrameNumOffset + uMaxFrameNum;
   else
-    iFrameNumOffset = pCtx->m_iPrevFrameNumOffset;
+    iFrameNumOffset = pCtx->iPrevFrameNumOffset;
+
+  int iTempPicOrderCnt;
 
   if(bIsIDR)
     iTempPicOrderCnt = 0;
@@ -173,10 +183,10 @@ static void AL_sGetPocType2(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
   else
     iTempPicOrderCnt = 2 * (iFrameNumOffset + pSlice->frame_num);
 
-  pCtx->m_iPrevFrameNumOffset = iFrameNumOffset;
+  pCtx->iPrevFrameNumOffset = iFrameNumOffset;
   /*warning : work only in frame mode*/
-  pCtx->m_iTopFieldOrderCnt = iTempPicOrderCnt;
-  pCtx->m_iBotFieldOrderCnt = iTempPicOrderCnt;
+  pCtx->iTopFieldOrderCnt = iTempPicOrderCnt;
+  pCtx->iBotFieldOrderCnt = iTempPicOrderCnt;
 }
 
 /*****************************************************************************/
@@ -186,9 +196,8 @@ static void AL_AVC_sFillWPCoeff(AL_VADDR pDataWP, AL_TAvcSliceHdr* pSlice, uint8
   uint32_t* pWP = (uint32_t*)(pDataWP + (uL0L1 * 8));
 
   AL_TWPCoeff* pWpCoeff = &pSlice->pred_weight_table.tWpCoeff[uL0L1];
-  uint8_t i;
 
-  for(i = 0; i < uNumRefIdx; ++i)
+  for(int i = 0; i < uNumRefIdx; ++i)
   {
     pWP[0] = ((pWpCoeff->luma_offset[i] & 0x3FF)) |
              ((pWpCoeff->chroma_offset[i][0] & 0x3FF) << 10) |
@@ -209,12 +218,12 @@ static void AL_AVC_sFillWPCoeff(AL_VADDR pDataWP, AL_TAvcSliceHdr* pSlice, uint8
 /*****************************************************************************/
 static void AL_sBuildWPCoeff(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice, TBuffer* pWP)
 {
-  AL_VADDR pDataWP = pWP->tMD.pVirtualAddr + (pCtx->m_uNumSlice * WP_SLICE_SIZE);
+  AL_VADDR pDataWP = pWP->tMD.pVirtualAddr + (pCtx->uNumSlice * WP_SLICE_SIZE);
   Rtos_Memset(pDataWP, 0, WP_SLICE_SIZE);
 
   // explicit weighted_pred case
-  if((pSlice->slice_type == SLICE_P && pSlice->m_pPPS->weighted_pred_flag) ||
-     (pSlice->slice_type == SLICE_B && pSlice->m_pPPS->weighted_bipred_idc == 1))
+  if((pSlice->slice_type == SLICE_P && pSlice->pPPS->weighted_pred_flag) ||
+     (pSlice->slice_type == SLICE_B && pSlice->pPPS->weighted_bipred_idc == 1))
   {
     AL_AVC_sFillWPCoeff(pDataWP, pSlice, 0);
 
@@ -226,7 +235,7 @@ static void AL_sBuildWPCoeff(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice, TBu
 /*****************************************************************************/
 static int32_t AL_sCalculatePOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 {
-  switch(pSlice->m_pSPS->pic_order_cnt_type)
+  switch(pSlice->pSPS->pic_order_cnt_type)
   {
   case 0:
     AL_sGetPocType0(pCtx, pSlice);
@@ -244,8 +253,8 @@ static int32_t AL_sCalculatePOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
     return 0xBAADF00D;
   }
 
-  return (pCtx->m_iTopFieldOrderCnt < pCtx->m_iBotFieldOrderCnt) ? pCtx->m_iTopFieldOrderCnt :
-         pCtx->m_iBotFieldOrderCnt;
+  return (pCtx->iTopFieldOrderCnt < pCtx->iBotFieldOrderCnt) ? pCtx->iTopFieldOrderCnt :
+         pCtx->iBotFieldOrderCnt;
 }
 
 /*****************************************************************************/
@@ -253,28 +262,22 @@ bool AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlic
 {
   int32_t iCurPoc = AL_sCalculatePOC(pCtx, pSlice);
 
-  if(pSlice->slice_type == SLICE_I || AL_Dpb_SearchPOC(&pCtx->m_DPB, iCurPoc) == 0xFF)
-    pCtx->m_iCurFramePOC = iCurPoc;
-  else
+  if(!(pSlice->slice_type == SLICE_I || AL_Dpb_SearchPOC(&pCtx->DPB, iCurPoc) == 0xFF))
     return false;
+
+  pCtx->iCurFramePOC = iCurPoc;
   return true;
 }
 
 /*****************************************************************************/
-void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS)
+void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_TDecPicParam* pPP)
 {
-  AL_TBuffer* pFrmBuf = AL_PictMngr_GetDisplayBufferFromID(pCtx, pCtx->m_uRecID);
-  AL_TSrcMetaData* pFrmMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pFrmBuf, AL_META_TYPE_SOURCE);
-
-  pFrmMeta->tPitches.iLuma = RndPitch(pFrmMeta->tDim.iWidth, pCtx->m_iBitdepth, pCtx->m_eFbStorageMode);
-  pFrmMeta->tPitches.iChroma = pFrmMeta->tPitches.iLuma;
-
   // update cropping information
   AL_TCropInfo cropInfo =
   {
     0
   };
-  cropInfo.bCropping = pSPS->frame_cropping_flag ? true : false;
+  cropInfo.bCropping = pSPS->frame_cropping_flag;
 
   if(pSPS->frame_cropping_flag)
   {
@@ -301,13 +304,14 @@ void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS
     }
   }
 
-  AL_PictMngr_UpdateDisplayBufferCrop(pCtx, pCtx->m_uRecID, cropInfo);
+  AL_PictMngr_UpdateDisplayBufferCrop(pCtx, pCtx->uRecID, cropInfo);
+  AL_PictMngr_UpdateDisplayBufferPicStruct(pCtx, pCtx->uRecID, pPP->ePicStruct);
 }
 
 /***************************************************************************/
 void AL_AVC_PictMngr_EndParsing(AL_TPictMngrCtx* pCtx, bool bClearRef, AL_EMarkingRef eMarkingFlag)
 {
-  AL_TDpb* pDpb = &pCtx->m_DPB;
+  AL_TDpb* pDpb = &pCtx->DPB;
 
   if(bClearRef)
     AL_PictMngr_Flush(pCtx);
@@ -317,7 +321,7 @@ void AL_AVC_PictMngr_EndParsing(AL_TPictMngrCtx* pCtx, bool bClearRef, AL_EMarki
 
   while(uNode != uEndOfList)
   {
-    AL_Dpb_IncrementPicLatency(pDpb, uNode, pCtx->m_iCurFramePOC);
+    AL_Dpb_IncrementPicLatency(pDpb, uNode, pCtx->iCurFramePOC);
     uNode = AL_Dpb_GetNextPOC(pDpb, uNode);
   }
 
@@ -325,28 +329,25 @@ void AL_AVC_PictMngr_EndParsing(AL_TPictMngrCtx* pCtx, bool bClearRef, AL_EMarki
 
   {
     // remove
-    uint8_t uDelete = AL_Dpb_SearchPOC(&pCtx->m_DPB, pCtx->m_iCurFramePOC);
+    uint8_t uDelete = AL_Dpb_SearchPOC(&pCtx->DPB, pCtx->iCurFramePOC);
 
     if(uDelete != uEndOfList)
       AL_Dpb_Remove(pDpb, uDelete);
   }
-  AL_PictMngr_Insert(pCtx, pCtx->m_iCurFramePOC, 0, pCtx->m_uRecID, pCtx->m_uMvID, 1, eMarkingFlag, 0, 0);
-  AL_Dpb_ResetMMCO5(&pCtx->m_DPB);
+  AL_PictMngr_Insert(pCtx, pCtx->iCurFramePOC, 0, pCtx->uRecID, pCtx->uMvID, 1, eMarkingFlag, 0, 0);
+  AL_Dpb_ResetMMCO5(&pCtx->DPB);
 }
 
 /***************************************************************************/
 void AL_AVC_PictMngr_CleanDPB(AL_TPictMngrCtx* pCtx)
 {
-  AL_Dpb_AVC_Cleanup(&pCtx->m_DPB);
+  AL_Dpb_AVC_Cleanup(&pCtx->DPB);
 }
 
 /***************************************************************************/
-bool AL_AVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef, TBuffer* pListAddr, TBufferPOC** ppPOC, TBufferMV** ppMV, TBuffer* pWP, AL_TBuffer** ppRec)
+bool AL_AVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef, TBuffer* pListVirtAddr, TBuffer* pListAddr, TBufferPOC* pPOC, TBufferMV* pMV, TBuffer* pWP, AL_TRecBuffers* pRecs)
 {
-  bool bOk;
-  bOk = AL_PictMngr_GetBuffers(pCtx, pPP, pSP, pListRef, pListAddr, ppPOC, ppMV, ppRec);
-
-  if(!bOk)
+  if(!AL_PictMngr_GetBuffers(pCtx, pPP, pSP, pListRef, pListVirtAddr, pListAddr, pPOC, pMV, pRecs))
     return false;
 
   // Build Weighted Pred Table
@@ -358,15 +359,17 @@ bool AL_AVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_
 /*****************************************************************************/
 void AL_AVC_PictMngr_Fill_Gap_In_FrameNum(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 {
-  uint32_t uMaxFrameNum = 1 << (pSlice->m_pSPS->log2_max_frame_num_minus4 + 4);
+  uint32_t uMaxFrameNum = 1 << (pSlice->pSPS->log2_max_frame_num_minus4 + 4);
 
-  if(pSlice->nal_unit_type != 5 && /*non-IDR picture*/
-     pSlice->frame_num != pCtx->m_iPrevFrameNum &&
-     pSlice->frame_num != (int)((pCtx->m_iPrevFrameNum + 1) % uMaxFrameNum))
+  if(
+    (!isIDRPicture(pSlice->nal_unit_type))
+    && (pSlice->frame_num != pCtx->iPrevFrameNum)
+    && (pSlice->frame_num != (int)((pCtx->iPrevFrameNum + 1) % uMaxFrameNum))
+    )
   {
-    if(pSlice->m_pSPS->gaps_in_frame_num_value_allowed_flag)
+    if(pSlice->pSPS->gaps_in_frame_num_value_allowed_flag)
     {
-      uint32_t UnusedShortTermFrameNum = (pCtx->m_iPrevFrameNum + 1) % uMaxFrameNum;
+      uint32_t UnusedShortTermFrameNum = (pCtx->iPrevFrameNum + 1) % uMaxFrameNum;
       uint32_t CurrFrameNum = pSlice->frame_num;
 
       while(CurrFrameNum != UnusedShortTermFrameNum)
@@ -378,9 +381,9 @@ void AL_AVC_PictMngr_Fill_Gap_In_FrameNum(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr
         int iFramePOC = AL_sCalculatePOC(pCtx, &pUnusedSlice);
 
         AL_PictMngr_Insert(pCtx, iFramePOC, 0, uEndOfList, uEndOfList, 0, SHORT_TERM_REF, 1, 0);
-        AL_Dpb_MarkingProcess(&pCtx->m_DPB, &pUnusedSlice);
-        AL_Dpb_AVC_Cleanup(&pCtx->m_DPB);
-        pCtx->m_iPrevFrameNum = UnusedShortTermFrameNum;
+        AL_Dpb_MarkingProcess(&pCtx->DPB, &pUnusedSlice);
+        AL_Dpb_AVC_Cleanup(&pCtx->DPB);
+        pCtx->iPrevFrameNum = UnusedShortTermFrameNum;
         UnusedShortTermFrameNum = (UnusedShortTermFrameNum + 1) % uMaxFrameNum;
       }
     }
@@ -390,18 +393,16 @@ void AL_AVC_PictMngr_Fill_Gap_In_FrameNum(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr
 /*****************************************************************************/
 void AL_AVC_PictMngr_InitPictList(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef)
 {
-  uint8_t uRef;
-
-  for(uRef = 0; uRef < 16; ++uRef)
+  for(uint8_t uRef = 0; uRef < 16; ++uRef)
   {
     (*pListRef)[0][uRef].uNodeID = uEndOfList;
     (*pListRef)[1][uRef].uNodeID = uEndOfList;
   }
 
   if(pSlice->slice_type == SLICE_P || pSlice->slice_type == SLICE_SP)
-    AL_Dpb_InitPSlice_RefList(&pCtx->m_DPB, &(*pListRef)[0][0]);
+    AL_Dpb_InitPSlice_RefList(&pCtx->DPB, &(*pListRef)[0][0]);
   else if(pSlice->slice_type == SLICE_B)
-    AL_Dpb_InitBSlice_RefList(&pCtx->m_DPB, pCtx->m_iCurFramePOC, pListRef);
+    AL_Dpb_InitBSlice_RefList(&pCtx->DPB, pCtx->iCurFramePOC, pListRef);
 }
 
 /*****************************************************************************/
@@ -423,10 +424,10 @@ void AL_AVC_PictMngr_ReorderPictList(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSl
       {
       case 0:
       case 1:
-        AL_Dpb_ModifShortTerm(&pCtx->m_DPB, pSlice, iPicNumIdc, uParseShort++, 0, &uRefIdxL0, &iPicNumPred, pListRef);
+        AL_Dpb_ModifShortTerm(&pCtx->DPB, pSlice, iPicNumIdc, uParseShort++, 0, &uRefIdxL0, &iPicNumPred, pListRef);
         break;
       case 2:
-        AL_Dpb_ModifLongTerm(&pCtx->m_DPB, pSlice, uParseLong++, 0, &uRefIdxL0, pListRef);
+        AL_Dpb_ModifLongTerm(&pCtx->DPB, pSlice, uParseLong++, 0, &uRefIdxL0, pListRef);
         break;
       default:
         break;
@@ -450,10 +451,10 @@ void AL_AVC_PictMngr_ReorderPictList(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSl
       {
       case 0:
       case 1:
-        AL_Dpb_ModifShortTerm(&pCtx->m_DPB, pSlice, iPicNumIdc, uParseShort++, 1, &uRefIdxL1, &iPicNumPred, pListRef);
+        AL_Dpb_ModifShortTerm(&pCtx->DPB, pSlice, iPicNumIdc, uParseShort++, 1, &uRefIdxL1, &iPicNumPred, pListRef);
         break;
       case 2:
-        AL_Dpb_ModifLongTerm(&pCtx->m_DPB, pSlice, uParseLong++, 1, &uRefIdxL1, pListRef);
+        AL_Dpb_ModifLongTerm(&pCtx->DPB, pSlice, uParseLong++, 1, &uRefIdxL1, pListRef);
         break;
       default:
         break;

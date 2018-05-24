@@ -72,17 +72,16 @@ static uint32_t AL_sCount_AntiEmulBytes(TCircBuffer* pStream, uint32_t uLength)
   uint8_t uSCDetect = 0;
   uint32_t uNumAE = 0;
   uint32_t uZeroBytesCount = 0;
-  uint32_t uRead;
 
   uint8_t* pBuf = pStream->tMD.pVirtualAddr;
 
   uint32_t uSize = pStream->tMD.uSize;
-  uint32_t uOffset = pStream->uOffset;
+  uint32_t uOffset = pStream->iOffset;
   uint32_t uEnd = uOffset + uLength;
 
   // Replaces in m_pBuffer all sequences such as 0x00 0x00 0x03 0xZZ with 0x00 0x00 0xZZ (0x03 removal)
   // iff 0xZZ == 0x00 or 0x01 or 0x02 or 0x03.
-  for(uRead = uOffset; uRead < uEnd; ++uRead)
+  for(uint32_t uRead = uOffset; uRead < uEnd; ++uRead)
   {
     const uint8_t read = pBuf[uRead % uSize];
 
@@ -119,9 +118,8 @@ static uint32_t GetNonVclSize(uint32_t uOffset, TCircBuffer* pBufStream)
   uint8_t* pParseBuf = pBufStream->tMD.pVirtualAddr;
   uint32_t uSize = pBufStream->tMD.uSize;
   uint32_t uLengthNAL = 0;
-  uint32_t i;
 
-  for(i = uOffset; i < uOffset + uSize; ++i)
+  for(uint32_t i = uOffset; i < uOffset + uSize; ++i)
   {
     uint8_t uRead = pParseBuf[i % uSize];
 
@@ -152,14 +150,14 @@ static void InitNonVclBuf(AL_TDecCtx* pCtx, uint32_t uOffset, TCircBuffer* pBufS
 {
   uint32_t uLengthNAL = GetNonVclSize(uOffset, pBufStream);
 
-  if(uLengthNAL > pCtx->m_BufNoAE.tMD.uSize) /* should occurs only on long SEI message */
+  if(uLengthNAL > pCtx->BufNoAE.tMD.uSize) /* should occurs only on long SEI message */
   {
-    Rtos_Free(pCtx->m_BufNoAE.tMD.pVirtualAddr);
-    pCtx->m_BufNoAE.tMD.pVirtualAddr = (uint8_t*)Rtos_Malloc(uLengthNAL);
-    pCtx->m_BufNoAE.tMD.uSize = uLengthNAL;
+    Rtos_Free(pCtx->BufNoAE.tMD.pVirtualAddr);
+    pCtx->BufNoAE.tMD.pVirtualAddr = (uint8_t*)Rtos_Malloc(uLengthNAL);
+    pCtx->BufNoAE.tMD.uSize = uLengthNAL;
   }
 
-  Rtos_Memset(pCtx->m_BufNoAE.tMD.pVirtualAddr, 0, pCtx->m_BufNoAE.tMD.uSize);
+  Rtos_Memset(pCtx->BufNoAE.tMD.pVirtualAddr, 0, pCtx->BufNoAE.tMD.uSize);
 }
 
 /*****************************************************************************/
@@ -173,16 +171,16 @@ static uint32_t GetSliceHdrSize(AL_TRbspParser* pRP, TCircBuffer* pBufStream)
 /*****************************************************************************/
 void UpdateContextAtEndOfFrame(AL_TDecCtx* pCtx)
 {
-  pCtx->m_bIsFirstPicture = false;
-  pCtx->m_bLastIsEOS = false;
+  pCtx->bIsFirstPicture = false;
+  pCtx->bLastIsEOS = false;
 
-  pCtx->m_tConceal.m_iFirstLCU = -1;
-  pCtx->m_tConceal.m_bValidFrame = false;
-  pCtx->m_PictMngr.m_uNumSlice = 0;
+  pCtx->tConceal.iFirstLCU = -1;
+  pCtx->tConceal.bValidFrame = false;
+  pCtx->PictMngr.uNumSlice = 0;
 
-  Rtos_Memset(&pCtx->m_PoolPP[pCtx->m_uToggle], 0, sizeof(AL_TDecPicParam));
-  Rtos_Memset(&pCtx->m_PoolPB[pCtx->m_uToggle], 0, sizeof(AL_TDecPicBuffers));
-  AL_SET_DEC_OPT(&pCtx->m_PoolPP[pCtx->m_uToggle], IntraOnly, 1);
+  Rtos_Memset(&pCtx->PoolPP[pCtx->uToggle], 0, sizeof(AL_TDecPicParam));
+  Rtos_Memset(&pCtx->PoolPB[pCtx->uToggle], 0, sizeof(AL_TDecPicBuffers));
+  AL_SET_DEC_OPT(&pCtx->PoolPP[pCtx->uToggle], IntraOnly, 1);
 }
 
 /*****************************************************************************/
@@ -191,16 +189,16 @@ void UpdateCircBuffer(AL_TRbspParser* pRP, TCircBuffer* pBufStream, int* pSliceH
   uint32_t uLengthNAL = GetSliceHdrSize(pRP, pBufStream);
 
   // remap stream offset
-  if(pRP->m_iTotalBitIndex % 8)
-    *pSliceHdrLength = 16 + (pRP->m_iTotalBitIndex % 8);
+  if(pRP->iTotalBitIndex % 8)
+    *pSliceHdrLength = 16 + (pRP->iTotalBitIndex % 8);
   else
     *pSliceHdrLength = 24;
   uLengthNAL -= (*pSliceHdrLength + 7) >> 3;
 
   // Update Circular buffer information
-  pBufStream->uAvailSize -= uLengthNAL;
-  pBufStream->uOffset += uLengthNAL;
-  pBufStream->uOffset %= pBufStream->tMD.uSize;
+  pBufStream->iAvailSize -= uLengthNAL;
+  pBufStream->iOffset += uLengthNAL;
+  pBufStream->iOffset %= pBufStream->tMD.uSize;
 }
 
 /*****************************************************************************/
@@ -212,11 +210,11 @@ bool SkipNal()
 /*****************************************************************************/
 AL_TRbspParser getParserOnNonVclNal(AL_TDecCtx* pCtx)
 {
-  TCircBuffer* pBufStream = &pCtx->m_Stream;
-  uint32_t uOffset = pBufStream->uOffset;
+  TCircBuffer* pBufStream = &pCtx->Stream;
+  uint32_t uOffset = pBufStream->iOffset;
   InitNonVclBuf(pCtx, uOffset, pBufStream);
   AL_TRbspParser rp;
-  InitRbspParser(pBufStream, pCtx->m_BufNoAE.tMD.pVirtualAddr, &rp);
+  InitRbspParser(pBufStream, pCtx->BufNoAE.tMD.pVirtualAddr, true, &rp);
   return rp;
 }
 

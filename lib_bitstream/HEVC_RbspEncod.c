@@ -120,29 +120,69 @@ static void writeHrdParam(AL_TBitStreamLite* pBS, AL_THrdParam const* pHrd, uint
 }
 
 /******************************************************************************/
-static void writeProfileTierLevel(AL_TBitStreamLite* pBS, AL_TProfilevel const* pPTL, uint8_t MaxLayerMinus1)
+static void writeProfileTierLevel(AL_TBitStreamLite* pBS, AL_TProfilevel const* pPTL, uint8_t MaxLayerMinus1, bool profilePresentFlag)
 {
-  AL_BitStreamLite_PutU(pBS, 2, pPTL->general_profile_space);
-  AL_BitStreamLite_PutBit(pBS, pPTL->general_tier_flag);
-  AL_BitStreamLite_PutU(pBS, 5, pPTL->general_profile_idc);
+  if(profilePresentFlag)
+  {
+    AL_BitStreamLite_PutU(pBS, 2, pPTL->general_profile_space);
+    AL_BitStreamLite_PutBit(pBS, pPTL->general_tier_flag);
+    AL_BitStreamLite_PutU(pBS, 5, pPTL->general_profile_idc);
 
-  for(int j = 0; j < 32; ++j)
-    AL_BitStreamLite_PutBit(pBS, pPTL->general_profile_compatibility_flag[j]);
+    for(int j = 0; j < 32; ++j)
+      AL_BitStreamLite_PutBit(pBS, pPTL->general_profile_compatibility_flag[j]);
 
-  AL_BitStreamLite_PutBit(pBS, pPTL->general_progressive_source_flag);
-  AL_BitStreamLite_PutBit(pBS, pPTL->general_interlaced_source_flag);
-  AL_BitStreamLite_PutBit(pBS, pPTL->general_non_packed_constraint_flag);
-  AL_BitStreamLite_PutBit(pBS, pPTL->general_frame_only_constraint_flag);
+    AL_BitStreamLite_PutBit(pBS, pPTL->general_progressive_source_flag);
+    AL_BitStreamLite_PutBit(pBS, pPTL->general_interlaced_source_flag);
+    AL_BitStreamLite_PutBit(pBS, pPTL->general_non_packed_constraint_flag);
+    AL_BitStreamLite_PutBit(pBS, pPTL->general_frame_only_constraint_flag);
 
-  if(pPTL->general_profile_idc == 4 || pPTL->general_profile_compatibility_flag[4] ||
-     pPTL->general_profile_idc == 5 || pPTL->general_profile_compatibility_flag[5] ||
-     pPTL->general_profile_idc == 6 || pPTL->general_profile_compatibility_flag[6] ||
-     pPTL->general_profile_idc == 7 || pPTL->general_profile_compatibility_flag[7])
-    AL_BitStreamLite_PutU(pBS, 16, pPTL->general_rext_profile_flags);
-  else
-    AL_BitStreamLite_PutU(pBS, 16, 0);
-  AL_BitStreamLite_PutU(pBS, 28, 0);
+    if(pPTL->general_profile_idc == 4 || pPTL->general_profile_compatibility_flag[4] ||
+       pPTL->general_profile_idc == 5 || pPTL->general_profile_compatibility_flag[5] ||
+       pPTL->general_profile_idc == 6 || pPTL->general_profile_compatibility_flag[6] ||
+       pPTL->general_profile_idc == 7 || pPTL->general_profile_compatibility_flag[7])
+    {
+      AL_BitStreamLite_PutU(pBS, 1, pPTL->general_max_12bit_constraint_flag);
+      AL_BitStreamLite_PutU(pBS, 1, pPTL->general_max_10bit_constraint_flag);
+      AL_BitStreamLite_PutU(pBS, 1, pPTL->general_max_8bit_constraint_flag);
+      AL_BitStreamLite_PutU(pBS, 1, pPTL->general_max_422chroma_constraint_flag);
+      AL_BitStreamLite_PutU(pBS, 1, pPTL->general_max_420chroma_constraint_flag);
+      AL_BitStreamLite_PutU(pBS, 1, pPTL->general_max_monochrome_constraint_flag);
+      AL_BitStreamLite_PutU(pBS, 1, pPTL->general_intra_constraint_flag);
+      AL_BitStreamLite_PutU(pBS, 1, pPTL->general_one_picture_only_constraint_flag);
+      AL_BitStreamLite_PutU(pBS, 1, pPTL->general_lower_bit_rate_constraint_flag);
 
+      if(pPTL->general_profile_idc == 5 || pPTL->general_profile_compatibility_flag[5] ||
+         pPTL->general_profile_idc == 9 || pPTL->general_profile_compatibility_flag[9] ||
+         pPTL->general_profile_idc == 10 || pPTL->general_profile_compatibility_flag[10])
+      {
+        AL_BitStreamLite_PutU(pBS, 1, 0); // general_max_14bit_constraint_flag
+        // general_reserved_zero_33bits write in 2 times
+        AL_BitStreamLite_PutU(pBS, 16, 0);
+        AL_BitStreamLite_PutU(pBS, 17, 0);
+      }
+      else
+      {
+        // general_reserved_zero_34bits write in 2 times
+        AL_BitStreamLite_PutU(pBS, 16, 0);
+        AL_BitStreamLite_PutU(pBS, 18, 0);
+      }
+    }
+    else
+    {
+      // general_reserved_zero_43bits write in 2 times
+      AL_BitStreamLite_PutU(pBS, 16, 0);
+      AL_BitStreamLite_PutU(pBS, 27, 0);
+    }
+
+    if((pPTL->general_profile_idc >= 1 && pPTL->general_profile_idc <= 5) ||
+       pPTL->general_profile_idc == 9 ||
+       pPTL->general_profile_compatibility_flag[1] || pPTL->general_profile_compatibility_flag[2] ||
+       pPTL->general_profile_compatibility_flag[3] || pPTL->general_profile_compatibility_flag[4] ||
+       pPTL->general_profile_compatibility_flag[5] || pPTL->general_profile_compatibility_flag[9])
+      AL_BitStreamLite_PutU(pBS, 1, 0); // general_inbld_flag
+    else
+      AL_BitStreamLite_PutU(pBS, 1, 0); // general_reserved_zero_bit
+  }
   AL_BitStreamLite_PutU(pBS, 8, pPTL->general_level_idc);
 
   for(int j = 0; j < MaxLayerMinus1; ++j)
@@ -181,6 +221,7 @@ static void writeProfileTierLevel(AL_TBitStreamLite* pBS, AL_TProfilevel const* 
   }
 }
 
+
 /******************************************************************************/
 static void writeVpsData(AL_TBitStreamLite* pBS, AL_THevcVps const* pVps)
 {
@@ -192,7 +233,7 @@ static void writeVpsData(AL_TBitStreamLite* pBS, AL_THevcVps const* pVps)
   AL_BitStreamLite_PutU(pBS, 1, pVps->vps_temporal_id_nesting_flag);
   AL_BitStreamLite_PutU(pBS, 16, 0xFFFF);
 
-  writeProfileTierLevel(pBS, &pVps->profile_and_level, pVps->vps_max_sub_layers_minus1);
+  writeProfileTierLevel(pBS, &pVps->profile_and_level[0], pVps->vps_max_sub_layers_minus1, true);
 
   AL_BitStreamLite_PutU(pBS, 1, pVps->vps_sub_layer_ordering_info_present_flag);
 
@@ -236,7 +277,8 @@ static void writeVpsData(AL_TBitStreamLite* pBS, AL_THevcVps const* pVps)
       writeHrdParam(pBS, &pVps->hrd_parameter[iIdx], pVps->cprms_present_flag[iIdx], pVps->vps_max_sub_layers_minus1);
     }
   }
-  AL_BitStreamLite_PutBit(pBS, 0); // vps_extension_flag
+
+  AL_BitStreamLite_PutU(pBS, 1, pVps->vps_extension_flag); // vps_extension_flag
 }
 
 /******************************************************************************/
@@ -380,7 +422,13 @@ static void writeScalingListData(AL_TBitStreamLite* pBS, AL_THevcSps const* pSps
 
         for(uCoeff = 0; uCoeff < uCoeffNum; ++uCoeff)
         {
-          AL_BitStreamLite_PutSE(pBS, pSps->scaling_list_param.ScalingList[iSizeId][iMatrixId][pScanOrder[uCoeff]] - uPrevCoef);
+          int iTmpCoeff = pSps->scaling_list_param.ScalingList[iSizeId][iMatrixId][pScanOrder[uCoeff]] - (int)uPrevCoef;
+
+          if(iTmpCoeff > 127)
+            iTmpCoeff -= 256;
+          else if(iTmpCoeff < -127)
+            iTmpCoeff += 256;
+          AL_BitStreamLite_PutSE(pBS, iTmpCoeff);
           uPrevCoef = pSps->scaling_list_param.ScalingList[iSizeId][iMatrixId][pScanOrder[uCoeff]];
         }
       }
@@ -389,45 +437,68 @@ static void writeScalingListData(AL_TBitStreamLite* pBS, AL_THevcSps const* pSps
 }
 
 /******************************************************************************/
-static void writeSpsData(AL_TBitStreamLite* pBS, AL_THevcSps const* pSps)
+static void writeSpsData(AL_TBitStreamLite* pBS, AL_THevcSps const* pSps, int iLayer)
 {
   // 1 - Write SPS following spec 7.3.2.2
 
   AL_BitStreamLite_PutU(pBS, 4, pSps->sps_video_parameter_set_id);
-  AL_BitStreamLite_PutU(pBS, 3, pSps->sps_max_sub_layers_minus1);
-  AL_BitStreamLite_PutBit(pBS, pSps->sps_temporal_id_nesting_flag);
 
-  writeProfileTierLevel(pBS, &pSps->profile_and_level, pSps->sps_max_sub_layers_minus1);
+  if(iLayer == 0)
+    AL_BitStreamLite_PutU(pBS, 3, pSps->sps_max_sub_layers_minus1);
+  else
+    AL_BitStreamLite_PutU(pBS, 3, pSps->sps_ext_or_max_sub_layers_minus1);
+
+  bool MultiLayerExtSpsFlag = iLayer != 0 && pSps->sps_ext_or_max_sub_layers_minus1 == 7;
+
+  if(!MultiLayerExtSpsFlag)
+  {
+    AL_BitStreamLite_PutBit(pBS, pSps->sps_temporal_id_nesting_flag);
+    writeProfileTierLevel(pBS, &pSps->profile_and_level, pSps->sps_max_sub_layers_minus1, true);
+  }
   AL_BitStreamLite_PutUE(pBS, pSps->sps_seq_parameter_set_id);
-  AL_BitStreamLite_PutUE(pBS, pSps->chroma_format_idc);
-  assert(pSps->chroma_format_idc != 3);
 
-  AL_BitStreamLite_PutUE(pBS, pSps->pic_width_in_luma_samples);
-  AL_BitStreamLite_PutUE(pBS, pSps->pic_height_in_luma_samples);
-  AL_BitStreamLite_PutBit(pBS, pSps->conformance_window_flag);
-
-  if(pSps->conformance_window_flag)
+  if(MultiLayerExtSpsFlag)
   {
-    AL_BitStreamLite_PutUE(pBS, pSps->conf_win_left_offset);
-    AL_BitStreamLite_PutUE(pBS, pSps->conf_win_right_offset);
-    AL_BitStreamLite_PutUE(pBS, pSps->conf_win_top_offset);
-    AL_BitStreamLite_PutUE(pBS, pSps->conf_win_bottom_offset);
-  }
+    AL_BitStreamLite_PutU(pBS, 1, pSps->update_rep_format_flag);
 
-  AL_BitStreamLite_PutUE(pBS, pSps->bit_depth_luma_minus8);
-  AL_BitStreamLite_PutUE(pBS, pSps->bit_depth_chroma_minus8);
+    if(pSps->update_rep_format_flag)
+      AL_BitStreamLite_PutU(pBS, 8, pSps->sps_rep_format_idx);
+  }
+  else
+  {
+    AL_BitStreamLite_PutUE(pBS, pSps->chroma_format_idc);
+    assert(pSps->chroma_format_idc != 3);
+
+    AL_BitStreamLite_PutUE(pBS, pSps->pic_width_in_luma_samples);
+    AL_BitStreamLite_PutUE(pBS, pSps->pic_height_in_luma_samples);
+    AL_BitStreamLite_PutBit(pBS, pSps->conformance_window_flag);
+
+    if(pSps->conformance_window_flag)
+    {
+      AL_BitStreamLite_PutUE(pBS, pSps->conf_win_left_offset);
+      AL_BitStreamLite_PutUE(pBS, pSps->conf_win_right_offset);
+      AL_BitStreamLite_PutUE(pBS, pSps->conf_win_top_offset);
+      AL_BitStreamLite_PutUE(pBS, pSps->conf_win_bottom_offset);
+    }
+
+    AL_BitStreamLite_PutUE(pBS, pSps->bit_depth_luma_minus8);
+    AL_BitStreamLite_PutUE(pBS, pSps->bit_depth_chroma_minus8);
+  }
   AL_BitStreamLite_PutUE(pBS, pSps->log2_max_slice_pic_order_cnt_lsb_minus4);
-  AL_BitStreamLite_PutBit(pBS, pSps->sps_sub_layer_ordering_info_present_flag);
 
-  int iLayerOffset = pSps->sps_sub_layer_ordering_info_present_flag ? 0 : pSps->sps_max_sub_layers_minus1;
-
-  for(int i = iLayerOffset; i <= pSps->sps_max_sub_layers_minus1; ++i)
+  if(!MultiLayerExtSpsFlag)
   {
-    AL_BitStreamLite_PutUE(pBS, pSps->sps_max_dec_pic_buffering_minus1[i]);
-    AL_BitStreamLite_PutUE(pBS, pSps->sps_num_reorder_pics[i]);
-    AL_BitStreamLite_PutUE(pBS, pSps->sps_max_latency_increase_plus1[i]);
-  }
+    AL_BitStreamLite_PutBit(pBS, pSps->sps_sub_layer_ordering_info_present_flag);
 
+    int iLayerOffset = pSps->sps_sub_layer_ordering_info_present_flag ? 0 : pSps->sps_max_sub_layers_minus1;
+
+    for(int i = iLayerOffset; i <= pSps->sps_max_sub_layers_minus1; ++i)
+    {
+      AL_BitStreamLite_PutUE(pBS, pSps->sps_max_dec_pic_buffering_minus1[i]);
+      AL_BitStreamLite_PutUE(pBS, pSps->sps_num_reorder_pics[i]);
+      AL_BitStreamLite_PutUE(pBS, pSps->sps_max_latency_increase_plus1[i]);
+    }
+  }
   AL_BitStreamLite_PutUE(pBS, pSps->log2_min_luma_coding_block_size_minus3);
   AL_BitStreamLite_PutUE(pBS, pSps->log2_diff_max_min_luma_coding_block_size);
   AL_BitStreamLite_PutUE(pBS, pSps->log2_min_transform_block_size_minus2);
@@ -439,11 +510,17 @@ static void writeSpsData(AL_TBitStreamLite* pBS, AL_THevcSps const* pSps)
 
   if(pSps->scaling_list_enabled_flag)
   {
-    AL_BitStreamLite_PutBit(pBS, pSps->sps_scaling_list_data_present_flag);
+    if(MultiLayerExtSpsFlag)
+      AL_BitStreamLite_PutU(pBS, 1, pSps->sps_infer_scaling_list_flag);
 
-    if(pSps->sps_scaling_list_data_present_flag)
+    if(pSps->sps_infer_scaling_list_flag)
+      AL_BitStreamLite_PutU(pBS, 6, pSps->sps_scaling_list_ref_layer_id);
+    else
     {
-      writeScalingListData(pBS, pSps);
+      AL_BitStreamLite_PutBit(pBS, pSps->sps_scaling_list_data_present_flag);
+
+      if(pSps->sps_scaling_list_data_present_flag)
+        writeScalingListData(pBS, pSps);
     }
   }
 
@@ -476,9 +553,23 @@ static void writeSpsData(AL_TBitStreamLite* pBS, AL_THevcSps const* pSps)
 
   if(pSps->vui_parameters_present_flag)
     writeVui(pBS, pSps, &pSps->vui_param);
-  AL_BitStreamLite_PutBit(pBS, 0); // sps_extension_data_flag
+
+  AL_BitStreamLite_PutU(pBS, 1, pSps->sps_extension_present_flag);
+
+  if(pSps->sps_extension_present_flag)
+  {
+    AL_BitStreamLite_PutU(pBS, 1, pSps->sps_range_extension_flag);
+    AL_BitStreamLite_PutU(pBS, 1, pSps->sps_multilayer_extension_flag);
+    AL_BitStreamLite_PutU(pBS, 1, pSps->sps_3d_extension_flag);
+    AL_BitStreamLite_PutU(pBS, 1, pSps->sps_scc_extension_flag);
+    AL_BitStreamLite_PutU(pBS, 4, pSps->sps_extension_4bits);
+  }
+
+  if(pSps->sps_multilayer_extension_flag)
+    AL_BitStreamLite_PutU(pBS, 1, pSps->inter_view_mv_vert_constraint_flag);
 }
 
+/*****************************************************************************/
 /*****************************************************************************/
 static void writePpsData(AL_TBitStreamLite* pBS, AL_THevcPps const* pPps)
 {
@@ -554,7 +645,7 @@ static void writePpsData(AL_TBitStreamLite* pBS, AL_THevcPps const* pPps)
   AL_BitStreamLite_PutBit(pBS, pPps->lists_modification_present_flag);
   AL_BitStreamLite_PutUE(pBS, pPps->log2_parallel_merge_level_minus2);
   AL_BitStreamLite_PutBit(pBS, 0); // slice_segment_header_extension_present_flag
-  AL_BitStreamLite_PutBit(pBS, 0); // pps_extension_flag
+  AL_BitStreamLite_PutU(pBS, 1, pPps->pps_extension_present_flag);
 }
 
 /* Interface functions */
@@ -572,7 +663,8 @@ static void writeVps(AL_TBitStreamLite* pBS, AL_THevcVps const* pVps)
 /******************************************************************************/
 static void writeSps(AL_TBitStreamLite* pBS, AL_TSps const* pSps)
 {
-  writeSpsData(pBS, &pSps->m_HevcSPS);
+  int iLayer = pSps->HevcSPS.sps_seq_parameter_set_id;
+  writeSpsData(pBS, &pSps->HevcSPS, iLayer);
 
   // Write rbsp_trailing_bits.
   AL_BitStreamLite_PutU(pBS, 1, 1);
@@ -728,14 +820,13 @@ static void writeSeiPictureTiming(AL_TBitStreamLite* pBS, AL_TSps const* pISps, 
 
       if(pSps->vui_param.hrd_param.sub_pic_cpb_params_in_pic_timing_sei_flag)
       {
-        int i;
         AL_BitStreamLite_PutUE(pBS, iNumDecodingUnits - 1);
         AL_BitStreamLite_PutU(pBS, 1, iDuCommonCpbRemovalDelayFlag);
 
         if(iDuCommonCpbRemovalDelayFlag)
           AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.du_cpb_removal_delay_increment_length_minus1 + 1, iDuCommonCpbRemovalDelayIncrement - 1);
 
-        for(i = 0; i < iNumDecodingUnits; ++i)
+        for(int i = 0; i < iNumDecodingUnits; ++i)
         {
           AL_BitStreamLite_PutUE(pBS, iNumNalusInDu - 1);
 

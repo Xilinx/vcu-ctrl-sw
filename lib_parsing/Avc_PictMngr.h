@@ -60,8 +60,9 @@ bool AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlic
    \brief This function updates the reconstructed resolution information
    \param[in] pCtx Pointer to a Picture manager context object
    \param[in] pSPS Pointer to a ACV SPS structure
+   \param[in] pPP  Pointer to the current picture parameters
 *****************************************************************************/
-void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS);
+void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_TDecPicParam* pPP);
 
 /*************************************************************************//*!
    \brief This function updates the Picture Manager context each time a picture have been parsed.
@@ -84,18 +85,18 @@ void AL_AVC_PictMngr_CleanDPB(AL_TPictMngrCtx* pCtx);
    \param[in]  pSP           Pointer to the current slice parameters
    \param[in]  pSlice        Pointer to the slice header of the current slice
    \param[in]  pListRef      Pointer to the current picture reference lists
+   \param[out] pListVirtAddr Used for traces
    \param[out] pListAddr     Pointer to the buffer that will receive the references, colocated POC and colocated motion vectors address list
-   \param[out] ppPOC         Receives pointer to the POC buffer where
+   \param[out] pPOC         Receives pointer to the POC buffer where
                           reference Pictures order count are stored.
-   \param[out] ppMV          Receives pointer to the MV buffer where
+   \param[out] pMV          Receives pointer to the MV buffer where
                           Motion Vectors should be stored.
    \param[out] pWP           Receives slices Weighted Pred tables
-   \param[out] ppRec         Receives pointer to the frame buffer where reconstructed picture should be stored.
-   \param[in] eFBStorageMode the way frame buffer is stored
+   \param[out] pRecs         Receives pointer to the frame buffers where reconstructed pictures should be stored.
    \return If the function succeeds the return value is nonzero (true)
         If the function fails the return value is zero (false)
 *****************************************************************************/
-bool AL_AVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef, TBuffer* pListAddr, TBufferPOC** ppPOC, TBufferMV** ppMV, TBuffer* pWP, AL_TBuffer** ppRec);
+bool AL_AVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef, TBuffer* pListVirtAddr, TBuffer* pListAddr, TBufferPOC* pPOC, TBufferMV* pMV, TBuffer* pWP, AL_TRecBuffers* pRecs);
 
 /*************************************************************************//*!
    \brief Initializes the reference picture list for the current slice

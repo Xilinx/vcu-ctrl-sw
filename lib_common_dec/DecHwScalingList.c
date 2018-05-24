@@ -41,9 +41,7 @@
 /******************************************************************************/
 static void AL_sWriteWord(const uint8_t* pSrc, int iSize, uint32_t* pBuf, const int* pScan)
 {
-  int scl;
-
-  for(scl = 0; scl < iSize; ++scl)
+  for(int scl = 0; scl < iSize; ++scl)
   {
     int iOffset = scl << 2;
     *pBuf++ = pSrc[pScan ? pScan[iOffset] : iOffset] | (pSrc[pScan ? pScan[iOffset + 1] : iOffset + 1] << 8) |
@@ -54,13 +52,12 @@ static void AL_sWriteWord(const uint8_t* pSrc, int iSize, uint32_t* pBuf, const 
 /******************************************************************************/
 void AL_AVC_WriteDecHwScalingList(AL_TScl const* pSclLst, uint8_t* pBuf)
 {
-  int m;
   uint8_t const* pSrc;
   uint32_t* pBuf32 = (uint32_t*)pBuf;
 
   assert((1 & (size_t)pBuf) == 0);
 
-  for(m = 0; m < 2; m++) // Mode : 0 = Intra; 1 = Inter
+  for(int m = 0; m < 2; m++) // Mode : 0 = Intra; 1 = Inter
   {
     // 8x8
     pSrc = (*pSclLst)[m].t8x8Y;
@@ -87,11 +84,10 @@ void AL_AVC_WriteDecHwScalingList(AL_TScl const* pSclLst, uint8_t* pBuf)
 /******************************************************************************/
 void AL_HEVC_WriteDecHwScalingList(AL_TScl const* pSclLst, uint8_t* pBuf)
 {
-  int m;
   uint8_t const* pSrc;
   uint32_t* pBuf32 = (uint32_t*)pBuf;
 
-  for(m = 0; m < 2; m++) // Mode : 0 = Intra; 1 = Inter
+  for(int m = 0; m < 2; m++) // Mode : 0 = Intra; 1 = Inter
   {
     // 32x32
     pSrc = (*pSclLst)[m].t32x32;

@@ -50,8 +50,8 @@ typedef struct nalunit
 }AL_NalUnit;
 
 AL_NalUnit AL_CreateAud(int nut, AL_ESliceType type);
-AL_NalUnit AL_CreateSps(int nut, AL_TSps* sps);
-AL_NalUnit AL_CreatePps(int nut, AL_TPps* pps);
+AL_NalUnit AL_CreateSps(int nut, AL_TSps* sps, int iLayerId);
+AL_NalUnit AL_CreatePps(int nut, AL_TPps* pps, int iLayerId);
 AL_NalUnit AL_CreateVps(AL_THevcVps* vps);
 
 #include "lib_common_enc/EncPicInfo.h"

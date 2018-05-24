@@ -108,7 +108,8 @@ private:
 CEncCmdMngr::CEncCmdMngr(istream& CmdInput, int iLookAhead, int iFreqLT)
   : m_CmdInput(CmdInput),
   m_iLookAhead(iLookAhead),
-  m_iFreqLT(iFreqLT)
+  m_iFreqLT(iFreqLT),
+  m_bHasLT(false)
 {
   Refill(0);
 }
@@ -138,7 +139,7 @@ bool CEncCmdMngr::ReadNextCmd(TFrmCmd& Cmd)
 
   for(;;)
   {
-    streampos FirstPos = m_CmdInput.tellg();
+    auto FirstPos = m_CmdInput.tellg();
 
     getline(m_CmdInput, sLine);
 
@@ -185,6 +186,7 @@ bool CEncCmdMngr::ParseCmd(std::string sLine, TFrmCmd& Cmd, bool bSameFrame)
       Cmd.bIsLongTerm = true;
     else if(Tok == "UseLT")
       Cmd.bUseLongTerm = true;
+
 
     else if(Tok == "KF")
       Cmd.bKeyFrame = true;
@@ -239,8 +241,14 @@ void CEncCmdMngr::Process(ICommandsSender* sender, int iFrame)
     {
       bRefill = true;
 
-      if(m_Cmds.front().bUseLongTerm && m_iFreqLT)
-        sender->notifyLongTerm();
+      if(m_Cmds.front().bUseLongTerm && (m_iFreqLT || m_bHasLT))
+        sender->notifyUseLongTerm();
+
+      if(m_Cmds.front().bIsLongTerm)
+      {
+        sender->notifyIsLongTerm();
+        m_bHasLT = true;
+      }
 
 
       if(m_Cmds.front().bKeyFrame)

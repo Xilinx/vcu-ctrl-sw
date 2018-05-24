@@ -42,3 +42,4 @@ int GetMinCoresCount(int width);
 int GetResources(int width, int height, uint32_t frameRate, uint32_t clockRatio);
 int ChoseCoresCount(int width, int height, uint32_t frameRate, uint32_t clockRatio, int resourcesByCore);
 
+

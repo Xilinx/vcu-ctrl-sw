@@ -54,32 +54,14 @@ extern "C"
 #include "QPGenerator.h"
 #include "ROIMngr.h"
 
+#include "FileUtils.h"
+
 using namespace std;
 
 /****************************************************************************/
 static AL_INLINE int RoundUp(int iVal, int iRnd)
 {
   return (iVal + iRnd - 1) & (~(iRnd - 1));
-}
-
-/****************************************************************************/
-static int FromHex2(char a, char b)
-{
-  int A = ((a >= 'a') && (a <= 'f')) ? (a - 'a') + 10 :
-          ((a >= 'A') && (a <= 'F')) ? (a - 'A') + 10 :
-          ((a >= '0') && (a <= '9')) ? (a - '0') : 0;
-
-  int B = ((b >= 'a') && (b <= 'f')) ? (b - 'a') + 10 :
-          ((b >= 'A') && (b <= 'F')) ? (b - 'A') + 10 :
-          ((b >= '0') && (b <= '9')) ? (b - '0') : 0;
-
-  return (A << 4) + B;
-}
-
-/****************************************************************************/
-static int FromHex4(char a, char b, char c, char d)
-{
-  return (FromHex2(a, b) << 8) + FromHex2(c, d);
 }
 
 /****************************************************************************/
@@ -133,26 +115,35 @@ void Generate_RampQP(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumByte
   }
 }
 
+static uint32_t CreateSeed(int iNumLCUs, int iSliceQP, int iRandQP)
+{
+  return iNumLCUs * iSliceQP - (0xEFFACE << (iSliceQP >> 1)) + iRandQP;
+}
+
+static int GetNextRandomInt(int iRand)
+{
+  return 1103515245 * iRand + 12345;
+}
+
 /****************************************************************************/
 void Generate_RandomQP_VP9(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, int iMinQP, int iMaxQP, int16_t iSliceQP)
 {
   static int iRandQP = 0;
-  int iConvSliceQP = iSliceQP % 52;
-  uint32_t iSeed = iNumLCUs * iConvSliceQP - (0xEFFACE << (iConvSliceQP >> 1)) + iRandQP++;
-  uint32_t iRand = iSeed;
+  uint32_t iRand = CreateSeed(iNumLCUs, iSliceQP % 52, iRandQP);
   int iRange = iMaxQP - iMinQP + 1;
+  ++iRandQP;
 
   int16_t* pSeg = (int16_t*)pSegs;
 
   for(int iSeg = 0; iSeg < 8; iSeg++)
   {
-    iRand = (1103515245 * iRand + 12345); // Unix
+    iRand = GetNextRandomInt(iRand);
     pSeg[iSeg] = (iMinQP + (iRand % iRange));
   }
 
   for(int iLCU = 0; iLCU < iNumLCUs; iLCU++)
   {
-    iRand = (1103515245 * iRand + 12345); // Unix
+    iRand = GetNextRandomInt(iRand);
     pQPs[iLCU] = (iRand % 8);
   }
 }
@@ -162,8 +153,8 @@ void Generate_RandomQP(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBy
 {
   static int iRandQP = 0;
 
-  uint32_t iSeed = iNumLCUs * iSliceQP - (0xEFFACE << (iSliceQP >> 1)) + iRandQP++;
-  uint32_t iRand = iSeed;
+  uint32_t iRand = CreateSeed(iNumLCUs, iSliceQP, iRandQP);
+  ++iRandQP;
 
   int iRange = iMaxQP - iMinQP + 1;
 
@@ -173,7 +164,7 @@ void Generate_RandomQP(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBy
 
     for(int iQP = 0; iQP < iNumQPPerLCU; ++iQP)
     {
-      iRand = (1103515245 * iRand + 12345); // Unix
+      iRand = GetNextRandomInt(iRand);
       pQPs[iFirst + iQP] = (iMinQP + (iRand % iRange)) & MASK_QP;
     }
   }
@@ -317,13 +308,6 @@ int LIBSYS_SNPRINTF(char* str, size_t size, const char* format, ...)
 
 #define DEBUG_PATH "."
 
-string createFileNameWithID(int iFrameID, string motif)
-{
-  ostringstream filename;
-  filename << DEBUG_PATH << "/" << motif << "_" << iFrameID << ".hex";
-  return filename.str();
-}
-
 string createQPFileName(string motif)
 {
   ostringstream filename;
@@ -339,7 +323,7 @@ void freeQPFileName(char* filename)
 /****************************************************************************/
 static bool OpenFile(int iFrameID, string motif, ifstream& File)
 {
-  auto qpFileName = createFileNameWithID(iFrameID, motif);
+  auto qpFileName = createFileNameWithID(string(DEBUG_PATH) + string("/"), motif, ".hex", iFrameID);
   File.open(qpFileName);
 
   if(!File.is_open())
@@ -467,6 +451,7 @@ static AL_ERoiQuality get_roi_quality(char* sLine, int iPos)
 
   if(s == "NO_QUALITY")
     return AL_ROI_QUALITY_DONT_CARE;
+
 
   return AL_ROI_QUALITY_MAX_ENUM;
 }
@@ -638,9 +623,7 @@ void Generate_BorderSkip(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNum
 /****************************************************************************/
 void Generate_Random_WithFlag(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBytesPerLCU, int16_t iSliceQP, int iRandFlag, int iPercent, uint8_t uFORCE)
 {
-  int iLimitQP = iSliceQP % 52;
-  int iSeed = iNumLCUs * iLimitQP - (0xEFFACE << (iLimitQP >> 1)) + iRandFlag;
-  int iRand = iSeed;
+  int iRand = CreateSeed(iNumLCUs, iSliceQP % 52, iRandFlag);
 
   for(int iLCU = 0; iLCU < iNumLCUs; iLCU++)
   {
@@ -653,7 +636,7 @@ void Generate_Random_WithFlag(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int
         if((pQPs[iFirst + iQP] & MASK_FORCE) != (pQPs[iFirst] & MASK_FORCE)) // remove existing flag if different from depth 0
           pQPs[iFirst + iQP] &= ~MASK_FORCE;
 
-        iRand = (1103515245 * iRand + 12345); // Random formula from Unix
+        iRand = GetNextRandomInt(iRand);
 
         if(abs(iRand) % 100 <= iPercent)
           pQPs[iFirst + iQP] |= uFORCE;
@@ -697,9 +680,9 @@ bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, in
   bool bRet = false;
   int iNumQPPerLCU, iNumBytesPerLCU, iNumLCUs;
   static int iRandFlag = 0;
-  bool bIsVp9 = false;
+  bool bIsAOM = false;
 
-  if(bIsVp9)
+  if(bIsAOM)
     Rtos_Memset(pSegs, 0, 8 * sizeof(int16_t));
 
   int iQPMode = eMode & 0x0F; // exclusive mode
@@ -707,8 +690,8 @@ bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, in
 
   if(bRelative)
   {
-    int iMinus = bIsVp9 ? 128 : 32;
-    int iPlus = bIsVp9 ? 127 : 31;
+    int iMinus = bIsAOM ? 128 : 32;
+    int iPlus = bIsAOM ? 127 : 31;
 
     if(iQPMode == RANDOM_QP)
     {
@@ -727,28 +710,28 @@ bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, in
   {
   case RAMP_QP:
   {
-    bIsVp9 ? Generate_RampQP_VP9(pSegs, pQPs, iNumLCUs, iMinQP, iMaxQP) :
+    bIsAOM ? Generate_RampQP_VP9(pSegs, pQPs, iNumLCUs, iMinQP, iMaxQP) :
     Generate_RampQP(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iMinQP, iMaxQP);
     bRet = true;
   } break;
   // ------------------------------------------------------------------------
   case RANDOM_QP:
   {
-    bIsVp9 ? Generate_RandomQP_VP9(pSegs, pQPs, iNumLCUs, iMinQP, iMaxQP, iSliceQP) :
+    bIsAOM ? Generate_RandomQP_VP9(pSegs, pQPs, iNumLCUs, iMinQP, iMaxQP, iSliceQP) :
     Generate_RandomQP(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iMinQP, iMaxQP, iSliceQP);
     bRet = true;
   } break;
   // ------------------------------------------------------------------------
   case BORDER_QP:
   {
-    bIsVp9 ? Generate_BorderQP_VP9(pSegs, pQPs, iNumLCUs, iLCUWidth, iLCUHeight, iMaxQP, iSliceQP, bRelative) :
+    bIsAOM ? Generate_BorderQP_VP9(pSegs, pQPs, iNumLCUs, iLCUWidth, iLCUHeight, iMaxQP, iSliceQP, bRelative) :
     Generate_BorderQP(pQPs, iNumLCUs, iLCUWidth, iLCUHeight, iNumQPPerLCU, iNumBytesPerLCU, iMaxQP, iSliceQP, bRelative);
     bRet = true;
   } break;
   // ------------------------------------------------------------------------
   case LOAD_QP:
   {
-    bRet = bIsVp9 ? Load_QPTable_FromFile_Vp9(pSegs, pQPs, iNumLCUs, iFrameID, bRelative) :
+    bRet = bIsAOM ? Load_QPTable_FromFile_Vp9(pSegs, pQPs, iNumLCUs, iFrameID, bRelative) :
            Load_QPTable_FromFile(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iFrameID);
   } break;
   }
@@ -758,7 +741,7 @@ bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, in
   {
     int s;
 
-    if(bIsVp9)
+    if(bIsAOM)
       for(s = 0; s < 8; ++s)
         pSegs[2 * s] = iSliceQP;
 

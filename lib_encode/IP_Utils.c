@@ -113,22 +113,46 @@ static struct AL_t_RPS
   }, // 23 : 4th B with 4B
 };
 
-/****************************************************************************/
-static void AL_sUpdateProfileTierLevel(AL_TProfilevel* pPTL, AL_TEncSettings const* pSettings)
-{
-  Rtos_Memset(pPTL, 0, sizeof(AL_TProfilevel));
-  pPTL->general_profile_idc = AL_GET_PROFILE_IDC(pSettings->tChParam.eProfile);
-  pPTL->general_progressive_source_flag = 1;
-  pPTL->general_frame_only_constraint_flag = 1;
-  pPTL->general_tier_flag = pSettings->tChParam.uTier;
 
-  if(pSettings->tChParam.uLevel == (uint8_t)-1)
+/****************************************************************************/
+static void AL_sUpdateProfileTierLevel(AL_TProfilevel* pPTL, AL_TEncChanParam const* pChParam, bool profilePresentFlag, int iLayerId)
+{
+  (void)iLayerId;
+  Rtos_Memset(pPTL, 0, sizeof(AL_TProfilevel));
+
+  if(profilePresentFlag)
+  {
+    pPTL->general_profile_idc = AL_GET_PROFILE_IDC(pChParam->eProfile);
+    pPTL->general_tier_flag = pChParam->uTier;
+    int iBitDepth = AL_GET_BITDEPTH(pChParam->ePicFormat);
+
+    if(pChParam->eVideoMode == AL_VM_PROGRESSIVE)
+    {
+      pPTL->general_progressive_source_flag = 1;
+      pPTL->general_frame_only_constraint_flag = 1;
+    }
+
+    if(pPTL->general_profile_idc == 7)
+    {
+      pPTL->general_max_12bit_constraint_flag = 1;
+      pPTL->general_max_10bit_constraint_flag = 1;
+      pPTL->general_max_8bit_constraint_flag = iBitDepth == 8;
+      pPTL->general_max_422chroma_constraint_flag = 1;
+      pPTL->general_max_420chroma_constraint_flag = 1;
+      pPTL->general_max_monochrome_constraint_flag = 0;
+      pPTL->general_intra_constraint_flag = 0;
+      pPTL->general_one_picture_only_constraint_flag = 0;
+      pPTL->general_lower_bit_rate_constraint_flag = 1;
+    }
+  }
+
+  if(pChParam->uLevel == (uint8_t)-1)
     pPTL->general_level_idc = 0;
   else
-    pPTL->general_level_idc = pSettings->tChParam.uLevel * 3;
+    pPTL->general_level_idc = pChParam->uLevel * 3;
   pPTL->general_profile_compatibility_flag[pPTL->general_profile_idc] = 1;
 
-  pPTL->general_rext_profile_flags = AL_GET_RExt_FLAGS(pSettings->tChParam.eProfile);
+  pPTL->general_rext_profile_flags = AL_GET_RExt_FLAGS(pChParam->eProfile);
 }
 
 /****************************************************************************/
@@ -187,7 +211,7 @@ static void AL_sReduction(uint32_t* pN, uint32_t* pD)
 /****************************************************************************/
 static void fillScalingList(AL_TEncSettings const* pSettings, uint8_t* pSL, int iSizeId, int iMatrixId, int iDir, uint8_t* uSLpresentFlag)
 {
-  if(pSettings->bScalingListPresentFlags & (1 << (iSizeId * 4 + iMatrixId)))
+  if(pSettings->SclFlag[iSizeId][iMatrixId])
   {
     *uSLpresentFlag = 1; // scaling list present in file
     Rtos_Memcpy(pSL, pSettings->ScalingList[iSizeId][iMatrixId], iSizeId == 0 ? 16 : 64);
@@ -198,7 +222,7 @@ static void fillScalingList(AL_TEncSettings const* pSettings, uint8_t* pSL, int 
       *uSLpresentFlag = 0;
     else
     {
-      if(pSettings->bScalingListPresentFlags & (1 << (iSizeId * 4 + iMatrixId - 1)))
+      if(pSettings->SclFlag[iSizeId][iMatrixId])
         *uSLpresentFlag = 1;
       else
         *uSLpresentFlag = 0;
@@ -265,83 +289,86 @@ void AL_AVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufEP
 }
 
 /****************************************************************************/
-static void AL_HEVC_SelectScalingList(AL_TSps* pISPS, AL_TEncSettings const* pSettings)
+static void AL_HEVC_SelectScalingList(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int MultiLayerExtSpsFlag)
 {
   AL_THevcSps* pSPS = (AL_THevcSps*)pISPS;
 
   AL_EScalingList eScalingList = pSettings->eScalingList;
+  pSPS->scaling_list_enabled_flag = eScalingList == AL_SCL_FLAT ? 0 : 1;
 
-  if(eScalingList == AL_SCL_CUSTOM)
+  if(MultiLayerExtSpsFlag)
+    pSPS->sps_infer_scaling_list_flag = eScalingList == AL_SCL_CUSTOM ? 1 : 0;
+
+  if(pSPS->sps_infer_scaling_list_flag)
+    pSPS->sps_scaling_list_ref_layer_id = 0;
+  else
   {
-    pSPS->scaling_list_enabled_flag = 1;
-    pSPS->sps_scaling_list_data_present_flag = 1;
+    pSPS->sps_scaling_list_data_present_flag = eScalingList == AL_SCL_CUSTOM ? 1 : 0;
 
-    // update scaling list with settings
-    for(int iSizeId = 0; iSizeId < 4; ++iSizeId)
+    if(eScalingList == AL_SCL_CUSTOM)
     {
-      for(int iMatrixId = 0; iMatrixId < 6; iMatrixId += (iSizeId == 3) ? 3 : 1)
+      // update scaling list with settings
+      for(int iSizeId = 0; iSizeId < 4; ++iSizeId)
       {
-        // by default use default scaling list
-        pSPS->scaling_list_param.scaling_list_pred_mode_flag[iSizeId][iMatrixId] = 0;
-        pSPS->scaling_list_param.scaling_list_pred_matrix_id_delta[iSizeId][iMatrixId] = 0;
-
-        // parse DC coef
-        if(iSizeId > 1)
+        for(int iMatrixId = 0; iMatrixId < 6; iMatrixId += (iSizeId == 3) ? 3 : 1)
         {
-          int iSizeMatrixID = (iSizeId == 3 && iMatrixId == 3) ? 7 : (iSizeId - 2) * 6 + iMatrixId;
+          // by default use default scaling list
+          pSPS->scaling_list_param.scaling_list_pred_mode_flag[iSizeId][iMatrixId] = 0;
+          pSPS->scaling_list_param.scaling_list_pred_matrix_id_delta[iSizeId][iMatrixId] = 0;
 
-          if(pSettings->DcCoeffFlag[iSizeMatrixID]) // if not in config file, keep default values
-            pSPS->scaling_list_param.scaling_list_dc_coeff[iSizeId - 2][iMatrixId] = pSettings->DcCoeff[iSizeMatrixID];
-          else
-            pSPS->scaling_list_param.scaling_list_dc_coeff[iSizeId - 2][iMatrixId] = 16;
-        }
+          // parse DC coef
+          if(iSizeId > 1)
+          {
+            int iSizeMatrixID = (iSizeId == 3 && iMatrixId == 3) ? 7 : (iSizeId - 2) * 6 + iMatrixId;
 
-        // parse AC coef
-        if(pSettings->SclFlag[iSizeId][iMatrixId]) // if not in config file, keep default values
-        {
-          pSPS->scaling_list_param.scaling_list_pred_mode_flag[iSizeId][iMatrixId] = 1; // scaling list present in file
-          Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[iSizeId][iMatrixId], pSettings->ScalingList[iSizeId][iMatrixId], iSizeId == 0 ? 16 : 64);
-        }
-        else
-        {
-          if(iSizeId == 0)
-            Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[iSizeId][iMatrixId], AL_HEVC_DefaultScalingLists4x4[iMatrixId / 3], 16);
+            if(pSettings->DcCoeffFlag[iSizeMatrixID]) // if not in config file, keep default values
+              pSPS->scaling_list_param.scaling_list_dc_coeff[iSizeId - 2][iMatrixId] = pSettings->DcCoeff[iSizeMatrixID];
+            else
+              pSPS->scaling_list_param.scaling_list_dc_coeff[iSizeId - 2][iMatrixId] = 16;
+          }
+
+          // parse AC coef
+          if(pSettings->SclFlag[iSizeId][iMatrixId]) // if not in config file, keep default values
+          {
+            pSPS->scaling_list_param.scaling_list_pred_mode_flag[iSizeId][iMatrixId] = 1; // scaling list present in file
+            Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[iSizeId][iMatrixId], pSettings->ScalingList[iSizeId][iMatrixId], iSizeId == 0 ? 16 : 64);
+          }
           else
           {
-            if(iSizeId > 1)
-              pSPS->scaling_list_param.scaling_list_dc_coeff[iSizeId - 2][iMatrixId] = 16;
-            Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[iSizeId][iMatrixId], AL_HEVC_DefaultScalingLists8x8[iMatrixId / 3], 64);
+            if(iSizeId == 0)
+              Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[iSizeId][iMatrixId], AL_HEVC_DefaultScalingLists4x4[iMatrixId / 3], 16);
+            else
+            {
+              if(iSizeId > 1)
+                pSPS->scaling_list_param.scaling_list_dc_coeff[iSizeId - 2][iMatrixId] = 16;
+              Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[iSizeId][iMatrixId], AL_HEVC_DefaultScalingLists8x8[iMatrixId / 3], 64);
+            }
           }
         }
       }
     }
-  }
-  else if(eScalingList == AL_SCL_DEFAULT)
-  {
-    pSPS->scaling_list_enabled_flag = 1;
-    pSPS->sps_scaling_list_data_present_flag = 0;
-
-    for(int iDir = 0; iDir < 2; ++iDir)
+    else if(eScalingList == AL_SCL_DEFAULT)
     {
-      Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[3][(3 * iDir)], AL_HEVC_DefaultScalingLists8x8[iDir], 64);
-      Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[2][(3 * iDir)], AL_HEVC_DefaultScalingLists8x8[iDir], 64);
-      Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[2][(3 * iDir) + 1], AL_HEVC_DefaultScalingLists8x8[iDir], 64);
-      Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[2][(3 * iDir) + 2], AL_HEVC_DefaultScalingLists8x8[iDir], 64);
-      Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[1][(3 * iDir)], AL_HEVC_DefaultScalingLists8x8[iDir], 64);
-      Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[1][(3 * iDir) + 1], AL_HEVC_DefaultScalingLists8x8[iDir], 64);
-      Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[1][(3 * iDir) + 2], AL_HEVC_DefaultScalingLists8x8[iDir], 64);
-      Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[0][(3 * iDir)], AL_HEVC_DefaultScalingLists4x4[iDir], 16);
-      Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[0][(3 * iDir) + 1], AL_HEVC_DefaultScalingLists4x4[iDir], 16);
-      Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[0][(3 * iDir) + 2], AL_HEVC_DefaultScalingLists4x4[iDir], 16);
+      for(int iDir = 0; iDir < 2; ++iDir)
+      {
+        Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[3][(3 * iDir)], AL_HEVC_DefaultScalingLists8x8[iDir], 64);
+        Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[2][(3 * iDir)], AL_HEVC_DefaultScalingLists8x8[iDir], 64);
+        Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[2][(3 * iDir) + 1], AL_HEVC_DefaultScalingLists8x8[iDir], 64);
+        Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[2][(3 * iDir) + 2], AL_HEVC_DefaultScalingLists8x8[iDir], 64);
+        Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[1][(3 * iDir)], AL_HEVC_DefaultScalingLists8x8[iDir], 64);
+        Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[1][(3 * iDir) + 1], AL_HEVC_DefaultScalingLists8x8[iDir], 64);
+        Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[1][(3 * iDir) + 2], AL_HEVC_DefaultScalingLists8x8[iDir], 64);
+        Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[0][(3 * iDir)], AL_HEVC_DefaultScalingLists4x4[iDir], 16);
+        Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[0][(3 * iDir) + 1], AL_HEVC_DefaultScalingLists4x4[iDir], 16);
+        Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[0][(3 * iDir) + 2], AL_HEVC_DefaultScalingLists4x4[iDir], 16);
 
-      pSPS->scaling_list_param.scaling_list_dc_coeff[1][(3 * iDir)] = 16; // luma 32x32
-      pSPS->scaling_list_param.scaling_list_dc_coeff[0][(3 * iDir)] = 16; // luma 16x16
-      pSPS->scaling_list_param.scaling_list_dc_coeff[0][(3 * iDir) + 1] = 16; // Cb 16x16
-      pSPS->scaling_list_param.scaling_list_dc_coeff[0][(3 * iDir) + 2] = 16; // Cr 16x16
+        pSPS->scaling_list_param.scaling_list_dc_coeff[1][(3 * iDir)] = 16; // luma 32x32
+        pSPS->scaling_list_param.scaling_list_dc_coeff[0][(3 * iDir)] = 16; // luma 16x16
+        pSPS->scaling_list_param.scaling_list_dc_coeff[0][(3 * iDir) + 1] = 16; // Cb 16x16
+        pSPS->scaling_list_param.scaling_list_dc_coeff[0][(3 * iDir) + 2] = 16; // Cr 16x16
+      }
     }
   }
-  else // if (eScalingList == FLAT)
-    pSPS->scaling_list_enabled_flag = 0;
 }
 
 /****************************************************************************/
@@ -358,7 +385,7 @@ void AL_HEVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufE
 /****************************************************************************/
 static void AL_UpdateAspectRatio(AL_TVuiParam* pVuiParam, uint32_t uWidth, uint32_t uHeight, AL_EAspectRatio eAspectRatio)
 {
-  bool bAuto = (eAspectRatio == AL_ASPECT_RATIO_AUTO) ? true : false;
+  bool bAuto = (eAspectRatio == AL_ASPECT_RATIO_AUTO);
   uint32_t uHeightRnd = (uHeight + 15) & ~15;
 
   pVuiParam->aspect_ratio_info_present_flag = 0;
@@ -509,6 +536,7 @@ static void AL_UpdateAspectRatio(AL_TVuiParam* pVuiParam, uint32_t uWidth, uint3
 }
 
 /****************************************************************************/
+/****************************************************************************/
 void AL_HEVC_GenerateVPS(AL_THevcVps* pVPS, AL_TEncSettings const* pSettings, int iMaxRef)
 {
   pVPS->vps_video_parameter_set_id = 0;
@@ -518,7 +546,7 @@ void AL_HEVC_GenerateVPS(AL_THevcVps* pVPS, AL_TEncSettings const* pSettings, in
   pVPS->vps_max_sub_layers_minus1 = 0;
   pVPS->vps_temporal_id_nesting_flag = 1;
 
-  AL_sUpdateProfileTierLevel(&pVPS->profile_and_level, pSettings);
+  AL_sUpdateProfileTierLevel(&pVPS->profile_and_level[0], &pSettings->tChParam[0], true, 0);
 
   pVPS->vps_sub_layer_ordering_info_present_flag = 0;
   pVPS->vps_max_dec_pic_buffering_minus1[0] = iMaxRef;
@@ -529,12 +557,13 @@ void AL_HEVC_GenerateVPS(AL_THevcVps* pVPS, AL_TEncSettings const* pSettings, in
   pVPS->vps_num_layer_sets_minus1 = 0;
 
   pVPS->vps_timing_info_present_flag = 0;
+  pVPS->vps_extension_flag = 0;
 }
 
 /****************************************************************************/
 static void AL_AVC_UpdateHrdParameters(AL_TAvcSps* pSPS, AL_TSubHrdParam* pSubHrdParam, int const iCpbSize, AL_TEncSettings const* pSettings)
 {
-  pSubHrdParam->bit_rate_value_minus1[0] = (pSettings->tChParam.tRCParam.uMaxBitRate / pSettings->NumView) >> 6;
+  pSubHrdParam->bit_rate_value_minus1[0] = (pSettings->tChParam[0].tRCParam.uMaxBitRate / pSettings->NumView) >> 6;
   pSPS->vui_param.hrd_param.cpb_cnt_minus1[0] = 0;
   AL_sDecomposition(&(pSubHrdParam->bit_rate_value_minus1[0]), &pSPS->vui_param.hrd_param.bit_rate_scale);
 
@@ -545,7 +574,7 @@ static void AL_AVC_UpdateHrdParameters(AL_TAvcSps* pSPS, AL_TSubHrdParam* pSubHr
 
   assert(pSubHrdParam->cpb_size_value_minus1[0] <= 0xFFFFFFFE); // ((1 << 32) - 2)
 
-  pSubHrdParam->cbr_flag[0] = (pSettings->tChParam.tRCParam.eRCMode == AL_RC_CBR) ? 1 : 0;
+  pSubHrdParam->cbr_flag[0] = (pSettings->tChParam[0].tRCParam.eRCMode == AL_RC_CBR) ? 1 : 0;
 
   pSPS->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 = 31; // int(log((double)iCurrDelay) / log(2.0));
   pSPS->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 = 31; // AKH don't change this
@@ -556,13 +585,13 @@ static void AL_AVC_UpdateHrdParameters(AL_TAvcSps* pSPS, AL_TSubHrdParam* pSubHr
 /****************************************************************************/
 static void AL_HEVC_UpdateHrdParameters(AL_THevcSps* pSPS, AL_TSubHrdParam* pSubHrdParam, int const iCpbSize, AL_TEncSettings const* pSettings)
 {
-  pSubHrdParam->bit_rate_du_value_minus1[0] = (pSettings->tChParam.tRCParam.uMaxBitRate / pSettings->NumView) >> 6;
+  pSubHrdParam->bit_rate_du_value_minus1[0] = (pSettings->tChParam[0].tRCParam.uMaxBitRate / pSettings->NumView) >> 6;
   AL_sDecomposition(&(pSubHrdParam->bit_rate_du_value_minus1[0]),
                     &pSPS->vui_param.hrd_param.bit_rate_scale);
 
   assert(pSubHrdParam->bit_rate_du_value_minus1[0] <= 0xFFFFFFFE); // ((1 << 32) - 2)
 
-  pSubHrdParam->bit_rate_value_minus1[0] = (pSettings->tChParam.tRCParam.uMaxBitRate / pSettings->NumView) >> 6;
+  pSubHrdParam->bit_rate_value_minus1[0] = (pSettings->tChParam[0].tRCParam.uMaxBitRate / pSettings->NumView) >> 6;
   AL_sDecomposition(&(pSubHrdParam->bit_rate_value_minus1[0]),
                     &pSPS->vui_param.hrd_param.bit_rate_scale);
 
@@ -578,7 +607,7 @@ static void AL_HEVC_UpdateHrdParameters(AL_THevcSps* pSPS, AL_TSubHrdParam* pSub
                     &pSPS->vui_param.hrd_param.cpb_size_scale);
   assert(pSubHrdParam->cpb_size_value_minus1[0] <= 0xFFFFFFFE); // ((1 << 32) - 2)
 
-  pSubHrdParam->cbr_flag[0] = (pSettings->tChParam.tRCParam.eRCMode == AL_RC_CBR) ? 1 : 0;
+  pSubHrdParam->cbr_flag[0] = (pSettings->tChParam[0].tRCParam.eRCMode == AL_RC_CBR) ? 1 : 0;
 
   pSPS->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 = 31; // int(log((double)iCurrDelay) / log(2.0));
   pSPS->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 = 31; // AKH don't change this
@@ -593,21 +622,21 @@ static void AL_HEVC_UpdateHrdParameters(AL_THevcSps* pSPS, AL_TSubHrdParam* pSub
 void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize)
 {
   AL_TAvcSps* pSPS = (AL_TAvcSps*)pISPS;
-  int iMBWidth = (pSettings->tChParam.uWidth + ((1 << pSettings->tChParam.uMaxCuSize) - 1)) >> pSettings->tChParam.uMaxCuSize;
-  int iMBHeight = (pSettings->tChParam.uHeight + ((1 << pSettings->tChParam.uMaxCuSize) - 1)) >> pSettings->tChParam.uMaxCuSize;
+  int iMBWidth = (pSettings->tChParam[0].uWidth + ((1 << pSettings->tChParam[0].uMaxCuSize) - 1)) >> pSettings->tChParam[0].uMaxCuSize;
+  int iMBHeight = (pSettings->tChParam[0].uHeight + ((1 << pSettings->tChParam[0].uMaxCuSize) - 1)) >> pSettings->tChParam[0].uMaxCuSize;
 
-  int iWidthDiff = (iMBWidth << pSettings->tChParam.uMaxCuSize) - pSettings->tChParam.uWidth;
-  int iHeightDiff = (iMBHeight << pSettings->tChParam.uMaxCuSize) - pSettings->tChParam.uHeight;
+  int iWidthDiff = (iMBWidth << pSettings->tChParam[0].uMaxCuSize) - pSettings->tChParam[0].uWidth;
+  int iHeightDiff = (iMBHeight << pSettings->tChParam[0].uMaxCuSize) - pSettings->tChParam[0].uHeight;
 
-  AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pSettings->tChParam.ePicFormat);
+  AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pSettings->tChParam[0].ePicFormat);
 
   int iCropUnitX = eChromaMode == CHROMA_4_2_0 || eChromaMode == CHROMA_4_2_2 ? 2 : 1;
   int iCropUnitY = eChromaMode == CHROMA_4_2_0 ? 2 : 1;
 
-  uint32_t uCSFlags = AL_GET_CS_FLAGS(pSettings->tChParam.eProfile);
+  uint32_t uCSFlags = AL_GET_CS_FLAGS(pSettings->tChParam[0].eProfile);
 
   // --------------------------------------------------------------------------
-  pSPS->profile_idc = AL_GET_PROFILE_IDC(pSettings->tChParam.eProfile);
+  pSPS->profile_idc = AL_GET_PROFILE_IDC(pSettings->tChParam[0].eProfile);
 
   pSPS->constraint_set0_flag = (uCSFlags) & 1;
   pSPS->constraint_set1_flag = (uCSFlags >> 1) & 1;
@@ -615,27 +644,21 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   pSPS->constraint_set3_flag = (uCSFlags >> 3) & 1;
   pSPS->constraint_set4_flag = (uCSFlags >> 4) & 1;
   pSPS->constraint_set5_flag = (uCSFlags >> 5) & 1;
-  pSPS->chroma_format_idc = AL_GET_CHROMA_MODE(pSettings->tChParam.ePicFormat);
-  pSPS->bit_depth_luma_minus8 = AL_GET_BITDEPTH_LUMA(pSettings->tChParam.ePicFormat) - 8;
-  pSPS->bit_depth_chroma_minus8 = AL_GET_BITDEPTH_CHROMA(pSettings->tChParam.ePicFormat) - 8;
+  pSPS->chroma_format_idc = eChromaMode;
+  pSPS->bit_depth_luma_minus8 = pSettings->tChParam[0].uEncodingBitDepth - 8;
+  pSPS->bit_depth_chroma_minus8 = pSettings->tChParam[0].uEncodingBitDepth - 8;
   pSPS->qpprime_y_zero_transform_bypass_flag = 0;
 
   AL_AVC_SelectScalingList(pISPS, pSettings);
 
-  pSPS->level_idc = pSettings->tChParam.uLevel;
+  pSPS->level_idc = pSettings->tChParam[0].uLevel;
   pSPS->seq_parameter_set_id = 0;
   pSPS->pic_order_cnt_type = 0; // TDMB = 2;
 
   pSPS->max_num_ref_frames = iMaxRef; // TDMB = 1, PyramidB = 4
   pSPS->gaps_in_frame_num_value_allowed_flag = 0;
 
-  // pSPS->log2_max_pic_order_cnt_lsb_minus4 = Clip3(Log2(pSettings->tChParam.tRCParam.GopInfo.NumB * 2) - 2, 0, 12);
-  // if(pSettings->tChParam.tRCParam.GopInfo.NumB > 2)
-  // pSPS->log2_max_pic_order_cnt_lsb_minus4 = 1;
-  // else
-  // pSPS->log2_max_pic_order_cnt_lsb_minus4 = 0;
   pSPS->log2_max_pic_order_cnt_lsb_minus4 = 6;
-
   pSPS->log2_max_frame_num_minus4 = Clip3(AL_sLog2(pSPS->max_num_ref_frames) - 4, 0, 12);
 
   // frame_mbs_only_flag:
@@ -672,11 +695,11 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   pSPS->vui_parameters_present_flag = 1;
 #endif
 
-  pSPS->vui_param.chroma_loc_info_present_flag = 1;
+  pSPS->vui_param.chroma_loc_info_present_flag = (eChromaMode == CHROMA_4_2_0) ? 1 : 0;
   pSPS->vui_param.chroma_sample_loc_type_top_field = 0;
   pSPS->vui_param.chroma_sample_loc_type_bottom_field = 0;
 
-  AL_UpdateAspectRatio(&pSPS->vui_param, pSettings->tChParam.uWidth, pSettings->tChParam.uHeight, pSettings->eAspectRatio);
+  AL_UpdateAspectRatio(&pSPS->vui_param, pSettings->tChParam[0].uWidth, pSettings->tChParam[0].uHeight, pSettings->eAspectRatio);
 
   pSPS->vui_param.overscan_info_present_flag = 0;
 
@@ -695,8 +718,8 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   // When fixed_frame_rate_flag = 1, num_units_in_tick/time_scale should be equal to
   // a duration of one field both for progressive and interlaced sequences.
   pSPS->vui_param.vui_timing_info_present_flag = 1;
-  pSPS->vui_param.vui_num_units_in_tick = pSettings->tChParam.tRCParam.uClkRatio;
-  pSPS->vui_param.vui_time_scale = pSettings->tChParam.tRCParam.uFrameRate * 1000 * 2;
+  pSPS->vui_param.vui_num_units_in_tick = pSettings->tChParam[0].tRCParam.uClkRatio;
+  pSPS->vui_param.vui_time_scale = pSettings->tChParam[0].tRCParam.uFrameRate * 1000 * 2;
 
   AL_sReduction(&pSPS->vui_param.vui_time_scale, &pSPS->vui_param.vui_num_units_in_tick);
 
@@ -734,73 +757,98 @@ static void InitHEVC_Sps(AL_THevcSps* pSPS)
 }
 
 /****************************************************************************/
-void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize)
+void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncChanParam const* pChParam, int iMaxRef, int iCpbSize, int iLayerId)
 {
   AL_THevcSps* pSPS = (AL_THevcSps*)pISPS;
   InitHEVC_Sps(pSPS);
 
-  int iLcuWidth = (pSettings->tChParam.uWidth + ((1 << pSettings->tChParam.uMaxCuSize) - 1)) >> pSettings->tChParam.uMaxCuSize;
-  int iLcuHeight = (pSettings->tChParam.uHeight + ((1 << pSettings->tChParam.uMaxCuSize) - 1)) >> pSettings->tChParam.uMaxCuSize;
+  int iLcuWidth = (pChParam->uWidth + ((1 << pChParam->uMaxCuSize) - 1)) >> pChParam->uMaxCuSize;
+  int iLcuHeight = (pChParam->uHeight + ((1 << pChParam->uMaxCuSize) - 1)) >> pChParam->uMaxCuSize;
 
-  int iWidthDiff = (iLcuWidth << pSettings->tChParam.uMaxCuSize) - pSettings->tChParam.uWidth;
-  int iHeightDiff = (iLcuHeight << pSettings->tChParam.uMaxCuSize) - pSettings->tChParam.uHeight;
-  int iCropUnitX = AL_GET_CHROMA_MODE(pSettings->tChParam.ePicFormat) ? 2 : 1;
-  int iCropUnitY = AL_GET_CHROMA_MODE(pSettings->tChParam.ePicFormat) ? 2 : 1;
+  int iWidthDiff = (iLcuWidth << pChParam->uMaxCuSize) - pChParam->uWidth;
+  int iHeightDiff = (iLcuHeight << pChParam->uMaxCuSize) - pChParam->uHeight;
+  int iCropUnitX = AL_GET_CHROMA_MODE(pChParam->ePicFormat) ? 2 : 1;
+  int iCropUnitY = AL_GET_CHROMA_MODE(pChParam->ePicFormat) ? 2 : 1;
 
   pSPS->sps_video_parameter_set_id = 0;
-  pSPS->sps_max_sub_layers_minus1 = 0;
-  pSPS->sps_temporal_id_nesting_flag = 1;
 
-  AL_sUpdateProfileTierLevel(&pSPS->profile_and_level, pSettings);
+  if(iLayerId == 0)
+    pSPS->sps_max_sub_layers_minus1 = 0;
+  else
+    pSPS->sps_ext_or_max_sub_layers_minus1 = 7;
 
-  pSPS->sps_seq_parameter_set_id = 0;
-  pSPS->chroma_format_idc = AL_GET_CHROMA_MODE(pSettings->tChParam.ePicFormat);
-  pSPS->separate_colour_plane_flag = 0;
-  pSPS->pic_width_in_luma_samples = pSettings->tChParam.uWidth;
-  pSPS->pic_height_in_luma_samples = pSettings->tChParam.uHeight;
-  pSPS->conformance_window_flag = 0;// (iWidthDiff || iHeightDiff) ? 1 : 0;
+  int MultiLayerExtSpsFlag = (iLayerId != 0 && pSPS->sps_ext_or_max_sub_layers_minus1 == 7);
 
-  if(pSPS->conformance_window_flag)
+  if(!MultiLayerExtSpsFlag)
   {
-    pSPS->conf_win_left_offset = 0;
-    pSPS->conf_win_right_offset = iWidthDiff / iCropUnitX;
-    pSPS->conf_win_top_offset = 0;
-    pSPS->conf_win_bottom_offset = iHeightDiff / iCropUnitY;
+    pSPS->sps_temporal_id_nesting_flag = 1;
+    AL_sUpdateProfileTierLevel(&pSPS->profile_and_level, pChParam, true, iLayerId);
   }
+  pSPS->sps_seq_parameter_set_id = iLayerId;
 
-  pSPS->bit_depth_luma_minus8 = AL_GET_BITDEPTH_LUMA(pSettings->tChParam.ePicFormat) - 8;
-  pSPS->bit_depth_chroma_minus8 = AL_GET_BITDEPTH_CHROMA(pSettings->tChParam.ePicFormat) - 8;
+  if(MultiLayerExtSpsFlag)
+  {
+    pSPS->update_rep_format_flag = 0;
+
+    if(pSPS->update_rep_format_flag)
+      pSPS->sps_rep_format_idx = 0;
+  }
+  else
+  {
+    pSPS->chroma_format_idc = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
+    pSPS->separate_colour_plane_flag = 0;
+    pSPS->pic_width_in_luma_samples = pChParam->uWidth;
+    pSPS->pic_height_in_luma_samples = pChParam->uHeight;
+    pSPS->conformance_window_flag = 0;// (iWidthDiff || iHeightDiff) ? 1 : 0;
+
+    if(pSPS->conformance_window_flag)
+    {
+      pSPS->conf_win_left_offset = 0;
+      pSPS->conf_win_right_offset = iWidthDiff / iCropUnitX;
+      pSPS->conf_win_top_offset = 0;
+      pSPS->conf_win_bottom_offset = iHeightDiff / iCropUnitY;
+    }
+
+    pSPS->bit_depth_luma_minus8 = pChParam->uEncodingBitDepth - 8;
+    pSPS->bit_depth_chroma_minus8 = pChParam->uEncodingBitDepth - 8;
+  }
   pSPS->log2_max_slice_pic_order_cnt_lsb_minus4 = 6;
 
-  pSPS->sps_sub_layer_ordering_info_present_flag = 1;
-  pSPS->sps_max_dec_pic_buffering_minus1[0] = iMaxRef;
-  pSPS->sps_num_reorder_pics[0] = iMaxRef;
-  pSPS->sps_max_latency_increase_plus1[0] = 0;
+  if(!MultiLayerExtSpsFlag)
+  {
+    pSPS->sps_sub_layer_ordering_info_present_flag = 1;
+    pSPS->sps_max_dec_pic_buffering_minus1[0] = iMaxRef;
+    pSPS->sps_num_reorder_pics[0] = iMaxRef;
+    pSPS->sps_max_latency_increase_plus1[0] = 0;
+  }
 
-  pSPS->log2_min_luma_coding_block_size_minus3 = pSettings->tChParam.uMinCuSize - 3;
-  pSPS->log2_diff_max_min_luma_coding_block_size = pSettings->tChParam.uMaxCuSize - pSettings->tChParam.uMinCuSize;
-  pSPS->log2_min_transform_block_size_minus2 = pSettings->tChParam.uMinTuSize - 2;
-  pSPS->log2_diff_max_min_transform_block_size = pSettings->tChParam.uMaxTuSize - pSettings->tChParam.uMinTuSize;
-  pSPS->max_transform_hierarchy_depth_inter = pSettings->tChParam.uMaxTransfoDepthInter;
-  pSPS->max_transform_hierarchy_depth_intra = pSettings->tChParam.uMaxTransfoDepthIntra;
+  pSPS->log2_min_luma_coding_block_size_minus3 = pChParam->uMinCuSize - 3;
+  pSPS->log2_diff_max_min_luma_coding_block_size = pChParam->uMaxCuSize - pChParam->uMinCuSize;
+  pSPS->log2_min_transform_block_size_minus2 = pChParam->uMinTuSize - 2;
+  pSPS->log2_diff_max_min_transform_block_size = pChParam->uMaxTuSize - pChParam->uMinTuSize;
+  pSPS->max_transform_hierarchy_depth_inter = pChParam->uMaxTransfoDepthInter;
+  pSPS->max_transform_hierarchy_depth_intra = pChParam->uMaxTransfoDepthIntra;
 
-  AL_HEVC_SelectScalingList(pISPS, pSettings);
-  pSPS->scaling_list_enabled_flag = (pSettings->tChParam.eOptions & AL_OPT_SCL_LST) ? 1 : 0;
+  AL_HEVC_SelectScalingList(pISPS, pSettings, MultiLayerExtSpsFlag);
 
   pSPS->amp_enabled_flag = 0;
 
   if(pSPS->pcm_enabled_flag)
   {
-    pSPS->pcm_sample_bit_depth_luma_minus1 = AL_GET_BITDEPTH_LUMA(pSettings->tChParam.ePicFormat) - 1;
-    pSPS->pcm_sample_bit_depth_chroma_minus1 = AL_GET_BITDEPTH_LUMA(pSettings->tChParam.ePicFormat) - 1;
-    pSPS->log2_min_pcm_luma_coding_block_size_minus3 = pSettings->tChParam.uMaxCuSize - 3;
+    pSPS->pcm_sample_bit_depth_luma_minus1 = pChParam->uEncodingBitDepth - 1;
+    pSPS->pcm_sample_bit_depth_chroma_minus1 = pChParam->uEncodingBitDepth - 1;
+    pSPS->log2_min_pcm_luma_coding_block_size_minus3 = pChParam->uMaxCuSize - 3;
     pSPS->log2_diff_max_min_pcm_luma_coding_block_size = 0;
-    pSPS->pcm_loop_filter_disabled_flag = (pSettings->tChParam.eOptions & AL_OPT_LF) ? 0 : 1;
+    pSPS->pcm_loop_filter_disabled_flag = (pChParam->eOptions & AL_OPT_LF) ? 0 : 1;
   }
 
-  if(pSettings->tChParam.tGopParam.eMode == AL_GOP_MODE_DEFAULT || (pSettings->tChParam.tGopParam.eMode & AL_GOP_FLAG_LOW_DELAY))
+  if(
+    (pChParam->tGopParam.eMode == AL_GOP_MODE_DEFAULT)
+    || (pChParam->tGopParam.eMode & AL_GOP_FLAG_LOW_DELAY)
+    || (pChParam->tGopParam.eMode == AL_GOP_MODE_ADAPTIVE)
+    )
   {
-    pSPS->num_short_term_ref_pic_sets = pSettings->tChParam.tGopParam.uNumB > 2 ? AL_NUM_RPS_EXT : AL_NUM_RPS;
+    pSPS->num_short_term_ref_pic_sets = pChParam->tGopParam.uNumB > 2 ? AL_NUM_RPS_EXT : AL_NUM_RPS;
 
     for(int i = 0; i < pSPS->num_short_term_ref_pic_sets; ++i)
     {
@@ -823,9 +871,9 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int i
       }
     }
   }
-  else if(pSettings->tChParam.tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL)
+  else if(pChParam->tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL)
   {
-    int const NumB = pSettings->tChParam.tGopParam.uNumB;
+    int const NumB = pChParam->tGopParam.uNumB;
     pSPS->num_short_term_ref_pic_sets = NumB + 1;
     AL_TGopFrm* pGopFrms = getPyramidalFrames(NumB);
 
@@ -834,7 +882,7 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int i
       AL_TGopFrm* pFrm = pGopFrms + i;
       int iNumNegPics = 0;
       int iNumPosPics = 0;
-      int8_t iOldPOC = 0;
+      int iOldPOC = 0;
 
       for(int iPic = 0; iPic < (long)sizeof(pFrm->pDPB); ++iPic)
         if(pFrm->pDPB[iPic] != 0)
@@ -852,9 +900,8 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int i
       // process negative pictures
       for(int iPic = 0; iPic < pSPS->short_term_ref_pic_set[i].num_negative_pics; ++iPic)
       {
-        int8_t iPOC;
         assert(((iNumNegPics - iPic - 1) >= 0) && ((iNumNegPics - iPic - 1) < 5));
-        iPOC = pFrm->pDPB[iNumNegPics - iPic - 1];
+        int iPOC = pFrm->pDPB[iNumNegPics - iPic - 1];
         pSPS->short_term_ref_pic_set[i].delta_poc_s0_minus1[iPic] = iOldPOC - iPOC - 1;
         pSPS->short_term_ref_pic_set[i].used_by_curr_pic_s0_flag[iPic] = (pFrm->uType != SLICE_I && iPOC == pFrm->iRefA)
                                                                          || (pFrm->uType == SLICE_B && iPOC == pFrm->iRefB);
@@ -866,9 +913,8 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int i
 
       for(int iPic = 0; iPic < pSPS->short_term_ref_pic_set[i].num_positive_pics; ++iPic)
       {
-        int8_t iPOC;
         assert(((iNumNegPics + iPic) >= 0) && ((iNumNegPics + iPic) < 5));
-        iPOC = pFrm->pDPB[iNumNegPics + iPic];
+        int iPOC = pFrm->pDPB[iNumNegPics + iPic];
         pSPS->short_term_ref_pic_set[i].delta_poc_s1_minus1[iPic] = iPOC - iOldPOC - 1;
         pSPS->short_term_ref_pic_set[i].used_by_curr_pic_s1_flag[iPic] = (pFrm->uType != SLICE_I && iPOC == pFrm->iRefA)
                                                                          || (pFrm->uType == SLICE_B && iPOC == pFrm->iRefB);
@@ -879,10 +925,10 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int i
   else
     assert(0);
 
-  pSPS->long_term_ref_pics_present_flag = pSettings->tChParam.tGopParam.uFreqLT ? 1 : 0;
+  pSPS->long_term_ref_pics_present_flag = AL_GET_SPS_LOG2_NUM_LONG_TERM_RPS(pChParam->uSpsParam) ? 1 : 0;
   pSPS->num_long_term_ref_pics_sps = 0;
   pSPS->sps_temporal_mvp_enabled_flag = 1;
-  pSPS->strong_intra_smoothing_enabled_flag = (pSettings->tChParam.uMaxCuSize > 4) ? 1 : 0;
+  pSPS->strong_intra_smoothing_enabled_flag = (pChParam->uMaxCuSize > 4) ? 1 : 0;
 
 #if __ANDROID_API__
   pSPS->vui_parameters_present_flag = 0;
@@ -893,11 +939,15 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int i
   pSPS->vui_param.chroma_sample_loc_type_bottom_field = 0;
 
   pSPS->vui_param.neutral_chroma_indication_flag = 0;
-  pSPS->vui_param.field_seq_flag = 0;
-  pSPS->vui_param.frame_field_info_present_flag = 0;
+
+  if(pChParam->eVideoMode == AL_VM_PROGRESSIVE)
+  {
+    pSPS->vui_param.field_seq_flag = 0;
+    pSPS->vui_param.frame_field_info_present_flag = 0;
+  }
   pSPS->vui_param.default_display_window_flag = 0;
 
-  AL_UpdateAspectRatio(&pSPS->vui_param, pSettings->tChParam.uWidth, pSettings->tChParam.uHeight, pSettings->eAspectRatio);
+  AL_UpdateAspectRatio(&pSPS->vui_param, pChParam->uWidth, pChParam->uHeight, pSettings->eAspectRatio);
 
   pSPS->vui_param.overscan_info_present_flag = 0;
 
@@ -915,9 +965,9 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int i
   // Timing information
   // When fixed_frame_rate_flag = 1, num_units_in_tick/time_scale should be equal to
   // a duration of one field both for progressive and interlaced sequences.
-  pSPS->vui_param.vui_timing_info_present_flag = 1;
-  pSPS->vui_param.vui_num_units_in_tick = pSettings->tChParam.tRCParam.uClkRatio;
-  pSPS->vui_param.vui_time_scale = pSettings->tChParam.tRCParam.uFrameRate * 1000;
+  pSPS->vui_param.vui_timing_info_present_flag = iLayerId ? 0 : 1;
+  pSPS->vui_param.vui_num_units_in_tick = pChParam->tRCParam.uClkRatio;
+  pSPS->vui_param.vui_time_scale = pChParam->tRCParam.uFrameRate * 1000;
 
   AL_sReduction(&pSPS->vui_param.vui_time_scale, &pSPS->vui_param.vui_num_units_in_tick);
   pSPS->vui_param.vui_poc_proportional_to_timing_flag = 0;
@@ -954,6 +1004,20 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int i
   pSPS->vui_param.max_bits_per_min_cu_denom = 0;
   pSPS->vui_param.log2_max_mv_length_horizontal = 15;
   pSPS->vui_param.log2_max_mv_length_vertical = 15;
+
+  pSPS->sps_extension_present_flag = iLayerId ? 1 : 0;
+
+  if(pSPS->sps_extension_present_flag)
+  {
+    pSPS->sps_range_extension_flag = 0;
+    pSPS->sps_multilayer_extension_flag = 1;
+    pSPS->sps_3d_extension_flag = 0;
+    pSPS->sps_scc_extension_flag = 0;
+    pSPS->sps_extension_4bits = 0;
+  }
+
+  if(pSPS->sps_multilayer_extension_flag)
+    pSPS->inter_view_mv_vert_constraint_flag = 0;
 }
 
 /****************************************************************************/
@@ -963,78 +1027,98 @@ void AL_AVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, int iM
   pPPS->pic_parameter_set_id = 0;
   pPPS->seq_parameter_set_id = 0;
 
-  pPPS->entropy_coding_mode_flag = (pSettings->tChParam.eEntropyMode == AL_MODE_CABAC) ? 1 : 0;
+  pPPS->entropy_coding_mode_flag = (pSettings->tChParam[0].eEntropyMode == AL_MODE_CABAC) ? 1 : 0;
   pPPS->bottom_field_pic_order_in_frame_present_flag = 0;
 
   pPPS->num_slice_groups_minus1 = 0;
   pPPS->num_ref_idx_l0_active_minus1 = iMaxRef - 1;
   pPPS->num_ref_idx_l1_active_minus1 = iMaxRef - 1;
 
-  pPPS->weighted_pred_flag = (pSettings->tChParam.eWPMode == AL_WP_EXPLICIT) ? 1 : 0;
-  pPPS->weighted_bipred_idc = pSettings->tChParam.eWPMode;
+  pPPS->weighted_pred_flag = (pSettings->tChParam[0].eWPMode == AL_WP_EXPLICIT) ? 1 : 0;
+  pPPS->weighted_bipred_idc = pSettings->tChParam[0].eWPMode;
 
   pPPS->pic_init_qp_minus26 = 0;
   pPPS->pic_init_qs_minus26 = 0;
-  pPPS->chroma_qp_index_offset = Clip3(pSettings->tChParam.iCbPicQpOffset, -12, 12);
-  pPPS->second_chroma_qp_index_offset = Clip3(pSettings->tChParam.iCrPicQpOffset, -12, 12);
+  pPPS->chroma_qp_index_offset = Clip3(pSettings->tChParam[0].iCbPicQpOffset, -12, 12);
+  pPPS->second_chroma_qp_index_offset = Clip3(pSettings->tChParam[0].iCrPicQpOffset, -12, 12);
 
   pPPS->deblocking_filter_control_present_flag = 1; // TDMB = 0;
 
-  pPPS->constrained_intra_pred_flag = pSettings->tChParam.eOptions & AL_OPT_CONST_INTRA_PRED ? 1 : 0;
+  pPPS->constrained_intra_pred_flag = pSettings->tChParam[0].eOptions & AL_OPT_CONST_INTRA_PRED ? 1 : 0;
   pPPS->redundant_pic_cnt_present_flag = 0;
-  pPPS->transform_8x8_mode_flag = pSettings->tChParam.uMaxTuSize > 2 ? 1 : 0;
+  pPPS->transform_8x8_mode_flag = pSettings->tChParam[0].uMaxTuSize > 2 ? 1 : 0;
   pPPS->pic_scaling_matrix_present_flag = 0;
 }
 
 /****************************************************************************/
-void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, int iMaxRef)
+void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TEncChanParam const* pChParam, int iMaxRef, int iLayerId)
 {
   AL_THevcPps* pPPS = (AL_THevcPps*)pIPPS;
-  pPPS->pps_pic_parameter_set_id = 0;
-  pPPS->pps_seq_parameter_set_id = 0;
+  pPPS->pps_pic_parameter_set_id = iLayerId;
+  pPPS->pps_seq_parameter_set_id = iLayerId;
 
   pPPS->dependent_slice_segments_enabled_flag = pSettings->bDependentSlice ? 1 : 0;
   pPPS->output_flag_present_flag = 0;
   pPPS->num_extra_slice_header_bits = 0;
   pPPS->sign_data_hiding_flag = 0; // not supported yet
-  pPPS->cabac_init_present_flag = (pSettings->tChParam.uPpsParam & AL_PPS_CABAC_INIT_PRES_FLAG) ? 1 : 0;
+  pPPS->cabac_init_present_flag = (pChParam->uPpsParam & AL_PPS_CABAC_INIT_PRES_FLAG) ? 1 : 0;
   pPPS->num_ref_idx_l0_default_active_minus1 = iMaxRef - 1;
   pPPS->num_ref_idx_l1_default_active_minus1 = iMaxRef - 1;
   pPPS->init_qp_minus26 = 0;
-  pPPS->constrained_intra_pred_flag = (pSettings->tChParam.eOptions & AL_OPT_CONST_INTRA_PRED) ? 1 : 0;
-  pPPS->transform_skip_enabled_flag = (pSettings->tChParam.eOptions & AL_OPT_TRANSFO_SKIP) ? 1 : 0;
+  pPPS->constrained_intra_pred_flag = (pChParam->eOptions & AL_OPT_CONST_INTRA_PRED) ? 1 : 0;
+  pPPS->transform_skip_enabled_flag = (pChParam->eOptions & AL_OPT_TRANSFO_SKIP) ? 1 : 0;
   pPPS->cu_qp_delta_enabled_flag = pSettings->eQpCtrlMode ||
-                                   (pSettings->tChParam.tRCParam.eRCMode == AL_RC_LOW_LATENCY) ||
-                                   pSettings->tChParam.uSliceSize ? 1 : 0;
-  pPPS->diff_cu_qp_delta_depth = pSettings->tChParam.uCuQPDeltaDepth;
+                                   (pChParam->tRCParam.eRCMode == AL_RC_LOW_LATENCY) ||
+                                   (pChParam->tRCParam.uMaxPictureSize > 0) ||
+                                   pChParam->uSliceSize ? 1 : 0;
+  pPPS->diff_cu_qp_delta_depth = pChParam->uCuQPDeltaDepth;
 
-  pPPS->pps_cb_qp_offset = pSettings->tChParam.iCbPicQpOffset;
-  pPPS->pps_cr_qp_offset = pSettings->tChParam.iCrPicQpOffset;
-  pPPS->pps_slice_chroma_qp_offsets_present_flag = (pSettings->tChParam.iCbSliceQpOffset || pSettings->tChParam.iCrSliceQpOffset) ? 1 : 0;
+  pPPS->pps_cb_qp_offset = pChParam->iCbPicQpOffset;
+  pPPS->pps_cr_qp_offset = pChParam->iCrPicQpOffset;
+  pPPS->pps_slice_chroma_qp_offsets_present_flag = (pChParam->iCbSliceQpOffset || pChParam->iCrSliceQpOffset) ? 1 : 0;
 
   pPPS->weighted_pred_flag = 0; // not supported yet
   pPPS->weighted_bipred_flag = 0; // not supported yet
   pPPS->transquant_bypass_enabled_flag = 0; // not supported yet
-  pPPS->tiles_enabled_flag = (pSettings->tChParam.eOptions & AL_OPT_TILE) ? 1 : 0;
-  pPPS->entropy_coding_sync_enabled_flag = (pSettings->tChParam.eOptions & AL_OPT_WPP) ? 1 : 0;
+  pPPS->tiles_enabled_flag = (pChParam->eOptions & AL_OPT_TILE) ? 1 : 0;
+  pPPS->entropy_coding_sync_enabled_flag = (pChParam->eOptions & AL_OPT_WPP) ? 1 : 0;
 
   pPPS->uniform_spacing_flag = 1;
-  pPPS->loop_filter_across_tiles_enabled_flag = (pSettings->tChParam.eOptions & AL_OPT_LF_X_TILE) ? 1 : 0;
+  pPPS->loop_filter_across_tiles_enabled_flag = (pChParam->eOptions & AL_OPT_LF_X_TILE) ? 1 : 0;
 
-  pPPS->loop_filter_across_slices_enabled_flag = (pSettings->tChParam.eOptions & AL_OPT_LF_X_SLICE) ? 1 : 0;
-  pPPS->deblocking_filter_control_present_flag = (!(pSettings->tChParam.eOptions & AL_OPT_LF) || pSettings->tChParam.iBetaOffset || pSettings->tChParam.iTcOffset) ? 1 : 0;
+  pPPS->loop_filter_across_slices_enabled_flag = (pChParam->eOptions & AL_OPT_LF_X_SLICE) ? 1 : 0;
+  pPPS->deblocking_filter_control_present_flag = (!(pChParam->eOptions & AL_OPT_LF) || pChParam->iBetaOffset || pChParam->iTcOffset) ? 1 : 0;
   pPPS->deblocking_filter_override_enabled_flag = 0;
-  pPPS->pps_deblocking_filter_disabled_flag = (pSettings->tChParam.eOptions & AL_OPT_LF) ? 0 : 1;
+  pPPS->pps_deblocking_filter_disabled_flag = (pChParam->eOptions & AL_OPT_LF) ? 0 : 1;
 
   if(!pPPS->pps_deblocking_filter_disabled_flag)
   {
-    pPPS->pps_beta_offset_div2 = pSettings->tChParam.iBetaOffset;
-    pPPS->pps_tc_offset_div2 = pSettings->tChParam.iTcOffset;
+    pPPS->pps_beta_offset_div2 = pChParam->iBetaOffset;
+    pPPS->pps_tc_offset_div2 = pChParam->iTcOffset;
   }
 
   pPPS->pps_scaling_list_data_present_flag = 0;
-  pPPS->lists_modification_present_flag = (pSettings->tChParam.uPpsParam & AL_PPS_ENABLE_REORDERING) ? 1 : 0;
+  pPPS->lists_modification_present_flag = (pChParam->uPpsParam & AL_PPS_ENABLE_REORDERING) ? 1 : 0;
   pPPS->log2_parallel_merge_level_minus2 = 0; // parallel merge at 16x16 granularity
+  pPPS->slice_segment_header_extension_present_flag = 0;
+  pPPS->pps_extension_present_flag = iLayerId ? 1 : 0;
+
+  if(pPPS->pps_extension_present_flag)
+  {
+    pPPS->pps_range_extension_flag = 0;
+    pPPS->pps_multilayer_extension_flag = 1;
+    pPPS->pps_3d_extension_flag = 0;
+    pPPS->pps_scc_extension_flag = 0;
+    pPPS->pps_extension_4bits = 0;
+  }
+
+  if(pPPS->pps_multilayer_extension_flag)
+  {
+    pPPS->poc_reset_info_present_flag = 1;
+    pPPS->pps_infer_scaling_list_flag = 0;
+    pPPS->num_ref_loc_offsets = 0;
+    pPPS->colour_mapping_enabled_flag = 0;
+  }
 }
 
 void AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus)

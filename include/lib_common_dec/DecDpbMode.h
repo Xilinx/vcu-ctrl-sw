@@ -35,20 +35,24 @@
 *
 ******************************************************************************/
 
+/**************************************************************************//*!
+   \addtogroup Decoder_Settings
+   @{
+   \file
+ *****************************************************************************/
 #pragma once
 /*************************************************************************//*!
    \brief Decoder DPB mode enum
 *****************************************************************************/
 typedef enum AL_e_DpbMode
 {
-  AL_DPB_NORMAL,
-  AL_DPB_LOW_REF,
-  AL_DPB_MAX_ENUM,
+  AL_DPB_NORMAL, /*< Follow DPB specification */
+  AL_DPB_LOW_REF, /*< Assume there is no reordering in the stream */
+  AL_DPB_MAX_ENUM, /* sentinel */
 }AL_EDpbMode;
 
 /*************************************************************************//*!
-   \brief The AL_AVC_GetMaxDPBSize function retrieves the maximum DBP size respect to the
-   level constraint
+   \brief Retrieves the maximum DBP size respect to the level constraint
    \param[in] iLevel Level of the current H264 stream
    \param[in] iWidth Width of the current H264 stream
    \param[in] iHeight Height of the current H264 stream
@@ -58,8 +62,7 @@ typedef enum AL_e_DpbMode
 int AL_AVC_GetMaxDPBSize(int iLevel, int iWidth, int iHeight, AL_EDpbMode eMode);
 
 /*************************************************************************//*!
-   \brief The AL_HEVC_GetMaxDPBSize function retrieves the maximum DBP size respect to the
-   level constraint
+   \brief Retrieves the maximum DBP size respect to the level constraint
    \param[in] iLevel Level of the current HEVC stream (i.e. general_level_idc / 3)
    \param[in] iWidth Width of the current HEVC stream
    \param[in] iHeight Height of the current HEVC stream
@@ -67,4 +70,6 @@ int AL_AVC_GetMaxDPBSize(int iLevel, int iWidth, int iHeight, AL_EDpbMode eMode)
    \return return the maximum size of the DBP allowed by the specified level
  ***************************************************************************/
 int AL_HEVC_GetMaxDPBSize(int iLevel, int iWidth, int iHeight, AL_EDpbMode eMode);
+
+/*@}*/
 

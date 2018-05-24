@@ -105,7 +105,7 @@ typedef struct t_Avc_Pps
   uint8_t UseDefaultScalingMatrix4x4Flag[6];
   uint8_t UseDefaultScalingMatrix8x8Flag[2];
 
-  AL_TAvcSps* m_pSPS;
+  AL_TAvcSps* pSPS;
 
   // concealment flag
   bool bConceal;
@@ -165,11 +165,16 @@ typedef struct t_Hevc_Pps
 
   uint8_t lists_modification_present_flag;
   uint8_t log2_parallel_merge_level_minus2;
+
   uint8_t num_extra_slice_header_bits;
   uint8_t slice_segment_header_extension_present_flag;
 
   uint8_t pps_extension_present_flag;
-  uint8_t pps_range_extensions_flag;
+  uint8_t pps_range_extension_flag;
+  uint8_t pps_multilayer_extension_flag;
+  uint8_t pps_3d_extension_flag;
+  uint8_t pps_scc_extension_flag;
+  uint8_t pps_extension_4bits;
   uint8_t pps_extension_7bits;
   uint8_t log2_transform_skip_block_size_minus2;
   uint8_t cross_component_prediction_enabled_flag;
@@ -181,7 +186,13 @@ typedef struct t_Hevc_Pps
   uint8_t log2_sao_offset_scale_luma;
   uint8_t log2_sao_offset_scale_chroma;
 
-  AL_THevcSps* m_pSPS;
+  uint8_t poc_reset_info_present_flag;
+  uint8_t pps_infer_scaling_list_flag;
+  uint8_t pps_sclaing_list_ref_layer_id;
+  uint32_t num_ref_loc_offsets;
+  uint8_t colour_mapping_enabled_flag;
+
+  AL_THevcSps* pSPS;
 
   /* concealment flag */
   bool bConceal;
@@ -191,8 +202,8 @@ typedef struct
 {
   union
   {
-    AL_THevcPps m_HevcPPS;
-    AL_TAvcPps m_AvcPPS;
+    AL_THevcPps HevcPPS;
+    AL_TAvcPps AvcPPS;
   };
 }AL_TPps;
 

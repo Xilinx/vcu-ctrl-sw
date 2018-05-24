@@ -35,20 +35,32 @@
 *
 ******************************************************************************/
 
+/**************************************************************************//*!
+   \addtogroup Buffers
+   @{
+   \file
+ *****************************************************************************/
+
 #pragma once
 
 #include "lib_common/BufferMeta.h"
 #include "lib_common/SliceConsts.h"
 
 /*************************************************************************//*!
-   \brief MetaData for picture
+   \brief Useful information about the bitstream choices for the frame
 *****************************************************************************/
 typedef struct AL_t_PictureMetaData
 {
   AL_TMetaData tMeta;
-  AL_ESliceType eType;
+  AL_ESliceType eType; /*< slice type chosen to encode the picture */
 }AL_TPictureMetaData;
 
+/*************************************************************************//*!
+   \brief Create a picture metadata.
+   The slice type is initialized to an invalid value (SLICE_MAX_ENUM) by default.
+*****************************************************************************/
 AL_TPictureMetaData* AL_PictureMetaData_Create();
 AL_TPictureMetaData* AL_PictureMetaData_Clone(AL_TPictureMetaData* pMeta);
+
+/*@}*/
 

@@ -82,15 +82,13 @@ static void GetLambdaFactor(double* dLambdaFactor, AL_ELdaCtrlMode eMode)
 void ComputeAutoLambda(AL_ELdaCtrlMode eLdaCtrlMode, AL_TEncChanParam const* pChParam, TLambdasTable pLambdaTable)
 {
   double dLambdaFactor[3];
-  int iQP;
 
-  for(iQP = 0; iQP < 52; iQP++)
+  for(int iQP = 0; iQP < 52; iQP++)
   {
     double dLambda = QP2Lambda(iQP, eLdaCtrlMode);
-    int i;
     GetLambdaFactor(dLambdaFactor, eLdaCtrlMode);
 
-    for(i = 0; i < 4; ++i)
+    for(int i = 0; i < 4; ++i)
     {
       if(i == 3)
         pLambdaTable[iQP * 4 + i] = Max(1, ((pLambdaTable[iQP * 4 + SLICE_P] >> 1) << 1));
@@ -123,17 +121,15 @@ double fClip3(double val, double min, double max)
 void ComputeAutoLambda2(AL_ELdaCtrlMode eLdaCtrlMode, AL_TEncChanParam const* pChParam, TLambdasTable pLambdaTable, bool NotGoldenFrame)
 {
   double dLambdaFactor[3];
-  int iQP;
   AL_TGopParam const* pGopParam = &pChParam->tGopParam;
 
-  for(iQP = 0; iQP < 52; iQP++)
+  for(int iQP = 0; iQP < 52; iQP++)
   {
-    int i;
     GetLambdaFactor(dLambdaFactor, eLdaCtrlMode);
     int iQPTemp = iQP - 12;
     double dLambda = QP2Lambda(iQPTemp, eLdaCtrlMode);
 
-    for(i = 0; i < 4; ++i)
+    for(int i = 0; i < 4; ++i)
     {
       if(i == 3)
         pLambdaTable[iQP * 4 + i] = Max(1, ((pLambdaTable[iQP * 4 + SLICE_P] >> 1) << 1));
@@ -189,18 +185,11 @@ bool GetLambda(AL_ELdaCtrlMode eMode, AL_TEncChanParam const* pChParam, uint8_t*
 
   case DEFAULT_LDA:
   {
-    Rtos_Memcpy(pEP + EP1_BUF_LAMBDAS.Offset, AL_IS_AVC(pChParam->eProfile) ? AVC_DEFAULT_LDA_TABLE : AL_IS_HEVC(pChParam->eProfile) ? HEVC_DEFAULT_LDA_TABLE : VP9_DEFAULT_LDA_TABLE, sizeof(TLambdasTable));
-  } break;
-
-  case CUSTOM_LDA:
-  {
-    Rtos_Memcpy(pEP + EP1_BUF_LAMBDAS.Offset, CUSTOM_LDA_TABLE, sizeof(TLambdasTable));
+    Rtos_Memcpy(pEP + EP1_BUF_LAMBDAS.Offset, AL_IS_AVC(pChParam->eProfile) ? AVC_DEFAULT_LDA_TABLE : AL_IS_HEVC(pChParam->eProfile) ? HEVC_NEW_DEFAULT_LDA_TABLE : VP9_DEFAULT_LDA_TABLE, sizeof(TLambdasTable));
   } break;
 
   default:
-  {
-    assert(0);
-  }
+    return false;
   }
 
   return true;

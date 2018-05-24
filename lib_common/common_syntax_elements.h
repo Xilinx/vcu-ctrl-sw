@@ -45,7 +45,7 @@
 #pragma once
 
 #include "ScalingList.h"
-#include "lib_common/BufCommon.h"
+#include "lib_common/BufCommonInternal.h"
 
 #define MAX_NUM_CPB 32
 
@@ -189,6 +189,7 @@ typedef struct t_HrdParam
   uint8_t tick_divisor_minus2;
   uint8_t du_cpb_removal_delay_increment_length_minus1;
   uint8_t sub_pic_cpb_params_in_pic_timing_sei_flag;
+  uint8_t dpb_output_delay_du_length_minus1;
 
   uint8_t bit_rate_scale;
   uint8_t cpb_size_scale;

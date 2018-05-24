@@ -47,7 +47,7 @@
 #include "lib_rtos/types.h"
 
 #include "lib_common/SliceConsts.h"
-#include "lib_common/BufCommon.h"
+#include "lib_common/BufCommonInternal.h"
 #include "lib_common/BufferAPI.h"
 
 #define SIZE_PIXEL sizeof(uint16_t)
@@ -75,6 +75,7 @@ static const int FBC_LIST_OFFSET = 256;
 static const int SCLST_SIZE_DEC = 12288;
 static const int REF_LIST_SIZE = 96 * sizeof(size_t);
 
+
 /*************************************************************************//*!
    \brief Buffer with Poc list content
 *****************************************************************************/
@@ -95,12 +96,6 @@ typedef struct t_BufferRef
   AL_TBuffer RefBuf; // adress of the corresponding frame buffer
   uint8_t uNodeID;
 }TBufferRef, TBufferListRef[2][MAX_REF + 1];
-
-/****************************************************************************/
-int32_t RndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode);
-
-/****************************************************************************/
-int32_t RndHeight(int32_t iHeight);
 
 /*************************************************************************//*!
    \brief Retrieves the number of LCU in the frame
@@ -131,7 +126,7 @@ int AL_GetAllocSize_AvcCompData(AL_TDimension tDim, AL_EChromaMode eChromaMode);
    \param[in] tDim  Frame dimension (width, height) in pixel
    \return maximum size (in bytes) needed for the compressed map buffer
 *****************************************************************************/
-int AL_GetAllocSize_CompMap(AL_TDimension tDim);
+int AL_GetAllocSize_DecCompMap(AL_TDimension tDim);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a HEVC motion vector buffer
@@ -166,7 +161,7 @@ int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_
    \param[in] eFrameBufferStorageMode Storage Mode of the frame buffer
    \return the size (in bytes) needed for reference frame buffer
 *****************************************************************************/
-int AL_GetAllocSize_DecReference(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode);
+int AL_GetAllocSize_DecReference(AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode, AL_EFbStorageMode eFrameBufferStorageMode);
 
 
 /*@}*/

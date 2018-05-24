@@ -37,8 +37,8 @@
 
 #include "sink_frame_writer.h"
 #include "CodecUtils.h"
-#include "lib_cfg/lib_cfg.h"
 #include "lib_app/utils.h"
+#include "lib_app/FileIOUtils.h"
 #include <cassert>
 
 extern "C"
@@ -92,6 +92,8 @@ void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tFourCC)
       T60A_To_I0AL(pRec, pYuv);
     else if(tFourCC == FOURCC(Y010))
       T60A_To_Y010(pRec, pYuv);
+    else if(tFourCC == FOURCC(XV15))
+      T60A_To_XV15(pRec, pYuv);
   }
   else if(pRecMeta->tFourCC == FOURCC(T62A))
   {
@@ -109,6 +111,8 @@ void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tFourCC)
       T62A_To_P210(pRec, pYuv);
     else if(tFourCC == FOURCC(Y010))
       T62A_To_Y010(pRec, pYuv);
+    else if(tFourCC == FOURCC(XV20))
+      T62A_To_XV20(pRec, pYuv);
     else
       assert(0);
   }
@@ -169,6 +173,8 @@ void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tFourCC)
       T60A_To_Y800(pRec, pYuv);
     else if(tFourCC == FOURCC(Y010))
       T60A_To_Y010(pRec, pYuv);
+    else if(tFourCC == FOURCC(XV10))
+      T60A_To_XV10(pRec, pYuv);
     else
       assert(0);
   }
@@ -181,7 +187,7 @@ using namespace std;
 class FrameWriter : public IFrameSink
 {
 public:
-  FrameWriter(string RecFileName, ConfigFile& cfg_, AL_TBuffer* Yuv_) : cfg(cfg_), Yuv(Yuv_)
+  FrameWriter(string RecFileName, ConfigFile& cfg_, AL_TBuffer* Yuv_, int iLayerID) : m_cfg(cfg_), m_Yuv(Yuv_), m_iLayerID(iLayerID)
   {
     OpenOutput(m_RecFile, RecFileName);
   }
@@ -194,20 +200,23 @@ public:
       return;
     }
 
+    auto& tChParam = m_cfg.Settings.tChParam[m_iLayerID];
     {
-      RecToYuv(pBuf, Yuv, cfg.RecFourCC);
-      WriteOneFrame(m_RecFile, Yuv, cfg.FileInfo.PictWidth, cfg.FileInfo.PictHeight);
+      RecToYuv(pBuf, m_Yuv, m_cfg.RecFourCC);
+      WriteOneFrame(m_RecFile, m_Yuv, tChParam.uWidth, tChParam.uHeight);
     }
   }
 
+
 private:
   ofstream m_RecFile;
-  ConfigFile& cfg;
-  AL_TBuffer* const Yuv;
+  ConfigFile& m_cfg;
+  AL_TBuffer* const m_Yuv;
+  int m_iLayerID;
 };
 
-unique_ptr<IFrameSink> createFrameWriter(string path, ConfigFile& cfg_, AL_TBuffer* Yuv_)
+unique_ptr<IFrameSink> createFrameWriter(string path, ConfigFile& cfg_, AL_TBuffer* Yuv_, int iLayerID_)
 {
-  return unique_ptr<IFrameSink>(new FrameWriter(path, cfg_, Yuv_));
+  return unique_ptr<IFrameSink>(new FrameWriter(path, cfg_, Yuv_, iLayerID_));
 }
 

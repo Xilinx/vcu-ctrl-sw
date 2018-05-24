@@ -67,102 +67,104 @@ typedef enum AL_e_ChanState
 *****************************************************************************/
 typedef struct t_Dec_Ctx
 {
-  AL_TBufferFeeder* m_Feeder;
+  AL_TBufferFeeder* Feeder;
 
-  TBuffer m_BufNoAE;            // Deanti-Emulated buffer used for high level syntax parsing
-  TCircBuffer m_Stream;             // Input stream buffer
-  TCircBuffer m_NalStream;
+  TBuffer BufNoAE;            // Deanti-Emulated buffer used for high level syntax parsing
+  TCircBuffer Stream;             // Input stream buffer
+  TCircBuffer NalStream;
 
   // decoder IP handle
-  AL_TIDecChannel* m_pDecChannel;
-  AL_TAllocator* m_pAllocator;
+  AL_TIDecChannel* pDecChannel;
+  AL_TAllocator* pAllocator;
 
-  AL_EChanState m_eChanState;
+  AL_EChanState eChanState;
 
-  AL_CB_EndDecoding m_decodeCB;
-  AL_CB_Display m_displayCB;
-  AL_CB_ResolutionFound m_resolutionFoundCB;
+  AL_CB_EndDecoding decodeCB;
+  AL_CB_Display displayCB;
+  AL_CB_ResolutionFound resolutionFoundCB;
 
-  AL_SEMAPHORE m_Sem;
-  AL_EVENT m_ScDetectionComplete;
+  AL_SEMAPHORE Sem;
+  AL_EVENT ScDetectionComplete;
 
-  AL_MUTEX m_DecMutex;
+  AL_MUTEX DecMutex;
 
   // Start code members
-  TBuffer m_BufSCD;             // Holds the Start Code Detector Table results
-  TBuffer m_SCTable;            //
-  uint16_t m_uNumSC;             //
-  AL_TScStatus m_ScdStatus;
+  TBuffer BufSCD;             // Holds the Start Code Detector Table results
+  TBuffer SCTable;            //
+  uint16_t uNumSC;             //
+  AL_TScStatus ScdStatus;
 
   // decoder pool buffer
-  TBuffer m_PoolSclLst[MAX_STACK_SIZE];      // Scaling List pool buffer
-  TBuffer m_PoolCompData[MAX_STACK_SIZE];    // compressed MVDs + header + residuals pool buffer
-  TBuffer m_PoolCompMap[MAX_STACK_SIZE];     // Compression map : LCU size + LCU offset pool buffer
-  TBuffer m_PoolWP[MAX_STACK_SIZE];          // Weighted Pred Tables pool buffer
-  TBuffer m_PoolListRefAddr[MAX_STACK_SIZE]; // Reference adresses for the board pool buffer
-  TBufferListRef m_ListRef;            // Picture Reference List buffer
+  TBuffer PoolSclLst[MAX_STACK_SIZE];      // Scaling List pool buffer
+  TBuffer PoolCompData[MAX_STACK_SIZE];    // compressed MVDs + header + residuals pool buffer
+  TBuffer PoolCompMap[MAX_STACK_SIZE];     // Compression map : LCU size + LCU offset pool buffer
+  TBuffer PoolWP[MAX_STACK_SIZE];          // Weighted Pred Tables pool buffer
+  TBuffer PoolListRefAddr[MAX_STACK_SIZE]; // Reference adresses for the board pool buffer
+  TBuffer PoolVirtRefAddr[MAX_STACK_SIZE]; // Reference adresses for the reference pool buffer
+
+  TBufferListRef ListRef;            // Picture Reference List buffer
 
   // slice toggle management
-  TBuffer m_PoolSP[MAX_STACK_SIZE]; // Slice parameters
-  AL_TDecPicParam m_PoolPP[MAX_STACK_SIZE]; // Picture parameters
-  AL_TDecPicBuffers m_PoolPB[MAX_STACK_SIZE]; // Picture Buffers
-  uint8_t m_uCurID; // ID of the last independent slice
+  TBuffer PoolSP[MAX_STACK_SIZE]; // Slice parameters
+  AL_TDecPicParam PoolPP[MAX_STACK_SIZE]; // Picture parameters
+  AL_TDecPicBuffers PoolPB[MAX_STACK_SIZE]; // Picture Buffers
+  uint8_t uCurID; // ID of the last independent slice
 
-  AL_TDecChanParam m_chanParam;
-  AL_EDpbMode m_eDpbMode;
-  bool m_bUseBoard;
-  bool m_bConceal;
-  int m_iStackSize;
-  bool m_bForceFrameRate;
+  AL_TDecChanParam chanParam;
+  AL_EDpbMode eDpbMode;
+  bool bUseBoard;
+  bool bConceal;
+  int iStackSize;
+  bool bForceFrameRate;
 
   // Trace stuff
-  int m_iTraceFirstFrame;
-  int m_iTraceLastFrame;
-  int m_iTraceCounter;
+  int iTraceFirstFrame;
+  int iTraceLastFrame;
+  int iTraceCounter;
 
   // stream context status
-  bool m_bFirstIsValid;
-  bool m_bFirstSliceInFrameIsValid;
-  bool m_bBeginFrameIsValid;
-  bool m_bIsFirstPicture;
-  bool m_bLastIsEOS;
-  int m_iStreamOffset[MAX_STACK_SIZE];
-  int m_iCurOffset;
-  uint32_t m_uCurPocLsb;
-  uint8_t m_uNoRaslOutputFlag;
-  uint8_t m_uMvIDRefList[MAX_STACK_SIZE][AL_MAX_NUM_REF];
-  uint8_t m_uNumRef[MAX_STACK_SIZE];
+  bool bFirstIsValid;
+  bool bFirstSliceInFrameIsValid;
+  bool bBeginFrameIsValid;
+  bool bIsFirstPicture;
+  bool bLastIsEOS;
+  int iStreamOffset[MAX_STACK_SIZE];
+  int iCurOffset;
+  uint32_t uCurPocLsb;
+  uint8_t uNoRaslOutputFlag;
+  uint8_t uMvIDRefList[MAX_STACK_SIZE][AL_MAX_NUM_REF];
+  uint8_t uNumRef[MAX_STACK_SIZE];
 
   // error concealment context
-  AL_TConceal m_tConceal;
+  AL_TConceal tConceal;
 
   // tile data management
-  uint16_t m_uCurTileID;      // Tile offset of the current tile within the frame
-  bool m_bTileSupToSlice; // specify when current tile is bigger than slices (E neighbor tile computation purpose)
+  uint16_t uCurTileID;      // Tile offset of the current tile within the frame
+  bool bTileSupToSlice; // specify when current tile is bigger than slices (E neighbor tile computation purpose)
 
   // Decoder toggle buffer
-  TBufferPOC* m_pPOC;          // Colocated POC buffer
-  TBufferMV* m_pMV;           // Motion Vector buffer
-  AL_TBuffer* m_pRec;          // Reconstructed buffer
+  TBufferPOC POC;          // Colocated POC buffer
+  TBufferMV MV;            // Motion Vector buffer
+  AL_TRecBuffers pRecs;    // Reconstructed buffers
 
   // decoder counters
-  uint16_t m_uToggle;
-  int m_iNumFrmBlk1;
-  int m_iNumFrmBlk2;
+  uint16_t uToggle;
+  int iNumFrmBlk1;
+  int iNumFrmBlk2;
 
   // reference frames and dpb manager
-  AL_TPictMngrCtx m_PictMngr;
-  AL_TAup m_aup;
+  AL_TPictMngrCtx PictMngr;
+  AL_TAup aup;
   union
   {
-    AL_TAvcSliceHdr m_AvcSliceHdr[2]; // Slice header
-    AL_THevcSliceHdr m_HevcSliceHdr[2]; // Slice headers
+    AL_TAvcSliceHdr AvcSliceHdr[2]; // Slice header
+    AL_THevcSliceHdr HevcSliceHdr[2]; // Slice headers
   };
-  AL_ERR m_error;
-  bool m_bIsFirstSPSChecked;
-  bool m_bIsBuffersAllocated;
-  AL_TStreamSettings m_tStreamSettings;
-  AL_TBuffer* m_eosBuffer;
+  AL_ERR error;
+  bool bIsFirstSPSChecked;
+  bool bIsBuffersAllocated;
+  AL_TStreamSettings tStreamSettings;
+  AL_TBuffer* eosBuffer;
 
   TCircBuffer circularBuf;
 }AL_TDecCtx;

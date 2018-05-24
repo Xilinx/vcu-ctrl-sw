@@ -35,13 +35,15 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \addtogroup lib_base
+/**************************************************************************//*!
+   \addtogroup FourCC
+
+   This regroups all the functions that can be used to know how the framebuffer
+   is stored in memory
+
    @{
    \file
- *****************************************************************************/
+******************************************************************************/
 #pragma once
 
 #include "lib_rtos/types.h"
@@ -67,21 +69,21 @@ typedef struct AL_t_PicFormat
 }AL_TPicFormat;
 
 /*************************************************************************//*!
-   \brief returns the ChromaMode identifier according to the tFourCC parameter
+   \brief Returns the ChromaMode identifier according to the tFourCC parameter
    \param[in] tFourCC FourCC format of the current picture
    \return return the ChomaMode according to the tFourCC parameter
 *****************************************************************************/
 AL_EChromaMode AL_GetChromaMode(TFourCC tFourCC);
 
 /*************************************************************************//*!
-   \brief returns the bitDepth according to the tFourCC parameter
+   \brief Returns the bitDepth according to the tFourCC parameter
    \param[in] tFourCC FourCC format of the current picture
    \return return the bitDepth according to the tFourCC parameter
 *****************************************************************************/
 uint8_t AL_GetBitDepth(TFourCC tFourCC);
 
 /*************************************************************************//*!
-   \brief returns the chroma subsampling according to the tFourCC parameter
+   \brief Returns the chroma subsampling according to the tFourCC parameter
    \param[in] tFourCC fourCC format of the current picture
    \param[out] sx subsampling x
    \param[out] sy subsampling y
@@ -89,40 +91,39 @@ uint8_t AL_GetBitDepth(TFourCC tFourCC);
 void AL_GetSubsampling(TFourCC tFourCC, int* sx, int* sy);
 
 /*************************************************************************//*!
-   \brief returns true if YUV format specified by tFourCC is 10bit packed
+   \brief Returns true if YUV format specified by tFourCC is 10bit packed
    \param[in] tFourCC FourCC format of the current picture
    \return return the ChomaMode according to the tFourCC parameter
 *****************************************************************************/
 bool AL_Is10bitPacked(TFourCC tFourCC);
 
 /*************************************************************************//*!
-   \brief returns true if YUV format specified by tFourCC is semiplanar
+   \brief Returns true if YUV format specified by tFourCC is semiplanar
    \param[in] tFourCC FourCC format of the current picture
    \return return the ChomaMode according to the tFourCC parameter
 *****************************************************************************/
 bool AL_IsSemiPlanar(TFourCC tFourCC);
 
 /*************************************************************************//*!
-   \brief returns true if YUV format specified by tFourCC is tiled
+   \brief Returns true if YUV format specified by tFourCC is tiled
    \param[in] tFourCC FourCC format of the current picture
    \return true if YUV is tiled according to the tFourCC parameter
 *****************************************************************************/
 bool AL_IsTiled(TFourCC tFourCC);
 
 /*************************************************************************//*!
-   \brief returns the storage buffer format specified by tFourCC
+   \brief Returns the storage buffer format specified by tFourCC
    \param[in] tFourCC FourCC format of the current picture
    \return the storage buffer format specified by tFourCC
 *****************************************************************************/
-AL_EFbStorageMode GetStorageMode(TFourCC tFourCC);
+AL_EFbStorageMode AL_GetStorageMode(TFourCC tFourCC);
 
 /*************************************************************************//*!
-   \brief returns the FOURCC identifier used as native YUV source format
-   according to the encoding ChromaMode and bitdepth
-   \param[in] picFmt source picture format
-   \return return the corresponding TFourCC format
+   \brief Returns true if tFourCC specifies that the yuv buffer is compressed
+   \param[in] tFourCC FourCC format of the current picture
+   \return return true tFourCC indicates buffer compression enabled
 *****************************************************************************/
-TFourCC AL_GetSrcFourCC(AL_TPicFormat const picFmt);
+bool AL_IsCompressed(TFourCC tFourCC);
 
 /*@}*/
 

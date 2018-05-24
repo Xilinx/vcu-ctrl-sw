@@ -35,6 +35,12 @@
 *
 ******************************************************************************/
 
+/**************************************************************************//*!
+   \addtogroup Buffers
+   @{
+   \file
+ *****************************************************************************/
+
 #pragma once
 
 #include "lib_common/BufCommon.h"
@@ -61,4 +67,6 @@ typedef struct
 
 void ResetBufferRec(TBufferRec* pBufRec);
 uint32_t AL_GetRecPitch(uint32_t uBitDepth, uint32_t uWidth);
+
+/*@}*/
 

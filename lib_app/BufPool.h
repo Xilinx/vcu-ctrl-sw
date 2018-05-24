@@ -52,7 +52,6 @@ extern "C"
 #include "lib_common/Allocator.h"
 #include "lib_common/BufferAPI.h"
 #include "lib_common/BufferMeta.h"
-#include "lib_common/BufferAccess.h"
 }
 
 /*************************************************************************//*!
@@ -78,6 +77,19 @@ typedef struct
   bool m_isDecommited;
   AL_SEMAPHORE hSpaceSem;
 }App_Fifo;
+
+/*************************************************************************//*!
+   \brief Buffer Access mode: Do we want to wait if no buffer is available or to fail fast.
+*****************************************************************************/
+typedef enum
+{
+  AL_BUF_MODE_BLOCK,
+  AL_BUF_MODE_NONBLOCK,
+  /* sentinel */
+  AL_BUF_MODE_MAX
+}AL_EBufMode;
+
+uint32_t AL_GetWaitMode(AL_EBufMode eMode);
 
 /*************************************************************************//*!
    \brief AL_TBufPool: Pool of buffer

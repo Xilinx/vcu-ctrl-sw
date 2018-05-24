@@ -48,8 +48,6 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "lib_preprocess/ChooseLda.h"
-
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/SEI.h"
 #include "lib_common_enc/EncBuffersInternal.h"
@@ -61,9 +59,8 @@
 
 #include "lib_encode/IScheduler.h"
 
-void AL_Common_Encoder_InitCtx(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TAllocator* pAllocator);
-
 AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncCtx* pCtx, TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings);
+
 
 /*************************************************************************//*!
    \brief The Encoder_NotifySceneChange function informs the encoder that a scene
@@ -75,25 +72,35 @@ AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncCtx* pCtx, TScheduler* pScheduler,
 void AL_Common_Encoder_NotifySceneChange(AL_TEncoder* pEnc, int iAhead);
 
 /*************************************************************************//*!
-   \brief The Encoder_NotifyLongTerm function informs the encoder that a long
+   \brief The Encoder_NotifyIsLongTerm function informs the encoder that the
+   next reference picture is a long term reference picture
+   \param[in] pEnc Handle to an encoder object
+*****************************************************************************/
+void AL_Common_Encoder_NotifyIsLongTerm(AL_TEncoder* pEnc);
+
+/*************************************************************************//*!
+   \brief The Encoder_NotifyUseLongTerm function informs the encoder that a long
    term reference picture will be used
    \param[in] pEnc Handle to an encoder object
 *****************************************************************************/
-void AL_Common_Encoder_NotifyLongTerm(AL_TEncoder* pEnc);
+void AL_Common_Encoder_NotifyUseLongTerm(AL_TEncoder* pEnc);
+
+
 
 
 /*************************************************************************//*!
    \brief The Encoder_PutStreamBuffer function push a stream buffer to be filled
    \param[in] pEnc Handle to an encoder object
    \param[in] pStream The stream buffer to be filled
+   \param[in] iLayerID Current layer identifier
 *****************************************************************************/
-bool AL_Common_Encoder_PutStreamBuffer(AL_TEncoder* pEnc, AL_TBuffer* pStream);
+bool AL_Common_Encoder_PutStreamBuffer(AL_TEncoder* pEnc, AL_TBuffer* pStream, int iLayerID);
 
 /***************************************************************************/
-bool AL_Common_Encoder_GetRecPicture(AL_TEncoder* pEnc, TRecPic* pRecPic);
+bool AL_Common_Encoder_GetRecPicture(AL_TEncoder* pEnc, TRecPic* pRecPic, int iLayerID);
 
 /***************************************************************************/
-void AL_Common_Encoder_ReleaseRecPicture(AL_TEncoder* pEnc, TRecPic* pRecPic);
+void AL_Common_Encoder_ReleaseRecPicture(AL_TEncoder* pEnc, TRecPic* pRecPic, int iLayerID);
 
 /*************************************************************************//*!
    \brief The Encoder_Process function allows to push a frame buffer to the
@@ -102,13 +109,14 @@ void AL_Common_Encoder_ReleaseRecPicture(AL_TEncoder* pEnc, TRecPic* pRecPic);
    \param[in] pEnc Handle to an encoder object
    \param[in] pFrame Pointer to the frame buffer to encode
    \param[in] pQPTable Pointer to an optional qp table used if the external qp table mode is enabled
+   \param[in] iLayerID Current layer identifier
    \warning The tMD member of each TBufferYuv struct pointed to by pFrame
    shall not be altered.
    \return If the function succeeds the return value is nonzero (true)
    If the function fails the return value is zero (false)
    \see AL_Encoder_PutStreamBuffer
 *****************************************************************************/
-bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer* pQPTable);
+bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer* pQPTable, int iLayerID);
 
 /*************************************************************************//*!
    \brief The Encoder_GetLastError function return the last error if any
@@ -168,10 +176,11 @@ bool AL_Common_Encoder_SetGopNumB(AL_TEncoder* pEnc, int iNumB);
    \brief The AL_Encoder_SetBitRate changes the target bitrate
    \param[in] pEnc Pointer on an encoder object
    \param[in] iGopLength New Gop Length
+   \param[in] iLayerID layer identifier of the channel which will have his bitrate changed
    \return true on success, false on error : call AL_Common_Encoder_GetLastError
    to retrieve the error code
 *****************************************************************************/
-bool AL_Common_Encoder_SetBitRate(AL_TEncoder* pEnc, int iBitRate);
+bool AL_Common_Encoder_SetBitRate(AL_TEncoder* pEnc, int iBitRate, int iLayerID);
 
 /*************************************************************************//*!
    \brief The AL_Encoder_SetFrameRate changes the encoding frame rate
@@ -203,5 +212,6 @@ bool AL_Common_Encoder_IsInitialQpProvided(AL_TEncChanParam* pChParam);
 uint32_t AL_Common_Encoder_ComputeBitPerPixel(AL_TEncChanParam* pChParam);
 int8_t AL_Common_Encoder_GetInitialQP(uint32_t iBitPerPixel);
 
+void AL_Common_Encoder_InitSkippedPicture(AL_TSkippedPicture* pSkipPicture);
 /*@}*/
 

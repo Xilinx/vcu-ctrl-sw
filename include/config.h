@@ -83,11 +83,11 @@
 #ifndef AL_CORE_MAX_WIDTH
 #define AL_CORE_MAX_WIDTH 4096
 #endif
-#ifndef AL_L2P_MAX_SIZE
-#define AL_L2P_MAX_SIZE (26 * 40 * 4096)
-#endif
 #ifndef AL_MAX_ENC_SLICE
 #define AL_MAX_ENC_SLICE 200
+#endif
+#ifndef MAX_NUM_LAYER
+#define MAX_NUM_LAYER 1
 #endif
 #ifndef AL_BLK16X16_QP_TABLE
 #define AL_BLK16X16_QP_TABLE 0

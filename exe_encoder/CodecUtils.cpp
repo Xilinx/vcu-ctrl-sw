@@ -85,7 +85,7 @@ static int PictureSize(TYUVFileInfo FI)
     iSize = 0;
   }
 
-  auto iPixSize = GetPixelSize(AL_GetBitDepth(FI.FourCC));
+  auto iPixSize = AL_GetPixelSize(AL_GetBitDepth(FI.FourCC));
 
   return iSize * iPixSize;
 }
@@ -93,12 +93,12 @@ static int PictureSize(TYUVFileInfo FI)
 /*****************************************************************************/
 void GotoFirstPicture(TYUVFileInfo const& FI, std::ifstream& File, unsigned int iFirstPict)
 {
-  auto const iPictLen = PictureSize(FI);
+  int64_t const iPictLen = PictureSize(FI);
   File.seekg(iPictLen * iFirstPict);
 }
 
 /*****************************************************************************/
-static uint32_t GetLumaRowSize(TFourCC fourCC, uint32_t uWidth)
+uint32_t GetIOLumaRowSize(TFourCC fourCC, uint32_t uWidth)
 {
   uint32_t uRowSizeLuma;
   uint8_t uBitDepth = AL_GetBitDepth(fourCC);
@@ -106,7 +106,7 @@ static uint32_t GetLumaRowSize(TFourCC fourCC, uint32_t uWidth)
   if(AL_Is10bitPacked(fourCC))
     uRowSizeLuma = (uWidth + 2) / 3 * 4;
   else
-    uRowSizeLuma = uWidth * GetPixelSize(uBitDepth);
+    uRowSizeLuma = uWidth * AL_GetPixelSize(uBitDepth);
   return uRowSizeLuma;
 }
 
@@ -117,7 +117,7 @@ int GotoNextPicture(TYUVFileInfo const& FI, std::ifstream& File, int iEncFrameRa
 
   if(iMove != 0)
   {
-    int iRowSize = GetLumaRowSize(FI.FourCC, FI.PictWidth) * FI.PictHeight;
+    int iRowSize = GetIOLumaRowSize(FI.FourCC, FI.PictWidth) * FI.PictHeight;
 
     if(AL_GetChromaMode(FI.FourCC) != CHROMA_MONO)
     {
@@ -131,6 +131,80 @@ int GotoNextPicture(TYUVFileInfo const& FI, std::ifstream& File, int iEncFrameRa
   return iMove;
 }
 
+typedef struct tPaddingParams
+{
+  uint32_t uPadValue;
+  uint32_t uNBByteToPad;
+  uint32_t uPaddingOffset;
+  uint32_t uFirst32PackPadMask;
+}TPaddingParams;
+
+/*****************************************************************************/
+static TPaddingParams GetColumnPaddingParameters(AL_TSrcMetaData* pSrcMeta, uint32_t uFileRowSize, bool isLuma)
+{
+  TPaddingParams tPadParams;
+
+  auto const pitch = isLuma ? pSrcMeta->tPitches.iLuma : pSrcMeta->tPitches.iChroma;
+
+  tPadParams.uPadValue = isLuma ? 0 : 0x80;
+  tPadParams.uNBByteToPad = pitch - uFileRowSize;
+  tPadParams.uFirst32PackPadMask = 0x0;
+
+  if(AL_GetBitDepth(pSrcMeta->tFourCC) > 8)
+  {
+    tPadParams.uPadValue <<= 2;
+
+    if(AL_Is10bitPacked(pSrcMeta->tFourCC))
+    {
+      tPadParams.uPadValue = tPadParams.uPadValue | (tPadParams.uPadValue << 10) | (tPadParams.uPadValue << 20);
+      switch(pSrcMeta->tDim.iWidth % 3)
+      {
+      case 1:
+        tPadParams.uFirst32PackPadMask = 0x3FF;
+        tPadParams.uNBByteToPad += sizeof(uint32_t);
+        break;
+      case 2:
+        tPadParams.uFirst32PackPadMask = 0xFFFFF;
+        tPadParams.uNBByteToPad += sizeof(uint32_t);
+        break;
+      default:
+        break;
+      }
+    }
+  }
+
+  tPadParams.uPaddingOffset = pitch - tPadParams.uNBByteToPad;
+
+  return tPadParams;
+}
+
+/*****************************************************************************/
+static void PadBuffer(char* pTmp, TPaddingParams tPadParams, TFourCC tFourCC)
+{
+  if(AL_Is10bitPacked(tFourCC))
+  {
+    uint32_t* pTmp32 = (uint32_t*)pTmp;
+
+    if(0 != tPadParams.uFirst32PackPadMask)
+    {
+      *pTmp32 = (*pTmp32 & tPadParams.uFirst32PackPadMask) | (tPadParams.uPadValue & ~tPadParams.uFirst32PackPadMask);
+      pTmp32++;
+      tPadParams.uNBByteToPad -= sizeof(uint32_t);
+    }
+
+    std::fill_n(pTmp32, tPadParams.uNBByteToPad / sizeof(uint32_t), tPadParams.uPadValue);
+  }
+  else if(AL_GetBitDepth(tFourCC) > 8)
+  {
+    // Pitch % 32 == 0 && rowsize % 2 == 0 => iNbByteToPad % 2 == 0
+    std::fill_n((uint16_t*)pTmp, tPadParams.uNBByteToPad / sizeof(uint16_t), tPadParams.uPadValue);
+  }
+  else
+  {
+    std::fill_n(pTmp, tPadParams.uNBByteToPad, tPadParams.uPadValue);
+  }
+}
+
 /*****************************************************************************/
 static uint32_t ReadFileLumaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSize, uint32_t uFileNumRow, bool bPadding = false)
 {
@@ -138,9 +212,11 @@ static uint32_t ReadFileLumaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32
 
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
 
+  TPaddingParams tPadParams = GetColumnPaddingParameters(pSrcMeta, uFileRowSize, true);
+
   assert((uint32_t)pSrcMeta->tPitches.iLuma >= uFileRowSize);
 
-  if((uint32_t)pSrcMeta->tPitches.iLuma == uFileRowSize)
+  if(0 == tPadParams.uNBByteToPad)
   {
     uint32_t uSize = uFileNumRow * uFileRowSize;
     File.read(pTmp, uSize);
@@ -151,7 +227,7 @@ static uint32_t ReadFileLumaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32
     for(uint32_t h = 0; h < uFileNumRow; h++)
     {
       File.read(pTmp, uFileRowSize);
-      Rtos_Memset(pTmp + uFileRowSize, 0x00, pSrcMeta->tPitches.iLuma - uFileRowSize);
+      PadBuffer(pTmp + tPadParams.uPaddingOffset, tPadParams, pSrcMeta->tFourCC);
       pTmp += pSrcMeta->tPitches.iLuma;
     }
   }
@@ -159,7 +235,9 @@ static uint32_t ReadFileLumaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32
   if(bPadding && (pSrcMeta->tDim.iHeight & 15))
   {
     uint32_t uRowPadding = ((pSrcMeta->tDim.iHeight + 15) & ~15) - pSrcMeta->tDim.iHeight;
-    Rtos_Memset(pTmp, 0x00, uRowPadding * pSrcMeta->tPitches.iLuma);
+    tPadParams.uNBByteToPad = uRowPadding * pSrcMeta->tPitches.iLuma;
+    tPadParams.uFirst32PackPadMask = 0x0;
+    PadBuffer(pTmp, tPadParams, pSrcMeta->tFourCC);
     uFileNumRow += uRowPadding;
   }
   return pSrcMeta->tPitches.iLuma * uFileNumRow;
@@ -174,9 +252,11 @@ static uint32_t ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
   uint32_t uNumRowC = (AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_0) ? uFileNumRow >> 1 : uFileNumRow;
   uint32_t uRowSizeC = uFileRowSize >> 1;
 
+  TPaddingParams tPadParams = GetColumnPaddingParameters(pSrcMeta, uRowSizeC, false);
+
   assert((uint32_t)pSrcMeta->tPitches.iChroma >= uRowSizeC);
 
-  if((uint32_t)pSrcMeta->tPitches.iChroma == uRowSizeC)
+  if(0 == tPadParams.uNBByteToPad)
   {
     uint32_t uSize = uNumRowC * uRowSizeC;
     File.read(pTmp, uSize);
@@ -187,7 +267,7 @@ static uint32_t ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
     for(uint32_t h = 0; h < uNumRowC; h++)
     {
       File.read(pTmp, uRowSizeC);
-      Rtos_Memset(pTmp + uRowSizeC, 0x80, (pSrcMeta->tPitches.iChroma - uRowSizeC));
+      PadBuffer(pTmp + tPadParams.uPaddingOffset, tPadParams, pSrcMeta->tFourCC);
       pTmp += pSrcMeta->tPitches.iChroma;
     }
   }
@@ -200,7 +280,10 @@ static uint32_t ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
       uRowPadding = (((pSrcMeta->tDim.iHeight >> 1) + 7) & ~7) - (pSrcMeta->tDim.iHeight >> 1);
     else
       uRowPadding = ((pSrcMeta->tDim.iHeight + 15) & ~15) - pSrcMeta->tDim.iHeight;
-    Rtos_Memset(pTmp, 0x80, uRowPadding * pSrcMeta->tPitches.iChroma);
+
+    tPadParams.uNBByteToPad = uRowPadding * pSrcMeta->tPitches.iChroma;
+    PadBuffer(pTmp, tPadParams, pSrcMeta->tFourCC);
+
     uNumRowC += uRowPadding;
   }
 
@@ -214,20 +297,20 @@ static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
   uint32_t uNumRowC = (AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_0) ? uFileNumRow >> 1 : uFileNumRow;
 
+  TPaddingParams tPadParams = GetColumnPaddingParameters(pSrcMeta, uFileRowSize, false);
+
   assert((uint32_t)pSrcMeta->tPitches.iChroma >= uFileRowSize);
 
-  if((uint32_t)pSrcMeta->tPitches.iChroma == uFileRowSize)
+  if(0 == tPadParams.uNBByteToPad)
   {
     File.read(pTmp, uFileRowSize * uNumRowC);
   }
   else
   {
-    assert(!AL_Is10bitPacked(pSrcMeta->tFourCC)); // TODO padding for 10bit packed format
-
     for(uint32_t h = 0; h < uNumRowC; h++)
     {
       File.read(pTmp, uFileRowSize);
-      Rtos_Memset(pTmp + uFileRowSize, 0x80, (pSrcMeta->tPitches.iChroma - uFileRowSize));
+      PadBuffer(pTmp + tPadParams.uPaddingOffset, tPadParams, pSrcMeta->tFourCC);
       pTmp += pSrcMeta->tPitches.iChroma;
     }
   }
@@ -268,7 +351,7 @@ bool ReadOneFrameYuv(std::ifstream& File, AL_TBuffer* pBuf, bool bLoop)
 
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
 
-  uint32_t uRowSizeLuma = GetLumaRowSize(pSrcMeta->tFourCC, pSrcMeta->tDim.iWidth);
+  uint32_t uRowSizeLuma = GetIOLumaRowSize(pSrcMeta->tFourCC, pSrcMeta->tDim.iWidth);
 
   ReadFile(File, pBuf, uRowSizeLuma, pSrcMeta->tDim.iHeight);
 
@@ -297,11 +380,11 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf, int iWidth, int 
     return false;
 
   char* pTmp = reinterpret_cast<char*>(AL_Buffer_GetData(pBuf));
-  int iSizePix = GetPixelSize(AL_GetBitDepth(pBufMeta->tFourCC));
+  int uRowSizeLuma = GetIOLumaRowSize(pBufMeta->tFourCC, iWidth);
 
-  if(pBufMeta->tPitches.iLuma == iWidth * iSizePix)
+  if(pBufMeta->tPitches.iLuma == uRowSizeLuma)
   {
-    uint32_t uSizeY = iWidth * iHeight * iSizePix;
+    uint32_t uSizeY = iHeight * uRowSizeLuma;
     File.write(pTmp, uSizeY);
     pTmp += uSizeY;
   }
@@ -309,7 +392,7 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf, int iWidth, int 
   {
     for(int h = 0; h < iHeight; h++)
     {
-      File.write(pTmp, iWidth * iSizePix);
+      File.write(pTmp, uRowSizeLuma);
       pTmp += pBufMeta->tPitches.iLuma;
     }
   }
@@ -317,15 +400,15 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf, int iWidth, int 
   // 1 Interleaved Chroma plane
   if(AL_IsSemiPlanar(pBufMeta->tFourCC))
   {
-    int iHeightC = (pBufMeta->tFourCC == FOURCC(NV12)) ? iHeight >> 1 : iHeight;
+    int iHeightC = (AL_GetChromaMode(pBufMeta->tFourCC) == CHROMA_4_2_0) ? iHeight >> 1 : iHeight;
 
-    if(pBufMeta->tPitches.iChroma == iWidth * iSizePix)
-      File.write(pTmp, iWidth * iHeightC * iSizePix);
+    if(pBufMeta->tPitches.iChroma == uRowSizeLuma)
+      File.write(pTmp, iHeightC * uRowSizeLuma);
     else
     {
       for(int h = 0; h < iHeightC; ++h)
       {
-        File.write(pTmp, iWidth * iSizePix);
+        File.write(pTmp, uRowSizeLuma);
         pTmp += pBufMeta->tPitches.iChroma;
       }
     }
@@ -335,6 +418,8 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf, int iWidth, int 
   {
     int iWidthC = iWidth >> 1;
     int iHeightC = (AL_GetChromaMode(pBufMeta->tFourCC) == CHROMA_4_2_0) ? iHeight >> 1 : iHeight;
+
+    int iSizePix = AL_GetPixelSize(AL_GetBitDepth(pBufMeta->tFourCC));
 
     if(pBufMeta->tPitches.iChroma == iWidthC * iSizePix)
     {
@@ -358,95 +443,6 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf, int iWidth, int 
       }
     }
   }
-  return true;
-}
-
-
-/*****************************************************************************/
-bool WriteCompFrame(std::ofstream& File, std::ofstream& MapFile, std::ofstream& MapLogFile, AL_TBuffer* pBuf, AL_EProfile eProfile)
-{
-  AL_TSrcMetaData* pBufMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
-
-  if(!File.is_open() || !MapFile.is_open())
-    return false;
-
-  uint32_t uWidth = pBufMeta->tDim.iWidth;
-  uint32_t uHeight = pBufMeta->tDim.iHeight;
-
-  if(AL_IS_AVC(eProfile))
-  {
-    uWidth = (uWidth + 15) & ~0xF;
-    uHeight = (uHeight + 15) & ~0xF;
-  }
-  int iOffset = 0;
-  uint8_t uBitDepth = AL_GetBitDepth(pBufMeta->tFourCC);
-  AL_EChromaMode eChromaMode = AL_GetChromaMode(pBufMeta->tFourCC);
-  // Luma
-  {
-    int iNumRowY = (uHeight + 3) >> 2;
-    int iRndNumRowY = ((uHeight + 63) & ~63) >> 2;
-    int iRowSizeY = (((uWidth + 63) & ~63) << 2) * uBitDepth / 8;
-    const char* pTmp = reinterpret_cast<const char*>(AL_Buffer_GetData(pBuf));
-
-    for(int r = 0; r < iNumRowY; ++r)
-    {
-      File.write(pTmp, iRowSizeY);
-      pTmp += iRowSizeY;
-    }
-
-    iOffset += iRndNumRowY * pBufMeta->tPitches.iLuma;
-  }
-
-  // Chroma
-  if(eChromaMode == CHROMA_4_2_0)
-  {
-    int iNumRowC = (uHeight + 3) >> 3;
-    int iRndNumRowC = ((uHeight + 63) & ~63) >> 3;
-    int iRowSizeC = (((uWidth + 63) & ~63) << 2) * uBitDepth / 8;
-    const char* pTmp = reinterpret_cast<const char*>(AL_Buffer_GetData(pBuf) + iOffset);
-
-    for(int r = 0; r < iNumRowC; ++r)
-    {
-      File.write(pTmp, iRowSizeC);
-      pTmp += iRowSizeC;
-    }
-
-    iOffset += iRndNumRowC * pBufMeta->tPitches.iChroma;
-  }
-  else if(eChromaMode == CHROMA_4_2_2)
-  {
-    int iNumRowC = (uHeight + 3) >> 2;
-    int iRndNumRowC = ((uHeight + 63) & ~63) >> 2;
-    int iRowSizeC = (((uWidth + 63) & ~63) << 2) * uBitDepth / 8;
-    const char* pTmp = reinterpret_cast<const char*>(AL_Buffer_GetData(pBuf) + iOffset);
-
-    for(int r = 0; r < iNumRowC; ++r)
-    {
-      File.write(pTmp, iRowSizeC);
-      pTmp += iRowSizeC;
-    }
-
-    iOffset += iRndNumRowC * pBufMeta->tPitches.iChroma;
-  }
-
-  // Map
-  {
-    int iNumRowMap = (uHeight + 3) >> 2;
-    int iRowSize = 32 * ((uWidth + 4095) >> 12);
-
-    // Luma
-    const char* pTmp = reinterpret_cast<const char*>(AL_Buffer_GetData(pBuf) + iOffset);
-    MapFile.write(pTmp, iNumRowMap * iRowSize);
-
-    // Chroma
-    if(eChromaMode == CHROMA_4_2_0)
-      MapFile.write(pTmp + iNumRowMap * iRowSize, iNumRowMap * iRowSize / 2);
-    else if(eChromaMode == CHROMA_4_2_2)
-      MapFile.write(pTmp + iNumRowMap * iRowSize, iNumRowMap * iRowSize);
-
-    (void)MapLogFile;
-  }
-
   return true;
 }
 

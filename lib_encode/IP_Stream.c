@@ -46,11 +46,10 @@
 /****************************************************************************/
 NalHeader GetNalHeaderHevc(uint8_t uNUT, uint8_t uNalIdc)
 {
-  (void)uNalIdc;
   NalHeader nh;
   nh.size = 2;
-  nh.bytes[0] = uNUT << 1;
-  nh.bytes[1] = 1;
+  nh.bytes[0] = ((uNalIdc & 0x20) >> 5) | ((uNUT & 0x3F) << 1);
+  nh.bytes[1] = 1 | ((uNalIdc & 0x1F) << 3);
   return nh;
 }
 

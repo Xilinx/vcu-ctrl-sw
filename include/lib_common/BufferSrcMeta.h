@@ -35,6 +35,11 @@
 *
 ******************************************************************************/
 
+/**************************************************************************//*!
+   \addtogroup Buffers
+   @{
+   \file
+ *****************************************************************************/
 #pragma once
 
 #include "lib_common/BufferMeta.h"
@@ -43,7 +48,7 @@
 #include "lib_common/Pitches.h"
 
 /*************************************************************************//*!
-   \brief MetaData for Src buffer
+   \brief Useful information related to the framebuffer containing the picture
 *****************************************************************************/
 typedef struct AL_t_SrcMetaData
 {
@@ -54,9 +59,32 @@ typedef struct AL_t_SrcMetaData
   TFourCC tFourCC; /*!< FOURCC identifier */
 }AL_TSrcMetaData;
 
+/*************************************************************************//*!
+   \brief Create a source metadata.
+   \param[in] tDim Dimension of the the picture (width and height in pixels)
+   \param[in] tPitches Luma and chroma pitches in bytes
+   \param[in] tOffsetYC Offset to the beginning of the luma and of the chroma in bytes
+   \param[in] tFourCC FourCC of the framebuffer
+   \return Returns NULL in case of allocation failure. Returns a pointer
+   to the metadata in case of success.
+*****************************************************************************/
 AL_TSrcMetaData* AL_SrcMetaData_Create(AL_TDimension tDim, AL_TPitches tPitches, AL_TOffsetYC tOffsetYC, TFourCC tFourCC);
 AL_TSrcMetaData* AL_SrcMetaData_Clone(AL_TSrcMetaData* pMeta);
 int AL_SrcMetaData_GetOffsetC(AL_TSrcMetaData* pMeta);
+
+/*************************************************************************//*!
+   \brief Get the size of the luma inside the picture
+   \param[in] pMeta A pointer the the source metadata
+   \return Returns size of the luma region
+*****************************************************************************/
 int AL_SrcMetaData_GetLumaSize(AL_TSrcMetaData* pMeta);
+
+/*************************************************************************//*!
+   \brief Get the size of the chroma inside the picture
+   \param[in] pMeta A pointer the the source metadata
+   \return Returns size of the chroma region
+*****************************************************************************/
 int AL_SrcMetaData_GetChromaSize(AL_TSrcMetaData* pMeta);
+
+/*@*/
 

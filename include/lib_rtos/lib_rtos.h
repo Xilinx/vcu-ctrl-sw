@@ -35,10 +35,13 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \defgroup lib_rtos lib_rtos
+/**************************************************************************//*!
+   \defgroup lib_rtos RTOS
+
+   The Rtos functions wrap all calls to the operating system facilities
+   like memory allocation, thread and synchronisation primitives.
+   They can be reimplemented by the user to fit his platform of choice.
+
    @{
    \file
  *****************************************************************************/
@@ -111,7 +114,7 @@ void Rtos_DeleteThread(AL_THREAD Thread);
 /****************************************************************************/
 void* Rtos_DriverOpen(char const* name);
 void Rtos_DriverClose(void* drv);
-int Rtos_DriverIoctl(void* drv, int req, void* data);
+int Rtos_DriverIoctl(void* drv, unsigned long int req, void* data);
 
 /****************************************************************************/
 /*  Atomics */

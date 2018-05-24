@@ -43,9 +43,19 @@ static void audWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void con
   writer->WriteAUD(bitstream, (int)(uintptr_t)param);
 }
 
+AL_NalUnit AL_CreateNalUnit(void (* Write)(IRbspWriter*, AL_TBitStreamLite*, void const*), void* param, int nut, int idc)
+{
+  AL_NalUnit nal = { 0 };
+  nal.Write = Write;
+  nal.param = param;
+  nal.nut = nut;
+  nal.idc = idc;
+  return nal;
+}
+
 AL_NalUnit AL_CreateAud(int nut, AL_ESliceType eSliceType)
 {
-  AL_NalUnit nal = { &audWrite, (void*)(uintptr_t)eSliceType, nut, 0 };
+  AL_NalUnit nal = AL_CreateNalUnit(&audWrite, (void*)(uintptr_t)eSliceType, nut, 0);
   return nal;
 }
 
@@ -54,9 +64,10 @@ static void spsWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void con
   writer->WriteSPS(bitstream, param);
 }
 
-AL_NalUnit AL_CreateSps(int nut, AL_TSps* sps)
+AL_NalUnit AL_CreateSps(int nut, AL_TSps* sps, int layer_id)
 {
-  AL_NalUnit nal = { &spsWrite, sps, nut, 1 };
+  int iID = (nut == AL_AVC_NUT_SPS) ? 1 : layer_id;
+  AL_NalUnit nal = AL_CreateNalUnit(&spsWrite, sps, nut, iID);
   return nal;
 }
 
@@ -65,9 +76,10 @@ static void ppsWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void con
   writer->WritePPS(bitstream, param);
 }
 
-AL_NalUnit AL_CreatePps(int nut, AL_TPps* pps)
+AL_NalUnit AL_CreatePps(int nut, AL_TPps* pps, int layer_id)
 {
-  AL_NalUnit nal = { &ppsWrite, pps, nut, 1 };
+  int iID = (nut == AL_AVC_NUT_PPS) ? 1 : layer_id;
+  AL_NalUnit nal = AL_CreateNalUnit(&ppsWrite, pps, nut, iID);
   return nal;
 }
 
@@ -78,7 +90,7 @@ static void vpsWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void con
 
 AL_NalUnit AL_CreateVps(AL_THevcVps* vps)
 {
-  AL_NalUnit nal = { &vpsWrite, vps, AL_HEVC_NUT_VPS, 1 };
+  AL_NalUnit nal = AL_CreateNalUnit(&vpsWrite, vps, AL_HEVC_NUT_VPS, 0);
   return nal;
 }
 
@@ -90,7 +102,7 @@ static void seiPrefixAPSWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream,
 
 AL_NalUnit AL_CreateSeiPrefixAPS(SeiPrefixAPSCtx* ctx, int nut)
 {
-  AL_NalUnit nal = { &seiPrefixAPSWrite, ctx, nut, 0 };
+  AL_NalUnit nal = AL_CreateNalUnit(&seiPrefixAPSWrite, ctx, nut, 0);
   return nal;
 }
 
@@ -126,7 +138,7 @@ static void seiPrefixWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, vo
 
 AL_NalUnit AL_CreateSeiPrefix(SeiPrefixCtx* ctx, int nut)
 {
-  AL_NalUnit nal = { &seiPrefixWrite, ctx, nut, 0 };
+  AL_NalUnit nal = AL_CreateNalUnit(&seiPrefixWrite, ctx, nut, 0);
   return nal;
 }
 
@@ -138,7 +150,7 @@ static void seiSuffixWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, vo
 
 AL_NalUnit AL_CreateSeiSuffix(SeiSuffixCtx* ctx, int nut)
 {
-  AL_NalUnit nal = { &seiSuffixWrite, ctx, nut, 0 };
+  AL_NalUnit nal = AL_CreateNalUnit(&seiSuffixWrite, ctx, nut, 0);
   return nal;
 }
 

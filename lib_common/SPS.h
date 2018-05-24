@@ -133,10 +133,13 @@ typedef struct t_Hevc_Sps
 {
   uint8_t sps_video_parameter_set_id;
   uint8_t sps_max_sub_layers_minus1;
+  uint8_t sps_ext_or_max_sub_layers_minus1;
   uint8_t sps_temporal_id_nesting_flag;
   AL_TProfilevel profile_and_level;
 
   uint8_t sps_seq_parameter_set_id;
+  uint8_t update_rep_format_flag;
+  uint8_t sps_rep_format_idx;
   uint8_t chroma_format_idc;
   uint8_t separate_colour_plane_flag;
 
@@ -167,6 +170,8 @@ typedef struct t_Hevc_Sps
   uint8_t max_transform_hierarchy_depth_inter;
 
   uint8_t scaling_list_enabled_flag;
+  uint8_t sps_infer_scaling_list_flag;
+  uint8_t sps_scaling_list_ref_layer_id;
   uint8_t sps_scaling_list_data_present_flag;
   AL_TSCLParam scaling_list_param;
 
@@ -193,8 +198,13 @@ typedef struct t_Hevc_Sps
   AL_TVuiParam vui_param;
 
   uint8_t sps_extension_present_flag;
-  uint8_t sps_range_extensions_flag;
+  uint8_t sps_range_extension_flag;
+  uint8_t sps_multilayer_extension_flag;
+  uint8_t sps_3d_extension_flag;
+  uint8_t sps_scc_extension_flag;
+  uint8_t sps_extension_4bits;
   uint8_t sps_extension_7bits;
+  uint8_t inter_view_mv_vert_constraint_flag;
   uint8_t transform_skip_rotation_enabled_flag;
   uint8_t transform_skip_context_enabled_flag;
   uint8_t implicit_rdpcm_enabled_flag;
@@ -210,7 +220,7 @@ typedef struct t_Hevc_Sps
   uint16_t WpOffsetHalfRangeY;
   uint16_t WpOffsetHalfRangeC;
 
-  AL_THevcVps* m_pVPS;
+  AL_THevcVps* pVPS;
 
   /* concealment flag */
   bool bConceal;
@@ -244,8 +254,8 @@ typedef struct
 {
   union
   {
-    AL_THevcSps m_HevcSPS;
-    AL_TAvcSps m_AvcSPS;
+    AL_THevcSps HevcSPS;
+    AL_TAvcSps AvcSPS;
   };
 }AL_TSps;
 

@@ -49,12 +49,14 @@ extern "C"
 
 typedef struct AL_t_Allocator AL_TAllocator;
 typedef struct AL_t_IpCtrl AL_TIpCtrl;
+typedef struct AL_t_Timer AL_Timer;
 
 /*****************************************************************************/
 struct CIpDevice
 {
   TScheduler* m_pScheduler = nullptr;
   std::shared_ptr<AL_TAllocator> m_pAllocator;
+  AL_Timer* m_pTimer;
 };
 
 std::shared_ptr<CIpDevice> CreateIpDevice(bool bUseRefSoftware, int iSchedulerType, AL_TEncSettings& Settings, std::function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl, bool trackDma = false, int iVqDescr = 0);

@@ -36,31 +36,23 @@
 ******************************************************************************/
 
 #include "lib_decode/I_DecChannel.h"
+#include "lib_common/IDriver.h"
 
-#if __linux__
+#if  __linux__
 
-#include <malloc.h>
 #include <pthread.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <sys/mman.h>
+#include <string.h> // strerrno
 #include <errno.h>
+#include <assert.h>
 
 #include "allegro_ioctl_mcu_dec.h"
 #include "lib_common/List.h"
 #include "lib_common/Error.h"
-#include <assert.h>
 
 #define DCACHE_OFFSET 0x80000000
 
-/****************************************************************************/
-const char* deviceFile = "/dev/allegroDecodeIP";
-
-/****************************************************************************/
+static const char* deviceFile = "/dev/allegroDecodeIP";
 
 typedef struct
 {
@@ -68,8 +60,7 @@ typedef struct
   pthread_mutex_t Lock;
 }AL_WaitQueue;
 
-static
-int AL_WakeUp(AL_WaitQueue* pQueue)
+static int AL_WakeUp(AL_WaitQueue* pQueue)
 {
   pthread_mutex_lock(&pQueue->Lock);
   int ret = pthread_cond_broadcast(&pQueue->Cond);
@@ -78,8 +69,7 @@ int AL_WakeUp(AL_WaitQueue* pQueue)
   return ret;
 }
 
-static
-int AL_WaitEvent(AL_WaitQueue* pQueue, bool (* isReady)(void*), void* pParam)
+static int AL_WaitEvent(AL_WaitQueue* pQueue, bool (* isReady)(void*), void* pParam)
 {
   pthread_mutex_lock(&pQueue->Lock);
 
@@ -91,26 +81,24 @@ int AL_WaitEvent(AL_WaitQueue* pQueue, bool (* isReady)(void*), void* pParam)
   return 0;
 }
 
-static
-void AL_WaitQueue_Init(AL_WaitQueue* pQueue)
+static void AL_WaitQueue_Init(AL_WaitQueue* pQueue)
 {
   pthread_mutex_init(&pQueue->Lock, NULL);
   pthread_cond_init(&pQueue->Cond, NULL);
 }
 
-static
-void AL_WaitQueue_Deinit(AL_WaitQueue* pQueue)
+static void AL_WaitQueue_Deinit(AL_WaitQueue* pQueue)
 {
   pthread_mutex_destroy(&pQueue->Lock);
   pthread_cond_destroy(&pQueue->Cond);
 }
 
-/****************************************************************************/
 typedef struct
 {
   int fd;
   AL_THREAD thread;
   bool bBeingDestroyed;
+  AL_TDriver* driver;
 
   AL_CB_EndFrameDecoding endFrameDecodingCB;
 }Channel;
@@ -120,6 +108,7 @@ typedef struct
   int fd;
   AL_CB_EndStartCode endStartCodeCB;
   bool bEnded;
+  AL_TDriver* driver;
 }SCMsg;
 
 typedef struct AL_t_Event
@@ -147,6 +136,7 @@ struct DecChanMcuCtx
   StartCodeEventQueue SCQueue;
   Channel chan;
   bool chanIsConfigured;
+  AL_TDriver* driver;
 };
 
 int AL_EventQueue_Init(AL_EventQueue* pEventQueue)
@@ -192,47 +182,28 @@ void setPictParam(struct al5_params* msg, AL_TDecPicParam* pPictParam)
 {
   static_assert(sizeof(*pPictParam) <= sizeof(msg->opaque), "Driver pict_param struct is too small");
   msg->size = sizeof(*pPictParam);
-  memcpy(msg->opaque, pPictParam, msg->size);
+  Rtos_Memcpy(msg->opaque, pPictParam, msg->size);
 }
 
 void setPictBufferAddrs(struct al5_params* msg, AL_TDecPicBufferAddrs* pBufferAddrs)
 {
   static_assert(sizeof(*pBufferAddrs) <= sizeof(msg->opaque), "Driver pict_buffer_addrs struct is too small");
   msg->size = sizeof(*pBufferAddrs);
-  memcpy(msg->opaque, pBufferAddrs, msg->size);
+  Rtos_Memcpy(msg->opaque, pBufferAddrs, msg->size);
 }
 
-static bool PostMessage(int fd, int iMsgID, void* pData)
-{
-  /* must keep the errno from ioctl */
-  int iRet;
-  bool bDone = false;
-
-  while(!bDone)
-  {
-    iRet = ioctl(fd, iMsgID, pData);
-
-    if(iRet < 0 && (errno == EAGAIN || errno == EINTR))
-      continue;
-    bDone = true;
-  }
-
-  return iRet >= 0;
-}
 
 /* Fill msg with pChParam */
-static
-void setChannelMsg(struct al5_params* msg, const AL_TDecChanParam* pChParam)
+static void setChannelMsg(struct al5_params* msg, const AL_TDecChanParam* pChParam)
 {
   static_assert(sizeof(*pChParam) <= sizeof(msg->opaque), "Driver channel_param struct is too small");
   msg->size = sizeof(*pChParam);
-  memcpy(msg->opaque, pChParam, msg->size);
+  Rtos_Memcpy(msg->opaque, pChParam, msg->size);
 }
 
-static
-bool getStatusMsg(Channel* chan, struct al5_params* msg)
+static bool getStatusMsg(Channel* chan, struct al5_params* msg)
 {
-  bool bRet = PostMessage(chan->fd, AL_MCU_WAIT_FOR_STATUS, msg);
+  bool bRet = AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_WAIT_FOR_STATUS, msg) == DRIVER_SUCCESS;
 
   if(!bRet && !chan->bBeingDestroyed)
     perror("Failed to get decode status");
@@ -240,16 +211,15 @@ bool getStatusMsg(Channel* chan, struct al5_params* msg)
   return bRet;
 }
 
-static
-bool getScStatusMsg(SCMsg* pMsg, struct al5_scstatus* StatusMsg)
+static bool getScStatusMsg(SCMsg* pMsg, struct al5_scstatus* StatusMsg)
 {
-  return PostMessage(pMsg->fd, AL_MCU_WAIT_FOR_START_CODE, StatusMsg);
+  return AL_Driver_PostMessage(pMsg->driver, pMsg->fd, AL_MCU_WAIT_FOR_START_CODE, StatusMsg) == DRIVER_SUCCESS;
 }
 
 static void processStatusMsg(Channel* chan, struct al5_params* msg)
 {
   AL_TDecPicStatus status;
-  memcpy(&status, msg->opaque, msg->size);
+  Rtos_Memcpy(&status, msg->opaque, msg->size);
   chan->endFrameDecodingCB.func(chan->endFrameDecodingCB.userParam, &status);
 }
 
@@ -313,7 +283,7 @@ static void* ScNotificationThread(void* p)
     if(getScStatusMsg(pMsg, &StatusMsg))
       processScStatusMsg(pMsg, &StatusMsg);
 
-    close(pMsg->fd);
+    AL_Driver_Close(pMsg->driver, pMsg->fd);
     Rtos_Free(pMsg);
   }
 
@@ -326,7 +296,6 @@ static void getParamUpdateByMcu(const struct al5_channel_status* msg, AL_TDecCha
   pChParam->uNumCore = msg->num_core;
 }
 
-/****************************************************************************/
 /** Initialisation cannot be handled by control software with mcu.
  *  With several channels it would be unacceptable to let any reinit scheduler.
  *
@@ -350,14 +319,11 @@ static bool DecChannelMcu_Init(struct DecChanMcuCtx* decChanMcu)
   return true;
 }
 
-/****************************************************************************/
-static bool DecChannelMcu_DestroyChannel(Channel* chan)
+static void DecChannelMcu_DestroyChannel(Channel* chan)
 {
   chan->bBeingDestroyed = true;
 
-  bool bRet = PostMessage(chan->fd, AL_MCU_DESTROY_CHANNEL, NULL);
-
-  if(!bRet)
+  if(AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_DESTROY_CHANNEL, NULL) != DRIVER_SUCCESS)
   {
     perror("Failed to destroy channel");
     goto exit;
@@ -367,12 +333,9 @@ static bool DecChannelMcu_DestroyChannel(Channel* chan)
   Rtos_DeleteThread(chan->thread);
 
   exit:
-  close(chan->fd);
-
-  return bRet;
+  AL_Driver_Close(chan->driver, chan->fd);
 }
 
-/****************************************************************************/
 static void DecChannelMcu_Destroy(AL_TIDecChannel* pDecChannel)
 {
   struct DecChanMcuCtx* decChanMcu = (struct DecChanMcuCtx*)pDecChannel;
@@ -388,6 +351,7 @@ static void DecChannelMcu_Destroy(AL_TIDecChannel* pDecChannel)
     goto fail_msg;
 
   pMsg->bEnded = true;
+  pMsg->driver = decChanMcu->driver;
   pEvent->pPriv = pMsg;
   AL_EventQueue_Push(&SCQueue->EventQueue, pEvent);
 
@@ -413,7 +377,6 @@ static void DecChannelMcu_Destroy(AL_TIDecChannel* pDecChannel)
   return;
 }
 
-/****************************************************************************/
 static AL_ERR DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecChanParam* pChParam, AL_CB_EndFrameDecoding callback)
 {
   struct DecChanMcuCtx* decChanMcu = (struct DecChanMcuCtx*)pDecChannel;
@@ -424,22 +387,27 @@ static AL_ERR DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecC
 
   chan->bBeingDestroyed = false;
   chan->endFrameDecodingCB = callback;
-
-  chan->fd = open(deviceFile, O_RDWR);
+  chan->driver = decChanMcu->driver;
+  chan->fd = AL_Driver_Open(chan->driver, deviceFile);
 
   if(chan->fd < 0)
   {
-    printf("Cannot open device file %s: %s\n", deviceFile, strerror(errno));
+    fprintf(stderr, "Cannot open device file %s; %s", deviceFile, strerror(errno));
     goto fail_open;
   }
 
   setChannelMsg(&msg.param, pChParam);
 
-  if(!PostMessage(chan->fd, AL_MCU_CONFIG_CHANNEL, &msg))
+  AL_EDriverError errdrv = AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_CONFIG_CHANNEL, &msg);
+
+  if(errdrv != DRIVER_SUCCESS)
   {
+    if(errdrv == DRIVER_ERROR_NO_MEMORY)
+      errorCode = AL_ERR_NO_MEMORY;
+
     /* the ioctl might not have been called at all,
      * so the error_code might no be set. leave it to AL_ERROR in this case */
-    if(msg.status.error_code)
+    if(errdrv == DRIVER_ERROR_CHANNEL && msg.status.error_code)
       errorCode = msg.status.error_code;
     goto fail_open;
   }
@@ -459,7 +427,7 @@ static AL_ERR DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecC
   fail_open:
 
   if(chan->fd >= 0)
-    close(chan->fd);
+    AL_Driver_Close(chan->driver, chan->fd);
   return errorCode;
 }
 
@@ -467,14 +435,14 @@ static void setStartCodeParams(struct al5_params* msg, AL_TScParam* pScParam)
 {
   static_assert(sizeof(*pScParam) <= sizeof(msg->opaque), "Driver sc_param struct is too small");
   msg->size = sizeof(*pScParam);
-  memcpy(msg->opaque, pScParam, sizeof(*pScParam));
+  Rtos_Memcpy(msg->opaque, pScParam, sizeof(*pScParam));
 }
 
 static void setStartCodeAddresses(struct al5_params* msg, AL_TScBufferAddrs* pBufAddrs)
 {
   static_assert(sizeof(*pBufAddrs) <= sizeof(msg->opaque), "Driver sc_addresses struct is too small");
   msg->size = sizeof(*pBufAddrs);
-  memcpy(msg->opaque, pBufAddrs, sizeof(*pBufAddrs));
+  Rtos_Memcpy(msg->opaque, pBufAddrs, sizeof(*pBufAddrs));
 }
 
 static void setSearchStartCodeMsg(struct al5_search_sc_msg* search_msg, AL_TScParam* pScParam, AL_TScBufferAddrs* pBufAddrs)
@@ -483,7 +451,6 @@ static void setSearchStartCodeMsg(struct al5_search_sc_msg* search_msg, AL_TScPa
   setStartCodeAddresses(&search_msg->buffer_addrs, pBufAddrs);
 }
 
-/****************************************************************************/
 static void DecChannelMcu_SearchSC(AL_TIDecChannel* pDecChannel, AL_TScParam* pScParam, AL_TScBufferAddrs* pBufAddrs, AL_CB_EndStartCode endStartCodeCB)
 {
   struct DecChanMcuCtx* decChanMcu = (struct DecChanMcuCtx*)pDecChannel;
@@ -500,19 +467,18 @@ static void DecChannelMcu_SearchSC(AL_TIDecChannel* pDecChannel, AL_TScParam* pS
 
   pMsg->bEnded = false;
   pMsg->endStartCodeCB = endStartCodeCB;
-
-  pMsg->fd = open(deviceFile, O_RDWR);
+  pMsg->driver = decChanMcu->driver;
+  pMsg->fd = AL_Driver_Open(pMsg->driver, deviceFile);
 
   if(pMsg->fd < 0)
   {
-    perror("Cannot open device file");
-    printf("%s\n", deviceFile);
+    fprintf(stderr, "Cannot open device file %s: %s\n", deviceFile, strerror(errno));
     goto fail_open;
   }
 
   setSearchStartCodeMsg(&search_msg, pScParam, pBufAddrs);
 
-  if(!PostMessage(pMsg->fd, AL_MCU_SEARCH_START_CODE, &search_msg))
+  if(AL_Driver_PostMessage(decChanMcu->driver, pMsg->fd, AL_MCU_SEARCH_START_CODE, &search_msg) != DRIVER_SUCCESS)
   {
     perror("Failed to search start code");
     goto fail_open;
@@ -524,7 +490,7 @@ static void DecChannelMcu_SearchSC(AL_TIDecChannel* pDecChannel, AL_TScParam* pS
   return;
 
   fail_open:
-  close(pMsg->fd);
+  AL_Driver_Close(pMsg->driver, pMsg->fd);
   Rtos_Free(pMsg);
   fail_msg:
   Rtos_Free(pEvent);
@@ -540,7 +506,7 @@ static void prepareDecodeMessage(struct al5_decode_msg* msg, AL_TDecPicParam* pP
   msg->slice_param_v = hSliceParam->uPhysicalAddr + DCACHE_OFFSET;
 }
 
-/****************************************************************************/
+
 // TODO return error
 static void DecChannelMcu_DecodeOneFrame(AL_TIDecChannel* pDecChannel, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* hSliceParam)
 {
@@ -553,11 +519,11 @@ static void DecChannelMcu_DecodeOneFrame(AL_TIDecChannel* pDecChannel, AL_TDecPi
   struct al5_decode_msg msg = { 0 };
   prepareDecodeMessage(&msg, pPictParam, pPictAddrs, hSliceParam);
 
-  if(!PostMessage(chan->fd, AL_MCU_DECODE_ONE_FRM, &msg))
+  if(AL_Driver_PostMessage(decChanMcu->driver, chan->fd, AL_MCU_DECODE_ONE_FRM, &msg) != DRIVER_SUCCESS)
     perror("Failed to decode");
 }
 
-/****************************************************************************/
+
 static void DecChannelMcu_DecodeOneSlice(AL_TIDecChannel* pDecChannel, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* hSliceParam)
 {
   struct DecChanMcuCtx* decChanMcu = (struct DecChanMcuCtx*)pDecChannel;
@@ -569,12 +535,11 @@ static void DecChannelMcu_DecodeOneSlice(AL_TIDecChannel* pDecChannel, AL_TDecPi
   struct al5_decode_msg msg = { 0 };
   prepareDecodeMessage(&msg, pPictParam, pPictAddrs, hSliceParam);
 
-  if(!PostMessage(chan->fd, AL_MCU_DECODE_ONE_SLICE, &msg))
+  if(AL_Driver_PostMessage(decChanMcu->driver, chan->fd, AL_MCU_DECODE_ONE_SLICE, &msg) != DRIVER_SUCCESS)
     perror("Failed to decode");
 }
 
 
-/******************************************************************************/
 static const AL_TIDecChannelVtable DecChannelMcu =
 {
   DecChannelMcu_Destroy,
@@ -584,8 +549,7 @@ static const AL_TIDecChannelVtable DecChannelMcu =
   DecChannelMcu_DecodeOneSlice,
 };
 
-/******************************************************************************/
-AL_TIDecChannel* AL_DecChannelMcu_Create()
+AL_TIDecChannel* AL_DecChannelMcu_Create(AL_TDriver* driver)
 {
   struct DecChanMcuCtx* decChannel = Rtos_Malloc(sizeof(*decChannel));
 
@@ -599,13 +563,16 @@ AL_TIDecChannel* AL_DecChannelMcu_Create()
     return NULL;
   }
 
+  decChannel->driver = driver;
+
   return (AL_TIDecChannel*)decChannel;
 }
 
 #else
 
-AL_TIDecChannel* AL_DecChannelMcu_Create()
+AL_TIDecChannel* AL_DecChannelMcu_Create(AL_TDriver* driver)
 {
+  (void)driver;
   return NULL;
 }
 

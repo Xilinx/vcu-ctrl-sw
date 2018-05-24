@@ -24,13 +24,13 @@ endif
 $(BIN)/%.cpp.o: %.cpp
 	@mkdir -p $(dir $@)
 	$(Q)$(CXX) $(CFLAGS) $(INCLUDES) -std=c++11 -o $@ -c $<
-	@$(CXX) -MM "$<" -MT "$@" -o "$(BIN)/$*_cpp.deps" $(INCLUDES) $(CFLAGS) -std=c++11
+	@$(CXX) -MP -MM "$<" -MT "$@" -o "$(BIN)/$*_cpp.deps" $(INCLUDES) $(CFLAGS) -std=c++11
 	@echo "CXX $<"
 
 $(BIN)/%.c.o: %.c
 	@mkdir -p $(dir $@)
 	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -std=gnu99 -o $@ -c $<
-	@$(CC) -MM "$<" -MT "$@" -o "$(BIN)/$*_c.deps" $(INCLUDES) $(CFLAGS)
+	@$(CC) -MP -MM "$<" -MT "$@" -o "$(BIN)/$*_c.deps" $(INCLUDES) $(CFLAGS)
 	@echo "CC $<"
 
 $(BIN)/%.a:

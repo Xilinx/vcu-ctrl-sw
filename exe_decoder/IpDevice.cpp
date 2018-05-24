@@ -46,13 +46,14 @@
 extern "C"
 {
 #include "lib_fpga/DmaAlloc.h"
+#include "lib_perfs/Logger.h"
 }
 
 using namespace std;
 
 AL_TAllocator* createDmaAllocator(const char* deviceName)
 {
-  auto h = DmaAlloc_Create(deviceName);
+  auto h = AL_DmaAlloc_Create(deviceName);
 
   if(h == nullptr)
     throw runtime_error("Can't find dma allocator (trying to use " + string(deviceName) + ")");
@@ -62,7 +63,8 @@ AL_TAllocator* createDmaAllocator(const char* deviceName)
 
 extern "C"
 {
-AL_TIDecChannel* AL_DecChannelMcu_Create();
+#include "lib_common/HardwareDriver.h"
+AL_TIDecChannel* AL_DecChannelMcu_Create(AL_TDriver*);
 }
 
 static unique_ptr<CIpDevice> createMcuIpDevice()
@@ -74,7 +76,7 @@ static unique_ptr<CIpDevice> createMcuIpDevice()
   if(!device->m_pAllocator)
     throw runtime_error("Can't open DMA allocator");
 
-  device->m_pDecChannel = AL_DecChannelMcu_Create();
+  device->m_pDecChannel = AL_DecChannelMcu_Create(AL_GetHardwareDriver());
 
   if(!device->m_pDecChannel)
     throw runtime_error("Failed to create MCU scheduler");
@@ -83,9 +85,9 @@ static unique_ptr<CIpDevice> createMcuIpDevice()
 }
 
 
-shared_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, AL_EDecUnit eDecUnit, function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl, bool trackDma, int uNumCore, int hangers)
+shared_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl, bool trackDma, int uNumCore, int hangers)
 {
-  (void)iUseBoard, (void)eDecUnit, (void)wrapIpCtrl, (void)uNumCore, (void)trackDma, (void)hangers;
+  (void)iUseBoard, (void)wrapIpCtrl, (void)uNumCore, (void)trackDma, (void)hangers;
 
 
 

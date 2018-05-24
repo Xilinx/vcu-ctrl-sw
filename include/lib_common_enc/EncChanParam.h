@@ -35,13 +35,11 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \addtogroup lib_base
+/**************************************************************************//*!
+   \addtogroup Encoder_Settings
    @{
    \file
- *****************************************************************************/
+******************************************************************************/
 
 #pragma once
 
@@ -56,7 +54,7 @@ typedef struct t_BufInfo
   uint32_t Flag;
   size_t Size;
   size_t Offset;
-}TBufInfo;
+}AL_TBufInfo;
 
 /*************************************************************************//*!
    \brief Lambda Control Mode
@@ -166,6 +164,7 @@ typedef enum __AL_ALIGNED__ (4) AL_e_ChEncOptions
   AL_OPT_LOWLAT_SYNC = 0x00040000,
   AL_OPT_LOWLAT_INT = 0x00080000,
   AL_OPT_RDO_COST_MODE = 0x00100000,
+  AL_OPT_HIGH_FREQ = 0x08000000,
 } AL_EChEncOption;
 
 /*************************************************************************//*!
@@ -177,6 +176,7 @@ typedef enum __AL_ALIGNED__ (4) AL_e_RateCtrlMode
   AL_RC_CBR = 0x01,
   AL_RC_VBR = 0x02,
   AL_RC_LOW_LATENCY = 0x03,
+  AL_RC_CAPPED_VBR = 0x04,
   AL_RC_BYPASS = 0x3F,
   AL_RC_PLUGIN = 0x40,
   AL_TEST_RC_FILLER = 0xF1,
@@ -214,7 +214,13 @@ typedef struct __AL_ALIGNED__ (4) AL_t_RCParam
   int16_t uPGoldenDelta;
   int16_t uGoldenRefFrequency;
   AL_ERateCtrlOption eOptions;
+  uint32_t uNumPel;
+  uint16_t uMaxPSNR;
+  uint8_t uMaxPelVal;
+  uint32_t uMaxPictureSize;
 } AL_TRCParam;
+
+#define AL_IS_HWRC_ENABLED(tRCParam) (((tRCParam).eRCMode == AL_RC_LOW_LATENCY) || (tRCParam).uMaxPictureSize)
 
 #define MAX_LOW_DELAY_B_GOP_LENGTH 4
 #define MIN_LOW_DELAY_B_GOP_LENGTH 1
@@ -225,6 +231,7 @@ typedef enum __AL_ALIGNED__ (4) AL_e_GopCtrlMode
 {
   AL_GOP_MODE_DEFAULT = 0x00,
   AL_GOP_MODE_PYRAMIDAL = 0x01,
+  AL_GOP_MODE_ADAPTIVE = 0x02,
 
   AL_GOP_MODE_BYPASS = 0x7F,
 
@@ -256,12 +263,13 @@ typedef struct AL_t_GopFrm
 typedef struct AL_t_GopParam
 {
   AL_EGopCtrlMode eMode;
-  uint32_t uFreqIDR;
-  uint32_t uFreqLT;
-  AL_EGdrMode eGdrMode;
   uint16_t uGopLength;
   uint8_t uNumB;
   uint8_t uFreqGoldenRef;
+  uint32_t uFreqIDR;
+  bool bEnableLT;
+  uint32_t uFreqLT;
+  AL_EGdrMode eGdrMode;
 }AL_TGopParam;
 
 /*************************************************************************//*!
@@ -288,6 +296,15 @@ typedef enum e_SrcConvMode // [0] : CompMode | [3:1] : SourceFormat
   AL_SRC_MAX_ENUM,
 }AL_ESrcMode;
 
+/*************************************************************************//*!
+   \brief Video Mode
+*****************************************************************************/
+typedef enum AL_e_VideoMode
+{
+  AL_VM_PROGRESSIVE = 0, /*!< Progressive */
+  AL_VM_MAX_ENUM
+}AL_EVideoMode;
+
 #define MASK_SRC_COMP 0x01
 #define MASK_SRC_FMT 0x0E
 
@@ -297,17 +314,25 @@ typedef enum e_SrcConvMode // [0] : CompMode | [3:1] : SourceFormat
 #define AL_SET_COMP_MODE(SrcConvFmt, CompMode) (SrcConvFmt) = ((SrcConvFmt) & ~MASK_SRC_COMP) | ((CompMode) & MASK_SRC_COMP)
 #define AL_SET_SRC_FMT(SrcConvFmt, SrcFmt) (SrcConvFmt) = ((SrcConvFmt) & ~MASK_SRC_FMT) | (((SrcFmt) << 1) & MASK_SRC_FMT)
 
+#define AL_IS_L2P_DISABLED(iPrefetchLevel2) (iPrefetchLevel2 == 0)
+
 /*************************************************************************//*!
    \brief Channel parameters structure
 *****************************************************************************/
 typedef struct __AL_ALIGNED__ (4) AL_t_EncChanParam
 {
-  /* picture resolution */
+  int iLayerID;
+
+  /* Output resolution */
   uint16_t uWidth;
   uint16_t uHeight;
+
+
+  AL_EVideoMode eVideoMode;
   AL_EPicFormat ePicFormat;
   AL_EColorSpace eColorSpace;
   AL_ESrcMode eSrcMode;
+  uint8_t uEncodingBitDepth;
 
   /* encoding profile/level */
   AL_EProfile eProfile;
@@ -336,7 +361,6 @@ typedef struct __AL_ALIGNED__ (4) AL_t_EncChanParam
   uint16_t uNumSlices;
 
   /* L2 prefetch parameters */
-  bool bL2PrefetchAuto;
   uint32_t uL2PrefetchMemOffset;
   uint32_t uL2PrefetchMemSize;
   uint16_t uClipHrzRange;
@@ -360,15 +384,24 @@ typedef struct __AL_ALIGNED__ (4) AL_t_EncChanParam
 
 
 
+
   /* Gop & Rate control parameters */
   AL_TRCParam tRCParam;
   AL_TGopParam tGopParam;
   bool bSubframeLatency;
   AL_ELdaCtrlMode eLdaCtrlMode;
+
 } AL_TEncChanParam;
 
 #define AL_GetWidthInLCU(tChParam) (((tChParam).uWidth + (1 << (tChParam).uMaxCuSize) - 1) >> (tChParam).uMaxCuSize)
 #define AL_GetHeightInLCU(tChParam) (((tChParam).uHeight + (1 << (tChParam).uMaxCuSize) - 1) >> (tChParam).uMaxCuSize)
+
+#define AL_ENTCOMP(tChParam) false
+
+#define AL_GetSrcWidth(tChParam) ((tChParam).uWidth)
+#define AL_GetSrcHeight(tChParam) ((tChParam).uHeight)
+#define AL_SetSrcWidth(tChParam, _uSrcWidth) ((tChParam)->uWidth = (_uSrcWidth))
+#define AL_SetSrcHeight(tChParam, _uSrcHeight) ((tChParam)->uHeight = (_uSrcHeight))
 
 /*@}*/
 

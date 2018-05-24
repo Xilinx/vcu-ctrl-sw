@@ -80,16 +80,63 @@ static const AL_AllocatorVtable s_DefaultAllocatorVtable =
   NULL,
 };
 
-static AL_TAllocator s_DefaultAllocator =
+typedef struct
 {
-  &s_DefaultAllocatorVtable
-};
+  uint8_t* pData;
+  void* pUserData;
+  void (* destructor)(void* pUserData, uint8_t* pData);
+}AL_TWrapperHandle;
+
+static AL_HANDLE WrapData(AL_TAllocator* pAllocator, uint8_t* pData, void (* destructor)(void* pUserData, uint8_t* pData), void* pUserData)
+{
+  (void)pAllocator;
+  AL_TWrapperHandle* h = Rtos_Malloc(sizeof(*h));
+
+  if(!h)
+    return NULL;
+  h->pData = pData;
+  h->pUserData = pUserData;
+  h->destructor = destructor;
+  return (AL_HANDLE)h;
+}
+
+static void WrapperFree(void* pUserParam, uint8_t* pData)
+{
+  (void)pUserParam;
+  Rtos_Free(pData);
+}
+
+static AL_HANDLE AL_sWrapperAllocator_Alloc(AL_TAllocator* pAllocator, size_t zSize)
+{
+  uint8_t* pData = Rtos_Malloc(zSize);
+
+  if(!pData)
+    return NULL;
+  return WrapData(pAllocator, pData, WrapperFree, NULL);
+}
+
+static bool AL_sWrapperAllocator_Free(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
+{
+  (void)pAllocator;
+  AL_TWrapperHandle* h = (AL_TWrapperHandle*)hBuf;
+
+  if(h->destructor)
+    h->destructor(h->pUserData, h->pData);
+  Rtos_Free(h);
+  return true;
+}
+
+static AL_VADDR AL_sWrapperAllocator_GetVirtualAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
+{
+  (void)pAllocator;
+  AL_TWrapperHandle* h = (AL_TWrapperHandle*)hBuf;
+  return h->pData;
+}
 
 static AL_PADDR AL_sWrapperAllocator_GetPhysicalAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
 {
   /* The wrapped data doesn't have a physical address */
-  (void)pAllocator;
-  (void)hBuf;
+  (void)pAllocator, (void)hBuf;
   assert(0);
   return (AL_PADDR)0xdeaddead;
 }
@@ -97,9 +144,9 @@ static AL_PADDR AL_sWrapperAllocator_GetPhysicalAddr(AL_TAllocator* pAllocator, 
 static const AL_AllocatorVtable s_WrapperAllocatorVtable =
 {
   NULL,
-  AL_sDefaultAllocator_Alloc,
-  NULL,
-  AL_sDefaultAllocator_GetVirtualAddr,
+  AL_sWrapperAllocator_Alloc,
+  AL_sWrapperAllocator_Free,
+  AL_sWrapperAllocator_GetVirtualAddr,
   AL_sWrapperAllocator_GetPhysicalAddr,
   NULL,
 };
@@ -109,19 +156,25 @@ static AL_TAllocator s_WrapperAllocator =
   &s_WrapperAllocatorVtable
 };
 
+static AL_TAllocator s_DefaultAllocator =
+{
+  &s_DefaultAllocatorVtable
+};
+
+/*****************************************************************************/
 AL_TAllocator* AL_GetWrapperAllocator()
 {
   return &s_WrapperAllocator;
-}
-
-AL_HANDLE AL_WrapperAllocator_WrapData(uint8_t* pData)
-{
-  return (AL_HANDLE)pData;
 }
 
 /*****************************************************************************/
 AL_TAllocator* AL_GetDefaultAllocator()
 {
   return &s_DefaultAllocator;
+}
+
+AL_HANDLE AL_WrapperAllocator_WrapData(uint8_t* pData, void (* destructor)(void* pUserData, uint8_t* pData), void* pUserData)
+{
+  return WrapData(AL_GetWrapperAllocator(), pData, destructor, pUserData);
 }
 

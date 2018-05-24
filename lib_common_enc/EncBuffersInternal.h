@@ -37,10 +37,11 @@
 
 #pragma once
 #include "lib_common_enc/EncBuffers.h"
+#include "lib_common/BufCommonInternal.h"
 #include "EncEPBuffer.h"
-#include "lib_preprocess/ChooseLda.h"
+#include "lib_common_enc/ChooseLda.h"
 
-#define ENC_MAX_CMD (AL_MAX_NUM_B_PICT + 2)
+#define ENC_MAX_CMD (AL_MAX_NUM_B_PICT + 3)
 
 /*************************************************************************//*!
    \brief Retrieves the maximum size of one NAL unit
@@ -51,38 +52,27 @@
 *****************************************************************************/
 uint32_t GetMaxLCU(uint16_t uWidth, uint16_t uHeight, uint8_t uMaxCuSize);
 
-/* see ChooseLda.h for EP1_BUF_LAMBDAS */
-// Encoder Parameter Buf 1 Flag,  Size, Offset
-static const TBufInfo EP1_BUF_PROBAS_I =
-{
-  2, 2048, 256
-}; // only for VP9
-static const TBufInfo EP1_BUF_PROBAS_P =
-{
-  4, 2048, 2304
-}; // only for VP9
-static const TBufInfo EP1_BUF_COUNTER =
-{
-  8, 8192, 4352
-}; // only for VP9
-static const TBufInfo EP1_BUF_SCL_LST =
+static const AL_TBufInfo EP1_BUF_SCL_LST =
 {
   16, 25344, 256
 };
 
-static const TBufInfo EP3_BUF_RC_TABLE1 =
+/* see ChooseLda.h for EP1_BUF_LAMBDAS */
+// Encoder Parameter Buf 1 Flag,  Size, Offset
+
+static const AL_TBufInfo EP3_BUF_RC_TABLE1 =
 {
   1, 512, 0
 };
-static const TBufInfo EP3_BUF_RC_TABLE2 =
+static const AL_TBufInfo EP3_BUF_RC_TABLE2 =
 {
   2, 512, 512
 };
-static const TBufInfo EP3_BUF_RC_CTX =
+static const AL_TBufInfo EP3_BUF_RC_CTX =
 {
   4, 4096, 1024
 }; // no fixed size with max = 4096
-static const TBufInfo EP3_BUF_RC_LVL =
+static const AL_TBufInfo EP3_BUF_RC_LVL =
 {
   8, 32, 5120
 };
@@ -91,13 +81,13 @@ static const TBufInfo EP3_BUF_RC_LVL =
    \brief  Retrieves the size of a QP parameters buffer 1 (Lda + SclMtx)
    \return maximum size (in bytes) needed to store
 *****************************************************************************/
-uint32_t GetAllocSizeEP1();
+uint32_t AL_GetAllocSizeEP1();
 
 /*************************************************************************//*!
    \brief  Retrieves the size of a Encoder parameters buffer 3 (HW RateCtrl)
    \return maximum size (in bytes) needed to store
 *****************************************************************************/
-uint32_t GetAllocSizeEP3();
+uint32_t AL_GetAllocSizeEP3();
 
 static const size_t MVBUFF_PL_OFFSET[2] =
 {
@@ -125,28 +115,31 @@ uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, AL_
    \brief Retrieves the size of a compressed buffer(LCU header + MVDs + Residuals)
    \param[in] tDim Frame dimensions
    \param[in] uLCUSize Max size of a coding unit
+   \param[in] uBitDepth YUV bit-depth
+   \param[in] eChromaMode Chroma Mode
    \param[in] bUseEnt Do we use entropy compression
    \return maximum size (in bytes) needed for the compressed buffer
 *****************************************************************************/
-uint32_t GetAllocSize_CompData(AL_TDimension tDim, uint8_t uLCUSize, bool bUseEnt);
+uint32_t AL_GetAllocSize_CompData(AL_TDimension tDim, uint8_t uLcuSize, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bUseEnt);
 
 /*************************************************************************//*!
    \brief Retrieves the offset of the current LCU Hdr_MVDs words
    \param[in] tDim Frame dimensions
    \param[in] uLCUSize Max size of a coding unit
+   \param[in] uNumCore number of core used by the channel
    \param[in] bUseEnt Do we use entropy compression
    \return maximum size (in bytes) needed for the LCU Info buffer
 *****************************************************************************/
-uint32_t GetAllocSize_CompMap(AL_TDimension tDim, uint8_t uLCUSize, bool bUseEnt);
+uint32_t AL_GetAllocSize_EncCompMap(AL_TDimension tDim, uint8_t uLcuSize, uint8_t uNumCore, bool bUseEnt);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a colocated frame buffer
    \param[in] tDim Frame dimensions
-   \param[in] uLcuSize Max size of a coding unit
+   \param[in] uLCUSize Max size of a coding unit
    \param[in] Codec Flag which specifies the codec used
    \return the size (in bytes) needed for the colocated frame buffer
 *****************************************************************************/
-uint32_t GetAllocSize_MV(AL_TDimension tDim, uint8_t uLcuSize, AL_ECodec Codec);
+uint32_t AL_GetAllocSize_MV(AL_TDimension tDim, uint8_t uLcuSize, AL_ECodec Codec);
 
 /*************************************************************************//*!
    \brief Retrieves the size of an entry_points size buffer
@@ -155,9 +148,9 @@ uint32_t GetAllocSize_MV(AL_TDimension tDim, uint8_t uLcuSize, AL_ECodec Codec);
    \param[in] uNumCore Number of used core
    \return the size (in bytes) needed for the entry_points size buffer
 *****************************************************************************/
-uint32_t GetAllocSize_WPP(int iLCUHeight, int iNumSlices, uint8_t uNumCore);
+uint32_t AL_GetAllocSize_WPP(int iLCUHeight, int iNumSlices, uint8_t uNumCore);
 
-uint32_t GetAllocSize_SliceSize(uint32_t uWidth, uint32_t uHeight, uint32_t uNumSlices, uint32_t uMaxCuSize);
+uint32_t AL_GetAllocSize_SliceSize(uint32_t uWidth, uint32_t uHeight, uint32_t uNumSlices, uint32_t uMaxCuSize);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a stream part size buffer
@@ -167,4 +160,14 @@ uint32_t GetAllocSize_SliceSize(uint32_t uWidth, uint32_t uHeight, uint32_t uNum
    \return the size (in bytes) needed for the entry_points size buffer
 *****************************************************************************/
 uint32_t GetAllocSize_StreamPart(int iLCUHeight, int iNumSlices, int iSliceSize);
+
+/*************************************************************************//*!
+   \brief Retrieves the size of a Source YUV frame buffer
+   \param[in] tDim Frame size in pixels
+   \param[in] uBitDepth YUV bit-depth
+   \param[in] eChromaMode Chroma Mode
+   \param[in] eStorageMode Source Storage Mode
+   \return maximum size (in bytes) needed for the YUV frame buffer
+*****************************************************************************/
+uint32_t AL_GetAllocSizeSrcNoFbc(AL_TDimension tDim, AL_EChromaMode eChromaMode, AL_EFbStorageMode eStorageMode, int iPitch, int iChromaOffset);
 

@@ -46,7 +46,8 @@ public:
   CommandsSender(AL_HEncoder hEnc) : hEnc(hEnc) {};
   ~CommandsSender() {};
   virtual void notifySceneChange(int lookAhead);
-  virtual void notifyLongTerm();
+  virtual void notifyIsLongTerm();
+  virtual void notifyUseLongTerm();
   virtual void restartGop();
   virtual void setGopLength(int gopLength);
   virtual void setNumB(int numB);

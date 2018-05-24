@@ -46,8 +46,9 @@ typedef struct
 {
   int width;
   int height;
+  AL_TPicFormat picFmt;
+  AL_ESrcMode srcMode;
   TFourCC fourCC;
-  int minimumSize;
 }AL_TSrcBufferChecker;
 
 void AL_SrcBuffersChecker_Init(AL_TSrcBufferChecker* pCtx, AL_TEncChanParam const* pChParam);

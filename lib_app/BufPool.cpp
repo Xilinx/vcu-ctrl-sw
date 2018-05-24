@@ -45,8 +45,6 @@ extern "C"
 
 #include "BufPool.h"
 
-/* lockless, one producer, one consumer */
-
 static bool Fifo_Init(App_Fifo* pFifo, size_t zMaxElem);
 static void Fifo_Deinit(App_Fifo* pFifo);
 static bool Fifo_Queue(App_Fifo* pFifo, void* pElem, uint32_t uWait);
@@ -60,45 +58,48 @@ static void FreeBufInPool(AL_TBuffer* pBuf)
   Fifo_Queue(&pBufPool->fifo, pBuf, AL_WAIT_FOREVER);
 }
 
-/****************************************************************************/
-static bool AL_sBufPool_AllocBuf(AL_TBufPool* pBufPool)
+static AL_TBuffer* CreateBuffer(AL_TBufPoolConfig& config, AL_TAllocator* pAllocator)
 {
   AL_TMetaData* pMeta = NULL;
 
-  assert(pBufPool->uNumBuf < pBufPool->config.uNumBuf);
-
-  AL_TBuffer* pBuf = AL_Buffer_Create_And_AllocateNamed(pBufPool->pAllocator, pBufPool->config.zBufSize, FreeBufInPool, pBufPool->config.debugName);
+  AL_TBuffer* pBuf = AL_Buffer_Create_And_AllocateNamed(pAllocator, config.zBufSize, FreeBufInPool, config.debugName);
 
   if(!pBuf)
     goto fail_buffer_init;
 
-  AL_Buffer_SetUserData(pBuf, pBufPool);
-
-  if(pBufPool->config.pMetaData)
+  if(config.pMetaData)
   {
-    pMeta = AL_MetaData_Clone(pBufPool->config.pMetaData);
+    pMeta = AL_MetaData_Clone(config.pMetaData);
 
     if(!pMeta)
-      return false;
+      goto fail_meta_clone;
 
     if(!AL_Buffer_AddMetaData(pBuf, pMeta))
       goto fail_buffer_add_meta;
   }
 
-  pBufPool->pPool[pBufPool->uNumBuf++] = pBuf;
-
-  Fifo_Queue(&pBufPool->fifo, pBuf, AL_WAIT_FOREVER);
-
-  return true;
+  return pBuf;
 
   fail_buffer_add_meta:
-  AL_Allocator_Free(pBufPool->pAllocator, pBuf);
+  pMeta->MetaDestroy(pMeta);
+  fail_meta_clone:
   AL_Buffer_Destroy(pBuf);
   fail_buffer_init:
+  return NULL;
+}
 
-  if(pMeta)
-    pMeta->MetaDestroy(pMeta);
-  return false;
+/****************************************************************************/
+static bool AL_sBufPool_AllocBuf(AL_TBufPool* pBufPool)
+{
+  assert(pBufPool->uNumBuf < pBufPool->config.uNumBuf);
+  AL_TBuffer* pBuf = CreateBuffer(pBufPool->config, pBufPool->pAllocator);
+
+  if(!pBuf)
+    return false;
+  AL_Buffer_SetUserData(pBuf, pBufPool);
+  pBufPool->pPool[pBufPool->uNumBuf++] = pBuf;
+  Fifo_Queue(&pBufPool->fifo, pBuf, AL_WAIT_FOREVER);
+  return true;
 }
 
 bool AL_BufPool_Init(AL_TBufPool* pBufPool, AL_TAllocator* pAllocator, AL_TBufPoolConfig* pConfig)
@@ -145,7 +146,6 @@ void AL_BufPool_Deinit(AL_TBufPool* pBufPool)
   for(int u = 0; u < pBufPool->uNumBuf; ++u)
   {
     AL_TBuffer* pBuf = pBufPool->pPool[u];
-    AL_Allocator_Free(pBufPool->pAllocator, pBuf->hBuf);
     AL_Buffer_Destroy(pBuf);
     pBufPool->pPool[u] = NULL;
   }
@@ -277,5 +277,24 @@ static void Fifo_Decommit(App_Fifo* pFifo)
   pFifo->m_isDecommited = true;
   Rtos_SetEvent(pFifo->hEvent);
   Rtos_ReleaseMutex(pFifo->hMutex);
+}
+
+uint32_t AL_GetWaitMode(AL_EBufMode eMode)
+{
+  uint32_t Wait = 0;
+  switch(eMode)
+  {
+  case AL_BUF_MODE_BLOCK:
+    Wait = AL_WAIT_FOREVER;
+    break;
+  case AL_BUF_MODE_NONBLOCK:
+    Wait = AL_NO_WAIT;
+    break;
+  default:
+    assert(eMode >= AL_BUF_MODE_MAX);
+    break;
+  }
+
+  return Wait;
 }
 

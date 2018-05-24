@@ -42,34 +42,25 @@
 #include "EncCmdMngr.h"
 #include "CommandsSender.h"
 
-static bool PreprocessQP(uint8_t* pQPs, const AL_TEncSettings& Settings, int iFrameCountSent)
+#include "FileUtils.h"
+
+static bool PreprocessQP(uint8_t* pQPs, const AL_TEncSettings& Settings, const AL_TEncChanParam& tChParam, int iFrameCountSent)
 {
   uint8_t* pSegs = NULL;
-  return GenerateQPBuffer(Settings.eQpCtrlMode, Settings.tChParam.tRCParam.iInitialQP,
-                          Settings.tChParam.tRCParam.iMinQP, Settings.tChParam.tRCParam.iMaxQP,
-                          AL_GetWidthInLCU(Settings.tChParam), AL_GetHeightInLCU(Settings.tChParam),
-                          Settings.tChParam.eProfile, iFrameCountSent, pQPs + EP2_BUF_QP_BY_MB.Offset, pSegs);
+  return GenerateQPBuffer(Settings.eQpCtrlMode, tChParam.tRCParam.iInitialQP,
+                          tChParam.tRCParam.iMinQP, tChParam.tRCParam.iMaxQP,
+                          AL_GetWidthInLCU(tChParam), AL_GetHeightInLCU(tChParam),
+                          tChParam.eProfile, iFrameCountSent, pQPs + EP2_BUF_QP_BY_MB.Offset, pSegs);
 }
 
 class QPBuffers
 {
 public:
-  QPBuffers(BufPool& bufpool, const AL_TEncSettings& settings) :
+  QPBuffers(BufPool& bufpool, const AL_TEncSettings& settings, const AL_TEncChanParam& tChParam) :
     bufpool(bufpool), isExternQpTable(settings.eQpCtrlMode & (MASK_QP_TABLE_EXT)), settings(settings)
   {
-    auto& tChParam = settings.tChParam;
     pRoiCtx = AL_RoiMngr_Create(tChParam.uWidth, tChParam.uHeight, tChParam.eProfile, AL_ROI_QUALITY_LOW, AL_ROI_QUALITY_ORDER);
-    // set QpBuf memory to 0 for traces
-    std::vector<AL_TBuffer*> qpBufs;
-
-    while(auto curQp = bufpool.GetBuffer(AL_BUF_MODE_NONBLOCK))
-    {
-      qpBufs.push_back(curQp);
-      Rtos_Memset(AL_Buffer_GetData(curQp), 0, curQp->zSize);
-    }
-
-    for(auto qpBuf : qpBufs)
-      AL_Buffer_Unref(qpBuf);
+    initQpBuffers(bufpool);
   }
 
   ~QPBuffers()
@@ -77,25 +68,10 @@ public:
     AL_RoiMngr_Destroy(pRoiCtx);
   }
 
+
   AL_TBuffer* getBuffer(int frameNum)
   {
-    if(!isExternQpTable)
-      return nullptr;
-
-    AL_TBuffer* QpBuf = bufpool.GetBuffer();
-    bool bRet = PreprocessQP(AL_Buffer_GetData(QpBuf), settings, frameNum);
-
-    if(!bRet)
-      bRet = GenerateROIBuffer(pRoiCtx, sRoiFileName, AL_GetWidthInLCU(settings.tChParam), AL_GetHeightInLCU(settings.tChParam),
-                               settings.tChParam.eProfile, frameNum, AL_Buffer_GetData(QpBuf) + EP2_BUF_QP_BY_MB.Offset);
-
-    if(!bRet)
-    {
-      releaseBuffer(QpBuf);
-      return nullptr;
-    }
-
-    return QpBuf;
+    return getBuffer(frameNum, &bufpool, settings.tChParam[0]);
   }
 
   void releaseBuffer(AL_TBuffer* buffer)
@@ -112,6 +88,43 @@ public:
 
 
 private:
+  void initQpBuffers(BufPool& BufPool)
+  {
+    // set QpBuf memory to 0 for traces
+    std::vector<AL_TBuffer*> qpBufs;
+
+    while(auto curQp = BufPool.GetBuffer(AL_BUF_MODE_NONBLOCK))
+    {
+      qpBufs.push_back(curQp);
+      Rtos_Memset(AL_Buffer_GetData(curQp), 0, curQp->zSize);
+    }
+
+    for(auto qpBuf : qpBufs)
+      AL_Buffer_Unref(qpBuf);
+  }
+
+  AL_TBuffer* getBuffer(int frameNum, BufPool* pBufPool, const AL_TEncChanParam& tChParam)
+  {
+    if(!isExternQpTable)
+      return nullptr;
+
+    AL_TBuffer* pQpBuf = pBufPool->GetBuffer();
+    bool bRet = PreprocessQP(AL_Buffer_GetData(pQpBuf), settings, tChParam, frameNum);
+
+    if(!bRet)
+      bRet = GenerateROIBuffer(pRoiCtx, sRoiFileName, AL_GetWidthInLCU(tChParam), AL_GetHeightInLCU(tChParam),
+                               tChParam.eProfile, frameNum, AL_Buffer_GetData(pQpBuf) + EP2_BUF_QP_BY_MB.Offset);
+
+    if(!bRet)
+    {
+      releaseBuffer(pQpBuf);
+      return nullptr;
+    }
+
+    return pQpBuf;
+  }
+
+private:
   BufPool& bufpool;
   bool isExternQpTable;
   const AL_TEncSettings& settings;
@@ -119,6 +132,7 @@ private:
   string sRoiFileName;
   AL_TRoiMngrCtx* pRoiCtx;
 };
+
 
 
 static AL_ERR g_EncoderLastError = AL_SUCCESS;
@@ -170,10 +184,11 @@ void ThrowEncoderError(AL_ERR eErr)
 
 struct EncoderSink : IFrameSink
 {
-  EncoderSink(ConfigFile const& cfg, TScheduler* pScheduler, AL_TAllocator* pAllocator, BufPool& qpBufPool) :
+  EncoderSink(ConfigFile const& cfg, TScheduler* pScheduler, AL_TAllocator* pAllocator, BufPool & qpBufPool
+              ) :
     CmdFile(cfg.sCmdFileName),
-    EncCmd(CmdFile, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam.tGopParam.uFreqLT),
-    qpBuffers(qpBufPool, cfg.Settings)
+    EncCmd(CmdFile, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
+    qpBuffers(qpBufPool, cfg.Settings, cfg.Settings.tChParam[0])
   {
     qpBuffers.setRoiFileName(cfg.sRoiFileName);
 
@@ -183,6 +198,7 @@ struct EncoderSink : IFrameSink
 
     if(errorCode)
       ThrowEncoderError(errorCode);
+
 
     commandsSender.reset(new CommandsSender(hEnc));
     BitstreamOutput.reset(new NullFrameSink);
@@ -197,6 +213,7 @@ struct EncoderSink : IFrameSink
 
     AL_Encoder_Destroy(hEnc);
   }
+
 
   std::function<void(void)> m_done;
 
@@ -215,17 +232,20 @@ struct EncoderSink : IFrameSink
     if(Src)
     {
       EncCmd.Process(commandsSender.get(), m_picCount);
+
+
       QpBuf = qpBuffers.getBuffer(m_picCount);
     }
+
+    shared_ptr<AL_TBuffer> QpBufShared(QpBuf, [&](AL_TBuffer* pBuf) { qpBuffers.releaseBuffer(pBuf); });
 
     if(!AL_Encoder_Process(hEnc, Src, QpBuf))
       throw runtime_error("Failed");
 
-    qpBuffers.releaseBuffer(QpBuf);
-
     if(Src)
       m_picCount++;
   }
+
 
   unique_ptr<IFrameSink> RecOutput;
   unique_ptr<IFrameSink> BitstreamOutput;
@@ -251,7 +271,7 @@ private:
     return !pStream && pSrc;
   }
 
-  static void EndEncoding(void* userParam, AL_TBuffer* pStream, AL_TBuffer const* pSrc)
+  static void EndEncoding(void* userParam, AL_TBuffer* pStream, AL_TBuffer const* pSrc, int)
   {
     auto pThis = (EncoderSink*)userParam;
 
@@ -261,10 +281,10 @@ private:
     pThis->processOutput(pStream);
   }
 
-  void processOutput(AL_TBuffer* pStream)
+  AL_ERR PreprocessOutput(AL_TBuffer* pStream)
   {
     if(AL_ERR eErr = AL_Encoder_GetLastError(hEnc))
-      ThrowEncoderError(eErr);
+      return eErr;
 
     if(pStream && m_pictureType != -1)
     {
@@ -273,6 +293,15 @@ private:
       Message(CC_DEFAULT, "Picture Type %i\n", m_pictureType);
     }
     BitstreamOutput->ProcessFrame(pStream);
+    return AL_SUCCESS;
+  }
+
+  void processOutput(AL_TBuffer* pStream)
+  {
+    auto eErr = PreprocessOutput(pStream);
+
+    if(eErr != AL_SUCCESS)
+      ThrowEncoderError(eErr);
 
     if(pStream)
     {
@@ -298,6 +327,7 @@ private:
       m_done();
     }
   }
+
 
   static AL_TBuffer* WrapBufferYuv(TBufferYuv* frame)
   {

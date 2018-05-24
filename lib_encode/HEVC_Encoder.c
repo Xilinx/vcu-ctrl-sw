@@ -40,34 +40,33 @@
 #include "lib_common/Utils.h"
 #include "lib_common/Error.h"
 
-static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_TBuffer* pStream)
+static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_TBuffer* pStream, int iLayerID)
 {
-  AL_HEVC_UpdatePPS(&pCtx->m_pps, pPicStatus);
-  HEVC_GenerateSections(pCtx, pStream, pPicStatus);
+  AL_HEVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, pPicStatus);
+  HEVC_GenerateSections(pCtx, pStream, pPicStatus, iLayerID);
 
   if(pPicStatus->eType == SLICE_I)
-    pCtx->m_seiData.cpbRemovalDelay = 0;
+    pCtx->seiData.cpbRemovalDelay = 0;
 
-  pCtx->m_seiData.cpbRemovalDelay += PictureDisplayToFieldNumber[pPicStatus->ePicStruct];
+  pCtx->seiData.cpbRemovalDelay += PictureDisplayToFieldNumber[pPicStatus->ePicStruct];
+}
+
+static bool shouldReleaseSource(AL_TEncPicStatus* p)
+{
+  (void)p;
+  return true;
 }
 
 /***************************************************************************/
-static void GenerateSkippedPictureData(AL_TEncCtx* pCtx)
+static void GenerateSkippedPictureData(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TSkippedPicture* pSkipPicture)
 {
-  pCtx->m_pSkippedPicture.pBuffer = (uint8_t*)Rtos_Malloc(2 * 1024);
-
-  assert(pCtx->m_pSkippedPicture.pBuffer);
-
-  pCtx->m_pSkippedPicture.iBufSize = 2 * 1024;
-  pCtx->m_pSkippedPicture.iNumBits = 0;
-  pCtx->m_pSkippedPicture.iNumBins = 0;
-
-  AL_HEVC_GenerateSkippedPicture(&(pCtx->m_pSkippedPicture),
-                                 pCtx->m_Settings.tChParam.uWidth,
-                                 pCtx->m_Settings.tChParam.uHeight,
-                                 pCtx->m_Settings.tChParam.uMaxCuSize,
-                                 pCtx->m_Settings.tChParam.uMinCuSize,
-                                 pCtx->m_iNumLCU);
+  AL_Common_Encoder_InitSkippedPicture(pSkipPicture);
+  AL_HEVC_GenerateSkippedPicture(pSkipPicture,
+                                 pChParam->uWidth,
+                                 pChParam->uHeight,
+                                 pChParam->uMaxCuSize,
+                                 pChParam->uMinCuSize,
+                                 pCtx->iNumLCU);
 }
 
 static void initHls(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
@@ -80,10 +79,10 @@ static void initHls(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
 
   AL_Common_Encoder_SetHlsParam(pChParam);
 
-  if(pCtx->m_Settings.bDependentSlice)
+  if(pCtx->Settings.bDependentSlice)
     pChParam->uPpsParam |= AL_PPS_SLICE_SEG_EN_FLAG;
 
-  if(pChParam->tGopParam.uFreqLT)
+  if(pChParam->tGopParam.uFreqLT || pChParam->tGopParam.bEnableLT)
     pChParam->uSpsParam |= AL_SPS_LOG2_NUM_LONG_TERM_RPS_MASK;
 }
 
@@ -109,7 +108,7 @@ static void ComputeQPInfo(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
     pChParam->tRCParam.iInitialQP = iInitQP;
   }
 
-  if(pChParam->tRCParam.eRCMode == AL_RC_VBR && pChParam->tRCParam.iMinQP == -1)
+  if((pChParam->tRCParam.eRCMode == AL_RC_VBR || pChParam->tRCParam.eRCMode == AL_RC_CAPPED_VBR) && pChParam->tRCParam.iMinQP == -1)
     pChParam->tRCParam.iMinQP = pChParam->tRCParam.iInitialQP - 8;
 
   if(pChParam->tRCParam.eRCMode != AL_RC_CONST_QP && pChParam->tRCParam.iMinQP < 10)
@@ -118,9 +117,9 @@ static void ComputeQPInfo(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
   if(pChParam->tRCParam.iMaxQP < pChParam->tRCParam.iMinQP)
     pChParam->tRCParam.iMaxQP = pChParam->tRCParam.iMinQP;
 
-  if(pCtx->m_Settings.eQpCtrlMode == RANDOM_QP
-     || pCtx->m_Settings.eQpCtrlMode == BORDER_QP
-     || pCtx->m_Settings.eQpCtrlMode == RAMP_QP)
+  if(pCtx->Settings.eQpCtrlMode == RANDOM_QP
+     || pCtx->Settings.eQpCtrlMode == BORDER_QP
+     || pCtx->Settings.eQpCtrlMode == RAMP_QP)
   {
     int iCbOffset = pChParam->iCbPicQpOffset + pChParam->iCbSliceQpOffset;
     int iCrOffset = pChParam->iCrPicQpOffset + pChParam->iCrSliceQpOffset;
@@ -131,37 +130,46 @@ static void ComputeQPInfo(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
   pChParam->tRCParam.iInitialQP = Clip3(pChParam->tRCParam.iInitialQP,
                                         pChParam->tRCParam.iMinQP,
                                         pChParam->tRCParam.iMaxQP);
+
+  if(pChParam->tRCParam.eRCMode == AL_RC_CAPPED_VBR)
+  {
+    pChParam->tRCParam.uMaxPelVal = AL_GET_BITDEPTH(pChParam->ePicFormat) == 8 ? 255 : 1023;
+    pChParam->tRCParam.uNumPel = pChParam->uWidth * pChParam->uHeight;
+  }
 }
 
-static void generateNals(AL_TEncCtx* pCtx)
+static void generateNals(AL_TEncCtx* pCtx, int iLayerID, bool bWriteVps)
 {
-  AL_TEncChanParam* pChParam = &pCtx->m_Settings.tChParam;
+  AL_TEncChanParam* pChParam = &pCtx->Settings.tChParam[iLayerID];
 
   uint32_t uCpbBitSize = (uint32_t)((uint64_t)pChParam->tRCParam.uCPBSize * (uint64_t)pChParam->tRCParam.uMaxBitRate / 90000LL);
-  AL_HEVC_GenerateSPS(&pCtx->m_sps, &pCtx->m_Settings, pCtx->m_iMaxNumRef, uCpbBitSize);
-  AL_HEVC_GeneratePPS(&pCtx->m_pps, &pCtx->m_Settings, pCtx->m_iMaxNumRef);
-  AL_HEVC_GenerateVPS(&pCtx->m_vps, &pCtx->m_Settings, pCtx->m_iMaxNumRef);
+  AL_HEVC_GenerateSPS(&pCtx->tLayerCtx[iLayerID].sps, &pCtx->Settings, pChParam, pCtx->iMaxNumRef, uCpbBitSize, iLayerID);
+  AL_HEVC_GeneratePPS(&pCtx->tLayerCtx[iLayerID].pps, &pCtx->Settings, pChParam, pCtx->iMaxNumRef, iLayerID);
 
-  if(pCtx->m_Settings.eScalingList != AL_SCL_FLAT)
-    AL_HEVC_PreprocessScalingList(&pCtx->m_sps.m_HevcSPS.scaling_list_param, &pCtx->m_tBufEP1);
+  if(bWriteVps)
+    AL_HEVC_GenerateVPS(&pCtx->vps, &pCtx->Settings, pCtx->iMaxNumRef);
 }
 
-static void ConfigureChannel(AL_TEncCtx* pCtx, AL_TEncSettings const* pSettings)
+static void ConfigureChannel(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TEncSettings const* pSettings)
 {
-  AL_TEncChanParam* pChParam = &pCtx->m_Settings.tChParam;
   initHls(pCtx, pChParam);
   SetMotionEstimationRange(pChParam);
   ComputeQPInfo(pCtx, pChParam);
 
   if(pSettings->eScalingList != AL_SCL_FLAT)
     pChParam->eOptions |= AL_OPT_SCL_LST;
+}
 
-  if(pSettings->tChParam.eLdaCtrlMode != DEFAULT_LDA)
-    pChParam->eOptions |= AL_OPT_CUSTOM_LDA;
+static void preprocessEp1(AL_TEncCtx* pCtx, TBufferEP* pEp1)
+{
+  if(pCtx->Settings.eScalingList != AL_SCL_FLAT)
+    AL_HEVC_PreprocessScalingList(&pCtx->tLayerCtx[0].sps.HevcSPS.scaling_list_param, pEp1);
 }
 
 void AL_CreateHevcEncoder(HighLevelEncoder* pCtx)
 {
+  pCtx->shouldReleaseSource = &shouldReleaseSource;
+  pCtx->preprocessEp1 = &preprocessEp1;
   pCtx->configureChannel = &ConfigureChannel;
   pCtx->generateSkippedPictureData = &GenerateSkippedPictureData;
   pCtx->generateNals = &generateNals;

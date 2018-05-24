@@ -95,7 +95,7 @@ int AL_GetAllocSize_AvcCompData(AL_TDimension tDim, AL_EChromaMode eChromaMode)
 }
 
 /****************************************************************************/
-int AL_GetAllocSize_CompMap(AL_TDimension tDim)
+int AL_GetAllocSize_DecCompMap(AL_TDimension tDim)
 {
   int iBlk16x16 = GetBlk16x16(tDim);
   return SIZE_LCU_INFO * iBlk16x16;
@@ -115,20 +115,26 @@ int AL_GetAllocSize_AvcMV(AL_TDimension tDim)
   return 16 * iNumBlk * sizeof(int32_t);
 }
 
-/*****************************************************************************/
-int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bFrameBufferCompression, AL_EFbStorageMode eFrameBufferStorageMode)
+int AL_DecGetAllocSize_Frame(AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode, bool bFbCompression, AL_EFbStorageMode eFbStorageMode)
 {
-  (void)bFrameBufferCompression;
+  (void)bFbCompression;
 
-  int iTotalSize = AL_GetAllocSize_DecReference(tDim, eChromaMode, uBitDepth, eFrameBufferStorageMode);
+  int iTotalSize = AL_GetAllocSize_DecReference(tDim, iPitch, eChromaMode, eFbStorageMode);
+
   return iTotalSize;
 }
 
 /*****************************************************************************/
-int AL_GetAllocSize_DecReference(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode)
+int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bFbCompression, AL_EFbStorageMode eFbStorageMode)
 {
-  int iPitch = RndPitch(tDim.iWidth, uBitDepth, eFrameBufferStorageMode);
-  int iSize = iPitch * RndHeight(tDim.iHeight) / GetNumLinesInPitch(eFrameBufferStorageMode);
+  int iPitch = RndPitch(tDim.iWidth, uBitDepth, eFbStorageMode);
+  return AL_DecGetAllocSize_Frame(tDim, iPitch, eChromaMode, bFbCompression, eFbStorageMode);
+}
+
+/*****************************************************************************/
+int AL_GetAllocSize_DecReference(AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode, AL_EFbStorageMode eFbStorageMode)
+{
+  int iSize = iPitch * RndHeight(tDim.iHeight) / AL_GetNumLinesInPitch(eFbStorageMode);
   switch(eChromaMode)
   {
   case CHROMA_4_2_0:

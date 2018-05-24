@@ -39,33 +39,8 @@
 #include "lib_common_enc/IpEncFourCC.h"
 #include <assert.h>
 
-/****************************************************************************/
-static TFourCC Get64x4FourCC(AL_TPicFormat const picFmt)
-{
-  bool const bTenBpc = picFmt.uBitDepth > 8;
-  switch(picFmt.eChromaMode)
-  {
-  case CHROMA_4_2_2: return bTenBpc ? FOURCC(T62A) : FOURCC(T628);
-  case CHROMA_4_2_0: return bTenBpc ? FOURCC(T60A) : FOURCC(T608);
-  case CHROMA_MONO: return bTenBpc ? FOURCC(T6mA) : FOURCC(T6m8);
-  default: assert(0);
-    return -1;
-  }
-}
-
-/****************************************************************************/
-static TFourCC Get32x4FourCC(AL_TPicFormat const picFmt)
-{
-  bool const bTenBpc = picFmt.uBitDepth > 8;
-  switch(picFmt.eChromaMode)
-  {
-  case CHROMA_4_2_2: return bTenBpc ? FOURCC(T52A) : FOURCC(T528);
-  case CHROMA_4_2_0: return bTenBpc ? FOURCC(T50A) : FOURCC(T508);
-  case CHROMA_MONO: return bTenBpc ? FOURCC(T5mA) : FOURCC(T5m8);
-  default: assert(0);
-    return -1;
-  }
-}
+TFourCC AL_GetSrcFourCC(AL_TPicFormat const picFmt);
+TFourCC GetTiledFourCC(AL_TPicFormat const picFmt);
 
 /****************************************************************************/
 TFourCC AL_EncGetSrcFourCC(AL_TPicFormat const picFmt)
@@ -73,9 +48,8 @@ TFourCC AL_EncGetSrcFourCC(AL_TPicFormat const picFmt)
   switch(picFmt.eStorageMode)
   {
   case AL_FB_TILE_64x4:
-    return Get64x4FourCC(picFmt);
   case AL_FB_TILE_32x4:
-    return Get32x4FourCC(picFmt);
+    return GetTiledFourCC(picFmt);
   case AL_FB_RASTER:
   default:
     return AL_GetSrcFourCC(picFmt);
@@ -86,6 +60,6 @@ TFourCC AL_EncGetSrcFourCC(AL_TPicFormat const picFmt)
 TFourCC AL_GetRecFourCC(AL_TPicFormat const picFmt)
 {
   assert(picFmt.eStorageMode == AL_FB_TILE_64x4);
-  return Get64x4FourCC(picFmt);
+  return GetTiledFourCC(picFmt);
 }
 

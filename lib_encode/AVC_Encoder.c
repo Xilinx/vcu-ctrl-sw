@@ -40,29 +40,29 @@
 #include "lib_common/Utils.h"
 #include "lib_common/Error.h"
 
-static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_TBuffer* pStream)
+static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_TBuffer* pStream, int iLayerID)
 {
-  AL_AVC_UpdatePPS(&pCtx->m_pps, pPicStatus);
+  AL_AVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, pPicStatus);
   AVC_GenerateSections(pCtx, pStream, pPicStatus);
 
   if(pPicStatus->eType == SLICE_I)
-    pCtx->m_seiData.cpbRemovalDelay = 0;
+    pCtx->seiData.cpbRemovalDelay = 0;
 
-  pCtx->m_seiData.cpbRemovalDelay += PictureDisplayToFieldNumber[pPicStatus->ePicStruct];
+  pCtx->seiData.cpbRemovalDelay += PictureDisplayToFieldNumber[pPicStatus->ePicStruct];
+}
+
+static bool shouldReleaseSource(AL_TEncPicStatus* p)
+{
+  (void)p;
+  return true;
 }
 
 /***************************************************************************/
-static void GenerateSkippedPictureData(AL_TEncCtx* pCtx)
+static void GenerateSkippedPictureData(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TSkippedPicture* pSkipPicture)
 {
-  pCtx->m_pSkippedPicture.pBuffer = (uint8_t*)Rtos_Malloc(2 * 1024);
-
-  assert(pCtx->m_pSkippedPicture.pBuffer);
-
-  pCtx->m_pSkippedPicture.iBufSize = 2 * 1024;
-  pCtx->m_pSkippedPicture.iNumBits = 0;
-  pCtx->m_pSkippedPicture.iNumBins = 0;
-
-  AL_AVC_GenerateSkippedPicture(&(pCtx->m_pSkippedPicture), pCtx->m_iNumLCU, true, 0);
+  (void)pChParam;
+  AL_Common_Encoder_InitSkippedPicture(pSkipPicture);
+  AL_AVC_GenerateSkippedPicture(pSkipPicture, pCtx->iNumLCU, true, 0);
 }
 
 static void initHls(AL_TEncChanParam* pChParam)
@@ -97,9 +97,9 @@ static void ComputeQPInfo(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
   if(pChParam->tRCParam.iMaxQP < pChParam->tRCParam.iMinQP)
     pChParam->tRCParam.iMaxQP = pChParam->tRCParam.iMinQP;
 
-  if(pCtx->m_Settings.eQpCtrlMode == RANDOM_QP
-     || pCtx->m_Settings.eQpCtrlMode == BORDER_QP
-     || pCtx->m_Settings.eQpCtrlMode == RAMP_QP)
+  if(pCtx->Settings.eQpCtrlMode == RANDOM_QP
+     || pCtx->Settings.eQpCtrlMode == BORDER_QP
+     || pCtx->Settings.eQpCtrlMode == RAMP_QP)
   {
     int iCbOffset = pChParam->iCbPicQpOffset;
     int iCrOffset = pChParam->iCrPicQpOffset;
@@ -112,21 +112,18 @@ static void ComputeQPInfo(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
                                         pChParam->tRCParam.iMaxQP);
 }
 
-static void generateNals(AL_TEncCtx* pCtx)
+static void generateNals(AL_TEncCtx* pCtx, int iLayerID, bool bWriteVps)
 {
-  AL_TEncChanParam* pChParam = &pCtx->m_Settings.tChParam;
+  (void)bWriteVps;
+  AL_TEncChanParam* pChParam = &pCtx->Settings.tChParam[iLayerID];
 
   uint32_t uCpbBitSize = (uint32_t)((uint64_t)pChParam->tRCParam.uCPBSize * (uint64_t)pChParam->tRCParam.uMaxBitRate / 90000LL);
-  AL_AVC_GenerateSPS(&pCtx->m_sps, &pCtx->m_Settings, pCtx->m_iMaxNumRef, uCpbBitSize);
-  AL_AVC_GeneratePPS(&pCtx->m_pps, &pCtx->m_Settings, pCtx->m_iMaxNumRef);
-
-  if(pCtx->m_Settings.eScalingList != AL_SCL_FLAT)
-    AL_AVC_PreprocessScalingList(&pCtx->m_sps.m_AvcSPS.scaling_list_param, &pCtx->m_tBufEP1);
+  AL_AVC_GenerateSPS(&pCtx->tLayerCtx[0].sps, &pCtx->Settings, pCtx->iMaxNumRef, uCpbBitSize);
+  AL_AVC_GeneratePPS(&pCtx->tLayerCtx[0].pps, &pCtx->Settings, pCtx->iMaxNumRef);
 }
 
-static void ConfigureChannel(AL_TEncCtx* pCtx, AL_TEncSettings const* pSettings)
+static void ConfigureChannel(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TEncSettings const* pSettings)
 {
-  AL_TEncChanParam* pChParam = &pCtx->m_Settings.tChParam;
   initHls(pChParam);
   SetMotionEstimationRange(pChParam);
   ComputeQPInfo(pCtx, pChParam);
@@ -134,13 +131,18 @@ static void ConfigureChannel(AL_TEncCtx* pCtx, AL_TEncSettings const* pSettings)
   if(pSettings->eScalingList != AL_SCL_FLAT)
     pChParam->eOptions |= AL_OPT_SCL_LST;
 
-  if(pSettings->tChParam.eLdaCtrlMode != DEFAULT_LDA)
-    pChParam->eOptions |= AL_OPT_CUSTOM_LDA;
+}
 
+static void preprocessEp1(AL_TEncCtx* pCtx, TBufferEP* pEp1)
+{
+  if(pCtx->Settings.eScalingList != AL_SCL_FLAT)
+    AL_AVC_PreprocessScalingList(&pCtx->tLayerCtx[0].sps.AvcSPS.scaling_list_param, pEp1);
 }
 
 void AL_CreateAvcEncoder(HighLevelEncoder* pCtx)
 {
+  pCtx->shouldReleaseSource = &shouldReleaseSource;
+  pCtx->preprocessEp1 = &preprocessEp1;
   pCtx->configureChannel = &ConfigureChannel;
   pCtx->generateSkippedPictureData = &GenerateSkippedPictureData;
   pCtx->generateNals = &generateNals;

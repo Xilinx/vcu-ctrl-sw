@@ -59,9 +59,8 @@ static void AL_AVC_sReadWPCoeff(AL_TRbspParser* pRP, AL_TAvcSliceHdr* pSlice, ui
 {
   uint8_t uNumRefIdx = uL0L1 ? pSlice->num_ref_idx_l1_active_minus1 : pSlice->num_ref_idx_l0_active_minus1;
   AL_TWPCoeff* pWpCoeff = &pSlice->pred_weight_table.tWpCoeff[uL0L1];
-  uint8_t i;
 
-  for(i = 0; i <= uNumRefIdx; i++)
+  for(uint8_t i = 0; i <= uNumRefIdx; i++)
   {
     pWpCoeff->luma_weight_flag[i] = u(pRP, 1);
 
@@ -76,7 +75,7 @@ static void AL_AVC_sReadWPCoeff(AL_TRbspParser* pRP, AL_TAvcSliceHdr* pSlice, ui
       pWpCoeff->luma_offset[i] = 0;
     }
 
-    if(pSlice->m_pSPS->chroma_format_idc != 0)
+    if(pSlice->pSPS->chroma_format_idc != 0)
     {
       pWpCoeff->chroma_weight_flag[i] = u(pRP, 1);
 
@@ -103,7 +102,7 @@ static void AL_AVC_spred_weight_table(AL_TRbspParser* pRP, AL_TAvcSliceHdr* pSli
 {
   pSlice->pred_weight_table.luma_log2_weight_denom = Clip3(ue(pRP), 0, AL_MAX_WP_DENOM);
 
-  if(pSlice->m_pSPS->chroma_format_idc != 0)
+  if(pSlice->pSPS->chroma_format_idc != 0)
     pSlice->pred_weight_table.chroma_log2_weight_denom = Clip3(ue(pRP), 0, AL_MAX_WP_DENOM);
 
   AL_AVC_sReadWPCoeff(pRP, pSlice, 0);
@@ -240,15 +239,15 @@ static void AL_AVC_sdec_ref_pic_marking(AL_TRbspParser* pRP, AL_TAvcSliceHdr* pS
 /*****************************************************************************/
 static bool ApplyAvcSPSAndReturn(AL_TAvcSliceHdr* pSlice, AL_TAvcPps const* pPPS)
 {
-  pSlice->m_pPPS = pPPS;
-  pSlice->m_pSPS = pSlice->m_pPPS->m_pSPS;
+  pSlice->pPPS = pPPS;
+  pSlice->pSPS = pSlice->pPPS->pSPS;
   return false;
 }
 
 /*****************************************************************************/
 bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TConceal* pConceal, AL_TAvcPps pPPSTable[])
 {
-  if(!pConceal->m_bHasPPS)
+  if(!pConceal->bHasPPS)
     return false;
 
   // header default values
@@ -278,12 +277,12 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
 
   int const currentPPSId = pSlice->pic_parameter_set_id;
 
-  AL_TAvcPps const* pFallbackPps = &pPPSTable[pConceal->m_iLastPPSId];
+  AL_TAvcPps const* pFallbackPps = &pPPSTable[pConceal->iLastPPSId];
 
   if(pPPSTable[currentPPSId].bConceal)
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
 
-  int const MaxNumMb = (pPPSTable[currentPPSId].m_pSPS->pic_height_in_map_units_minus1 + 1) * (pPPSTable[currentPPSId].m_pSPS->pic_width_in_mbs_minus1 + 1);
+  int const MaxNumMb = (pPPSTable[currentPPSId].pSPS->pic_height_in_map_units_minus1 + 1) * (pPPSTable[currentPPSId].pSPS->pic_width_in_mbs_minus1 + 1);
 
   if(pSlice->first_mb_in_slice >= MaxNumMb)
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
@@ -298,13 +297,13 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
   if((pSlice->slice_type > AL_AVC_MAX_SLICE_TYPE) || (pSlice->nal_unit_type == 0x05 && pSlice->slice_type != SLICE_I && pSlice->slice_type != SLICE_SI))
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
 
-  if(!pConceal->m_bValidFrame)
-    pConceal->m_iActivePPS = pSlice->pic_parameter_set_id;
-  else if(pSlice->pic_parameter_set_id != pConceal->m_iActivePPS)
+  if(!pConceal->bValidFrame)
+    pConceal->iActivePPS = pSlice->pic_parameter_set_id;
+  else if(pSlice->pic_parameter_set_id != pConceal->iActivePPS)
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
 
   // check first MB offset coherency
-  if(pSlice->first_mb_in_slice <= pConceal->m_iFirstLCU)
+  if(pSlice->first_mb_in_slice <= pConceal->iFirstLCU)
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
 
   pSlice->slice_type %= 5;
@@ -314,19 +313,19 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
 
   // select the pps for the current picture
-  pSlice->m_pPPS = &pPPSTable[currentPPSId];
+  pSlice->pPPS = &pPPSTable[currentPPSId];
 
-  if(pSlice->m_pPPS->bConceal)
+  if(pSlice->pPPS->bConceal)
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
 
-  AL_TAvcPps const* pPps = pSlice->m_pPPS;
+  AL_TAvcPps const* pPps = pSlice->pPPS;
 
-  pSlice->m_pSPS = pPps->m_pSPS;
+  pSlice->pSPS = pPps->pSPS;
 
-  if(pSlice->m_pSPS->bConceal)
+  if(pSlice->pSPS->bConceal)
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
 
-  AL_TAvcSps const* pSps = pSlice->m_pSPS;
+  AL_TAvcSps const* pSps = pSlice->pSPS;
 
   if(pPps->bConceal || pSps->bConceal)
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
@@ -387,8 +386,8 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
     else
     {
       // infer values from ParserPPS
-      pSlice->num_ref_idx_l0_active_minus1 = pSlice->m_pPPS->num_ref_idx_l0_active_minus1;
-      pSlice->num_ref_idx_l1_active_minus1 = pSlice->m_pPPS->num_ref_idx_l1_active_minus1;
+      pSlice->num_ref_idx_l0_active_minus1 = pSlice->pPPS->num_ref_idx_l0_active_minus1;
+      pSlice->num_ref_idx_l1_active_minus1 = pSlice->pPPS->num_ref_idx_l1_active_minus1;
     }
   }
 
@@ -437,8 +436,8 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
 
   if(pPps->num_slice_groups_minus1 > 0 && pPps->slice_group_map_type >= 3 && pPps->slice_group_map_type <= 5)
     assert(0);
-  pConceal->m_iFirstLCU = pSlice->first_mb_in_slice;
-  pConceal->m_iLastPPSId = pSlice->pic_parameter_set_id;
+  pConceal->iFirstLCU = pSlice->first_mb_in_slice;
+  pConceal->iLastPPSId = pSlice->pic_parameter_set_id;
   return true;
 }
 
@@ -457,8 +456,8 @@ static void AL_HEVC_sSetDefaultSliceHeader(AL_THevcSliceHdr* pSlice)
   uint8_t temporal_id_plus1 = pSlice->temporal_id_plus1;
   uint8_t RapFlag = pSlice->RapPicFlag;
   uint8_t IdrFlag = pSlice->IdrPicFlag;
-  const AL_THevcPps* pPPS = pSlice->m_pPPS;
-  AL_THevcSps* pSPS = pSlice->m_pSPS;
+  const AL_THevcPps* pPPS = pSlice->pPPS;
+  AL_THevcSps* pSPS = pSlice->pSPS;
 
   Rtos_Memset(pSlice, 0, sizeof(AL_THevcSliceHdr));
 
@@ -471,8 +470,8 @@ static void AL_HEVC_sSetDefaultSliceHeader(AL_THevcSliceHdr* pSlice)
   pSlice->temporal_id_plus1 = temporal_id_plus1;
   pSlice->RapPicFlag = RapFlag;
   pSlice->IdrPicFlag = IdrFlag;
-  pSlice->m_pPPS = pPPS;
-  pSlice->m_pSPS = pSPS;
+  pSlice->pPPS = pPPS;
+  pSlice->pSPS = pSPS;
 
   pSlice->pic_output_flag = 1;
   pSlice->collocated_from_l0_flag = 1;
@@ -503,22 +502,21 @@ static void AL_HEVC_sReadWPCoeff(AL_TRbspParser* pRP, AL_THevcSliceHdr* pSlice, 
 {
   uint8_t uNumRefIdx = uL0L1 ? pSlice->num_ref_idx_l1_active_minus1 : pSlice->num_ref_idx_l0_active_minus1;
   AL_TWPCoeff* pWpCoeff = &pSlice->pred_weight_table.tWpCoeff[uL0L1];
-  uint8_t i;
 
-  for(i = 0; i <= uNumRefIdx; i++)
+  for(uint8_t i = 0; i <= uNumRefIdx; i++)
     pWpCoeff->luma_weight_flag[i] = u(pRP, 1);
 
-  if(pSlice->m_pSPS->ChromaArrayType)
+  if(pSlice->pSPS->ChromaArrayType)
   {
-    for(i = 0; i <= uNumRefIdx; i++)
+    for(uint8_t i = 0; i <= uNumRefIdx; i++)
       pWpCoeff->chroma_weight_flag[i] = u(pRP, 1);
   }
 
-  for(i = 0; i <= uNumRefIdx; i++)
+  for(uint8_t i = 0; i <= uNumRefIdx; i++)
   {
     // fast access
-    int iOffsetY = pSlice->m_pSPS->WpOffsetHalfRangeY;
-    int iOffsetC = pSlice->m_pSPS->WpOffsetHalfRangeC;
+    int iOffsetY = pSlice->pSPS->WpOffsetHalfRangeY;
+    int iOffsetC = pSlice->pSPS->WpOffsetHalfRangeC;
 
     // initial value
     pWpCoeff->luma_delta_weight[i] = 0;
@@ -558,7 +556,7 @@ static void AL_HEVC_sReadWPCoeff(AL_TRbspParser* pRP, AL_THevcSliceHdr* pSlice, 
 static void AL_HEVC_spred_weight_table(AL_TRbspParser* pRP, AL_THevcSliceHdr* pSlice)
 {
   pSlice->pred_weight_table.luma_log2_weight_denom = Clip3(ue(pRP), 0, AL_MAX_WP_DENOM);
-  pSlice->pred_weight_table.chroma_log2_weight_denom = Clip3(pSlice->pred_weight_table.luma_log2_weight_denom + (pSlice->m_pSPS->ChromaArrayType ? se(pRP) : 0), 0, AL_MAX_WP_DENOM);
+  pSlice->pred_weight_table.chroma_log2_weight_denom = Clip3(pSlice->pred_weight_table.luma_log2_weight_denom + (pSlice->pSPS->ChromaArrayType ? se(pRP) : 0), 0, AL_MAX_WP_DENOM);
 
   AL_HEVC_sReadWPCoeff(pRP, pSlice, 0);
 
@@ -574,14 +572,13 @@ static void AL_HEVC_spred_weight_table(AL_TRbspParser* pRP, AL_THevcSliceHdr* pS
 *****************************************************************************/
 static void AL_HEVC_sref_pic_list_modification(AL_TRbspParser* pRP, AL_THevcSliceHdr* pSlice, uint8_t NumPocTotalCurr)
 {
-  uint8_t i;
   uint8_t list_entry_size = ceil_log2(NumPocTotalCurr);
 
   // default values
   pSlice->ref_pic_modif.ref_pic_list_modification_flag_l0 = 0;
   pSlice->ref_pic_modif.ref_pic_list_modification_flag_l1 = 0;
 
-  for(i = 0; i < MAX_REF; ++i)
+  for(uint8_t i = 0; i < MAX_REF; ++i)
   {
     pSlice->ref_pic_modif.list_entry_l0[i] = 0;
     pSlice->ref_pic_modif.list_entry_l1[i] = 0;
@@ -593,7 +590,7 @@ static void AL_HEVC_sref_pic_list_modification(AL_TRbspParser* pRP, AL_THevcSlic
 
     if(pSlice->ref_pic_modif.ref_pic_list_modification_flag_l0)
     {
-      for(i = 0; i <= pSlice->num_ref_idx_l0_active_minus1; ++i)
+      for(uint8_t i = 0; i <= pSlice->num_ref_idx_l0_active_minus1; ++i)
         pSlice->ref_pic_modif.list_entry_l0[i] = u(pRP, list_entry_size);
     }
 
@@ -603,7 +600,7 @@ static void AL_HEVC_sref_pic_list_modification(AL_TRbspParser* pRP, AL_THevcSlic
 
       if(pSlice->ref_pic_modif.ref_pic_list_modification_flag_l1)
       {
-        for(i = 0; i <= pSlice->num_ref_idx_l1_active_minus1; ++i)
+        for(uint8_t i = 0; i <= pSlice->num_ref_idx_l1_active_minus1; ++i)
           pSlice->ref_pic_modif.list_entry_l1[i] = u(pRP, list_entry_size);
       }
     }
@@ -622,13 +619,12 @@ void InitRefPictSet(AL_THevcSliceHdr* pSlice)
   // Fill the five lists of picture order count values
   if(!AL_HEVC_IsIDR(pSlice->nal_unit_type))
   {
-    uint8_t i;
-    AL_THevcSps* pSPS = pSlice->m_pSPS;
+    AL_THevcSps* pSPS = pSlice->pSPS;
     uint8_t StRpsIdx = pSlice->short_term_ref_pic_set_sps_flag ? pSlice->short_term_ref_pic_set_idx :
                        pSPS->num_short_term_ref_pic_sets;
 
     // compute short term reference picture variables
-    for(i = 0; i < pSPS->NumNegativePics[StRpsIdx]; ++i)
+    for(uint8_t i = 0; i < pSPS->NumNegativePics[StRpsIdx]; ++i)
     {
       if(pSPS->UsedByCurrPicS0[StRpsIdx][i])
         ++pSlice->NumPocStCurrBefore;
@@ -636,7 +632,7 @@ void InitRefPictSet(AL_THevcSliceHdr* pSlice)
         ++pSlice->NumPocStFoll;
     }
 
-    for(i = 0; i < pSPS->NumPositivePics[StRpsIdx]; ++i)
+    for(uint8_t i = 0; i < pSPS->NumPositivePics[StRpsIdx]; ++i)
     {
       if(pSPS->UsedByCurrPicS1[StRpsIdx][i])
         ++pSlice->NumPocStCurrAfter;
@@ -645,7 +641,7 @@ void InitRefPictSet(AL_THevcSliceHdr* pSlice)
     }
 
     // compute long term reference picture variables
-    for(i = 0; i < pSlice->num_long_term_sps + pSlice->num_long_term_pics; ++i)
+    for(uint8_t i = 0; i < pSlice->num_long_term_sps + pSlice->num_long_term_pics; ++i)
     {
       if(pSlice->UsedByCurrPicLt[i])
         ++pSlice->NumPocLtCurr;
@@ -666,7 +662,7 @@ static void skipAllZerosAndTheNextByte(AL_TRbspParser* pRP)
 
 static bool noValidPpsHasEverBeenParsed(AL_TConceal* pConceal)
 {
-  return pConceal->m_iLastPPSId == -1;
+  return pConceal->iLastPPSId == -1;
 }
 
 /*****************************************************************************/
@@ -695,8 +691,8 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
 
   pSlice->slice_pic_parameter_set_id = ue(pRP);
 
-  if(!pConceal->m_bValidFrame)
-    pConceal->m_iActivePPS = pSlice->slice_pic_parameter_set_id;
+  if(!pConceal->bValidFrame)
+    pConceal->iActivePPS = pSlice->slice_pic_parameter_set_id;
 
   if(pSlice->first_slice_segment_in_pic_flag)
   {
@@ -705,27 +701,27 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
   }
 
   /* pps_id is invalid */
-  if(pSlice->slice_pic_parameter_set_id > pConceal->m_iLastPPSId ||
+  if(pSlice->slice_pic_parameter_set_id > pConceal->iLastPPSId ||
      pSlice->slice_pic_parameter_set_id >= AL_HEVC_MAX_PPS ||
-     pSlice->slice_pic_parameter_set_id != pConceal->m_iActivePPS)
+     pSlice->slice_pic_parameter_set_id != pConceal->iActivePPS)
   {
-    if(pConceal->m_iLastPPSId >= 0)
+    if(pConceal->iLastPPSId >= 0)
     {
-      pSlice->m_pPPS = &pPPSTable[pConceal->m_iLastPPSId];
-      pSlice->m_pSPS = pSlice->m_pPPS->m_pSPS;
+      pSlice->pPPS = &pPPSTable[pConceal->iLastPPSId];
+      pSlice->pSPS = pSlice->pPPS->pSPS;
     }
     return false;
   }
 
   // assign corresponding pps and sps
-  pSlice->m_pPPS = &pPPSTable[pSlice->slice_pic_parameter_set_id];
-  const AL_THevcPps* pPps = pSlice->m_pPPS;
+  pSlice->pPPS = &pPPSTable[pSlice->slice_pic_parameter_set_id];
+  const AL_THevcPps* pPps = pSlice->pPPS;
 
-  if(pPps->bConceal || pPps->m_pSPS->bConceal) // invalid slice header
+  if(pPps->bConceal || pPps->pSPS->bConceal) // invalid slice header
     return false;
 
-  pSlice->m_pSPS = pPps->m_pSPS;
-  const AL_THevcSps* pSps = pSlice->m_pSPS;
+  pSlice->pSPS = pPps->pSPS;
+  const AL_THevcSps* pSps = pSlice->pSPS;
 
   if(!pSlice->first_slice_segment_in_pic_flag)
   {
@@ -748,9 +744,9 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
     }
   }
 
-  if(pSlice->slice_segment_address <= pConceal->m_iFirstLCU && !pPps->tiles_enabled_flag && !pPps->entropy_coding_sync_enabled_flag)
+  if(pSlice->slice_segment_address <= pConceal->iFirstLCU && !pPps->tiles_enabled_flag && !pPps->entropy_coding_sync_enabled_flag)
     return false;
-  else if(!pConceal->m_bValidFrame && pSlice->slice_segment_address)
+  else if(!pConceal->bValidFrame && pSlice->slice_segment_address)
   {
     if(pSlice->dependent_slice_segment_flag)
       return false;
@@ -791,12 +787,12 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
         return false;
 
       if(!pSlice->short_term_ref_pic_set_sps_flag)
-        AL_HEVC_short_term_ref_pic_set(pSlice->m_pSPS, pSps->num_short_term_ref_pic_sets, pRP);
+        AL_HEVC_short_term_ref_pic_set(pSlice->pSPS, pSps->num_short_term_ref_pic_sets, pRP);
       else if(pSps->num_short_term_ref_pic_sets > 1)
       {
         int syntax_size = ceil_log2(pSps->num_short_term_ref_pic_sets);
         pSlice->short_term_ref_pic_set_idx = u(pRP, syntax_size);
-        pSlice->m_pSPS->short_term_ref_pic_set[64] = pSlice->m_pSPS->short_term_ref_pic_set[pSlice->short_term_ref_pic_set_idx];
+        pSlice->pSPS->short_term_ref_pic_set[64] = pSlice->pSPS->short_term_ref_pic_set[pSlice->short_term_ref_pic_set_idx];
       }
 
       if(pSps->long_term_ref_pics_present_flag)
@@ -846,14 +842,14 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
         pSlice->slice_temporal_mvp_enable_flag = u(pRP, 1);
     }
 
-    if(!pConceal->m_bValidFrame)
+    if(!pConceal->bValidFrame)
       InitRefPictSet(pSlice);
 
     if(pSps->sample_adaptive_offset_enabled_flag)
     {
       pSlice->slice_sao_luma_flag = u(pRP, 1);
 
-      if(pSlice->m_pSPS->ChromaArrayType)
+      if(pSlice->pSPS->ChromaArrayType)
         pSlice->slice_sao_chroma_flag = u(pRP, 1);
     }
 
@@ -985,7 +981,7 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
   if(!more_rbsp_data(pRP))
     return false;
 
-  pConceal->m_iFirstLCU = pSlice->slice_segment_address;
+  pConceal->iFirstLCU = pSlice->slice_segment_address;
   return true;
 }
 

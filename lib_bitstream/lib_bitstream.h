@@ -44,9 +44,6 @@
  *****************************************************************************/
 #pragma once
 
-#include "lib_common/SPS.h"
-#include "lib_common/PPS.h"
-#include "lib_common/SliceHeader.h"
 #include "BitStreamLite.h"
 #include "HEVC_RbspEncod.h"
 #include "HEVC_SkippedPict.h"

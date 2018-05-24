@@ -44,6 +44,7 @@
  *****************************************************************************/
 #pragma once
 
+#include <vector>
 extern "C"
 {
 #include "lib_common/FourCC.h"

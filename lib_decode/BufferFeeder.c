@@ -43,11 +43,11 @@ static void notifyDecoder(AL_TBufferFeeder* this)
   AL_DecoderFeeder_Process(this->decoderFeeder);
 }
 
-static bool enqueueBuffer(AL_TBufferFeeder* this, AL_TBuffer* pBuf, AL_EBufMode eMode)
+static bool enqueueBuffer(AL_TBufferFeeder* this, AL_TBuffer* pBuf)
 {
   AL_Buffer_Ref(pBuf);
 
-  if(!AL_Fifo_Queue(&this->fifo, pBuf, AL_GetWaitMode(eMode)))
+  if(!AL_Fifo_Queue(&this->fifo, pBuf, AL_WAIT_FOREVER))
   {
     AL_Buffer_Unref(pBuf);
     return false;
@@ -55,7 +55,7 @@ static bool enqueueBuffer(AL_TBufferFeeder* this, AL_TBuffer* pBuf, AL_EBufMode 
   return true;
 }
 
-bool AL_BufferFeeder_PushBuffer(AL_TBufferFeeder* this, AL_TBuffer* pBuf, AL_EBufMode eMode, size_t uSize, bool bLastBuffer)
+bool AL_BufferFeeder_PushBuffer(AL_TBufferFeeder* this, AL_TBuffer* pBuf, size_t uSize, bool bLastBuffer)
 {
   AL_TMetaData* pMetaCirc = (AL_TMetaData*)AL_CircMetaData_Create(0, uSize, bLastBuffer);
 
@@ -68,7 +68,7 @@ bool AL_BufferFeeder_PushBuffer(AL_TBufferFeeder* this, AL_TBuffer* pBuf, AL_EBu
     return false;
   }
 
-  if(!enqueueBuffer(this, pBuf, eMode))
+  if(!enqueueBuffer(this, pBuf))
     return false;
 
   notifyDecoder(this);
@@ -85,7 +85,7 @@ void AL_BufferFeeder_Signal(AL_TBufferFeeder* this)
 void AL_BufferFeeder_Flush(AL_TBufferFeeder* this)
 {
   if(this->eosBuffer)
-    AL_BufferFeeder_PushBuffer(this, this->eosBuffer, AL_BUF_MODE_BLOCK, this->eosBuffer->zSize, true);
+    AL_BufferFeeder_PushBuffer(this, this->eosBuffer, this->eosBuffer->zSize, true);
 
   AL_DecoderFeeder_Flush(this->decoderFeeder);
 }
@@ -98,14 +98,14 @@ void AL_BufferFeeder_Reset(AL_TBufferFeeder* this)
 void AL_BufferFeeder_Destroy(AL_TBufferFeeder* this)
 {
   if(this->eosBuffer)
-    AL_BufferFeeder_PushBuffer(this, this->eosBuffer, AL_BUF_MODE_BLOCK, this->eosBuffer->zSize, false);
+    AL_BufferFeeder_PushBuffer(this, this->eosBuffer, this->eosBuffer->zSize, false);
   AL_DecoderFeeder_Destroy(this->decoderFeeder);
   AL_Patchworker_Deinit(&this->patchworker);
   AL_Fifo_Deinit(&this->fifo);
   Rtos_Free(this);
 }
 
-AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, TCircBuffer* circularBuf, AL_UINT uMaxBufNum, AL_CB_Error* errorCallback)
+AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, TCircBuffer* circularBuf, int iMaxBufNum, AL_CB_Error* errorCallback)
 {
   AL_TBufferFeeder* this = Rtos_Malloc(sizeof(*this));
 
@@ -114,7 +114,7 @@ AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, TCircBuffer* circularBu
 
   this->eosBuffer = NULL;
 
-  if(uMaxBufNum == 0 || !AL_Fifo_Init(&this->fifo, uMaxBufNum))
+  if(iMaxBufNum <= 0 || !AL_Fifo_Init(&this->fifo, iMaxBufNum))
     goto fail_queue_allocation;
 
   if(!AL_Patchworker_Init(&this->patchworker, circularBuf, &this->fifo))

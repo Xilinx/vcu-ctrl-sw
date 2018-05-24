@@ -36,12 +36,9 @@
 ******************************************************************************/
 
 #include "lib_encode/IScheduler.h"
-#include "lib_encode/driverInterface.h"
 #include "lib_encode/SchedulerMcu.h"
 #include "lib_encode/ISchedulerCommon.h"
-
-#include <stdlib.h>
-#include <string.h>
+#include "lib_common/IDriver.h"
 
 #include "lib_rtos/lib_rtos.h"
 #include "lib_fpga/DmaAlloc.h"
@@ -51,20 +48,18 @@ typedef struct al_t_SchedulerMcu
 {
   const TSchedulerVtable* vtable;
   AL_TAllocator* allocator;
-  Driver* driver;
+  AL_TDriver* driver;
 }AL_TSchedulerMcu;
 
 typedef struct
 {
   AL_TISchedulerCallBacks CBs;
   AL_TCommonChannelInfo info;
-  Driver* driver;
+  AL_TDriver* driver;
   int fd;
   AL_THREAD thread;
   int32_t shouldContinue;
 }Channel;
-
-bool AL_SchedulerMcu_Destroy(AL_TSchedulerMcu* schedulerMcu);
 
 #if __linux__
 
@@ -74,9 +69,9 @@ bool AL_SchedulerMcu_Destroy(AL_TSchedulerMcu* schedulerMcu);
 
 #include "lib_fpga/DmaAllocLinux.h"
 #include "allegro_ioctl_mcu_enc.h"
-#include "driverDataConversions.h"
+#include "DriverDataConversions.h"
 
-#define DCACHE_OFFSET 0x80000000
+static const char* deviceFile = "/dev/allegroIP";
 
 static void setChannelFeedback(AL_TEncChanParam* pChParam, struct al5_channel_status* msg);
 static void setCallbacks(Channel* chan, AL_TISchedulerCallBacks* pCBs);
@@ -84,40 +79,45 @@ static bool getStatusMsg(Channel* chan, struct al5_params* msg);
 static void processStatusMsg(Channel* chan, struct al5_params* msg);
 static void* WaitForStatus(void* p);
 
-static AL_ERR createChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEncChanParam* pChParam, AL_PADDR pEP1, AL_TISchedulerCallBacks* pCBs)
+static AL_ERR createChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEncChanParam* pChParam, TMemDesc* pEP1, AL_TISchedulerCallBacks* pCBs)
 {
+  AL_ERR errorCode = AL_ERROR;
   AL_TSchedulerMcu* schedulerMcu = (AL_TSchedulerMcu*)pScheduler;
 
-  Channel* chan = calloc(1, sizeof(Channel));
-  AL_ERR errorCode = AL_ERROR;
+  Channel* chan = Rtos_Malloc(sizeof(*chan));
 
   if(!chan)
-    goto fail;
+  {
+    errorCode = AL_ERR_NO_MEMORY;
+    goto channel_creation_fail;
+  }
+
+  Rtos_Memset(chan, 0, sizeof(*chan));
 
   chan->driver = schedulerMcu->driver;
-  chan->fd = AL_Driver_Open(chan->driver, "/dev/allegroIP");
+  chan->fd = AL_Driver_Open(chan->driver, deviceFile);
 
-  if(chan->fd < 0)
+  if(chan->fd <= 0)
   {
     perror("Can't open driver");
-    goto fail;
+    goto driver_open_fail;
   }
 
   struct al5_channel_config msg = { 0 };
   setChannelParam(&msg.param, pChParam, pEP1);
 
-  auto err = AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_CONFIG_CHANNEL, &msg);
-  if(err != AL_SUCCESS)
-  {
-    errorCode = err;
-    if(errorCode == AL_ERROR) // error from channel
-    {
-      /* the ioctl might not have been called at all,
-       * so the error_code might no be set. leave it to AL_ERROR in this case */
-      if(msg.status.error_code)
-        errorCode = msg.status.error_code;
+  AL_EDriverError errdrv = AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_CONFIG_CHANNEL, &msg);
 
-    }
+  if(errdrv != DRIVER_SUCCESS)
+  {
+    if(errdrv == DRIVER_ERROR_NO_MEMORY)
+      errorCode = AL_ERR_NO_MEMORY;
+
+    /* the ioctl might not have been called at all,
+     * so the error_code might no be set. leave it to AL_ERROR in this case */
+    if(errorCode == DRIVER_ERROR_CHANNEL && msg.status.error_code)
+      errorCode = msg.status.error_code;
+
     goto fail;
   }
 
@@ -139,10 +139,10 @@ static AL_ERR createChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEnc
   return AL_SUCCESS;
 
   fail:
-
-  if(chan && chan->fd >= 0)
-    AL_Driver_Close(schedulerMcu->driver, chan->fd);
-  free(chan);
+  AL_Driver_Close(schedulerMcu->driver, chan->fd);
+  driver_open_fail:
+  Rtos_Free(chan);
+  channel_creation_fail:
   *hChannel = AL_INVALID_CHANNEL;
   return errorCode;
 }
@@ -160,11 +160,14 @@ static bool encodeOneFrame(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TEncIn
   }
   else
   {
-    pBuffersAddrs->pEP2_v = pBuffersAddrs->pEP2 + DCACHE_OFFSET;
+    if(pBuffersAddrs->pEP2)
+      pBuffersAddrs->pEP2_v = pBuffersAddrs->pEP2 + DCACHE_OFFSET;
+    else
+      pBuffersAddrs->pEP2_v = 0;
     setEncodeMsg(&msg, pEncInfo, pReqInfo, pBuffersAddrs);
   }
 
-  return AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_ENCODE_ONE_FRM, &msg) == AL_SUCCESS;
+  return AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_ENCODE_ONE_FRM, &msg) == DRIVER_SUCCESS;
 }
 
 static bool destroyChannel(TScheduler* pScheduler, AL_HANDLE hChannel)
@@ -185,7 +188,7 @@ static bool destroyChannel(TScheduler* pScheduler, AL_HANDLE hChannel)
 
   AL_Driver_Close(schedulerMcu->driver, chan->fd);
 
-  free(chan);
+  Rtos_Free(chan);
 
   return true;
 }
@@ -195,9 +198,8 @@ static bool getRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPic* p
   AL_TSchedulerMcu* schedulerMcu = (AL_TSchedulerMcu*)pScheduler;
   Channel* chan = hChannel;
   struct al5_reconstructed_info msg = { 0 };
-  bool isSuccess = AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_GET_REC_PICTURE, &msg) == AL_SUCCESS;
 
-  if(!isSuccess)
+  if(AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_GET_REC_PICTURE, &msg) != DRIVER_SUCCESS)
     return false;
 
   AL_TAllocator* pAllocator = schedulerMcu->allocator;
@@ -228,7 +230,7 @@ static bool releaseRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPi
   AL_TAllocator* pAllocator = schedulerMcu->allocator;
   __u32 fd = AL_LinuxDmaAllocator_GetFd((AL_TLinuxDmaAllocator*)pAllocator, hRecBuf);
 
-  if(AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_RELEASE_REC_PICTURE, &fd) != AL_SUCCESS)
+  if(AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_RELEASE_REC_PICTURE, &fd) != DRIVER_SUCCESS)
     return false;
   AL_Allocator_Free(pAllocator, hRecBuf);
   return true;
@@ -249,21 +251,21 @@ static void setCallbacks(Channel* chan, AL_TISchedulerCallBacks* pCBs)
 
 static bool getStatusMsg(Channel* chan, struct al5_params* msg)
 {
-  return AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_WAIT_FOR_STATUS, msg) == AL_SUCCESS;
+  return AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_WAIT_FOR_STATUS, msg) == DRIVER_SUCCESS;
 }
 
 static void processStatusMsg(Channel* chan, struct al5_params* msg)
 {
   assert(msg->size >= sizeof(AL_PTR64));
   AL_PTR64 streamBufferPtr;
-  memcpy(&streamBufferPtr, msg->opaque_params, sizeof(AL_PTR64));
+  Rtos_Memcpy(&streamBufferPtr, msg->opaque_params, sizeof(AL_PTR64));
   AL_TEncPicStatus* pStatus = NULL;
   AL_TEncPicStatus status;
 
   if(msg->size > sizeof(AL_PTR64))
   {
     assert(msg->size == sizeof(AL_PTR64) + sizeof(AL_TEncPicStatus));
-    memcpy(&status, (char*)msg->opaque_params + sizeof(AL_PTR64), sizeof(status));
+    Rtos_Memcpy(&status, (char*)msg->opaque_params + sizeof(AL_PTR64), sizeof(status));
     pStatus = &status;
   }
 
@@ -288,9 +290,9 @@ static void* WaitForStatus(void* p)
   return 0;
 }
 
-static bool destroy(TScheduler* pScheduler)
+static void destroy(TScheduler* pScheduler)
 {
-  return AL_SchedulerMcu_Destroy((AL_TSchedulerMcu*)pScheduler);
+  Rtos_Free((AL_TSchedulerMcu*)pScheduler);
 }
 
 static __u32 getFd(AL_TBuffer* b)
@@ -327,7 +329,7 @@ static const TSchedulerVtable McuSchedulerVtable =
   &releaseRecPicture,
 };
 
-TScheduler* AL_SchedulerMcu_Create(Driver* driver, AL_TAllocator* pDmaAllocator)
+TScheduler* AL_SchedulerMcu_Create(AL_TDriver* driver, AL_TAllocator* pDmaAllocator)
 {
   AL_TSchedulerMcu* scheduler = Rtos_Malloc(sizeof(*scheduler));
 
@@ -339,16 +341,9 @@ TScheduler* AL_SchedulerMcu_Create(Driver* driver, AL_TAllocator* pDmaAllocator)
   return (TScheduler*)scheduler;
 }
 
-bool AL_SchedulerMcu_Destroy(AL_TSchedulerMcu* schedulerMcu)
-{
-  free(schedulerMcu);
-
-  return true;
-}
-
 #else
 
-TScheduler* AL_SchedulerMcu_Create(Driver* driver, AL_TAllocator* pDmaAllocator)
+TScheduler* AL_SchedulerMcu_Create(AL_TDriver* driver, AL_TAllocator* pDmaAllocator)
 {
   (void)driver;
   (void)pDmaAllocator;

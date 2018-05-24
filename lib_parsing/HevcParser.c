@@ -39,6 +39,7 @@
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/Utils.h"
 
+/*****************************************************************************/
 static void initPps(AL_THevcPps* pPPS)
 {
   Rtos_Memset(pPPS->scaling_list_param.UseDefaultScalingMatrixFlag, 0, sizeof(pPPS->scaling_list_param.UseDefaultScalingMatrixFlag));
@@ -55,7 +56,7 @@ static void initPps(AL_THevcPps* pPPS)
   pPPS->pps_tc_offset_div2 = 0;
 
   pPPS->pps_extension_7bits = 0;
-  pPPS->pps_range_extensions_flag = 0;
+  pPPS->pps_range_extension_flag = 0;
   pPPS->log2_transform_skip_block_size_minus2 = 0;
   pPPS->cross_component_prediction_enabled_flag = 0;
   pPPS->diff_cu_chroma_qp_offset_depth = 0;
@@ -64,6 +65,7 @@ static void initPps(AL_THevcPps* pPPS)
   pPPS->log2_sao_offset_scale_chroma = 0;
 }
 
+/*****************************************************************************/
 void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint8_t* pPpsId)
 {
   AL_THevcAup* aup = &pIAup->hevcAup;
@@ -78,7 +80,7 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint8_t* pPpsId)
   u(pRP, 16); // Skip NUT + temporal_id
 
   pps_id = ue(pRP);
-  pPPS = &aup->m_pPPS[pps_id];
+  pPPS = &aup->pPPS[pps_id];
 
   *pPpsId = pps_id;
   // default values
@@ -94,13 +96,13 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint8_t* pPpsId)
   if(pPPS->pps_seq_parameter_set_id >= AL_HEVC_MAX_SPS)
     return;
 
-  pPPS->m_pSPS = &aup->m_pSPS[pPPS->pps_seq_parameter_set_id];
+  pPPS->pSPS = &aup->pSPS[pPPS->pps_seq_parameter_set_id];
 
-  if(pPPS->m_pSPS->bConceal)
+  if(pPPS->pSPS->bConceal)
     return;
 
-  uLCUWidth = pPPS->m_pSPS->PicWidthInCtbs;
-  uLCUHeight = pPPS->m_pSPS->PicHeightInCtbs;
+  uLCUWidth = pPPS->pSPS->PicWidthInCtbs;
+  uLCUHeight = pPPS->pSPS->PicHeightInCtbs;
 
   pPPS->dependent_slice_segments_enabled_flag = u(pRP, 1);
   pPPS->output_flag_present_flag = u(pRP, 1);
@@ -111,7 +113,7 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint8_t* pPpsId)
   pPPS->num_ref_idx_l0_default_active_minus1 = Clip3(ue(pRP), 0, AL_HEVC_MAX_REF_IDX);
   pPPS->num_ref_idx_l1_default_active_minus1 = Clip3(ue(pRP), 0, AL_HEVC_MAX_REF_IDX);
 
-  QpBdOffset = 6 * pPPS->m_pSPS->bit_depth_luma_minus8;
+  QpBdOffset = 6 * pPPS->pSPS->bit_depth_luma_minus8;
   pPPS->init_qp_minus26 = Clip3(se(pRP), -(26 + QpBdOffset), AL_MAX_INIT_QP);
 
   pPPS->constrained_intra_pred_flag = u(pRP, 1);
@@ -120,7 +122,7 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint8_t* pPpsId)
   pPPS->cu_qp_delta_enabled_flag = u(pRP, 1);
 
   if(pPPS->cu_qp_delta_enabled_flag)
-    pPPS->diff_cu_qp_delta_depth = Clip3(ue(pRP), 0, pPPS->m_pSPS->log2_diff_max_min_luma_coding_block_size);
+    pPPS->diff_cu_qp_delta_depth = Clip3(ue(pRP), 0, pPPS->pSPS->log2_diff_max_min_luma_coding_block_size);
 
   pPPS->pps_cb_qp_offset = Clip3(se(pRP), AL_MIN_QP_OFFSET, AL_MAX_QP_OFFSET);
   pPPS->pps_cr_qp_offset = Clip3(se(pRP), AL_MIN_QP_OFFSET, AL_MAX_QP_OFFSET);
@@ -230,21 +232,21 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint8_t* pPpsId)
   if(pPPS->pps_scaling_list_data_present_flag)
     hevc_scaling_list_data(&pPPS->scaling_list_param, pRP);
   else // get scaling_list data from associated sps
-    pPPS->scaling_list_param = pPPS->m_pSPS->scaling_list_param;
+    pPPS->scaling_list_param = pPPS->pSPS->scaling_list_param;
 
   pPPS->lists_modification_present_flag = u(pRP, 1);
-  pPPS->log2_parallel_merge_level_minus2 = Clip3(ue(pRP), 0, pPPS->m_pSPS->Log2CtbSize - 2);
+  pPPS->log2_parallel_merge_level_minus2 = Clip3(ue(pRP), 0, pPPS->pSPS->Log2CtbSize - 2);
 
   pPPS->slice_segment_header_extension_present_flag = u(pRP, 1);
   pPPS->pps_extension_present_flag = u(pRP, 1);
 
   if(pPPS->pps_extension_present_flag)
   {
-    pPPS->pps_range_extensions_flag = u(pRP, 1);
+    pPPS->pps_range_extension_flag = u(pRP, 1);
     pPPS->pps_extension_7bits = u(pRP, 7);
   }
 
-  if(pPPS->pps_range_extensions_flag)
+  if(pPPS->pps_range_extension_flag)
   {
     if(pPPS->transform_skip_enabled_flag)
       pPPS->log2_transform_skip_block_size_minus2 = ue(pRP);
@@ -253,11 +255,10 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint8_t* pPpsId)
 
     if(pPPS->chroma_qp_offset_list_enabled_flag)
     {
-      int i;
       pPPS->diff_cu_chroma_qp_offset_depth = ue(pRP);
       pPPS->chroma_qp_offset_list_len_minus1 = ue(pRP);
 
-      for(i = 0; i <= pPPS->chroma_qp_offset_list_len_minus1; ++i)
+      for(int i = 0; i <= pPPS->chroma_qp_offset_list_len_minus1; ++i)
       {
         pPPS->cb_qp_offset_list[i] = se(pRP);
         pPPS->cr_qp_offset_list[i] = se(pRP);
@@ -276,10 +277,10 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint8_t* pPpsId)
   pPPS->bConceal = rbsp_trailing_bits(pRP) ? false : true;
 }
 
+/*****************************************************************************/
 static void AL_HEVC_sComputeRefPicSetVariables(AL_THevcSps* pSPS, uint8_t RefIdx)
 {
   uint8_t num_negative = 0, num_positive = 0;
-  int j;
   AL_TRefPicSet ref_pic_set = pSPS->short_term_ref_pic_set[RefIdx];
 
   uint8_t RIdx = RefIdx - (ref_pic_set.delta_idx_minus1 + 1);
@@ -288,7 +289,7 @@ static void AL_HEVC_sComputeRefPicSetVariables(AL_THevcSps* pSPS, uint8_t RefIdx
   if(ref_pic_set.inter_ref_pic_set_prediction_flag)
   {
     // num negative pics computation
-    for(j = pSPS->NumPositivePics[RIdx] - 1; j >= 0; --j)
+    for(int j = pSPS->NumPositivePics[RIdx] - 1; j >= 0; --j)
     {
       int32_t delta_poc = pSPS->DeltaPocS1[RIdx][j] + DeltaRPS;
 
@@ -305,7 +306,7 @@ static void AL_HEVC_sComputeRefPicSetVariables(AL_THevcSps* pSPS, uint8_t RefIdx
       pSPS->UsedByCurrPicS0[RefIdx][num_negative++] = ref_pic_set.used_by_curr_pic_flag[pSPS->NumDeltaPocs[RIdx]];
     }
 
-    for(j = 0; j < pSPS->NumNegativePics[RIdx]; ++j)
+    for(int j = 0; j < pSPS->NumNegativePics[RIdx]; ++j)
     {
       int32_t delta_poc = pSPS->DeltaPocS0[RIdx][j] + DeltaRPS;
 
@@ -319,7 +320,7 @@ static void AL_HEVC_sComputeRefPicSetVariables(AL_THevcSps* pSPS, uint8_t RefIdx
     pSPS->NumNegativePics[RefIdx] = num_negative;
 
     // num positive pics computation
-    for(j = pSPS->NumNegativePics[RIdx] - 1; j >= 0; --j)
+    for(int j = pSPS->NumNegativePics[RIdx] - 1; j >= 0; --j)
     {
       int32_t delta_poc = pSPS->DeltaPocS0[RIdx][j] + DeltaRPS;
 
@@ -336,7 +337,7 @@ static void AL_HEVC_sComputeRefPicSetVariables(AL_THevcSps* pSPS, uint8_t RefIdx
       pSPS->UsedByCurrPicS1[RefIdx][num_positive++] = ref_pic_set.used_by_curr_pic_flag[pSPS->NumDeltaPocs[RIdx]];
     }
 
-    for(j = 0; j < pSPS->NumPositivePics[RIdx]; ++j)
+    for(int j = 0; j < pSPS->NumPositivePics[RIdx]; ++j)
     {
       int32_t delta_poc = pSPS->DeltaPocS1[RIdx][j] + DeltaRPS;
 
@@ -360,13 +361,13 @@ static void AL_HEVC_sComputeRefPicSetVariables(AL_THevcSps* pSPS, uint8_t RefIdx
     pSPS->DeltaPocS0[RefIdx][0] = -(ref_pic_set.delta_poc_s0_minus1[0] + 1);
     pSPS->DeltaPocS1[RefIdx][0] = ref_pic_set.delta_poc_s1_minus1[0] + 1;
 
-    for(j = 1; j < ref_pic_set.num_negative_pics; ++j)
+    for(int j = 1; j < ref_pic_set.num_negative_pics; ++j)
     {
       pSPS->UsedByCurrPicS0[RefIdx][j] = ref_pic_set.used_by_curr_pic_s0_flag[j];
       pSPS->DeltaPocS0[RefIdx][j] = pSPS->DeltaPocS0[RefIdx][j - 1] - (ref_pic_set.delta_poc_s0_minus1[j] + 1);
     }
 
-    for(j = 1; j < ref_pic_set.num_positive_pics; ++j)
+    for(int j = 1; j < ref_pic_set.num_positive_pics; ++j)
     {
       pSPS->UsedByCurrPicS1[RefIdx][j] = ref_pic_set.used_by_curr_pic_s1_flag[j];
       pSPS->DeltaPocS1[RefIdx][j] = pSPS->DeltaPocS1[RefIdx][j - 1] + (ref_pic_set.delta_poc_s1_minus1[j] + 1);
@@ -375,6 +376,7 @@ static void AL_HEVC_sComputeRefPicSetVariables(AL_THevcSps* pSPS, uint8_t RefIdx
   pSPS->NumDeltaPocs[RefIdx] = pSPS->NumNegativePics[RefIdx] + pSPS->NumPositivePics[RefIdx];
 }
 
+/*****************************************************************************/
 static void initSps(AL_THevcSps* pSPS)
 {
   pSPS->chroma_format_idc = 1;
@@ -389,7 +391,7 @@ static void initSps(AL_THevcSps* pSPS)
   pSPS->sps_scaling_list_data_present_flag = 0;
   pSPS->pcm_loop_filter_disabled_flag = 0;
 
-  pSPS->sps_range_extensions_flag = 0;
+  pSPS->sps_range_extension_flag = 0;
   pSPS->sps_extension_7bits = 0;
   pSPS->transform_skip_rotation_enabled_flag = 0;
   pSPS->transform_skip_context_enabled_flag = 0;
@@ -416,6 +418,7 @@ static void initSps(AL_THevcSps* pSPS)
   Rtos_Memset(pSPS->scaling_list_param.UseDefaultScalingMatrixFlag, 0, 20);
 }
 
+/*****************************************************************************/
 AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 {
   AL_THevcSps tempSPS;
@@ -433,7 +436,7 @@ AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   profile_tier_level(&tempSPS.profile_and_level, max_sub_layers, pRP);
   uint8_t sps_id = ue(pRP);
 
-  pIAup->hevcAup.m_pSPS[sps_id].bConceal = true;
+  pIAup->hevcAup.pSPS[sps_id].bConceal = true;
 
   COMPLY(sps_id < AL_HEVC_MAX_SPS);
 
@@ -604,11 +607,11 @@ AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 
   if(tempSPS.sps_extension_present_flag)
   {
-    tempSPS.sps_range_extensions_flag = u(pRP, 1);
+    tempSPS.sps_range_extension_flag = u(pRP, 1);
     tempSPS.sps_extension_7bits = u(pRP, 7);
   }
 
-  if(tempSPS.sps_range_extensions_flag)
+  if(tempSPS.sps_range_extension_flag)
   {
     tempSPS.transform_skip_rotation_enabled_flag = u(pRP, 1);
     tempSPS.transform_skip_context_enabled_flag = u(pRP, 1);
@@ -649,14 +652,15 @@ AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   COMPLY(rbsp_trailing_bits(pRP));
 
   tempSPS.bConceal = false;
-  pIAup->hevcAup.m_pSPS[sps_id] = tempSPS;
+  pIAup->hevcAup.pSPS[sps_id] = tempSPS;
 
   return AL_OK;
 }
 
+/*****************************************************************************/
 void AL_HEVC_short_term_ref_pic_set(AL_THevcSps* pSPS, uint8_t RefIdx, AL_TRbspParser* pRP)
 {
-  uint8_t j, RIdx;
+  uint8_t RIdx;
   AL_TRefPicSet* pRefPicSet = &pSPS->short_term_ref_pic_set[RefIdx];
 
   // default values
@@ -675,7 +679,7 @@ void AL_HEVC_short_term_ref_pic_set(AL_THevcSps* pSPS, uint8_t RefIdx, AL_TRbspP
 
     RIdx = RefIdx - (pRefPicSet->delta_idx_minus1 + 1);
 
-    for(j = 0; j <= pSPS->NumDeltaPocs[RIdx]; ++j)
+    for(uint8_t j = 0; j <= pSPS->NumDeltaPocs[RIdx]; ++j)
     {
       pRefPicSet->use_delta_flag[j] = 1;
       pRefPicSet->used_by_curr_pic_flag[j] = u(pRP, 1);
@@ -689,13 +693,13 @@ void AL_HEVC_short_term_ref_pic_set(AL_THevcSps* pSPS, uint8_t RefIdx, AL_TRbspP
     pRefPicSet->num_negative_pics = Clip3(ue(pRP), 0, pSPS->sps_max_dec_pic_buffering_minus1[pSPS->sps_max_sub_layers_minus1]);
     pRefPicSet->num_positive_pics = Clip3(ue(pRP), 0, pSPS->sps_max_dec_pic_buffering_minus1[pSPS->sps_max_sub_layers_minus1]);
 
-    for(j = 0; j < pRefPicSet->num_negative_pics; ++j)
+    for(uint8_t j = 0; j < pRefPicSet->num_negative_pics; ++j)
     {
       pRefPicSet->delta_poc_s0_minus1[j] = ue(pRP);
       pRefPicSet->used_by_curr_pic_s0_flag[j] = u(pRP, 1);
     }
 
-    for(j = 0; j < pRefPicSet->num_positive_pics; ++j)
+    for(uint8_t j = 0; j < pRefPicSet->num_positive_pics; ++j)
     {
       pRefPicSet->delta_poc_s1_minus1[j] = ue(pRP);
       pRefPicSet->used_by_curr_pic_s1_flag[j] = u(pRP, 1);
@@ -704,9 +708,10 @@ void AL_HEVC_short_term_ref_pic_set(AL_THevcSps* pSPS, uint8_t RefIdx, AL_TRbspP
   AL_HEVC_sComputeRefPicSetVariables(pSPS, RefIdx);
 }
 
+/*****************************************************************************/
 void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 {
-  int i, j, layer_offset;
+  int layer_offset;
   uint8_t vps_id;
   AL_THevcVps* pVPS;
 
@@ -717,22 +722,23 @@ void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   u(pRP, 16); // Skip NUT + temporal_id
 
   vps_id = u(pRP, 4);
-  pVPS = &pIAup->hevcAup.m_pVPS[vps_id];
+  pVPS = &pIAup->hevcAup.pVPS[vps_id];
   pVPS->vps_video_parameter_set_id = vps_id;
 
-  skip(pRP, 2); // vps_reserved_three_2bits
+  pVPS->vps_base_layer_internal_flag = u(pRP, 1);
+  pVPS->vps_base_layer_available_flag = u(pRP, 1);
   pVPS->vps_max_layers_minus1 = u(pRP, 6);
 
   pVPS->vps_max_sub_layers_minus1 = u(pRP, 3);
   pVPS->vps_temporal_id_nesting_flag = u(pRP, 1);
   skip(pRP, 16); // vps_reserved_0xffff_16bits
 
-  profile_tier_level(&pVPS->profile_and_level, pVPS->vps_max_sub_layers_minus1, pRP);
+  profile_tier_level(&pVPS->profile_and_level[0], pVPS->vps_max_sub_layers_minus1, pRP);
   pVPS->vps_sub_layer_ordering_info_present_flag = u(pRP, 1);
 
   layer_offset = pVPS->vps_sub_layer_ordering_info_present_flag ? 0 : pVPS->vps_max_sub_layers_minus1;
 
-  for(i = layer_offset; i <= pVPS->vps_max_sub_layers_minus1; ++i)
+  for(int i = layer_offset; i <= pVPS->vps_max_sub_layers_minus1; ++i)
   {
     pVPS->vps_max_dec_pic_buffering_minus1[i] = ue(pRP);
     pVPS->vps_max_num_reorder_pics[i] = ue(pRP);
@@ -742,11 +748,11 @@ void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   pVPS->vps_max_layer_id = u(pRP, 6);
   pVPS->vps_num_layer_sets_minus1 = ue(pRP);
 
-  for(i = 1; i <= pVPS->vps_num_layer_sets_minus1; ++i)
+  for(int i = 1; i <= pVPS->vps_num_layer_sets_minus1; ++i)
   {
     uint16_t uOffset = Min(i, 1);
 
-    for(j = 0; j <= pVPS->vps_max_layer_id; j++)
+    for(int j = 0; j <= pVPS->vps_max_layer_id; j++)
       pVPS->layer_id_included_flag[uOffset][j] = u(pRP, 1);
   }
 
@@ -763,7 +769,7 @@ void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 
     pVPS->vps_num_hrd_parameters = ue(pRP);
 
-    for(i = 0; i < pVPS->vps_num_hrd_parameters; ++i)
+    for(int i = 0; i < pVPS->vps_num_hrd_parameters; ++i)
     {
       uint16_t uOffset = Min(i, 1);
       pVPS->hrd_layer_set_idx[uOffset] = ue(pRP);
@@ -782,5 +788,169 @@ void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
       skip(pRP, 1); // vps_extension_data_flag
   }
   rbsp_trailing_bits(pRP);
+}
+
+/*****************************************************************************/
+static uint8_t sei_active_parameter_sets(AL_TRbspParser* pRP, AL_THevcAup* aup)
+{
+  uint8_t active_video_parameter_set_id = u(pRP, 4);
+  /*self_Containd_cvs_flag =*/ u(pRP, 1);
+  /*no_parameter_set_update_flag =*/ u(pRP, 1);
+  uint8_t num_sps_ids_minus1 = ue(pRP);
+
+  uint8_t active_seq_parameter_set_id[16];
+
+  for(int i = 0; i <= num_sps_ids_minus1; ++i)
+    active_seq_parameter_set_id[i] = ue(pRP);
+
+  AL_THevcVps* pVPS = &aup->pVPS[active_video_parameter_set_id];
+  uint8_t MaxLayersMinus1 = Min(62, pVPS->vps_max_layers_minus1);
+
+  for(int i = pVPS->vps_base_layer_internal_flag; i <= MaxLayersMinus1; ++i)
+    /*layer_sps_idx[i] =*/ ue(pRP);
+
+  return active_seq_parameter_set_id[0];
+}
+
+/*****************************************************************************/
+static bool sei_pic_timing(AL_TRbspParser* pRP, AL_THevcSps* pSPS, AL_THevcPicTiming* pPicTiming)
+{
+  if(pSPS == NULL || pSPS->bConceal)
+    return false;
+
+  Rtos_Memset(pPicTiming, 0, sizeof(*pPicTiming));
+
+  if(pSPS->vui_param.frame_field_info_present_flag)
+  {
+    pPicTiming->pic_struct = u(pRP, 4);
+    pPicTiming->source_scan_type = u(pRP, 2);
+    pPicTiming->duplicate_flag = u(pRP, 1);
+  }
+
+  bool CpbDpbDelaysPresentFlag = pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag
+                                 || pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag;
+
+  if(CpbDpbDelaysPresentFlag)
+  {
+    uint8_t syntax_size = pSPS->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 + 1;
+    pPicTiming->au_cpb_removal_delay_minus1 = u(pRP, syntax_size);
+
+    syntax_size = pSPS->vui_param.hrd_param.dpb_output_delay_length_minus1 + 1;
+    pPicTiming->pic_dpb_output_delay = u(pRP, syntax_size);
+
+    if(pSPS->vui_param.hrd_param.sub_pic_hrd_params_present_flag)
+    {
+      syntax_size = pSPS->vui_param.hrd_param.dpb_output_delay_du_length_minus1 + 1;
+      pPicTiming->pic_dpb_output_du_delay = u(pRP, syntax_size);
+
+      if(pSPS->vui_param.hrd_param.sub_pic_cpb_params_in_pic_timing_sei_flag)
+      {
+        pPicTiming->num_decoding_units_minus1 = ue(pRP);
+        pPicTiming->du_common_cpb_removal_delay_flag = u(pRP, 1);
+
+        if(pPicTiming->du_common_cpb_removal_delay_flag)
+        {
+          syntax_size = pSPS->vui_param.hrd_param.du_cpb_removal_delay_increment_length_minus1 + 1;
+          pPicTiming->du_common_cpb_removal_delay_increment_minus1 = u(pRP, syntax_size);
+        }
+
+        for(uint8_t i = 0; i <= pPicTiming->num_decoding_units_minus1; ++i)
+        {
+          /*pPicTiming->num_nalus_in_du_minus1[i] = */
+          ue(pRP);
+
+          if(!pPicTiming->du_common_cpb_removal_delay_flag && i < pPicTiming->num_decoding_units_minus1)
+            /*pPicTiming->du_cpb_removal_delay_increment_minus1[i] = */ u(pRP, syntax_size);
+        }
+      }
+    }
+  }
+  return byte_alignment(pRP);
+}
+
+/*****************************************************************************/
+bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP)
+{
+  AL_THevcSei sei;
+  AL_THevcAup* aup = &pIAup->hevcAup;
+  sei.present_flags = 0;
+
+  // Parse bitstream
+  while(u(pRP, 8) == 0x00)
+    ; // Skip all 0x00s and one 0x01
+
+  u(pRP, 16); // Skip NUT + temporal_id
+
+  do
+  {
+    uint32_t payload_type = 0;
+    int32_t payload_size = 0;
+
+    // get payload type
+    uint8_t byte = getbyte(pRP);
+
+    while(byte == 0xff)
+    {
+      payload_type += 255;
+      byte = getbyte(pRP);
+    }
+
+    payload_type += byte;
+
+    // get payload size
+    byte = getbyte(pRP);
+
+    while(byte == 0xff)
+    {
+      payload_size += 255;
+      byte = getbyte(pRP);
+    }
+
+    uint32_t offsetBefore = offset(pRP);
+
+    payload_size += byte;
+    switch(payload_type)
+    {
+    case 1: // picture_timing parsing
+
+      if(aup->pActiveSPS)
+      {
+        bool bRet = sei_pic_timing(pRP, aup->pActiveSPS, &sei.picture_timing);
+
+        if(!bRet)
+          skip(pRP, payload_size << 3);
+        sei.present_flags |= SEI_PT;
+
+        aup->ePicStruct = sei.picture_timing.pic_struct;
+      }
+      else
+        return false;
+      break;
+
+    case 129:
+    {
+      uint8_t uSpsId = sei_active_parameter_sets(pRP, aup);
+
+      if(!aup->pSPS[uSpsId].bConceal)
+        aup->pActiveSPS = &aup->pSPS[uSpsId];
+    } break;
+
+    default: // payload not supported
+      skip(pRP, payload_size << 3); // skip data
+      break;
+    }
+
+    uint32_t offsetAfter = offset(pRP);
+    // Skip payload extension data if any
+    int32_t remainingPayload = (payload_size << 3) - (int32_t)(offsetAfter - offsetBefore);
+
+    if(remainingPayload > 0)
+      skip(pRP, remainingPayload);
+  }
+  while(more_rbsp_data(pRP));
+
+  rbsp_trailing_bits(pRP);
+
+  return true;
 }
 

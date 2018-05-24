@@ -47,6 +47,22 @@
 #include "lib_rtos/types.h"
 #include "common_syntax_elements.h"
 
+typedef struct t_RepFormat
+{
+  uint16_t pic_width_vps_in_luma_samples;
+  uint16_t pic_height_vps_in_luma_samples;
+  uint8_t chroma_and_bit_depth_vps_present_flag;
+  uint8_t chroma_format_vps_idc;
+  uint8_t separate_colour_plane_vps_flag;
+  uint8_t bit_depth_vps_luma_minus8;
+  uint8_t bit_depth_vps_chroma_minus8;
+  uint8_t conformance_window_vps_flag;
+  uint32_t conf_win_vps_left_offset;
+  uint32_t conf_win_vps_right_offset;
+  uint32_t conf_win_vps_top_offset;
+  uint32_t conf_win_vps_bottom_offset;
+}AL_TRepFormat;
+
 /*************************************************************************//*!
    \brief Mimics structure described in spec sec. 7.3.2.1.
 *****************************************************************************/
@@ -60,7 +76,7 @@ typedef struct t_HevcVps
   uint8_t vps_temporal_id_nesting_flag;
   uint8_t vps_sub_layer_ordering_info_present_flag;
 
-  AL_TProfilevel profile_and_level;
+  AL_TProfilevel profile_and_level[MAX_NUM_LAYER];
 
   uint8_t vps_max_dec_pic_buffering_minus1[8];
   uint8_t vps_max_num_reorder_pics[8];
@@ -81,6 +97,8 @@ typedef struct t_HevcVps
   uint8_t cprms_present_flag[2];
 
   AL_THrdParam hrd_parameter[2];
+
+  uint8_t vps_extension_flag;
 }AL_THevcVps;
 
 /****************************************************************************/

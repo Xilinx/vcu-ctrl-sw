@@ -63,8 +63,8 @@
 /*****************************************************************************/
 void AL_L2P_GetL2PrefetchMaxRange(AL_TEncChanParam const* pChParam, AL_ESliceType eSliceType, uint8_t uNumCore, uint16_t* pHorzRange, uint16_t* pVertRange);
 
-uint32_t AL_L2P_GetL2PrefetchMinSize(AL_TEncChanParam const* pChParam, uint8_t uNumCore);
-uint32_t AL_L2P_GetL2PrefetchMaxSize(AL_TEncChanParam const* pChParam, uint8_t uNumCore);
+int32_t AL_L2P_GetL2PrefetchMinSize(AL_TEncChanParam const* pChParam, uint8_t uNumCore);
+int32_t AL_L2P_GetL2PrefetchMaxSize(AL_TEncChanParam const* pChParam, uint8_t uNumCore);
 
 /*@}*/
 

@@ -48,6 +48,8 @@
 #include "lib_decode/lib_decode.h"
 #include "I_DecoderCtx.h"
 #include "I_Decoder.h"
+#include "InternalError.h"
+
 
 typedef struct
 {
@@ -58,14 +60,12 @@ typedef struct
 AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
 
 /*************************************************************************//*!
-   \brief This function performs the decoding of one AU
+   \brief This function performs the decoding of one unit
    \param[in] pAbsDec decoder handle
    \param[in] pBufStream circular buffer containing input bitstream to decode
-   \param[out] pEndOfFrame signal if we encountered an end of frame
-   \return If the function returns true (true)
-         Otherwise (false)
+   \return if the function succeeds the return valis is ERR_UNIT_NONE
 *****************************************************************************/
-AL_ERR AL_Default_Decoder_TryDecodeOneAU(AL_TDecoder* pAbsDec, TCircBuffer* pBufStream, bool* pEndOfFrame);
+UNIT_ERROR AL_Default_Decoder_TryDecodeOneUnit(AL_TDecoder* pAbsDec, TCircBuffer* pBufStream);
 
 /*************************************************************************//*!
    \brief This function performs DPB operations after frames decoding
@@ -116,5 +116,13 @@ bool AL_Default_Decoder_AllocMv(AL_TDecCtx* pCtx, int iMVSize, int iPOCSize, int
 *****************************************************************************/
 void AL_Default_Decoder_SetError(AL_TDecCtx* pCtx, AL_ERR eError);
 
+
+/*************************************************************************//*!
+   \brief This function indicates the storage mode of displayed reconstructed frames
+   \param[in] pCtx decoder context
+   \param[out] pEnableCompression indicates if FBC in enabled for output frames
+   \return the output storage mode
+*****************************************************************************/
+AL_EFbStorageMode AL_Default_Decoder_GetDisplayStorageMode(AL_TDecCtx* pCtx, bool* pEnableCompression);
 /*@}*/
 

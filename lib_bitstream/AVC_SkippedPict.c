@@ -160,9 +160,8 @@ unsigned int AL_AVC_GenerateSkippedPictureCabac(AL_TBitStreamLite* pBS, int iCab
     0, 0x100, 0, 1
   };
   unsigned int uBins = 0;
-  int iMB;
 
-  for(iMB = 1; iMB <= iNumMBs; iMB++)
+  for(int iMB = 1; iMB <= iNumMBs; iMB++)
   {
     unsigned int uCodIRangeLPS = AL_TabRangeLPS[uState][(Ctx.uRange >> 6) & 0x03];
 

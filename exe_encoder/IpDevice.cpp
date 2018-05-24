@@ -41,18 +41,20 @@
 #include "IpDevice.h"
 #include "lib_app/console.h"
 #include "lib_app/utils.h"
+#include <algorithm>
 
 extern "C"
 {
 #include "lib_fpga/DmaAlloc.h"
 #include "lib_encode/IScheduler.h"
+#include "lib_perfs/Logger.h"
 }
 
 using namespace std;
 
 AL_TAllocator* createDmaAllocator(const char* deviceName)
 {
-  auto h = DmaAlloc_Create(deviceName);
+  auto h = AL_DmaAlloc_Create(deviceName);
 
   if(h == nullptr)
     throw runtime_error("Can't find dma allocator (trying to use " + string(deviceName) + ")");
@@ -63,7 +65,7 @@ AL_TAllocator* createDmaAllocator(const char* deviceName)
 extern "C"
 {
 #include "lib_encode/SchedulerMcu.h"
-#include "lib_encode/hardwareDriver.h"
+#include "lib_common/HardwareDriver.h"
 }
 
 static unique_ptr<CIpDevice> createMcuIpDevice()

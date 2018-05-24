@@ -39,8 +39,8 @@
 
 /* can't be a static inline function as api user need this function and
  * don't know about the TScheduler type internals */
-bool AL_ISchedulerEnc_Destroy(TScheduler* pScheduler)
+void AL_ISchedulerEnc_Destroy(TScheduler* pScheduler)
 {
-  return pScheduler->vtable->destroy(pScheduler);
+  pScheduler->vtable->destroy(pScheduler);
 }
 

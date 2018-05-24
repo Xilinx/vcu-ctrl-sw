@@ -66,9 +66,6 @@ bool ReadOneFrameYuv(std::ifstream& File, AL_TBuffer* pBuf, bool bLoop);
 bool WriteOneFrame(std::ofstream& File, AL_TBuffer const* pBuf, int iWidth, int iHeight);
 
 /*****************************************************************************/
-bool WriteCompFrame(std::ofstream& File, std::ofstream& MapFile, std::ofstream& MapLogFile, AL_TBuffer* pBuf, AL_EProfile eProfile);
-
-/*****************************************************************************/
 unsigned int ReadNextFrame(std::ifstream& File);
 
 /*****************************************************************************/
@@ -82,6 +79,9 @@ int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream);
 
 /*****************************************************************************/
 void DisplayFrameStatus(int iFrameNum);
+
+/*****************************************************************************/
+uint32_t GetIOLumaRowSize(TFourCC fourCC, uint32_t uWidth);
 
 /*****************************************************************************/
 

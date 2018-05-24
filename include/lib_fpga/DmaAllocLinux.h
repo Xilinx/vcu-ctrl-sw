@@ -35,39 +35,53 @@
 *
 ******************************************************************************/
 
+/**************************************************************************//*!
+   \addtogroup Allocator
+   @{
+   \file
+ *****************************************************************************/
 #pragma once
 
 #include "lib_common/Allocator.h"
 
 typedef struct AL_t_LinuxDmaAllocator AL_TLinuxDmaAllocator;
+/*! \cond ********************************************************************/
 typedef struct
 {
   AL_AllocatorVtable base;
   int (* pfnGetFd)(AL_TLinuxDmaAllocator* pAllocator, AL_HANDLE hBuf);
   AL_HANDLE (* pfnImportFromFd)(AL_TLinuxDmaAllocator* pAllocator, int fd);
-  int (* pfnExportToFd)(AL_TLinuxDmaAllocator* pAllocator, AL_HANDLE hBuf);
 }AL_DmaAllocLinuxVtable;
 
 typedef struct AL_t_LinuxDmaAllocator
 {
   const AL_DmaAllocLinuxVtable* vtable;
 }AL_TLinuxDmaAllocator;
+/*! \endcond *****************************************************************/
 
+/**************************************************************************//*!
+   \brief Get the dmabuf file descriptor used to wrap the dma buffer
+   \param[in] pAllocator a linux dma allocator
+   \param[in] hBuf handle of a linux dma buffer
+   \return dmabuf file descriptor related to the linux dma buffer.
+ *****************************************************************************/
 static inline
 int AL_LinuxDmaAllocator_GetFd(AL_TLinuxDmaAllocator* pAllocator, AL_HANDLE hBuf)
 {
   return pAllocator->vtable->pfnGetFd(pAllocator, hBuf);
 }
 
+/**************************************************************************//*!
+   \brief Create a buffer handle from a dmabuf file descriptor
+   \param[in] pAllocator a linux dma allocator
+   \param[in] fd a linux dmabuf file descriptor
+   \return handle to the dma memory wrapped by the dmabuf file descriptor.
+ *****************************************************************************/
 static inline
 AL_HANDLE AL_LinuxDmaAllocator_ImportFromFd(AL_TLinuxDmaAllocator* pAllocator, int fd)
 {
   return pAllocator->vtable->pfnImportFromFd(pAllocator, fd);
 }
 
-static inline
-int AL_LinuxDmaAllocator_ExportToFd(AL_TLinuxDmaAllocator* pAllocator, AL_HANDLE hBuf)
-{
-  return pAllocator->vtable->pfnExportToFd(pAllocator, hBuf);
-}
+/*@}*/
 

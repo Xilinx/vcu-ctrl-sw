@@ -48,12 +48,13 @@
 
 extern "C"
 {
-#include "traces/Traces.h"
 #include "lib_common_enc/Settings.h"
 }
 
 #include <string>
+#include <vector>
 using namespace std;
+
 
 /*************************************************************************//*!
    \brief Mimics structure for RUN Section of cfg file
@@ -74,15 +75,6 @@ typedef struct tCfgRunInfo
   bool printPictureType = false;
 }TCfgRunInfo;
 
-/*************************************************************************//*!
-   \brief Mimics structure for TRACE Section of cfg file
-*****************************************************************************/
-typedef struct tConfigTrace
-{
-  string sPath;
-  AL_ETraceMode eMode;
-  unsigned int iFrame;
-}TConfigTrace;
 
 /*************************************************************************//*!
    \brief Whole configuration file
@@ -107,6 +99,7 @@ struct ConfigFile
   string sRoiFileName;
 
 
+
   // \brief Information relative to YUV input file (from section INPUT)
   TYUVFileInfo FileInfo;
 
@@ -119,9 +112,6 @@ struct ConfigFile
   // \brief Section RUN
   TCfgRunInfo RunInfo;
 
-  // \brief Section TRACE
-  TConfigTrace CfgTrace;
-
   // \brief control the strictness when parsing the configuration file
   bool strict_mode;
 };
@@ -132,8 +122,9 @@ struct ConfigFile
    the name of the config file
    \param[inout] cfg Reference to ConfigFile object that will be updated
    according to the config file content.
+   \param[out] warnStream warning stream
 *****************************************************************************/
-void ParseConfigFile(const string& sCfgFileName, ConfigFile& cfg);
+void ParseConfigFile(const string& sCfgFileName, ConfigFile& cfg, ostream& warnStream);
 
 /*************************************************************************//*!
    \brief Retrives the numerical value corresponding to a string word

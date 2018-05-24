@@ -35,6 +35,15 @@
 *
 ******************************************************************************/
 
+/*************************************************************************//*!
+   \addtogroup Buffers
+
+   The AL_TBuffer structure permits to implement a reference counting allocation
+   scheme on top of a memory buffer. It also permits to bind interesting data
+   with this buffer using metadatas related functions.
+   @{
+   \file
+*****************************************************************************/
 #pragma once
 
 #include "lib_rtos/types.h"
@@ -42,99 +51,174 @@
 #include "lib_common/BufferMeta.h"
 #include "lib_common/Allocator.h"
 
-typedef struct al_t_Buffer AL_TBuffer;
+/*************************************************************************//*!
+   \brief Reference counted buffer
+
+   The reference count mechanism is still an opt-in feature. The first time you
+   create a buffer, the refcount is 0. You need to call AL_Buffer_Ref to start
+   using the reference count mechanism. In future version of the api, this
+   AL_Buffer_Ref is scheduled to be done inside the buffer creation.
+
+   The AL_TBuffer api doesn't allocate the memory itself and only provide
+   an easy access to it via its api. It wraps a memory buffer allocated using
+   the AL_TAllocator api. The AL_TBuffer takes ownership of the memory buffer
+   and will free it at destruction.
+*****************************************************************************/
+typedef struct
+{
+  AL_TAllocator* pAllocator; /*!< Used to retrieve the memory hidden behind hBuf */
+  size_t zSize; /*!< Size of the allocated memory attached to the buffer */
+  AL_HANDLE hBuf; /*!< Handle to the allocated buffer */
+}AL_TBuffer;
+
 typedef void (* PFN_RefCount_CallBack)(AL_TBuffer* pBuf);
 
 /*************************************************************************//*!
-   \brief Buffer structure used to interact with the encoder
-*****************************************************************************/
-struct al_t_Buffer
-{
-  AL_TAllocator* pAllocator; /*!< Allocator pointer. */
-  size_t zSize; /*!< Size of the allocated buffer */
-  AL_HANDLE hBuf; /*!< Handle to the allocated buffer */
-};
+   \brief Creates an AL_TBuffer and bind a memory of zSize to it
 
-/*************************************************************************//*!
-   \brief AL_Buffer_Init_And_Allocate: Initialize the buffer
-   \param[in] pBuf Pointer to the AL_TBuffer to initialize
-   \param[in] pAllocator Pointer to an Allocator. It will be used to allocate
-   the buffer data via AL_Allocator_Alloc.
+   \param[in] pAllocator Pointer to an Allocator. Will be used to allocate the
+   buffer data via AL_Allocator_Alloc.
    \param[in] zSize The size of the buffer
-   \param[in] pCallBack Will be called when the refcount hits 0, when this happen, the buffer can be reused.
-   \return return true on success, false on failure
+   \param[in] pCallBack is called after the buffer reference count reaches zero
+   and the buffer can safely be reused.
+   \return Returns a buffer if successful. Returns NULL otherwise
 *****************************************************************************/
 AL_TBuffer* AL_Buffer_Create_And_Allocate(AL_TAllocator* pAllocator, size_t zSize, PFN_RefCount_CallBack pCallBack);
+
+/*************************************************************************//*!
+   \brief Creates an AL_TBuffer and bind a memory of zSize to it
+
+   Using the named version permits tracking of which buffer is allocated using
+   a custom allocator.
+
+   \param[in] pAllocator Pointer to an Allocator. Will be used to allocate the
+   buffer data via AL_Allocator_Alloc.
+   \param[in] zSize The size of the buffer
+   \param[in] pCallBack is called after the buffer reference count reaches zero
+   and the buffer can safely be reused.
+   \param[in] name Associate a name to the allocated memory
+   \return Returns a buffer if successful. Returns NULL otherwise
+*****************************************************************************/
 AL_TBuffer* AL_Buffer_Create_And_AllocateNamed(AL_TAllocator* pAllocator, size_t zSize, PFN_RefCount_CallBack pCallBack, char const* name);
 
 /*************************************************************************//*!
-   \brief AL_Buffer_Init: Initialize the buffer
-   \param[in] pBuf Pointer to the AL_TBuffer to initialize
+   \brief Creates the buffer and bind it to the memory hBuf
    \param[in] pAllocator Pointer to an Allocator.
    \param[in] hBuf Handle to an already allocated buffer (with pAllocator)
    \param[in] zSize The size of the buffer
-   \param[in] pCallBack Will be called when the refcount hits 0, when this happen, the buffer can be reused.
-   \return return true on success, false on failure
+   \param[in] pCallBack is called after the buffer reference count reaches zero
+   and the buffer can safely be reused.
+   \return Returns a buffer if successful. Returns NULL otherwise
 *****************************************************************************/
 AL_TBuffer* AL_Buffer_Create(AL_TAllocator* pAllocator, AL_HANDLE hBuf, size_t zSize, PFN_RefCount_CallBack pCallBack);
 
+/*************************************************************************//*!
+   \brief Wraps an already allocated buffer with an AL_TBuffer.
+   \param[in] pData Pointer to the data to wrap
+   \param[in] zSize size of the data to wrap
+   \param[in] pCallBack is called after the buffer reference count reaches zero
+   and the buffer can safely be reused.
+   Doesn't take ownership
+   \return Returns a buffer if successful. Returns NULL otherwise
+*****************************************************************************/
 AL_TBuffer* AL_Buffer_WrapData(uint8_t* pData, size_t zSize, PFN_RefCount_CallBack pCallBack);
 
 /*************************************************************************//*!
-   \brief AL_Buffer_Deinit: Deinitialize the buffer
+   \brief Destroys the buffer
    \param[in] pBuf Pointer to an AL_TBuffer
 *****************************************************************************/
 void AL_Buffer_Destroy(AL_TBuffer* pBuf);
 
 /*************************************************************************//*!
-   \brief AL_Buffer_Ref: Tell that we are using this buffer
+   \brief Increases the reference count of pBuf by one.
    \param[in] pBuf Pointer to an AL_TBuffer
 *****************************************************************************/
 void AL_Buffer_Ref(AL_TBuffer* pBuf);
 
 /*************************************************************************//*!
-   \brief AL_Buffer_Unref: Tell that we have finished to use this buffer
+   \brief Decreases the reference count of pBuf by one.
+
+   Calls the pCallback function associated with the buffer when the reference count
+   becomes zero.
    \param[in] pBuf Pointer to an AL_TBuffer
 *****************************************************************************/
 void AL_Buffer_Unref(AL_TBuffer* pBuf);
 
 /*************************************************************************//*!
-   \brief AL_Buffer_SetUserData: Set private user data
+   \brief Set private user data
    \param[in] pBuf Pointer to an AL_TBuffer
-   \param[in] pUserData Private encoder data, the user is responsible for the alloc/free
+   \param[in] pUserData Private encoder data
+   Doesn't take ownership of the private user data
 *****************************************************************************/
 void AL_Buffer_SetUserData(AL_TBuffer* pBuf, void* pUserData);
 
 /*************************************************************************//*!
-   \brief AL_Buffer_GetUserData: Get private user data
+   \brief Gets private user data
    \param[in] pBuf Pointer to an AL_TBuffer
-   \return return the private user data
+   \return Returns the private user data
 *****************************************************************************/
 void* AL_Buffer_GetUserData(AL_TBuffer* pBuf);
 
 /*************************************************************************//*!
-   \brief AL_Buffer_GetData(AL_TBuffer* pBuf). This might map the data in memory
-   if needed.
-
+   \brief Gets the buffer data. This might map the data in memory if needed.
    \param[in] pBuf Pointer to an AL_TBuffer
-   \return return the private user data
+   \return Returns a pointer to the memory wrapped by the AL_TBuffer
 *****************************************************************************/
 uint8_t* AL_Buffer_GetData(const AL_TBuffer* pBuf);
 
+/*************************************************************************//*!
+   \brief Binds a metadata to a buffer
+
+   Adds the pMeta pointer to the metadata of pBuf. Metadata object are associated
+   with a buffer and provid context regarding how the buffer should be processed.
+   It is inadvisable to add more than one metadata of a given type.
+   The buffer takes ownership of the metadata.
+
+   \param[in] pBuf Pointer to an AL_TBuffer
+   \param[in] pMeta Metadata to bind
+
+   \return Returns true on success. Returns false if memory allocation fails.
+   Thread-safe.
+*****************************************************************************/
+bool AL_Buffer_AddMetaData(AL_TBuffer* pBuf, AL_TMetaData* pMeta);
+
+/*************************************************************************//*!
+   \brief Unbinds a metadata from a buffer
+
+   Takes back ownership of the metadata.
+
+   \param[in] pBuf Pointer to an AL_TBuffer
+   \param[in] pMeta Metadata to unbind
+
+   \return Returns true on success. Returns false if the metadata doesn't exist
+   inside the buffer. Thread-safe.
+*****************************************************************************/
+bool AL_Buffer_RemoveMetaData(AL_TBuffer* pBuf, AL_TMetaData* pMeta);
+
+/*************************************************************************//*!
+   \brief Retrieves a specific metadata that was bound
+   to the buffer earlier
+
+   Metadatas are retrieved by type. Adding two metadatas of the same type will
+   lead to the second one not being accessible before the first one is removed.
+
+   \param[in] pBuf Pointer to an AL_TBuffer
+   \param[in] eType the type of the metadata you want to retrieve
+
+   \return NULL if there is no metadata bound to the buffer of the specified type.
+   A pointer to the metadata you asked for if it exists. Thread-safe.
+
+*****************************************************************************/
+AL_TMetaData* AL_Buffer_GetMetaData(AL_TBuffer const* pBuf, AL_EMetaType eType);
+
 /*
- * Change the memory region backed by the buffer
+ * Changes the memory region backed by the buffer
  * without any check
  *
  * _do not use this in new code, this is here for historical reason_
- * */
+ */
 void AL_Buffer_SetData(const AL_TBuffer* pBuf, uint8_t* pData);
-
-bool AL_Buffer_AddMetaData(AL_TBuffer* pBuf, AL_TMetaData* pMeta);
-bool AL_Buffer_RemoveMetaData(AL_TBuffer* pBuf, AL_TMetaData* pMeta);
-AL_TMetaData* AL_Buffer_GetMetaData(AL_TBuffer const* pBuf, AL_EMetaType eType);
-
-/*************************************************************************//*!
-   \brief
-*****************************************************************************/
 void AL_CopyYuv(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+
+/*@}*/
 
