@@ -768,14 +768,6 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   AL_THevcSps* pSPS = (AL_THevcSps*)pISPS;
   InitHEVC_Sps(pSPS);
 
-  int iLcuWidth = (pChParam->uWidth + ((1 << pChParam->uMaxCuSize) - 1)) >> pChParam->uMaxCuSize;
-  int iLcuHeight = (pChParam->uHeight + ((1 << pChParam->uMaxCuSize) - 1)) >> pChParam->uMaxCuSize;
-
-  int iWidthDiff = (iLcuWidth << pChParam->uMaxCuSize) - pChParam->uWidth;
-  int iHeightDiff = (iLcuHeight << pChParam->uMaxCuSize) - pChParam->uHeight;
-  int iCropUnitX = AL_GET_CHROMA_MODE(pChParam->ePicFormat) ? 2 : 1;
-  int iCropUnitY = AL_GET_CHROMA_MODE(pChParam->ePicFormat) ? 2 : 1;
-
   pSPS->sps_video_parameter_set_id = 0;
 
   if(iLayerId == 0)
@@ -803,12 +795,17 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   {
     pSPS->chroma_format_idc = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
     pSPS->separate_colour_plane_flag = 0;
-    pSPS->pic_width_in_luma_samples = pChParam->uWidth;
-    pSPS->pic_height_in_luma_samples = pChParam->uHeight;
-    pSPS->conformance_window_flag = 0;// (iWidthDiff || iHeightDiff) ? 1 : 0;
+    pSPS->pic_width_in_luma_samples = (pChParam->uWidth + 7) & ~7;
+    pSPS->pic_height_in_luma_samples = (pChParam->uHeight + 7) & ~ 7;
+    pSPS->conformance_window_flag = (pSPS->pic_width_in_luma_samples != pChParam->uWidth) || (pSPS->pic_height_in_luma_samples != pChParam->uHeight) ? 1 : 0;
 
     if(pSPS->conformance_window_flag)
     {
+      int iWidthDiff = pSPS->pic_width_in_luma_samples - pChParam->uWidth;
+      int iHeightDiff = pSPS->pic_height_in_luma_samples - pChParam->uHeight;
+      int iCropUnitX = AL_GET_CHROMA_MODE(pChParam->ePicFormat) ? 2 : 1;
+      int iCropUnitY = AL_GET_CHROMA_MODE(pChParam->ePicFormat) ? 2 : 1;
+
       pSPS->conf_win_left_offset = 0;
       pSPS->conf_win_right_offset = iWidthDiff / iCropUnitX;
       pSPS->conf_win_top_offset = 0;

@@ -815,10 +815,10 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   }
 
 
-  if(pChParam->uWidth % 8 != 0 || pChParam->uHeight % 8 != 0)
+  if(pChParam->uWidth % 2 != 0 || pChParam->uHeight % 2 != 0)
   {
     ++err;
-    MSG("Width and Height shall be multiple of 8 ! ");
+    MSG("Width and Height shall be multiple of 2 ! ");
   }
 
   int iNumB = pChParam->tGopParam.uNumB;

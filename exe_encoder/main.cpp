@@ -541,7 +541,7 @@ static AL_TBufPoolConfig GetSrcBufPoolConfig(unique_ptr<IConvSrc>& pSrcConv, TFr
 
   TFourCC FourCC = AL_EncGetSrcFourCC(tPictFormat);
   AL_TPitches p = SetPitchYC(FrameInfo.iWidth, FourCC);
-  int iStrideHeight = FrameInfo.iHeight;
+  int iStrideHeight = (FrameInfo.iHeight + 7) & ~ 7;
 
   if(g_StrideHeight != -1)
     iStrideHeight = g_StrideHeight;

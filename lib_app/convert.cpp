@@ -393,7 +393,6 @@ void YV12_To_XV15(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
   pDstMeta->tFourCC = FOURCC(XV15);
 }
 
-
 /****************************************************************************/
 void YV12_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 {
@@ -615,7 +614,6 @@ void Y800_To_XV15(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
   pDstMeta->tFourCC = FOURCC(XV15);
 }
-
 
 /****************************************************************************/
 void Y800_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
@@ -1162,8 +1160,8 @@ static void I42X_To_NV1X(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   pDstMeta->tDim.iHeight = pSrcMeta->tDim.iHeight;
 
   // Luma
-  AL_VADDR pSrcY = pSrcData;
-  AL_VADDR pDstY = pDstData;
+  AL_VADDR pSrcY = pSrcData + pSrcMeta->tOffsetYC.iLuma;
+  AL_VADDR pDstY = pDstData + pDstMeta->tOffsetYC.iLuma;
 
   for(int iH = 0; iH < pSrcMeta->tDim.iHeight; ++iH)
   {
@@ -1171,11 +1169,13 @@ static void I42X_To_NV1X(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
     pDstY += pDstMeta->tPitches.iLuma;
     pSrcY += pSrcMeta->tDim.iWidth;
   }
+  if(pSrcMeta->tDim.iHeight % 8)
+    Rtos_Memset(pDstY, 0x00, pDstMeta->tPitches.iLuma * (8 - (pDstMeta->tDim.iHeight % 8)));
 
   // Chroma
-  AL_VADDR pBufInU = pSrcData + iSize;
-  AL_VADDR pBufInV = pSrcData + iSize + (iSize / iCScale);
-  AL_VADDR pBufOut = pDstData + (pDstMeta->tPitches.iLuma * pDstMeta->tDim.iHeight);
+  AL_VADDR pBufInU = pSrcData + pSrcMeta->tOffsetYC.iChroma;
+  AL_VADDR pBufInV = pBufInU + (iSize / iCScale);
+  AL_VADDR pBufOut = pDstData + pDstMeta->tOffsetYC.iChroma;
 
   int iHeightC = pSrcMeta->tDim.iHeight / uVrtCScale;
   int iWidthC = pSrcMeta->tDim.iWidth / uHrzCScale;
@@ -1192,6 +1192,8 @@ static void I42X_To_NV1X(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
     pBufInU += iWidthC;
     pBufInV += iWidthC;
   }
+  if(pSrcMeta->tDim.iHeight % 8)
+    Rtos_Memset(pBufOut, 0x80, pDstMeta->tPitches.iChroma * ((8 / uVrtCScale) - (iHeightC % (8 / uVrtCScale))));
 
   SetFourCC(pDstMeta, FOURCC(NV12), FOURCC(NV16), iCScale);
 }
@@ -1538,40 +1540,29 @@ void ALX8_To_I42X(AL_TBuffer const* pSrc, AL_TBuffer* pDst, int iHeightC)
 
       for(int h = 0; h < iTileH - iCropH; h += 4)
       {
+        int i4x4CropH = std::min(4, iTileH - h - iCropH);
+        
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint8_t* pOutU = pDstData + iOffsetU + (H + h) * pDstMeta->tPitches.iChroma + (W + w) / 2;
           uint8_t* pOutV = pDstData + iOffsetV + (H + h) * pDstMeta->tPitches.iChroma + (W + w) / 2;
-
-          pOutU[0] = pInC[0];
-          pOutV[0] = pInC[1];
-          pOutU[1] = pInC[2];
-          pOutV[1] = pInC[3];
-          pOutU += pDstMeta->tPitches.iChroma;
-          pOutV += pDstMeta->tPitches.iChroma;
-          pOutU[0] = pInC[4];
-          pOutV[0] = pInC[5];
-          pOutU[1] = pInC[6];
-          pOutV[1] = pInC[7];
-          pOutU += pDstMeta->tPitches.iChroma;
-          pOutV += pDstMeta->tPitches.iChroma;
-          pOutU[0] = pInC[8];
-          pOutV[0] = pInC[9];
-          pOutU[1] = pInC[10];
-          pOutV[1] = pInC[11];
-          pOutU += pDstMeta->tPitches.iChroma;
-          pOutV += pDstMeta->tPitches.iChroma;
-          pOutU[0] = pInC[12];
-          pOutV[0] = pInC[13];
-          pOutU[1] = pInC[14];
-          pOutV[1] = pInC[15];
+          uint8_t* pInTmp = pInC; 
+          
+          for(int i = 0; i < i4x4CropH; ++i)
+          {
+            pOutU[0] = pInTmp[0];
+            pOutV[0] = pInTmp[1];
+            pOutU[1] = pInTmp[2];
+            pOutV[1] = pInTmp[3];
+            pOutU += pDstMeta->tPitches.iChroma;
+            pOutV += pDstMeta->tPitches.iChroma;
+            pInTmp += 4;
+          }
           pInC += 16;
         }
 
         pInC += 4 * iCropW;
       }
-
-      pInC += iCropH * iTileW;
     }
   }
 }
@@ -1638,40 +1629,29 @@ void T608_To_YV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
       for(int h = 0; h < iTileH - iCropH; h += 4)
       {
+        int i4x4CropH = std::min(4, iTileH - h - iCropH);
+        
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint8_t* pOutU = pDstData + iOffsetU + (H + h) * pDstMeta->tPitches.iChroma + (W + w) / 2;
           uint8_t* pOutV = pDstData + iOffsetV + (H + h) * pDstMeta->tPitches.iChroma + (W + w) / 2;
+          uint8_t* pInTmp = pInC;
 
-          pOutU[0] = pInC[0];
-          pOutV[0] = pInC[1];
-          pOutU[1] = pInC[2];
-          pOutV[1] = pInC[3];
-          pOutU += pDstMeta->tPitches.iChroma;
-          pOutV += pDstMeta->tPitches.iChroma;
-          pOutU[0] = pInC[4];
-          pOutV[0] = pInC[5];
-          pOutU[1] = pInC[6];
-          pOutV[1] = pInC[7];
-          pOutU += pDstMeta->tPitches.iChroma;
-          pOutV += pDstMeta->tPitches.iChroma;
-          pOutU[0] = pInC[8];
-          pOutV[0] = pInC[9];
-          pOutU[1] = pInC[10];
-          pOutV[1] = pInC[11];
-          pOutU += pDstMeta->tPitches.iChroma;
-          pOutV += pDstMeta->tPitches.iChroma;
-          pOutU[0] = pInC[12];
-          pOutV[0] = pInC[13];
-          pOutU[1] = pInC[14];
-          pOutV[1] = pInC[15];
+          for(int i=0; i < i4x4CropH; ++i)
+          {
+            pOutU[0] = pInTmp[0];
+            pOutV[0] = pInTmp[1];
+            pOutU[1] = pInTmp[2];
+            pOutV[1] = pInTmp[3];
+            pOutU += pDstMeta->tPitches.iChroma;
+            pOutV += pDstMeta->tPitches.iChroma;
+            pInTmp += 4;
+          }
           pInC += 16;
         }
 
         pInC += 4 * iCropW;
       }
-
-      pInC += iCropH * iTileW;
     }
   }
 
@@ -1716,36 +1696,27 @@ void T608_To_NV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
       for(int h = 0; h < iTileH - iCropH; h += 4)
       {
+        int i4x4CropH = std::min(4, iTileH - h - iCropH);
+        
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint8_t* pOutC = pDstData + iOffsetC + (H + h) * pDstMeta->tPitches.iChroma + (W + w);
+          uint8_t* pInTmp = pInC;
 
-          pOutC[0] = pInC[0];
-          pOutC[1] = pInC[1];
-          pOutC[2] = pInC[2];
-          pOutC[3] = pInC[3];
-          pOutC += pDstMeta->tPitches.iChroma;
-          pOutC[0] = pInC[4];
-          pOutC[1] = pInC[5];
-          pOutC[2] = pInC[6];
-          pOutC[3] = pInC[7];
-          pOutC += pDstMeta->tPitches.iChroma;
-          pOutC[0] = pInC[8];
-          pOutC[1] = pInC[9];
-          pOutC[2] = pInC[10];
-          pOutC[3] = pInC[11];
-          pOutC += pDstMeta->tPitches.iChroma;
-          pOutC[0] = pInC[12];
-          pOutC[1] = pInC[13];
-          pOutC[2] = pInC[14];
-          pOutC[3] = pInC[15];
+          for(int i=0; i < i4x4CropH; ++i)
+          {
+            pOutC[0] = pInTmp[0];
+            pOutC[1] = pInTmp[1];
+            pOutC[2] = pInTmp[2];
+            pOutC[3] = pInTmp[3];
+            pOutC += pDstMeta->tPitches.iChroma;
+            pInTmp += 4;
+          }
           pInC += 16;
         }
 
         pInC += 4 * iCropW;
       }
-
-      pInC += iCropH * iTileW;
     }
   }
 
@@ -1783,36 +1754,28 @@ void T608_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
       for(int h = 0; h < iTileH - iCropH; h += 4)
       {
+        int i4x4CropH = std::min(4, iTileH - h - iCropH);
+
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint8_t* pOutY = pDstData + (H + h) * pDstMeta->tPitches.iLuma + (W + w);
+          uint8_t* pInTmp = pInY;
 
-          pOutY[0] = pInY[0];
-          pOutY[1] = pInY[1];
-          pOutY[2] = pInY[2];
-          pOutY[3] = pInY[3];
-          pOutY += pDstMeta->tPitches.iLuma;
-          pOutY[0] = pInY[4];
-          pOutY[1] = pInY[5];
-          pOutY[2] = pInY[6];
-          pOutY[3] = pInY[7];
-          pOutY += pDstMeta->tPitches.iLuma;
-          pOutY[0] = pInY[8];
-          pOutY[1] = pInY[9];
-          pOutY[2] = pInY[10];
-          pOutY[3] = pInY[11];
-          pOutY += pDstMeta->tPitches.iLuma;
-          pOutY[0] = pInY[12];
-          pOutY[1] = pInY[13];
-          pOutY[2] = pInY[14];
-          pOutY[3] = pInY[15];
+          for(int i = 0; i < i4x4CropH; ++i)
+          {
+            pOutY[0] = pInTmp[0];
+            pOutY[1] = pInTmp[1];
+            pOutY[2] = pInTmp[2];
+            pOutY[3] = pInTmp[3];
+            pOutY += pDstMeta->tPitches.iLuma;
+            pInTmp += 4;
+          }
+
           pInY += 16;
         }
 
         pInY += 4 * iCropW;
       }
-
-      pInY += iCropH * iTileW;
     }
   }
 
@@ -1852,36 +1815,28 @@ void T608_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
       for(int h = 0; h < iTileH - iCropH; h += 4)
       {
+        int i4x4CropH = std::min(4, iTileH - h - iCropH);
+
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint16_t* pOutY = ((uint16_t*)pDstData) + (H + h) * iDstPitchLuma + (W + w);
+          uint8_t* pInTmp = pInY;
 
-          pOutY[0] = ((uint16_t)pInY[0]) << 2;
-          pOutY[1] = ((uint16_t)pInY[1]) << 2;
-          pOutY[2] = ((uint16_t)pInY[2]) << 2;
-          pOutY[3] = ((uint16_t)pInY[3]) << 2;
-          pOutY += iDstPitchLuma;
-          pOutY[0] = ((uint16_t)pInY[4]) << 2;
-          pOutY[1] = ((uint16_t)pInY[5]) << 2;
-          pOutY[2] = ((uint16_t)pInY[6]) << 2;
-          pOutY[3] = ((uint16_t)pInY[7]) << 2;
-          pOutY += iDstPitchLuma;
-          pOutY[0] = ((uint16_t)pInY[8]) << 2;
-          pOutY[1] = ((uint16_t)pInY[9]) << 2;
-          pOutY[2] = ((uint16_t)pInY[10]) << 2;
-          pOutY[3] = ((uint16_t)pInY[11]) << 2;
-          pOutY += iDstPitchLuma;
-          pOutY[0] = ((uint16_t)pInY[12]) << 2;
-          pOutY[1] = ((uint16_t)pInY[13]) << 2;
-          pOutY[2] = ((uint16_t)pInY[14]) << 2;
-          pOutY[3] = ((uint16_t)pInY[15]) << 2;
+          for(int i = 0; i < i4x4CropH; ++i)
+          {
+            pOutY[0] = ((uint16_t)pInTmp[0]) << 2;
+            pOutY[1] = ((uint16_t)pInTmp[1]) << 2;
+            pOutY[2] = ((uint16_t)pInTmp[2]) << 2;
+            pOutY[3] = ((uint16_t)pInTmp[3]) << 2;
+            pOutY += iDstPitchLuma;
+            pInTmp += 4;
+          }
+
           pInY += 16;
         }
 
         pInY += 4 * iCropW;
       }
-
-      pInY += iCropH * iTileW;
     }
   }
 }
@@ -1925,36 +1880,27 @@ void T608_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
       for(int h = 0; h < iTileH - iCropH; h += 4)
       {
+        int i4x4CropH = std::min(4, iTileH - h - iCropH);
+        
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint16_t* pOutC = ((uint16_t*)(pDstData + iOffsetC)) + (H + h) * iDstPitchChroma + (W + w);
+          uint8_t* pInTmp = pInC;
 
-          pOutC[0] = ((uint16_t)pInC[0]) << 2;
-          pOutC[1] = ((uint16_t)pInC[1]) << 2;
-          pOutC[2] = ((uint16_t)pInC[2]) << 2;
-          pOutC[3] = ((uint16_t)pInC[3]) << 2;
-          pOutC += iDstPitchChroma;
-          pOutC[0] = ((uint16_t)pInC[4]) << 2;
-          pOutC[1] = ((uint16_t)pInC[5]) << 2;
-          pOutC[2] = ((uint16_t)pInC[6]) << 2;
-          pOutC[3] = ((uint16_t)pInC[7]) << 2;
-          pOutC += iDstPitchChroma;
-          pOutC[0] = ((uint16_t)pInC[8]) << 2;
-          pOutC[1] = ((uint16_t)pInC[9]) << 2;
-          pOutC[2] = ((uint16_t)pInC[10]) << 2;
-          pOutC[3] = ((uint16_t)pInC[11]) << 2;
-          pOutC += iDstPitchChroma;
-          pOutC[0] = ((uint16_t)pInC[12]) << 2;
-          pOutC[1] = ((uint16_t)pInC[13]) << 2;
-          pOutC[2] = ((uint16_t)pInC[14]) << 2;
-          pOutC[3] = ((uint16_t)pInC[15]) << 2;
+          for(int i=0; i< i4x4CropH; ++i)
+          {
+            pOutC[0] = ((uint16_t)pInTmp[0]) << 2;
+            pOutC[1] = ((uint16_t)pInTmp[1]) << 2;
+            pOutC[2] = ((uint16_t)pInTmp[2]) << 2;
+            pOutC[3] = ((uint16_t)pInTmp[3]) << 2;
+            pOutC += iDstPitchChroma;
+            pInTmp += 4;
+          }
           pInC += 16;
         }
 
         pInC += 4 * iCropW;
       }
-
-      pInC += iCropH * iTileW;
     }
   }
 
@@ -2001,40 +1947,29 @@ void T608_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
       for(int h = 0; h < iTileH - iCropH; h += 4)
       {
+        int i4x4CropH = std::min(4, iTileH - h - iCropH);
+        
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint16_t* pOutU = (uint16_t*)(pDstData + iOffsetU) + (H + h) * iDstPichChroma + (W + w) / 2;
           uint16_t* pOutV = (uint16_t*)(pDstData + iOffsetV) + (H + h) * iDstPichChroma + (W + w) / 2;
+          uint8_t* pInTmp = pInC;
 
-          pOutU[0] = ((uint16_t)pInC[0]) << 2;
-          pOutV[0] = ((uint16_t)pInC[1]) << 2;
-          pOutU[1] = ((uint16_t)pInC[2]) << 2;
-          pOutV[1] = ((uint16_t)pInC[3]) << 2;
-          pOutU += iDstPichChroma;
-          pOutV += iDstPichChroma;
-          pOutU[0] = ((uint16_t)pInC[4]) << 2;
-          pOutV[0] = ((uint16_t)pInC[5]) << 2;
-          pOutU[1] = ((uint16_t)pInC[6]) << 2;
-          pOutV[1] = ((uint16_t)pInC[7]) << 2;
-          pOutU += iDstPichChroma;
-          pOutV += iDstPichChroma;
-          pOutU[0] = ((uint16_t)pInC[8]) << 2;
-          pOutV[0] = ((uint16_t)pInC[9]) << 2;
-          pOutU[1] = ((uint16_t)pInC[10]) << 2;
-          pOutV[1] = ((uint16_t)pInC[11]) << 2;
-          pOutU += iDstPichChroma;
-          pOutV += iDstPichChroma;
-          pOutU[0] = ((uint16_t)pInC[12]) << 2;
-          pOutV[0] = ((uint16_t)pInC[13]) << 2;
-          pOutU[1] = ((uint16_t)pInC[14]) << 2;
-          pOutV[1] = ((uint16_t)pInC[15]) << 2;
+          for(int i=0; i < i4x4CropH; ++i)
+          {
+            pOutU[0] = ((uint16_t)pInTmp[0]) << 2;
+            pOutV[0] = ((uint16_t)pInTmp[1]) << 2;
+            pOutU[1] = ((uint16_t)pInTmp[2]) << 2;
+            pOutV[1] = ((uint16_t)pInTmp[3]) << 2;
+            pOutU += iDstPichChroma;
+            pOutV += iDstPichChroma;
+            pInTmp += 4;
+          }
           pInC += 16;
         }
 
         pInC += 4 * iCropW;
       }
-
-      pInC += iCropH * iTileW;
     }
   }
 
@@ -2374,6 +2309,8 @@ void T60A_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
       for(int h = 0; h < iTileH - iCropH; h += 4)
       {
+        int i4x4CropH = iTileH - h - iCropH;
+        
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint8_t* pOutU = pDstData + iOffsetU + (H + h) * pDstMeta->tPitches.iChroma + (W + w) / 2;
@@ -2383,31 +2320,38 @@ void T60A_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
           pOutV[0] = (uint8_t)RND_10B_TO_8B(((pInC[0] >> 10) | (pInC[1] << 6)) & 0x3FF);
           pOutU[1] = (uint8_t)RND_10B_TO_8B((pInC[1] >> 4) & 0x3FF);
           pOutV[1] = (uint8_t)RND_10B_TO_8B(((pInC[1] >> 14) | (pInC[2] << 2)) & 0x3FF);
-          pOutU += pDstMeta->tPitches.iChroma;
-          pOutV += pDstMeta->tPitches.iChroma;
-          pOutU[0] = (uint8_t)RND_10B_TO_8B(((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF);
-          pOutV[0] = (uint8_t)RND_10B_TO_8B((pInC[3] >> 2) & 0x3FF);
-          pOutU[1] = (uint8_t)RND_10B_TO_8B(((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF);
-          pOutV[1] = (uint8_t)RND_10B_TO_8B(pInC[4] >> 6);
-          pOutU += pDstMeta->tPitches.iChroma;
-          pOutV += pDstMeta->tPitches.iChroma;
-          pOutU[0] = (uint8_t)RND_10B_TO_8B(pInC[5] & 0x3FF);
-          pOutV[0] = (uint8_t)RND_10B_TO_8B(((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF);
-          pOutU[1] = (uint8_t)RND_10B_TO_8B((pInC[6] >> 4) & 0x3FF);
-          pOutV[1] = (uint8_t)RND_10B_TO_8B(((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF);
-          pOutU += pDstMeta->tPitches.iChroma;
-          pOutV += pDstMeta->tPitches.iChroma;
-          pOutU[0] = (uint8_t)RND_10B_TO_8B(((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF);
-          pOutV[0] = (uint8_t)RND_10B_TO_8B((pInC[8] >> 2) & 0x3FF);
-          pOutU[1] = (uint8_t)RND_10B_TO_8B(((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF);
-          pOutV[1] = (uint8_t)RND_10B_TO_8B(pInC[9] >> 6);
+          if(i4x4CropH > 1)
+          {
+            pOutU += pDstMeta->tPitches.iChroma;
+            pOutV += pDstMeta->tPitches.iChroma;
+            pOutU[0] = (uint8_t)RND_10B_TO_8B(((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF);
+            pOutV[0] = (uint8_t)RND_10B_TO_8B((pInC[3] >> 2) & 0x3FF);
+            pOutU[1] = (uint8_t)RND_10B_TO_8B(((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF);
+            pOutV[1] = (uint8_t)RND_10B_TO_8B(pInC[4] >> 6);
+            if(i4x4CropH > 2)
+            {
+              pOutU += pDstMeta->tPitches.iChroma;
+              pOutV += pDstMeta->tPitches.iChroma;
+              pOutU[0] = (uint8_t)RND_10B_TO_8B(pInC[5] & 0x3FF);
+              pOutV[0] = (uint8_t)RND_10B_TO_8B(((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF);
+              pOutU[1] = (uint8_t)RND_10B_TO_8B((pInC[6] >> 4) & 0x3FF);
+              pOutV[1] = (uint8_t)RND_10B_TO_8B(((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF);
+              if(i4x4CropH > 3)
+              {
+                pOutU += pDstMeta->tPitches.iChroma;
+                pOutV += pDstMeta->tPitches.iChroma;
+                pOutU[0] = (uint8_t)RND_10B_TO_8B(((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF);
+                pOutV[0] = (uint8_t)RND_10B_TO_8B((pInC[8] >> 2) & 0x3FF);
+                pOutU[1] = (uint8_t)RND_10B_TO_8B(((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF);
+                pOutV[1] = (uint8_t)RND_10B_TO_8B(pInC[9] >> 6);
+              }
+            }
+          }
           pInC += 10;
         }
 
         pInC += 5 * iCropW / sizeof(uint16_t);
       }
-
-      pInC += iCropH * iTileW * 5 / 4 / sizeof(uint16_t);
     }
   }
 
@@ -2462,6 +2406,8 @@ void T60A_To_YV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
       for(int h = 0; h < iTileH - iCropH; h += 4)
       {
+        int i4x4CropH = iTileH - h - iCropH;
+        
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint8_t* pOutU = pDstData + iOffsetU + (H + h) * pDstMeta->tPitches.iChroma + (W + w) / 2;
@@ -2471,31 +2417,38 @@ void T60A_To_YV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
           pOutV[0] = (uint8_t)RND_10B_TO_8B(((pInC[0] >> 10) | (pInC[1] << 6)) & 0x3FF);
           pOutU[1] = (uint8_t)RND_10B_TO_8B((pInC[1] >> 4) & 0x3FF);
           pOutV[1] = (uint8_t)RND_10B_TO_8B(((pInC[1] >> 14) | (pInC[2] << 2)) & 0x3FF);
-          pOutU += pDstMeta->tPitches.iChroma;
-          pOutV += pDstMeta->tPitches.iChroma;
-          pOutU[0] = (uint8_t)RND_10B_TO_8B(((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF);
-          pOutV[0] = (uint8_t)RND_10B_TO_8B((pInC[3] >> 2) & 0x3FF);
-          pOutU[1] = (uint8_t)RND_10B_TO_8B(((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF);
-          pOutV[1] = (uint8_t)RND_10B_TO_8B(pInC[4] >> 6);
-          pOutU += pDstMeta->tPitches.iChroma;
-          pOutV += pDstMeta->tPitches.iChroma;
-          pOutU[0] = (uint8_t)RND_10B_TO_8B(pInC[5] & 0x3FF);
-          pOutV[0] = (uint8_t)RND_10B_TO_8B(((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF);
-          pOutU[1] = (uint8_t)RND_10B_TO_8B((pInC[6] >> 4) & 0x3FF);
-          pOutV[1] = (uint8_t)RND_10B_TO_8B(((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF);
-          pOutU += pDstMeta->tPitches.iChroma;
-          pOutV += pDstMeta->tPitches.iChroma;
-          pOutU[0] = (uint8_t)RND_10B_TO_8B(((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF);
-          pOutV[0] = (uint8_t)RND_10B_TO_8B((pInC[8] >> 2) & 0x3FF);
-          pOutU[1] = (uint8_t)RND_10B_TO_8B(((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF);
-          pOutV[1] = (uint8_t)RND_10B_TO_8B(pInC[9] >> 6);
+          if(i4x4CropH > 1)
+          {          
+            pOutU += pDstMeta->tPitches.iChroma;
+            pOutV += pDstMeta->tPitches.iChroma;
+            pOutU[0] = (uint8_t)RND_10B_TO_8B(((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF);
+            pOutV[0] = (uint8_t)RND_10B_TO_8B((pInC[3] >> 2) & 0x3FF);
+            pOutU[1] = (uint8_t)RND_10B_TO_8B(((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF);
+            pOutV[1] = (uint8_t)RND_10B_TO_8B(pInC[4] >> 6);
+            if(i4x4CropH > 2)
+            {
+              pOutU += pDstMeta->tPitches.iChroma;
+              pOutV += pDstMeta->tPitches.iChroma;
+              pOutU[0] = (uint8_t)RND_10B_TO_8B(pInC[5] & 0x3FF);
+              pOutV[0] = (uint8_t)RND_10B_TO_8B(((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF);
+              pOutU[1] = (uint8_t)RND_10B_TO_8B((pInC[6] >> 4) & 0x3FF);
+              pOutV[1] = (uint8_t)RND_10B_TO_8B(((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF);
+              if(i4x4CropH > 3)
+              {
+                pOutU += pDstMeta->tPitches.iChroma;
+                pOutV += pDstMeta->tPitches.iChroma;
+                pOutU[0] = (uint8_t)RND_10B_TO_8B(((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF);
+                pOutV[0] = (uint8_t)RND_10B_TO_8B((pInC[8] >> 2) & 0x3FF);
+                pOutU[1] = (uint8_t)RND_10B_TO_8B(((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF);
+                pOutV[1] = (uint8_t)RND_10B_TO_8B(pInC[9] >> 6);
+              }
+            }
+          }
           pInC += 10;
         }
 
         pInC += 5 * iCropW / sizeof(uint16_t);
       }
-
-      pInC += iCropH * iTileW * 5 / 4 / sizeof(uint16_t);
     }
   }
 
@@ -2540,6 +2493,8 @@ void T60A_To_NV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
       for(int h = 0; h < iTileH - iCropH; h += 4)
       {
+        int i4x4CropH = iTileH - h - iCropH;
+
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint8_t* pOutC = pDstData + iOffsetC + (H + h) * pDstMeta->tPitches.iChroma + (W + w);
@@ -2548,28 +2503,35 @@ void T60A_To_NV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
           pOutC[1] = (uint8_t)RND_10B_TO_8B(((pInC[0] >> 10) | (pInC[1] << 6)) & 0x3FF);
           pOutC[2] = (uint8_t)RND_10B_TO_8B((pInC[1] >> 4) & 0x3FF);
           pOutC[3] = (uint8_t)RND_10B_TO_8B(((pInC[1] >> 14) | (pInC[2] << 2)) & 0x3FF);
-          pOutC += pDstMeta->tPitches.iChroma;
-          pOutC[0] = (uint8_t)RND_10B_TO_8B(((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF);
-          pOutC[1] = (uint8_t)RND_10B_TO_8B((pInC[3] >> 2) & 0x3FF);
-          pOutC[2] = (uint8_t)RND_10B_TO_8B(((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF);
-          pOutC[3] = (uint8_t)RND_10B_TO_8B(pInC[4] >> 6);
-          pOutC += pDstMeta->tPitches.iChroma;
-          pOutC[0] = (uint8_t)RND_10B_TO_8B(pInC[5] & 0x3FF);
-          pOutC[1] = (uint8_t)RND_10B_TO_8B(((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF);
-          pOutC[2] = (uint8_t)RND_10B_TO_8B((pInC[6] >> 4) & 0x3FF);
-          pOutC[3] = (uint8_t)RND_10B_TO_8B(((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF);
-          pOutC += pDstMeta->tPitches.iChroma;
-          pOutC[0] = (uint8_t)RND_10B_TO_8B(((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF);
-          pOutC[1] = (uint8_t)RND_10B_TO_8B((pInC[8] >> 2) & 0x3FF);
-          pOutC[2] = (uint8_t)RND_10B_TO_8B(((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF);
-          pOutC[3] = (uint8_t)RND_10B_TO_8B(pInC[9] >> 6);
+          if(i4x4CropH > 1)
+          {
+            pOutC += pDstMeta->tPitches.iChroma;
+            pOutC[0] = (uint8_t)RND_10B_TO_8B(((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF);
+            pOutC[1] = (uint8_t)RND_10B_TO_8B((pInC[3] >> 2) & 0x3FF);
+            pOutC[2] = (uint8_t)RND_10B_TO_8B(((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF);
+            pOutC[3] = (uint8_t)RND_10B_TO_8B(pInC[4] >> 6);
+            if(i4x4CropH > 2)
+            {
+              pOutC += pDstMeta->tPitches.iChroma;
+              pOutC[0] = (uint8_t)RND_10B_TO_8B(pInC[5] & 0x3FF);
+              pOutC[1] = (uint8_t)RND_10B_TO_8B(((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF);
+              pOutC[2] = (uint8_t)RND_10B_TO_8B((pInC[6] >> 4) & 0x3FF);
+              pOutC[3] = (uint8_t)RND_10B_TO_8B(((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF);
+              if(i4x4CropH > 3)
+              {
+                pOutC += pDstMeta->tPitches.iChroma;
+                pOutC[0] = (uint8_t)RND_10B_TO_8B(((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF);
+                pOutC[1] = (uint8_t)RND_10B_TO_8B((pInC[8] >> 2) & 0x3FF);
+                pOutC[2] = (uint8_t)RND_10B_TO_8B(((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF);
+                pOutC[3] = (uint8_t)RND_10B_TO_8B(pInC[9] >> 6);
+              }
+            }
+          }
           pInC += 10;
         }
 
         pInC += 5 * iCropW / sizeof(uint16_t);
       }
-
-      pInC += iCropH * iTileW * 5 / 4 / sizeof(uint16_t);
     }
   }
 
@@ -2607,6 +2569,8 @@ void T60A_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
       for(int h = 0; h < iTileH - iCropH; h += 4)
       {
+        int i4x4CropH = iTileH - h - iCropH;
+
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint8_t* pOutY = pDstData + (H + h) * pDstMeta->tPitches.iLuma + (W + w);
@@ -2615,28 +2579,35 @@ void T60A_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
           pOutY[1] = (uint8_t)RND_10B_TO_8B(((pInY[0] >> 10) | (pInY[1] << 6)) & 0x3FF);
           pOutY[2] = (uint8_t)RND_10B_TO_8B((pInY[1] >> 4) & 0x3FF);
           pOutY[3] = (uint8_t)RND_10B_TO_8B(((pInY[1] >> 14) | (pInY[2] << 2)) & 0x3FF);
-          pOutY += pDstMeta->tPitches.iLuma;
-          pOutY[0] = (uint8_t)RND_10B_TO_8B(((pInY[2] >> 8) | (pInY[3] << 8)) & 0x3FF);
-          pOutY[1] = (uint8_t)RND_10B_TO_8B((pInY[3] >> 2) & 0x3FF);
-          pOutY[2] = (uint8_t)RND_10B_TO_8B(((pInY[3] >> 12) | (pInY[4] << 4)) & 0x3FF);
-          pOutY[3] = (uint8_t)RND_10B_TO_8B(pInY[4] >> 6);
-          pOutY += pDstMeta->tPitches.iLuma;
-          pOutY[0] = (uint8_t)RND_10B_TO_8B(pInY[5] & 0x3FF);
-          pOutY[1] = (uint8_t)RND_10B_TO_8B(((pInY[5] >> 10) | (pInY[6] << 6)) & 0x3FF);
-          pOutY[2] = (uint8_t)RND_10B_TO_8B((pInY[6] >> 4) & 0x3FF);
-          pOutY[3] = (uint8_t)RND_10B_TO_8B(((pInY[6] >> 14) | (pInY[7] << 2)) & 0x3FF);
-          pOutY += pDstMeta->tPitches.iLuma;
-          pOutY[0] = (uint8_t)RND_10B_TO_8B(((pInY[7] >> 8) | (pInY[8] << 8)) & 0x3FF);
-          pOutY[1] = (uint8_t)RND_10B_TO_8B((pInY[8] >> 2) & 0x3FF);
-          pOutY[2] = (uint8_t)RND_10B_TO_8B(((pInY[8] >> 12) | (pInY[9] << 4)) & 0x3FF);
-          pOutY[3] = (uint8_t)RND_10B_TO_8B(pInY[9] >> 6);
+          if(i4x4CropH > 1)
+          {
+            pOutY += pDstMeta->tPitches.iLuma;
+            pOutY[0] = (uint8_t)RND_10B_TO_8B(((pInY[2] >> 8) | (pInY[3] << 8)) & 0x3FF);
+            pOutY[1] = (uint8_t)RND_10B_TO_8B((pInY[3] >> 2) & 0x3FF);
+            pOutY[2] = (uint8_t)RND_10B_TO_8B(((pInY[3] >> 12) | (pInY[4] << 4)) & 0x3FF);
+            pOutY[3] = (uint8_t)RND_10B_TO_8B(pInY[4] >> 6);
+            if(i4x4CropH > 2)
+            {
+              pOutY += pDstMeta->tPitches.iLuma;
+              pOutY[0] = (uint8_t)RND_10B_TO_8B(pInY[5] & 0x3FF);
+              pOutY[1] = (uint8_t)RND_10B_TO_8B(((pInY[5] >> 10) | (pInY[6] << 6)) & 0x3FF);
+              pOutY[2] = (uint8_t)RND_10B_TO_8B((pInY[6] >> 4) & 0x3FF);
+              pOutY[3] = (uint8_t)RND_10B_TO_8B(((pInY[6] >> 14) | (pInY[7] << 2)) & 0x3FF);
+              if(i4x4CropH > 3)
+              {
+                pOutY += pDstMeta->tPitches.iLuma;
+                pOutY[0] = (uint8_t)RND_10B_TO_8B(((pInY[7] >> 8) | (pInY[8] << 8)) & 0x3FF);
+                pOutY[1] = (uint8_t)RND_10B_TO_8B((pInY[8] >> 2) & 0x3FF);
+                pOutY[2] = (uint8_t)RND_10B_TO_8B(((pInY[8] >> 12) | (pInY[9] << 4)) & 0x3FF);
+                pOutY[3] = (uint8_t)RND_10B_TO_8B(pInY[9] >> 6);
+              }
+            }
+          }
           pInY += 10;
         }
 
         pInY += 5 * iCropW / sizeof(uint16_t);
       }
-
-      pInY += iCropH * iTileW * 5 / 4 / sizeof(uint16_t);
     }
   }
 
@@ -2675,6 +2646,8 @@ void T60A_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
       for(int h = 0; h < iTileH - iCropH; h += 4)
       {
+        int i4x4CropH = iTileH - h - iCropH;
+
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint16_t* pOutY = ((uint16_t*)pDstData) + (H + h) * uDstPitchLuma + (W + w);
@@ -2683,28 +2656,36 @@ void T60A_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
           pOutY[1] = ((pInY[0] >> 10) | (pInY[1] << 6)) & 0x3FF;
           pOutY[2] = (pInY[1] >> 4) & 0x3FF;
           pOutY[3] = ((pInY[1] >> 14) | (pInY[2] << 2)) & 0x3FF;
-          pOutY += uDstPitchLuma;
-          pOutY[0] = ((pInY[2] >> 8) | (pInY[3] << 8)) & 0x3FF;
-          pOutY[1] = (pInY[3] >> 2) & 0x3FF;
-          pOutY[2] = ((pInY[3] >> 12) | (pInY[4] << 4)) & 0x3FF;
-          pOutY[3] = pInY[4] >> 6;
-          pOutY += uDstPitchLuma;
-          pOutY[0] = pInY[5] & 0x3FF;
-          pOutY[1] = ((pInY[5] >> 10) | (pInY[6] << 6)) & 0x3FF;
-          pOutY[2] = (pInY[6] >> 4) & 0x3FF;
-          pOutY[3] = ((pInY[6] >> 14) | (pInY[7] << 2)) & 0x3FF;
-          pOutY += uDstPitchLuma;
-          pOutY[0] = ((pInY[7] >> 8) | (pInY[8] << 8)) & 0x3FF;
-          pOutY[1] = (pInY[8] >> 2) & 0x3FF;
-          pOutY[2] = ((pInY[8] >> 12) | (pInY[9] << 4)) & 0x3FF;
-          pOutY[3] = pInY[9] >> 6;
+          if(i4x4CropH > 1)
+          {
+            pOutY += uDstPitchLuma;
+            pOutY[0] = ((pInY[2] >> 8) | (pInY[3] << 8)) & 0x3FF;
+            pOutY[1] = (pInY[3] >> 2) & 0x3FF;
+            pOutY[2] = ((pInY[3] >> 12) | (pInY[4] << 4)) & 0x3FF;
+            pOutY[3] = pInY[4] >> 6;
+            if(i4x4CropH > 2)
+            {
+              pOutY += uDstPitchLuma;
+              pOutY[0] = pInY[5] & 0x3FF;
+              pOutY[1] = ((pInY[5] >> 10) | (pInY[6] << 6)) & 0x3FF;
+              pOutY[2] = (pInY[6] >> 4) & 0x3FF;
+              pOutY[3] = ((pInY[6] >> 14) | (pInY[7] << 2)) & 0x3FF;
+              if(i4x4CropH > 3)
+              {
+                pOutY += uDstPitchLuma;
+                pOutY[0] = ((pInY[7] >> 8) | (pInY[8] << 8)) & 0x3FF;
+                pOutY[1] = (pInY[8] >> 2) & 0x3FF;
+                pOutY[2] = ((pInY[8] >> 12) | (pInY[9] << 4)) & 0x3FF;
+                pOutY[3] = pInY[9] >> 6;
+              }
+            }
+          }
+
           pInY += 10;
         }
 
         pInY += 5 * iCropW / sizeof(uint16_t);
       }
-
-      pInY += iCropH * iTileW * 5 / 4 / sizeof(uint16_t);
     }
   }
 
@@ -2750,6 +2731,8 @@ void T60A_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
       for(int h = 0; h < iTileH - iCropH; h += 4)
       {
+        int i4x4CropH = iTileH - h - iCropH;
+        
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint16_t* pOutC = ((uint16_t*)(pDstData + iOffsetC)) + (H + h) * iDstPitchChroma + (W + w);
@@ -2758,28 +2741,35 @@ void T60A_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
           pOutC[1] = ((pInC[0] >> 10) | (pInC[1] << 6)) & 0x3FF;
           pOutC[2] = (pInC[1] >> 4) & 0x3FF;
           pOutC[3] = ((pInC[1] >> 14) | (pInC[2] << 2)) & 0x3FF;
-          pOutC += iDstPitchChroma;
-          pOutC[0] = ((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF;
-          pOutC[1] = (pInC[3] >> 2) & 0x3FF;
-          pOutC[2] = ((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF;
-          pOutC[3] = pInC[4] >> 6;
-          pOutC += iDstPitchChroma;
-          pOutC[0] = pInC[5] & 0x3FF;
-          pOutC[1] = ((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF;
-          pOutC[2] = (pInC[6] >> 4) & 0x3FF;
-          pOutC[3] = ((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF;
-          pOutC += iDstPitchChroma;
-          pOutC[0] = ((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF;
-          pOutC[1] = (pInC[8] >> 2) & 0x3FF;
-          pOutC[2] = ((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF;
-          pOutC[3] = pInC[9] >> 6;
+          if(i4x4CropH > 1)
+          {
+            pOutC += iDstPitchChroma;
+            pOutC[0] = ((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF;
+            pOutC[1] = (pInC[3] >> 2) & 0x3FF;
+            pOutC[2] = ((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF;
+            pOutC[3] = pInC[4] >> 6;
+            if(i4x4CropH > 2)
+            {
+              pOutC += iDstPitchChroma;
+              pOutC[0] = pInC[5] & 0x3FF;
+              pOutC[1] = ((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF;
+              pOutC[2] = (pInC[6] >> 4) & 0x3FF;
+              pOutC[3] = ((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF;
+              if(i4x4CropH > 3)
+              {
+                pOutC += iDstPitchChroma;
+                pOutC[0] = ((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF;
+                pOutC[1] = (pInC[8] >> 2) & 0x3FF;
+                pOutC[2] = ((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF;
+                pOutC[3] = pInC[9] >> 6;
+              }
+            }
+          }
           pInC += 10;
         }
 
         pInC += 5 * iCropW / sizeof(uint16_t);
       }
-
-      pInC += iCropH * iTileW * 5 / 4 / sizeof(uint16_t);
     }
   }
 
@@ -2826,6 +2816,8 @@ void T60A_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
       for(int h = 0; h < iTileH - iCropH; h += 4)
       {
+        int i4x4CropH = iTileH - h - iCropH;        
+        
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint16_t* pOutU = ((uint16_t*)(pDstData + iOffsetU)) + (H + h) * iDstPitchChroma + (W + w) / 2;
@@ -2835,24 +2827,33 @@ void T60A_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
           pOutV[0] = ((pInC[0] >> 10) | (pInC[1] << 6)) & 0x3FF;
           pOutU[1] = (pInC[1] >> 4) & 0x3FF;
           pOutV[1] = ((pInC[1] >> 14) | (pInC[2] << 2)) & 0x3FF;
-          pOutU += iDstPitchChroma;
-          pOutV += iDstPitchChroma;
-          pOutU[0] = ((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF;
-          pOutV[0] = (pInC[3] >> 2) & 0x3FF;
-          pOutU[1] = ((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF;
-          pOutV[1] = pInC[4] >> 6;
-          pOutU += iDstPitchChroma;
-          pOutV += iDstPitchChroma;
-          pOutU[0] = pInC[5] & 0x3FF;
-          pOutV[0] = ((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF;
-          pOutU[1] = (pInC[6] >> 4) & 0x3FF;
-          pOutV[1] = ((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF;
-          pOutU += iDstPitchChroma;
-          pOutV += iDstPitchChroma;
-          pOutU[0] = ((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF;
-          pOutV[0] = (pInC[8] >> 2) & 0x3FF;
-          pOutU[1] = ((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF;
-          pOutV[1] = pInC[9] >> 6;
+          if(i4x4CropH > 1)
+          {
+            pOutU += iDstPitchChroma;
+            pOutV += iDstPitchChroma;
+            pOutU[0] = ((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF;
+            pOutV[0] = (pInC[3] >> 2) & 0x3FF;
+            pOutU[1] = ((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF;
+            pOutV[1] = pInC[4] >> 6;
+            if(i4x4CropH > 2)
+            {                    
+              pOutU += iDstPitchChroma;
+              pOutV += iDstPitchChroma;
+              pOutU[0] = pInC[5] & 0x3FF;
+              pOutV[0] = ((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF;
+              pOutU[1] = (pInC[6] >> 4) & 0x3FF;
+              pOutV[1] = ((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF;
+              if(i4x4CropH > 3)
+              {            
+                pOutU += iDstPitchChroma;
+                pOutV += iDstPitchChroma;
+                pOutU[0] = ((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF;
+                pOutV[0] = (pInC[8] >> 2) & 0x3FF;
+                pOutU[1] = ((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF;
+                pOutV[1] = pInC[9] >> 6;
+              }
+            }
+          }
           pInC += 10;
         }
 

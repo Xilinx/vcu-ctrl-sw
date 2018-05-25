@@ -232,15 +232,28 @@ static uint32_t ReadFileLumaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32
     }
   }
 
-  if(bPadding && (pSrcMeta->tDim.iHeight & 15))
+  if(bPadding && (pSrcMeta->tDim.iHeight & 7))
   {
-    uint32_t uRowPadding = ((pSrcMeta->tDim.iHeight + 15) & ~15) - pSrcMeta->tDim.iHeight;
-    tPadParams.uNBByteToPad = uRowPadding * pSrcMeta->tPitches.iLuma;
+    uint32_t uRowToPad = ((pSrcMeta->tDim.iHeight + 7) & ~7) - pSrcMeta->tDim.iHeight;
+    tPadParams.uNBByteToPad = uRowToPad * pSrcMeta->tPitches.iLuma;
     tPadParams.uFirst32PackPadMask = 0x0;
     PadBuffer(pTmp, tPadParams, pSrcMeta->tFourCC);
-    uFileNumRow += uRowPadding;
+    uFileNumRow += uRowToPad;
   }
   return pSrcMeta->tPitches.iLuma * uFileNumRow;
+}
+
+/*****************************************************************************/
+static int GetNumChromaRowToPad(AL_TSrcMetaData* pSrcMeta)
+{
+  uint32_t uRowToPad = 0;
+
+  if(AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_0)
+    uRowToPad = (((pSrcMeta->tDim.iHeight >> 1) + 3) & ~3) - (pSrcMeta->tDim.iHeight >> 1);
+  else
+    uRowToPad = ((pSrcMeta->tDim.iHeight + 7) & ~7) - pSrcMeta->tDim.iHeight;
+  
+  return uRowToPad;
 }
 
 /*****************************************************************************/
@@ -272,26 +285,20 @@ static uint32_t ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
     }
   }
 
-  if(bPadding && (pSrcMeta->tDim.iHeight & 15))
+  if(bPadding && (pSrcMeta->tDim.iHeight & 7))
   {
-    uint32_t uRowPadding;
-
-    if(AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_0)
-      uRowPadding = (((pSrcMeta->tDim.iHeight >> 1) + 7) & ~7) - (pSrcMeta->tDim.iHeight >> 1);
-    else
-      uRowPadding = ((pSrcMeta->tDim.iHeight + 15) & ~15) - pSrcMeta->tDim.iHeight;
-
-    tPadParams.uNBByteToPad = uRowPadding * pSrcMeta->tPitches.iChroma;
+    uint32_t uRowToPad = GetNumChromaRowToPad(pSrcMeta);
+    tPadParams.uNBByteToPad = uRowToPad * pSrcMeta->tPitches.iChroma;
+    tPadParams.uFirst32PackPadMask = 0x0;
     PadBuffer(pTmp, tPadParams, pSrcMeta->tFourCC);
-
-    uNumRowC += uRowPadding;
+    uNumRowC += uRowToPad;
   }
 
   return pSrcMeta->tPitches.iChroma * uNumRowC;
 }
 
 /*****************************************************************************/
-static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uOffset, uint32_t uFileRowSize, uint32_t uFileNumRow)
+static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uOffset, uint32_t uFileRowSize, uint32_t uFileNumRow, bool bPadding = false)
 {
   char* pTmp = reinterpret_cast<char*>(AL_Buffer_GetData(pBuf) + uOffset);
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
@@ -303,7 +310,9 @@ static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
 
   if(0 == tPadParams.uNBByteToPad)
   {
-    File.read(pTmp, uFileRowSize * uNumRowC);
+    uint32_t uSize = uFileRowSize * uNumRowC;
+    File.read(pTmp, uSize);
+    pTmp += uSize;
   }
   else
   {
@@ -314,23 +323,32 @@ static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
       pTmp += pSrcMeta->tPitches.iChroma;
     }
   }
+
+  if(bPadding && (pSrcMeta->tDim.iHeight & 7))
+  {
+    uint32_t uRowToPad = GetNumChromaRowToPad(pSrcMeta);
+    tPadParams.uNBByteToPad = uRowToPad * pSrcMeta->tPitches.iChroma;
+    tPadParams.uFirst32PackPadMask = 0x0;
+    PadBuffer(pTmp, tPadParams, pSrcMeta->tFourCC);
+    uNumRowC += uRowToPad;
+  }      
 }
 
 /*****************************************************************************/
 static void ReadFile(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSize, uint32_t uFileNumRow)
 {
-  uint32_t uOffset = ReadFileLumaPlanar(File, pBuf, uFileRowSize, uFileNumRow);
+  uint32_t uOffset = ReadFileLumaPlanar(File, pBuf, uFileRowSize, uFileNumRow, true);
 
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
 
   if(AL_IsSemiPlanar(pSrcMeta->tFourCC))
   {
-    ReadFileChromaSemiPlanar(File, pBuf, uOffset, uFileRowSize, uFileNumRow);
+    ReadFileChromaSemiPlanar(File, pBuf, uOffset, uFileRowSize, uFileNumRow, true);
   }
   else if(AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_0 || AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_2)
   {
-    uOffset += ReadFileChromaPlanar(File, pBuf, uOffset, uFileRowSize, uFileNumRow); // Cb
-    ReadFileChromaPlanar(File, pBuf, uOffset, uFileRowSize, uFileNumRow); // Cr
+    uOffset += ReadFileChromaPlanar(File, pBuf, uOffset, uFileRowSize, uFileNumRow, true); // Cb
+    ReadFileChromaPlanar(File, pBuf, uOffset, uFileRowSize, uFileNumRow, true); // Cr
   }
 }
 

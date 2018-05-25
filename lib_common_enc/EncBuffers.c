@@ -145,10 +145,10 @@ int AL_EncGetMinPitch(int iWidth, uint8_t uBitDepth, AL_EFbStorageMode eStorageM
 /****************************************************************************/
 uint32_t AL_GetAllocSizeSrcNoFbc(AL_TDimension tDim, AL_EChromaMode eChromaMode, AL_EFbStorageMode eStorageMode, int iPitch, int iChromaOffset)
 {
-  int const iNumLinesInPitch = AL_GetNumLinesInPitch(eStorageMode);
-  int const iYSize = iPitch * tDim.iHeight / iNumLinesInPitch;
-  int const iPaddingSize = iChromaOffset - iYSize;
-  return ConsiderChromaForAllocSize(eChromaMode, iYSize) + iPaddingSize;
+  (void)tDim;
+  (void)eStorageMode;
+  (void)iPitch;
+  return ConsiderChromaForAllocSize(eChromaMode, iChromaOffset);
 }
 
 
