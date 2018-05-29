@@ -804,7 +804,7 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
       int iWidthDiff = pSPS->pic_width_in_luma_samples - pChParam->uWidth;
       int iHeightDiff = pSPS->pic_height_in_luma_samples - pChParam->uHeight;
       int iCropUnitX = AL_GET_CHROMA_MODE(pChParam->ePicFormat) ? 2 : 1;
-      int iCropUnitY = AL_GET_CHROMA_MODE(pChParam->ePicFormat) ? 2 : 1;
+      int iCropUnitY = AL_GET_CHROMA_MODE(pChParam->ePicFormat) == CHROMA_4_2_0 ? 2 : 1;
 
       pSPS->conf_win_left_offset = 0;
       pSPS->conf_win_right_offset = iWidthDiff / iCropUnitX;
