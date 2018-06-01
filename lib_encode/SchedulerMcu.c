@@ -44,6 +44,8 @@
 #include "lib_fpga/DmaAlloc.h"
 #include "lib_common/Error.h"
 
+#include <unistd.h> // for close
+
 typedef struct al_t_SchedulerMcu
 {
   const TSchedulerVtable* vtable;
@@ -233,6 +235,7 @@ static bool releaseRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPi
   if(AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_RELEASE_REC_PICTURE, &fd) != DRIVER_SUCCESS)
     return false;
   AL_Allocator_Free(pAllocator, hRecBuf);
+  close(fd);
   return true;
 }
 
