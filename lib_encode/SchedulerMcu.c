@@ -115,7 +115,7 @@ static AL_ERR createChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEnc
 
     /* the ioctl might not have been called at all,
      * so the error_code might no be set. leave it to AL_ERROR in this case */
-    if(errorCode == DRIVER_ERROR_CHANNEL && msg.status.error_code)
+    if((errdrv == DRIVER_ERROR_CHANNEL) && (msg.status.error_code != 0))
       errorCode = msg.status.error_code;
 
     goto fail;
