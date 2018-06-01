@@ -284,7 +284,7 @@ private:
   AL_ERR PreprocessOutput(AL_TBuffer* pStream)
   {
     if(AL_ERR eErr = AL_Encoder_GetLastError(hEnc))
-      return eErr;
+      ThrowEncoderError(eErr);
 
     if(pStream && m_pictureType != -1)
     {
