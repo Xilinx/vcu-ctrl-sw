@@ -1154,14 +1154,11 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     }
   }
 
-  if(pChParam->tRCParam.eRCMode == AL_RC_CBR || pChParam->tRCParam.eRCMode == AL_RC_VBR)
+  if(pChParam->tRCParam.uCPBSize < pChParam->tRCParam.uInitialRemDelay)
   {
-    if(pChParam->tRCParam.uCPBSize < pChParam->tRCParam.uInitialRemDelay)
-    {
-      MSG("!! Warning specified InitialDelay is bigger than CPBSize and will be adjusted !!");
-      ++numIncoherency;
-      pChParam->tRCParam.uInitialRemDelay = pChParam->tRCParam.uCPBSize;
-    }
+    MSG("!! Warning specified InitialDelay is bigger than CPBSize and will be adjusted !!");
+    ++numIncoherency;
+    pChParam->tRCParam.uInitialRemDelay = pChParam->tRCParam.uCPBSize;
   }
 
   AL_sCheckRange(&pChParam->pMeRange[SLICE_P][0], iMaxPRange, pOut);
