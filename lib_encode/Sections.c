@@ -159,8 +159,9 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
     SeiPrefixAPSCtx seiPrefixAPSCtx;
     SeiPrefixCtx seiPrefixCtx;
 
-    if(nalsData->seiData)
+    if(isPrefix(nalsData->seiFlags))
     {
+      assert(nalsData != NULL);
       assert(nalsData->seiFlags != SEI_NONE);
       uint32_t const uFlags = generateSeiFlags(pPicStatus) & nalsData->seiFlags;
 
@@ -198,7 +199,7 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
 
   if(pPicStatus->bIsLastSlice)
   {
-    if(nalsData->seiData)
+    if(isSuffix(nalsData->seiFlags))
     {
       if(nalsData->seiFlags & SEI_EOF)
       {

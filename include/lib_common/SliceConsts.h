@@ -443,13 +443,25 @@ typedef struct
 /****************************************************************************/
 typedef enum e_SeiFlag
 {
+  // prefix
   SEI_NONE = 0x00000000, // no SEI
   SEI_BP = 0x00000001, // Buffering period
   SEI_PT = 0x00000002, // Picture Timing
   SEI_RP = 0x00000004, // Recovery Point
-  SEI_EOF = 0x00000008, // End of frame
+  // suffix
+  SEI_EOF = 0x00001000, // End of frame
   SEI_ALL = 0x00FFFFFF, // All supported SEI
 }AL_SeiFlag;
+
+inline static bool isSuffix(AL_SeiFlag seiFlag)
+{
+  return seiFlag & 0xFFF000;
+}
+
+inline static bool isPrefix(AL_SeiFlag seiFlag)
+{
+  return seiFlag & 0x000FFF;
+}
 
 /*@}*/
 
