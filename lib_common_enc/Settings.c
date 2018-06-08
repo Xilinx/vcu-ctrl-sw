@@ -702,7 +702,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   if(uNumCore == NUMCORE_AUTO)
   {
     const int maximumResourcesForOneCore = GetCoreResources(ENCODER_CORE_FREQUENCY, ENCODER_CORE_FREQUENCY_MARGIN, ENCODER_CYCLES_FOR_BLK_32X32);
-    uNumCore = ChoseCoresCount(pChParam->uWidth, pChParam->uHeight, pChParam->tRCParam.uFrameRate, pChParam->tRCParam.uClkRatio, maximumResourcesForOneCore);
+    uNumCore = ChoseCoresCount(pChParam->uWidth, pChParam->uHeight, pChParam->tRCParam.uFrameRate * 1000, pChParam->tRCParam.uClkRatio, maximumResourcesForOneCore);
   }
 
   if(!AL_sSettings_CheckProfile(pChParam->eProfile))
@@ -1325,7 +1325,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
     if(uNumCore == NUMCORE_AUTO)
       uNumCore = ChoseCoresCount(pChParam->uWidth, pChParam->uHeight,
-                                 pChParam->tRCParam.uFrameRate, pChParam->tRCParam.uClkRatio, maximumResourcesForOneCore);
+                                 pChParam->tRCParam.uFrameRate * 1000, pChParam->tRCParam.uClkRatio, maximumResourcesForOneCore);
 
     if(uNumCore > 1 && pChParam->uNumSlices > GetHevcMaxTileRow(pChParam->uLevel))
     {
