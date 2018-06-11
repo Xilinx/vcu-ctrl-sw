@@ -771,6 +771,8 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
 
     if(pPps->output_flag_present_flag)
       pSlice->pic_output_flag = u(pRP, 1);
+    else
+      pSlice->pic_output_flag = 1;
 
     if(pSps->separate_colour_plane_flag)
       pSlice->colour_plane_id = u(pRP, 2);
