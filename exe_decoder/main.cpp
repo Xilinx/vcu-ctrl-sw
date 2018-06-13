@@ -171,7 +171,6 @@ static void Usage(CommandLineParser const& opt, char* ExeName)
   cerr << "Examples:" << endl;
   cerr << "  " << ExeName << " -avc  -in bitstream.264 -out decoded.yuv -bd 8 " << endl;
   cerr << "  " << ExeName << " -hevc -in bitstream.265 -out decoded.yuv -bd 10" << endl;
-  cerr << "  " << ExeName << " -jpeg -in bitstream.jpg -out decoded.yuv" << endl;
   cerr << endl;
 }
 
