@@ -115,7 +115,7 @@ static bool IsStreamSequenceModeSet(AL_ESequenceMode eSequenceMode)
 /******************************************************************************/
 static bool IsAllStreamSettingsSet(AL_TStreamSettings tStreamSettings)
 {
-  return IsAllStreamDimSet(tStreamSettings.tDim) && IsStreamChromaSet(tStreamSettings.eChroma) && IsStreamBitDepthSet(tStreamSettings.iBitDepth) && IsStreamLevelSet(tStreamSettings.iLevel) && IsStreamProfileSet(tStreamSettings.iProfileIdc) && IsStreamProfileSet(tStreamSettings.eSequenceMode);
+  return IsAllStreamDimSet(tStreamSettings.tDim) && IsStreamChromaSet(tStreamSettings.eChroma) && IsStreamBitDepthSet(tStreamSettings.iBitDepth) && IsStreamLevelSet(tStreamSettings.iLevel) && IsStreamProfileSet(tStreamSettings.iProfileIdc) && IsStreamSequenceModeSet(tStreamSettings.eSequenceMode);
 }
 
 static bool IsAtLeastOneStreamSettingsSet(AL_TStreamSettings tStreamSettings)
