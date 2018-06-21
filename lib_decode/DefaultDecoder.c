@@ -107,14 +107,20 @@ static bool IsStreamProfileSet(int iProfileIdc)
 }
 
 /******************************************************************************/
+static bool IsStreamSequenceModeSet(AL_ESequenceMode eSequenceMode)
+{
+  return eSequenceMode != AL_SM_MAX_ENUM;
+}
+
+/******************************************************************************/
 static bool IsAllStreamSettingsSet(AL_TStreamSettings tStreamSettings)
 {
-  return IsAllStreamDimSet(tStreamSettings.tDim) && IsStreamChromaSet(tStreamSettings.eChroma) && IsStreamBitDepthSet(tStreamSettings.iBitDepth) && IsStreamLevelSet(tStreamSettings.iLevel) && IsStreamProfileSet(tStreamSettings.iProfileIdc);
+  return IsAllStreamDimSet(tStreamSettings.tDim) && IsStreamChromaSet(tStreamSettings.eChroma) && IsStreamBitDepthSet(tStreamSettings.iBitDepth) && IsStreamLevelSet(tStreamSettings.iLevel) && IsStreamProfileSet(tStreamSettings.iProfileIdc) && IsStreamProfileSet(tStreamSettings.eSequenceMode);
 }
 
 static bool IsAtLeastOneStreamSettingsSet(AL_TStreamSettings tStreamSettings)
 {
-  return IsAtLeastOneStreamDimSet(tStreamSettings.tDim) || IsStreamChromaSet(tStreamSettings.eChroma) || IsStreamBitDepthSet(tStreamSettings.iBitDepth) || IsStreamLevelSet(tStreamSettings.iLevel) || IsStreamProfileSet(tStreamSettings.iProfileIdc);
+  return IsAtLeastOneStreamDimSet(tStreamSettings.tDim) || IsStreamChromaSet(tStreamSettings.eChroma) || IsStreamBitDepthSet(tStreamSettings.iBitDepth) || IsStreamLevelSet(tStreamSettings.iLevel) || IsStreamProfileSet(tStreamSettings.iProfileIdc) || IsStreamSequenceModeSet(tStreamSettings.eSequenceMode);
 }
 
 /* Buffer size must be aligned with hardware requests, which are 2048 or 4096 bytes for dec1 units (for old or new decoder respectively). */
@@ -855,6 +861,12 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
 
   AL_TStreamSettings tStreamSettings = pCtx->tStreamSettings;
 
+  if(pCtx->tStreamSettings.eSequenceMode == AL_SM_MAX_ENUM)
+  {
+    pCtx->error = AL_ERR_REQUEST_MALFORMED;
+    return false;
+  }
+
   int const iSPSMaxSlices = isAVC(pCtx->chanParam.eCodec) ? Avc_GetMaxNumberOfSlices(122, 52, 1, 60, INT32_MAX) : 600; // TODO FIX
   int const iSizeWP = iSPSMaxSlices * WP_SLICE_SIZE;
   int const iSizeSP = iSPSMaxSlices * sizeof(AL_TDecSliceParam);
@@ -936,6 +948,20 @@ static bool isSubframe(AL_EDecUnit eDecUnit)
 }
 
 /*****************************************************************************/
+static bool CheckAVCSettings(AL_TDecSettings const* pSettings)
+{
+  assert(pSettings->eCodec == AL_CODEC_AVC);
+
+  if(pSettings->bParallelWPP)
+    return false;
+
+  if((pSettings->tStream.eSequenceMode != AL_SM_UNKNOWN) && (pSettings->tStream.eSequenceMode != AL_SM_PROGRESSIVE) && (pSettings->tStream.eSequenceMode != AL_SM_MAX_ENUM))
+    return false;
+
+  return true;
+}
+
+/*****************************************************************************/
 static bool CheckSettings(AL_TDecSettings* const pSettings)
 {
   if(!CheckStreamSettings(pSettings->tStream))
@@ -946,11 +972,14 @@ static bool CheckSettings(AL_TDecSettings* const pSettings)
   if((iStack < 1) || (iStack > MAX_STACK_SIZE))
     return false;
 
-  if(pSettings->eCodec == AL_CODEC_AVC && pSettings->bParallelWPP)
-    return false;
-
   if(isSubframe(pSettings->eDecUnit) && pSettings->bParallelWPP)
     return false;
+
+  if(pSettings->eCodec == AL_CODEC_AVC)
+  {
+    if(!CheckAVCSettings(pSettings))
+      return false;
+  }
 
   return true;
 }

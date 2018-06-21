@@ -163,6 +163,9 @@ static bool isSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, AL_TStream
   if((pStreamSettings->tDim.iHeight > 0) && (pStreamSettings->tDim.iHeight < (tSPSDim.iHeight - iSPSCropHeight)))
     return false;
 
+  if(((pStreamSettings->eSequenceMode != AL_SM_MAX_ENUM) && pStreamSettings->eSequenceMode != AL_SM_UNKNOWN) && (pStreamSettings->eSequenceMode != AL_SM_PROGRESSIVE))
+    return false;
+
   return true;
 }
 
@@ -214,6 +217,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
   pCtx->tStreamSettings.iBitDepth = iSPSMaxBitDepth;
   pCtx->tStreamSettings.iLevel = pSPS->constraint_set3_flag ? 9 : pSPS->level_idc;
   pCtx->tStreamSettings.iProfileIdc = pSPS->profile_idc;
+  pCtx->tStreamSettings.eSequenceMode = AL_SM_PROGRESSIVE;
 
   pCtx->resolutionFoundCB.func(iMaxBuf, iSizeYuv, &pCtx->tStreamSettings, &tCropInfo, pCtx->resolutionFoundCB.userParam);
 

@@ -184,6 +184,37 @@ static int calculatePOC(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pSlice, uint8_t
 }
 
 /*****************************************************************************/
+static AL_ESequenceMode getSequenceMode(AL_THevcSps const* pSPS)
+{
+  AL_TProfilevel const* pProfileLevel = &pSPS->profile_and_level;
+
+  if(pSPS->vui_parameters_present_flag)
+  {
+    AL_TVuiParam const* pVUI = &pSPS->vui_param;
+
+    if(pVUI->field_seq_flag)
+      return AL_SM_INTERLACED;
+  }
+
+  if(pSPS->profile_and_level.general_frame_only_constraint_flag)
+    return AL_SM_PROGRESSIVE;
+
+  if((pProfileLevel->general_progressive_source_flag == 0) && (pProfileLevel->general_interlaced_source_flag == 0))
+    return AL_SM_UNKNOWN;
+
+  if(pProfileLevel->general_progressive_source_flag && (pProfileLevel->general_interlaced_source_flag == 0))
+    return AL_SM_PROGRESSIVE;
+
+  if((pProfileLevel->general_progressive_source_flag == 0) && pProfileLevel->general_interlaced_source_flag)
+    return AL_SM_INTERLACED;
+
+  if(pProfileLevel->general_progressive_source_flag && pProfileLevel->general_interlaced_source_flag)
+    return AL_SM_MAX_ENUM;
+
+  return AL_SM_MAX_ENUM;
+}
+
+/*****************************************************************************/
 static bool isSPSCompatibleWithStreamSettings(AL_THevcSps const* pSPS, AL_TStreamSettings const* pStreamSettings)
 {
   const int iSPSLumaBitDepth = pSPS->bit_depth_luma_minus8 + 8;
@@ -216,6 +247,9 @@ static bool isSPSCompatibleWithStreamSettings(AL_THevcSps const* pSPS, AL_TStrea
   const int iSPSCropHeight = tSPSCropInfo.uCropOffsetTop + tSPSCropInfo.uCropOffsetBottom;
 
   if((pStreamSettings->tDim.iHeight > 0) && (pStreamSettings->tDim.iHeight < (tSPSDim.iHeight - iSPSCropHeight)))
+    return false;
+
+  if(((pStreamSettings->eSequenceMode != AL_SM_MAX_ENUM) && pStreamSettings->eSequenceMode != AL_SM_UNKNOWN) && (pStreamSettings->eSequenceMode != getSequenceMode(pSPS)))
     return false;
 
   return true;
@@ -267,6 +301,8 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
   pCtx->tStreamSettings.iBitDepth = iSPSMaxBitDepth;
   pCtx->tStreamSettings.iLevel = iSPSLevel;
   pCtx->tStreamSettings.iProfileIdc = pSPS->profile_and_level.general_profile_idc;
+  pCtx->tStreamSettings.eSequenceMode = getSequenceMode(pSPS);
+  assert(pCtx->tStreamSettings.eSequenceMode != AL_SM_MAX_ENUM);
 
   pCtx->resolutionFoundCB.func(iMaxBuf, iSizeYuv, &pCtx->tStreamSettings, &tCropInfo, pCtx->resolutionFoundCB.userParam);
 

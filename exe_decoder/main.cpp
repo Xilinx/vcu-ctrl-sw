@@ -122,6 +122,7 @@ AL_TDecSettings getDefaultDecSettings()
   settings.tStream.eChroma = CHROMA_MAX_ENUM;
   settings.tStream.iBitDepth = -1;
   settings.tStream.iProfileIdc = -1;
+  settings.tStream.eSequenceMode = AL_SM_MAX_ENUM;
   settings.eCodec = AL_CODEC_HEVC;
 
 
@@ -202,7 +203,7 @@ void getExpectedSeparator(stringstream& ss, char expectedSep)
 bool invalidPreallocSettings(AL_TStreamSettings const& settings)
 {
   return settings.iProfileIdc <= 0 || settings.iLevel <= 0
-         || settings.tDim.iWidth <= 0 || settings.tDim.iHeight <= 0 || settings.eChroma == CHROMA_MAX_ENUM;
+         || settings.tDim.iWidth <= 0 || settings.tDim.iHeight <= 0 || settings.eChroma == CHROMA_MAX_ENUM || settings.eSequenceMode == AL_SM_MAX_ENUM;
 }
 
 void parsePreAllocArgs(AL_TStreamSettings* settings, string& toParse)
@@ -214,6 +215,13 @@ void parsePreAllocArgs(AL_TStreamSettings* settings, string& toParse)
   ss >> settings->tDim.iWidth;
   getExpectedSeparator(ss, 'x');
   ss >> settings->tDim.iHeight;
+  getExpectedSeparator(ss, ':');
+  char vm[6] {};
+  ss >> vm[0];
+  ss >> vm[1];
+  ss >> vm[2];
+  ss >> vm[3];
+  ss >> vm[4];
   getExpectedSeparator(ss, ':');
   ss >> chroma[0];
   ss >> chroma[1];
@@ -230,6 +238,15 @@ void parsePreAllocArgs(AL_TStreamSettings* settings, string& toParse)
   /* And because we don't know the codec here, always use 64 as MB/LCU size. */
   settings->tDim.iWidth = RoundUp(settings->tDim.iWidth, 64);
   settings->tDim.iHeight = RoundUp(settings->tDim.iHeight, 64);
+
+  if(string(vm) == "unkwn")
+    settings->eSequenceMode = AL_SM_UNKNOWN;
+  else if(string(vm) == "progr")
+    settings->eSequenceMode = AL_SM_PROGRESSIVE;
+  else if(string(vm) == "inter")
+    settings->eSequenceMode = AL_SM_INTERLACED;
+  else
+    throw runtime_error("wrong prealloc video format");
 
   if(string(chroma) == "400")
     settings->eChroma = CHROMA_4_0_0;
@@ -334,7 +351,7 @@ static Config ParseCommandLine(int argc, char* argv[])
   string preAllocArgs = "";
   opt.addInt("--timeout", &Config.iTimeoutInSeconds, "Specify timeout in seconds");
   opt.addInt("--max-frames", &Config.iMaxFrames, "Abort after max number of decoded frames (approximative abort)");
-  opt.addString("--prealloc-args", &preAllocArgs, "Specify the stream dimension: 1920x1080:422:10:profile-idc:level");
+  opt.addString("--prealloc-args", &preAllocArgs, "Specify the stream dimension: 1920x1080:unkwn:422:10:profile-idc:level");
 
   opt.parse(argc, argv);
 

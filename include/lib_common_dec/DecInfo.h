@@ -46,6 +46,7 @@
 #include "lib_rtos/types.h"
 #include "lib_rtos/lib_rtos.h"
 
+#include "lib_common/VideoMode.h"
 #include "lib_common/SliceConsts.h"
 #include "lib_common_dec/DecDpbMode.h"
 
@@ -59,6 +60,7 @@ typedef struct
   int iBitDepth; /*!< Stream's bit depth */
   int iLevel; /*!< Stream's level */
   int iProfileIdc; /*!< Stream's profile idc */
+  AL_ESequenceMode eSequenceMode; /*!< Stream's sequence mode*/
 }AL_TStreamSettings;
 
 /*************************************************************************//*!

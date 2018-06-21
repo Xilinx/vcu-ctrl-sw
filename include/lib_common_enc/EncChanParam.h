@@ -44,6 +44,7 @@
 #pragma once
 
 #include "lib_rtos/types.h"
+#include "lib_common/VideoMode.h"
 #include "lib_common/SliceConsts.h"
 
 /*************************************************************************//*!
@@ -295,17 +296,6 @@ typedef enum e_SrcConvMode // [0] : CompMode | [3:1] : SourceFormat
   AL_SRC_COMP_32x4 = 0x7,
   AL_SRC_MAX_ENUM,
 }AL_ESrcMode;
-
-/*************************************************************************//*!
-   \brief Video Mode
-*****************************************************************************/
-typedef enum AL_e_VideoMode
-{
-  AL_VM_PROGRESSIVE = 0, /*!< Progressive */
-  AL_VM_INTERLACED_TOP = 1, /*!< interlaced top filed first */
-  AL_VM_INTERLACED_BOTTOM = 2, /*!< interlaced bottom field first */
-  AL_VM_MAX_ENUM
-}AL_EVideoMode;
 
 #define MASK_SRC_COMP 0x01
 #define MASK_SRC_FMT 0x0E
