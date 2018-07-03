@@ -39,6 +39,8 @@
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/Utils.h"
 
+#define CONCEALMENT_LEVEL_IDC 60*3
+
 /*****************************************************************************/
 static void initPps(AL_THevcPps* pPPS)
 {
@@ -434,7 +436,11 @@ AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   int temp_id_nesting_flag = u(pRP, 1);
 
   profile_tier_level(&tempSPS.profile_and_level, max_sub_layers, pRP);
-  uint8_t sps_id = ue(pRP);
+
+  if(tempSPS.profile_and_level.general_level_idc == 0)
+    tempSPS.profile_and_level.general_level_idc = CONCEALMENT_LEVEL_IDC;
+
+  int sps_id = ue(pRP);
 
   pIAup->hevcAup.pSPS[sps_id].bConceal = true;
 
@@ -711,8 +717,6 @@ void AL_HEVC_short_term_ref_pic_set(AL_THevcSps* pSPS, uint8_t RefIdx, AL_TRbspP
 /*****************************************************************************/
 void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 {
-  int layer_offset;
-  uint8_t vps_id;
   AL_THevcVps* pVPS;
 
   // Parse bitstream
@@ -721,7 +725,7 @@ void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 
   u(pRP, 16); // Skip NUT + temporal_id
 
-  vps_id = u(pRP, 4);
+  int vps_id = u(pRP, 4);
   pVPS = &pIAup->hevcAup.pVPS[vps_id];
   pVPS->vps_video_parameter_set_id = vps_id;
 
@@ -734,9 +738,13 @@ void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   skip(pRP, 16); // vps_reserved_0xffff_16bits
 
   profile_tier_level(&pVPS->profile_and_level[0], pVPS->vps_max_sub_layers_minus1, pRP);
+
+  if(pVPS->profile_and_level[0].general_level_idc == 0)
+    pVPS->profile_and_level[0].general_level_idc = CONCEALMENT_LEVEL_IDC;
+
   pVPS->vps_sub_layer_ordering_info_present_flag = u(pRP, 1);
 
-  layer_offset = pVPS->vps_sub_layer_ordering_info_present_flag ? 0 : pVPS->vps_max_sub_layers_minus1;
+  int layer_offset = pVPS->vps_sub_layer_ordering_info_present_flag ? 0 : pVPS->vps_max_sub_layers_minus1;
 
   for(int i = layer_offset; i <= pVPS->vps_max_sub_layers_minus1; ++i)
   {
