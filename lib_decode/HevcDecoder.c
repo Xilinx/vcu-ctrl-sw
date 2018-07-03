@@ -249,8 +249,14 @@ static bool isSPSCompatibleWithStreamSettings(AL_THevcSps const* pSPS, AL_TStrea
   if((pStreamSettings->tDim.iHeight > 0) && (pStreamSettings->tDim.iHeight < (tSPSDim.iHeight - iSPSCropHeight)))
     return false;
 
-  if(((pStreamSettings->eSequenceMode != AL_SM_MAX_ENUM) && pStreamSettings->eSequenceMode != AL_SM_UNKNOWN) && (pStreamSettings->eSequenceMode != getSequenceMode(pSPS)))
+
+  AL_ESequenceMode mode = getSequenceMode(pSPS);
+
+  if(mode != AL_SM_UNKNOWN)
+  {
+    if(((pStreamSettings->eSequenceMode != AL_SM_MAX_ENUM) && pStreamSettings->eSequenceMode != AL_SM_UNKNOWN) && (pStreamSettings->eSequenceMode != mode))
     return false;
+  }
 
   return true;
 }
