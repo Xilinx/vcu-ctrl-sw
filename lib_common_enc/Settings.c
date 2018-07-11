@@ -1092,6 +1092,13 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     pChParam->tRCParam.uMaxBitRate = pChParam->tRCParam.uTargetBitRate;
   }
 
+  if(pChParam->tRCParam.uTargetBitRate > pChParam->tRCParam.uMaxBitRate)
+  {
+    MSG("!! Warning specified MaxBitRate has to be greater than or equal to and will be adjusted!!");
+    pChParam->tRCParam.uMaxBitRate = pChParam->tRCParam.uTargetBitRate;
+    ++numIncoherency;
+  }
+  
   AL_EChromaMode eInputChromaMode = AL_GetChromaMode(tFourCC);
 
   {
