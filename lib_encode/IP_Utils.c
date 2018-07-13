@@ -115,6 +115,18 @@ static struct AL_t_RPS
 
 
 /****************************************************************************/
+static uint8_t getMax10BitConstraintFlag(int iBitDepth, AL_EChromaMode eChromaMode)
+{
+  return (iBitDepth == 8) || (eChromaMode != CHROMA_MONO); // MONO12 can be 10 or 12 bits
+}
+
+/****************************************************************************/
+static uint8_t getMax8BitConstraintFlag(int iBitDepth, AL_EChromaMode eChromaMode)
+{
+  return (iBitDepth == 8) && (eChromaMode != CHROMA_4_2_2); // Main 422 10 and Main 422 10 Intra can be 8 bits
+}
+
+/****************************************************************************/
 static void AL_sUpdateProfileTierLevel(AL_TProfilevel* pPTL, AL_TEncChanParam const* pChParam, bool profilePresentFlag, int iLayerId)
 {
   (void)iLayerId;
@@ -138,15 +150,16 @@ static void AL_sUpdateProfileTierLevel(AL_TProfilevel* pPTL, AL_TEncChanParam co
       pPTL->general_frame_only_constraint_flag = 0;
     }
 
-    if(pPTL->general_profile_idc == 7)
+    if(pPTL->general_profile_idc >= AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_RExt))
     {
+      AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
       pPTL->general_max_12bit_constraint_flag = 1;
-      pPTL->general_max_10bit_constraint_flag = 1;
-      pPTL->general_max_8bit_constraint_flag = iBitDepth == 8;
+      pPTL->general_max_10bit_constraint_flag = getMax10BitConstraintFlag(iBitDepth, eChromaMode);
+      pPTL->general_max_8bit_constraint_flag = getMax8BitConstraintFlag(iBitDepth, eChromaMode);
       pPTL->general_max_422chroma_constraint_flag = 1;
-      pPTL->general_max_420chroma_constraint_flag = 1;
-      pPTL->general_max_monochrome_constraint_flag = 0;
-      pPTL->general_intra_constraint_flag = 0;
+      pPTL->general_max_420chroma_constraint_flag = eChromaMode <= CHROMA_4_2_0;
+      pPTL->general_max_monochrome_constraint_flag = eChromaMode == CHROMA_MONO;
+      pPTL->general_intra_constraint_flag = AL_IS_INTRA_PROFILE(pChParam->eProfile);
       pPTL->general_one_picture_only_constraint_flag = 0;
       pPTL->general_lower_bit_rate_constraint_flag = 1;
     }
@@ -392,7 +405,7 @@ void AL_HEVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufE
 static void AL_UpdateAspectRatio(AL_TVuiParam* pVuiParam, uint32_t uWidth, uint32_t uHeight, AL_EAspectRatio eAspectRatio)
 {
   bool bAuto = (eAspectRatio == AL_ASPECT_RATIO_AUTO);
-  uint32_t uHeightRnd = (uHeight + 15) & ~15;
+  uint32_t uHeightRnd = RoundUp(uHeight, 16);
 
   pVuiParam->aspect_ratio_info_present_flag = 0;
   pVuiParam->aspect_ratio_idc = 0;
@@ -795,16 +808,19 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   {
     pSPS->chroma_format_idc = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
     pSPS->separate_colour_plane_flag = 0;
-    pSPS->pic_width_in_luma_samples = (pChParam->uWidth + 7) & ~7;
-    pSPS->pic_height_in_luma_samples = (pChParam->uHeight + 7) & ~ 7;
+    pSPS->pic_width_in_luma_samples = RoundUp(pChParam->uWidth, 8);
+    pSPS->pic_height_in_luma_samples = RoundUp(pChParam->uHeight, 8);
     pSPS->conformance_window_flag = (pSPS->pic_width_in_luma_samples != pChParam->uWidth) || (pSPS->pic_height_in_luma_samples != pChParam->uHeight) ? 1 : 0;
 
     if(pSPS->conformance_window_flag)
     {
       int iWidthDiff = pSPS->pic_width_in_luma_samples - pChParam->uWidth;
       int iHeightDiff = pSPS->pic_height_in_luma_samples - pChParam->uHeight;
-      int iCropUnitX = AL_GET_CHROMA_MODE(pChParam->ePicFormat) ? 2 : 1;
-      int iCropUnitY = AL_GET_CHROMA_MODE(pChParam->ePicFormat) == CHROMA_4_2_0 ? 2 : 1;
+
+      AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
+
+      int iCropUnitX = eChromaMode == CHROMA_4_2_0 || eChromaMode == CHROMA_4_2_2 ? 2 : 1;
+      int iCropUnitY = eChromaMode == CHROMA_4_2_0 ? 2 : 1;
 
       pSPS->conf_win_left_offset = 0;
       pSPS->conf_win_right_offset = iWidthDiff / iCropUnitX;
