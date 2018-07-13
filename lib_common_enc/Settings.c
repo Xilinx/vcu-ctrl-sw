@@ -1094,7 +1094,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
   if(pChParam->tRCParam.uTargetBitRate > pChParam->tRCParam.uMaxBitRate)
   {
-    MSG("!! Warning specified MaxBitRate has to be greater than or equal to and will be adjusted!!");
+    MSG("!! Warning specified MaxBitRate has to be greater than or equal to [Target]BitRate and will be adjusted!!");
     pChParam->tRCParam.uMaxBitRate = pChParam->tRCParam.uTargetBitRate;
     ++numIncoherency;
   }
