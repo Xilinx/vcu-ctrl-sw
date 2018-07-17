@@ -409,15 +409,25 @@ static void updatePictManager(AL_TPictMngrCtx* pCtx, AL_ENut eNUT, AL_TDecPicPar
 }
 
 /******************************************************************************/
-static void endFrame(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_TDecPicParam* pPP, AL_TAvcSliceHdr* pSlice)
+static void reallyEndFrame(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_TDecPicParam* pPP, AL_TAvcSliceHdr* pSlice, bool hasPreviousSlice)
 {
   updatePictManager(&pCtx->PictMngr, eNUT, pPP, pSlice);
 
   if(pCtx->chanParam.eDecUnit == AL_AU_UNIT)
     AL_LaunchFrameDecoding(pCtx);
   else
-    AL_LaunchSliceDecoding(pCtx, true);
+    AL_LaunchSliceDecoding(pCtx, true, hasPreviousSlice);
   UpdateContextAtEndOfFrame(pCtx);
+}
+
+static void endFrame(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_TDecPicParam* pPP, AL_TAvcSliceHdr* pSlice)
+{
+  reallyEndFrame(pCtx, eNUT, pPP, pSlice, true);
+}
+
+static void endFrameConceal(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_TDecPicParam* pPP, AL_TAvcSliceHdr* pSlice)
+{
+  reallyEndFrame(pCtx, eNUT, pPP, pSlice, false);
 }
 
 /*****************************************************************************/
@@ -433,10 +443,9 @@ static void finishPreviousFrame(AL_TDecCtx* pCtx)
   // copy stream offset from previous command
   pCtx->iStreamOffset[pCtx->iNumFrmBlk1 % pCtx->iStackSize] = pCtx->iStreamOffset[(pCtx->iNumFrmBlk1 + pCtx->iStackSize - 1) % pCtx->iStackSize];
 
-  if(pCtx->chanParam.eDecUnit == AL_VCL_NAL_UNIT) /* launch HW for each vcl nal in sub_frame latency*/
-    --pCtx->PictMngr.uNumSlice;
-
-  endFrame(pCtx, pSlice->nal_unit_type, pPP, pSlice);
+  /* The slice is its own previous slice as we changed it in the last slice
+   * This means we don't want to send a previous slice at all. */
+  endFrameConceal(pCtx, pSlice->nal_unit_type, pPP, pSlice);
 }
 
 /******************************************************************************/
@@ -649,7 +658,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   }
 
   if(pCtx->chanParam.eDecUnit == AL_VCL_NAL_UNIT)
-    AL_LaunchSliceDecoding(pCtx, bIsLastAUNal);
+    AL_LaunchSliceDecoding(pCtx, bIsLastAUNal, true);
 }
 
 /*****************************************************************************/

@@ -556,7 +556,7 @@ static void endFrame(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_THevcSliceHdr* pSlice, A
   if(pCtx->chanParam.eDecUnit == AL_AU_UNIT) /* launch HW for each frame(default mode)*/
     AL_LaunchFrameDecoding(pCtx);
   else
-    AL_LaunchSliceDecoding(pCtx, true);
+    AL_LaunchSliceDecoding(pCtx, true, true);
   UpdateContextAtEndOfFrame(pCtx);
 }
 
@@ -781,7 +781,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   }
 
   if(pCtx->chanParam.eDecUnit == AL_VCL_NAL_UNIT)
-    AL_LaunchSliceDecoding(pCtx, bIsLastAUNal);
+    AL_LaunchSliceDecoding(pCtx, bIsLastAUNal, true);
 }
 
 /*****************************************************************************/

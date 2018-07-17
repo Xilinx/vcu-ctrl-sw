@@ -61,8 +61,9 @@ void AL_LaunchFrameDecoding(AL_TDecCtx* pCtx);
    \brief The AL_LaunchSliceDecoding function launch a slice decoding request to the Hardware IP
    \param[in]  pCtx              Pointer to a decoder context object
    \param[in]  bIsLastAUNal      Specify if it's the last AU's slice data
+   \param[in]  hasPreviousSlice  Does the current slice have a previous slice that can be launched
 *****************************************************************************/
-void AL_LaunchSliceDecoding(AL_TDecCtx* pCtx, bool bIsLastAUNal);
+void AL_LaunchSliceDecoding(AL_TDecCtx* pCtx, bool bIsLastAUNal, bool hasPreviousSlice);
 
 /*************************************************************************//*!
    \brief The AL_InitFrameBuffers function intializes the frame buffers needed to process the current frame decoding

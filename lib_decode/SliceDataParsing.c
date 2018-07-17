@@ -172,7 +172,7 @@ static void UpdateStreamOffset(AL_TDecCtx* pCtx)
 }
 
 /*****************************************************************************/
-void AL_LaunchSliceDecoding(AL_TDecCtx* pCtx, bool bIsLastAUNal)
+void AL_LaunchSliceDecoding(AL_TDecCtx* pCtx, bool bIsLastAUNal, bool hasPreviousSlice)
 {
   AL_TDecPicBufferAddrs BufAddrs = AL_SetBufferAddrs(pCtx);
 
@@ -181,7 +181,7 @@ void AL_LaunchSliceDecoding(AL_TDecCtx* pCtx, bool bIsLastAUNal)
 
   UpdateStreamOffset(pCtx);
 
-  if(uSliceID)
+  if(hasPreviousSlice && uSliceID)
   {
     AL_TDecSliceParam* pPrevSP_v = &(((AL_TDecSliceParam*)pCtx->PoolSP[pCtx->uToggle].tMD.pVirtualAddr)[uSliceID - 1]);
     AL_PADDR pPrevSP_p = (AL_PADDR)(uintptr_t)&(((AL_TDecSliceParam*)(uintptr_t)pCtx->PoolSP[pCtx->uToggle].tMD.uPhysicalAddr)[uSliceID - 1]);
