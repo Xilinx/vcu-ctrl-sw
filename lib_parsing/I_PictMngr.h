@@ -272,9 +272,8 @@ void AL_PictMngr_Insert(AL_TPictMngrCtx* pCtx, int iFramePOC, uint32_t uPocLsb, 
    \brief This function updates the Picture Manager context each time a picture have been decoded.
    \param[in] pCtx   Pointer to a Picture manager context object
    \param[in] iFrameID Buffer identifier of the decoded frame buffer
-   \param[in] uMvID  Buffer identifier of the decoded frame's motion vector buffer
 *****************************************************************************/
-void AL_PictMngr_EndDecoding(AL_TPictMngrCtx* pCtx, int iFrameID, uint8_t uMvID);
+void AL_PictMngr_EndDecoding(AL_TPictMngrCtx* pCtx, int iFrameID);
 
 /*************************************************************************//*!
    \brief This function returns the next picture buffer to be displayed
@@ -315,6 +314,7 @@ void AL_PictMngr_SignalCallbackDisplayIsDone(AL_TPictMngrCtx* pCtx, AL_TBuffer* 
 void AL_PictMngr_SignalCallbackReleaseIsDone(AL_TPictMngrCtx* pCtx, AL_TBuffer* pReleasedFrame);
 AL_TBuffer* AL_PictMngr_GetUnusedDisplayBuffer(AL_TPictMngrCtx* pCtx);
 void AL_PictMngr_DecommitPool(AL_TPictMngrCtx* pCtx);
+void AL_PictMngr_UnlockID(AL_TPictMngrCtx* pCtx, int iFrameID, int iMotionVectorID);
 
 /*****************************************************************************/
 bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, TBufferListRef* pListRef, TBuffer* pListVirtAddr, TBuffer* pListAddr, TBufferPOC* pPOC, TBufferMV* pMV, AL_TRecBuffers* pRecs);

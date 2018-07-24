@@ -759,11 +759,16 @@ void AL_PictMngr_UpdateDisplayBufferPicStruct(AL_TPictMngrCtx* pCtx, int iFrameI
 }
 
 /***************************************************************************/
-void AL_PictMngr_EndDecoding(AL_TPictMngrCtx* pCtx, int iFrameID, uint8_t uMvID)
+void AL_PictMngr_EndDecoding(AL_TPictMngrCtx* pCtx, int iFrameID)
+{
+  AL_Dpb_EndDecoding(&pCtx->DPB, iFrameID);
+}
+
+/***************************************************************************/
+void AL_PictMngr_UnlockID(AL_TPictMngrCtx* pCtx, int iFrameID, int iMotionVectorID)
 {
   sFrmBufPool_DecrementBufID(&pCtx->FrmBufPool, iFrameID);
-  sMvBufPool_DecrementBufID(&pCtx->MvBufPool, uMvID);
-  AL_Dpb_EndDecoding(&pCtx->DPB, iFrameID);
+  sMvBufPool_DecrementBufID(&pCtx->MvBufPool, iMotionVectorID);
 }
 
 /***************************************************************************/

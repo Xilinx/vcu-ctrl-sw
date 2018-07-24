@@ -216,10 +216,10 @@ static void AL_sDecoder_CallBacks(AL_TDecCtx* pCtx, int iFrameID)
 void AL_Default_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus)
 {
   AL_TDecCtx* pCtx = (AL_TDecCtx*)pUserParam;
-  uint8_t const uFrameID = pStatus->uFrmID;
-  uint8_t const uMotionVectorID = pStatus->uMvID;
+  int iFrameID = pStatus->uFrmID;
 
-  AL_PictMngr_UpdateDisplayBufferCRC(&pCtx->PictMngr, uFrameID, pStatus->uCRC);
+  AL_PictMngr_UpdateDisplayBufferCRC(&pCtx->PictMngr, iFrameID, pStatus->uCRC);
+  AL_PictMngr_EndDecoding(&pCtx->PictMngr, iFrameID);
   int iOffset = pCtx->iNumFrmBlk2 % MAX_STACK_SIZE;
   AL_PictMngr_UnlockRefMvID(&pCtx->PictMngr, pCtx->uNumRef[iOffset], pCtx->uMvIDRefList[iOffset]);
   Rtos_GetMutex(pCtx->DecMutex);
@@ -232,10 +232,11 @@ void AL_Default_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus)
   Rtos_ReleaseMutex(pCtx->DecMutex);
 
   AL_BufferFeeder_Signal(pCtx->Feeder);
-  AL_sDecoder_CallBacks(pCtx, uFrameID);
+  AL_sDecoder_CallBacks(pCtx, iFrameID);
 
   Rtos_GetMutex(pCtx->DecMutex);
-  AL_PictMngr_EndDecoding(&pCtx->PictMngr, uFrameID, uMotionVectorID);
+  int iMotionVectorID = pStatus->uMvID;
+  AL_PictMngr_UnlockID(&pCtx->PictMngr, iFrameID, iMotionVectorID);
   Rtos_ReleaseMutex(pCtx->DecMutex);
 
   Rtos_ReleaseSemaphore(pCtx->Sem);
