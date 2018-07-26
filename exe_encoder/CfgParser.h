@@ -67,6 +67,7 @@ typedef struct tCfgRunInfo
   int iMaxPict;
   unsigned int iFirstPict;
   unsigned int iScnChgLookAhead;
+  AL_64U uInputSleepInMilliseconds;
   string sMd5Path;
   int eVQDescr;
   IpCtrlMode ipCtrlMode;

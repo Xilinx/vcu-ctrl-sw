@@ -119,6 +119,7 @@ void SetDefaults(ConfigFile& cfg)
   cfg.RunInfo.iMaxPict = INT_MAX; // ALL
   cfg.RunInfo.iFirstPict = 0;
   cfg.RunInfo.iScnChgLookAhead = 3;
+  cfg.RunInfo.uInputSleepInMilliseconds = 0;
   cfg.RunInfo.ipCtrlMode = IPCTRL_MODE_STANDARD;
 
   cfg.strict_mode = false;
@@ -198,7 +199,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addOption("--color", [&]() {
     SetEnableColor(true);
   }, "Enable color");
-
+  opt.addInt("--input-sleep", &cfg.RunInfo.uInputSleepInMilliseconds, "Minimum waiting time in milliseconds between each process frame (0 by default)");
   opt.addFlag("--quiet,-q", &g_Verbosity, "do not print anything", 0);
 
   opt.addInt("--input-width", &cfg.FileInfo.PictWidth, "Specify YUV input width");
@@ -736,8 +737,11 @@ void SafeMain(int argc, char** argv)
 
   while(bRet)
   {
+    auto uBeforeTime = Rtos_GetTime();
     bRet = sendInputFileTo(YuvFile, SrcBufPool, SrcYuv.get(), cfg, pSrcConv.get(), firstSink, iPictCount, iReadCount);
-
+    auto uTimelaps = Rtos_GetTime() - uBeforeTime;
+    if(uTimelaps < cfg.RunInfo.uInputSleepInMilliseconds)
+      Rtos_Sleep(cfg.RunInfo.uInputSleepInMilliseconds - uTimelaps);
   }
 
   Rtos_WaitEvent(hFinished, AL_WAIT_FOREVER);

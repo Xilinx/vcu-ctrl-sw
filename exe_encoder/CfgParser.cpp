@@ -653,6 +653,7 @@ static bool ParseRun(string& sLine, TCfgRunInfo&  RunInfo)
   else if(KEYWORD("MaxPicture"))      RunInfo.iMaxPict   = GetValue(sLine);
   else if(KEYWORD("FirstPicture"))    RunInfo.iFirstPict = GetValue(sLine);
   else if(KEYWORD("ScnChgLookAhead")) RunInfo.iScnChgLookAhead = GetValue(sLine);
+  else if(KEYWORD("InputSleep"))      RunInfo.uInputSleepInMilliseconds = GetValue(sLine);
   else
     return false;
 
