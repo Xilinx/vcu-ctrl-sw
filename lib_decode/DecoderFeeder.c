@@ -56,7 +56,7 @@ typedef struct AL_TDecoderFeederS
   AL_EVENT incomingWorkEvent;
 
   AL_THREAD slave;
-  TCircBuffer decodeBuffer;
+  TCircBuffer startCodeStreamView;
   int32_t keepGoing;
   bool stopped;
   bool endWithAccessUnit;
@@ -78,7 +78,7 @@ static bool shouldKeepGoing(AL_TDecoderFeeder* slave)
   return keepGoing >= 0 || !slave->endWithAccessUnit;
 }
 
-static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
+static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* startCodeStreamView)
 {
   AL_HANDLE hDec = slave->hDec;
 
@@ -91,14 +91,14 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* decodeBuffer)
   if(transferedBytes)
     Rtos_SetEvent(slave->incomingWorkEvent);
 
-  decodeBuffer->iAvailSize += transferedBytes;
+  startCodeStreamView->iAvailSize += transferedBytes;
 
   // Decode Max AU as possible with this data
   UNIT_ERROR eErr = ERR_ACCESS_UNIT_NONE;
 
   while(eErr != ERR_UNIT_NOT_FOUND && shouldKeepGoing(slave))
   {
-    eErr = AL_Decoder_TryDecodeOneUnit(hDec, decodeBuffer);
+    eErr = AL_Decoder_TryDecodeOneUnit(hDec, startCodeStreamView);
 
     if(eErr == ERR_ACCESS_UNIT_NONE)
       slave->endWithAccessUnit = true;
@@ -154,7 +154,7 @@ static void Slave_EntryPoint(AL_TDecoderFeeder* slave)
       break;
     }
 
-    bool bRet = Slave_Process(slave, &slave->decodeBuffer);
+    bool bRet = Slave_Process(slave, &slave->startCodeStreamView);
 
     if(!bRet)
     {
@@ -208,10 +208,10 @@ void AL_DecoderFeeder_Flush(AL_TDecoderFeeder* this)
 void AL_DecoderFeeder_Reset(AL_TDecoderFeeder* this)
 {
   AL_Patchworker_Reset(this->patchworker);
-  CircBuffer_Init(&this->decodeBuffer);
+  CircBuffer_Init(&this->startCodeStreamView);
 }
 
-AL_TDecoderFeeder* AL_DecoderFeeder_Create(TMemDesc* decodeMemoryDescriptor, AL_HANDLE hDec, AL_TPatchworker* patchworker, AL_CB_Error* errorCallback)
+AL_TDecoderFeeder* AL_DecoderFeeder_Create(TMemDesc* streamMemory, AL_HANDLE hDec, AL_TPatchworker* patchworker, AL_CB_Error* errorCallback)
 {
   AL_TDecoderFeeder* this = Rtos_Malloc(sizeof(*this));
 
@@ -224,8 +224,8 @@ AL_TDecoderFeeder* AL_DecoderFeeder_Create(TMemDesc* decodeMemoryDescriptor, AL_
   this->patchworker = patchworker;
   this->errorCallback = *errorCallback;
 
-  CircBuffer_Init(&this->decodeBuffer);
-  this->decodeBuffer.tMD = *decodeMemoryDescriptor;
+  CircBuffer_Init(&this->startCodeStreamView);
+  this->startCodeStreamView.tMD = *streamMemory;
 
   this->incomingWorkEvent = Rtos_CreateEvent(false);
 
