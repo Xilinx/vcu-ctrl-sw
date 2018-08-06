@@ -487,24 +487,26 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
       uPos = skipNalHeader(uPos, eCodec, uSize);
       bool const IsFirstSlice = isFirstSlice(pBuf, uPos);
 
-      bool bFind = false;
+      bool isPreviousNalConfirmed = false;
       switch(pCtx->chanParam.eDecUnit)
       {
       case AL_AU_UNIT:
       {
-        bFind = (iLastVclNal != notFound && IsFirstSlice);
+        /* if we found some vcl nals before finding a new AU */
+        isPreviousNalConfirmed = (iLastVclNal != notFound && IsFirstSlice);
         break;
       }
       case AL_VCL_NAL_UNIT:
       {
-        bFind = iLastVclNal != notFound;
+        /* if we found a vcl nal before this one */
+        isPreviousNalConfirmed = iLastVclNal != notFound;
         break;
       }
       default:
         assert(0);
       }
 
-      if(bFind)
+      if(isPreviousNalConfirmed)
       {
         *pLastStartCodeInDecodingUnit = Max(iLastNonVclNal - 1, iLastVclNal);
         *iLastVclNalInDecodingUnit = IsFirstSlice ? iLastVclNal : notFound;
