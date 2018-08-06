@@ -608,6 +608,9 @@ static bool spic_timing(AL_TRbspParser* pRP, AL_TAvcSps* pSPS, AL_TAvcPicTiming*
   return byte_alignment(pRP);
 }
 
+#define BUFFERING_PERIOD 0
+#define PIC_TIMING 1
+#define USER_DATA_UNREGISTERED 5
 /*****************************************************************************/
 bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP)
 {
@@ -648,7 +651,7 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP)
     payload_size += byte;
     switch(payload_type)
     {
-    case 0: // buffering_period parsing
+    case BUFFERING_PERIOD: // buffering_period parsing
     {
       uint32_t uOffset = offset(pRP);
       bool bRet = bufferingPeriod(pRP, aup->pSPS, &sei.buffering_period, &aup->pActiveSPS);
@@ -662,7 +665,7 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP)
       break;
     }
 
-    case 1: // picture_timing parsing
+    case PIC_TIMING: // picture_timing parsing
 
       if(aup->pActiveSPS)
       {
@@ -676,7 +679,7 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP)
         return false;
       break;
 
-    case 5: // user_data_unregistered
+    case USER_DATA_UNREGISTERED: // user_data_unregistered parsing
     {
       skip(pRP, payload_size << 3); // skip data
     } break;

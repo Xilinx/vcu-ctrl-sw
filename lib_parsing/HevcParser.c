@@ -876,6 +876,9 @@ static bool sei_pic_timing(AL_TRbspParser* pRP, AL_THevcSps* pSPS, AL_THevcPicTi
   return byte_alignment(pRP);
 }
 
+#define PIC_TIMING 1
+#define ACTIVE_PARAMETER_SETS 129
+
 /*****************************************************************************/
 bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP)
 {
@@ -919,7 +922,7 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP)
     payload_size += byte;
     switch(payload_type)
     {
-    case 1: // picture_timing parsing
+    case PIC_TIMING: // picture_timing parsing
 
       if(aup->pActiveSPS)
       {
@@ -935,7 +938,7 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP)
         return false;
       break;
 
-    case 129:
+    case ACTIVE_PARAMETER_SETS:
     {
       uint8_t uSpsId = sei_active_parameter_sets(pRP, aup);
 
