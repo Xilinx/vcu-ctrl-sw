@@ -508,7 +508,7 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
 
       if(isPreviousNalConfirmed)
       {
-        *pLastStartCodeInDecodingUnit = Max(iLastNonVclNal - 1, iLastVclNal);
+        *pLastStartCodeInDecodingUnit = Max(iLastNonVclNal, iLastVclNal);
         *iLastVclNalInDecodingUnit = IsFirstSlice ? iLastVclNal : notFound;
         return true;
       }
@@ -519,8 +519,7 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
     }
     else
     {
-      if(iLastNonVclNal == notFound && (isAVC(eCodec) || (eNUT != AL_HEVC_NUT_SUFFIX_SEI)))
-        iLastNonVclNal = iNal;
+      iLastNonVclNal = iNal;
 
       if(isEndOfFrameDelimiter(eCodec, eNUT, pBuf, pTable[iNal]))
       {
@@ -528,7 +527,7 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
           continue;
 
         /* we are the last nal in the access unit */
-        *pLastStartCodeInDecodingUnit = iNal;
+        *pLastStartCodeInDecodingUnit = iLastNonVclNal;
 
         /* we are in fact an AUD, the first nal of the next access unit */
         if(isAud(eCodec, eNUT))
