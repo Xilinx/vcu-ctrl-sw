@@ -100,10 +100,12 @@ typedef struct
 /*************************************************************************//*!
    \brief Parsed SEI callback definition.
    It is called when a SEI is parsed
+   Antiemulation has already been removed by the decoder from the payload.
+   See Annex D.3 of ITU-T for the sei_payload syntax
 *****************************************************************************/
 typedef struct
 {
-  void (* func)(int seiType, uint8_t* pRawData, int size, void* pUserParam);
+  void (* func)(int iPayloadType, uint8_t* pPayload, int iPayloadSize, void* pUserParam);
   void* userParam;
 }AL_CB_ParsedSei;
 

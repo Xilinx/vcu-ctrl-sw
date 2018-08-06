@@ -865,16 +865,16 @@ void printHexdump(ostream* logger, uint8_t* data, int size)
   *logger << std::dec;
 }
 
-static void sParsedSei(int seiType, uint8_t* data, int size, void* pUserParam)
+static void sParsedSei(int iPayloadType, uint8_t* pPayload, int iPayloadSize, void* pUserParam)
 {
   ostream* seiOutput = (ostream*)pUserParam;
 
   if(seiOutput)
   {
-    *seiOutput << "sei_payload_type: " << seiType << endl
-               << "sei_payload_size: " << size << endl
+    *seiOutput << "sei_payload_type: " << iPayloadType << endl
+               << "sei_payload_size: " << iPayloadSize << endl
                << "raw:" << endl;
-    printHexdump(seiOutput, data, size);
+    printHexdump(seiOutput, pPayload, iPayloadSize);
     *seiOutput << endl << endl;
   }
 }
