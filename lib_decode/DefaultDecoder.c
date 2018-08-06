@@ -425,6 +425,14 @@ static bool checkSEI_UUID(uint8_t* pBufs, AL_TNal nal, AL_ECodec codec)
   return true;
 }
 
+static bool isStartCode(uint8_t* pBuf, uint32_t uSize, uint32_t uPos)
+{
+  return (pBuf[uPos % uSize] == 0x00) &&
+    (pBuf[(uPos + 1) % uSize] == 0x00) &&
+    (pBuf[(uPos + 2) % uSize] == 0x01);
+
+}
+
 /*****************************************************************************/
 static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* pLastStartCodeInDecodingUnit, int* iLastVclNalInDecodingUnit)
 {
@@ -455,10 +463,7 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
     {
       // Start Code
       uint32_t uPos = pTable[iNal].tStartCode.uPosition;
-
-      assert(pBuf[uPos % uSize] == 0x00);
-      assert(pBuf[(uPos + 1) % uSize] == 0x00);
-      assert(pBuf[(uPos + 2) % uSize] == 0x01);
+      assert(isStartCode(pBuf, uSize, uPos));
 
       int const iNalHdrSize = isAVC(eCodec) ? AVC_NAL_HDR_SIZE : HEVC_NAL_HDR_SIZE;
       uPos = (uPos + iNalHdrSize) % uSize; // skip start code + nal header
