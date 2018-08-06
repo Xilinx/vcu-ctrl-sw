@@ -474,7 +474,6 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
 
     if(isVcl(eCodec, eNUT))
     {
-      // Start Code
       uint32_t uPos = pTable[iNal].tStartCode.uPosition;
       assert(isStartCode(pBuf, uSize, uPos));
       uPos = skipNalHeader(uPos, eCodec, uSize);
