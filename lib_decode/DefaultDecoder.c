@@ -438,6 +438,11 @@ static uint32_t skipNalHeader(uint32_t uPos, AL_ECodec eCodec, uint32_t uSize)
   return (uPos + iNalHdrSize) % uSize; // skip start code + nal header
 }
 
+static bool isLastNalComplete(AL_ECodec eCodec, AL_ENut eNUT, uint8_t* pBuf, AL_TNal nal)
+{
+  return isAud(eCodec, eNUT) || (isSuffixSei(eCodec, eNUT) && checkSEI_UUID(pBuf, nal, eCodec));
+}
+
 /*****************************************************************************/
 static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* pLastStartCodeInDecodingUnit, int* iLastVclNalInDecodingUnit)
 {
@@ -458,8 +463,8 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
   {
     AL_ENut eNUT = pTable[iNal].tStartCode.uNUT;
 
-    // The NAL returned by the last start code of the SCD may not be complete
-    if((iNal == iNalCount - 1) && !isAud(eCodec, eNUT) && !(isSuffixSei(eCodec, eNUT) && checkSEI_UUID(pBuf, pTable[iNal], eCodec)))
+    // The NAL returned by the last start code of the SCD might not be complete
+    if((iNal == iNalCount - 1) && !isLastNalComplete(eCodec, eNUT, pBuf, pTable[iNal]))
       return false;
 
     bool bIsVcl = isAVC(eCodec) ? AL_AVC_IsVcl(eNUT) : AL_HEVC_IsVcl(eNUT);
