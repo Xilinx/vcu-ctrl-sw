@@ -116,13 +116,14 @@ static uint32_t GetNonVclSize(TCircBuffer* pBufStream)
   int iNumZeros = 0;
   int iNumNALFound = 0;
   uint8_t* pParseBuf = pBufStream->tMD.pVirtualAddr;
-  uint32_t uSize = pBufStream->tMD.uSize;
+  uint32_t uMaxSize = pBufStream->tMD.uSize;
   uint32_t uLengthNAL = 0;
-  uint32_t uOffset = pBufStream->iOffset;
+  int iOffset = pBufStream->iOffset;
+  int iAvailSize = pBufStream->iAvailSize;
 
-  for(uint32_t i = uOffset; i < uOffset + uSize; ++i)
+  for(int i = iOffset; i < iOffset + iAvailSize; ++i)
   {
-    uint8_t uRead = pParseBuf[i % uSize];
+    uint8_t uRead = pParseBuf[i % uMaxSize];
 
     if(iNumZeros >= 2 && uRead == 0x01)
     {
