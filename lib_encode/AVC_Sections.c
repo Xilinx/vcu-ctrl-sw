@@ -38,7 +38,7 @@
 #include "AVC_Sections.h"
 #include "lib_bitstream/AVC_RbspEncod.h"
 
-void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus)
+static Nuts CreateAvcNuts(void)
 {
   Nuts nuts =
   {
@@ -50,7 +50,12 @@ void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatu
     AL_AVC_NUT_PREFIX_SEI,
     AL_AVC_NUT_SUFFIX_SEI,
   };
+  return nuts;
+}
 
+void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus)
+{
+  Nuts nuts = CreateAvcNuts();
   NalsData nalsData = AL_ExtractNalsData(pCtx, 0);
   GenerateSections(AL_GetAvcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, pCtx->Settings.NumLayer);
 }
