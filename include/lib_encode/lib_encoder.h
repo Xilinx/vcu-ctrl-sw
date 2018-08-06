@@ -169,7 +169,7 @@ bool AL_Encoder_PutStreamBuffer(AL_HEncoder hEnc, AL_TBuffer* pStream);
 /*************************************************************************//*!
    \brief Pushes a frame buffer to the encoder.
    According to the GOP pattern, this frame buffer could or couldn't be encoded immediately.
-   \param[in] hEnc hEnc  Handle to an encoder object
+   \param[in] hEnc  Handle to an encoder object
    \param[in] pFrame Pointer to the frame buffer to encode
    The pFrame buffer needs to have an associated AL_TSrcMetaData describing
    how the yuv is stored in memory. The memory of the buffer should not be altered
@@ -182,18 +182,18 @@ bool AL_Encoder_PutStreamBuffer(AL_HEncoder hEnc, AL_TBuffer* pStream);
    \param[in] pQpTable Pointer to an optional qp table used if the external qp table mode is enabled
    \return If the function succeeds the return value is nonzero (true)
    If the function fails the return value is zero (false)
-   \see AL_Encoder_ReleaseFrameBuffer
 *****************************************************************************/
 bool AL_Encoder_Process(AL_HEncoder hEnc, AL_TBuffer* pFrame, AL_TBuffer* pQpTable);
 
 /*************************************************************************//*!
    \brief Add a SEI to the stream
    This function should be called after the encoder has encoded the bitstream.
-   \param[in] pStream the stream buffer, required to possess a stream metadata
-   \param[in] isPrefix discriminate between prefix and suffix SEI
-   \param[in] iPayloadType. SEI payload type. See Annex D.3 of ITU-T
-   \param[in] pPayload. Raw data of the SEI payload
-   \param[in] iPayloadSize. size of the raw data payload
+   \param[in] hEnc Handle to the encoder
+   \param[in] pStream The stream buffer, required to possess a stream metadata
+   \param[in] isPrefix Discriminate between prefix and suffix SEI
+   \param[in] iPayloadType SEI payload type. See Annex D.3 of ITU-T
+   \param[in] pPayload Raw data of the SEI payload
+   \param[in] iPayloadSize Size of the raw data payload
    \return returns the section id
 *****************************************************************************/
 int AL_Encoder_AddSei(AL_HEncoder hEnc, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize);
