@@ -39,6 +39,7 @@
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/Utils.h"
 #include <string.h>
+#include <stdio.h>
 
 static void initPps(AL_TAvcPps* pPPS)
 {
@@ -612,7 +613,7 @@ static bool spic_timing(AL_TRbspParser* pRP, AL_TAvcSps* pSPS, AL_TAvcPicTiming*
 #define PIC_TIMING 1
 #define USER_DATA_UNREGISTERED 5
 /*****************************************************************************/
-bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP)
+bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
 {
   AL_TAvcSei sei;
   AL_TAvcAup* aup = &pIAup->avcAup;
@@ -649,6 +650,9 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP)
     }
 
     payload_size += byte;
+
+    if(cb->func)
+      cb->func(payload_type, get_raw_data(pRP), payload_size, cb->userParam);
     switch(payload_type)
     {
     case BUFFERING_PERIOD: // buffering_period parsing

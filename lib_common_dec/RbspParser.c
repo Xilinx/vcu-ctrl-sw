@@ -287,6 +287,11 @@ uint8_t getbyte(AL_TRbspParser* pRP)
   return pRP->pBuffer[byte_offset];
 }
 
+uint8_t* get_raw_data(AL_TRbspParser* pRP)
+{
+  return pRP->pBuffer + (pRP->iTotalBitIndex >> 3);
+}
+
 /*****************************************************************************/
 uint8_t get_next_bit(AL_TRbspParser* pRP)
 {

@@ -45,9 +45,11 @@
 #include "common_syntax.h"
 #include "Aup.h"
 
+#include "lib_decode/lib_decode.h" // for AL_CB_ParsedSEI
+
 void AL_AVC_InitAUP(AL_TAvcAup* pAUP);
 
 AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP);
 AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP);
-bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP);
+bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb);
 

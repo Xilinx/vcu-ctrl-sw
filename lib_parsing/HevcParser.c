@@ -880,7 +880,7 @@ static bool sei_pic_timing(AL_TRbspParser* pRP, AL_THevcSps* pSPS, AL_THevcPicTi
 #define ACTIVE_PARAMETER_SETS 129
 
 /*****************************************************************************/
-bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP)
+bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
 {
   AL_THevcSei sei;
   AL_THevcAup* aup = &pIAup->hevcAup;
@@ -920,6 +920,9 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP)
     uint32_t offsetBefore = offset(pRP);
 
     payload_size += byte;
+
+    if(cb->func)
+      cb->func(payload_type, get_raw_data(pRP), payload_size, cb->userParam);
     switch(payload_type)
     {
     case PIC_TIMING: // picture_timing parsing

@@ -155,6 +155,7 @@ struct Config
   int iLoop = 1;
   int iTimeoutInSeconds = -1;
   int iMaxFrames = INT_MAX;
+  bool shouldShowSei = false;
 };
 
 /******************************************************************************/
@@ -352,6 +353,7 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addInt("--timeout", &Config.iTimeoutInSeconds, "Specify timeout in seconds");
   opt.addInt("--max-frames", &Config.iMaxFrames, "Abort after max number of decoded frames (approximative abort)");
   opt.addString("--prealloc-args", &preAllocArgs, "Specify the stream dimension: 1920x1080:unkwn:422:10:profile-idc:level");
+  opt.addFlag("--show-sei-parsed", &Config.shouldShowSei, "Print which SEI were parsed by the decoder");
 
   opt.parse(argc, argv);
 
@@ -838,6 +840,36 @@ static void showResolutionInfo(int BufferNumber, int BufferSize, AL_TStreamSetti
   Message(CC_DARK_BLUE, "%s\n", ss.str().c_str());
 }
 
+void printHexdump(uint8_t* data, int size)
+{
+  int column = 0;
+  int toPrint = size;
+
+  while(toPrint > 0)
+  {
+    Message("%02hx ", data[size - toPrint]);
+    --toPrint;
+    ++column;
+
+    if(column % 8 == 0)
+      Message("\n");
+  }
+
+  Message("\n");
+}
+
+static void sParsedSei(int seiType, uint8_t* data, int size, void* pUserParam)
+{
+  bool shouldShowSei = (bool)pUserParam;
+
+  if(shouldShowSei)
+  {
+    Message(CC_DEFAULT, "sei type: %d, sei payload size: %d\n", seiType, size);
+    printHexdump(data, size);
+    Message("\n");
+  }
+}
+
 static void sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSettings const* pSettings, AL_TCropInfo const* pCropInfo, void* pUserParam)
 {
   ResChgParam* p = (ResChgParam*)pUserParam;
@@ -1078,6 +1110,7 @@ void SafeMain(int argc, char** argv)
   CB.endDecodingCB = { &sFrameDecoded, &tDecodeParam };
   CB.displayCB = { &sFrameDisplay, &display };
   CB.resolutionFoundCB = { &sResolutionFound, &ResolutionFoundParam };
+  CB.parsedSeiCB = { &sParsedSei, (void*)Config.shouldShowSei };
 
   Settings.iBitDepth = HW_IP_BIT_DEPTH;
 

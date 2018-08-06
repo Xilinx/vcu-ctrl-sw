@@ -82,6 +82,7 @@ typedef struct t_Dec_Ctx
   AL_CB_EndDecoding decodeCB;
   AL_CB_Display displayCB;
   AL_CB_ResolutionFound resolutionFoundCB;
+  AL_CB_ParsedSei parsedSeiCB;
 
   AL_SEMAPHORE Sem;
   AL_EVENT ScDetectionComplete;

@@ -1041,6 +1041,7 @@ static void AssignCallBacks(AL_TDecCtx* const pCtx, AL_TDecCallBacks* pCB)
   pCtx->decodeCB = pCB->endDecodingCB;
   pCtx->displayCB = pCB->displayCB;
   pCtx->resolutionFoundCB = pCB->resolutionFoundCB;
+  pCtx->parsedSeiCB = pCB->parsedSeiCB;
 }
 
 static void errorHandler(void* pUserParam)

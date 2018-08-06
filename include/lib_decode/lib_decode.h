@@ -98,6 +98,16 @@ typedef struct
 }AL_CB_ResolutionFound;
 
 /*************************************************************************//*!
+   \brief Parsed SEI callback definition.
+   It is called when a SEI is parsed
+*****************************************************************************/
+typedef struct
+{
+  void (* func)(int seiType, uint8_t* pRawData, int size, void* pUserParam);
+  void* userParam;
+}AL_CB_ParsedSei;
+
+/*************************************************************************//*!
    \brief Handle to the decoder object.
    \see AL_Decoder_Create
    \see AL_Decoder_Destroy
@@ -137,6 +147,7 @@ typedef struct
   AL_CB_EndDecoding endDecodingCB; /*!< Called when a frame is decoded */
   AL_CB_Display displayCB; /*!< Called when a buffer is ready to be displayed */
   AL_CB_ResolutionFound resolutionFoundCB; /*!< Called when a resolution change occurs */
+  AL_CB_ParsedSei parsedSeiCB; /*!< Called when a SEI is parsed */
 }AL_TDecCallBacks;
 
 /*************************************************************************//*!
