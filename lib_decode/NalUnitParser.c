@@ -111,13 +111,14 @@ static uint32_t AL_sCount_AntiEmulBytes(TCircBuffer* pStream, uint32_t uLength)
 }
 
 /*****************************************************************************/
-static uint32_t GetNonVclSize(uint32_t uOffset, TCircBuffer* pBufStream)
+static uint32_t GetNonVclSize(TCircBuffer* pBufStream)
 {
   int iNumZeros = 0;
   int iNumNALFound = 0;
   uint8_t* pParseBuf = pBufStream->tMD.pVirtualAddr;
   uint32_t uSize = pBufStream->tMD.uSize;
   uint32_t uLengthNAL = 0;
+  uint32_t uOffset = pBufStream->iOffset;
 
   for(uint32_t i = uOffset; i < uOffset + uSize; ++i)
   {
@@ -146,9 +147,9 @@ static uint32_t GetNonVclSize(uint32_t uOffset, TCircBuffer* pBufStream)
 }
 
 /*****************************************************************************/
-static void InitNonVclBuf(AL_TDecCtx* pCtx, uint32_t uOffset, TCircBuffer* pBufStream)
+static void InitNonVclBuf(AL_TDecCtx* pCtx, TCircBuffer* pBufStream)
 {
-  uint32_t uLengthNAL = GetNonVclSize(uOffset, pBufStream);
+  uint32_t uLengthNAL = GetNonVclSize(pBufStream);
 
   if(uLengthNAL > pCtx->BufNoAE.tMD.uSize) /* should occurs only on long SEI message */
   {
@@ -211,8 +212,7 @@ bool SkipNal()
 AL_TRbspParser getParserOnNonVclNal(AL_TDecCtx* pCtx)
 {
   TCircBuffer* pBufStream = &pCtx->Stream;
-  uint32_t uOffset = pBufStream->iOffset;
-  InitNonVclBuf(pCtx, uOffset, pBufStream);
+  InitNonVclBuf(pCtx, pBufStream);
   AL_TRbspParser rp;
   InitRbspParser(pBufStream, pCtx->BufNoAE.tMD.pVirtualAddr, true, &rp);
   return rp;
