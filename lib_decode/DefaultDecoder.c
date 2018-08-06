@@ -668,7 +668,18 @@ static UNIT_ERROR DecodeOneUnit(AL_TDecCtx* pCtx, TCircBuffer* pScStreamView, in
   {
     AL_TNal CurrentNal = nals[iNal];
     AL_TStartCode CurrentStartCode = CurrentNal.tStartCode;
-    AL_TStartCode NextStartCode = nals[iNal + 1].tStartCode;
+    AL_TStartCode NextStartCode;
+
+    if(iNal + 1 < pCtx->uNumSC)
+    {
+      NextStartCode = nals[iNal + 1].tStartCode;
+    }
+    else /* if we didn't wait for the next start code to arrive to decode the current NAL */
+    {
+      /* If there isn't a next start code, we take the end of the data processed
+       * by the start code detector */
+      NextStartCode.uPosition = pScStreamView->iOffset;
+    }
 
     pCtx->Stream.iOffset = CurrentStartCode.uPosition;
     pCtx->Stream.iAvailSize = DeltaPosition(CurrentStartCode.uPosition, NextStartCode.uPosition, pScStreamView->tMD.uSize);
