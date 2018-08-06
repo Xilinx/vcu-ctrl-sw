@@ -53,10 +53,10 @@ static int getBytesOffset(AL_TBitStreamLite* pStream)
   return AL_BitStreamLite_GetBitsCount(pStream) / 8;
 }
 
-static int writeNalInBuffer(IRbspWriter* writer, uint8_t* buffer, AL_NalUnit* nal)
+static int writeNalInBuffer(IRbspWriter* writer, uint8_t* buffer, int bufSize, AL_NalUnit* nal)
 {
   AL_TBitStreamLite bitstream;
-  AL_BitStreamLite_Init(&bitstream, buffer);
+  AL_BitStreamLite_Init(&bitstream, buffer, bufSize);
 
   nal->Write(writer, &bitstream, nal->param);
 
@@ -67,7 +67,7 @@ int WriteNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, AL_NalUnit* nal)
 {
   uint8_t tmpBuffer[ENC_MAX_HEADER_SIZE];
 
-  int sizeInBits = writeNalInBuffer(writer, tmpBuffer, nal);
+  int sizeInBits = writeNalInBuffer(writer, tmpBuffer, ENC_MAX_HEADER_SIZE, nal);
 
   int start = getBytesOffset(bitstream);
   FlushNAL(bitstream, nal->nut, nal->header, tmpBuffer, sizeInBits);
@@ -85,7 +85,7 @@ static void GenerateNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, AL_Na
 static void GenerateConfigNalUnits(IRbspWriter* writer, AL_NalUnit* nals, int nalsCount, AL_TBuffer* pStream)
 {
   AL_TBitStreamLite bitstream;
-  AL_BitStreamLite_Init(&bitstream, AL_Buffer_GetData(pStream));
+  AL_BitStreamLite_Init(&bitstream, AL_Buffer_GetData(pStream), ENC_MAX_HEADER_SIZE);
   AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
 
   for(int i = 0; i < nalsCount; i++)
@@ -192,9 +192,9 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
   for(int iPart = 0; iPart < pPicStatus->iNumParts; ++iPart)
     AddSection(pMetaData, pStreamParts[iPart].uOffset, pStreamParts[iPart].uSize, 0);
 
-  AL_TBitStreamLite bs;
-  AL_BitStreamLite_Init(&bs, AL_Buffer_GetData(pStream));
   int offset = getOffsetAfterLastSection(pMetaData);
+  AL_TBitStreamLite bs;
+  AL_BitStreamLite_Init(&bs, AL_Buffer_GetData(pStream), pStream->zSize);
   AL_BitStreamLite_SkipBits(&bs, offset * 8);
 
   if(nalsData->shouldWriteFillerData && pPicStatus->iFiller)
@@ -238,7 +238,7 @@ static int createExternalSei(Nuts nuts, uint8_t* pData, bool isPrefix, int iPayl
   nal.header = nuts.GetNalHeader(nal.nut, nal.idc);
 
   AL_TBitStreamLite bitstream;
-  AL_BitStreamLite_Init(&bitstream, pData);
+  AL_BitStreamLite_Init(&bitstream, pData, ENC_MAX_HEADER_SIZE);
   return WriteNal(NULL, &bitstream, &nal);
 }
 

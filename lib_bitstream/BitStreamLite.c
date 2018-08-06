@@ -40,10 +40,12 @@
 
 /******************************************************************************/
 
-void AL_BitStreamLite_Init(AL_TBitStreamLite* pBS, uint8_t* pBuf)
+void AL_BitStreamLite_Init(AL_TBitStreamLite* pBS, uint8_t* pBuf, int iMaxSize)
 {
   pBS->pData = pBuf;
   pBS->iBitCount = 0;
+  pBS->iMaxBits = iMaxSize * 8;
+  pBS->isOverflow = false;
 }
 
 /******************************************************************************/
@@ -124,7 +126,11 @@ static inline void writeData(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32_t 
 /* Assume that iNumBits will be small enough to fit in current byte */
 static void PutInByte(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32_t uValue)
 {
-  writeData(pBS, iNumBits, uValue);
+  if(pBS->iBitCount + iNumBits <= pBS->iMaxBits)
+    writeData(pBS, iNumBits, uValue);
+  else
+    pBS->isOverflow = true;
+  assert(!pBS->isOverflow);
   pBS->iBitCount += iNumBits;
 }
 

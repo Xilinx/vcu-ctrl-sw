@@ -53,6 +53,8 @@ typedef struct AL_t_BitStreamLite
 {
   uint8_t* pData; /*!< Pointer to an array of bytes used as bistream */
   int iBitCount; /*!< Bits already written */
+  int iMaxBits;
+  bool isOverflow;
 }AL_TBitStreamLite;
 
 /*************************************************************************//*!
@@ -60,7 +62,7 @@ typedef struct AL_t_BitStreamLite
    \param[in] pBS Pointer to a TBitStreamLite object
    \param[in] pBuf Pointer to the buffer that the Bitstream object shall use
  *************************************************************************/
-void AL_BitStreamLite_Init(AL_TBitStreamLite* pBS, uint8_t* pBuf);
+void AL_BitStreamLite_Init(AL_TBitStreamLite* pBS, uint8_t* pBuf, int iMaxSize);
 
 /*************************************************************************//*!
    \brief Destructor

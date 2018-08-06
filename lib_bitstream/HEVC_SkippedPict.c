@@ -349,7 +349,7 @@ bool AL_HEVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iWidth, i
   if(!pSkipPict || !pSkipPict->pBuffer)
     return false;
 
-  AL_BitStreamLite_Init(&BS, pSkipPict->pBuffer);
+  AL_BitStreamLite_Init(&BS, pSkipPict->pBuffer, pSkipPict->iBufSize);
 
   iBinsCount = AL_sHEVC_GenerateSkippedPictureCabac(&BS, iWidth, iHeight, uMaxCuSize, uMinCuSize, uNumLCU);
   iBitsCount = AL_BitStreamLite_GetBitsCount(&BS);
