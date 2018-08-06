@@ -448,6 +448,14 @@ static bool isVcl(AL_ECodec eCodec, AL_ENut eNUT)
   return isAVC(eCodec) ? AL_AVC_IsVcl(eNUT) : AL_HEVC_IsVcl(eNUT);
 }
 
+/* should only be used when the position is right after the nal header */
+static bool isFirstSlice(uint8_t* pBuf, uint32_t uPos)
+{
+  // in AVC, the first bit of the slice data is 1. (first_mb_in_slice = 0 encoded in ue)
+  // in HEVC, the first bit is 1 too. (first_slice_segment_in_pic_flag = 1 if true))
+  return pBuf[uPos] & 0x80;
+}
+
 /*****************************************************************************/
 static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* pLastStartCodeInDecodingUnit, int* iLastVclNalInDecodingUnit)
 {
@@ -477,8 +485,8 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
       uint32_t uPos = pTable[iNal].tStartCode.uPosition;
       assert(isStartCode(pBuf, uSize, uPos));
       uPos = skipNalHeader(uPos, eCodec, uSize);
+      bool const IsFirstSlice = isFirstSlice(pBuf, uPos);
 
-      bool const IsFirstSlice = pBuf[uPos] & 0x80;
       bool bFind = false;
       switch(pCtx->chanParam.eDecUnit)
       {
