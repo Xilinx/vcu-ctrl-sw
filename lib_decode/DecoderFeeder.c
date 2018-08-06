@@ -94,16 +94,16 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* startCodeStrea
   startCodeStreamView->iAvailSize += transferedBytes;
 
   // Decode Max AU as possible with this data
-  UNIT_ERROR eErr = ERR_ACCESS_UNIT_NONE;
+  UNIT_ERROR eErr = SUCCESS_ACCESS_UNIT;
 
   while(eErr != ERR_UNIT_NOT_FOUND && shouldKeepGoing(slave))
   {
     eErr = AL_Decoder_TryDecodeOneUnit(hDec, startCodeStreamView);
 
-    if(eErr == ERR_ACCESS_UNIT_NONE)
+    if(eErr == SUCCESS_ACCESS_UNIT)
       slave->endWithAccessUnit = true;
 
-    if(eErr == ERR_NAL_UNIT_NONE)
+    if(eErr == SUCCESS_NAL_UNIT)
       slave->endWithAccessUnit = false;
 
     if(eErr != ERR_UNIT_NOT_FOUND)

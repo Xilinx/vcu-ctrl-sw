@@ -725,7 +725,7 @@ static UNIT_ERROR DecodeOneUnit(AL_TDecCtx* pCtx, TCircBuffer* pScStreamView, in
   pCtx->uNumSC -= iNalCount;
   Rtos_Memmove(nals, nals + iNalCount, pCtx->uNumSC * sizeof(AL_TNal));
 
-  return bIsEndOfFrame ? ERR_ACCESS_UNIT_NONE : ERR_NAL_UNIT_NONE;
+  return bIsEndOfFrame ? SUCCESS_ACCESS_UNIT : SUCCESS_NAL_UNIT;
 }
 
 /*****************************************************************************/
