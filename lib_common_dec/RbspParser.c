@@ -108,10 +108,15 @@ static void remove_trailing_bits(AL_TRbspParser* pRP)
   pRP->iTrailingBitOneIndexConceal = ((pRP->iTrailingBitOneIndex + 8) & ~7);
 }
 
+static bool finished_fetching(AL_TRbspParser* pRP)
+{
+  return pRP->uNumScDetect == 2 || pRP->iBufInAvailSize == 0;
+}
+
 /*****************************************************************************/
 static bool fetch_data(AL_TRbspParser* pRP)
 {
-  if(pRP->uNumScDetect == 2)
+  if(finished_fetching(pRP))
     return false;
 
   uint32_t uWrite = 0;
@@ -128,9 +133,10 @@ static bool fetch_data(AL_TRbspParser* pRP)
 
   // Replaces in pBuffer all sequences such as 0x00 0x00 0x03 0xZZ with 0x00 0x00 0xZZ (0x03 removal)
   // iff 0xZZ == 0x00 or 0x01 or 0x02 or 0x03.
-  for(uint32_t uRead = uOffset; uRead < uEnd; ++uRead)
+  for(uint32_t uRead = uOffset; uRead < uEnd && pRP->iBufInAvailSize > 0; ++uRead)
   {
     pRP->iBufInOffset = (pRP->iBufInOffset + 1) % pRP->iBufInSize;
+    --pRP->iBufInAvailSize;
 
     const uint8_t read = pBuf[uRead % pRP->iBufInSize];
 
@@ -161,7 +167,7 @@ static bool fetch_data(AL_TRbspParser* pRP)
     pBufOut[uWrite++] = read;
   }
 
-  if(pRP->uNumScDetect == 2)
+  if(finished_fetching(pRP))
     remove_trailing_bits(pRP);
   return true;
 }
@@ -181,6 +187,7 @@ void InitRbspParser(TCircBuffer const* pStream, uint8_t* pBuffer, bool bHasSC, A
   pRP->pBufIn = pStream->tMD.pVirtualAddr;
   pRP->iBufInSize = pStream->tMD.uSize;
   pRP->iBufInOffset = pStream->iOffset;
+  pRP->iBufInAvailSize = pStream->iAvailSize;
   pRP->bHasSC = bHasSC;
 }
 
