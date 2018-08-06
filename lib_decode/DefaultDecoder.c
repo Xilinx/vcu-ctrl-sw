@@ -395,18 +395,6 @@ static bool isSuffixSei(AL_ECodec codec, int nut)
     return nut == AL_HEVC_NUT_SUFFIX_SEI;
 }
 
-/*****************************************************************************/
-static bool isEndOfFrameDelimiter(AL_ECodec codec, int nut)
-{
-  return isAud(codec, nut) || isSuffixSei(codec, nut);
-}
-
-/*****************************************************************************/
-static bool enoughStartCode(int iNumStartCode)
-{
-  return iNumStartCode > 1;
-}
-
 static bool checkSeiUUID(uint8_t* pBufs, AL_TNal nal, AL_ECodec codec)
 {
   uint32_t const uTotalUUIDSize = isAVC(codec) ? 23 : 24;
@@ -423,6 +411,18 @@ static bool checkSeiUUID(uint8_t* pBufs, AL_TNal nal, AL_ECodec codec)
   }
 
   return true;
+}
+
+/*****************************************************************************/
+static bool isEndOfFrameDelimiter(AL_ECodec codec, int nut, uint8_t* pBuf, AL_TNal nal)
+{
+  return isAud(codec, nut) || (isSuffixSei(codec, nut) && checkSeiUUID(pBuf, nal, codec));
+}
+
+/*****************************************************************************/
+static bool enoughStartCode(int iNumStartCode)
+{
+  return iNumStartCode > 1;
 }
 
 static bool isStartCode(uint8_t* pBuf, uint32_t uSize, uint32_t uPos)
@@ -522,12 +522,9 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
       if(iLastNonVclNal == notFound && (isAVC(eCodec) || (eNUT != AL_HEVC_NUT_SUFFIX_SEI)))
         iLastNonVclNal = iNal;
 
-      if(isEndOfFrameDelimiter(eCodec, eNUT))
+      if(isEndOfFrameDelimiter(eCodec, eNUT, pBuf, pTable[iNal]))
       {
         if(iLastVclNal == notFound)
-          continue;
-
-        if(isSuffixSei(eCodec, eNUT) && !(checkSeiUUID(pBuf, pTable[iNal], eCodec)))
           continue;
 
         *pLastStartCodeInDecodingUnit = iNal;
