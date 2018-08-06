@@ -120,7 +120,7 @@ static bool fetch_data(AL_TRbspParser* pRP)
   uint8_t* pBuf = pRP->pBufIn;
   uint8_t* pBufOut = &pRP->pBuffer[byte_offset];
 
-  uint32_t uOffset = pRP->uBufInOffset;
+  uint32_t uOffset = pRP->iBufInOffset;
   uint32_t uEnd = uOffset + ANTI_EMUL_GRANULARITY;
 
   if(uEnd > uOffset + NON_VCL_NAL_SIZE)
@@ -130,9 +130,9 @@ static bool fetch_data(AL_TRbspParser* pRP)
   // iff 0xZZ == 0x00 or 0x01 or 0x02 or 0x03.
   for(uint32_t uRead = uOffset; uRead < uEnd; ++uRead)
   {
-    pRP->uBufInOffset = (pRP->uBufInOffset + 1) % pRP->uBufInSize;
+    pRP->iBufInOffset = (pRP->iBufInOffset + 1) % pRP->iBufInSize;
 
-    const uint8_t read = pBuf[uRead % pRP->uBufInSize];
+    const uint8_t read = pBuf[uRead % pRP->iBufInSize];
 
     if(pRP->bHasSC)
     {
@@ -179,8 +179,8 @@ void InitRbspParser(TCircBuffer const* pStream, uint8_t* pBuffer, bool bHasSC, A
   pRP->pByte = pBuffer;
 
   pRP->pBufIn = pStream->tMD.pVirtualAddr;
-  pRP->uBufInSize = pStream->tMD.uSize;
-  pRP->uBufInOffset = pStream->iOffset;
+  pRP->iBufInSize = pStream->tMD.uSize;
+  pRP->iBufInOffset = pStream->iOffset;
   pRP->bHasSC = bHasSC;
 }
 

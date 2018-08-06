@@ -64,8 +64,8 @@ typedef struct t_RbspParser
   const uint8_t* pByte;
 
   uint8_t* pBufIn;
-  uint32_t uBufInSize;
-  uint32_t uBufInOffset;
+  int32_t iBufInSize;
+  int32_t iBufInOffset;
   bool bHasSC;
 }AL_TRbspParser;
 
