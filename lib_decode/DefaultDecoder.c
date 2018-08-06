@@ -527,8 +527,10 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
         if(iLastVclNal == notFound)
           continue;
 
+        /* we are the last nal in the access unit */
         *pLastStartCodeInDecodingUnit = iNal;
 
+        /* we are in fact an AUD, the first nal of the next access unit */
         if(isAud(eCodec, eNUT))
           *pLastStartCodeInDecodingUnit -= 1;
 
