@@ -250,6 +250,7 @@ struct EncoderSink : IFrameSink
   unique_ptr<IFrameSink> RecOutput;
   unique_ptr<IFrameSink> BitstreamOutput;
   AL_HEncoder hEnc;
+  bool shouldAddDummySei = false;
 
 private:
   int m_picCount = 0;
@@ -285,6 +286,21 @@ private:
   {
     if(AL_ERR eErr = AL_Encoder_GetLastError(hEnc))
       ThrowEncoderError(eErr);
+
+    if(pStream && shouldAddDummySei)
+    {
+      uint8_t payload = 0xA7;
+      int seiSection = AL_Encoder_AddSei(hEnc, pStream, false, 15, &payload, 1);
+      Message(CC_DEFAULT, "dummy SEI (id:%d) \n", seiSection);
+
+      if(seiSection < 0)
+        Message(CC_DEFAULT, "Failed to add dummy SEI (id:%d) \n", seiSection);
+      seiSection = AL_Encoder_AddSei(hEnc, pStream, true, 18, &payload, 1);
+      Message(CC_DEFAULT, "dummy SEI prefix (id:%d) \n", seiSection);
+
+      if(seiSection < 0)
+        Message(CC_DEFAULT, "Failed to add dummy SEI (id:%d) \n", seiSection);
+    }
 
     if(pStream && m_pictureType != -1)
     {

@@ -60,6 +60,7 @@
 void AL_RbspEncoding_WriteAUD(AL_TBitStreamLite* pRE, int primary_pic_type);
 
 int AL_RbspEncoding_BeginSEI(AL_TBitStreamLite* pRE, uint8_t payloadType);
+void AL_RbspEncoding_BeginSEI2(AL_TBitStreamLite* pBS, int iPayloadType, int iPayloadSize);
 void AL_RbspEncoding_EndSEI(AL_TBitStreamLite* pRE, int bookmarkSEI);
 void AL_RbspEncoding_CloseSEI(AL_TBitStreamLite* pRE);
 void AL_RbspEncoding_WriteUserDataUnregistered(AL_TBitStreamLite* pRE, uint8_t uuid[16]);

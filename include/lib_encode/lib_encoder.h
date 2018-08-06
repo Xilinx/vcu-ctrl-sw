@@ -186,6 +186,17 @@ bool AL_Encoder_PutStreamBuffer(AL_HEncoder hEnc, AL_TBuffer* pStream);
 *****************************************************************************/
 bool AL_Encoder_Process(AL_HEncoder hEnc, AL_TBuffer* pFrame, AL_TBuffer* pQpTable);
 
+/*************************************************************************//*!
+   \brief Add a SEI to the stream
+   This function should be called after the encoder has encoded the bitstream.
+   \param[in] pStream the stream buffer, required to possess a stream metadata
+   \param[in] isPrefix discriminate between prefix and suffix SEI
+   \param[in] iPayloadType. SEI payload type. See Annex D.3 of ITU-T
+   \param[in] pPayload. Raw data of the SEI payload
+   \param[in] iPayloadSize. size of the raw data payload
+   \return returns the section id
+*****************************************************************************/
+int AL_Encoder_AddSei(AL_HEncoder hEnc, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize);
 
 /*************************************************************************//*!
    \brief Return an error code when an error has occured during encoding,

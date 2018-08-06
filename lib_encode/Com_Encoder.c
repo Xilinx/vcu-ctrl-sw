@@ -888,3 +888,35 @@ AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncCtx* pCtx, TScheduler* pScheduler,
 }
 
 
+Nuts CreateAvcNuts(void);
+Nuts CreateHevcNuts(void);
+bool CreateNuts(Nuts* nuts, AL_EProfile eProfile)
+{
+  if(AL_IS_AVC(eProfile))
+  {
+    *nuts = CreateAvcNuts();
+    /* sei suffix do not really exist in AVC. use a prefix nut */
+    nuts->seiSuffixNut = nuts->seiPrefixNut;
+  }
+  else if(AL_IS_HEVC(eProfile))
+    *nuts = CreateHevcNuts();
+  else
+    return false;
+  return true;
+}
+
+#include "lib_encode/Sections.h"
+
+int AL_Encoder_AddSei(AL_HEncoder hEnc, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  AL_TEncCtx* pCtx = pEnc->pCtx;
+
+  Nuts nuts;
+  bool exists = CreateNuts(&nuts, pCtx->Settings.tChParam[0].eProfile);
+
+  if(!exists)
+    return -1;
+  return AL_WriteSeiSection(nuts, pStream, isPrefix, iPayloadType, pPayload, iPayloadSize);
+}
+

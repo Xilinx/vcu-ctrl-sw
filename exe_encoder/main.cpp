@@ -88,6 +88,7 @@ extern "C"
 static int g_numFrameToRepeat;
 static int g_StrideHeight = -1;
 static int g_Stride = -1;
+static bool g_ShouldAddDummySei = false;
 
 using namespace std;
 
@@ -658,7 +659,7 @@ void SafeMain(int argc, char** argv)
   unique_ptr<EncoderSink> enc;
   enc.reset(new EncoderSink(cfg, pScheduler, pAllocator, QpBufPool
                             ));
-
+  enc->shouldAddDummySei = g_ShouldAddDummySei;
 
   enc->BitstreamOutput = createBitstreamWriter(StreamFileName, cfg);
   enc->m_done = ([&]() {

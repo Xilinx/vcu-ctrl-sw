@@ -154,3 +154,22 @@ AL_NalUnit AL_CreateSeiSuffix(SeiSuffixCtx* ctx, int nut)
   return nal;
 }
 
+static void seiExternalWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param)
+{
+  (void)writer;
+  SeiExternalCtx* ctx = (SeiExternalCtx*)param;
+  uint8_t* pPayload = ctx->pPayload;
+  int iPayloadType = ctx->iPayloadType;
+  int iPayloadSize = ctx->iPayloadSize;
+
+  AL_RbspEncoding_BeginSEI2(bitstream, iPayloadType, iPayloadSize);
+  Rtos_Memcpy(AL_BitStreamLite_GetCurData(bitstream), pPayload, iPayloadSize);
+  bitstream->iBitCount += 8 * iPayloadSize;
+  AL_RbspEncoding_CloseSEI(bitstream);
+}
+
+AL_NalUnit AL_CreateExternalSei(SeiExternalCtx* ctx, int nut)
+{
+  return AL_CreateNalUnit(&seiExternalWrite, ctx, nut, 0);
+}
+

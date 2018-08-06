@@ -38,7 +38,7 @@
 #include "AVC_Sections.h"
 #include "lib_bitstream/AVC_RbspEncod.h"
 
-static Nuts CreateAvcNuts(void)
+Nuts CreateAvcNuts(void)
 {
   Nuts nuts =
   {

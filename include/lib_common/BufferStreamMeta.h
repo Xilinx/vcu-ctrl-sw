@@ -103,5 +103,23 @@ void AL_StreamMetaData_SetSectionFlags(AL_TStreamMetaData* pMetaData, uint16_t u
 *****************************************************************************/
 void AL_StreamMetaData_ClearAllSections(AL_TStreamMetaData* pMetaData);
 
+/*************************************************************************//*!
+   \brief Add a SEI section to the stream
+   \param[in] pMetaData Pointer to the stream metadata
+   \param[in] isPrefix prefix or a suffix SEI
+   \param[in] uOffset offset of the section data in the stream
+   \param[in] uLength length of the section data in the stream
+   \return returns the section id, -1 on failure
+*****************************************************************************/
+int AL_StreamMetaData_AddSeiSection(AL_TStreamMetaData* pMetaData, bool isPrefix, uint32_t uOffset, uint32_t uLength);
+
+/*************************************************************************//*!
+   \brief Get an unused part in the stream buffer
+   The user needs to check if the offset is still inside his stream buffer
+   \param[in] pMetaData Pointer to the stream metadata
+   \return returns an offset where the section data can be inserted in the stream.
+*****************************************************************************/
+uint32_t AL_StreamMetaData_GetUnusedStreamPart(AL_TStreamMetaData* pMetaData);
+
 /*@}*/
 

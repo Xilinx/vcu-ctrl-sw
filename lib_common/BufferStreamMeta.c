@@ -82,6 +82,13 @@ AL_TStreamMetaData* AL_StreamMetaData_Clone(AL_TStreamMetaData* pMeta)
   return AL_StreamMetaData_Create(pMeta->uMaxNumSection);
 }
 
+static void SetSection(AL_TStreamSection* pSections, uint16_t uSectionID, uint32_t uOffset, uint32_t uLength, uint32_t uFlags)
+{
+  pSections[uSectionID].uOffset = uOffset;
+  pSections[uSectionID].uLength = uLength;
+  pSections[uSectionID].uFlags = uFlags;
+}
+
 int AL_StreamMetaData_AddSection(AL_TStreamMetaData* pMetaData, uint32_t uOffset, uint32_t uLength, uint32_t uFlags)
 {
   uint16_t uSectionID = pMetaData->uNumSection;
@@ -89,11 +96,8 @@ int AL_StreamMetaData_AddSection(AL_TStreamMetaData* pMetaData, uint32_t uOffset
   if(!pMetaData || uSectionID >= pMetaData->uMaxNumSection)
     return -1;
 
-  pMetaData->pSections[uSectionID].uOffset = uOffset;
-  pMetaData->pSections[uSectionID].uLength = uLength;
-  pMetaData->pSections[uSectionID].uFlags = uFlags;
-
-  pMetaData->uNumSection++;
+  SetSection(pMetaData->pSections, uSectionID, uOffset, uLength, uFlags);
+  ++pMetaData->uNumSection;
 
   return uSectionID;
 }
@@ -119,5 +123,75 @@ void AL_StreamMetaData_ClearAllSections(AL_TStreamMetaData* pMetaData)
 {
   assert(pMetaData);
   pMetaData->uNumSection = 0;
+}
+
+static int FindLastConfigSection(AL_TStreamMetaData* pMetaData)
+{
+  AL_TStreamSection* pSections = pMetaData->pSections;
+  int configSectionId = pMetaData->uNumSection - 1;
+
+  while(configSectionId >= 0)
+  {
+    if(pSections[configSectionId].uFlags & SECTION_CONFIG_FLAG)
+      break;
+    --configSectionId;
+  }
+
+  /* configSectionId == -1 if we didn't find any config sections */
+
+  return configSectionId;
+}
+
+static int InsertSectionAtId(AL_TStreamMetaData* pMetaData, uint16_t targetId, uint32_t uOffset, uint32_t uLength, uint32_t uFlags)
+{
+  uint16_t uNumSection = pMetaData->uNumSection;
+  AL_TStreamSection* pSections = pMetaData->pSections;
+
+  if(!pMetaData || uNumSection >= pMetaData->uMaxNumSection)
+    return -1;
+
+  for(int i = uNumSection - 1; i >= (int)targetId; --i)
+  {
+    AL_TStreamSection* cur = &pSections[i];
+    SetSection(pSections, i + 1, cur->uOffset, cur->uLength, cur->uFlags);
+  }
+
+  SetSection(pSections, targetId, uOffset, uLength, uFlags);
+  ++pMetaData->uNumSection;
+
+  return targetId;
+}
+
+int AddPrefixSei(AL_TStreamMetaData* pMetaData, uint32_t uOffset, uint32_t uLength)
+{
+  // the prefix sei needs to be inserted after a config section if it exists
+  int seiSectionId = FindLastConfigSection(pMetaData) + 1;
+  return InsertSectionAtId(pMetaData, seiSectionId, uOffset, uLength, 0);
+}
+
+int AL_StreamMetaData_AddSeiSection(AL_TStreamMetaData* pMetaData, bool isPrefix, uint32_t uOffset, uint32_t uLength)
+{
+  if(isPrefix)
+    return AddPrefixSei(pMetaData, uOffset, uLength);
+
+  return AL_StreamMetaData_AddSection(pMetaData, uOffset, uLength, 0);
+}
+
+uint32_t AL_StreamMetaData_GetUnusedStreamPart(AL_TStreamMetaData* pMetaData)
+{
+  AL_TStreamSection* pSections = pMetaData->pSections;
+  uint16_t uNumSection = pMetaData->uNumSection;
+
+  uint32_t maxOffset = 0;
+
+  for(uint16_t i = 0; i < uNumSection; ++i)
+  {
+    uint32_t curOffset = pSections[i].uOffset + pSections[i].uLength;
+
+    if(curOffset > maxOffset)
+      maxOffset = curOffset;
+  }
+
+  return maxOffset;
 }
 

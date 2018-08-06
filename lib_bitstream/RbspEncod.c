@@ -70,6 +70,24 @@ int AL_RbspEncoding_BeginSEI(AL_TBitStreamLite* pBS, uint8_t uPayloadType)
   return bookmarkSEI;
 }
 
+static void PutUV(AL_TBitStreamLite* pBS, int32_t iValue)
+{
+  while(iValue > 255)
+  {
+    AL_BitStreamLite_PutU(pBS, 8, 0xFF);
+    iValue -= 255;
+  }
+
+  AL_BitStreamLite_PutU(pBS, 8, iValue);
+}
+
+void AL_RbspEncoding_BeginSEI2(AL_TBitStreamLite* pBS, int iPayloadType, int iPayloadSize)
+{
+  /* See 7.3.5 Supplemental enhancement information message syntax */
+  PutUV(pBS, iPayloadType);
+  PutUV(pBS, iPayloadSize);
+}
+
 /******************************************************************************/
 void AL_RbspEncoding_EndSEI(AL_TBitStreamLite* pBS, int bookmarkSEI)
 {

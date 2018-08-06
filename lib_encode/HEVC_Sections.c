@@ -38,7 +38,7 @@
 #include "HEVC_Sections.h"
 #include "lib_bitstream/HEVC_RbspEncod.h"
 
-static Nuts CreateHevcNuts(void)
+Nuts CreateHevcNuts(void)
 {
   Nuts nuts =
   {

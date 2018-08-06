@@ -81,3 +81,12 @@ typedef struct t_SeiSuffixCtx
 
 AL_NalUnit AL_CreateSeiSuffix(SeiSuffixCtx* ctx, int nut);
 
+typedef struct t_SeiExternalCtx
+{
+  uint8_t* pPayload;
+  int iPayloadType;
+  int iPayloadSize;
+}SeiExternalCtx;
+
+AL_NalUnit AL_CreateExternalSei(SeiExternalCtx* ctx, int nut);
+
