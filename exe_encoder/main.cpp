@@ -251,6 +251,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
 
   opt.addInt("--prefetch", &g_numFrameToRepeat, "prefetch n frames and loop between these frames for max picture count");
   opt.addFlag("--print-picture-type", &cfg.RunInfo.printPictureType, "write picture type for each frame in the file", true);
+  opt.addFlag("--dummy-sei", &g_ShouldAddDummySei, "Add a dummy sei prefix and suffix");
 
 
   opt.parse(argc, argv);
