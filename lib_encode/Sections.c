@@ -231,20 +231,26 @@ static SeiExternalCtx createExternalSeiCtx(uint8_t* pPayload, int iPayloadType, 
   return ctx;
 }
 
+static int createExternalSei(Nuts nuts, uint8_t* pData, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize)
+{
+  SeiExternalCtx ctx = createExternalSeiCtx(pPayload, iPayloadType, iPayloadSize);
+  AL_NalUnit nal = AL_CreateExternalSei(&ctx, isPrefix ? nuts.seiPrefixNut : nuts.seiSuffixNut);
+  nal.header = nuts.GetNalHeader(nal.nut, nal.idc);
+
+  AL_TBitStreamLite bitstream;
+  AL_BitStreamLite_Init(&bitstream, pData);
+  return WriteNal(NULL, &bitstream, &nal);
+}
+
 int AL_WriteSeiSection(Nuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize)
 {
   AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
   assert(pMetaData);
   assert(iPayloadType >= 0);
 
-  SeiExternalCtx ctx = createExternalSeiCtx(pPayload, iPayloadType, iPayloadSize);
-  AL_NalUnit nal = AL_CreateExternalSei(&ctx, isPrefix ? nuts.seiPrefixNut : nuts.seiSuffixNut);
-  nal.header = nuts.GetNalHeader(nal.nut, nal.idc);
-
-  AL_TBitStreamLite bitstream;
   uint32_t uOffset = AL_StreamMetaData_GetUnusedStreamPart(pMetaData);
-  AL_BitStreamLite_Init(&bitstream, AL_Buffer_GetData(pStream) + uOffset);
-  int iTotalSize = WriteNal(NULL, &bitstream, &nal);
+
+  int iTotalSize = createExternalSei(nuts, AL_Buffer_GetData(pStream) + uOffset, isPrefix, iPayloadType, pPayload, iPayloadSize);
 
   int sectionId = AL_StreamMetaData_AddSeiSection(pMetaData, isPrefix, uOffset, iTotalSize);
 
