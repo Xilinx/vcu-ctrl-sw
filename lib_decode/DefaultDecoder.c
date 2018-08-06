@@ -407,7 +407,7 @@ static bool enoughStartCode(int iNumStartCode)
   return iNumStartCode > 1;
 }
 
-static bool checkSEI_UUID(uint8_t* pBufs, AL_TNal nal, AL_ECodec codec)
+static bool checkSeiUUID(uint8_t* pBufs, AL_TNal nal, AL_ECodec codec)
 {
   uint32_t const uTotalUUIDSize = isAVC(codec) ? 23 : 24;
 
@@ -440,7 +440,7 @@ static uint32_t skipNalHeader(uint32_t uPos, AL_ECodec eCodec, uint32_t uSize)
 
 static bool isLastNalComplete(AL_ECodec eCodec, AL_ENut eNUT, uint8_t* pBuf, AL_TNal nal)
 {
-  return isAud(eCodec, eNUT) || (isSuffixSei(eCodec, eNUT) && checkSEI_UUID(pBuf, nal, eCodec));
+  return isAud(eCodec, eNUT) || (isSuffixSei(eCodec, eNUT) && checkSeiUUID(pBuf, nal, eCodec));
 }
 
 /*****************************************************************************/
@@ -515,7 +515,7 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
         if(iLastVclNal == notFound)
           continue;
 
-        if(isSuffixSei(eCodec, eNUT) && !(checkSEI_UUID(pBuf, pTable[iNal], eCodec)))
+        if(isSuffixSei(eCodec, eNUT) && !(checkSeiUUID(pBuf, pTable[iNal], eCodec)))
           continue;
 
         *pLastStartCodeInDecodingUnit = iNal;
