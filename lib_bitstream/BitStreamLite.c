@@ -171,19 +171,11 @@ static void putVclBits(AL_TBitStreamLite* pBS, uint32_t uCodeLength, uint32_t uV
   }
 }
 
-/******************************************************************************/
-// Writes one Exp-Golomb code to the bitstream.
-// Automatically calculates the required code length.
-void AL_BitStreamLite_PutUE(AL_TBitStreamLite* pBS, uint32_t uValue)
-{
-  // 1 - Compute code length.
-
-  uint32_t uCodeLength;
-
 #if defined(__ICL)
-  uCodeLength = 1 + (_bit_scan_reverse(uValue + 1) << 1);
+#define bit_scan_reverse _bit_scan_reverse
 #else
-  int32_t NN = uValue + 1;
+uint32_t bit_scan_reverse_soft(int32_t NN)
+{
   int32_t i = -1;
 
   while(NN)
@@ -192,11 +184,21 @@ void AL_BitStreamLite_PutUE(AL_TBitStreamLite* pBS, uint32_t uValue)
     i++;
   }
 
-  uCodeLength = 1 + (i << 1);
+  return i;
+}
+
+#define bit_scan_reverse bit_scan_reverse_soft
 #endif
 
-  // 2 - Write code.
+/******************************************************************************/
+// Writes one Exp-Golomb code to the bitstream.
+// Automatically calculates the required code length.
+void AL_BitStreamLite_PutUE(AL_TBitStreamLite* pBS, uint32_t uValue)
+{
+  // 1 - Compute code length.
+  uint32_t uCodeLength = 1 + (bit_scan_reverse(uValue + 1) << 1);
 
+  // 2 - Write code.
   putVclBits(pBS, uCodeLength, uValue);
 }
 
