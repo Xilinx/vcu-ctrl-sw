@@ -443,6 +443,11 @@ static bool isLastNalComplete(AL_ECodec eCodec, AL_ENut eNUT, uint8_t* pBuf, AL_
   return isAud(eCodec, eNUT) || (isSuffixSei(eCodec, eNUT) && checkSeiUUID(pBuf, nal, eCodec));
 }
 
+static bool isVcl(AL_ECodec eCodec, AL_ENut eNUT)
+{
+  return isAVC(eCodec) ? AL_AVC_IsVcl(eNUT) : AL_HEVC_IsVcl(eNUT);
+}
+
 /*****************************************************************************/
 static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* pLastStartCodeInDecodingUnit, int* iLastVclNalInDecodingUnit)
 {
@@ -467,9 +472,7 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
     if((iNal == iNalCount - 1) && !isLastNalComplete(eCodec, eNUT, pBuf, pTable[iNal]))
       return false;
 
-    bool bIsVcl = isAVC(eCodec) ? AL_AVC_IsVcl(eNUT) : AL_HEVC_IsVcl(eNUT);
-
-    if(bIsVcl)
+    if(isVcl(eCodec, eNUT))
     {
       // Start Code
       uint32_t uPos = pTable[iNal].tStartCode.uPosition;
