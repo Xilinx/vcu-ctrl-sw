@@ -40,7 +40,8 @@
 
 typedef struct
 {
-  AL_ENut sei;
+  AL_ENut seiPrefix;
+  AL_ENut seiSuffix;
   AL_ENut sps;
   AL_ENut pps;
   AL_ENut vps;

@@ -829,6 +829,7 @@ void AL_HEVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bI
   AL_NonVclNuts nuts =
   {
     AL_HEVC_NUT_PREFIX_SEI,
+    AL_HEVC_NUT_SUFFIX_SEI,
     AL_HEVC_NUT_SPS,
     AL_HEVC_NUT_PPS,
     AL_HEVC_NUT_VPS,

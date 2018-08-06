@@ -46,7 +46,7 @@ void AL_DecodeOneNal(AL_NonVclNuts nuts, AL_NalParser parser, AL_TAup* pAUP, AL_
     return;
   }
 
-  if(nut == nuts.sei && parser.parseSei)
+  if((nut == nuts.seiPrefix || nut == nuts.seiSuffix) && parser.parseSei)
   {
     AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
     parser.parseSei(pAUP, &rp);

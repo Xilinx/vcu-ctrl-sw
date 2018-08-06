@@ -690,6 +690,7 @@ void AL_AVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIs
   AL_NonVclNuts nuts =
   {
     AL_AVC_NUT_PREFIX_SEI,
+    AL_AVC_NUT_PREFIX_SEI, /* AVC doesn't distinguish between prefix and suffix */
     AL_AVC_NUT_SPS,
     AL_AVC_NUT_PPS,
     0,
