@@ -103,8 +103,7 @@ void AL_BitStreamLite_EndOfSEIPayload(AL_TBitStreamLite* pBS)
   }
 }
 
-/* Assume that iNumBits will be small enough to fit in current byte */
-static void PutInByte(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32_t uValue)
+static inline void writeData(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32_t uValue)
 {
   uint32_t byteNum = pBS->iBitCount >> 3;
   uint8_t byteOffset = pBS->iBitCount & 7;
@@ -120,6 +119,12 @@ static void PutInByte(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32_t uValue)
     uint8_t bitsLeft = 8 - byteOffset;
     pBS->pData[byteNum] += uValue << (bitsLeft - iNumBits);
   }
+}
+
+/* Assume that iNumBits will be small enough to fit in current byte */
+static void PutInByte(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32_t uValue)
+{
+  writeData(pBS, iNumBits, uValue);
   pBS->iBitCount += iNumBits;
 }
 
