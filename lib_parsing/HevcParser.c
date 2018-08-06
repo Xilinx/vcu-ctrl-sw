@@ -921,8 +921,9 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
 
     payload_size += byte;
 
-    if(cb->func)
-      cb->func(payload_type, get_raw_data(pRP), payload_size, cb->userParam);
+    /* get payload data address, at this point we may not have the whole payload
+     * data loaded in the rbsp parser */
+    uint8_t* payload_data = get_raw_data(pRP);
     switch(payload_type)
     {
     case PIC_TIMING: // picture_timing parsing
@@ -953,6 +954,9 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
       skip(pRP, payload_size << 3); // skip data
       break;
     }
+
+    if(cb->func)
+      cb->func(payload_type, payload_data, payload_size, cb->userParam);
 
     uint32_t offsetAfter = offset(pRP);
     // Skip payload extension data if any

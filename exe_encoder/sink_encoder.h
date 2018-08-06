@@ -282,6 +282,14 @@ private:
     pThis->processOutput(pStream);
   }
 
+  void AddSei(AL_TBuffer* pStream, bool isPrefix, int payloadType, uint8_t* payload, int payloadSize)
+  {
+    int seiSection = AL_Encoder_AddSei(hEnc, pStream, isPrefix, payloadType, payload, payloadSize);
+
+    if(seiSection < 0)
+      Message(CC_DEFAULT, "Failed to add dummy SEI (id:%d) \n", seiSection);
+  }
+
   AL_ERR PreprocessOutput(AL_TBuffer* pStream)
   {
     if(AL_ERR eErr = AL_Encoder_GetLastError(hEnc))
@@ -289,17 +297,14 @@ private:
 
     if(pStream && shouldAddDummySei)
     {
-      uint8_t payload = 0xA7;
-      int seiSection = AL_Encoder_AddSei(hEnc, pStream, false, 15, &payload, 1);
-      Message(CC_DEFAULT, "dummy SEI (id:%d) \n", seiSection);
+      constexpr int payloadSize = 8 * 10;
+      uint8_t payload[payloadSize];
 
-      if(seiSection < 0)
-        Message(CC_DEFAULT, "Failed to add dummy SEI (id:%d) \n", seiSection);
-      seiSection = AL_Encoder_AddSei(hEnc, pStream, true, 18, &payload, 1);
-      Message(CC_DEFAULT, "dummy SEI prefix (id:%d) \n", seiSection);
+      for(int i = 0; i < payloadSize; ++i)
+        payload[i] = i;
 
-      if(seiSection < 0)
-        Message(CC_DEFAULT, "Failed to add dummy SEI (id:%d) \n", seiSection);
+      AddSei(pStream, false, 15, payload, payloadSize);
+      AddSei(pStream, true, 18, payload, payloadSize);
     }
 
     if(pStream && m_pictureType != -1)
