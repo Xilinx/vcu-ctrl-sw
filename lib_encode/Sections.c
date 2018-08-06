@@ -60,6 +60,9 @@ static int writeNalInBuffer(IRbspWriter* writer, uint8_t* buffer, int bufSize, A
 
   nal->Write(writer, &bitstream, nal->param);
 
+  if(bitstream.isOverflow)
+    return -1;
+
   return AL_BitStreamLite_GetBitsCount(&bitstream);
 }
 
@@ -69,9 +72,15 @@ int WriteNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, AL_NalUnit* nal)
 
   int sizeInBits = writeNalInBuffer(writer, tmpBuffer, ENC_MAX_HEADER_SIZE, nal);
 
+  if(sizeInBits < 0)
+    return -1;
+
   int start = getBytesOffset(bitstream);
   FlushNAL(bitstream, nal->nut, nal->header, tmpBuffer, sizeInBits);
   int end = getBytesOffset(bitstream);
+
+  if(bitstream->isOverflow)
+    return -1;
   return end - start;
 }
 
@@ -79,6 +88,9 @@ static void GenerateNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, AL_Na
 {
   int start = getBytesOffset(bitstream);
   int size = WriteNal(writer, bitstream, nal);
+  /* we should always be able to write the configuration nals as we reserved
+   * enough space for them */
+  assert(size >= 0);
   AddSection(pMeta, start, size, uFlags);
 }
 
@@ -231,14 +243,16 @@ static SeiExternalCtx createExternalSeiCtx(uint8_t* pPayload, int iPayloadType, 
   return ctx;
 }
 
-static int createExternalSei(Nuts nuts, uint8_t* pData, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize)
+#include "lib_common/Utils.h" // For Min
+
+static int createExternalSei(Nuts nuts, AL_TBuffer* pStream, uint32_t uOffset, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize)
 {
   SeiExternalCtx ctx = createExternalSeiCtx(pPayload, iPayloadType, iPayloadSize);
   AL_NalUnit nal = AL_CreateExternalSei(&ctx, isPrefix ? nuts.seiPrefixNut : nuts.seiSuffixNut);
   nal.header = nuts.GetNalHeader(nal.nut, nal.idc);
 
   AL_TBitStreamLite bitstream;
-  AL_BitStreamLite_Init(&bitstream, pData, ENC_MAX_HEADER_SIZE);
+  AL_BitStreamLite_Init(&bitstream, AL_Buffer_GetData(pStream) + uOffset, Min(ENC_MAX_HEADER_SIZE, pStream->zSize));
   return WriteNal(NULL, &bitstream, &nal);
 }
 
@@ -250,7 +264,10 @@ int AL_WriteSeiSection(Nuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPaylo
 
   uint32_t uOffset = AL_StreamMetaData_GetUnusedStreamPart(pMetaData);
 
-  int iTotalSize = createExternalSei(nuts, AL_Buffer_GetData(pStream) + uOffset, isPrefix, iPayloadType, pPayload, iPayloadSize);
+  int iTotalSize = createExternalSei(nuts, pStream, uOffset, isPrefix, iPayloadType, pPayload, iPayloadSize);
+
+  if(iTotalSize < 0)
+    return -1;
 
   int sectionId = AL_StreamMetaData_AddSeiSection(pMetaData, isPrefix, uOffset, iTotalSize);
 

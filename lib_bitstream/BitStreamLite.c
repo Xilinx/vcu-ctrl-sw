@@ -130,7 +130,6 @@ static void PutInByte(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32_t uValue)
     writeData(pBS, iNumBits, uValue);
   else
     pBS->isOverflow = true;
-  assert(!pBS->isOverflow);
   pBS->iBitCount += iNumBits;
 }
 
@@ -156,6 +155,9 @@ void AL_BitStreamLite_PutBits(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32_t
 void AL_BitStreamLite_SkipBits(AL_TBitStreamLite* pBS, int numBits)
 {
   pBS->iBitCount += numBits;
+
+  if(pBS->iBitCount > pBS->iMaxBits)
+    pBS->isOverflow = true;
 }
 
 /******************************************************************************/

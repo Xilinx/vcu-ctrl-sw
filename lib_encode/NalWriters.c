@@ -163,8 +163,11 @@ static void seiExternalWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, 
   int iPayloadSize = ctx->iPayloadSize;
 
   AL_RbspEncoding_BeginSEI2(bitstream, iPayloadType, iPayloadSize);
-  Rtos_Memcpy(AL_BitStreamLite_GetCurData(bitstream), pPayload, iPayloadSize);
-  bitstream->iBitCount += 8 * iPayloadSize;
+  uint8_t* curData = AL_BitStreamLite_GetCurData(bitstream);
+  AL_BitStreamLite_SkipBits(bitstream, 8 * iPayloadSize);
+
+  if(!bitstream->isOverflow)
+    Rtos_Memcpy(curData, pPayload, iPayloadSize);
   AL_RbspEncoding_CloseSEI(bitstream);
 }
 
