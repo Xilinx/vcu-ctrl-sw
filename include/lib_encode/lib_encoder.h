@@ -188,6 +188,9 @@ bool AL_Encoder_Process(AL_HEncoder hEnc, AL_TBuffer* pFrame, AL_TBuffer* pQpTab
 /*************************************************************************//*!
    \brief Add a SEI to the stream
    This function should be called after the encoder has encoded the bitstream.
+   The maximum final size of the SEI in the stream can't exceed 2Ko.
+   The sei payload does not need to be anti emulated, this will be done by the
+   encoder.
    \param[in] hEnc Handle to the encoder
    \param[in] pStream The stream buffer, required to possess a stream metadata
    \param[in] isPrefix Discriminate between prefix and suffix SEI
