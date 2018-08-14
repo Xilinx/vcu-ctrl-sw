@@ -159,7 +159,10 @@ static int AL_sSettings_GetCpbVclFactor(AL_EProfile eProfile)
 /****************************************************************************/
 static int AL_sSettings_GetHbrFactor(AL_EProfile eProfile)
 {
-  return !AL_IS_LOW_BITRATE_PROFILE(eProfile) ? 2 : 1;
+  if(AL_GET_PROFILE_CODED_AND_IDC(eProfile) != AL_PROFILE_HEVC_RExt)
+    return 1;
+
+  return (!AL_IS_LOW_BITRATE_PROFILE(eProfile) ? 2 : 1);
 }
 
 /****************************************************************************/
