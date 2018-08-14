@@ -565,7 +565,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     pSlice->pSPS = pAUP->pActiveSPS;
 
   // Compute Current POC
-  if(isValid && !pSlice->first_mb_in_slice)
+  if(isValid && (!pSlice->first_mb_in_slice||!bSliceBelongsToSameFrame))
     isValid = AL_AVC_PictMngr_SetCurrentPOC(&pCtx->PictMngr, pSlice);
 
   // compute check gaps in frameNum
