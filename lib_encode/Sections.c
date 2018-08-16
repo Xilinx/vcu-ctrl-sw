@@ -211,8 +211,10 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
 
   if(nalsData->shouldWriteFillerData && pPicStatus->iFiller)
   {
+    int bookmark = AL_BitStreamLite_GetBitsCount(&bs);
     WriteFillerData(&bs, nuts.fdNut, nuts.GetNalHeader(nuts.fdNut, 0), pPicStatus->iFiller);
-    AddSection(pMetaData, offset, pPicStatus->iFiller, 0);
+    int iWritten = (AL_BitStreamLite_GetBitsCount(&bs) - bookmark) / 8;
+    AddSection(pMetaData, offset, iWritten, 0);
   }
 
   if(pPicStatus->bIsLastSlice)

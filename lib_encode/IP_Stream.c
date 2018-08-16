@@ -39,9 +39,10 @@
    -----------------------------------------------------------------------------
 ****************************************************************************/
 
-#include "lib_rtos/lib_rtos.h"
 #include "IP_Stream.h"
-#include "lib_common/SliceConsts.h"
+#include <lib_rtos/lib_rtos.h>
+#include <lib_common/SliceConsts.h>
+#include <lib_common/Utils.h>
 
 /****************************************************************************/
 NalHeader GetNalHeaderHevc(uint8_t uNUT, uint8_t uNalIdc)
@@ -140,11 +141,15 @@ void WriteFillerData(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header,
     writeByte(pStream, header.bytes[i]);
 
   int headerInBytes = (AL_BitStreamLite_GetBitsCount(pStream) - bookmark) / 8;
-  int bytesToWrite = bytesCount - headerInBytes - 1; // -1 for the final 0x80
+  int bytesToWrite = bytesCount - headerInBytes;
+  int spaceRemainingInBytes = (pStream->iMaxBits / 8) - (AL_BitStreamLite_GetBitsCount(pStream) / 8);
+
+  bytesToWrite = Min(spaceRemainingInBytes, bytesToWrite);
+  bytesToWrite -= 1; // -1 for the final 0x80
 
   if(bytesToWrite > 0)
   {
-    Rtos_Memset(AL_BitStreamLite_GetData(pStream) + (AL_BitStreamLite_GetBitsCount(pStream) / 8), 0xFF, bytesToWrite);
+    Rtos_Memset(AL_BitStreamLite_GetCurData(pStream), 0xFF, bytesToWrite);
     AL_BitStreamLite_SkipBits(pStream, bytesToWrite * 8);
   }
 
