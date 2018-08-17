@@ -52,6 +52,7 @@
 #include "lib_common/Utils.h"
 #include "lib_common/StreamBufferPrivate.h"
 #include "lib_common_enc/EncBuffers.h"
+#include "lib_common_enc/EncSize.h"
 #include "L2PrefetchParam.h"
 #include "lib_common/SEI.h"
 
@@ -786,7 +787,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   iRound = AL_IS_HEVC(pChParam->eProfile) ? 32 : 16;
   iMaxSlices = (pChParam->uHeight + (iRound / 2)) / iRound;
 
-  if((pChParam->uNumSlices < 1) || (pChParam->uNumSlices > iMaxSlices) || (pChParam->uNumSlices > AL_MAX_ENC_SLICE))
+  if((pChParam->uNumSlices < 1) || (pChParam->uNumSlices > iMaxSlices) || (pChParam->uNumSlices > AL_MAX_ENC_SLICE) || ((pChParam->bSubframeLatency) && (pChParam->uNumSlices > AL_MAX_SLICES_SUBFRAME)))
   {
     ++err;
     MSG("Invalid parameter : NumSlices");
@@ -876,7 +877,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
       MSG("Fixed-Size slices are not allowed in multi-core AVC encoding");
     }
 
-    if((pChParam->uNumSlices > 1) && ((pChParam->uNumSlices % uNumCore) != 0))
+    if((pChParam->uNumSlices > 1) && pChParam->bSubframeLatency && ((pChParam->uNumSlices % uNumCore) != 0))
     {
       ++err;
       MSG("NumSlices must be a multiple of cores in AVC encoding");
