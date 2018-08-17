@@ -875,6 +875,12 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
       ++err;
       MSG("Fixed-Size slices are not allowed in multi-core AVC encoding");
     }
+
+    if((pChParam->uNumSlices > 1) && ((pChParam->uNumSlices % uNumCore) != 0))
+    {
+      ++err;
+      MSG("NumSlices must be a multiple of cores in AVC encoding");
+    }
   }
 
   if((pSettings->eQpCtrlMode & MASK_AUTO_QP) && (pSettings->eQpCtrlMode & MASK_QP_TABLE))
