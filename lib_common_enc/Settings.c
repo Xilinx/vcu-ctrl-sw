@@ -880,7 +880,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     if((pChParam->uNumSlices > 1) && pChParam->bSubframeLatency && ((pChParam->uNumSlices % uNumCore) != 0))
     {
       ++err;
-      MSG("NumSlices must be a multiple of cores in AVC encoding");
+      MSG("NumSlices must be a multiple of cores in subframe AVC encoding");
     }
   }
 
