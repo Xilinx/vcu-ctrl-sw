@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -54,13 +54,15 @@
    \param[in]  iLCUHeight Height in Lcu Unit of the picture
    \param[in]  uLcuSize   Ctb maximum size
    \param[in]  eProf      Profile used for the encoding
+   \param[in]  sQPTablesFolder In case QP are loaded from files, path to the folder
+               containing the QP table files
    \param[in]  iFrameID   Frame identifier
    \param[out] pQPs       Pointer to the buffer that receives the computed QPs
    \param[out] pSegs      Pointer to the buffer that receives the computed Segments
    \note iMinQp <= iMaxQP
    \return true on success, false on error
 *****************************************************************************/
-bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, int iFrameID, uint8_t* pQPs, uint8_t* pSegs);
+bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, const std::string& sQPTablesFolder, int iFrameID, uint8_t* pQPs, uint8_t* pSegs);
 
 /*************************************************************************//*!
    \brief Fill QP part of the buffer pointed to by pQP with a QP for each

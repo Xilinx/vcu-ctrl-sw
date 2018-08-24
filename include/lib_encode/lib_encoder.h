@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -201,6 +201,7 @@ bool AL_Encoder_Process(AL_HEncoder hEnc, AL_TBuffer* pFrame, AL_TBuffer* pQpTab
 *****************************************************************************/
 int AL_Encoder_AddSei(AL_HEncoder hEnc, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize);
 
+
 /*************************************************************************//*!
    \brief Return an error code when an error has occured during encoding,
    otherwise the function returns AL_SUCCESS.
@@ -242,7 +243,7 @@ bool AL_Encoder_SetGopNumB(AL_HEncoder hEnc, int iNumB);
 /*************************************************************************//*!
    \brief Changes the target bitrate
    \param[in] hEnc Handle to an encoder object
-   \param[in] iGopLength New Gop Length
+   \param[in] iBitRate New target bitrate in kbps
    \return true on success, false on error : call AL_Encoder_GetLastError to
    retrieve the error code
 *****************************************************************************/
@@ -259,6 +260,15 @@ bool AL_Encoder_SetBitRate(AL_HEncoder hEnc, int iBitRate);
    uClkRatio = 1001 gives 59.94 fps
 *****************************************************************************/
 bool AL_Encoder_SetFrameRate(AL_HEncoder hEnc, uint16_t uFrameRate, uint16_t uClkRatio);
+
+/*************************************************************************//*!
+   \brief Changes the quantization parameter for the next pushed frame
+   \param[in] hEnc Handle to an encoder object
+   \param[in] iQP The new quantization parameter
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_SetQP(AL_HEncoder hEnc, int16_t iQP);
 
 
 

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -168,6 +168,13 @@ AL_EFbStorageMode AL_GetSrcStorageMode(AL_ESrcMode eSrcMode)
   }
 }
 
+/****************************************************************************/
+bool AL_IsSrcCompressed(AL_ESrcMode eSrcMode)
+{
+  (void)eSrcMode;
+  bool bCompressed = false;
+  return bCompressed;
+}
 
 /****************************************************************************/
 /* Deprecated. Will be remove in 0.9 */
@@ -254,7 +261,7 @@ uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, AL_
 uint32_t AL_GetAllocSize_CompData(AL_TDimension tDim, uint8_t uLCUSize, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bUseEnt)
 {
   uint32_t uBlk16x16 = GetBlk16x16(tDim);
-  return GetCompLcuSize(uLCUSize, uBitDepth, eChromaMode, bUseEnt) * uBlk16x16;
+  return AL_GetCompLcuSize(uLCUSize, uBitDepth, eChromaMode, bUseEnt) * uBlk16x16;
 }
 
 /****************************************************************************/

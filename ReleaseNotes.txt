@@ -278,3 +278,30 @@
   Missing feature(s):
    -- long terms
 
+2018-04-13 (v1.0.40)
+--------------------
+  API:
+    -- Remove DecChanParam.h header from the decoder api
+    -- All API functions should have the AL_ prefix
+    -- AL_TBuffer now takes ownership of the memory handle passed to it
+    -- The encoder source buffer stride can now be different from the the minimum supported pitch.
+    -- Some function were renamed for better comprehension (older function were deprecated with a link to the new function)
+    -- Documentation for almost all the user facing structure of the libraries
+    -- Add adaptive B gop-mode feature
+    -- Add interlace alternate field support for encoder and decoder
+    -- Decoder now takes a user stride into account
+
+2018-08-23 (v1.0.41)
+--------------------
+  Added Features :
+    -- Add support of 32 channels 
+    -- Add (VPS), SPS, PPS and SEI Recovery point on first frame of GDR 
+    -- Multi-channel support in slice lat mode
+    -- new API for SEI insertionin Encoder
+    -- SEI message callback in Decoder
+    
+  Fixes :
+    -- L2Prefetch Buffer + Wavefront not allowed
+    -- Decoder error resilience improvement
+    -- Improve rate control on some specific sequence
+    -- Fix dynamic gop length change on I-frame

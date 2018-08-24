@@ -16,6 +16,11 @@ $(BIN)/AL_Decoder.exe: $(EXE_DECODER_OBJ) $(LIB_REFDEC_A) $(LIB_DECODER_A)
 
 $(BIN)/exe_decoder/%.o: CFLAGS+=$(SVNDEV)
 
+$(BIN)/exe_decoder/%.o: INTROSPECT_FLAGS=-DAL_COMPIL_FLAGS='"$(CFLAGS)"'
+
+$(BIN)/exe_decoder/%.o: INTROSPECT_FLAGS+=-DHAS_COMPIL_FLAGS=1
+
+
 TARGETS+=$(BIN)/AL_Decoder.exe
 
 .PHONY: decoder

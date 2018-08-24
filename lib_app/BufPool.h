@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -99,7 +99,7 @@ typedef struct
   AL_TAllocator* pAllocator; /*! Allocator used to allocate the buffers */
 
   AL_TBuffer** pPool; /*! pool of allocated buffers */
-  uint8_t uNumBuf; /*! Number of buffer in the pool */
+  uint32_t uNumBuf; /*! Number of buffer in the pool */
 
   AL_TBufPoolConfig config;
 
@@ -127,7 +127,13 @@ void AL_BufPool_Deinit(AL_TBufPool* pBufPool);
    \return return the buffer or NULL in case of failure in the non blocking case
 *****************************************************************************/
 AL_TBuffer* AL_BufPool_GetBuffer(AL_TBufPool* pBufPool, AL_EBufMode eMode);
-
+/*************************************************************************//*!
+   \brief AL_BufPool_AddMetaData creates and adds a metadata on all buffers (even if referenced)
+   \param[in] pBufPool Pointer to an AL_TBufPool
+   \param[in] pMeta Pointer to a metadata
+   \return return true on success, false on failure
+*****************************************************************************/
+bool AL_BufPool_AddMetaData(AL_TBufPool* pBufPool, AL_TMetaData* pMeta);
 /*************************************************************************//*!
    \brief AL_BufPool_Decommit Decommit the pool. This deblocks all the blocking
    call to AL_BufPool_GetBuffer.
@@ -177,6 +183,11 @@ struct BufPool
     if(mode == AL_BUF_MODE_BLOCK && pBuf == nullptr)
       throw bufpool_decommited_error();
     return pBuf;
+  }
+
+  int AddMetaData(AL_TMetaData* pMeta)
+  {
+    return AL_BufPool_AddMetaData(&m_pool, pMeta);
   }
 
   void Decommit()

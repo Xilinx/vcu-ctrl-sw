@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -117,7 +117,6 @@ void P210_To_XV20(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y010_To_XV15(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y010_To_XV10(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
-void I0AL_To_YV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I0AL_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I0AL_To_IYUV(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I0AL_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);

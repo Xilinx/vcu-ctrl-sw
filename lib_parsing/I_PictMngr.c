@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -142,8 +142,6 @@ static void sFrmBufPoolFifo_PushBack(AL_TFrmBufPool* pPool, AL_TRecBuffers tRecB
 
   Rtos_GetMutex(pPool->Mutex);
 
-  sRecBuffers_CleanUp(&tRecBuffers, pPool);
-
   for(int i = 0; i < FRM_BUF_POOL_SIZE; i++)
   {
     if(sRecBuffers_AreNull(&pPool->array[i].tRecBuffers) &&
@@ -203,6 +201,9 @@ static int sFrmBufPoolFifo_Pop(AL_TFrmBufPool* pPool)
   assert(sRecBuffers_AreNotNull(&pPool->array[pPool->iFifoHead].tRecBuffers, pPool));
   assert(pPool->array[pPool->iFifoHead].iAccessCnt == 0);
   assert(pPool->array[pPool->iFifoHead].bWillBeOutputed == false);
+
+  sRecBuffers_CleanUp(&pPool->array[pPool->iFifoHead].tRecBuffers, pPool);
+
   int const iFrameID = RemoveBufferFromFifo(pPool);
 
   Rtos_ReleaseMutex(pPool->Mutex);
@@ -522,7 +523,7 @@ bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, AL_TAllocator* pAllocator, int iNum
   if(!sFrmBufPool_Init(&pCtx->FrmBufPool, bEnableRasterOutput))
     return false;
 
-  AL_TPictureManagerCallbacks tCallbacks =
+  AL_TDpbCallback tCallbacks =
   {
     sPictMngr_IncrementFrmBuf,
     sPictMngr_DecrementFrmBuf,
@@ -596,17 +597,23 @@ void AL_PictMngr_Deinit(AL_TPictMngrCtx* pCtx)
 }
 
 /*****************************************************************************/
-void AL_PictMngr_LockRefMvID(AL_TPictMngrCtx* pCtx, uint8_t uNumRef, uint8_t* pRefMvID)
+void AL_PictMngr_LockRefID(AL_TPictMngrCtx* pCtx, uint8_t uNumRef, uint8_t* pRefFrameID, uint8_t* pRefMvID)
 {
   for(uint8_t uRef = 0; uRef < uNumRef; ++uRef)
+  {
+    sPictMngr_IncrementFrmBuf(pCtx, pRefFrameID[uRef]);
     sPictMngr_IncrementMvBuf(pCtx, pRefMvID[uRef]);
+  }
 }
 
 /*****************************************************************************/
-void AL_PictMngr_UnlockRefMvID(AL_TPictMngrCtx* pCtx, uint8_t uNumRef, uint8_t* pRefMvID)
+void AL_PictMngr_UnlockRefID(AL_TPictMngrCtx* pCtx, uint8_t uNumRef, uint8_t* pRefFrameID, uint8_t* pRefMvID)
 {
   for(uint8_t uRef = 0; uRef < uNumRef; ++uRef)
+  {
+    sPictMngr_DecrementFrmBuf(pCtx, pRefFrameID[uRef]);
     sPictMngr_DecrementMvBuf(pCtx, pRefMvID[uRef]);
+  }
 }
 
 /*****************************************************************************/
@@ -772,14 +779,15 @@ void AL_PictMngr_UnlockID(AL_TPictMngrCtx* pCtx, int iFrameID, int iMotionVector
 }
 
 /***************************************************************************/
-static void sFrmBufPool_GetInfoDecode(AL_TFrmBufPool* pPool, int iFrameID, AL_TInfoDecode* pInfo, AL_EFbStorageMode eFbStorageMode, int iBitdepth)
+static void sFrmBufPool_GetInfoDecode(AL_TFrmBufPool* pPool, int iFrameID, AL_TInfoDecode* pInfo, AL_EFbStorageMode eFbStorageMode, int iBitdepth, bool bDisplayInfo)
 {
   assert(pInfo);
 
   AL_TRecBuffers tBuffers = sFrmBufPool_GetBufferFromID(pPool, iFrameID);
   assert(sRecBuffers_AreNotNull(&tBuffers, pPool));
 
-  AL_TSrcMetaData* pMetaSrc = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(sRecBuffers_GetDisplayBuffer(&tBuffers, pPool), AL_META_TYPE_SOURCE);
+  AL_TBuffer* pBuf = bDisplayInfo ? sRecBuffers_GetDisplayBuffer(&tBuffers, pPool) : tBuffers.pFrame;
+  AL_TSrcMetaData* pMetaSrc = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
   assert(pMetaSrc);
 
   pInfo->tCrop = pPool->array[iFrameID].tCrop;
@@ -807,7 +815,7 @@ AL_TBuffer* AL_PictMngr_GetDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* 
 
 
   if(pInfo)
-    sFrmBufPool_GetInfoDecode(&pCtx->FrmBufPool, iFrameID, pInfo, eOutputStorageMode, pCtx->iBitdepth);
+    sFrmBufPool_GetInfoDecode(&pCtx->FrmBufPool, iFrameID, pInfo, eOutputStorageMode, pCtx->iBitdepth, true);
 
   AL_TRecBuffers tRecBuffers = sFrmBufPool_GetBufferFromID(&pCtx->FrmBufPool, iFrameID);
 
@@ -852,6 +860,44 @@ AL_TBuffer* AL_PictMngr_GetRecBufferFromID(AL_TPictMngrCtx* pCtx, int iFrameID)
 
   AL_TRecBuffers tRecBuffers = sFrmBufPool_GetBufferFromID(&pCtx->FrmBufPool, iFrameID);
   return tRecBuffers.pFrame;
+}
+
+/*************************************************************************/
+static AL_TBuffer* sFrmBufPool_GetRecBufferFromDisplayBuffer(AL_TFrmBufPool* pPool, AL_TBuffer* pDisplayBuf, int* iFrameID)
+{
+  AL_TBuffer* pRecBuf = NULL;
+
+  Rtos_GetMutex(pPool->Mutex);
+
+  assert(pDisplayBuf);
+
+  *iFrameID = sFrmBufPool_GetFrameID(pPool, pDisplayBuf);
+
+  if(*iFrameID != -1)
+  {
+    pRecBuf = sFrmBufPool_GetBufferFromID(pPool, *iFrameID).pFrame;
+  }
+
+  Rtos_ReleaseMutex(pPool->Mutex);
+
+  return pRecBuf;
+}
+
+/*************************************************************************/
+AL_TBuffer* AL_PictMngr_GetRecBufferFromDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TBuffer* pDisplayBuf, AL_TInfoDecode* pInfo)
+{
+  if(NULL == pDisplayBuf)
+    return NULL;
+
+  AL_EFbStorageMode eOutputStorageMode = pCtx->eFbStorageMode;
+  int iFrameID;
+
+  AL_TBuffer* pRecBuf = sFrmBufPool_GetRecBufferFromDisplayBuffer(&pCtx->FrmBufPool, pDisplayBuf, &iFrameID);
+
+  if(pInfo != NULL && pRecBuf != NULL)
+    sFrmBufPool_GetInfoDecode(&pCtx->FrmBufPool, iFrameID, pInfo, eOutputStorageMode, pCtx->iBitdepth, false);
+
+  return pRecBuf;
 }
 
 /*************************************************************************/
@@ -1037,10 +1083,11 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL_TDec
 
       if(!bFindID)
       {
-        pAddr[i] = 0;
-        pAddr[PIC_ID_POOL_SIZE + i] = 0;
-        pColocMvList[i] = 0;
-        pColocPocList[i] = 0;
+        // Use current Rec & MV Buffers to avoid non existing ref/coloc
+        pAddr[i] = AL_Allocator_GetPhysicalAddr(pRecs->pFrame->pAllocator, pRecs->pFrame->hBuf);
+        pAddr[PIC_ID_POOL_SIZE + i] = pAddr[i] + iLumaSize;
+        pColocMvList[i] = pMV->tMD.uPhysicalAddr;
+        pColocPocList[i] = pPOC->tMD.uPhysicalAddr;
         pFbcList[i] = 0;
         pFbcList[PIC_ID_POOL_SIZE + i] = 0;
 

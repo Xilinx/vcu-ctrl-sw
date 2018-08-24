@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -106,7 +106,6 @@ static bool IsStreamProfileSet(int iProfileIdc)
   return iProfileIdc > 0;
 }
 
-/******************************************************************************/
 static bool IsStreamSequenceModeSet(AL_ESequenceMode eSequenceMode)
 {
   return eSequenceMode != AL_SM_MAX_ENUM;
@@ -198,6 +197,21 @@ static void AL_sDecoder_CallDisplay(AL_TDecCtx* pCtx)
       break;
 
     assert(AL_Buffer_GetData(pFrameToDisplay));
+#if AL_ENABLE_RASTER_OUTPUT & AL_ENABLE_SITE
+
+    if(AL_OUTPUT_ALL == pCtx->chanParam.eBufferOutputMode)
+    {
+      // First, output internal reconstructed buffer
+      AL_TInfoDecode pInfoInternal = { 0 };
+      AL_TBuffer* pInternalRec = AL_PictMngr_GetRecBufferFromDisplayBuffer(&pCtx->PictMngr, pFrameToDisplay, &pInfoInternal);
+
+      if(!pInternalRec)
+        break;
+
+      assert(AL_Buffer_GetData(pInternalRec));
+      pCtx->displayCB.func(pInternalRec, &pInfoInternal, pCtx->displayCB.userParam);
+    }
+#endif
 
     pCtx->displayCB.func(pFrameToDisplay, &pInfo, pCtx->displayCB.userParam);
     AL_PictMngr_SignalCallbackDisplayIsDone(&pCtx->PictMngr, pFrameToDisplay);
@@ -217,11 +231,10 @@ void AL_Default_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus)
 {
   AL_TDecCtx* pCtx = (AL_TDecCtx*)pUserParam;
   int iFrameID = pStatus->uFrmID;
-
   AL_PictMngr_UpdateDisplayBufferCRC(&pCtx->PictMngr, iFrameID, pStatus->uCRC);
   AL_PictMngr_EndDecoding(&pCtx->PictMngr, iFrameID);
   int iOffset = pCtx->iNumFrmBlk2 % MAX_STACK_SIZE;
-  AL_PictMngr_UnlockRefMvID(&pCtx->PictMngr, pCtx->uNumRef[iOffset], pCtx->uMvIDRefList[iOffset]);
+  AL_PictMngr_UnlockRefID(&pCtx->PictMngr, pCtx->uNumRef[iOffset], pCtx->uFrameIDRefList[iOffset], pCtx->uMvIDRefList[iOffset]);
   Rtos_GetMutex(pCtx->DecMutex);
   pCtx->iCurOffset = pCtx->iStreamOffset[pCtx->iNumFrmBlk2 % pCtx->iStackSize];
   ++pCtx->iNumFrmBlk2;
@@ -362,7 +375,7 @@ void AL_Default_Decoder_Destroy(AL_TDecoder* pAbsDec)
 }
 
 /*****************************************************************************/
-void AL_Default_Decoder_SetParam(AL_TDecoder* pAbsDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm)
+void AL_Default_Decoder_SetParam(AL_TDecoder* pAbsDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm, bool bForceCleanBuffers)
 {
   AL_TDefaultDecoder* pDec = (AL_TDefaultDecoder*)pAbsDec;
   AL_TDecCtx* pCtx = &pDec->ctx;
@@ -373,7 +386,7 @@ void AL_Default_Decoder_SetParam(AL_TDecoder* pAbsDec, bool bConceal, bool bUseB
   pCtx->iTraceFirstFrame = iFrmID;
   pCtx->iTraceLastFrame = iFrmID + iNumFrm;
 
-  if(iNumFrm > 0)
+  if(iNumFrm > 0 || bForceCleanBuffers)
     AL_CLEAN_BUFFERS = 1;
 }
 
@@ -729,6 +742,7 @@ static UNIT_ERROR DecodeOneUnit(AL_TDecCtx* pCtx, TCircBuffer* pScStreamView, in
   return bIsEndOfFrame ? SUCCESS_ACCESS_UNIT : SUCCESS_NAL_UNIT;
 }
 
+
 /*****************************************************************************/
 UNIT_ERROR AL_Default_Decoder_TryDecodeOneUnit(AL_TDecoder* pAbsDec, TCircBuffer* pScStreamView)
 {
@@ -750,8 +764,7 @@ bool AL_Default_Decoder_PushBuffer(AL_TDecoder* pAbsDec, AL_TBuffer* pBuf, size_
 {
   AL_TDefaultDecoder* pDec = (AL_TDefaultDecoder*)pAbsDec;
   AL_TDecCtx* pCtx = &pDec->ctx;
-  bool bLastBuffer = false;
-  return AL_BufferFeeder_PushBuffer(pCtx->Feeder, pBuf, uSize, bLastBuffer);
+  return AL_BufferFeeder_PushBuffer(pCtx->Feeder, pBuf, uSize, false);
 }
 
 /*****************************************************************************/
@@ -924,7 +937,7 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
   int const iDpbRef = iDpbMaxBuf;
   AL_EFbStorageMode const eStorageMode = pCtx->chanParam.eFBStorageMode;
 
-  bool bEnableRasterOutput = false;
+  bool bEnableRasterOutput = pCtx->chanParam.eBufferOutputMode != AL_OUTPUT_INTERNAL;
 
   AL_PictMngr_Init(&pCtx->PictMngr, pCtx->pAllocator, iMaxBuf, iSizeMV, iDpbRef, pCtx->eDpbMode, eStorageMode, tStreamSettings.iBitDepth, bEnableRasterOutput);
 
@@ -997,7 +1010,7 @@ static bool CheckAVCSettings(AL_TDecSettings const* pSettings)
 }
 
 /*****************************************************************************/
-static bool CheckSettings(AL_TDecSettings* const pSettings)
+static bool CheckSettings(AL_TDecSettings const* pSettings)
 {
   if(!CheckStreamSettings(pSettings->tStream))
     return false;
@@ -1005,6 +1018,9 @@ static bool CheckSettings(AL_TDecSettings* const pSettings)
   int const iStack = pSettings->iStackSize;
 
   if((iStack < 1) || (iStack > MAX_STACK_SIZE))
+    return false;
+
+  if((pSettings->uDDRWidth != 16) && (pSettings->uDDRWidth != 32) && (pSettings->uDDRWidth != 64))
     return false;
 
   if(isSubframe(pSettings->eDecUnit) && pSettings->bParallelWPP)
@@ -1040,6 +1056,8 @@ static void AssignSettings(AL_TDecCtx* const pCtx, AL_TDecSettings const* const 
   pChan->bLowLat = pSettings->bLowLat;
   pChan->eCodec = pSettings->eCodec;
   pChan->eDecUnit = pSettings->eDecUnit;
+
+  pChan->eBufferOutputMode = pSettings->eBufferOutputMode;
 
 }
 
@@ -1182,7 +1200,8 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel,
   pCtx->ScDetectionComplete = Rtos_CreateEvent(0);
   pCtx->DecMutex = Rtos_CreateMutex();
 
-  AL_Default_Decoder_SetParam((AL_TDecoder*)pDec, false, false, 0, 0);
+
+  AL_Default_Decoder_SetParam((AL_TDecoder*)pDec, false, false, 0, 0, false);
 
   // initialize decoder context
   pCtx->bFirstIsValid = false;

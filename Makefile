@@ -1,7 +1,7 @@
 CFLAGS+=-O3
 CFLAGS+=-g0
 
--include config.mk
+include config.mk
 
 ##############################################################
 # cross build
@@ -108,6 +108,10 @@ endif
 ##############################################################
 ifneq ($(ENABLE_PERF),0)
   -include exe_perf_monitor/project.mk
+endif
+
+ifeq ($(findstring linux,$(TARGET)),linux)
+  -include exe_sync_ip/project.mk
 endif
 
 ##############################################################

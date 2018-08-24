@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -41,6 +41,7 @@
 #include "lib_common_enc/EncPicInfo.h"
 #include "lib_common_enc/EncChanParam.h"
 #include "lib_common/BufferAPI.h"
+#include "lib_common/MemDesc.h"
 
 #define DCACHE_OFFSET 0x80000000
 

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -84,6 +84,13 @@ static void initHls(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
 
   if(pChParam->tGopParam.uFreqLT || pChParam->tGopParam.bEnableLT)
     pChParam->uSpsParam |= AL_SPS_LOG2_NUM_LONG_TERM_RPS_MASK;
+
+
+  if(pChParam->tGopParam.eGdrMode != AL_GDR_OFF)
+    pChParam->uPpsParam |= AL_PPS_OVERRIDE_LF;
+
+  if(!(pChParam->eOptions & AL_OPT_LF))
+    pChParam->uPpsParam |= AL_PPS_DISABLE_LF;
 }
 
 static void SetMotionEstimationRange(AL_TEncChanParam* pChParam)

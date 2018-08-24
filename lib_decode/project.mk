@@ -30,6 +30,11 @@ LIB_DECODER_SRC:=\
   $(LIB_SCHEDULER_SRC)\
   $(LIB_PERFS_SRC)\
 
+ifneq ($(ENABLE_TRACES),0)
+  LIB_DECODER_SRC+=\
+    $(LIB_TRACE_SRC_DEC)
+endif
+
 LIB_DECODER_OBJ:=$(LIB_DECODER_SRC:%=$(BIN)/%.o)
 
 $(LIB_DECODER_A): $(LIB_DECODER_OBJ)
@@ -48,4 +53,5 @@ TARGETS+=$(LIB_DECODER_DLL)
 
 UNITTEST+=$(shell find lib_decode/unittests -name "*.cpp")
 UNITTEST+=$(LIB_DECODE_SRC)
+UNITTEST+=$(LIB_TRACE_SRC_DEC)
 

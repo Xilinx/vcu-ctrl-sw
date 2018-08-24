@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -45,8 +45,7 @@
 #define AL_CMD_IP_READ_REG          _IOWR('q', 11, struct al5_reg)
 #define AL_CMD_IP_WAIT_IRQ          _IOWR('q', 12, __s32)
 #define GET_DMA_FD                  _IOWR('q', 13, struct al5_dma_info)
-
-/* dmabuf specific: Not Impl yet. */
+#define GET_DMA_MMAP                _IOWR('q', 26, struct al5_dma_info)
 #define GET_DMA_PHY                 _IOWR('q', 18, struct al5_dma_info)
 
 

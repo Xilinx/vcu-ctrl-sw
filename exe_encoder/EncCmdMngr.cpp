@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -139,11 +139,7 @@ bool CEncCmdMngr::ReadNextCmd(TFrmCmd& Cmd)
 
   for(;;)
   {
-    auto FirstPos = m_CmdInput.tellg();
-
-    getline(m_CmdInput, sLine);
-
-    if(m_CmdInput.fail())
+    if(!GetNextLine(sLine))
       break;
 
     if(sLine.empty())
@@ -155,12 +151,31 @@ bool CEncCmdMngr::ReadNextCmd(TFrmCmd& Cmd)
     }
     else
     {
-      m_CmdInput.seekg(FirstPos);
+      m_sBufferedLine = sLine;
       break;
     }
   }
 
   return bRet;
+}
+
+/****************************************************************************/
+bool CEncCmdMngr::GetNextLine(string& sNextLine)
+{
+  bool bSucceed = true;
+
+  if(!m_sBufferedLine.empty())
+  {
+    sNextLine = m_sBufferedLine;
+    m_sBufferedLine.clear();
+  }
+  else
+  {
+    getline(m_CmdInput, sNextLine);
+    bSucceed = !m_CmdInput.fail();
+  }
+
+  return bSucceed;
 }
 
 /****************************************************************************/
@@ -215,6 +230,11 @@ bool CEncCmdMngr::ParseCmd(std::string sLine, TFrmCmd& Cmd, bool bSameFrame)
       if(iFrac)
         Cmd.iClkRatio += (1000 - iFrac) / ++Cmd.iFrameRate;
     }
+    else if(Tok == "QP")
+    {
+      Cmd.bChangeQP = true;
+      Cmd.iQP = int(Tok.GetValue());
+    }
   }
 
   return true;
@@ -265,6 +285,9 @@ void CEncCmdMngr::Process(ICommandsSender* sender, int iFrame)
 
       if(m_Cmds.front().bChangeBitRate)
         sender->setBitRate(m_Cmds.front().iBitRate);
+
+      if(m_Cmds.front().bChangeQP)
+        sender->setQP(m_Cmds.front().iQP);
     }
 
     if(bRefill)

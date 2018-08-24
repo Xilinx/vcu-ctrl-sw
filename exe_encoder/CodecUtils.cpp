@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -41,8 +41,8 @@
 #include <iomanip>
 #include <iostream>
 #include <string>
-#include <assert.h>
-#include <limits.h>
+#include <cassert>
+#include <climits>
 
 extern "C"
 {
@@ -85,7 +85,7 @@ static int PictureSize(TYUVFileInfo FI)
     iSize = 0;
   }
 
-  auto iPixSize = AL_GetPixelSize(AL_GetBitDepth(FI.FourCC));
+  auto iPixSize = AL_GetPixelSize(FI.FourCC);
 
   return iSize * iPixSize;
 }
@@ -101,12 +101,11 @@ void GotoFirstPicture(TYUVFileInfo const& FI, std::ifstream& File, unsigned int 
 uint32_t GetIOLumaRowSize(TFourCC fourCC, uint32_t uWidth)
 {
   uint32_t uRowSizeLuma;
-  uint8_t uBitDepth = AL_GetBitDepth(fourCC);
 
   if(AL_Is10bitPacked(fourCC))
     uRowSizeLuma = (uWidth + 2) / 3 * 4;
   else
-    uRowSizeLuma = uWidth * AL_GetPixelSize(uBitDepth);
+    uRowSizeLuma = uWidth * AL_GetPixelSize(fourCC);
   return uRowSizeLuma;
 }
 
@@ -232,28 +231,15 @@ static uint32_t ReadFileLumaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32
     }
   }
 
-  if(bPadding && (pSrcMeta->tDim.iHeight & 7))
+  if(bPadding && (pSrcMeta->tDim.iHeight & 15))
   {
-    uint32_t uRowToPad = ((pSrcMeta->tDim.iHeight + 7) & ~7) - pSrcMeta->tDim.iHeight;
-    tPadParams.uNBByteToPad = uRowToPad * pSrcMeta->tPitches.iLuma;
+    uint32_t uRowPadding = ((pSrcMeta->tDim.iHeight + 15) & ~15) - pSrcMeta->tDim.iHeight;
+    tPadParams.uNBByteToPad = uRowPadding * pSrcMeta->tPitches.iLuma;
     tPadParams.uFirst32PackPadMask = 0x0;
     PadBuffer(pTmp, tPadParams, pSrcMeta->tFourCC);
-    uFileNumRow += uRowToPad;
+    uFileNumRow += uRowPadding;
   }
   return pSrcMeta->tPitches.iLuma * uFileNumRow;
-}
-
-/*****************************************************************************/
-static int GetNumChromaRowToPad(AL_TSrcMetaData* pSrcMeta)
-{
-  uint32_t uRowToPad = 0;
-
-  if(AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_0)
-    uRowToPad = (((pSrcMeta->tDim.iHeight >> 1) + 3) & ~3) - (pSrcMeta->tDim.iHeight >> 1);
-  else
-    uRowToPad = ((pSrcMeta->tDim.iHeight + 7) & ~7) - pSrcMeta->tDim.iHeight;
-  
-  return uRowToPad;
 }
 
 /*****************************************************************************/
@@ -285,20 +271,26 @@ static uint32_t ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
     }
   }
 
-  if(bPadding && (pSrcMeta->tDim.iHeight & 7))
+  if(bPadding && (pSrcMeta->tDim.iHeight & 15))
   {
-    uint32_t uRowToPad = GetNumChromaRowToPad(pSrcMeta);
-    tPadParams.uNBByteToPad = uRowToPad * pSrcMeta->tPitches.iChroma;
-    tPadParams.uFirst32PackPadMask = 0x0;
+    uint32_t uRowPadding;
+
+    if(AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_0)
+      uRowPadding = (((pSrcMeta->tDim.iHeight >> 1) + 7) & ~7) - (pSrcMeta->tDim.iHeight >> 1);
+    else
+      uRowPadding = ((pSrcMeta->tDim.iHeight + 15) & ~15) - pSrcMeta->tDim.iHeight;
+
+    tPadParams.uNBByteToPad = uRowPadding * pSrcMeta->tPitches.iChroma;
     PadBuffer(pTmp, tPadParams, pSrcMeta->tFourCC);
-    uNumRowC += uRowToPad;
+
+    uNumRowC += uRowPadding;
   }
 
   return pSrcMeta->tPitches.iChroma * uNumRowC;
 }
 
 /*****************************************************************************/
-static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uOffset, uint32_t uFileRowSize, uint32_t uFileNumRow, bool bPadding = false)
+static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uOffset, uint32_t uFileRowSize, uint32_t uFileNumRow)
 {
   char* pTmp = reinterpret_cast<char*>(AL_Buffer_GetData(pBuf) + uOffset);
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
@@ -310,9 +302,7 @@ static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
 
   if(0 == tPadParams.uNBByteToPad)
   {
-    uint32_t uSize = uFileRowSize * uNumRowC;
-    File.read(pTmp, uSize);
-    pTmp += uSize;
+    File.read(pTmp, uFileRowSize * uNumRowC);
   }
   else
   {
@@ -323,39 +313,30 @@ static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
       pTmp += pSrcMeta->tPitches.iChroma;
     }
   }
-
-  if(bPadding && (pSrcMeta->tDim.iHeight & 7))
-  {
-    uint32_t uRowToPad = GetNumChromaRowToPad(pSrcMeta);
-    tPadParams.uNBByteToPad = uRowToPad * pSrcMeta->tPitches.iChroma;
-    tPadParams.uFirst32PackPadMask = 0x0;
-    PadBuffer(pTmp, tPadParams, pSrcMeta->tFourCC);
-    uNumRowC += uRowToPad;
-  }      
 }
 
 /*****************************************************************************/
 static void ReadFile(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSize, uint32_t uFileNumRow)
 {
-  uint32_t uOffset = ReadFileLumaPlanar(File, pBuf, uFileRowSize, uFileNumRow, true);
+  uint32_t uOffset = ReadFileLumaPlanar(File, pBuf, uFileRowSize, uFileNumRow);
 
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
 
   if(AL_IsSemiPlanar(pSrcMeta->tFourCC))
   {
-    ReadFileChromaSemiPlanar(File, pBuf, uOffset, uFileRowSize, uFileNumRow, true);
+    ReadFileChromaSemiPlanar(File, pBuf, uOffset, uFileRowSize, uFileNumRow);
   }
   else if(AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_0 || AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_2)
   {
-    uOffset += ReadFileChromaPlanar(File, pBuf, uOffset, uFileRowSize, uFileNumRow, true); // Cb
-    ReadFileChromaPlanar(File, pBuf, uOffset, uFileRowSize, uFileNumRow, true); // Cr
+    uOffset += ReadFileChromaPlanar(File, pBuf, uOffset, uFileRowSize, uFileNumRow); // Cb
+    ReadFileChromaPlanar(File, pBuf, uOffset, uFileRowSize, uFileNumRow); // Cr
   }
 }
 
 /*****************************************************************************/
 bool IsConversionNeeded(TFourCC const& FourCC, AL_TPicFormat const& picFmt)
 {
-  return FourCC != AL_EncGetSrcFourCC(picFmt);
+  return FourCC != AL_GetFourCC(picFmt);
 }
 
 /*****************************************************************************/
@@ -437,7 +418,7 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf, int iWidth, int 
     int iWidthC = iWidth >> 1;
     int iHeightC = (AL_GetChromaMode(pBufMeta->tFourCC) == CHROMA_4_2_0) ? iHeight >> 1 : iHeight;
 
-    int iSizePix = AL_GetPixelSize(AL_GetBitDepth(pBufMeta->tFourCC));
+    int iSizePix = AL_GetPixelSize(pBufMeta->tFourCC);
 
     if(pBufMeta->tPitches.iChroma == iWidthC * iSizePix)
     {
@@ -515,15 +496,19 @@ unsigned int ReadNextFrameMV(std::ifstream& File, int& iX, int& iY)
   return iFrame - 1;
 }
 
+
 /*****************************************************************************/
-void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection)
+void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection, const AL_TEncChanParam* pChannelParam)
 {
+  (void)pChannelParam;
+
   AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
   AL_TStreamSection* pCurSection = &pStreamMeta->pSections[iSection];
   uint8_t* pData = AL_Buffer_GetData(pStream);
 
   if(pCurSection->uLength)
   {
+
     uint32_t uRemSize = pStream->zSize - pCurSection->uOffset;
 
     if(uRemSize < pCurSection->uLength)
@@ -539,7 +524,7 @@ void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection)
 }
 
 /*****************************************************************************/
-int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream)
+int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream, const AL_TEncChanParam* pChannelParam)
 {
   AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
   int iNumFrame = 0;
@@ -548,7 +533,7 @@ int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream)
   {
     if(pStreamMeta->pSections[curSection].uFlags & SECTION_END_FRAME_FLAG)
       ++iNumFrame;
-    WriteOneSection(HEVCFile, pStream, curSection);
+    WriteOneSection(HEVCFile, pStream, curSection, pChannelParam);
   }
 
   return iNumFrame;

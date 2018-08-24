@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -237,15 +237,7 @@ static void fillScalingList(AL_TEncSettings const* pSettings, uint8_t* pSL, int 
   }
   else
   {
-    if(iMatrixId == 0 || iMatrixId == 3)
-      *uSLpresentFlag = 0;
-    else
-    {
-      if(pSettings->SclFlag[iSizeId][iMatrixId])
-        *uSLpresentFlag = 1;
-      else
-        *uSLpresentFlag = 0;
-    }
+    *uSLpresentFlag = 0;
 
     if(iSizeId == 0)
       Rtos_Memcpy(pSL, AL_AVC_DefaultScalingLists4x4[iDir], 16);
@@ -664,8 +656,8 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   pSPS->constraint_set4_flag = (uCSFlags >> 4) & 1;
   pSPS->constraint_set5_flag = (uCSFlags >> 5) & 1;
   pSPS->chroma_format_idc = eChromaMode;
-  pSPS->bit_depth_luma_minus8 = pSettings->tChParam[0].uEncodingBitDepth - 8;
-  pSPS->bit_depth_chroma_minus8 = pSettings->tChParam[0].uEncodingBitDepth - 8;
+  pSPS->bit_depth_luma_minus8 = AL_GET_BITDEPTH_LUMA(pSettings->tChParam[0].ePicFormat) - 8;
+  pSPS->bit_depth_chroma_minus8 = AL_GET_BITDEPTH_CHROMA(pSettings->tChParam[0].ePicFormat) - 8;
   pSPS->qpprime_y_zero_transform_bypass_flag = 0;
 
   AL_AVC_SelectScalingList(pISPS, pSettings);
@@ -828,8 +820,8 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
       pSPS->conf_win_bottom_offset = iHeightDiff / iCropUnitY;
     }
 
-    pSPS->bit_depth_luma_minus8 = pChParam->uEncodingBitDepth - 8;
-    pSPS->bit_depth_chroma_minus8 = pChParam->uEncodingBitDepth - 8;
+    pSPS->bit_depth_luma_minus8 = AL_GET_BITDEPTH_LUMA(pChParam->ePicFormat) - 8;
+    pSPS->bit_depth_chroma_minus8 = AL_GET_BITDEPTH_CHROMA(pChParam->ePicFormat) - 8;
   }
   pSPS->log2_max_slice_pic_order_cnt_lsb_minus4 = 6;
 
@@ -854,8 +846,8 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
 
   if(pSPS->pcm_enabled_flag)
   {
-    pSPS->pcm_sample_bit_depth_luma_minus1 = pChParam->uEncodingBitDepth - 1;
-    pSPS->pcm_sample_bit_depth_chroma_minus1 = pChParam->uEncodingBitDepth - 1;
+    pSPS->pcm_sample_bit_depth_luma_minus1 = AL_GET_BITDEPTH_LUMA(pChParam->ePicFormat) - 1;
+    pSPS->pcm_sample_bit_depth_chroma_minus1 = AL_GET_BITDEPTH_CHROMA(pChParam->ePicFormat) - 1;
     pSPS->log2_min_pcm_luma_coding_block_size_minus3 = pChParam->uMaxCuSize - 3;
     pSPS->log2_diff_max_min_pcm_luma_coding_block_size = 0;
     pSPS->pcm_loop_filter_disabled_flag = (pChParam->eOptions & AL_OPT_LF) ? 0 : 1;
@@ -1085,7 +1077,7 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
   pPPS->output_flag_present_flag = 0;
   pPPS->num_extra_slice_header_bits = 0;
   pPPS->sign_data_hiding_flag = 0; // not supported yet
-  pPPS->cabac_init_present_flag = (pChParam->uPpsParam & AL_PPS_CABAC_INIT_PRES_FLAG) ? 1 : 0;
+  pPPS->cabac_init_present_flag = AL_GET_PPS_CABAC_INIT_PRES_FLAG(pChParam->uPpsParam);
   pPPS->num_ref_idx_l0_default_active_minus1 = iMaxRef - 1;
   pPPS->num_ref_idx_l1_default_active_minus1 = iMaxRef - 1;
   pPPS->init_qp_minus26 = 0;
@@ -1112,8 +1104,8 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
 
   pPPS->loop_filter_across_slices_enabled_flag = (pChParam->eOptions & AL_OPT_LF_X_SLICE) ? 1 : 0;
   pPPS->deblocking_filter_control_present_flag = (!(pChParam->eOptions & AL_OPT_LF) || pChParam->iBetaOffset || pChParam->iTcOffset) ? 1 : 0;
-  pPPS->deblocking_filter_override_enabled_flag = 0;
-  pPPS->pps_deblocking_filter_disabled_flag = (pChParam->eOptions & AL_OPT_LF) ? 0 : 1;
+  pPPS->deblocking_filter_override_enabled_flag = AL_GET_PPS_OVERRIDE_LF(pChParam->uPpsParam);
+  pPPS->pps_deblocking_filter_disabled_flag = AL_GET_PPS_DISABLE_LF(pChParam->uPpsParam);
 
   if(!pPPS->pps_deblocking_filter_disabled_flag)
   {
@@ -1122,7 +1114,7 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
   }
 
   pPPS->pps_scaling_list_data_present_flag = 0;
-  pPPS->lists_modification_present_flag = (pChParam->uPpsParam & AL_PPS_ENABLE_REORDERING) ? 1 : 0;
+  pPPS->lists_modification_present_flag = AL_GET_PPS_ENABLE_REORDERING(pChParam->uPpsParam);
   pPPS->log2_parallel_merge_level_minus2 = 0; // parallel merge at 16x16 granularity
   pPPS->slice_segment_header_extension_present_flag = 0;
   pPPS->pps_extension_present_flag = iLayerId ? 1 : 0;
@@ -1168,6 +1160,7 @@ void AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus)
     for(int iRow = 0; iRow < iNumRow - 1; ++iRow)
       pPPS->row_height[iRow] = pTileHeight[iRow];
   }
+  pPPS->diff_cu_qp_delta_depth = pPicStatus->uCuQpDeltaDepth;
 }
 
 void AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus)

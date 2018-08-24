@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -51,7 +51,7 @@ void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tFourCC);
 class Md5Calculator : public IFrameSink
 {
 public:
-  Md5Calculator(string path, ConfigFile& cfg_, AL_TBuffer* Yuv_) :
+  Md5Calculator(std::string path, ConfigFile& cfg_, AL_TBuffer* Yuv_) :
     Yuv(Yuv_),
     fourcc(cfg_.RecFourCC)
   {
@@ -80,14 +80,14 @@ public:
 
 
 private:
-  ofstream m_Md5File;
+  std::ofstream m_Md5File;
   CMD5 m_MD5;
   AL_TBuffer* const Yuv;
   TFourCC const fourcc;
 };
 
-unique_ptr<IFrameSink> createMd5Calculator(string path, ConfigFile& cfg_, AL_TBuffer* Yuv_)
+std::unique_ptr<IFrameSink> createMd5Calculator(std::string path, ConfigFile& cfg_, AL_TBuffer* Yuv_)
 {
-  return unique_ptr<IFrameSink>(new Md5Calculator(path, cfg_, Yuv_));
+  return std::unique_ptr<IFrameSink>(new Md5Calculator(path, cfg_, Yuv_));
 }
 

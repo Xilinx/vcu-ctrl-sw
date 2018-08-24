@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -51,10 +51,10 @@
 /*************************************************************************//*!
    \brief Retrieves the profile and level syntax elements
    \param[out] pPrfLvl       Pointer to the profile and level structure that will be filled
-   \param[in]  uMaxSubLayers Max number of sub layer
+   \param[in]  iMaxSubLayers Max number of sub layer
    \param[in]  pRP           Pointer to NAL buffer
 *****************************************************************************/
-void profile_tier_level(AL_TProfilevel* pPrfLvl, uint8_t uMaxSubLayers, AL_TRbspParser* pRP);
+void profile_tier_level(AL_TProfilevel* pPrfLvl, int iMaxSubLayers, AL_TRbspParser* pRP);
 
 /*************************************************************************//*!
    \brief the custom scaling_list computation from SPS NAL
@@ -76,10 +76,10 @@ void hevc_scaling_list_data(AL_TSCLParam* pSCLParam, AL_TRbspParser* pRP);
    \brief The  hrd_parameters parsing
    \param[out] pHrdParam     Pointer to the hrd_parameters structure that will be filled
    \param[in]  bInfoFlag     Common info present flag
-   \param[in]  uMaxSubLayers Max number of sub layers
+   \param[in]  iMaxSubLayers Max number of sub layers
    \param[in]  pRP           Pointer to NAL parser
 *****************************************************************************/
-void hevc_hrd_parameters(AL_THrdParam* pHrdParam, bool bInfoFlag, uint8_t uMaxSubLayers, AL_TRbspParser* pRP);
+void hevc_hrd_parameters(AL_THrdParam* pHrdParam, bool bInfoFlag, int iMaxSubLayers, AL_TRbspParser* pRP);
 
 /*************************************************************************//*!
    \brief The  vui_parameters parsing
@@ -91,10 +91,10 @@ bool avc_vui_parameters(AL_TVuiParam* pVuiParam, AL_TRbspParser* pRP);
 /*************************************************************************//*!
    \brief The  vui_parameters parsing
    \param[out] pVuiParam Pointer to the vui_parameters structure that will be filled
-   \param[in]  uMaxSubLayers Max number of sub layer
+   \param[in]  iMaxSubLayers Max number of sub layer
    \param[in]  pRP       Pointer to NAL parser
 *****************************************************************************/
-void hevc_vui_parameters(AL_TVuiParam* pVuiParam, uint8_t uMaxSubLayers, AL_TRbspParser* pRP);
+void hevc_vui_parameters(AL_TVuiParam* pVuiParam, int iMaxSubLayers, AL_TRbspParser* pRP);
 
 /*@}*/
 

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -143,7 +143,7 @@ bool AL_BufPool_Init(AL_TBufPool* pBufPool, AL_TAllocator* pAllocator, AL_TBufPo
 /****************************************************************************/
 void AL_BufPool_Deinit(AL_TBufPool* pBufPool)
 {
-  for(int u = 0; u < pBufPool->uNumBuf; ++u)
+  for(uint32_t u = 0; u < pBufPool->uNumBuf; ++u)
   {
     AL_TBuffer* pBuf = pBufPool->pPool[u];
     AL_Buffer_Destroy(pBuf);
@@ -171,6 +171,25 @@ AL_TBuffer* AL_BufPool_GetBuffer(AL_TBufPool* pBufPool, AL_EBufMode eMode)
   return pBuf;
 }
 
+/****************************************************************************/
+bool AL_BufPool_AddMetaData(AL_TBufPool* pBufPool, AL_TMetaData* pMetaData)
+{
+  AL_TMetaData* pMeta;
+  AL_TBuffer* pBuf;
+
+  for(uint32_t u = 0; u < pBufPool->uNumBuf; ++u)
+  {
+    pBuf = pBufPool->pPool[u];
+    pMeta = AL_MetaData_Clone(pMetaData);
+
+    if(!AL_Buffer_AddMetaData(pBuf, pMeta))
+      return false;
+  }
+
+  return true;
+}
+
+/****************************************************************************/
 void AL_BufPool_Decommit(AL_TBufPool* pBufPool)
 {
   Fifo_Decommit(&pBufPool->fifo);

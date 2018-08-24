@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -66,7 +66,7 @@
 #define AL_DEC_OPT_ImplicitRdpcmFlag 0x00002000
 #define AL_DEC_OPT_ExtPrecisionFlag 0x00004000
 #define AL_DEC_OPT_XTileLoopFilter 0x00008000
-#define AL_DEC_OPT_PCMLoopFilter 0x00010000
+#define AL_DEC_OPT_DisPCMLoopFilter 0x00010000
 #define AL_DEC_OPT_IntraSmoothDisable 0x00020000
 #define AL_DEC_OPT_StrongIntraSmooth 0x00040000
 #define AL_DEC_OPT_ConstrainedIntraPred 0x00080000

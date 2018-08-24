@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -37,16 +37,7 @@
 
 #pragma once
 #include "lib_common/BufCommon.h"
-
-#define MAX_REF 16 // max number of frame buffer
-
-#define AL_MAX_COLUMNS_TILE 20 // warning : true only for main profile (4K = 10; 8K = 20)
-#define AL_MAX_ROWS_TILE 22  // warning : true only for main profile (4K = 11; 8K = 22)
-
-#define AL_MAX_NUM_TILE ((AL_MAX_COLUMNS_TILE)*(AL_MAX_ROWS_TILE))
-#define AL_MAX_NUM_WPP 528// max line number : sqrt(MaxLumaSample size * 8) / 32. (4K = 264; 8K = 528);
-
-#define AL_MAX_ENTRY_POINT (((AL_MAX_NUM_TILE) > (AL_MAX_NUM_WPP)) ? (AL_MAX_NUM_TILE) : (AL_MAX_NUM_WPP))
+#include "lib_common/BufConst.h"
 
 /*************************************************************************//*!
    \brief Generic Buffer

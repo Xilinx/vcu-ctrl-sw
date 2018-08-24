@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +39,7 @@
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/Utils.h"
 
-#define CONCEALMENT_LEVEL_IDC 60*3
+#define CONCEAL_LEVEL_IDC 60 * 3
 
 /*****************************************************************************/
 static void initPps(AL_THevcPps* pPPS)
@@ -438,7 +438,7 @@ AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   profile_tier_level(&tempSPS.profile_and_level, max_sub_layers, pRP);
 
   if(tempSPS.profile_and_level.general_level_idc == 0)
-    tempSPS.profile_and_level.general_level_idc = CONCEALMENT_LEVEL_IDC;
+    tempSPS.profile_and_level.general_level_idc = CONCEAL_LEVEL_IDC;
 
   int sps_id = ue(pRP);
 
@@ -740,7 +740,7 @@ void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   profile_tier_level(&pVPS->profile_and_level[0], pVPS->vps_max_sub_layers_minus1, pRP);
 
   if(pVPS->profile_and_level[0].general_level_idc == 0)
-    pVPS->profile_and_level[0].general_level_idc = CONCEALMENT_LEVEL_IDC;
+    pVPS->profile_and_level[0].general_level_idc = CONCEAL_LEVEL_IDC;
 
   pVPS->vps_sub_layer_ordering_info_present_flag = u(pRP, 1);
 
@@ -876,8 +876,21 @@ static bool sei_pic_timing(AL_TRbspParser* pRP, AL_THevcSps* pSPS, AL_THevcPicTi
   return byte_alignment(pRP);
 }
 
+/*****************************************************************************/
+static bool sei_recovery_point(AL_TRbspParser* pRP, AL_TRecoveryPoint* pRecoveryPoint)
+{
+  Rtos_Memset(pRecoveryPoint, 0, sizeof(*pRecoveryPoint));
+
+  pRecoveryPoint->recovery_cnt = se(pRP);
+  pRecoveryPoint->exact_match = u(pRP, 1);
+  pRecoveryPoint->broken_link = u(pRP, 1);
+
+  return byte_alignment(pRP);
+}
+
 #define PIC_TIMING 1
 #define ACTIVE_PARAMETER_SETS 129
+#define RECOVERY_POINT 6
 
 /*****************************************************************************/
 bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
@@ -941,6 +954,16 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
       else
         return false;
       break;
+
+    case RECOVERY_POINT: // picture_timing parsing
+    {
+      bool bRet = sei_recovery_point(pRP, &sei.recovery_point);
+
+      if(!bRet)
+        skip(pRP, payload_size << 3);
+
+      aup->iRecoveryCnt = sei.recovery_point.recovery_cnt;
+    } break;
 
     case ACTIVE_PARAMETER_SETS:
     {

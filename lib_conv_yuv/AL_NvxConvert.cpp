@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -311,13 +311,8 @@ static void convertToP210(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
 void CNvxConv::ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut)
 {
   AL_TSrcMetaData* pSrcInMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pSrcIn, AL_META_TYPE_SOURCE);
-  AL_TPicFormat const picFmt =
-  {
-    m_FrameInfo.eCMode,
-    uBitDepth,
-    AL_FB_RASTER
-  };
-  TFourCC tSrcFourCC = AL_EncGetSrcFourCC(picFmt);
+  auto const picFmt = AL_EncGetSrcPicFormat(m_FrameInfo.eCMode, uBitDepth, AL_FB_RASTER, false);
+  TFourCC tSrcFourCC = AL_GetFourCC(picFmt);
   switch(tSrcFourCC)
   {
   case FOURCC(Y010):

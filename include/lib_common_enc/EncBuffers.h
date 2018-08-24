@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -119,6 +119,13 @@ int AL_CalculatePitchValue(int iWidth, uint8_t uBitDepth, AL_EFbStorageMode eSto
    \return Source Storage Mode
 *****************************************************************************/
 AL_EFbStorageMode AL_GetSrcStorageMode(AL_ESrcMode eSrcMode);
+
+/*************************************************************************//*!
+   \brief Check if the Source frame buffer is compressed depending on Source mode
+   \param[in] eSrcMode Source Mode
+   \return Source Storage Mode
+*****************************************************************************/
+bool AL_IsSrcCompressed(AL_ESrcMode eSrcMode);
 
 
 

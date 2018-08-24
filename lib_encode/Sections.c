@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -41,6 +41,7 @@
 #include <lib_common/SEI.h>
 
 #include <assert.h>
+#include <stdio.h>
 
 static void AddSection(AL_TStreamMetaData* pMeta, uint32_t uOffset, uint32_t uLength, uint32_t uFlags)
 {
@@ -116,12 +117,13 @@ static SeiPrefixCtx createSeiPrefixCtx(AL_TSps* sps, int initialCpbRemovalDelay,
   return ctx;
 }
 
-static SeiSuffixCtx createSeiSuffixCtx()
+static SeiSuffixCtx createSeiEOFSuffixCtx()
 {
   SeiSuffixCtx ctx;
   Rtos_Memcpy(&ctx.uuid, SEI_SUFFIX_USER_DATA_UNREGISTERED_UUID, 16);
   return ctx;
 }
+
 
 static int getOffsetAfterLastSection(AL_TStreamMetaData* pMeta)
 {
@@ -143,6 +145,8 @@ static uint32_t generateSeiFlags(AL_TEncPicStatus const* pPicStatus)
     if(!pPicStatus->bIsIDR)
       uFlags |= SEI_RP;
   }
+  else if(pPicStatus->iRecoveryCnt)
+    uFlags |= SEI_RP;
 
   return uFlags;
 }
@@ -159,7 +163,7 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
     if(nalsData->shouldWriteAud)
       nals[nalsCount++] = AL_CreateAud(nuts.audNut, pPicStatus->eType);
 
-    if(pPicStatus->bIsIDR)
+    if(pPicStatus->bIsIDR || pPicStatus->iRecoveryCnt)
     {
       if(writer->WriteVPS)
         nals[nalsCount++] = AL_CreateVps(nalsData->vps);
@@ -168,7 +172,7 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
         nals[nalsCount++] = AL_CreateSps(nuts.spsNut, nalsData->sps[i], i);
     }
 
-    if(pPicStatus->eType == SLICE_I)
+    if(pPicStatus->eType == SLICE_I || pPicStatus->iRecoveryCnt)
     {
       for(int i = 0; i < iLayersCount; i++)
         nals[nalsCount++] = AL_CreatePps(nuts.ppsNut, nalsData->pps[i], i);
@@ -211,9 +215,12 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
 
   if(nalsData->shouldWriteFillerData && pPicStatus->iFiller)
   {
-    int bookmark = AL_BitStreamLite_GetBitsCount(&bs);
+    int iBookmark = AL_BitStreamLite_GetBitsCount(&bs);
     WriteFillerData(&bs, nuts.fdNut, nuts.GetNalHeader(nuts.fdNut, 0), pPicStatus->iFiller);
-    int iWritten = (AL_BitStreamLite_GetBitsCount(&bs) - bookmark) / 8;
+    int iWritten = (AL_BitStreamLite_GetBitsCount(&bs) - iBookmark) / 8;
+
+    if(iWritten != pPicStatus->iFiller)
+      printf("[WARNING] Filler data (%i) doesn't fit in the current buffer. Clip it to %i !\n", pPicStatus->iFiller, iWritten);
     AddSection(pMetaData, offset, iWritten, 0);
   }
 
@@ -221,9 +228,10 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
   {
     if(isSuffix(nalsData->seiFlags))
     {
+
       if(nalsData->seiFlags & SEI_EOF)
       {
-        SeiSuffixCtx seiSufficCtx = createSeiSuffixCtx();
+        SeiSuffixCtx seiSufficCtx = createSeiEOFSuffixCtx();
         AL_NalUnit nal = AL_CreateSeiSuffix(&seiSufficCtx, nuts.seiSuffixNut);
         nal.header = nuts.GetNalHeader(nal.nut, nal.idc);
         GenerateNal(writer, &bs, &nal, pMetaData, 0);

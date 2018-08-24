@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -41,6 +41,9 @@
 #include "lib_common/StreamSection.h"
 #include "lib_common/BufferStreamMeta.h"
 #include "lib_common/BufferPictureMeta.h"
+#if AL_ENABLE_TWOPASS
+#include "lib_common/BufferLookAheadMeta.h"
+#endif
 #include "lib_common_enc/IpEncFourCC.h"
 #include <assert.h>
 #include "lib_common/Utils.h"
@@ -164,13 +167,9 @@ static AL_TEncRequestInfo* getCurrentCommands(AL_TLayerCtx* pCtx)
 void AL_Common_Encoder_NotifySceneChange(AL_TEncoder* pEnc, int iAhead)
 {
   AL_TEncCtx* pCtx = pEnc->pCtx;
-
-  for(int i = 0; i < pCtx->Settings.NumLayer; ++i)
-  {
-    AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[i]);
-    pReqInfo->eReqOptions |= AL_OPT_SCENE_CHANGE;
-    pReqInfo->uSceneChangeDelay = iAhead;
-  }
+  AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[0]);
+  pReqInfo->eReqOptions |= AL_OPT_SCENE_CHANGE;
+  pReqInfo->uSceneChangeDelay = iAhead;
 }
 
 /***************************************************************************/
@@ -308,6 +307,27 @@ void AL_Common_Encoder_SetEncodingOptions(AL_TEncCtx* pCtx, AL_TFrameInfo* pFI, 
 
 }
 
+#if AL_ENABLE_TWOPASS
+/****************************************************************************/
+void AL_Common_Encoder_ProcessLookAheadParam(AL_TEncoder* pEnc, AL_TEncInfo* pEI, AL_TBuffer* pFrame)
+{
+  // Process first pass informations from the metadata, notifies scene changes and transmits parameters for the RateCtrl
+  AL_TLookAheadMetaData* pMetaDataLA = (AL_TLookAheadMetaData*)AL_Buffer_GetMetaData(pFrame, AL_META_TYPE_LOOKAHEAD);
+
+  if(pMetaDataLA && pMetaDataLA->bNextSceneChange)
+    AL_Common_Encoder_NotifySceneChange(pEnc, 1);
+
+
+  if(pMetaDataLA && pMetaDataLA->iPictureSize != -1)
+  {
+    pEI->tLAParam.iSCPictureSize = pMetaDataLA->iPictureSize;
+    pEI->tLAParam.iSCIPRatio = pMetaDataLA->iIPRatio;
+    pEI->tLAParam.iComplexity = pMetaDataLA->iComplexity;
+  }
+}
+
+#endif
+
 /***************************************************************************/
 bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer* pQpTable, int iLayerID)
 {
@@ -367,6 +387,12 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
   AddSourceSent(pCtx, pFrame, pFI);
 
   AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[iLayerID]);
+
+#if AL_ENABLE_TWOPASS
+
+  if(pCtx->Settings.LookAhead > 0 || pCtx->Settings.TwoPass == 2)
+    AL_Common_Encoder_ProcessLookAheadParam(pEnc, pEI, pFrame);
+#endif
 
 
   bool bRet = AL_ISchedulerEnc_EncodeOneFrame(pCtx->pScheduler, pCtx->tLayerCtx[iLayerID].hChannel, pEI, pReqInfo, &addresses);
@@ -723,6 +749,33 @@ bool AL_Common_Encoder_SetFrameRate(AL_TEncoder* pEnc, uint16_t uFrameRate, uint
   return true;
 }
 
+/****************************************************************************/
+bool AL_Common_Encoder_SetQP(AL_TEncoder* pEnc, int16_t iQP)
+{
+  AL_TEncCtx* pCtx = pEnc->pCtx;
+
+  for(int i = 0; i < pCtx->Settings.NumLayer; ++i)
+  {
+    if(pCtx->Settings.tChParam[i].tRCParam.eRCMode != AL_RC_BYPASS &&
+       pCtx->Settings.tChParam[i].tRCParam.eRCMode != AL_RC_CBR &&
+       pCtx->Settings.tChParam[i].tRCParam.eRCMode != AL_RC_VBR)
+    {
+      AL_RETURN_ERROR(AL_ERR_CMD_NOT_ALLOWED);
+    }
+
+    if(iQP < pCtx->Settings.tChParam[i].tRCParam.iMinQP || iQP > pCtx->Settings.tChParam[i].tRCParam.iMaxQP)
+    {
+      AL_RETURN_ERROR(AL_ERR_INVALID_CMD_VALUE);
+    }
+
+    AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[i]);
+    pReqInfo->eReqOptions |= AL_OPT_SET_QP;
+    pReqInfo->smartParams.iQPSet = iQP;
+  }
+
+  return true;
+}
+
 
 static bool isSeiEnable(uint32_t uFlags)
 {
@@ -746,6 +799,7 @@ NalsData AL_ExtractNalsData(AL_TEncCtx* pCtx, int iLayerID)
   data.shouldWriteAud = pSettings->bEnableAUD && isBaseLayer(iLayerID);
   data.shouldWriteFillerData = pSettings->bEnableFillerData;
   data.seiFlags = pSettings->uEnableSEI;
+
 
   if(pSettings->tChParam[0].bSubframeLatency)
     data.seiFlags |= SEI_EOF;
@@ -804,6 +858,23 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
   AL_TFrameInfo* pFI = &pCtx->Pool[iPoolID];
 
   AL_TBuffer* pSrc = (AL_TBuffer*)(uintptr_t)pPicStatus->SrcHandle;
+
+#if AL_ENABLE_TWOPASS
+
+  if(pCtx->Settings.LookAhead > 0 || pCtx->Settings.TwoPass == 1)
+  {
+    // Transmits first pass information in the metadata
+    AL_TLookAheadMetaData* pPictureMetaLA = (AL_TLookAheadMetaData*)AL_Buffer_GetMetaData(pSrc, AL_META_TYPE_LOOKAHEAD);
+
+    if(pPictureMetaLA)
+    {
+      pPictureMetaLA->iPictureSize = pPicStatus->iPictureSize;
+      pPictureMetaLA->iPercentIntra = pPicStatus->iPercentIntra;
+      pPictureMetaLA->iPercentSkip = pPicStatus->iPercentSkip;
+    }
+  }
+#endif
+
   pCtx->tLayerCtx[iLayerID].callback.func(pCtx->tLayerCtx[iLayerID].callback.userParam, pStream, pSrc, iLayerID);
 
   if(pPicStatus->bIsLastSlice)

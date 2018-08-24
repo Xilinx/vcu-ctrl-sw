@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -43,16 +43,17 @@
 class CommandsSender : public ICommandsSender
 {
 public:
-  CommandsSender(AL_HEncoder hEnc) : hEnc(hEnc) {};
+  explicit CommandsSender(AL_HEncoder hEnc) : hEnc(hEnc) {};
   ~CommandsSender() {};
-  virtual void notifySceneChange(int lookAhead);
-  virtual void notifyIsLongTerm();
-  virtual void notifyUseLongTerm();
-  virtual void restartGop();
-  virtual void setGopLength(int gopLength);
-  virtual void setNumB(int numB);
-  virtual void setFrameRate(int frameRate, int clockRatio);
-  virtual void setBitRate(int bitRate);
+  void notifySceneChange(int lookAhead) override;
+  void notifyIsLongTerm() override;
+  void notifyUseLongTerm() override;
+  void restartGop() override;
+  void setGopLength(int gopLength) override;
+  void setNumB(int numB) override;
+  void setFrameRate(int frameRate, int clockRatio) override;
+  void setBitRate(int bitRate) override;
+  void setQP(int qp) override;
 
 private:
   AL_HEncoder hEnc;

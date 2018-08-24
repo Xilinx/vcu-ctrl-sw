@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -50,14 +50,9 @@ void SetChannelInfo(AL_TCommonChannelInfo* pChanInfo, AL_TEncChanParam* pChParam
   pChanInfo->uRecSizeY = AL_GetAllocSize_EncReference(tDim, uBitDepth, CHROMA_MONO, 0);
   pChanInfo->uRecSize = AL_GetAllocSize_EncReference(tDim, uBitDepth, eChromaMode, bComp);
 
-  AL_TPicFormat picRecFormat =
-  {
-    eChromaMode,
-    uBitDepth,
-    AL_FB_TILE_64x4
-  };
+  AL_TPicFormat picRecFormat = AL_EncGetRecPicFormat(eChromaMode, uBitDepth, bComp);
 
-  pChanInfo->RecFourCC = AL_GetRecFourCC(picRecFormat);
+  pChanInfo->RecFourCC = AL_GetFourCC(picRecFormat);
   pChanInfo->uRecPitchY = AL_GetRecPitch(uBitDepth, pChParam->uWidth);
   pChanInfo->uRecPitchC = pChanInfo->uRecPitchY;
 }

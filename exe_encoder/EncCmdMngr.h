@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -67,11 +67,14 @@ private:
     bool bChangeFrameRate = false;
     int iFrameRate = 0;
     int iClkRatio = 0;
+    bool bChangeQP = false;
+    int iQP = 0;
   };
 
   void Refill(int iCurFrame);
   bool ReadNextCmd(TFrmCmd& Cmd);
   bool ParseCmd(std::string sLine, TFrmCmd& Cmd, bool bSameFrame);
+  bool GetNextLine(std::string& sNextLine);
 
 private:
   std::istream& m_CmdInput;
@@ -79,5 +82,6 @@ private:
   int const m_iFreqLT;
   bool m_bHasLT;
   std::list<TFrmCmd> m_Cmds;
+  std::string m_sBufferedLine;
 };
 

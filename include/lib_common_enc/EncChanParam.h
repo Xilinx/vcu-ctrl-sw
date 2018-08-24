@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -40,12 +40,11 @@
    @{
    \file
 ******************************************************************************/
-
 #pragma once
 
 #include "lib_rtos/types.h"
-#include "lib_common/VideoMode.h"
 #include "lib_common/SliceConsts.h"
+#include "lib_common/VideoMode.h"
 
 /*************************************************************************//*!
    \brief Encoding parameters buffers info structure
@@ -81,6 +80,7 @@ typedef enum AL_e_GdrMode
   AL_GDR_HORIZONTAL = AL_GDR_ON | 0x01,
   AL_GDR_MAX_ENUM,
 }AL_EGdrMode;
+
 
 /*************************************************************************//*!
    \brief Picture format enum
@@ -124,6 +124,8 @@ typedef enum __AL_ALIGNED__ (4) AL_e_HlsFlag
   AL_PPS_SLICE_SEG_EN_FLAG = 0x00000008,
   AL_PPS_NUM_ACT_REF_L0 = 0x000000F0,
   AL_PPS_NUM_ACT_REF_L1 = 0x00000F00,
+  AL_PPS_OVERRIDE_LF = 0x00001000,
+  AL_PPS_DISABLE_LF = 0x00002000,
 } AL_EHlsFlag;
 
 #define AL_GET_SPS_LOG2_MAX_POC(HlsParam) ((HlsParam) & AL_SPS_LOG2_MAX_POC_MASK)
@@ -133,10 +135,13 @@ typedef enum __AL_ALIGNED__ (4) AL_e_HlsFlag
 #define AL_GET_SPS_TEMPORAL_MVP_EN_FLAG(HlsParam) (((HlsParam) & AL_SPS_TEMPORAL_MVP_EN_FLAG) >> 20)
 
 #define AL_GET_PPS_ENABLE_REORDERING(HlsParam) ((HlsParam) & AL_PPS_ENABLE_REORDERING)
+#define AL_GET_PPS_CABAC_INIT_PRES_FLAG(HlsParam) (((HlsParam) & AL_PPS_CABAC_INIT_PRES_FLAG) >> 1)
 #define AL_GET_PPS_DBF_OVR_EN_FLAG(HlsParam) (((HlsParam) & AL_PPS_DBF_OVR_EN_FLAG) >> 2)
 #define AL_GET_PPS_SLICE_SEG_EN_FLAG(HlsParam) (((HlsParam) & AL_PPS_SLICE_SEG_EN_FLAG) >> 3)
 #define AL_GET_PPS_NUM_ACT_REF_L0(HlsParam) (((HlsParam) & AL_PPS_NUM_ACT_REF_L0) >> 4)
 #define AL_GET_PPS_NUM_ACT_REF_L1(HlsParam) (((HlsParam) & AL_PPS_NUM_ACT_REF_L1) >> 8)
+#define AL_GET_PPS_OVERRIDE_LF(HlsParam) (((HlsParam) & AL_PPS_OVERRIDE_LF) >> 12)
+#define AL_GET_PPS_DISABLE_LF(HlsParam) (((HlsParam) & AL_PPS_DISABLE_LF) >> 13)
 
 #define AL_SET_PPS_NUM_ACT_REF_L0(HlsParam, Num) (HlsParam) = ((HlsParam) & ~AL_PPS_NUM_ACT_REF_L0) | ((Num) << 4)
 #define AL_SET_PPS_NUM_ACT_REF_L1(HlsParam, Num) (HlsParam) = ((HlsParam) & ~AL_PPS_NUM_ACT_REF_L1) | ((Num) << 8)
@@ -197,7 +202,7 @@ typedef enum __AL_ALIGNED__ (4) AL_e_RateCtrlOption
 /*************************************************************************//*!
    \brief Rate Control parameters structure
 *****************************************************************************/
-typedef struct __AL_ALIGNED__ (4) AL_t_RCParam
+typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_RCParam
 {
   AL_ERateCtrlMode eRCMode;
   uint32_t uInitialRemDelay;
@@ -261,7 +266,7 @@ typedef struct AL_t_GopFrm
 /*************************************************************************//*!
    \brief Gop parameters structure
 *****************************************************************************/
-typedef struct AL_t_GopParam
+typedef AL_INTROSPECT (category = "debug") struct AL_t_GopParam
 {
   AL_EGopCtrlMode eMode;
   uint16_t uGopLength;
@@ -272,6 +277,18 @@ typedef struct AL_t_GopParam
   uint32_t uFreqLT;
   AL_EGdrMode eGdrMode;
 }AL_TGopParam;
+
+#if AL_ENABLE_TWOPASS
+/*************************************************************************//*!
+   \brief First Pass infos parameters
+*****************************************************************************/
+typedef struct AL_t_LookAheadParam
+{
+  int32_t iSCPictureSize;
+  int32_t iSCIPRatio;
+  int16_t iComplexity;
+}AL_TLookAheadParam;
+#endif
 
 /*************************************************************************//*!
    \brief Max burst size
@@ -311,20 +328,22 @@ typedef enum e_SrcConvMode // [0] : CompMode | [3:1] : SourceFormat
 /*************************************************************************//*!
    \brief Channel parameters structure
 *****************************************************************************/
-typedef struct __AL_ALIGNED__ (4) AL_t_EncChanParam
+typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncChanParam
 {
   int iLayerID;
 
-  /* Output resolution */
+  /* Encoding resolution */
   uint16_t uWidth;
   uint16_t uHeight;
 
 
   AL_EVideoMode eVideoMode;
+  /* Encoding picture format */
   AL_EPicFormat ePicFormat;
   AL_EColorSpace eColorSpace;
   AL_ESrcMode eSrcMode;
-  uint8_t uEncodingBitDepth;
+  /* Input picture bitdepth */
+  uint8_t uSrcBitDepth;
 
   /* encoding profile/level */
   AL_EProfile eProfile;
@@ -357,6 +376,7 @@ typedef struct __AL_ALIGNED__ (4) AL_t_EncChanParam
   uint32_t uL2PrefetchMemSize;
   uint16_t uClipHrzRange;
   uint16_t uClipVrtRange;
+
 
   /* MV range */
   int16_t pMeRange[2][2];  /*!< Allowed range for motion estimation */

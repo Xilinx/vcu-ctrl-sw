@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -35,8 +35,8 @@
 *
 ******************************************************************************/
 
-#include <limits.h>
-#include <assert.h>
+#include <climits>
+#include <cassert>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -45,10 +45,10 @@
 #include <queue>
 #include <list>
 #include <sstream>
-#include <stdarg.h>
+#include <cstdarg>
 #include <stdexcept>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -69,6 +69,9 @@ extern "C"
 #include "lib_common/BufferSrcMeta.h"
 #include "lib_common/BufferStreamMeta.h"
 #include "lib_common/BufferPictureMeta.h"
+#if AL_ENABLE_TWOPASS
+#include "lib_common/BufferLookAheadMeta.h"
+#endif
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/Utils.h"
 #include "lib_common/versions.h"
@@ -79,29 +82,48 @@ extern "C"
 
 #include "lib_conv_yuv/lib_conv_yuv.h"
 #include "sink_encoder.h"
+#if AL_ENABLE_TWOPASS
+#include "sink_lookahead.h"
+#endif
 #include "sink_bitstream_writer.h"
 #include "sink_frame_writer.h"
 #include "sink_md5.h"
 #include "sink_repeater.h"
 #include "QPGenerator.h"
 
+
 static int g_numFrameToRepeat;
 static int g_StrideHeight = -1;
 static int g_Stride = -1;
-static bool g_ShouldAddDummySei = false;
 
 using namespace std;
 
 /*****************************************************************************/
 
+#include "lib_app/BuildInfo.h"
+
+#if !HAS_COMPIL_FLAGS
+#define AL_COMPIL_FLAGS ""
+#endif
+
+void DisplayBuildInfo()
+{
+  BuildInfoDisplay displayBuildInfo {
+    SVN_REV, AL_CONFIGURE_COMMANDLINE, AL_COMPIL_FLAGS
+  };
+  displayBuildInfo.displayFeatures = [=]()
+                                     {
+                                     };
+  displayBuildInfo();
+}
+
 void DisplayVersionInfo()
 {
-  Message(CC_DEFAULT, "%s - %s v%d.%d.%d - %s\n", AL_ENCODER_COMPANY,
-          AL_ENCODER_PRODUCT_NAME,
-          AL_ENCODER_VERSION,
-          AL_ENCODER_COPYRIGHT);
-
-  Message(CC_YELLOW, "%s\n", AL_ENCODER_COMMENTS);
+  DisplayVersionInfo(AL_ENCODER_COMPANY,
+                     AL_ENCODER_PRODUCT_NAME,
+                     AL_ENCODER_VERSION,
+                     AL_ENCODER_COPYRIGHT,
+                     AL_ENCODER_COMMENTS);
 }
 
 /*****************************************************************************/
@@ -120,9 +142,8 @@ void SetDefaults(ConfigFile& cfg)
   cfg.RunInfo.iMaxPict = INT_MAX; // ALL
   cfg.RunInfo.iFirstPict = 0;
   cfg.RunInfo.iScnChgLookAhead = 3;
-  cfg.RunInfo.uInputSleepInMilliseconds = 0;
   cfg.RunInfo.ipCtrlMode = IPCTRL_MODE_STANDARD;
-
+  cfg.RunInfo.uInputSleepInMilliseconds = 0;
   cfg.strict_mode = false;
 }
 
@@ -159,12 +180,63 @@ static AL_EChromaMode stringToChromaMode(string s)
   return CHROMA_MAX_ENUM;
 }
 
+
+template<typename T>
+function<T(string const &)> createCmdlineParsingFunc(char const* name_, function<T(ConfigFile &)> extractWantedValue)
+{
+  string name = name_;
+  auto lambda = [=](string const& value)
+                {
+                  ConfigFile cfg {};
+                  cfg.strict_mode = true;
+                  string toParse = name + string("=") + value;
+                  ParseConfig(toParse, cfg);
+                  return extractWantedValue(cfg);
+                };
+  return lambda;
+}
+
+function<TFourCC(string const &)> createParseInputFourCC()
+{
+  return createCmdlineParsingFunc<TFourCC>("[INPUT]\nFormat", [](ConfigFile& cfg) { return cfg.FileInfo.FourCC; });
+}
+
+function<TFourCC(string const &)> createParseRecFourCC()
+{
+  return createCmdlineParsingFunc<TFourCC>("[OUTPUT]\nFormat", [](ConfigFile& cfg) { return cfg.RecFourCC; });
+}
+
+function<AL_EProfile(string const &)> createParseProfile()
+{
+  return createCmdlineParsingFunc<AL_EProfile>("[SETTINGS]\nProfile", [](ConfigFile& cfg) { return cfg.Settings.tChParam[0].eProfile; });
+}
+
+function<AL_ERateCtrlMode(string const &)> createParseRCMode()
+{
+  return createCmdlineParsingFunc<AL_ERateCtrlMode>("[RATE_CONTROL]\nRateCtrlMode", [](ConfigFile& cfg) { return cfg.Settings.tChParam[0].tRCParam.eRCMode; });
+}
+
+function<AL_EGopCtrlMode(string const &)> createParseGopMode()
+{
+  return createCmdlineParsingFunc<AL_EGopCtrlMode>("[GOP]\nGopCtrlMode", [](ConfigFile& cfg) { return cfg.Settings.tChParam[0].tGopParam.eMode; });
+}
+
+
+
+void introspect(ConfigFile& cfg)
+{
+  (void)cfg;
+  throw runtime_error("introspection is not compiled in");
+}
+
 /*****************************************************************************/
 void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
 {
   bool DoNotAcceptCfg = false;
   bool help = false;
+  bool help_cfg = false;
   bool version = false;
+  bool dumpCfg = false;
   stringstream warning;
   auto opt = CommandLineParser([&](string word)
   {
@@ -190,6 +262,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
     ParseConfigFile(cfgPath, cfg, warning);
   }, "Use it instead of -cfg. Errors in the configuration file will be ignored");
 
+  opt.addFlag("--help-cfg", &help_cfg, "Show cfg help");
   opt.addFlag("--help,-h", &help, "Show this help");
   opt.addFlag("--version", &version, "Show version");
   opt.addString("--input,-i", &cfg.YUVFileName, "YUV input file");
@@ -201,10 +274,11 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
     SetEnableColor(true);
   }, "Enable color");
   opt.addInt("--input-sleep", &cfg.RunInfo.uInputSleepInMilliseconds, "Minimum waiting time in milliseconds between each process frame (0 by default)");
-  opt.addFlag("--quiet,-q", &g_Verbosity, "do not print anything", 0);
 
-  opt.addInt("--input-width", &cfg.FileInfo.PictWidth, "Specify YUV input width");
-  opt.addInt("--input-height", &cfg.FileInfo.PictHeight, "Specify YUV input height");
+  opt.addFlag("--quiet,-q", &g_Verbosity, "Do not print anything", 0);
+
+  opt.addInt("--input-width", &cfg.FileInfo.PictWidth, "Specifies YUV input width");
+  opt.addInt("--input-height", &cfg.FileInfo.PictHeight, "Specifies YUV input height");
   opt.addOption("--chroma-mode", [&]()
   {
     auto chromaMode = stringToChromaMode(opt.popWord());
@@ -212,48 +286,56 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   }, "Specify chroma-mode (CHROMA_MONO, CHROMA_4_0_0, CHROMA_4_2_0, CHROMA_4_2_2)");
 
   int ipbitdepth = -1;
-  opt.addInt("--level", &cfg.Settings.tChParam[0].uLevel, "Specify the level we want to encode with (10 to 62)");
-  opt.addCustom("--profile", &cfg.Settings.tChParam[0].eProfile, &GetCmdlineValue, "Specify the profile we want to encode with (example: HEVC_MAIN, AVC_MAIN, ...)");
-  opt.addCustom("--ip-bitdepth", &ipbitdepth, &GetCmdlineValue, "Specify bitdepth of ip input (8 : 10)");
-  opt.addCustom("--input-format", &cfg.FileInfo.FourCC, &GetCmdlineFourCC, "Specify YUV input format (I420, IYUV, YV12, NV12, Y800, Y010, P010, I0AL ...)");
-  opt.addCustom("--rec-format", &cfg.RecFourCC, &GetCmdlineFourCC, "Specify output format");
-  opt.addCustom("--ratectrl-mode", &cfg.Settings.tChParam[0].tRCParam.eRCMode, &GetCmdlineValue,
-                "Specify rate control mode (CONST_QP, CBR, VBR"
+  opt.addInt("--level", &cfg.Settings.tChParam[0].uLevel, "Specifies the level we want to encode with (10 to 62)");
+  opt.addCustom("--profile", &cfg.Settings.tChParam[0].eProfile, createParseProfile(), "Specifies the profile we want to encode with (example: HEVC_MAIN, AVC_MAIN, ...)");
+  opt.addInt("--ip-bitdepth", &ipbitdepth, "Specifies bitdepth of ip input (8 : 10)");
+  opt.addCustom("--input-format", &cfg.FileInfo.FourCC, createParseInputFourCC(), "Specifies YUV input format (I420, IYUV, YV12, NV12, Y800, Y010, P010, I0AL ...)");
+  opt.addCustom("--rec-format", &cfg.RecFourCC, createParseRecFourCC(), "Specifies output format");
+  opt.addCustom("--ratectrl-mode", &cfg.Settings.tChParam[0].tRCParam.eRCMode, createParseRCMode(),
+                "Specifies rate control mode (CONST_QP, CBR, VBR"
                 ", LOW_LATENCY"
                 ")"
                 );
   opt.addOption("--bitrate", [&]()
   {
     cfg.Settings.tChParam[0].tRCParam.uTargetBitRate = opt.popInt() * 1000;
-  }, "Specify bitrate in Kbits/s");
+  }, "Specifies bitrate in Kbits/s");
   opt.addOption("--max-bitrate", [&]()
   {
     cfg.Settings.tChParam[0].tRCParam.uMaxBitRate = opt.popInt() * 1000;
-  }, "Specify max bitrate in Kbits/s");
+  }, "Specifies max bitrate in Kbits/s");
   opt.addOption("--framerate", [&]()
   {
-    GetFpsCmdline(opt.popWord(),
-                  cfg.Settings.tChParam[0].tRCParam.uFrameRate,
-                  cfg.Settings.tChParam[0].tRCParam.uClkRatio);
-  }, "Specify the frame rate used for encoding");
-  opt.addInt("--sliceQP", &cfg.Settings.tChParam[0].tRCParam.iInitialQP, "Specify the initial slice QP");
-  opt.addInt("--gop-length", &cfg.Settings.tChParam[0].tGopParam.uGopLength, "Specify the GOP length, 0 means I slice only");
+    ParseConfig("[RATE_CONTROL]\nFrameRate=" + opt.popWord(), cfg);
+  }, "Specifies the frame rate used for encoding");
+  opt.addInt("--sliceQP", &cfg.Settings.tChParam[0].tRCParam.iInitialQP, "Specifies the initial slice QP");
+  opt.addInt("--gop-length", &cfg.Settings.tChParam[0].tGopParam.uGopLength, "Specifies the GOP length, 0 means I slice only");
   opt.addInt("--gop-numB", &cfg.Settings.tChParam[0].tGopParam.uNumB, "Number of consecutive B frame (0 .. 4)");
-  opt.addCustom("--gop-mode", &cfg.Settings.tChParam[0].tGopParam.eMode, &GetCmdlineValue, "Specify gop control mode (DEFAULT_GOP, PYRAMIDAL_GOP)");
-  opt.addInt("--first-picture", &cfg.RunInfo.iFirstPict, "first picture encoded (skip those before)");
+  opt.addCustom("--gop-mode", &cfg.Settings.tChParam[0].tGopParam.eMode, createParseGopMode(), "Specifies gop control mode (DEFAULT_GOP, PYRAMIDAL_GOP)");
+  opt.addInt("--first-picture", &cfg.RunInfo.iFirstPict, "First picture encoded (skip those before)");
   opt.addInt("--max-picture", &cfg.RunInfo.iMaxPict, "Maximum number of pictures encoded (1,2 .. -1 for ALL)");
-  opt.addInt("--num-slices", &cfg.Settings.tChParam[0].uNumSlices, "Specify the number of slices to use");
-  opt.addInt("--num-core", &cfg.Settings.tChParam[0].uNumCore, "Specify the number of cores to use (resolution needs to be sufficient)");
+  opt.addInt("--num-slices", &cfg.Settings.tChParam[0].uNumSlices, "Specifies the number of slices to use");
+  opt.addInt("--num-core", &cfg.Settings.tChParam[0].uNumCore, "Specifies the number of cores to use (resolution needs to be sufficient)");
   opt.addString("--log", &cfg.RunInfo.logsFile, "A file where log event will be dumped");
-  opt.addFlag("--loop", &cfg.RunInfo.bLoop, "loop at the end of the yuv file");
-  opt.addFlag("--slicelat", &cfg.Settings.tChParam[0].bSubframeLatency, "enable subframe latency");
-  opt.addFlag("--framelat", &cfg.Settings.tChParam[0].bSubframeLatency, "disable subframe latency", false);
+  opt.addFlag("--loop", &cfg.RunInfo.bLoop, "Loop at the end of the yuv file");
+  opt.addFlag("--slicelat", &cfg.Settings.tChParam[0].bSubframeLatency, "Enable subframe latency");
+  opt.addFlag("--framelat", &cfg.Settings.tChParam[0].bSubframeLatency, "Disable subframe latency", false);
 
-  opt.addInt("--prefetch", &g_numFrameToRepeat, "prefetch n frames and loop between these frames for max picture count");
-  opt.addFlag("--print-picture-type", &cfg.RunInfo.printPictureType, "write picture type for each frame in the file", true);
-  opt.addFlag("--dummy-sei", &g_ShouldAddDummySei, "Add a dummy sei prefix and suffix");
+  opt.addInt("--prefetch", &g_numFrameToRepeat, "Prefetch n frames and loop between these frames for max picture count");
+  opt.addFlag("--print-picture-type", &cfg.RunInfo.printPictureType, "Write picture type for each frame in the file", true);
 
 
+
+#if AL_ENABLE_TWOPASS
+  opt.addInt("--lookahead", &cfg.Settings.LookAhead, "Set the twopass LookAhead size");
+  opt.addInt("--pass", &cfg.Settings.TwoPass, "Specify which pass we are encoding");
+  opt.addString("--twopass-logfile", &cfg.sTwoPassFileName, "File for video statistics used in twopass");
+#endif
+
+  opt.addOption("--set", [&]()
+  {
+    ParseConfig(opt.popWord(), cfg);
+  }, "Use the same syntax as in the cfg to specify a parameter (experimental)");
   opt.parse(argc, argv);
 
   if(help)
@@ -262,11 +344,19 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
     exit(0);
   }
 
+  if(help_cfg)
+  {
+    PrintConfigFileUsage();
+    exit(0);
+  }
+
   if(version)
   {
     DisplayVersionInfo();
+    DisplayBuildInfo();
     exit(0);
   }
+
 
   if(g_Verbosity)
     cerr << warning.str();
@@ -280,16 +370,16 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   AL_SetSrcWidth(&cfg.Settings.tChParam[0], cfg.FileInfo.PictWidth);
   AL_SetSrcHeight(&cfg.Settings.tChParam[0], cfg.FileInfo.PictHeight);
 
-  cfg.Settings.tChParam[0].uEncodingBitDepth = AL_GET_BITDEPTH(cfg.Settings.tChParam[0].ePicFormat);
-
-  if(AL_IS_STILL_PROFILE(cfg.Settings.tChParam[0].eProfile))
-    cfg.RunInfo.iMaxPict = 1;
-
-
   if(ipbitdepth != -1)
   {
     AL_SET_BITDEPTH(cfg.Settings.tChParam[0].ePicFormat, ipbitdepth);
   }
+
+  cfg.Settings.tChParam[0].uSrcBitDepth = AL_GET_BITDEPTH(cfg.Settings.tChParam[0].ePicFormat);
+
+  if(AL_IS_STILL_PROFILE(cfg.Settings.tChParam[0].eProfile))
+    cfg.RunInfo.iMaxPict = 1;
+
 }
 
 void ValidateConfig(ConfigFile& cfg)
@@ -298,6 +388,9 @@ void ValidateConfig(ConfigFile& cfg)
 
   if(cfg.YUVFileName.empty())
     throw runtime_error("No YUV input was given, specify it in the [INPUT] section of your configuration file or in your commandline (use -h to get help)");
+
+  if(!cfg.sQPTablesFolder.empty() && cfg.Settings.eQpCtrlMode != LOAD_QP)
+    throw runtime_error("QPTablesFolder can only be specified with Load QP control mode");
 
   SetConsoleColor(CC_RED);
 
@@ -323,6 +416,12 @@ void ValidateConfig(ConfigFile& cfg)
       throw runtime_error("Fatal coherency error in settings");
   }
 
+#if AL_ENABLE_TWOPASS
+
+  if(cfg.Settings.TwoPass == 1)
+    AL_TwoPassMngr_SetPass1Settings(cfg.Settings);
+#endif
+
   SetConsoleColor(CC_DEFAULT);
 }
 
@@ -337,17 +436,19 @@ void SetMoreDefaults(ConfigFile& cfg)
 
   if(RecFourCC == FOURCC(NULL))
   {
-    if(AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat) == CHROMA_MONO)
+    AL_TPicFormat tOutPicFormat;
+
+    if(AL_GetPicFormat(FileInfo.FourCC, &tOutPicFormat))
     {
-      if(AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat) == 8)
-        RecFourCC = FOURCC(Y800);
-      else if(AL_Is10bitPacked(FileInfo.FourCC))
-        RecFourCC = FOURCC(XV10);
-      else
-        RecFourCC = FOURCC(Y010);
+      tOutPicFormat.eChromaMode = AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat);
+      tOutPicFormat.eChromaOrder = tOutPicFormat.eChromaMode == CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : tOutPicFormat.eChromaOrder;
+      tOutPicFormat.uBitDepth = AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat);
+      RecFourCC = AL_GetFourCC(tOutPicFormat);
     }
     else
+    {
       RecFourCC = FileInfo.FourCC;
+    }
   }
 }
 
@@ -385,7 +486,7 @@ shared_ptr<AL_TBuffer> AllocateConversionBuffer(vector<uint8_t>& YuvBuffer, int 
   YuvBuffer.resize(uSize);
   AL_TBuffer* Yuv = AL_Buffer_WrapData(YuvBuffer.data(), uSize, NULL);
 
-  AL_TOffsetYC tOffsetYC = GetOffsetYC(tPitches.iLuma, iHeight, AL_IsTiled(tFourCC));
+  AL_TOffsetYC tOffsetYC = GetOffsetYC(tPitches.iLuma, iHeight, tFourCC);
   AL_TDimension tDimension = { iWidth, iHeight };
   AL_TMetaData* pMeta = (AL_TMetaData*)AL_SrcMetaData_Create(tDimension, tPitches, tOffsetYC, tFourCC);
 
@@ -405,19 +506,15 @@ shared_ptr<AL_TBuffer> ReadSourceFrame(BufPool* pBufPool, AL_TBuffer* conversion
     return nullptr;
 
   if(hConv)
-    hConv->ConvertSrcBuf(AL_GET_BITDEPTH(tChParam.ePicFormat), conversionBuffer, sourceBuffer.get());
+    hConv->ConvertSrcBuf(tChParam.uSrcBitDepth, conversionBuffer, sourceBuffer.get());
 
   return sourceBuffer;
 }
 
 bool ConvertSrcBuffer(AL_TEncChanParam& tChParam, TYUVFileInfo& FileInfo, vector<uint8_t>& YuvBuffer, shared_ptr<AL_TBuffer>& SrcYuv)
 {
-  AL_TPicFormat const picFmt =
-  {
-    AL_GET_CHROMA_MODE(tChParam.ePicFormat),
-    AL_GET_BITDEPTH(tChParam.ePicFormat),
-    AL_GetSrcStorageMode(tChParam.eSrcMode)
-  };
+  auto const picFmt = AL_EncGetSrcPicFormat(AL_GET_CHROMA_MODE(tChParam.ePicFormat), tChParam.uSrcBitDepth, AL_GetSrcStorageMode(tChParam.eSrcMode),
+                                            AL_IsSrcCompressed(tChParam.eSrcMode));
   bool shouldConvert = IsConversionNeeded(FileInfo.FourCC, picFmt);
 
   if(shouldConvert)
@@ -535,16 +632,10 @@ static AL_TBufPoolConfig GetQpBufPoolConfig(AL_TEncSettings& Settings, AL_TEncCh
 /*****************************************************************************/
 static AL_TBufPoolConfig GetSrcBufPoolConfig(unique_ptr<IConvSrc>& pSrcConv, TFrameInfo& FrameInfo, AL_ESrcMode eSrcMode, int frameBuffersCount)
 {
-  AL_TPicFormat const tPictFormat =
-  {
-    FrameInfo.eCMode,
-    FrameInfo.iBitDepth,
-    AL_GetSrcStorageMode(eSrcMode)
-  };
-
-  TFourCC FourCC = AL_EncGetSrcFourCC(tPictFormat);
+  auto const tPictFormat = AL_EncGetSrcPicFormat(FrameInfo.eCMode, FrameInfo.iBitDepth, AL_GetSrcStorageMode(eSrcMode), AL_IsSrcCompressed(eSrcMode));
+  TFourCC FourCC = AL_GetFourCC(tPictFormat);
   AL_TPitches p = SetPitchYC(FrameInfo.iWidth, FourCC);
-  int iStrideHeight = (FrameInfo.iHeight + 7) & ~ 7;
+  int iStrideHeight = (FrameInfo.iHeight + 7) & ~7;
 
   if(g_StrideHeight != -1)
     iStrideHeight = g_StrideHeight;
@@ -562,6 +653,13 @@ static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, TYUVF
   auto numStreams = 2 + 2 + Settings.tChParam[0].tGopParam.uNumB;
   AL_TDimension dim = { FileInfo.PictWidth, FileInfo.PictHeight };
   auto streamSize = AL_GetMitigatedMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat));
+
+#if AL_ENABLE_TWOPASS
+
+  // the LookAhead needs one stream buffer to work
+  if(AL_TwoPassMngr_HasLookAhead(Settings))
+    numStreams += 1;
+#endif
 
   if(Settings.tChParam[0].bSubframeLatency)
   {
@@ -585,7 +683,7 @@ static TFrameInfo GetFrameInfo(TYUVFileInfo& tFileInfo, AL_TEncChanParam& tChPar
 
   tFrameInfo.iWidth = tFileInfo.PictWidth;
   tFrameInfo.iHeight = tFileInfo.PictHeight;
-  tFrameInfo.iBitDepth = AL_GET_BITDEPTH(tChParam.ePicFormat);
+  tFrameInfo.iBitDepth = tChParam.uSrcBitDepth;
   tFrameInfo.eCMode = AL_GET_CHROMA_MODE(tChParam.ePicFormat);
 
   return tFrameInfo;
@@ -629,6 +727,7 @@ void SafeMain(int argc, char** argv)
   ValidateConfig(cfg);
 
 
+
   function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl = GetIpCtrlWrapper(RunInfo);
 
   auto pIpDevice = CreateIpDevice(!RunInfo.bUseBoard, RunInfo.iSchedulerType, Settings, wrapIpCtrl, RunInfo.trackDma, RunInfo.eVQDescr);
@@ -653,6 +752,12 @@ void SafeMain(int argc, char** argv)
   BufPool SrcBufPool;
 
   int frameBuffersCount = 2 + Settings.tChParam[0].tGopParam.uNumB;
+#if AL_ENABLE_TWOPASS
+
+  // the LookAhead needs LookAheadSize source buffers to work
+  if(AL_TwoPassMngr_HasLookAhead(cfg.Settings))
+    frameBuffersCount += cfg.Settings.LookAhead;
+#endif
   auto QpBufPoolConfig = GetQpBufPoolConfig(Settings, Settings.tChParam[0], frameBuffersCount);
   BufPool QpBufPool(pAllocator, QpBufPoolConfig);
 
@@ -660,7 +765,7 @@ void SafeMain(int argc, char** argv)
   unique_ptr<EncoderSink> enc;
   enc.reset(new EncoderSink(cfg, pScheduler, pAllocator, QpBufPool
                             ));
-  enc->shouldAddDummySei = g_ShouldAddDummySei;
+
 
   enc->BitstreamOutput = createBitstreamWriter(StreamFileName, cfg);
   enc->m_done = ([&]() {
@@ -668,6 +773,18 @@ void SafeMain(int argc, char** argv)
   });
 
   IFrameSink* firstSink = enc.get();
+
+#if AL_ENABLE_TWOPASS
+  unique_ptr<EncoderLookAheadSink> encFirstPassLA;
+
+  if(AL_TwoPassMngr_HasLookAhead(cfg.Settings))
+  {
+    encFirstPassLA.reset(new EncoderLookAheadSink(cfg, pScheduler, pAllocator, QpBufPool
+                                                  ));
+    encFirstPassLA->next = firstSink;
+    firstSink = encFirstPassLA.get();
+  }
+#endif
 
   // Input/Output Format conversion
   shared_ptr<AL_TBuffer> SrcYuv;
@@ -706,7 +823,16 @@ void SafeMain(int argc, char** argv)
       auto const attached = AL_Buffer_AddMetaData(pStream, pMeta);
       assert(attached);
     }
-    auto bRet = AL_Encoder_PutStreamBuffer(enc->hEnc, pStream);
+
+    AL_HEncoder hEnc = enc->hEnc;
+
+#if AL_ENABLE_TWOPASS
+
+    // the Lookahead needs one stream buffer to work
+    if(i == 0 && AL_TwoPassMngr_HasLookAhead(cfg.Settings))
+      hEnc = encFirstPassLA->hEnc;
+#endif
+    bool bRet = AL_Encoder_PutStreamBuffer(hEnc, pStream);
     assert(bRet);
     AL_Buffer_Unref(pStream);
   }
@@ -717,7 +843,7 @@ void SafeMain(int argc, char** argv)
   if(g_numFrameToRepeat > 0)
   {
     prefetch.reset(new RepeaterSink(g_numFrameToRepeat, cfg.RunInfo.iMaxPict));
-    prefetch->next = enc.get();
+    prefetch->next = firstSink;
     firstSink = prefetch.get();
     cfg.RunInfo.iMaxPict = g_numFrameToRepeat;
     frameBuffersCount = max(frameBuffersCount, g_numFrameToRepeat);
@@ -739,11 +865,13 @@ void SafeMain(int argc, char** argv)
 
   while(bRet)
   {
-    auto uBeforeTime = Rtos_GetTime();
+    AL_64U uBeforeTime = Rtos_GetTime();
     bRet = sendInputFileTo(YuvFile, SrcBufPool, SrcYuv.get(), cfg, pSrcConv.get(), firstSink, iPictCount, iReadCount);
-    auto uTimelaps = Rtos_GetTime() - uBeforeTime;
-    if(uTimelaps < cfg.RunInfo.uInputSleepInMilliseconds)
-      Rtos_Sleep(cfg.RunInfo.uInputSleepInMilliseconds - uTimelaps);
+
+    AL_64U uAfterTime = Rtos_GetTime();
+
+    if((uAfterTime - uBeforeTime) < cfg.RunInfo.uInputSleepInMilliseconds)
+      Rtos_Sleep(cfg.RunInfo.uInputSleepInMilliseconds - (uAfterTime - uBeforeTime));
   }
 
   Rtos_WaitEvent(hFinished, AL_WAIT_FOREVER);

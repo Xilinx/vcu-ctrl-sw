@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -60,15 +60,7 @@
 #include "lib_common/Fifo.h"
 
 
-
 typedef struct t_Scheduler TScheduler;
-
-/****************************************************************************/
-#define ENC_MAX_REF_DEFAULT 3
-#define ENC_MAX_REF_CUSTOM 5
-#define ENC_MAX_SRC 2
-#define ENC_MAX_VIEW 1
-#define MAX_NUM_B 8
 
 /*************************************************************************//*!
    \brief Frame encoding info structure

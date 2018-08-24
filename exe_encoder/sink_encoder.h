@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -42,15 +42,24 @@
 #include "EncCmdMngr.h"
 #include "CommandsSender.h"
 
+#if AL_ENABLE_TWOPASS
+#include "TwoPassMngr.h"
+#endif
+
 #include "FileUtils.h"
 
-static bool PreprocessQP(uint8_t* pQPs, const AL_TEncSettings& Settings, const AL_TEncChanParam& tChParam, int iFrameCountSent)
+#include <string>
+#include <memory>
+#include <fstream>
+#include <stdexcept>
+
+static bool PreprocessQP(uint8_t* pQPs, const AL_TEncSettings& Settings, const AL_TEncChanParam& tChParam, const std::string& sQPTablesFolder, int iFrameCountSent)
 {
   uint8_t* pSegs = NULL;
   return GenerateQPBuffer(Settings.eQpCtrlMode, tChParam.tRCParam.iInitialQP,
                           tChParam.tRCParam.iMinQP, tChParam.tRCParam.iMaxQP,
                           AL_GetWidthInLCU(tChParam), AL_GetHeightInLCU(tChParam),
-                          tChParam.eProfile, iFrameCountSent, pQPs + EP2_BUF_QP_BY_MB.Offset, pSegs);
+                          tChParam.eProfile, sQPTablesFolder, iFrameCountSent, pQPs + EP2_BUF_QP_BY_MB.Offset, pSegs);
 }
 
 class QPBuffers
@@ -59,6 +68,7 @@ public:
   QPBuffers(BufPool& bufpool, const AL_TEncSettings& settings, const AL_TEncChanParam& tChParam) :
     bufpool(bufpool), isExternQpTable(settings.eQpCtrlMode & (MASK_QP_TABLE_EXT)), settings(settings)
   {
+    (void)tChParam;
     pRoiCtx = AL_RoiMngr_Create(tChParam.uWidth, tChParam.uHeight, tChParam.eProfile, AL_ROI_QUALITY_LOW, AL_ROI_QUALITY_ORDER);
     initQpBuffers(bufpool);
   }
@@ -81,11 +91,16 @@ public:
     AL_Buffer_Unref(buffer);
   }
 
-  void setRoiFileName(string const& roiFileName)
+  void setRoiFileName(std::string const& roiFileName)
   {
     sRoiFileName = roiFileName;
   }
 
+
+  void setQPTablesFolder(std::string const& sQPTablesFolder)
+  {
+    this->sQPTablesFolder = sQPTablesFolder;
+  }
 
 private:
   void initQpBuffers(BufPool& BufPool)
@@ -109,7 +124,7 @@ private:
       return nullptr;
 
     AL_TBuffer* pQpBuf = pBufPool->GetBuffer();
-    bool bRet = PreprocessQP(AL_Buffer_GetData(pQpBuf), settings, tChParam, frameNum);
+    bool bRet = PreprocessQP(AL_Buffer_GetData(pQpBuf), settings, tChParam, sQPTablesFolder, frameNum);
 
     if(!bRet)
       bRet = GenerateROIBuffer(pRoiCtx, sRoiFileName, AL_GetWidthInLCU(tChParam), AL_GetHeightInLCU(tChParam),
@@ -128,8 +143,9 @@ private:
   BufPool& bufpool;
   bool isExternQpTable;
   const AL_TEncSettings& settings;
+  std::string sQPTablesFolder;
 
-  string sRoiFileName;
+  std::string sRoiFileName;
   AL_TRoiMngrCtx* pRoiCtx;
 };
 
@@ -182,15 +198,32 @@ void ThrowEncoderError(AL_ERR eErr)
     g_EncoderLastError = eErr;
 }
 
+struct safe_ifstream
+{
+  std::ifstream fp {};
+  safe_ifstream(std::string const& filename, bool binary)
+  {
+    /* support no file at all */
+    if(filename.empty())
+      return;
+    OpenInput(fp, filename, binary);
+  }
+};
+
 struct EncoderSink : IFrameSink
 {
   EncoderSink(ConfigFile const& cfg, TScheduler* pScheduler, AL_TAllocator* pAllocator, BufPool & qpBufPool
               ) :
-    CmdFile(cfg.sCmdFileName),
-    EncCmd(CmdFile, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
+    CmdFile(cfg.sCmdFileName, false),
+    EncCmd(CmdFile.fp, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
+#if AL_ENABLE_TWOPASS
+    twoPassMngr(cfg.sTwoPassFileName, cfg.Settings.TwoPass),
+#endif
     qpBuffers(qpBufPool, cfg.Settings, cfg.Settings.tChParam[0])
   {
     qpBuffers.setRoiFileName(cfg.sRoiFileName);
+
+    qpBuffers.setQPTablesFolder(cfg.sQPTablesFolder);
 
     AL_CB_EndEncoding onEndEncoding = { &EncoderSink::EndEncoding, this };
 
@@ -234,21 +267,32 @@ struct EncoderSink : IFrameSink
       EncCmd.Process(commandsSender.get(), m_picCount);
 
 
+#if AL_ENABLE_TWOPASS
+
+      if(twoPassMngr.iPass)
+      {
+        auto pPictureMetaTP = twoPassMngr.CreateAndAttachTwoPassMetaData(Src);
+
+        if(twoPassMngr.iPass == 2)
+          twoPassMngr.GetFrame(pPictureMetaTP);
+      }
+#endif
+
       QpBuf = qpBuffers.getBuffer(m_picCount);
     }
 
-    shared_ptr<AL_TBuffer> QpBufShared(QpBuf, [&](AL_TBuffer* pBuf) { qpBuffers.releaseBuffer(pBuf); });
+    std::shared_ptr<AL_TBuffer> QpBufShared(QpBuf, [&](AL_TBuffer* pBuf) { qpBuffers.releaseBuffer(pBuf); });
 
     if(!AL_Encoder_Process(hEnc, Src, QpBuf))
-      throw runtime_error("Failed");
+      throw std::runtime_error("Failed");
 
     if(Src)
       m_picCount++;
   }
 
 
-  unique_ptr<IFrameSink> RecOutput;
-  unique_ptr<IFrameSink> BitstreamOutput;
+  std::unique_ptr<IFrameSink> RecOutput;
+  std::unique_ptr<IFrameSink> BitstreamOutput;
   AL_HEncoder hEnc;
   bool shouldAddDummySei = false;
 
@@ -257,10 +301,13 @@ private:
   int m_pictureType = -1;
   uint64_t m_StartTime = 0;
   uint64_t m_EndTime = 0;
-  ifstream CmdFile;
+  safe_ifstream CmdFile;
   CEncCmdMngr EncCmd;
+#if AL_ENABLE_TWOPASS
+  TwoPassMngr twoPassMngr;
+#endif
   QPBuffers qpBuffers;
-  unique_ptr<CommandsSender> commandsSender;
+  std::unique_ptr<CommandsSender> commandsSender;
 
   static inline bool isStreamReleased(AL_TBuffer* pStream, AL_TBuffer const* pSrc)
   {
@@ -278,6 +325,20 @@ private:
 
     if(isStreamReleased(pStream, pSrc) || isSourceReleased(pStream, pSrc))
       return;
+
+#if AL_ENABLE_TWOPASS
+
+    if(pThis->twoPassMngr.iPass == 1)
+    {
+      if(!pSrc)
+        pThis->twoPassMngr.Flush();
+      else
+      {
+        auto pPictureMetaTP = (AL_TLookAheadMetaData*)AL_Buffer_GetMetaData(pSrc, AL_META_TYPE_LOOKAHEAD);
+        pThis->twoPassMngr.AddFrame(pPictureMetaTP);
+      }
+    }
+#endif
 
     pThis->processOutput(pStream);
   }
@@ -313,6 +374,7 @@ private:
       m_pictureType = pMeta->eType;
       Message(CC_DEFAULT, "Picture Type %i\n", m_pictureType);
     }
+
     BitstreamOutput->ProcessFrame(pStream);
     return AL_SUCCESS;
   }

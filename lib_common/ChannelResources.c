@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -43,6 +43,40 @@ static int divideRoundUp(uint64_t dividende, uint64_t divisor)
   return (dividende + divisor - 1) / divisor;
 }
 
+static int GetMinCoresCount(int width, int maxWidth)
+{
+  return divideRoundUp(width, maxWidth);
+}
+
+static int GetCoreResources(int coreFrequency, int margin, int hardwareCyclesCount)
+{
+  return (coreFrequency - (coreFrequency / 100) * margin) / hardwareCyclesCount;
+}
+
+static int ChoseCoresCount(int width, int height, int frameRate, int clockRatio, int resourcesByCore, int maxWidth)
+{
+  int channelResources = AL_GetResources(width, height, frameRate, clockRatio);
+  return Max(GetMinCoresCount(width, maxWidth), divideRoundUp(channelResources, resourcesByCore));
+}
+
+void AL_CoreConstraint_Init(AL_CoreConstraint* constraint, int coreFrequency, int margin, int hardwareCyclesCount, int minWidth, int maxWidth)
+{
+  constraint->minWidth = minWidth;
+  constraint->maxWidth = maxWidth;
+  constraint->resources = GetCoreResources(coreFrequency, margin, hardwareCyclesCount);
+  constraint->enableMultiCore = true;
+}
+
+int AL_CoreConstraint_GetExpectedNumberOfCores(AL_CoreConstraint* constraint, int width, int height, int frameRate, int clockRatio)
+{
+  return ChoseCoresCount(width, height, frameRate, clockRatio, constraint->resources, constraint->maxWidth);
+}
+
+int AL_CoreConstraint_GetMinCoresCount(AL_CoreConstraint* constraint, int width)
+{
+  return GetMinCoresCount(width, constraint->maxWidth);
+}
+
 static int getLcuCount(int width, int height)
 {
   /* Fixed LCU Size chosen for resources calculs */
@@ -51,29 +85,14 @@ static int getLcuCount(int width, int height)
   return divideRoundUp(width, lcuWidth) * divideRoundUp(height, lcuHeight);
 }
 
-int ChoseCoresCount(int width, int height, uint32_t frameRate, uint32_t clockRatio, int resourcesByCore)
-{
-  int channelResources = GetResources(width, height, frameRate, clockRatio);
-  return Max(GetMinCoresCount(width), divideRoundUp(channelResources, resourcesByCore));
-}
-
-int GetResources(int width, int height, uint32_t frameRate, uint32_t clockRatio)
+int AL_GetResources(int width, int height, int frameRate, int clockRatio)
 {
   if(clockRatio == 0)
     return 0;
 
   uint64_t lcuCount = getLcuCount(width, height);
-  return divideRoundUp(lcuCount * frameRate, clockRatio);
+  uint64_t dividende = lcuCount * (uint64_t)frameRate;
+  uint64_t divisor = (uint64_t)clockRatio;
+  return divideRoundUp(dividende, divisor);
 }
-
-int GetMinCoresCount(int width)
-{
-  return divideRoundUp(width, AL_CORE_MAX_WIDTH);
-}
-
-int GetCoreResources(int coreFrequency, int margin, int hardwareCyclesCount)
-{
-  return (coreFrequency - (coreFrequency / 100) * margin) / hardwareCyclesCount;
-}
-
 

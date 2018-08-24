@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -46,6 +46,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define AL_INTROSPECT(...)
+
 #ifdef __GNUC__
 
 #define _CRT_SECURE_NO_WARNINGS
@@ -79,23 +81,6 @@ typedef uint32_t AL_PADDR; // physical address, 32-bit address registers
 typedef AL_64U AL_PTR64;
 typedef uint32_t AL_ERR;
 typedef void* AL_HANDLE;
-
-/*************************************************************************//*!
-   \brief Hardware Quality control structure
-*****************************************************************************/
-typedef uint8_t AL_TLambdas[4];
-
-/*************************************************************************//*!
-   \brief Hardware QP control structure
-*****************************************************************************/
-typedef struct AL_t_QPCtrl
-{
-  uint16_t ThM0, ThM1, ThM2;
-  uint16_t ThP0, ThP1, ThP2;
-  uint8_t DltM0, DltM1, DltM2;
-  uint8_t DltP0, DltP1, DltP2;
-  uint8_t QPMin, QPMax;
-}AL_TQPCtrl;
 
 #define AL_MAX_NUM_CPB 32
 #define AL_MAX_NUM_VIEW 1

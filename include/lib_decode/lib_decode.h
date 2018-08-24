@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -138,7 +138,7 @@ typedef struct
   AL_EDecUnit eDecUnit; /*!< Should subframe latency mode be used */
   AL_EDpbMode eDpbMode; /*!< Should low ref mode be used */
   AL_TStreamSettings tStream; /*!< Stream's settings. These need to be set if you want to preallocate the buffer. memset to 0 otherwise */
-
+  AL_EBufferOutputMode eBufferOutputMode; /*!< Reconstructed buffers output mode */
 }AL_TDecSettings;
 
 /*************************************************************************//*!
@@ -173,7 +173,7 @@ void AL_Decoder_Destroy(AL_HDecoder hDec);
 
 /****************************************************************************/
 /* internal. Used for traces */
-void AL_Decoder_SetParam(AL_HDecoder hDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm);
+void AL_Decoder_SetParam(AL_HDecoder hDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm, bool bForceCleanBuffers);
 
 /*************************************************************************//*!
    \brief Pushes a buffer to the decoder queue. It will be decoded when possible

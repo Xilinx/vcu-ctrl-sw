@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -40,9 +40,10 @@
 ****************************************************************************/
 
 #include "IP_Stream.h"
-#include <lib_rtos/lib_rtos.h>
-#include <lib_common/SliceConsts.h>
-#include <lib_common/Utils.h>
+
+#include "lib_common/SliceConsts.h"
+#include "lib_common/Utils.h"
+#include "lib_rtos/lib_rtos.h"
 
 /****************************************************************************/
 NalHeader GetNalHeaderHevc(uint8_t uNUT, uint8_t uNalIdc)

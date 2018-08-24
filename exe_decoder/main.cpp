@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -37,8 +37,8 @@
 
 #include <cassert>
 #include <cstdarg>
-#include <stdlib.h>
-#include <limits.h>
+#include <cstdlib>
+#include <climits>
 #include <atomic>
 #include <memory>
 #include <fstream>
@@ -66,7 +66,7 @@ extern "C"
 #include "lib_app/timing.h"
 #include "lib_app/utils.h"
 #include "lib_app/CommandLineParser.h"
-#include "lib_app/FileIOUtils.h"
+
 
 #include "Conversion.h"
 #include "al_resource.h"
@@ -124,7 +124,7 @@ AL_TDecSettings getDefaultDecSettings()
   settings.tStream.iProfileIdc = -1;
   settings.tStream.eSequenceMode = AL_SM_MAX_ENUM;
   settings.eCodec = AL_CODEC_HEVC;
-
+  settings.eBufferOutputMode = AL_OUTPUT_INTERNAL;
 
   return settings;
 }
@@ -136,7 +136,7 @@ struct Config
   bool help = false;
 
   string sIn;
-  string sOut;
+  string sMainOut; // Output rec file
   string sCrc;
 
   AL_TDecSettings tDecSettings = getDefaultDecSettings();
@@ -144,6 +144,7 @@ struct Config
   SCHEDULER_TYPE iSchedulerType = SCHEDULER_TYPE_MCU;
   int iNumTrace = -1;
   int iNumberTrace = 0;
+  bool bForceCleanBuffers = false;
   bool bConceal = false;
   bool bEnableYUVOutput = true;
   unsigned int uInputBufferNum = 2;
@@ -183,7 +184,7 @@ static int IntWithOffset(const string& word)
 }
 
 /******************************************************************************/
-static AL_EFbStorageMode getOutputStorageMode(const AL_TDecSettings& decSettings, bool& bOutputCompression)
+static AL_EFbStorageMode getMainOutputStorageMode(const AL_TDecSettings& decSettings, bool& bOutputCompression)
 {
   AL_EFbStorageMode eOutputStorageMode = decSettings.eFBStorageMode;
   bOutputCompression = decSettings.bFrameBufferCompression;
@@ -192,13 +193,40 @@ static AL_EFbStorageMode getOutputStorageMode(const AL_TDecSettings& decSettings
   return eOutputStorageMode;
 }
 
+/******************************************************************************/
+void processOutputArgs(Config& config, const string& sOut, const string& sRasterOut)
+{
+  (void)sRasterOut;
+
+  if(!config.bEnableYUVOutput)
+  {
+    if(!sOut.empty() || !sRasterOut.empty())
+    {
+      throw runtime_error("Can't specify output yuv with -noyuv option enabled");
+    }
+  }
+
+  config.tDecSettings.eBufferOutputMode = AL_OUTPUT_INTERNAL;
+
+  if(sOut.empty())
+  {
+    config.sMainOut = config.bEnableYUVOutput ? "dec.yuv" : "";
+  }
+  else
+  {
+    config.sMainOut = sOut;
+  }
+
+}
+
+/******************************************************************************/
 void getExpectedSeparator(stringstream& ss, char expectedSep)
 {
   char sep;
   ss >> sep;
 
   if(sep != expectedSep)
-    throw runtime_error("wrong prealloc arguments format");
+    throw runtime_error("wrong prealloc arguments separator");
 }
 
 bool invalidPreallocSettings(AL_TStreamSettings const& settings)
@@ -212,7 +240,6 @@ void parsePreAllocArgs(AL_TStreamSettings* settings, string& toParse)
   stringstream ss(toParse);
   ss.unsetf(ios::dec);
   ss.unsetf(ios::hex);
-  char chroma[4] {};
   ss >> settings->tDim.iWidth;
   getExpectedSeparator(ss, 'x');
   ss >> settings->tDim.iHeight;
@@ -224,6 +251,7 @@ void parsePreAllocArgs(AL_TStreamSettings* settings, string& toParse)
   ss >> vm[3];
   ss >> vm[4];
   getExpectedSeparator(ss, ':');
+  char chroma[4] {};
   ss >> chroma[0];
   ss >> chroma[1];
   ss >> chroma[2];
@@ -240,15 +268,6 @@ void parsePreAllocArgs(AL_TStreamSettings* settings, string& toParse)
   settings->tDim.iWidth = RoundUp(settings->tDim.iWidth, 64);
   settings->tDim.iHeight = RoundUp(settings->tDim.iHeight, 64);
 
-  if(string(vm) == "unkwn")
-    settings->eSequenceMode = AL_SM_UNKNOWN;
-  else if(string(vm) == "progr")
-    settings->eSequenceMode = AL_SM_PROGRESSIVE;
-  else if(string(vm) == "inter")
-    settings->eSequenceMode = AL_SM_INTERLACED;
-  else
-    throw runtime_error("wrong prealloc video format");
-
   if(string(chroma) == "400")
     settings->eChroma = CHROMA_4_0_0;
   else if(string(chroma) == "420")
@@ -260,7 +279,16 @@ void parsePreAllocArgs(AL_TStreamSettings* settings, string& toParse)
   else
     throw runtime_error("wrong prealloc chroma format");
 
-  if(ss.fail() || ss.tellg() != streampos(-1))
+  if(string(vm) == "unkwn")
+    settings->eSequenceMode = AL_SM_UNKNOWN;
+  else if(string(vm) == "progr")
+    settings->eSequenceMode = AL_SM_PROGRESSIVE;
+  else if(string(vm) == "inter")
+    settings->eSequenceMode = AL_SM_INTERLACED;
+  else
+    throw runtime_error("wrong prealloc video format");
+
+  if(ss.fail() || (ss.tellg() != streampos(-1)))
     throw runtime_error("wrong prealloc arguments format");
 
   if(invalidPreallocSettings(*settings))
@@ -276,12 +304,15 @@ static Config ParseCommandLine(int argc, char* argv[])
   int fps = 0;
   bool version = false;
 
+  string sOut;
+  string sRasterOut;
+
   auto opt = CommandLineParser();
 
   opt.addFlag("--help,-h", &Config.help, "Shows this help");
   opt.addFlag("--version", &version, "Show version");
   opt.addString("-in,-i", &Config.sIn, "Input bitstream");
-  opt.addString("-out,-o", &Config.sOut, "Output YUV");
+  opt.addString("-out,-o", &sOut, "Output YUV");
   opt.addInt("-nbuf", &Config.uInputBufferNum, "Specify the number of input feeder buffer");
   opt.addInt("-nsize", &Config.zInputBufferSize, "Specify the size (in bytes) of input feeder buffer");
   opt.addInt("-num", &Config.iNumberTrace, "Number of frames to trace");
@@ -294,11 +325,6 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addFlag("-lowlat", &Config.tDecSettings.bLowLat, "Low latency decoding activation");
   opt.addInt("-ddrwidth", &Config.tDecSettings.uDDRWidth, "Width of DDR requests (16, 32, 64) (default: 32)");
   opt.addFlag("-nocache", &Config.tDecSettings.bDisableCache, "Inactivate the cache");
-  opt.addOption("--fbc", [&]()
-  {
-    Config.tDecSettings.eFBStorageMode = AL_FB_TILE_32x4;
-    Config.tDecSettings.bFrameBufferCompression = true;
-  }, "Enables internal frame buffer compression");
   opt.addOption("--raster", [&]()
   {
     Config.tDecSettings.eFBStorageMode = AL_FB_RASTER;
@@ -307,6 +333,7 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addOption("--tile", [&]()
   {
     Config.tDecSettings.eFBStorageMode = AL_FB_TILE_32x4;
+    Config.tDecSettings.bFrameBufferCompression = false;
   }, "Store frame buffers in tiles format");
 
 
@@ -320,7 +347,7 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addCustom("-clk", &Config.tDecSettings.uClkRatio, &IntWithOffset<1000>, "Set clock ratio");
 
   opt.addFlag("-lowref", &Config.tDecSettings.eDpbMode,
-              "Specify decoder DPB Low ref (stream musn't have B-frame & reference must be at best 1",
+              "Specify decoder DPB Low ref (stream musn't have B-frame & reference must be at best 1)",
               AL_DPB_LOW_REF);
 
   opt.addFlag("-slicelat", &Config.tDecSettings.eDecUnit,
@@ -352,7 +379,7 @@ static Config ParseCommandLine(int argc, char* argv[])
   string preAllocArgs = "";
   opt.addInt("--timeout", &Config.iTimeoutInSeconds, "Specify timeout in seconds");
   opt.addInt("--max-frames", &Config.iMaxFrames, "Abort after max number of decoded frames (approximative abort)");
-  opt.addString("--prealloc-args", &preAllocArgs, "Specify the stream dimension: 1920x1080:unkwn:422:10:profile-idc:level");
+  opt.addString("--prealloc-args", &preAllocArgs, "Specify stream's parameters: '1920x1080:video-mode:422:10:profile-idc:level'.");
   opt.addString("--sei-file", &Config.seiFile, "File in which the SEI decoded by the decoder will be dumped");
 
   opt.parse(argc, argv);
@@ -366,13 +393,16 @@ static Config ParseCommandLine(int argc, char* argv[])
   if(version)
   {
     DisplayVersionInfo();
+    DisplayBuildInfo();
     exit(0);
   }
 
-  bool bOutputCompression;
-  getOutputStorageMode(Config.tDecSettings, bOutputCompression);
+  processOutputArgs(Config, sOut, sRasterOut);
 
-  if(bOutputCompression)
+  bool bMainOutputCompression;
+  getMainOutputStorageMode(Config.tDecSettings, bMainOutputCompression);
+
+  if(bMainOutputCompression)
   {
     if(bCertCRC)
     {
@@ -380,10 +410,6 @@ static Config ParseCommandLine(int argc, char* argv[])
     }
     bCertCRC = false;
   }
-
-
-  if(Config.sOut.empty())
-    Config.sOut = "dec.yuv";
 
   if(quiet)
     g_Verbosity = 0;
@@ -583,12 +609,7 @@ static void FillInternalOffsets(AL_TSrcMetaData* pMeta, AL_EFbStorageMode eFBSto
 static void ConvertFrameBuffer(AL_TBuffer& input, int iBdIn, AL_TBuffer& output, int iBdOut)
 {
   auto pRecMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(&input, AL_META_TYPE_SOURCE);
-  AL_TPicFormat tPicFormat =
-  {
-    AL_GetChromaMode(pRecMeta->tFourCC),
-    (uint8_t)iBdIn,
-    AL_GetStorageMode(pRecMeta->tFourCC)
-  };
+  AL_TPicFormat tPicFormat = AL_GetDecPicFormat(AL_GetChromaMode(pRecMeta->tFourCC), iBdIn, AL_GetStorageMode(pRecMeta->tFourCC), AL_IsCompressed(pRecMeta->tFourCC));
 
   pRecMeta->tFourCC = AL_GetDecFourCC(tPicFormat);
   auto const iSizePix = (iBdOut + 7) >> 3;
@@ -617,6 +638,138 @@ static void ConvertFrameBuffer(AL_TBuffer& input, int iBdIn, AL_TBuffer& output,
 }
 
 /******************************************************************************/
+class BaseOutputWriter
+{
+public:
+  BaseOutputWriter(const string& sYuvFileName, const string& sIPCrcFileName);
+  virtual ~BaseOutputWriter() {};
+
+  void ProcessOutput(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut);
+  virtual void ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut) = 0;
+
+protected:
+  ofstream YuvFile;
+  ofstream IpCrcFile;
+};
+
+BaseOutputWriter::BaseOutputWriter(const string& sYuvFileName, const string& sIPCrcFileName)
+{
+  if(!sYuvFileName.empty())
+  {
+    OpenOutput(YuvFile, sYuvFileName);
+  }
+
+  if(!sIPCrcFileName.empty())
+  {
+    OpenOutput(IpCrcFile, sIPCrcFileName, false);
+    IpCrcFile << hex << uppercase;
+  }
+}
+
+void BaseOutputWriter::ProcessOutput(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut)
+{
+  if(IpCrcFile.is_open())
+    IpCrcFile << std::setfill('0') << std::setw(8) << (int)info.uCRC << std::endl;
+
+  ProcessFrame(tRecBuf, info, iBdOut);
+}
+
+/******************************************************************************/
+class UncompressedOutputWriter : public BaseOutputWriter
+{
+public:
+  ~UncompressedOutputWriter();
+
+  UncompressedOutputWriter(const string& sYuvFileName, const string& sIPCrcFileName, const string& sCertCrcFileName);
+  void ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut) override;
+
+private:
+  ofstream CertCrcFile; // Cert crc only computed for uncompressed output
+  AL_TBuffer* YuvBuffer = NULL;
+};
+
+UncompressedOutputWriter::~UncompressedOutputWriter()
+{
+  if(NULL != YuvBuffer)
+  {
+    AL_Buffer_Destroy(YuvBuffer);
+  }
+}
+
+UncompressedOutputWriter::UncompressedOutputWriter(const string& sYuvFileName, const string& sIPCrcFileName, const string& sCertCrcFileName) :
+  BaseOutputWriter(sYuvFileName, sIPCrcFileName)
+{
+  if(!sCertCrcFileName.empty())
+  {
+    OpenOutput(CertCrcFile, sCertCrcFileName, false);
+    CertCrcFile << hex << uppercase;
+  }
+
+  // Conversion buffer allocation
+  AL_TPitches tPitches {};
+  AL_TOffsetYC tOffsetYC {};
+  AL_TDimension tDimension {};
+  AL_TMetaData* Meta = (AL_TMetaData*)AL_SrcMetaData_Create(tDimension, tPitches, tOffsetYC, 0);
+  YuvBuffer = AL_Buffer_Create_And_Allocate(AL_GetDefaultAllocator(), 100, NULL);
+
+  if(!YuvBuffer)
+    throw runtime_error("Couldn't allocate YuvBuffer");
+  AL_Buffer_AddMetaData(YuvBuffer, Meta);
+}
+
+void UncompressedOutputWriter::ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut)
+{
+  auto pRecMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(&tRecBuf, AL_META_TYPE_SOURCE);
+  auto pYuvMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(YuvBuffer, AL_META_TYPE_SOURCE);
+
+  if(YuvFile.is_open() || CertCrcFile.is_open())
+  {
+    int iBdIn = max(info.uBitDepthY, info.uBitDepthC);
+
+    if(iBdIn > 8)
+      iBdIn = 10;
+
+    if(iBdOut > 8)
+      iBdOut = 10;
+
+    auto const iSizePix = (iBdOut + 7) >> 3;
+
+    ConvertFrameBuffer(tRecBuf, iBdIn, *YuvBuffer, iBdOut);
+
+    if(info.tCrop.bCropping)
+      CropFrame(YuvBuffer, iSizePix, info.tCrop.uCropOffsetLeft, info.tCrop.uCropOffsetRight, info.tCrop.uCropOffsetTop, info.tCrop.uCropOffsetBottom);
+
+    if(CertCrcFile.is_open())
+    {
+      // compute crc
+      int sx = 1, sy = 1;
+      AL_GetSubsampling(pRecMeta->tFourCC, &sx, &sy);
+      int const iNumPix = pYuvMeta->tDim.iHeight * pYuvMeta->tDim.iWidth;
+      int const iNumPixC = iNumPix / sx / sy;
+      auto eChromaMode = AL_GetChromaMode(pRecMeta->tFourCC);
+
+      if(iBdOut == 8)
+      {
+        uint8_t* pBuf = AL_Buffer_GetData(YuvBuffer);
+        Compute_CRC(info.uBitDepthY, info.uBitDepthC, iBdOut, iNumPix, iNumPixC, eChromaMode, pBuf, CertCrcFile);
+      }
+      else
+      {
+        uint16_t* pBuf = (uint16_t*)AL_Buffer_GetData(YuvBuffer);
+        Compute_CRC(info.uBitDepthY, info.uBitDepthC, iBdOut, iNumPix, iNumPixC, eChromaMode, pBuf, CertCrcFile);
+      }
+    }
+
+    if(YuvFile.is_open())
+    {
+      auto uSize = GetPictureSizeInSamples(pYuvMeta) * iSizePix;
+      YuvFile.write((const char*)AL_Buffer_GetData(YuvBuffer), uSize);
+    }
+  }
+}
+
+
+/******************************************************************************/
 struct Display
 {
   Display()
@@ -629,17 +782,14 @@ struct Display
     Rtos_DeleteEvent(hExitMain);
   }
 
+  void AddOutputWriter(AL_e_FbStorageMode eFbStorageMode, bool bCompressionEnabled, const string& sYuvFileName, const string& sIPCrcFileName, const string& sCertCrcFileName, bool bIsAVC);
+
   void Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo);
   void ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut);
-  void ProcessCompressedFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info);
-  void ProcessNotCompressedFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut);
 
   AL_HDecoder hDec = NULL;
   AL_EVENT hExitMain = NULL;
-  ofstream YuvFile;
-  ofstream IpCrcFile;
-  ofstream CertCrcFile;
-  AL_TBuffer* YuvBuffer = NULL;
+  std::map<AL_EFbStorageMode, std::shared_ptr<BaseOutputWriter>> writers;
   int iBitDepth = 8;
   unsigned int NumFrames = 0;
   unsigned int MaxFrames = UINT_MAX;
@@ -663,6 +813,16 @@ struct DecodeParam
   AL_HDecoder hDec;
   atomic<int> decodedFrames;
 };
+
+/******************************************************************************/
+void Display::AddOutputWriter(AL_e_FbStorageMode eFbStorageMode, bool bCompressionEnabled, const string& sYuvFileName, const string& sIPCrcFileName, const string& sCertCrcFileName, bool bIsAVC)
+{
+  (void)bIsAVC;
+  (void)bCompressionEnabled;
+  {
+    writers[eFbStorageMode] = std::shared_ptr<BaseOutputWriter>(new UncompressedOutputWriter(sYuvFileName, sIPCrcFileName, sCertCrcFileName));
+  }
+}
 
 /******************************************************************************/
 static void sFrameDecoded(AL_TBuffer* pDecodedFrame, void* pUserParam)
@@ -734,76 +894,27 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
   assert(AL_Buffer_GetData(pFrame));
 
   ProcessFrame(*pFrame, *pInfo, iBitDepth);
-  AL_Decoder_PutDisplayPicture(hDec, pFrame);
 
-  DisplayFrameStatus(NumFrames);
-  NumFrames++;
+  bool shouldDisplayPicture = true;
 
-  if(NumFrames > MaxFrames)
-    Rtos_SetEvent(hExitMain);
+  if(shouldDisplayPicture)
+  {
+    AL_Decoder_PutDisplayPicture(hDec, pFrame);
+
+    // TODO: increase only when last frame
+    DisplayFrameStatus(NumFrames);
+    NumFrames++;
+
+    if(NumFrames > MaxFrames)
+      Rtos_SetEvent(hExitMain);
+  }
 }
 
 /******************************************************************************/
 void Display::ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut)
 {
-  if(IpCrcFile.is_open())
-    IpCrcFile << std::setfill('0') << std::setw(8) << (int)info.uCRC << std::endl;
-
-  {
-    ProcessNotCompressedFrame(tRecBuf, info, iBdOut);
-  }
-}
-
-
-void Display::ProcessNotCompressedFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut)
-{
-  auto pRecMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(&tRecBuf, AL_META_TYPE_SOURCE);
-  auto pYuvMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(YuvBuffer, AL_META_TYPE_SOURCE);
-
-  if(YuvFile.is_open() || CertCrcFile.is_open())
-  {
-    int iBdIn = max(info.uBitDepthY, info.uBitDepthC);
-
-    if(iBdIn > 8)
-      iBdIn = 10;
-
-    if(iBdOut > 8)
-      iBdOut = 10;
-
-    auto const iSizePix = (iBdOut + 7) >> 3;
-
-    ConvertFrameBuffer(tRecBuf, iBdIn, *YuvBuffer, iBdOut);
-
-    if(info.tCrop.bCropping)
-      CropFrame(YuvBuffer, iSizePix, info.tCrop.uCropOffsetLeft, info.tCrop.uCropOffsetRight, info.tCrop.uCropOffsetTop, info.tCrop.uCropOffsetBottom);
-
-    if(CertCrcFile.is_open())
-    {
-      // compute crc
-      int sx = 1, sy = 1;
-      AL_GetSubsampling(pRecMeta->tFourCC, &sx, &sy);
-      int const iNumPix = pYuvMeta->tDim.iHeight * pYuvMeta->tDim.iWidth;
-      int const iNumPixC = iNumPix / sx / sy;
-      auto eChromaMode = AL_GetChromaMode(pRecMeta->tFourCC);
-
-      if(iBdOut == 8)
-      {
-        uint8_t* pBuf = AL_Buffer_GetData(YuvBuffer);
-        Compute_CRC(info.uBitDepthY, info.uBitDepthC, iBdOut, iNumPix, iNumPixC, eChromaMode, pBuf, CertCrcFile);
-      }
-      else
-      {
-        uint16_t* pBuf = (uint16_t*)AL_Buffer_GetData(YuvBuffer);
-        Compute_CRC(info.uBitDepthY, info.uBitDepthC, iBdOut, iNumPix, iNumPixC, eChromaMode, pBuf, CertCrcFile);
-      }
-    }
-
-    if(YuvFile.is_open())
-    {
-      auto uSize = GetPictureSizeInSamples(pYuvMeta) * iSizePix;
-      YuvFile.write((const char*)AL_Buffer_GetData(YuvBuffer), uSize);
-    }
-  }
+  if(writers.find(info.eFbStorageMode) != writers.end())
+    writers[info.eFbStorageMode]->ProcessOutput(tRecBuf, info, iBdOut);
 }
 
 static string FourCCToString(TFourCC tFourCC)
@@ -813,7 +924,20 @@ static string FourCCToString(TFourCC tFourCC)
   return ss.str();
 };
 
-static void showResolutionInfo(int BufferNumber, int BufferSize, AL_TStreamSettings const* pSettings, AL_TCropInfo const* pCropInfo, TFourCC tFourCC)
+static string SequencePictureToString(AL_ESequenceMode sequencePicture)
+{
+  if(sequencePicture == AL_SM_UNKNOWN)
+    return "unknown";
+
+  if(sequencePicture == AL_SM_PROGRESSIVE)
+    return "progressive";
+
+  if(sequencePicture == AL_SM_INTERLACED)
+    return "interlaced";
+  return "max enum";
+}
+
+static void showStreamInfo(int BufferNumber, int BufferSize, AL_TStreamSettings const* pSettings, AL_TCropInfo const* pCropInfo, TFourCC tFourCC)
 {
   auto& tDim = pSettings->tDim;
   int iWidth = tDim.iWidth;
@@ -824,6 +948,7 @@ static void showResolutionInfo(int BufferNumber, int BufferSize, AL_TStreamSetti
   ss << "FourCC : " << FourCCToString(tFourCC) << endl;
   ss << "Profile : " << pSettings->iProfileIdc << endl;
   ss << "Level : " << pSettings->iLevel << endl;
+  ss << "Bitdepth : " << pSettings->iBitDepth << endl;
 
   if(AL_NeedsCropping(pCropInfo))
   {
@@ -833,9 +958,10 @@ static void showResolutionInfo(int BufferNumber, int BufferSize, AL_TStreamSetti
     ss << "Crop bottom : " << pCropInfo->uCropOffsetBottom << endl;
     ss << "Crop left   : " << pCropInfo->uCropOffsetLeft << endl;
     ss << "Crop right  : " << pCropInfo->uCropOffsetRight << endl;
-    ss << "Display Resolution : " << iWidth - uCropWidth << "x" << iHeight - uCropHeight << endl;
+    ss << "Display resolution : " << iWidth - uCropWidth << "x" << iHeight - uCropHeight << endl;
   }
-  ss << "Buffer needed : " << BufferNumber << " of size " << BufferSize << endl;
+  ss << "Sequence picture : " << SequencePictureToString(pSettings->eSequenceMode) << endl;
+  ss << "Buffers needed : " << BufferNumber << " of size " << BufferSize << endl;
 
   Message(CC_DARK_BLUE, "%s\n", ss.str().c_str());
 }
@@ -889,23 +1015,17 @@ static void sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSett
   if(!p->hDec)
     return;
 
-  bool bOutputCompression;
-  AL_e_FbStorageMode eOutputStorageMode = getOutputStorageMode(*pDecSettings, bOutputCompression);
+  bool bMainOutputCompression;
+  AL_e_FbStorageMode eMainOutputStorageMode = getMainOutputStorageMode(*pDecSettings, bMainOutputCompression);
 
-  AL_TPicFormat tPicFormat =
-  {
-    pSettings->eChroma,
-    (uint8_t)pSettings->iBitDepth,
-    eOutputStorageMode
-  };
-
+  auto tPicFormat = AL_GetDecPicFormat(pSettings->eChroma, pSettings->iBitDepth, eMainOutputStorageMode, bMainOutputCompression);
   auto tFourCC = AL_GetDecFourCC(tPicFormat);
 
-  int minPitch = AL_Decoder_GetMinPitch(pSettings->tDim.iWidth, pSettings->iBitDepth, eOutputStorageMode);
-  int BufferSize = AL_DecGetAllocSize_Frame(pSettings->tDim, minPitch, pSettings->eChroma, bOutputCompression, eOutputStorageMode);
+  int minPitch = AL_Decoder_GetMinPitch(pSettings->tDim.iWidth, pSettings->iBitDepth, eMainOutputStorageMode);
+  int BufferSize = AL_DecGetAllocSize_Frame(pSettings->tDim, minPitch, pSettings->eChroma, bMainOutputCompression, eMainOutputStorageMode);
   assert(BufferSize >= BufferSizeLib);
 
-  showResolutionInfo(BufferNumber, BufferSize, pSettings, pCropInfo, tFourCC);
+  showStreamInfo(BufferNumber, BufferSize, pSettings, pCropInfo, tFourCC);
 
   /* We do not support in stream resolution change */
   if(p->bPoolIsInit)
@@ -1057,20 +1177,6 @@ void SafeMain(int argc, char** argv)
   auto pAllocator = pIpDevice->m_pAllocator.get();
   auto pDecChannel = pIpDevice->m_pDecChannel;
 
-  AL_TPitches tPitches {};
-  AL_TOffsetYC tOffsetYC {};
-  AL_TDimension tDimension {};
-  AL_TMetaData* Meta = (AL_TMetaData*)AL_SrcMetaData_Create(tDimension, tPitches, tOffsetYC, 0);
-  auto YuvBuffer = AL_Buffer_Create_And_Allocate(AL_GetDefaultAllocator(), 100, NULL);
-
-  if(!YuvBuffer)
-    throw runtime_error("Couldn't allocate YuvBuffer");
-  AL_Buffer_AddMetaData(YuvBuffer, Meta);
-
-  auto scopeBuffer = scopeExit([&]() {
-    AL_Buffer_Destroy(YuvBuffer);
-  });
-
   BufPool bufPool;
 
   {
@@ -1089,25 +1195,20 @@ void SafeMain(int argc, char** argv)
 
   Display display;
 
-  if(Config.bEnableYUVOutput)
+  bool bHasOutput = Config.bEnableYUVOutput || bCertCRC || !Config.sCrc.empty();
+
+  if(bHasOutput)
   {
-    OpenOutput(display.YuvFile, Config.sOut);
+    const bool bIsAVC = AL_CODEC_AVC == Config.tDecSettings.eCodec;
+    const string sCertCrcFile = bCertCRC ? "crc_certif_res.hex" : "";
+
+    bool bMainOutputCompression;
+    AL_e_FbStorageMode eMainOutputStorageMode = getMainOutputStorageMode(Config.tDecSettings, bMainOutputCompression);
+
+    display.AddOutputWriter(eMainOutputStorageMode, bMainOutputCompression, Config.sMainOut, Config.sCrc, sCertCrcFile, bIsAVC);
 
   }
 
-  if(bCertCRC)
-  {
-    OpenOutput(display.CertCrcFile, "crc_certif_res.hex", false);
-    display.CertCrcFile << hex << uppercase;
-  }
-
-  if(!Config.sCrc.empty())
-  {
-    OpenOutput(display.IpCrcFile, Config.sCrc, false);
-    display.IpCrcFile << hex << uppercase;
-  }
-
-  display.YuvBuffer = YuvBuffer;
   display.iBitDepth = Config.tDecSettings.iBitDepth;
   display.MaxFrames = Config.iMaxFrames;
 
@@ -1147,7 +1248,7 @@ void SafeMain(int argc, char** argv)
   tDecodeParam.hDec = hDec;
   ResolutionFoundParam.hDec = hDec;
 
-  AL_Decoder_SetParam(hDec, Config.bConceal, iUseBoard ? true : false, Config.iNumTrace, Config.iNumberTrace);
+  AL_Decoder_SetParam(hDec, Config.bConceal, iUseBoard ? true : false, Config.iNumTrace, Config.iNumberTrace, Config.bForceCleanBuffers);
 
   if(!invalidPreallocSettings(Config.tDecSettings.tStream))
   {

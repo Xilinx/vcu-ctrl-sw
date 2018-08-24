@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -82,7 +82,7 @@ typedef enum e_PicStatus
    \brief Picture Manager Callback prototype
    \ingroup BufPool
 *****************************************************************************/
-typedef struct AL_t_PictureManagerCallbacks
+typedef struct
 {
   void (* pfnIncrementFrmBuf)(void* pUserParam, int iFrameID); /*!< Callback Callback Function to signal that a Frame Buffer is used by the DPB */
   void (* pfnDecrementFrmBuf)(void* pUserParam, int iFrameID); /*!< Callback Callback Function to signal that a frame buffer is no more used by the DPB */
@@ -92,7 +92,7 @@ typedef struct AL_t_PictureManagerCallbacks
   void (* pfnDecrementMvBuf)(void* pUserParam, uint8_t MvID); /*!< Callback Callback Function to signal that a Motion_vector buffer is no more used by the DPB */
 
   void* pUserParam; /*!< pointer to be passed each time one to the following callback is called */
-}AL_TPictureManagerCallbacks;
+}AL_TDpbCallback;
 
 /*************************************************************************//*!
    \ingroup BufPool
@@ -203,7 +203,7 @@ typedef struct t_DPB
   bool bLastHasMMCO5;
   AL_EDpbMode eMode; /*!< Possible DPB mode */
 
-  AL_TPictureManagerCallbacks tCallbacks; /*!< Callbacks to picture manager */
+  AL_TDpbCallback tCallbacks; /*!< Callbacks to picture manager */
 }AL_TDpb;
 
 /*************************************************************************//*!
@@ -213,7 +213,7 @@ typedef struct t_DPB
    \param[in]     eMode              Mode choose by user for the dpb
    \param[in]     tCallbacks         Picture manager callbacks
 *****************************************************************************/
-void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, AL_EDpbMode eMode, AL_TPictureManagerCallbacks tCallbacks);
+void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, AL_EDpbMode eMode, AL_TDpbCallback tCallbacks);
 
 /*************************************************************************//*!
    \brief Flush last DPB removal orders
@@ -254,12 +254,6 @@ uint8_t AL_Dpb_GetHeadPOC(AL_TDpb* pDpb);
    \return returns the number of picture needed for output
 *****************************************************************************/
 uint8_t AL_Dpb_GetNumOutputPict(AL_TDpb* pDpb);
-
-/*************************************************************************//*!
-   \brief This function gets the last available picture for output index
-   \param[in] pDpb Pointer to a DPB context object
-*****************************************************************************/
-uint8_t AL_Dpb_GetFifoLast(AL_TDpb* pDpb);
 
 /*************************************************************************//*!
    \brief This function return the Pic ID of the last inserted frame
@@ -495,7 +489,7 @@ uint8_t AL_Dpb_GetOutputFlag(AL_TDpb* pDpb, uint8_t uNode);
    \param[in,out] pDpb    Pointer to a DPB context object
    \param[in]     uNode   Picture identifer in the DPB Node
 *****************************************************************************/
-void AL_Dpb_ResetOutputFlag(AL_TDpb* pDpb, uint8_t uNode);
+void AL_Dpb_ResetOutputFlag(AL_TDpb* pDpb, uint8_t uNode); // UNUSED
 
 /*************************************************************************//*!
    \brief This function retrieves the reference status of a specific picture
@@ -522,14 +516,6 @@ void AL_Dpb_SetMarkingFlag(AL_TDpb* pDpb, uint8_t uNode, AL_EMarkingRef eMarking
 uint32_t AL_Dpb_GetPicLatency_FromNode(AL_TDpb* pDpb, uint8_t uNodeID);
 
 /*************************************************************************//*!
-   \brief This function gets the latency of a specific picture in the Display fifo
-   \param[in] pDpb   Pointer to a DPB context object
-   \param[in] uFrmID Picture identifier in the Display fifo
-   \return return the picture's latency
-*****************************************************************************/
-uint32_t AL_Dpb_GetPicLatency_FromFifo(AL_TDpb* pDpb, uint8_t uFrmID);
-
-/*************************************************************************//*!
    \brief This function gets the Pic ID of a specific picture in the DPB Nodes
    \param[in] pDpb  Pointer to a DPB context object
    \param[in] uNode Picture identifier in the DPB Node
@@ -552,14 +538,6 @@ uint8_t AL_Dpb_GetMvID_FromNode(AL_TDpb* pDpb, uint8_t uNode);
    \return return the picture's FrmID
 *****************************************************************************/
 uint8_t AL_Dpb_GetFrmID_FromNode(AL_TDpb* pDpb, uint8_t uNode);
-
-/*************************************************************************//*!
-   \brief This function gets the frame ID of a specific picture in the Display fifo
-   \param[in] pDpb Pointer to a DPB context object
-   \param[in] uID  Picture identifier in the Display fifo
-   \return return the picture's FrmID
-*****************************************************************************/
-uint8_t AL_Dpb_GetFrmID_FromFifo(AL_TDpb* pDpb, uint8_t uID);
 
 /*************************************************************************//*!
    \brief Increment the latency of a specific pcture when it follows the current picture in output order

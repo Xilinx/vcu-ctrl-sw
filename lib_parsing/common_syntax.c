@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -51,13 +51,13 @@
 #define Min(a, b) (a < b) ? a : b
 
 /*****************************************************************************/
-void profile_tier_level(AL_TProfilevel* pPrfLvl, uint8_t uMaxSubLayers, AL_TRbspParser* pRP)
+void profile_tier_level(AL_TProfilevel* pPrfLvl, int iMaxSubLayers, AL_TRbspParser* pRP)
 {
   pPrfLvl->general_profile_space = u(pRP, 2);
   pPrfLvl->general_tier_flag = u(pRP, 1);
   pPrfLvl->general_profile_idc = u(pRP, 5);
 
-  for(uint8_t i = 0; i < 32; ++i)
+  for(int i = 0; i < 32; ++i)
     pPrfLvl->general_profile_compatibility_flag[i] = u(pRP, 1);
 
   pPrfLvl->general_progressive_source_flag = u(pRP, 1);
@@ -84,19 +84,19 @@ void profile_tier_level(AL_TProfilevel* pPrfLvl, uint8_t uMaxSubLayers, AL_TRbsp
 
   pPrfLvl->general_level_idc = u(pRP, 8);
 
-  for(uint8_t i = 0; i < uMaxSubLayers; ++i)
+  for(int i = 0; i < iMaxSubLayers; ++i)
   {
     pPrfLvl->sub_layer_profile_present_flag[i] = u(pRP, 1);
     pPrfLvl->sub_layer_level_present_flag[i] = u(pRP, 1);
   }
 
-  if(uMaxSubLayers > 0)
+  if(iMaxSubLayers > 0)
   {
-    for(uint8_t i = uMaxSubLayers; i < 8; i++)
+    for(int i = iMaxSubLayers; i < 8; i++)
       skip(pRP, 2); // reserved_zero_2_bits
   }
 
-  for(uint8_t i = 0; i < uMaxSubLayers; ++i)
+  for(int i = 0; i < iMaxSubLayers; ++i)
   {
     if(pPrfLvl->sub_layer_profile_present_flag[i])
     {
@@ -104,7 +104,7 @@ void profile_tier_level(AL_TProfilevel* pPrfLvl, uint8_t uMaxSubLayers, AL_TRbsp
       pPrfLvl->sub_layer_tier_flag[i] = u(pRP, 1);
       pPrfLvl->sub_layer_profile_idc[i] = u(pRP, 5);
 
-      for(uint8_t j = 0; j < 32; ++j)
+      for(int j = 0; j < 32; ++j)
         pPrfLvl->sub_layer_profile_compatibility_flag[i][j] = u(pRP, 1);
 
       pPrfLvl->sub_layer_progressive_source_flag[i] = u(pRP, 1);
@@ -238,7 +238,7 @@ void hevc_scaling_list_data(AL_TSCLParam* pSCLParam, AL_TRbspParser* pRP)
 /*****************************************************************************/
 static bool avc_hrd_parameters(AL_TRbspParser* pRP, AL_THrdParam* pHrdParam, AL_TSubHrdParam* pSubHrdParam)
 {
-  for(uint8_t i = 0; i < 32; ++i)
+  for(int i = 0; i < 32; ++i)
   {
     pSubHrdParam->bit_rate_value_minus1[i] =
       pSubHrdParam->cpb_size_value_minus1[i] =
@@ -269,7 +269,7 @@ static bool avc_hrd_parameters(AL_TRbspParser* pRP, AL_THrdParam* pHrdParam, AL_
 }
 
 /*****************************************************************************/
-static void sub_hrd_parameters(AL_TSubHrdParam* pSubHrdParam, uint8_t cpb_cnt, uint8_t sub_pic_hrd_params_present_flag, AL_TRbspParser* pRP)
+static void sub_hrd_parameters(AL_TSubHrdParam* pSubHrdParam, int cpb_cnt, uint8_t sub_pic_hrd_params_present_flag, AL_TRbspParser* pRP)
 {
   for(int i = 0; i <= cpb_cnt; ++i)
   {
@@ -286,7 +286,7 @@ static void sub_hrd_parameters(AL_TSubHrdParam* pSubHrdParam, uint8_t cpb_cnt, u
 }
 
 /*****************************************************************************/
-void hevc_hrd_parameters(AL_THrdParam* pHrdParam, bool bInfoFlag, uint8_t uMaxSubLayers, AL_TRbspParser* pRP)
+void hevc_hrd_parameters(AL_THrdParam* pHrdParam, bool bInfoFlag, int iMaxSubLayers, AL_TRbspParser* pRP)
 {
   if(bInfoFlag)
   {
@@ -321,7 +321,7 @@ void hevc_hrd_parameters(AL_THrdParam* pHrdParam, bool bInfoFlag, uint8_t uMaxSu
     pHrdParam->vcl_hrd_parameters_present_flag = 0;
   }
 
-  for(uint8_t i = 0; i <= uMaxSubLayers; ++i)
+  for(int i = 0; i <= iMaxSubLayers; ++i)
   {
     /* initialization */
     pHrdParam->low_delay_hrd_flag[i] = 0;
@@ -444,10 +444,10 @@ bool avc_vui_parameters(AL_TVuiParam* pVuiParam, AL_TRbspParser* pRP)
 /*************************************************************************//*!
    \brief The  vui_parameters parsing
    \param[out] pVuiParam Pointer to the vui_parameters structure that will be filled
-   \param[in]  uMaxSubLayers Max number of sub layer
+   \param[in]  iMaxSubLayers Max number of sub layer
    \param[in]  pRP       Pointer to NAL parser
 *****************************************************************************/
-void hevc_vui_parameters(AL_TVuiParam* pVuiParam, uint8_t uMaxSubLayers, AL_TRbspParser* pRP)
+void hevc_vui_parameters(AL_TVuiParam* pVuiParam, int iMaxSubLayers, AL_TRbspParser* pRP)
 {
   pVuiParam->aspect_ratio_info_present_flag = u(pRP, 1);
 
@@ -518,7 +518,7 @@ void hevc_vui_parameters(AL_TVuiParam* pVuiParam, uint8_t uMaxSubLayers, AL_TRbs
     pVuiParam->vui_hrd_parameters_present_flag = u(pRP, 1);
 
     if(pVuiParam->vui_hrd_parameters_present_flag)
-      hevc_hrd_parameters(&pVuiParam->hrd_param, true, uMaxSubLayers, pRP);
+      hevc_hrd_parameters(&pVuiParam->hrd_param, true, iMaxSubLayers, pRP);
   }
 
   pVuiParam->bitstream_restriction_flag = u(pRP, 1);

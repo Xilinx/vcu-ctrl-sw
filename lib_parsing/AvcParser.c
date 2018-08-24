@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -478,7 +478,7 @@ AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   return AL_OK;
 }
 
-static bool bufferingPeriod(AL_TRbspParser* pRP, AL_TAvcSps* pSpsTable, AL_TAvcBufPeriod* pBufPeriod, AL_TAvcSps** pActiveSps)
+static bool sei_buffering_period(AL_TRbspParser* pRP, AL_TAvcSps* pSpsTable, AL_TAvcBufPeriod* pBufPeriod, AL_TAvcSps** pActiveSps)
 {
   AL_TAvcSps* pSPS = NULL;
 
@@ -520,7 +520,7 @@ static bool bufferingPeriod(AL_TRbspParser* pRP, AL_TAvcSps* pSpsTable, AL_TAvcB
 }
 
 /*****************************************************************************/
-static bool spic_timing(AL_TRbspParser* pRP, AL_TAvcSps* pSPS, AL_TAvcPicTiming* pPicTiming)
+static bool sei_pic_timing(AL_TRbspParser* pRP, AL_TAvcSps* pSPS, AL_TAvcPicTiming* pPicTiming)
 {
   uint8_t time_offset_length = 0;
 
@@ -609,9 +609,25 @@ static bool spic_timing(AL_TRbspParser* pRP, AL_TAvcSps* pSPS, AL_TAvcPicTiming*
   return byte_alignment(pRP);
 }
 
+/*****************************************************************************/
+static bool sei_recovery_point(AL_TRbspParser* pRP, AL_TRecoveryPoint* pRecoveryPoint)
+{
+  Rtos_Memset(pRecoveryPoint, 0, sizeof(*pRecoveryPoint));
+
+  pRecoveryPoint->recovery_cnt = ue(pRP);
+  pRecoveryPoint->exact_match = u(pRP, 1);
+  pRecoveryPoint->broken_link = u(pRP, 1);
+
+  /*changing_slice_group_idc = */ u(pRP, 2);
+
+  return byte_alignment(pRP);
+}
+
 #define BUFFERING_PERIOD 0
 #define PIC_TIMING 1
 #define USER_DATA_UNREGISTERED 5
+#define RECOVERY_POINT 6
+
 /*****************************************************************************/
 bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
 {
@@ -659,7 +675,7 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
     case BUFFERING_PERIOD: // buffering_period parsing
     {
       uint32_t uOffset = offset(pRP);
-      bool bRet = bufferingPeriod(pRP, aup->pSPS, &sei.buffering_period, &aup->pActiveSPS);
+      bool bRet = sei_buffering_period(pRP, aup->pSPS, &sei.buffering_period, &aup->pActiveSPS);
 
       if(!bRet)
       {
@@ -674,7 +690,7 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
 
       if(aup->pActiveSPS)
       {
-        bool bRet = spic_timing(pRP, aup->pActiveSPS, &sei.picture_timing);
+        bool bRet = sei_pic_timing(pRP, aup->pActiveSPS, &sei.picture_timing);
 
         if(!bRet)
           skip(pRP, payload_size << 3);
@@ -687,6 +703,16 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
     case USER_DATA_UNREGISTERED: // user_data_unregistered parsing
     {
       skip(pRP, payload_size << 3); // skip data
+    } break;
+
+    case RECOVERY_POINT: // picture_timing parsing
+    {
+      bool bRet = sei_recovery_point(pRP, &sei.recovery_point);
+
+      if(!bRet)
+        skip(pRP, payload_size << 3);
+
+      aup->iRecoveryCnt = sei.recovery_point.recovery_cnt;
     } break;
 
     default: // payload not supported

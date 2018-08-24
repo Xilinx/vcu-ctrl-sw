@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -48,7 +48,6 @@
 
 #include "lib_rtos/types.h"
 #include "lib_common/SliceConsts.h"
-#include "lib_common/BufCommon.h"
 
 #define NUMCORE_AUTO 0
 
@@ -98,6 +97,12 @@ static AL_INLINE int Sign(int iVal)
 static AL_INLINE int RoundUp(int iVal, int iRnd)
 {
   return (iVal + iRnd - 1) / iRnd * iRnd;
+}
+
+/***************************************************************************/
+static AL_INLINE int RoundDown(int iVal, int iRnd)
+{
+  return iVal & ~(iRnd - 1);
 }
 
 AL_INLINE static AL_ECodec AL_GetCodec(AL_EProfile eProf)
@@ -188,6 +193,7 @@ bool AL_HEVC_IsVcl(AL_ENut eNUT);
 
 /***************************************************************************/
 int ceil_log2(uint16_t n);
+int floor_log2(uint16_t n);
 
 /***************************************************************************/
 #define ROUND_POWER_OF_TWO(value, n) (((value) + (1 << ((n) - 1))) >> (n))

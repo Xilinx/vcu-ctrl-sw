@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -44,7 +44,7 @@ static bool destroy(AL_TMetaData* pMeta)
   return true;
 }
 
-AL_TCircMetaData* AL_CircMetaData_Create(uint32_t uOffset, uint32_t uAvailSize, bool bLastBuffer)
+AL_TCircMetaData* AL_CircMetaData_Create(int32_t iOffset, int32_t iAvailSize, bool bLastBuffer)
 {
   AL_TCircMetaData* pMeta = Rtos_Malloc(sizeof(*pMeta));
 
@@ -53,8 +53,8 @@ AL_TCircMetaData* AL_CircMetaData_Create(uint32_t uOffset, uint32_t uAvailSize, 
 
   pMeta->tMeta.eType = AL_META_TYPE_CIRCULAR;
   pMeta->tMeta.MetaDestroy = destroy;
-  pMeta->uOffset = uOffset;
-  pMeta->uAvailSize = uAvailSize;
+  pMeta->iOffset = iOffset;
+  pMeta->iAvailSize = iAvailSize;
   pMeta->bLastBuffer = bLastBuffer;
 
   return pMeta;
@@ -62,6 +62,6 @@ AL_TCircMetaData* AL_CircMetaData_Create(uint32_t uOffset, uint32_t uAvailSize, 
 
 AL_TCircMetaData* AL_CircMetaData_Clone(AL_TCircMetaData* pMeta)
 {
-  return AL_CircMetaData_Create(pMeta->uOffset, pMeta->uAvailSize, pMeta->bLastBuffer);
+  return AL_CircMetaData_Create(pMeta->iOffset, pMeta->iAvailSize, pMeta->bLastBuffer);
 }
 

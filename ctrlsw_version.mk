@@ -1,5 +1,5 @@
 MAJOR=0
-MINOR=8
+MINOR=9
 STEP=0
 CTRLSW_VER?=$(shell ./setlocalversion.sh)
 

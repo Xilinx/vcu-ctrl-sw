@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -45,7 +45,7 @@ typedef enum AL_e_VideoMode
   AL_VM_PROGRESSIVE = 0, /*!< Progressive */
   AL_VM_INTERLACED_TOP = 1, /*!< interlaced top filed first */
   AL_VM_INTERLACED_BOTTOM = 2, /*!< interlaced bottom field first */
-  AL_VM_MAX_ENUM,
+  AL_VM_MAX_ENUM
 }AL_EVideoMode;
 
 /*************************************************************************//*!

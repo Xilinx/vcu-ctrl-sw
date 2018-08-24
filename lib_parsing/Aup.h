@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -51,6 +51,7 @@ typedef struct
   AL_THevcSps* pActiveSPS;          // Holds only the currently active SPS.
 
   AL_EPicStruct ePicStruct;
+  int iRecoveryCnt;
 }AL_THevcAup;
 
 typedef struct
@@ -61,6 +62,7 @@ typedef struct
   AL_TAvcSps* pActiveSPS;    // Holds only the currently active ParserSPS.
 
   AL_ESliceType ePictureType;
+  int iRecoveryCnt;
 }AL_TAvcAup;
 
 typedef struct

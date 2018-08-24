@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -37,38 +37,60 @@
 
 #pragma once
 
-#include "lib_rtos/types.h"
-#include "lib_common/SliceConsts.h"
+#include <fstream>
+#include <vector>
+#include <cstring>
 
-/****************************************************************************/
-static const uint8_t AL_LAMBDAs_AUTO_QP[52] =
-{ // Inter : Table containing pow(2,QP/6-2).
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 2, 2, 2, 2, 2, 2, 2,
-  2, 2, 2, 2, 3, 3, 3, 3, 3, 4,
-  4, 4, 5, 5, 6, 7, 9, 12, 16, 21,
-  27, 34
-};
-
-static const uint8_t DEFAULT_QP_CTRL_TABLE[20] =
+extern "C"
 {
-  0xc4, 0x09, 0xe8, 0x03, 0x00, 0x01, 0x88, 0x13, 0x58, 0x1b, 0x28, 0x23,
-  0x01, 0x03, 0x0A, 0x01, 0x02, 0x03, 0x06, 0x33
-};
+#include <lib_common/BufferLookAheadMeta.h>
+#include <lib_common/BufferAPI.h>
+#include <lib_common_enc/Settings.h>
+}
 
-static const uint8_t DEFAULT_QP_CTRL_TABLE_VP9[20] =
-{
-  0xDC, 0x05, 0xF4, 0x01, 0x00, 0x00, 0x58, 0x1B, 0x28, 0x23, 0xFF, 0xFF,
-  0x05, 0x0A, 0x00, 0x05, 0x0A, 0x00, 0x00, 0xFF
-};
+bool AL_TwoPassMngr_HasLookAhead(AL_TEncSettings settings);
+void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings);
+bool AL_TwoPassMngr_SceneChangeDetected(AL_TBuffer* pPrevSrc, AL_TBuffer* pCurrentSrc);
 
-static const uint8_t DEFAULT_QP_CTRL_TABLE_VP9_2[20] =
-{
-  0xc4, 0x09, 0xe8, 0x03, 0x00, 0x01, 0x88, 0x13, 0x58, 0x1b, 0x28, 0x23,
-  0x05, 0x0F, 0x32, 0x05, 0x0A, 0x0F, 0x00, 0xFF
-};
+/*************************************************************************//*!
+   \brief Computes and returns the IPRatio between the two frames
+   \param[in] pCurrentSrc       Pointer to the I frame
+   \param[in] pNextSrc       Pointer to the P frame
+   \return the computed IPRatio
+*****************************************************************************/
+int32_t AL_TwoPassMngr_GetIPRatio(AL_TBuffer* pCurrentSrc, AL_TBuffer* pNextSrc);
 
 /***************************************************************************/
-void AL_UpdateAutoQpCtrl(uint8_t* pQpCtrl, int iSumCplx, int iNumPUs, int iSliceQP, int iMinPQ, int iMaxQP, bool bUseDefault, bool bVP9);
+/*Offline TwoPass structures and methods*/
+/***************************************************************************/
+
+/*
+** Struct for TwoPass management
+** Writes First Pass informations on the logfile
+** Reads and computes the logfile for the Second Pass
+*/
+struct TwoPassMngr
+{
+  TwoPassMngr(std::string p_FileName, int p_iPass);
+  ~TwoPassMngr();
+
+  void OpenLog();
+  void CloseLog();
+  void EmptyLog();
+  void FillLog();
+  void AddNewFrame(int iPictureSize, int iPercentIntra, int iPercentSkip);
+  void AddFrame(AL_TLookAheadMetaData* pMetaData);
+  void GetFrame(AL_TLookAheadMetaData* pMetaData);
+  void Flush();
+  AL_TLookAheadMetaData* CreateAndAttachTwoPassMetaData(AL_TBuffer* Src);
+  void ComputeTwoPass();
+  void ComputeComplexity();
+
+  int iPass;
+  std::string FileName;
+  std::vector<AL_TLookAheadMetaData> tFrames;
+  int iCurrentFrame;
+  std::ofstream outputFile;
+  std::ifstream inputFile;
+};
 

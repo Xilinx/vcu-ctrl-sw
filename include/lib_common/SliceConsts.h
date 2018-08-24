@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -432,6 +432,14 @@ typedef enum AL_e_FbStorageMode
 }AL_EFbStorageMode;
 
 /*************************************************************************//*!
+   \brief Decoded buffer output mode
+*****************************************************************************/
+typedef enum AL_e_BufferOutputMode
+{
+  AL_OUTPUT_INTERNAL = 0, // Output reconstructed buffers stored as in the encoder
+}AL_EBufferOutputMode;
+
+/*************************************************************************//*!
    \brief Struct for dimension
 *****************************************************************************/
 typedef struct
@@ -443,8 +451,8 @@ typedef struct
 /****************************************************************************/
 typedef enum e_SeiFlag
 {
-  // prefix
   SEI_NONE = 0x00000000, // no SEI
+  // prefix
   SEI_BP = 0x00000001, // Buffering period
   SEI_PT = 0x00000002, // Picture Timing
   SEI_RP = 0x00000004, // Recovery Point

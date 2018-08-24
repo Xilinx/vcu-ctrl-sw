@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -306,30 +306,27 @@ int LIBSYS_SNPRINTF(char* str, size_t size, const char* format, ...)
 #define snprintf LIBSYS_SNPRINTF
 #endif
 
-#define DEBUG_PATH "."
+static const string DefaultQPTablesFolder = ".";
+static const string QPTablesMotif = "QP";
+static const string QPTablesLegacyMotif = "QPs"; // Use default file (motif + "s" for backward compatibility)
+static const string QPTablesExtension = ".hex";
 
-string createQPFileName(string motif)
+string createQPFileName(const string& folder, const string& motif)
 {
-  ostringstream filename;
-  filename << DEBUG_PATH << "/" << motif << ".hex";
-  return filename.str();
-}
-
-void freeQPFileName(char* filename)
-{
-  free(filename);
+  return combinePath(folder, motif + QPTablesExtension);
 }
 
 /****************************************************************************/
-static bool OpenFile(int iFrameID, string motif, ifstream& File)
+static bool OpenFile(const string& sQPTablesFolder, int iFrameID, string motif, ifstream& File)
 {
-  auto qpFileName = createFileNameWithID(string(DEBUG_PATH) + string("/"), motif, ".hex", iFrameID);
+  string sFileFolder = sQPTablesFolder.empty() ? DefaultQPTablesFolder : sQPTablesFolder;
+
+  auto qpFileName = createFileNameWithID(sFileFolder, motif, QPTablesExtension, iFrameID);
   File.open(qpFileName);
 
   if(!File.is_open())
   {
-    // Use default file (motif + "s" for backward compatibility)
-    qpFileName = createQPFileName(motif + "s");
+    qpFileName = createQPFileName(sFileFolder, QPTablesLegacyMotif);
     File.open(qpFileName);
   }
 
@@ -337,11 +334,11 @@ static bool OpenFile(int iFrameID, string motif, ifstream& File)
 }
 
 /****************************************************************************/
-bool Load_QPTable_FromFile_Vp9(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, int iFrameID, bool bRelative)
+bool Load_QPTable_FromFile_Vp9(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, const string& sQPTablesFolder, int iFrameID, bool bRelative)
 {
   ifstream file;
 
-  if(!OpenFile(iFrameID, "QP", file))
+  if(!OpenFile(sQPTablesFolder, iFrameID, QPTablesMotif, file))
     return false;
 
   char sLine[256];
@@ -366,11 +363,11 @@ bool Load_QPTable_FromFile_Vp9(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, int 
 }
 
 /****************************************************************************/
-bool Load_QPTable_FromFile(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBytesPerLCU, int iFrameID)
+bool Load_QPTable_FromFile(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBytesPerLCU, const string& sQPTablesFolder, int iFrameID)
 {
   ifstream file;
 
-  if(!OpenFile(iFrameID, "QP", file))
+  if(!OpenFile(sQPTablesFolder, iFrameID, QPTablesMotif, file))
     return false;
 
   // Warning : the LOAD_QP is not backward compatible
@@ -675,7 +672,7 @@ bool GenerateROIBuffer(AL_TRoiMngrCtx* pRoiCtx, string const& sRoiFileName, int 
 
 
 /****************************************************************************/
-bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, int iFrameID, uint8_t* pQPs, uint8_t* pSegs)
+bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, const string& sQPTablesFolder, int iFrameID, uint8_t* pQPs, uint8_t* pSegs)
 {
   bool bRet = false;
   int iNumQPPerLCU, iNumBytesPerLCU, iNumLCUs;
@@ -731,8 +728,8 @@ bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, in
   // ------------------------------------------------------------------------
   case LOAD_QP:
   {
-    bRet = bIsAOM ? Load_QPTable_FromFile_Vp9(pSegs, pQPs, iNumLCUs, iFrameID, bRelative) :
-           Load_QPTable_FromFile(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iFrameID);
+    bRet = bIsAOM ? Load_QPTable_FromFile_Vp9(pSegs, pQPs, iNumLCUs, sQPTablesFolder, iFrameID, bRelative) :
+           Load_QPTable_FromFile(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, sQPTablesFolder, iFrameID);
   } break;
   }
 

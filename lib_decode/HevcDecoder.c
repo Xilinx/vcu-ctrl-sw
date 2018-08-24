@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -249,13 +249,12 @@ static bool isSPSCompatibleWithStreamSettings(AL_THevcSps const* pSPS, AL_TStrea
   if((pStreamSettings->tDim.iHeight > 0) && (pStreamSettings->tDim.iHeight < (tSPSDim.iHeight - iSPSCropHeight)))
     return false;
 
+  AL_ESequenceMode sequenceMode = getSequenceMode(pSPS);
 
-  AL_ESequenceMode mode = getSequenceMode(pSPS);
-
-  if(mode != AL_SM_UNKNOWN)
+  if(sequenceMode != AL_SM_UNKNOWN)
   {
-    if(((pStreamSettings->eSequenceMode != AL_SM_MAX_ENUM) && pStreamSettings->eSequenceMode != AL_SM_UNKNOWN) && (pStreamSettings->eSequenceMode != mode))
-    return false;
+    if(((pStreamSettings->eSequenceMode != AL_SM_MAX_ENUM) && pStreamSettings->eSequenceMode != AL_SM_UNKNOWN) && (pStreamSettings->eSequenceMode != sequenceMode))
+      return false;
   }
 
   return true;
@@ -291,7 +290,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
   const AL_EFbStorageMode eStorageMode = pCtx->chanParam.eFBStorageMode;
   const int iSPSMaxBitDepth = getMaxBitDepth(pSPS->profile_and_level);
 
-  bool bEnableRasterOutput = false;
+  bool bEnableRasterOutput = pCtx->chanParam.eBufferOutputMode != AL_OUTPUT_INTERNAL;
 
   AL_PictMngr_Init(&pCtx->PictMngr, pCtx->pAllocator, iMaxBuf, iSizeMV, iDpbRef, pCtx->eDpbMode, eStorageMode, iSPSMaxBitDepth, bEnableRasterOutput);
 
@@ -405,7 +404,7 @@ static bool initSlice(AL_TDecCtx* pCtx, AL_THevcSliceHdr* pSlice)
 
   if(!pSlice->dependent_slice_segment_flag)
   {
-    if(pSlice->slice_type != SLICE_I && !AL_HEVC_PictMngr_HasPictInDPB(&pCtx->PictMngr))
+    if(pSlice->slice_type != SLICE_I && !aup->iRecoveryCnt && !AL_HEVC_PictMngr_HasPictInDPB(&pCtx->PictMngr))
       return false;
 
     if(pSlice->IdrPicFlag)
@@ -695,7 +694,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     *bFirstSliceInFrameIsValid = true;
   }
 
-  if(pSlice->slice_type != SLICE_I && !AL_HEVC_PictMngr_HasPictInDPB(&pCtx->PictMngr))
+  if(pSlice->slice_type != SLICE_I && !pIAUP->hevcAup.iRecoveryCnt && !AL_HEVC_PictMngr_HasPictInDPB(&pCtx->PictMngr))
     isValid = false;
 
   if(!(*bBeginFrameIsValid) && pSlice->pSPS)
@@ -719,7 +718,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     /*check if the first Access Unit is a random access point*/
     if(!(*bFirstIsValid))
     {
-      if(bIsRAP)
+      if(bIsRAP || pAUP->iRecoveryCnt)
         *bFirstIsValid = true;
       else
       {
@@ -736,7 +735,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
       AL_HEVC_FillPictParameters(pSlice, pCtx, pPP);
     AL_HEVC_FillSliceParameters(pSlice, pCtx, pSP, false);
 
-    if(!AL_HEVC_PictMngr_BuildPictureList(&pCtx->PictMngr, pSlice, &pCtx->ListRef))
+    if(!AL_HEVC_PictMngr_BuildPictureList(&pCtx->PictMngr, pSlice, &pCtx->ListRef) && !pAUP->iRecoveryCnt)
     {
       concealSlice(pCtx, pPP, pSP, pSlice, true);
     }

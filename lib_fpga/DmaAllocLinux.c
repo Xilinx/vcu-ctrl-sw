@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -50,6 +50,17 @@
 #include "allegro_ioctl_reg.h"
 #include "DevicePool.h"
 
+#if 0
+static void LogAllocation(struct DmaBuffer* p)
+{
+  printf("Allocated: {vaddr:%p,phyaddr:%x,size:%d,offset:%d}\n", p->vaddr, p->info.phy_addr, p->info.size, p->offset);
+}
+
+#define LOG_ALLOCATION(p) LogAllocation(p)
+#else
+#define LOG_ALLOCATION(p)
+#endif
+
 struct DmaBuffer
 {
   /* ioctl structure */
@@ -57,15 +68,125 @@ struct DmaBuffer
   /* given to us with mmap */
   AL_VADDR vaddr;
   size_t offset;
+  size_t mmap_offset; /* used by non-dmabuf */
   bool shouldCloseFd;
 };
 
+#define MAX_DEVICE_FILE_NAME 30
 struct LinuxDmaCtx
 {
   AL_TLinuxDmaAllocator base;
-  char deviceFile[30];
+  char deviceFile[MAX_DEVICE_FILE_NAME];
   int fd;
 };
+
+/******************************************************************************/
+static bool LinuxDma_Free(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
+{
+  (void)pAllocator;
+  struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)hBuf;
+  bool bRet = true;
+
+  if(!pDmaBuffer)
+    return true;
+
+  if(pDmaBuffer->vaddr && (munmap(pDmaBuffer->vaddr - pDmaBuffer->offset, pDmaBuffer->info.size) == -1))
+  {
+    bRet = false;
+    perror("munmap");
+  }
+
+  if(pDmaBuffer->shouldCloseFd)
+    close(pDmaBuffer->info.fd);
+
+  free(pDmaBuffer);
+
+  return bRet;
+}
+
+static AL_VADDR LinuxDma_Map(int fd, size_t zSize, size_t offset)
+{
+  AL_VADDR vaddr = (AL_VADDR)mmap(0, zSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
+
+  if(vaddr == MAP_FAILED)
+  {
+    perror("MAP_FAILED");
+    return NULL;
+  }
+  return vaddr;
+}
+
+/******************************************************************************/
+static AL_VADDR LinuxDma_GetVirtualAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
+{
+  (void)pAllocator;
+  struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)hBuf;
+
+  if(!pDmaBuffer)
+    return NULL;
+
+  if(!pDmaBuffer->vaddr)
+    pDmaBuffer->vaddr = LinuxDma_Map(pDmaBuffer->info.fd, pDmaBuffer->info.size, pDmaBuffer->mmap_offset);
+
+  return (AL_VADDR)pDmaBuffer->vaddr;
+}
+
+/******************************************************************************/
+static AL_PADDR LinuxDma_GetPhysicalAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
+{
+  (void)pAllocator;
+  struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)hBuf;
+
+  if(!pDmaBuffer)
+    return 0;
+
+  return (AL_PADDR)pDmaBuffer->info.phy_addr;
+}
+
+/******************************************************************************/
+static bool LinuxDma_Destroy(AL_TAllocator* pAllocator)
+{
+  struct LinuxDmaCtx* pCtx = (struct LinuxDmaCtx*)pAllocator;
+  AL_DevicePool_Close(pCtx->fd);
+  free(pCtx);
+  return true;
+}
+
+/******************************************************************************/
+static AL_TAllocator* create(const char* deviceFile, void const* vtable)
+{
+  struct LinuxDmaCtx* pCtx = calloc(1, sizeof(struct LinuxDmaCtx));
+
+  if(!pCtx)
+    return NULL;
+  pCtx->base.vtable = vtable;
+
+  /* for debug */
+  if(strlen(deviceFile) > MAX_DEVICE_FILE_NAME)
+    goto fail_open;
+
+  strncpy(pCtx->deviceFile, deviceFile, MAX_DEVICE_FILE_NAME);
+  pCtx->fd = AL_DevicePool_Open(deviceFile);
+
+  if(pCtx->fd < 0)
+    goto fail_open;
+
+  return (AL_TAllocator*)pCtx;
+
+  fail_open:
+  free(pCtx);
+  return NULL;
+}
+
+static size_t AlignToPageSize(size_t zSize)
+{
+  unsigned long pagesize = sysconf(_SC_PAGESIZE);
+
+  if((zSize % pagesize) == 0)
+    return zSize;
+  return zSize + pagesize - (zSize % pagesize);
+}
+
 
 /* Get a dmabuf fd representing a buffer of size pInfo->size */
 static bool LinuxDma_GetDmaFd(AL_TAllocator* pAllocator, struct al5_dma_info* pInfo)
@@ -92,15 +213,6 @@ static bool LinuxDma_GetBusAddrFromFd(AL_TLinuxDmaAllocator* pAllocator, struct 
   return true;
 }
 
-static size_t AlignToPageSize(size_t zSize)
-{
-  unsigned long pagesize = sysconf(_SC_PAGESIZE);
-
-  if((zSize % pagesize) == 0)
-    return zSize;
-  return zSize + pagesize - (zSize % pagesize);
-}
-
 static AL_HANDLE LinuxDma_Alloc(AL_TAllocator* pAllocator, size_t zSize)
 {
   struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)calloc(1, sizeof(*pDmaBuffer));
@@ -116,36 +228,13 @@ static AL_HANDLE LinuxDma_Alloc(AL_TAllocator* pAllocator, size_t zSize)
 
   pDmaBuffer->vaddr = NULL;
   pDmaBuffer->offset = 0;
+  pDmaBuffer->mmap_offset = 0;
 
   return (AL_HANDLE)pDmaBuffer;
 
   fail:
   free(pDmaBuffer);
   return NULL;
-}
-
-/******************************************************************************/
-static bool LinuxDma_Free(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
-{
-  (void)pAllocator;
-  struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)hBuf;
-  bool bRet = true;
-
-  if(!pDmaBuffer)
-    return true;
-
-  if(pDmaBuffer->vaddr && (munmap(pDmaBuffer->vaddr - pDmaBuffer->offset, pDmaBuffer->info.size) == -1))
-  {
-    bRet = false;
-    perror("munmap");
-  }
-
-  if(pDmaBuffer->shouldCloseFd)
-    close(pDmaBuffer->info.fd);
-
-  free(pDmaBuffer);
-
-  return bRet;
 }
 
 static unsigned long Ceil256B(unsigned long value)
@@ -173,17 +262,6 @@ static struct DmaBuffer* OverAllocateAndAlign256B(AL_TAllocator* pAllocator, siz
   return p;
 }
 
-#if 0
-static void LogAllocation(struct DmaBuffer* p)
-{
-  printf("Allocated: {vaddr:%p,phyaddr:%x,size:%d,offset:%d}\n", p->vaddr, p->info.phy_addr, p->info.size, p->offset);
-}
-
-#define LOG_ALLOCATION(p) LogAllocation(p)
-#else
-#define LOG_ALLOCATION(p)
-#endif
-
 static AL_HANDLE LinuxDma_Alloc_256B_Aligned(AL_TAllocator* pAllocator, size_t zSize)
 {
   struct DmaBuffer* p = (struct DmaBuffer*)LinuxDma_Alloc(pAllocator, zSize);
@@ -207,54 +285,6 @@ static AL_HANDLE LinuxDma_Alloc_256B_Aligned(AL_TAllocator* pAllocator, size_t z
   return (AL_HANDLE)p;
 }
 
-static AL_VADDR LinuxDma_Map(int fd, size_t zSize)
-{
-  AL_VADDR vaddr = (AL_VADDR)mmap(0, zSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-
-  if(vaddr == MAP_FAILED)
-  {
-    perror("MAP_FAILED");
-    return NULL;
-  }
-  return vaddr;
-}
-
-/******************************************************************************/
-static AL_VADDR LinuxDma_GetVirtualAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
-{
-  (void)pAllocator;
-  struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)hBuf;
-
-  if(!pDmaBuffer)
-    return NULL;
-
-  if(!pDmaBuffer->vaddr)
-    pDmaBuffer->vaddr = LinuxDma_Map(pDmaBuffer->info.fd, pDmaBuffer->info.size);
-
-  return (AL_VADDR)pDmaBuffer->vaddr;
-}
-
-/******************************************************************************/
-static AL_PADDR LinuxDma_GetPhysicalAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
-{
-  (void)pAllocator;
-  struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)hBuf;
-
-  if(!pDmaBuffer)
-    return 0;
-
-  return (AL_PADDR)pDmaBuffer->info.phy_addr;
-}
-
-/******************************************************************************/
-static bool LinuxDma_Destroy(AL_TAllocator* pAllocator)
-{
-  struct LinuxDmaCtx* pCtx = (struct LinuxDmaCtx*)pAllocator;
-  AL_DevicePool_Close(pCtx->fd);
-  free(pCtx);
-  return true;
-}
-
 /******************************************************************************/
 static int LinuxDma_GetFd(AL_TLinuxDmaAllocator* pAllocator, AL_HANDLE hBuf)
 {
@@ -263,8 +293,6 @@ static int LinuxDma_GetFd(AL_TLinuxDmaAllocator* pAllocator, AL_HANDLE hBuf)
 
   return pDmaBuffer->info.fd;
 }
-
-/******************************************************************************/
 
 static size_t LinuxDma_GetDmabufSize(int fd)
 {
@@ -312,8 +340,6 @@ static AL_HANDLE LinuxDma_ImportFromFd(AL_TLinuxDmaAllocator* pAllocator, int fd
   return NULL;
 }
 
-/******************************************************************************/
-
 static const AL_DmaAllocLinuxVtable DmaAllocLinuxVtable =
 {
   {
@@ -330,23 +356,7 @@ static const AL_DmaAllocLinuxVtable DmaAllocLinuxVtable =
 
 AL_TAllocator* AL_DmaAlloc_Create(const char* deviceFile)
 {
-  struct LinuxDmaCtx* pCtx = calloc(1, sizeof(struct LinuxDmaCtx));
-
-  if(!pCtx)
-    return NULL;
-  pCtx->base.vtable = &DmaAllocLinuxVtable;
-
-  /* for debug */
-  strncpy(pCtx->deviceFile, deviceFile, 30);
-  pCtx->fd = AL_DevicePool_Open(deviceFile);
-
-  if(pCtx->fd < 0)
-    goto fail_open;
-
-  return (AL_TAllocator*)pCtx;
-
-  fail_open:
-  free(pCtx);
-  return NULL;
+  return create(deviceFile, &DmaAllocLinuxVtable);
 }
+
 

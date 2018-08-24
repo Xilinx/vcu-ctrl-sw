@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -133,6 +133,7 @@ typedef struct t_Dec_Ctx
   int iCurOffset;
   uint32_t uCurPocLsb;
   uint8_t uNoRaslOutputFlag;
+  uint8_t uFrameIDRefList[MAX_STACK_SIZE][AL_MAX_NUM_REF];
   uint8_t uMvIDRefList[MAX_STACK_SIZE][AL_MAX_NUM_REF];
   uint8_t uNumRef[MAX_STACK_SIZE];
 

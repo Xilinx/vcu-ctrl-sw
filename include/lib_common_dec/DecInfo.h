@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -46,8 +46,8 @@
 #include "lib_rtos/types.h"
 #include "lib_rtos/lib_rtos.h"
 
-#include "lib_common/VideoMode.h"
 #include "lib_common/SliceConsts.h"
+#include "lib_common/VideoMode.h"
 #include "lib_common_dec/DecDpbMode.h"
 
 /*************************************************************************//*!
@@ -60,7 +60,7 @@ typedef struct
   int iBitDepth; /*!< Stream's bit depth */
   int iLevel; /*!< Stream's level */
   int iProfileIdc; /*!< Stream's profile idc */
-  AL_ESequenceMode eSequenceMode; /*!< Stream's sequence mode*/
+  AL_ESequenceMode eSequenceMode; /*!< Stream's sequence mode */
 }AL_TStreamSettings;
 
 /*************************************************************************//*!

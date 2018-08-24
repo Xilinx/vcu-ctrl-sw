@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -35,11 +35,20 @@
 *
 ******************************************************************************/
 
+#pragma once
 #include "lib_rtos/types.h"
 
-int GetCoreResources(int coreFrequency, int margin, int hardwareCyclesCount);
-int GetMinCoresCount(int width);
-int GetResources(int width, int height, uint32_t frameRate, uint32_t clockRatio);
-int ChoseCoresCount(int width, int height, uint32_t frameRate, uint32_t clockRatio, int resourcesByCore);
+typedef struct
+{
+  int minWidth;
+  int maxWidth;
+  int resources;
+  bool enableMultiCore;
+}AL_CoreConstraint;
 
+void AL_CoreConstraint_Init(AL_CoreConstraint* constraint, int coreFrequency, int margin, int hardwareCyclesCount, int minWidth, int maxWidth);
+int AL_CoreConstraint_GetExpectedNumberOfCores(AL_CoreConstraint* constraint, int width, int height, int frameRate, int clockRatio);
+int AL_CoreConstraint_GetMinCoresCount(AL_CoreConstraint* constraint, int width);
+
+int AL_GetResources(int width, int height, int frameRate, int clockRatio);
 

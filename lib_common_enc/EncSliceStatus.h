@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -57,7 +57,7 @@ typedef struct AL_t_SliceStatus
 
   uint32_t uNumLCUs; /*!< Total number of encoded LCU */
 
-  uint32_t uNumBytes; /*!< Number of bytes in the stream */
+  int32_t iNumBytes; /*!< Number of bytes in the stream */
   uint32_t uNumBins; /*!< Number of CABAC bin */
   uint32_t uFrmTagSize; /*!< Number of bytes in the frame compressed header (VP9 only) */
   uint32_t uNumBitsRes; /*!< Number of bits used for residual encoding */
@@ -69,12 +69,12 @@ typedef struct AL_t_SliceStatus
   uint32_t uNumCU32x32; /*!< Number of 32x32 CUs */
   uint32_t uNumCU64x64; /*!< Number of 64x64 CUs */
   uint32_t uSumCplx; /*!< Sum of LCU complexity */
-  int32_t uSumQP; /*!< Sum of QP value used to encode each block unit */
+  int32_t iSumQP; /*!< Sum of QP value used to encode each block unit */
   int16_t iSliceQP;  /*!< Slice QP value */
-  int16_t uMinQP; /*!< Minimum QP value */
-  int16_t uMaxQP; /*!< Maximum QP value */
+  int16_t iMinQP; /*!< Minimum QP value */
+  int16_t iMaxQP; /*!< Maximum QP value */
   uint16_t uNumSlices; /*!< Number of slices */
-  uint32_t uEstimNumBytes; /*!< Estimated Number of bytes in the stream (AVC multi-core only) */
+  int32_t iEstimNumBytes; /*!< Estimated Number of bytes in the stream (AVC multi-core only) */
 
 
   uint32_t SyntaxElements;

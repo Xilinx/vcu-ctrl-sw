@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -258,6 +258,12 @@ int Rtos_DriverIoctl(void* drv, unsigned long int req, void* data)
   (void)drv;
   (void)req;
   (void)data;
+  return -1; // not implemented
+}
+
+int Rtos_DriverPoll(void* drv, int timeout)
+{
+  (void)drv, (void)timeout;
   return -1; // not implemented
 }
 
@@ -557,6 +563,15 @@ int Rtos_DriverIoctl(void* drv, unsigned long int req, void* data)
 {
   int fd = (int)(intptr_t)drv;
   return ioctl(fd, req, data);
+}
+
+#include <poll.h>
+int Rtos_DriverPoll(void* drv, int timeout)
+{
+  struct pollfd pollData;
+  pollData.fd = (int)(intptr_t)drv;
+  pollData.events = POLLPRI | POLLIN;
+  return poll(&pollData, 1, timeout);
 }
 
 /****************************************************************************/

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -60,16 +60,15 @@ typedef struct
   pthread_mutex_t Lock;
 }AL_WaitQueue;
 
-static int AL_WakeUp(AL_WaitQueue* pQueue)
+static void AL_WakeUp(AL_WaitQueue* pQueue)
 {
   pthread_mutex_lock(&pQueue->Lock);
   int ret = pthread_cond_broadcast(&pQueue->Cond);
+  assert(ret == 0);
   pthread_mutex_unlock(&pQueue->Lock);
-
-  return ret;
 }
 
-static int AL_WaitEvent(AL_WaitQueue* pQueue, bool (* isReady)(void*), void* pParam)
+static void AL_WaitEvent(AL_WaitQueue* pQueue, bool (* isReady)(void*), void* pParam)
 {
   pthread_mutex_lock(&pQueue->Lock);
 
@@ -77,8 +76,6 @@ static int AL_WaitEvent(AL_WaitQueue* pQueue, bool (* isReady)(void*), void* pPa
     pthread_cond_wait(&pQueue->Cond, &pQueue->Lock);
 
   pthread_mutex_unlock(&pQueue->Lock);
-
-  return 0;
 }
 
 static void AL_WaitQueue_Init(AL_WaitQueue* pQueue)
@@ -139,33 +136,30 @@ struct DecChanMcuCtx
   AL_TDriver* driver;
 };
 
-int AL_EventQueue_Init(AL_EventQueue* pEventQueue)
+static void AL_EventQueue_Init(AL_EventQueue* pEventQueue)
 {
   AL_WaitQueue_Init(&pEventQueue->Queue);
   AL_ListHeadInit(&pEventQueue->List);
   pthread_mutex_init(&pEventQueue->Lock, NULL);
-  return 0;
 }
 
-int AL_EventQueue_Deinit(AL_EventQueue* pEventQueue)
+static void AL_EventQueue_Deinit(AL_EventQueue* pEventQueue)
 {
   pthread_mutex_destroy(&pEventQueue->Lock);
   AL_WaitQueue_Deinit(&pEventQueue->Queue);
-  return 0;
 }
 
-int AL_EventQueue_Push(AL_EventQueue* pEventQueue, AL_Event* pEvent)
+static void AL_EventQueue_Push(AL_EventQueue* pEventQueue, AL_Event* pEvent)
 {
   pthread_mutex_lock(&pEventQueue->Lock);
   AL_ListAddTail(&pEvent->List, &pEventQueue->List);
   pthread_mutex_unlock(&pEventQueue->Lock);
 
   AL_WakeUp(&pEventQueue->Queue);
-  return 0;
 }
 
 /* for one Reader */
-int AL_EventQueue_Fetch(AL_EventQueue* EventQueue, AL_Event** pEvent, bool (* isReady)(void*), void* pParam)
+static void AL_EventQueue_Fetch(AL_EventQueue* EventQueue, AL_Event** pEvent, bool (* isReady)(void*), void* pParam)
 {
   AL_WaitEvent(&EventQueue->Queue, isReady, pParam);
 
@@ -174,8 +168,6 @@ int AL_EventQueue_Fetch(AL_EventQueue* EventQueue, AL_Event** pEvent, bool (* is
   *pEvent = AL_ListFirstEntry(&EventQueue->List, AL_Event, List);
   AL_ListDel(&(*pEvent)->List);
   pthread_mutex_unlock(&EventQueue->Lock);
-
-  return 0;
 }
 
 void setPictParam(struct al5_params* msg, AL_TDecPicParam* pPictParam)
@@ -237,7 +229,7 @@ static void* NotificationThread(void* p)
     processStatusMsg(chan, &msg);
   }
 
-  return 0;
+  return NULL;
 }
 
 static void setScStatus(AL_TScStatus* status, struct al5_scstatus* msg)
@@ -380,7 +372,6 @@ static void DecChannelMcu_Destroy(AL_TIDecChannel* pDecChannel)
 static AL_ERR DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecChanParam* pChParam, AL_CB_EndFrameDecoding callback)
 {
   struct DecChanMcuCtx* decChanMcu = (struct DecChanMcuCtx*)pDecChannel;
-  struct al5_channel_config msg = { 0 };
   AL_ERR errorCode = AL_ERROR;
 
   Channel* chan = &decChanMcu->chan;
@@ -396,6 +387,7 @@ static AL_ERR DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecC
     goto fail_open;
   }
 
+  struct al5_channel_config msg = { 0 };
   setChannelMsg(&msg.param, pChParam);
 
   AL_EDriverError errdrv = AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_CONFIG_CHANNEL, &msg);
@@ -454,13 +446,13 @@ static void setSearchStartCodeMsg(struct al5_search_sc_msg* search_msg, AL_TScPa
 static void DecChannelMcu_SearchSC(AL_TIDecChannel* pDecChannel, AL_TScParam* pScParam, AL_TScBufferAddrs* pBufAddrs, AL_CB_EndStartCode endStartCodeCB)
 {
   struct DecChanMcuCtx* decChanMcu = (struct DecChanMcuCtx*)pDecChannel;
-  struct al5_search_sc_msg search_msg = { 0 };
   AL_EventQueue* pEventQueue = &decChanMcu->SCQueue.EventQueue;
   AL_Event* pEvent = Rtos_Malloc(sizeof(*pEvent));
-  SCMsg* pMsg = Rtos_Malloc(sizeof(*pMsg));
 
   if(!pEvent)
     goto fail_event;
+
+  SCMsg* pMsg = Rtos_Malloc(sizeof(*pMsg));
 
   if(!pMsg)
     goto fail_msg;
@@ -476,6 +468,7 @@ static void DecChannelMcu_SearchSC(AL_TIDecChannel* pDecChannel, AL_TScParam* pS
     goto fail_open;
   }
 
+  struct al5_search_sc_msg search_msg = { 0 };
   setSearchStartCodeMsg(&search_msg, pScParam, pBufAddrs);
 
   if(AL_Driver_PostMessage(decChanMcu->driver, pMsg->fd, AL_MCU_SEARCH_START_CODE, &search_msg) != DRIVER_SUCCESS)

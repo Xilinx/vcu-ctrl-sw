@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -201,7 +201,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
   const AL_EFbStorageMode eStorageMode = pCtx->chanParam.eFBStorageMode;
   const int iSPSMaxBitDepth = getMaxBitDepth(pSPS->profile_idc);
 
-  bool bEnableRasterOutput = false;
+  bool bEnableRasterOutput = pCtx->chanParam.eBufferOutputMode != AL_OUTPUT_INTERNAL;
 
   AL_PictMngr_Init(&pCtx->PictMngr, pCtx->pAllocator, iMaxBuf, iSizeMV, iDpbRef, pCtx->eDpbMode, eStorageMode, iSPSMaxBitDepth, bEnableRasterOutput);
 
@@ -565,7 +565,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     pSlice->pSPS = pAUP->pActiveSPS;
 
   // Compute Current POC
-  if(isValid && (!pSlice->first_mb_in_slice||!bSliceBelongsToSameFrame))
+  if(isValid && (!pSlice->first_mb_in_slice || !bSliceBelongsToSameFrame))
     isValid = AL_AVC_PictMngr_SetCurrentPOC(&pCtx->PictMngr, pSlice);
 
   // compute check gaps in frameNum
@@ -595,7 +595,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     {
       bool const bIsRAP = (eNUT == AL_AVC_NUT_VCL_IDR);
 
-      if(bIsRAP)
+      if(bIsRAP || pAUP->iRecoveryCnt)
         *bFirstIsValid = true;
       else
         return; // SkipNal();
@@ -610,7 +610,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
       AL_AVC_FillPictParameters(pSlice, pCtx, pPP);
     AL_AVC_FillSliceParameters(pSlice, pCtx, pSP, pPP, false);
 
-    if(!constructRefPicList(pSlice, pCtx, &pCtx->ListRef))
+    if(!constructRefPicList(pSlice, pCtx, &pCtx->ListRef) && !pAUP->iRecoveryCnt)
     {
       concealSlice(pCtx, pPP, pSP, pSlice, eNUT);
     }

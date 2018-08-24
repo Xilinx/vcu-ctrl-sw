@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,7 @@ typedef struct AL_s_TDecoder AL_TDecoder;
 typedef struct
 {
   void (* pfnDecoderDestroy)(AL_TDecoder* pDec);
-  void (* pfnSetParam)(AL_TDecoder* pDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm);
+  void (* pfnSetParam)(AL_TDecoder* pDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm, bool bForceCleanBuffer);
   bool (* pfnPushBuffer)(AL_TDecoder* pDec, AL_TBuffer* pBuf, size_t uSize);
   void (* pfnFlush)(AL_TDecoder* pDec);
   void (* pfnPutDisplayPicture)(AL_TDecoder* pDec, AL_TBuffer* pDisplay);

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -41,8 +41,8 @@
 /****************************************************************************/
 int GetBlk64x64(AL_TDimension tDim)
 {
-  int i64x64Width = (tDim.iWidth + 63) >> 6;
-  int i64x64Height = (tDim.iHeight + 63) >> 6;
+  int i64x64Width = (tDim.iWidth + 63) / 64;
+  int i64x64Height = (tDim.iHeight + 63) / 64;
 
   return i64x64Width * i64x64Height;
 }
@@ -50,8 +50,8 @@ int GetBlk64x64(AL_TDimension tDim)
 /****************************************************************************/
 int GetBlk32x32(AL_TDimension tDim)
 {
-  int i32x32Width = (tDim.iWidth + 31) >> 5;
-  int i32x32Height = (tDim.iHeight + 31) >> 5;
+  int i32x32Width = (tDim.iWidth + 31) / 32;
+  int i32x32Height = (tDim.iHeight + 31) / 32;
 
   return i32x32Width * i32x32Height;
 }
@@ -59,8 +59,8 @@ int GetBlk32x32(AL_TDimension tDim)
 /****************************************************************************/
 int GetBlk16x16(AL_TDimension tDim)
 {
-  int i16x16Width = (tDim.iWidth + 15) >> 4;
-  int i16x16Height = (tDim.iHeight + 15) >> 4;
+  int i16x16Width = (tDim.iWidth + 15) / 16;
+  int i16x16Height = (tDim.iHeight + 15) / 16;
 
   return i16x16Width * i16x16Height;
 }
@@ -94,8 +94,7 @@ int AL_GetMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth)
 {
   /* Actual worst case: 5/3*PCM + one slice per MB/LCU. */
   int iMaxPCM = GetMaxVclNalSize(tDim, eMode, iBitDepth);
-
-  const int iNumSlices = ((tDim.iHeight + 15) / 16) * ((tDim.iWidth + 15) / 16);
+  int iNumSlices = GetBlk16x16(tDim);
   iMaxPCM += 2048 + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
 
   return RoundUp(iMaxPCM, 32);
@@ -106,8 +105,7 @@ int AL_GetMitigatedMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBit
 {
   /* Mitigated worst case: PCM + one slice per row. */
   int iMaxPCM = GetPcmVclNalSize(tDim, eMode, iBitDepth);
-
-  const int iNumSlices = ((tDim.iHeight + 15) / 16);
+  int iNumSlices = ((tDim.iHeight + 15) / 16);
   iMaxPCM += 2048 + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
 
   return RoundUp(iMaxPCM, 32);

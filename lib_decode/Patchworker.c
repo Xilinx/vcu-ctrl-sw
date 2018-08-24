@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -39,11 +39,11 @@
 #include "lib_common/Utils.h"
 #include <assert.h>
 
-static uint32_t GetBufferOffset(AL_TCircMetaData* pMeta)
+static int32_t GetBufferOffset(AL_TCircMetaData* pMeta)
 {
   if(!pMeta)
     return 0;
-  return pMeta->uOffset;
+  return pMeta->iOffset;
 }
 
 static size_t GetCopiedAreaSize(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, TCircBuffer* stream)
@@ -62,7 +62,7 @@ static size_t GetCopiedAreaSize(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, TCirc
   }
   else
   {
-    return UnsignedMin(pMeta->uAvailSize, unusedAreaSize);
+    return UnsignedMin(pMeta->iAvailSize, unusedAreaSize);
   }
 }
 
@@ -71,7 +71,7 @@ static size_t GetNotCopiedAreaSize(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, si
   if(!pMeta)
     return pBuf->zSize - zCopiedSize;
   else
-    return pMeta->uAvailSize - zCopiedSize;
+    return pMeta->iAvailSize - zCopiedSize;
 }
 
 static void CopyAreaToStream(uint8_t* pData, uint32_t uOffset, size_t zCopySize, TCircBuffer* stream)
@@ -95,6 +95,11 @@ static size_t TryCopyBufferToStream(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, T
   uint32_t uBufOffset = GetBufferOffset(pMeta);
   size_t zCopySize = GetCopiedAreaSize(pBuf, pMeta, stream);
 
+  /* nothing to do, and we don't want to call memcpy on a potentially
+   * invalid pointer with size 0 (undefined behavior) */
+  if(zCopySize == 0)
+    return 0;
+
   CopyAreaToStream(AL_Buffer_GetData(pBuf), uBufOffset, zCopySize, stream);
 
   stream->iAvailSize += zCopySize;
@@ -113,8 +118,8 @@ static void updateConsumedSpaceInBuffer(AL_TBuffer* pBuf, size_t zCopiedSize, si
     AL_Buffer_AddMetaData(pBuf, (AL_TMetaData*)pMeta);
   }
 
-  pMeta->uOffset += zCopiedSize;
-  pMeta->uAvailSize = zNotCopiedSize;
+  pMeta->iOffset += zCopiedSize;
+  pMeta->iAvailSize = zNotCopiedSize;
 }
 
 size_t AL_Patchworker_CopyBuffer(AL_TPatchworker* this, AL_TBuffer* pBuf, size_t* pCopiedSize)

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -77,8 +77,6 @@ enum
   /*! If SliceSize mode is supported, the constraint couldn't be respected
    * as too many slices were required to respect it */
   AL_ERR_TOO_MANY_SLICES = AL_DEF_ERROR(9),
-  /* internal */
-  AL_ERR_STRM_BUF_NOT_READY = AL_DEF_ERROR(12),
   /*! The scheduler can't handle more channel (fixed limit of AL_SCHEDULER_MAX_CHANNEL) */
   AL_ERR_CHAN_CREATION_NO_CHANNEL_AVAILABLE = AL_DEF_ERROR(13),
   /*! The processing power of the available cores is insufficient to handle this channel */

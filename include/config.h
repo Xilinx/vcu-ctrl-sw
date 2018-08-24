@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -80,8 +80,8 @@
 #ifndef HW_IP_BIT_DEPTH
 #define HW_IP_BIT_DEPTH 10
 #endif
-#ifndef AL_CORE_MAX_WIDTH
-#define AL_CORE_MAX_WIDTH 4096
+#ifndef AL_ENC_CORE_MAX_WIDTH
+#define AL_ENC_CORE_MAX_WIDTH 4096
 #endif
 #ifndef AL_MAX_ENC_SLICE
 #define AL_MAX_ENC_SLICE 200
@@ -89,6 +89,10 @@
 #ifndef MAX_NUM_LAYER
 #define MAX_NUM_LAYER 1
 #endif
+#ifndef AL_ENABLE_TWOPASS
+#define AL_ENABLE_TWOPASS 1
+#endif
 #ifndef AL_BLK16X16_QP_TABLE
 #define AL_BLK16X16_QP_TABLE 0
 #endif
+#define AL_CONFIGURE_COMMANDLINE "./configure --config-blob customers/Xilinx/config.ini"

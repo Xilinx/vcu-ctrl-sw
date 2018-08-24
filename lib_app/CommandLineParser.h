@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -43,18 +43,17 @@
 #include <iomanip>
 #include <queue>
 #include <map>
-
-using namespace std;
+#include <stdexcept>
 
 struct CommandLineParser
 {
   CommandLineParser() = default;
-  CommandLineParser(function<void(string)> onOptionParsed_) : onOptionParsed{onOptionParsed_} {};
+  CommandLineParser(std::function<void(std::string)> onOptionParsed_) : onOptionParsed{onOptionParsed_} {};
 
   struct Option
   {
-    function<void(void)> parser;
-    string desc;
+    std::function<void(void)> parser;
+    std::string desc;
   };
 
   void parse(int argc, char* argv[])
@@ -71,7 +70,7 @@ struct CommandLineParser
       onOptionParsed(word);
 
       if(i_func == options.end())
-        throw runtime_error("Unknown option: '" + word + "', use -h to get help");
+        throw std::runtime_error("Unknown option: '" + word + "', use -h to get help");
 
       i_func->second.parser();
     }
@@ -80,29 +79,29 @@ struct CommandLineParser
   int popInt()
   {
     auto word = popWord();
-    stringstream ss(word);
+    std::stringstream ss(word);
     ss.unsetf(std::ios::dec);
     ss.unsetf(std::ios::hex);
 
     int value;
     ss >> value;
 
-    if(ss.fail() || ss.tellg() != streampos(-1))
-      throw runtime_error("Expected an integer, got '" + word + "'");
+    if(ss.fail() || ss.tellg() != std::streampos(-1))
+      throw std::runtime_error("Expected an integer, got '" + word + "'");
 
     return value;
   }
 
-  string popWord()
+  std::string popWord()
   {
     if(words.empty())
-      throw runtime_error("Unexpected end of command line, use -h to get help");
+      throw std::runtime_error("Unexpected end of command line, use -h to get help");
     auto word = words.front();
     words.pop();
     return word;
   }
 
-  void addOption(string name, function<void(void)> func, string desc_)
+  void addOption(std::string name, std::function<void(void)> func, std::string desc_)
   {
     Option o;
     o.parser = func;
@@ -110,9 +109,8 @@ struct CommandLineParser
     insertOption(name, o);
   }
 
-  // add an option with a user-provided value parsing function
-  template<typename VariableType, typename ParserRetType>
-  void addCustom(string name, VariableType* value, ParserRetType (* customParser)(const string &), string desc_)
+  template<typename VariableType, typename Func>
+  void setCustom_(std::string name, VariableType* value, Func customParser, std::string desc_)
   {
     Option o;
     o.parser = [=]()
@@ -123,8 +121,21 @@ struct CommandLineParser
     insertOption(name, o);
   }
 
+  template<typename VariableType, typename ParserRetType>
+  void addCustom(std::string name, VariableType* value, ParserRetType (* customParser)(std::string const &), std::string desc_)
+  {
+    setCustom_(name, value, customParser, desc_);
+  }
+
+  // add an option with a user-provided value parsing function
+  template<typename VariableType, typename ParserRetType>
+  void addCustom(std::string name, VariableType* value, std::function<ParserRetType(std::string const &)> customParser, std::string desc_)
+  {
+    setCustom_(name, value, customParser, desc_);
+  }
+
   template<typename T>
-  void addFlag(string name, T* flag, string desc_, T value = (T) 1)
+  void addFlag(std::string name, T* flag, std::string desc_, T value = (T) 1)
   {
     Option o;
     o.desc = makeDescription(name, "", desc_);
@@ -136,7 +147,7 @@ struct CommandLineParser
   }
 
   template<typename T>
-  void addInt(string name, T* number, string desc_)
+  void addInt(std::string name, T* number, std::string desc_)
   {
     Option o;
     o.desc = makeDescription(name, "number", desc_);
@@ -147,7 +158,7 @@ struct CommandLineParser
     insertOption(name, o);
   }
 
-  void addString(string name, string* value, string desc_)
+  void addString(std::string name, std::string* value, std::string desc_)
   {
     Option o;
     o.desc = makeDescription(name, "string", desc_);
@@ -158,14 +169,14 @@ struct CommandLineParser
     insertOption(name, o);
   }
 
-  map<string, Option> options;
-  vector<string> displayOrder;
+  std::map<std::string, Option> options;
+  std::vector<std::string> displayOrder;
 
 private:
-  void insertOption(string name, Option o)
+  void insertOption(std::string name, Option o)
   {
-    string item;
-    stringstream ss(name);
+    std::string item;
+    std::stringstream ss(name);
 
     while(getline(ss, item, ','))
     {
@@ -176,23 +187,21 @@ private:
     displayOrder.push_back(name);
   }
 
-  static string makeDescription(string word, string type, string desc)
+  static std::string makeDescription(std::string word, std::string type, std::string desc)
   {
-    string s;
+    std::string s;
     s += word;
 
     if(!type.empty())
       s += " <" + type + ">";
 
-    stringstream ss;
-    ss << setfill(' ') << setw(24) << left << s << " " << desc;
+    std::stringstream ss;
+    ss << std::setfill(' ') << std::setw(24) << std::left << s << " " << desc;
 
     return ss.str();
   }
 
-  queue<string> words;
-  function<void(string)> onOptionParsed = [](string)
-                                          {
-                                          };
+  std::queue<std::string> words;
+  std::function<void(std::string)> onOptionParsed = [](std::string) {};
 };
 

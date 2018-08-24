@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -118,6 +118,14 @@ typedef struct t_avc_sei_pic_timing
   AL_TSeiClockTS clock_ts[4];
 }AL_TAvcPicTiming;
 
+/*************************************************************************/
+typedef struct t_sei_recovery_point
+{
+  int32_t recovery_cnt;
+  bool exact_match;
+  bool broken_link;
+}AL_TRecoveryPoint;
+
 /*************************************************************************//*!
    \brief Mimics structure for HEVC picture timing
 *****************************************************************************/
@@ -145,6 +153,7 @@ typedef struct t_avc_sei
 {
   AL_TAvcPicTiming picture_timing;
   AL_TAvcBufPeriod buffering_period;
+  AL_TRecoveryPoint recovery_point;
   uint32_t present_flags;
 }AL_TAvcSei;
 
@@ -155,6 +164,7 @@ typedef struct t_Hevc_Sei
 {
   AL_THevcPicTiming picture_timing;
   AL_THevcBufPeriod buffering_period;
+  AL_TRecoveryPoint recovery_point;
   uint32_t present_flags;
 }AL_THevcSei;
 

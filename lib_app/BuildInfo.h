@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -36,14 +36,61 @@
 ******************************************************************************/
 
 #pragma once
-#include "lib_common_enc/EncChanParam.h"
+#include "lib_app/utils.h"
+#include "functional"
+#include <cstring>
 
-static const AL_TBufInfo EP1_BUF_LAMBDAS =
+struct BuildInfoDisplay
 {
-  1, 256, 0
-}; // only 208 bytes used
+  BuildInfoDisplay(char const* svnRevision, char const* configureCmdline, char const* compilationFlags) : svnRevision{svnRevision}, configureCmdline{configureCmdline}, compilationFlags{compilationFlags}
+  {
+  }
 
-bool GetLambda(AL_ELdaCtrlMode eMode, AL_TEncChanParam const* pChParam, uint8_t* pEP, bool NotGoldenFrame);
+  void operator () ()
+  {
+    displayTimeOfBuild();
 
-/*@}*/
+    if(displayFeatures)
+      displayFeatures();
+    displayBuildOptions();
+  }
+
+  void displayTimeOfBuild()
+  {
+    Message("Compiled on %s at %s", __DATE__, __TIME__);
+
+    if(strcmp(svnRevision, "0") && strcmp(svnRevision, ""))
+      Message(" from SVN revision %s.\n", svnRevision);
+  }
+
+  void displayBuildOptions()
+  {
+    if(strcmp(configureCmdline, ""))
+      Message(CC_DEFAULT, "\nUsing configuration:\n%s\n", configureCmdline);
+
+#if HAS_COMPIL_FLAGS
+
+    if(strcmp(compilationFlags, ""))
+      Message(CC_DEFAULT, "\nUsing compilation options:\n%s\n", compilationFlags);
+#endif
+  }
+
+  char const* svnRevision;
+  char const* configureCmdline;
+  char const* compilationFlags;
+
+  std::function<void(void)> displayFeatures {};
+};
+
+static inline void DisplayVersionInfo(char const* company, char const* productName, int versionMajor, int versionMinor, int versionPatch, char const* copyright, char const* comments)
+{
+  Message("%s - %s v%d.%d.%d - %s\n", company,
+          productName,
+          versionMajor,
+          versionMinor,
+          versionPatch,
+          copyright);
+
+  Message(CC_YELLOW, "%s\n\n", comments);
+}
 

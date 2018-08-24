@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,11 @@
 static int Open(AL_TDriver* driver, const char* device)
 {
   (void)driver;
-  return (int)(intptr_t)Rtos_DriverOpen(device);
+  void* drv = Rtos_DriverOpen(device);
+
+  if(drv == NULL)
+    return -1;
+  return (int)(uintptr_t)drv;
 }
 
 static void Close(AL_TDriver* driver, int fd)
@@ -68,7 +72,18 @@ static AL_EDriverError PostMessage(AL_TDriver* driver, int fd, long unsigned int
 
   while(true)
   {
-    int iRet = Rtos_DriverIoctl((void*)(intptr_t)fd, messageId, data);
+    int iRet;
+
+    if(messageId != AL_POLL_MSG)
+      iRet = Rtos_DriverIoctl((void*)(intptr_t)fd, messageId, data);
+    else
+    {
+      iRet = Rtos_DriverPoll((void*)(intptr_t)fd, *(int*)data);
+
+      if(iRet == 0)
+        return DRIVER_TIMEOUT;
+    }
+
     int errdrv = errno;
 
     if(iRet < 0)

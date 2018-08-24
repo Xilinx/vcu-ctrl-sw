@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -40,6 +40,7 @@
 #include "DriverDataConversions.h"
 #include "lib_rtos/types.h"
 #include <string.h>
+#include <assert.h>
 
 static void write(struct al5_params* msg, void* data, int size)
 {

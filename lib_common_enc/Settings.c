@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,6 @@
 #include "lib_common/StreamBufferPrivate.h"
 #include "lib_common_enc/EncBuffers.h"
 #include "lib_common_enc/EncSize.h"
-#include "L2PrefetchParam.h"
 #include "lib_common/SEI.h"
 
 /***************************************************************************/
@@ -160,10 +159,12 @@ static int AL_sSettings_GetCpbVclFactor(AL_EProfile eProfile)
 /****************************************************************************/
 static int AL_sSettings_GetHbrFactor(AL_EProfile eProfile)
 {
+  assert(AL_IS_HEVC(eProfile));
+
   if(AL_GET_PROFILE_CODED_AND_IDC(eProfile) != AL_PROFILE_HEVC_RExt)
     return 1;
 
-  return (!AL_IS_LOW_BITRATE_PROFILE(eProfile) ? 2 : 1);
+  return !AL_IS_LOW_BITRATE_PROFILE(eProfile) ? 2 : 1;
 }
 
 /****************************************************************************/
@@ -610,7 +611,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pSettings->tChParam[0].eOptions |= AL_OPT_RDO_COST_MODE;
 
   pSettings->tChParam[0].ePicFormat = AL_420_8BITS;
-  pSettings->tChParam[0].uEncodingBitDepth = 8;
+  pSettings->tChParam[0].uSrcBitDepth = 8;
 
   pSettings->tChParam[0].tGopParam.eMode = AL_GOP_MODE_DEFAULT;
   pSettings->tChParam[0].tGopParam.uFreqIDR = 0x7FFFFFFF;
@@ -661,13 +662,17 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 
 
 
+#if AL_ENABLE_TWOPASS
+  pSettings->LookAhead = 0;
+  pSettings->TwoPass = 0;
+#endif
+
+
   pSettings->tChParam[0].eVideoMode = AL_VM_PROGRESSIVE;
 }
 
 /***************************************************************************/
 #define MSG(msg) { if(pOut) fprintf(pOut, msg "\r\n"); }
-
-#define STRINGER(a) # a
 
 /****************************************************************************/
 static void AL_sCheckRange(int16_t* pRange, const int16_t iMaxRange, FILE* pOut)
@@ -696,17 +701,14 @@ void AL_Settings_SetDefaultParam(AL_TEncSettings* pSettings)
 /***************************************************************************/
 int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChParam, FILE* pOut)
 {
-  int iMaxQP = 51;
-  int iMaxSlices = 0;
-  int iRound = 0;
   int err = 0;
+  int iNumCore = pChParam->uNumCore;
 
-  uint8_t uNumCore = pChParam->uNumCore;
-
-  if(uNumCore == NUMCORE_AUTO)
+  if(iNumCore == NUMCORE_AUTO)
   {
-    const int maximumResourcesForOneCore = GetCoreResources(ENCODER_CORE_FREQUENCY, ENCODER_CORE_FREQUENCY_MARGIN, ENCODER_CYCLES_FOR_BLK_32X32);
-    uNumCore = ChoseCoresCount(pChParam->uWidth, pChParam->uHeight, pChParam->tRCParam.uFrameRate * 1000, pChParam->tRCParam.uClkRatio, maximumResourcesForOneCore);
+    AL_CoreConstraint constraint;
+    AL_CoreConstraint_Init(&constraint, ENCODER_CORE_FREQUENCY, ENCODER_CORE_FREQUENCY_MARGIN, ENCODER_CYCLES_FOR_BLK_32X32, 0, AL_ENC_CORE_MAX_WIDTH);
+    iNumCore = AL_CoreConstraint_GetExpectedNumberOfCores(&constraint, pChParam->uWidth, pChParam->uHeight, pChParam->tRCParam.uFrameRate * 1000, pChParam->tRCParam.uClkRatio);
   }
 
   if(!AL_sSettings_CheckProfile(pChParam->eProfile))
@@ -733,6 +735,8 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     ++err;
     MSG("Invalid parameter : Level");
   }
+
+  int iMaxQP = 51;
 
   if(pChParam->tRCParam.iInitialQP > iMaxQP)
   {
@@ -784,8 +788,9 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
       MSG("Invalid parameter : Gop.NumB");
     }
   }
-  iRound = AL_IS_HEVC(pChParam->eProfile) ? 32 : 16;
-  iMaxSlices = (pChParam->uHeight + (iRound / 2)) / iRound;
+
+  int iRound = AL_IS_HEVC(pChParam->eProfile) ? 32 : 16;
+  int iMaxSlices = (pChParam->uHeight + (iRound / 2)) / iRound;
 
   if((pChParam->uNumSlices < 1) || (pChParam->uNumSlices > iMaxSlices) || (pChParam->uNumSlices > AL_MAX_ENC_SLICE) || ((pChParam->bSubframeLatency) && (pChParam->uNumSlices > AL_MAX_SLICES_SUBFRAME)))
   {
@@ -795,7 +800,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
 
   if(pChParam->eOptions & AL_OPT_WPP)
   {
-    if(pChParam->uNumSlices * uNumCore * iRound > pChParam->uHeight)
+    if(pChParam->uNumSlices * iNumCore * iRound > pChParam->uHeight)
     {
       ++err;
       MSG("Invalid parameter : NumSlices (Too many slices for multi-core Wavefront encoding)");
@@ -830,7 +835,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   if(pChParam->tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL && iNumB != 3 && iNumB != 5 && iNumB != 7)
   {
     ++err;
-    MSG("!! PYRAMIDAL GOP pattern can only allowed 3, 5, 7 B Frames !!");
+    MSG("!! PYRAMIDAL GOP pattern only allows 3, 5, 7 B Frames !!");
   }
 
   if(AL_IS_HEVC(pChParam->eProfile))
@@ -871,13 +876,13 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
       }
     }
 
-    if(uNumCore > 1 && pChParam->uSliceSize > 0)
+    if(iNumCore > 1 && pChParam->uSliceSize > 0)
     {
       ++err;
       MSG("Fixed-Size slices are not allowed in multi-core AVC encoding");
     }
 
-    if((pChParam->uNumSlices > 1) && pChParam->bSubframeLatency && ((pChParam->uNumSlices % uNumCore) != 0))
+    if((pChParam->uNumSlices > 1) && pChParam->bSubframeLatency && ((pChParam->uNumSlices % iNumCore) != 0))
     {
       ++err;
       MSG("NumSlices must be a multiple of cores in subframe AVC encoding");
@@ -902,6 +907,29 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     ++err;
     MSG("!! Interlaced Video mode is not supported in this profile !!");
   }
+
+#if AL_ENABLE_TWOPASS
+
+  if(pSettings->LookAhead < 2 && pSettings->LookAhead != 0)
+  {
+    ++err;
+    MSG("!! Invalid parameter : LookAheadMode should be 0 or above 2 !!");
+  }
+
+  if(pSettings->TwoPass < 0 || pSettings->TwoPass > 2)
+  {
+    ++err;
+    MSG("!! Invalid parameter : TwoPass should be 0, 1 or 2 !!");
+  }
+
+  if(pSettings->TwoPass != 0 && pSettings->LookAhead != 0)
+  {
+    ++err;
+    MSG("!! Shouldn't have TwoPass and LookAhead at the same time !!");
+  }
+
+#endif
+
 
   return err;
 }
@@ -1108,7 +1136,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     pChParam->tRCParam.uMaxBitRate = pChParam->tRCParam.uTargetBitRate;
     ++numIncoherency;
   }
-  
+
   AL_EChromaMode eInputChromaMode = AL_GetChromaMode(tFourCC);
 
   {
@@ -1337,14 +1365,14 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
   if(AL_IS_HEVC(pChParam->eProfile))
   {
-    uint8_t uNumCore = pChParam->uNumCore;
-    int maximumResourcesForOneCore = GetCoreResources(ENCODER_CORE_FREQUENCY, ENCODER_CORE_FREQUENCY_MARGIN, ENCODER_CYCLES_FOR_BLK_32X32);
+    int iNumCore = pChParam->uNumCore;
+    AL_CoreConstraint constraint;
+    AL_CoreConstraint_Init(&constraint, ENCODER_CORE_FREQUENCY, ENCODER_CORE_FREQUENCY_MARGIN, ENCODER_CYCLES_FOR_BLK_32X32, 0, AL_ENC_CORE_MAX_WIDTH);
 
-    if(uNumCore == NUMCORE_AUTO)
-      uNumCore = ChoseCoresCount(pChParam->uWidth, pChParam->uHeight,
-                                 pChParam->tRCParam.uFrameRate * 1000, pChParam->tRCParam.uClkRatio, maximumResourcesForOneCore);
+    if(iNumCore == NUMCORE_AUTO)
+      iNumCore = AL_CoreConstraint_GetExpectedNumberOfCores(&constraint, pChParam->uWidth, pChParam->uHeight, pChParam->tRCParam.uFrameRate * 1000, pChParam->tRCParam.uClkRatio);
 
-    if(uNumCore > 1 && pChParam->uNumSlices > GetHevcMaxTileRow(pChParam->uLevel))
+    if(iNumCore > 1 && pChParam->uNumSlices > GetHevcMaxTileRow(pChParam->uLevel))
     {
       pChParam->uNumSlices = Clip3(pChParam->uNumSlices, 1, GetHevcMaxTileRow(pChParam->uLevel));
       MSG("!!With this Configuration, this NumSlices cannot be set!!");

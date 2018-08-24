@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -39,27 +39,39 @@
 #include "lib_common_enc/IpEncFourCC.h"
 #include <assert.h>
 
-TFourCC AL_GetSrcFourCC(AL_TPicFormat const picFmt);
-TFourCC GetTiledFourCC(AL_TPicFormat const picFmt);
-
 /****************************************************************************/
 TFourCC AL_EncGetSrcFourCC(AL_TPicFormat const picFmt)
 {
-  switch(picFmt.eStorageMode)
+  if(AL_FB_RASTER == picFmt.eStorageMode)
   {
-  case AL_FB_TILE_64x4:
-  case AL_FB_TILE_32x4:
-    return GetTiledFourCC(picFmt);
-  case AL_FB_RASTER:
-  default:
-    return AL_GetSrcFourCC(picFmt);
+    assert(picFmt.eChromaMode == CHROMA_MONO || picFmt.eChromaOrder == AL_C_ORDER_SEMIPLANAR);
+    assert(picFmt.uBitDepth == 8 || picFmt.b10bPacked);
   }
+
+  return AL_GetFourCC(picFmt);
+}
+
+/****************************************************************************/
+AL_TPicFormat AL_EncGetSrcPicFormat(AL_EChromaMode eChromaMode, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode, bool bIsCompressed)
+{
+  bool b10bPacked = false;
+  b10bPacked = AL_FB_RASTER == eStorageMode && 10 == uBitDepth;
+
+  AL_TPicFormat picFormat = { eChromaMode, uBitDepth, eStorageMode, eChromaMode == CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : AL_C_ORDER_SEMIPLANAR, bIsCompressed, b10bPacked };
+  return picFormat;
 }
 
 /****************************************************************************/
 TFourCC AL_GetRecFourCC(AL_TPicFormat const picFmt)
 {
   assert(picFmt.eStorageMode == AL_FB_TILE_64x4);
-  return GetTiledFourCC(picFmt);
+  return AL_GetFourCC(picFmt);
+}
+
+/****************************************************************************/
+AL_TPicFormat AL_EncGetRecPicFormat(AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bIsCompressed)
+{
+  AL_TPicFormat picFmt = { eChromaMode, uBitDepth, AL_FB_TILE_64x4, eChromaMode == CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : AL_C_ORDER_SEMIPLANAR, bIsCompressed, false };
+  return picFmt;
 }
 

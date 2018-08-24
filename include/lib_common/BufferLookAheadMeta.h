@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -35,40 +35,42 @@
 *
 ******************************************************************************/
 
-#include "Common_IP_Traces.h"
-#include <assert.h>
+#if AL_ENABLE_TWOPASS
+/**************************************************************************//*!
+   \addtogroup Buffers
+   @{
+   \file
+ *****************************************************************************/
 
-FILE* safe_fopen(const char* sFileName, const char* sMode)
+#pragma once
+
+#include "lib_common/BufferMeta.h"
+#include "lib_common/SliceConsts.h"
+
+/*************************************************************************//*!
+   \brief Structure used in LookAhead, to transmits frame
+    informations between the two pass
+*****************************************************************************/
+typedef struct AL_t_LookAheadMetaData
 {
-  FILE* pFile = fopen(sFileName, sMode);
-  assert(pFile);
-  return pFile;
-}
+  AL_TMetaData tMeta;
+  int32_t iPictureSize;   /*< current frame size */
+  int8_t iPercentIntra;   /*< current frame Percent Intra Ratio */
+  int8_t iPercentSkip;    /*< current frame Skip ratio */
+  bool bNextSceneChange;  /*< if next frame is a scene change  */
+  int32_t iIPRatio;       /*< current frame IPRatio for scene change*/
+  int32_t iComplexity;    /*< current frame complexity */
+}AL_TLookAheadMetaData;
 
-void IP_Write32(FILE* pFile, uint32_t uVal)
-{
-  int i;
-  char sTmp[10], * pTmp = sTmp;
+/*************************************************************************//*!
+   \brief Create a look ahead metadata.
+   The parameters are initialized to an invalid value (-1) by default.
+*****************************************************************************/
+AL_TLookAheadMetaData* AL_LookAheadMetaData_Create();
+AL_TLookAheadMetaData* AL_LookAheadMetaData_Clone(AL_TLookAheadMetaData* pMeta);
+void AL_LookAheadMetaData_Copy(AL_TLookAheadMetaData* pMetaSrc, AL_TLookAheadMetaData* pMetaDest);
+void AL_LookAheadMetaData_Reset(AL_TLookAheadMetaData* pMeta);
 
-  for(i = 28; i >= 0; i -= 4)
-  {
-    int iDigit = (((uVal) >> i) & 0x0F);
-    *pTmp++ = (iDigit >= 10 ? 'A' - 10 : '0') + iDigit;
-  }
-
-  sTmp[8] = '\n';
-  fwrite(sTmp, 9, 1, pFile);
-}
-
-void IP_TraceBuffer(char const* sFileName, char const* sMode, uint8_t const* pBuffer, uint32_t uSize)
-{
-  FILE* pFile = safe_fopen(sFileName, sMode);
-
-  uint32_t const* pBuf = (uint32_t*)(pBuffer);
-
-  for(uint32_t u = 0; u < uSize; u += sizeof(uint32_t), ++pBuf)
-    IP_Write32(pFile, *pBuf);
-
-  fclose(pFile);
-}
+/*@}*/
+#endif
 

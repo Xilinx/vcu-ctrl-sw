@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -36,375 +36,41 @@
 ******************************************************************************/
 
 #include "CfgParser.h"
+#include "Parser.h"
 
-extern "C"
-{
-#include "lib_common/SliceConsts.h"
-#include "lib_common_enc/Settings.h"
-}
-
-#include <assert.h>
-#include <stdexcept>
-#include <sstream>
-#include <iostream>
+#include <algorithm>
+#include <cassert>
+#include <climits>
+#include <cstring>
+#include <deque>
 #include <fstream>
-#include <stdlib.h>
-#include <limits.h>
-#include <math.h>
-#include <string.h>
+#include <functional>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <map>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <utility>
 #include <vector>
 
-/*****************************************************************************/
-static bool strict_mode = false;
+using std::cout;
+using std::cerr;
+using std::endl;
+using std::string;
 
-static void ConfigError()
+struct Temporary
 {
-  if (strict_mode)
-    throw std::runtime_error("Invalid line in configuration file");
-}
-
-/*****************************************************************************/
-static bool GetString(const string& sLine, string& sStr)
-{
-  size_t zPos1 = sLine.find('=');
-  if(zPos1 == sLine.npos)
-    return false;
-  size_t zPos2 = sLine.find_first_not_of(" \t", zPos1+1);
-  size_t zPos3 = sLine.find_last_not_of(" \t");
-
-  sStr = sLine.substr(zPos2, zPos3-zPos2+1);
-
-  return true;
-}
-
-/*****************************************************************************/
-#if defined(_WIN32)
-inline
-static void WindowsPath(string& sStr)
-{
-  size_t zSize = sStr.size();
-
-  for(size_t i=0; i < zSize; i++)
-    if(sStr[i] == '/')
-      sStr[i] = '\\';
-}
-#endif
-
-/*****************************************************************************/
-inline
-static void LinuxPath(string& sStr)
-{
-  size_t zSize = sStr.size();
-
-  for(size_t i=0; i < zSize; i++)
-    if(sStr[i] == '\\')
-      sStr[i] = '/';
-}
-
-#if defined(_WIN32)
-  #define ToNativePath WindowsPath
-#elif defined(__linux__)
-  #define ToNativePath LinuxPath
-#else
-  #define ToNativePath
-#endif
-
-/*****************************************************************************/
-float GetFloatValue(const string& sLine, size_t zPos2)
-{
-  size_t zPos3 = sLine.find_first_not_of("0123456789", zPos2);
-  if(zPos3 == sLine.npos) zPos3 = sLine.length();
-
-  float fEnt  = float(::atoi(sLine.substr(zPos2, zPos3 - zPos2).c_str()));
-  float fFrac = 0.0f;
-
-  if(sLine[zPos3] == '.' || sLine[zPos3] == ',')
+  Temporary()
   {
-    size_t zPos4 = sLine.find_first_not_of("0123456789", zPos3+1);
-    if(zPos4 == sLine.npos) zPos4 = sLine.length();
-
-    int iSize = zPos4 - zPos3 - 1;
-    if(iSize > 0)
-    {
-      fFrac = float(::atoi(sLine.substr(zPos3+1, iSize).c_str()));
-
-      while(iSize--)
-        fFrac /= 10.0f;
-    }
   }
 
-  return fEnt + fFrac;
-}
+  std::string sScalingListFile = "";
+  std::string sZapperFile = "";
+};
 
-static float GetFloat(const string& sLine)
-{
-  size_t zPos1 = sLine.find('=');
-  if(zPos1 == sLine.npos)
-    return 0;
-  size_t zPos2 = sLine.find_first_not_of(" \t", zPos1+1);
-  return GetFloatValue(sLine, zPos2);
-}
-
-/*****************************************************************************/
-static bool GetValue(const string& sLine, size_t zStartPos, int& Value, size_t& zLength)
-{
-
-#define IF_KEYWORD_0(T) if(!sLine.compare(zStartPos, sizeof(#T)-1, #T)) { Value = T; zLength = sizeof(#T)-1; return true; }
-#define IF_KEYWORD_1(T, V) if(!sLine.compare(zStartPos, sizeof(#T)-1, #T)) { Value = V; zLength = sizeof(#T)-1; return true; }
-#define IF_KEYWORD_P(P, T) if(!sLine.compare(zStartPos, sizeof(#T)-1, #T)) { Value = P##T; zLength = sizeof(#T)-1; return true; }
-#define IF_KEYWORD_A(T) if(!sLine.compare(zStartPos, sizeof(#T)-1, #T)) { Value = AL_##T; zLength = sizeof(#T)-1; return true; }
-
-  int iSign = 0;
-  if(sLine[zStartPos] == '-')
-  {
-    iSign = -1;
-    zStartPos++;
-  }
-  else if(sLine[zStartPos] == '+')
-  {
-    iSign = 1;
-    zStartPos++;
-  }
-
-  // Hexadecimal
-  if(!sLine.compare(zStartPos, 2, "0x"))
-  {
-    auto zPos = sLine.find_first_not_of("0123456789AaBbCcDdEeFf", zStartPos+2);
-    if(zPos == string::npos)
-      zPos = sLine.length();
-
-    Value   =  ::strtol(sLine.substr(zStartPos+2).c_str(), NULL, 16);
-    zLength = zPos - zStartPos;
-    return iSign == 0;
-  }
-  // Decimal
-  if(::isdigit(sLine[zStartPos]))
-  {
-    if(!iSign)
-      iSign = 1;
-
-    auto zPos = sLine.find_first_not_of("0123456789", zStartPos);
-    if(zPos == string::npos)
-      zPos = sLine.length();
-
-    Value   = iSign * ::atoi(sLine.substr(zStartPos).c_str());
-    zLength = zPos - zStartPos;
-    return true;
-  }
-
-  // predefined value
-  if(iSign)
-    return false;
-
-       IF_KEYWORD_1(TRUE, 1)
-  else IF_KEYWORD_1(FALSE, 0)
-  else IF_KEYWORD_0(ENABLE)
-  else IF_KEYWORD_0(DISABLE)
-  else IF_KEYWORD_0(UNIFORM_QP)
-  else IF_KEYWORD_0(CHOOSE_QP)
-  else IF_KEYWORD_0(RAMP_QP)
-  else IF_KEYWORD_0(RANDOM_QP)
-  else IF_KEYWORD_0(BORDER_QP)
-  else IF_KEYWORD_0(ROI_QP)
-  else IF_KEYWORD_0(AUTO_QP)
-  else IF_KEYWORD_0(ADAPTIVE_AUTO_QP)
-  else IF_KEYWORD_0(RELATIVE_QP)
-  else IF_KEYWORD_0(RANDOM_SKIP)
-  else IF_KEYWORD_0(RANDOM_I_ONLY)
-  else IF_KEYWORD_P(AL_RC_, CONST_QP)
-  else IF_KEYWORD_P(AL_RC_, CBR)
-  else IF_KEYWORD_P(AL_RC_, VBR)
-  else IF_KEYWORD_P(AL_RC_, LOW_LATENCY)
-  else IF_KEYWORD_P(AL_RC_, CAPPED_VBR)
-  else IF_KEYWORD_1(DEFAULT_GOP, AL_GOP_MODE_DEFAULT)
-  else IF_KEYWORD_1(PYRAMIDAL_GOP, AL_GOP_MODE_PYRAMIDAL)
-  else IF_KEYWORD_1(ADAPTIVE_GOP, AL_GOP_MODE_ADAPTIVE)
-  else IF_KEYWORD_1(LOW_DELAY_P, AL_GOP_MODE_LOW_DELAY_P)
-  else IF_KEYWORD_1(LOW_DELAY_B, AL_GOP_MODE_LOW_DELAY_B)
-  else IF_KEYWORD_0(DEFAULT_LDA)
-  else IF_KEYWORD_0(CUSTOM_LDA)
-  else IF_KEYWORD_0(AUTO_LDA)
-  else IF_KEYWORD_0(TEST_LDA)
-  else IF_KEYWORD_0(DYNAMIC_LDA)
-  else IF_KEYWORD_0(LOAD_LDA)
-  else IF_KEYWORD_1(SC_ONLY, 0x7FFFFFFF)
-  else IF_KEYWORD_P(AL_PROFILE_, HEVC_MONO10)
-  else IF_KEYWORD_P(AL_PROFILE_, HEVC_MONO)
-  else IF_KEYWORD_P(AL_PROFILE_, HEVC_MAIN_422_10_INTRA)
-  else IF_KEYWORD_P(AL_PROFILE_, HEVC_MAIN_422_10)
-  else IF_KEYWORD_P(AL_PROFILE_, HEVC_MAIN_422)
-  else IF_KEYWORD_P(AL_PROFILE_, HEVC_MAIN_INTRA)
-  else IF_KEYWORD_P(AL_PROFILE_, HEVC_MAIN_STILL)
-  else IF_KEYWORD_P(AL_PROFILE_, HEVC_MAIN10_INTRA)
-  else IF_KEYWORD_P(AL_PROFILE_, HEVC_MAIN10)
-  else IF_KEYWORD_P(AL_PROFILE_, HEVC_MAIN) // always after MAIN10 and MAIN_STILL
-  //else IF_KEYWORD_P(AL_PROFILE_, AVC_BASELINE) // Baseline is mapped to Constrained_Baseline
-  else IF_KEYWORD_1(AVC_BASELINE, AL_PROFILE_AVC_C_BASELINE)
-  else IF_KEYWORD_P(AL_PROFILE_, AVC_C_BASELINE)
-  else IF_KEYWORD_P(AL_PROFILE_, AVC_MAIN)
-  else IF_KEYWORD_P(AL_PROFILE_, AVC_HIGH10_INTRA)
-  else IF_KEYWORD_P(AL_PROFILE_, AVC_HIGH10)
-  else IF_KEYWORD_P(AL_PROFILE_, AVC_HIGH_422_INTRA)
-  else IF_KEYWORD_P(AL_PROFILE_, AVC_HIGH_422)
-  else IF_KEYWORD_P(AL_PROFILE_, AVC_HIGH) // always after HIGH10 and HIGH_422
-  else IF_KEYWORD_P(AL_PROFILE_, AVC_C_HIGH)
-  else IF_KEYWORD_P(AL_PROFILE_, AVC_PROG_HIGH)
-  else IF_KEYWORD_1(MAIN_TIER, 0)
-  else IF_KEYWORD_1(HIGH_TIER, 1)
-  else IF_KEYWORD_0(SEI_NONE)
-  else IF_KEYWORD_0(SEI_BP)
-  else IF_KEYWORD_0(SEI_PT)
-  else IF_KEYWORD_0(SEI_RP)
-  else IF_KEYWORD_0(SEI_ALL)
-  else IF_KEYWORD_A(MODE_CAVLC)
-  else IF_KEYWORD_A(MODE_CABAC)
-  else IF_KEYWORD_P(AL_SRC_, TILE_64x4)
-  else IF_KEYWORD_P(AL_SRC_, TILE_32x4)
-  else IF_KEYWORD_P(AL_SRC_, COMP_64x4)
-  else IF_KEYWORD_P(AL_SRC_, COMP_32x4)
-  else IF_KEYWORD_P(AL_SRC_, NVX)
-  else IF_KEYWORD_P(AL_, ASPECT_RATIO_NONE)
-  else IF_KEYWORD_P(AL_, ASPECT_RATIO_AUTO)
-  else IF_KEYWORD_P(AL_, ASPECT_RATIO_16_9)
-  else IF_KEYWORD_P(AL_, ASPECT_RATIO_4_3)
-  else IF_KEYWORD_0(COLOUR_DESC_BT_470_PAL)
-  else IF_KEYWORD_0(COLOUR_DESC_BT_709)
-  else IF_KEYWORD_0(CHROMA_MONO)
-  else IF_KEYWORD_0(CHROMA_4_2_0)
-  else IF_KEYWORD_0(CHROMA_4_2_2)
-  else IF_KEYWORD_0(CHROMA_4_4_4)
-  else IF_KEYWORD_P(AL_SCL_, FLAT)
-  else IF_KEYWORD_P(AL_SCL_, DEFAULT)
-  else IF_KEYWORD_P(AL_SCL_, CUSTOM)
-  else IF_KEYWORD_P(AL_SCL_, RANDOM)
-  else IF_KEYWORD_1(ALL, -1)
-  else IF_KEYWORD_0(LOAD_QP)
-  else IF_KEYWORD_0(LOAD_LDA)
-  else IF_KEYWORD_1(AUTO, 0xFFFFFFFF)
-  else IF_KEYWORD_1(GDR_HORIZONTAL, AL_GDR_HORIZONTAL)
-  else IF_KEYWORD_1(GDR_VERTICAL, AL_GDR_VERTICAL)
-  else IF_KEYWORD_P(AL_VM_, PROGRESSIVE)
-  else IF_KEYWORD_P(AL_VM_, INTERLACED_TOP)
-  else IF_KEYWORD_P(AL_VM_, INTERLACED_BOTTOM)
-  return false;
-
-#undef IF_KEYWORD_0
-#undef IF_KEYWORD_1
-
-}
-
-int GetCmdlineValue(const string & sLine)
-{
-  size_t zLength;
-  int Val = 0;
-  if (GetValue(sLine, 0, Val, zLength)) {
-    return Val;
-  } else {
-        return -1;
-  }
-}
-/*****************************************************************************/
-
-static int GetValueWrapped(const string& sLine, ostream &errstream)
-{
-  int Value  = 0;
-  int ValTmp = 0;
-  size_t zLength;
-
-  char Op = '=';
-  char OldOp = '=';
-
-  size_t zPos1 = sLine.find('=');
-  if(zPos1 == sLine.npos)
-    return -1;
-
-  size_t zPos2 = sLine.find_first_not_of(" \t", zPos1+1);
-
-  while (zPos2 != sLine.npos)
-  {
-    if(!GetValue(sLine, zPos2, ValTmp, zLength))
-    {
-      errstream << "Invalid value: \"" << sLine << "\"" << endl;
-      ConfigError();
-      return Value;
-    }
-
-    switch(Op)
-    {
-    case '=' : Value  = ValTmp; break;
-    case '+' : Value += ValTmp; break;
-    case '-' : Value -= ValTmp; break;
-    case '|' : Value |= ValTmp; break;
-    case '*' :
-               if(OldOp == '=' || OldOp == '*')
-                 Value *= ValTmp;
-               else
-               {
-                 errstream << "Invalid Operator: \"" << sLine << "\"" << endl;
-                 ConfigError();
-               }
-               break;
-    default:
-               errstream << "Syntax error or invalid value: \"" << sLine << "\"" << endl;
-               ConfigError();
-               return Value;
-    }
-
-    zPos2 = sLine.find_first_not_of(" \t", zPos2+zLength);
-    if(zPos2 != sLine.npos)
-    {
-      OldOp = Op;
-      Op    = sLine[zPos2];
-      zPos2 = sLine.find_first_not_of(" \t", zPos2+1);
-    }
-  }
-  return Value;
-}
-
-static int GetValue(const string& sLine)
-{
-  return GetValueWrapped(sLine, std::cerr);
-}
-
-/*****************************************************************************/
-static void GetFlag(AL_EChEncOption *pFlags, uint32_t uFlag, const string & sLine)
-{
-  *pFlags = (AL_EChEncOption)((uint32_t)*pFlags & ~uFlag);
-  if(GetValue(sLine))
-    *pFlags = (AL_EChEncOption)((uint32_t)*pFlags | uFlag);
-}
-
-static void GetFlag(AL_ERateCtrlOption *pFlags, uint32_t uFlag, const string & sLine)
-{
-  *pFlags = (AL_ERateCtrlOption)((uint32_t)*pFlags & ~uFlag);
-  if(GetValue(sLine))
-    *pFlags = (AL_ERateCtrlOption)((uint32_t)*pFlags | uFlag);
-}
-
-/*****************************************************************************/
-
-void SetFpsandClkRatio(int value, uint16_t &iFps, uint16_t & iClkRatio)
-{
-  iFps = value / 1000;
-  iClkRatio = 1000;
-
-  if(value %= 1000)
-    iClkRatio += (1000 - value) / ++iFps;
-}
-
-void GetFpsCmdline(const string& sLine, uint16_t & iFps, uint16_t & iClkRatio)
-{
-  int iTmp = int(GetFloatValue(sLine, 0) * 1000);
-  SetFpsandClkRatio(iTmp, iFps, iClkRatio);
-}
-/*****************************************************************************/
-void GetFps(const string& sLine, uint16_t & iFps, uint16_t & iClkRatio)
-{
-  int iTmp = int(GetFloat(sLine) * 1000);
-  SetFpsandClkRatio(iTmp, iFps, iClkRatio);
-}
-
-static TFourCC GetFourCCValue(const string & sVal)
+static TFourCC GetFourCCValue(const string& sVal)
 {
   // backward compatibility
   if(!sVal.compare("FILE_MONOCHROME"))
@@ -420,248 +86,441 @@ static TFourCC GetFourCCValue(const string & sVal)
 
   // read FourCC
   uint32_t uFourCC = 0;
+
   if(sVal.size() >= 1)
-    uFourCC  = ((uint32_t) sVal[0]);
+    uFourCC = ((uint32_t)sVal[0]);
+
   if(sVal.size() >= 2)
-    uFourCC |= ((uint32_t) sVal[1]) <<  8;
+    uFourCC |= ((uint32_t)sVal[1]) << 8;
+
   if(sVal.size() >= 3)
-    uFourCC |= ((uint32_t) sVal[2]) << 16;
+    uFourCC |= ((uint32_t)sVal[2]) << 16;
+
   if(sVal.size() >= 4)
-    uFourCC |= ((uint32_t) sVal[3]) << 24;
+    uFourCC |= ((uint32_t)sVal[3]) << 24;
 
-  return (TFourCC) uFourCC;
-}
-
-TFourCC GetCmdlineFourCC(const string & sLine)
-{
-  return GetFourCCValue(sLine);
-}
-
-/*****************************************************************************/
-static TFourCC GetFourCC(const string & sLine)
-{
-  size_t zPos1 = sLine.find('=');
-
-  if(zPos1 == sLine.npos)
-    return -1;
-
-  size_t zPos2 = sLine.find_first_not_of(" \t", zPos1+1);
-  size_t zPos3 = sLine.find_first_of(" \t", zPos2+1);
-
-  string sVal = sLine.substr(zPos2, zPos3-zPos2);
-
-  return GetFourCCValue(sVal);
-}
-
-/*****************************************************************************/
-#define KEYWORD(T) (!sLine.compare(0, sizeof(T)-1, T))
-
-typedef enum e_Section
-{
-  CFG_SEC_GLOBAL      ,
-  CFG_SEC_INPUT       ,
-  CFG_SEC_OUTPUT      ,
-  CFG_SEC_SETTINGS    ,
-  CFG_SEC_RUN         ,
-  CFG_SEC_RATE_CONTROL,
-  CFG_SEC_GOP,
-} ESection;
-
-
-/*****************************************************************************/
-static bool ParseSection(string& sLine, ESection & Section)
-{
-       if(KEYWORD("[INPUT]"))        Section = CFG_SEC_INPUT;
-  else if(KEYWORD("[OUTPUT]"))       Section = CFG_SEC_OUTPUT;
-  else if(KEYWORD("[SETTINGS]"))     Section = CFG_SEC_SETTINGS;
-  else if(KEYWORD("[RUN]"))          Section = CFG_SEC_RUN;
-  else if(KEYWORD("[RATE_CONTROL]")) Section = CFG_SEC_RATE_CONTROL;
-  else if(KEYWORD("[GOP]"))          Section = CFG_SEC_GOP;
-  else
-    return false;
-
-  return true;
+  return (TFourCC)uFourCC;
 }
 
 
-/*****************************************************************************/
-static bool ParseInput(string & sLine, ConfigFile& cfg)
+static void populateInputSection(ConfigParser& parser, ConfigFile& cfg)
 {
-       if(KEYWORD("YUVFile"))      return GetString(sLine, cfg.YUVFileName);
-  else if(KEYWORD("Width"))        cfg.FileInfo.PictWidth  = GetValue(sLine);
-  else if(KEYWORD("Height"))       cfg.FileInfo.PictHeight = GetValue(sLine);
-  else if(KEYWORD("Format"))       cfg.FileInfo.FourCC = TFourCC(GetFourCC(sLine));
-  else if(KEYWORD("CmdFile"))      GetString(sLine, cfg.sCmdFileName);
-  else if(KEYWORD("RoiFile"))      GetString(sLine, cfg.sRoiFileName);
-  else if(KEYWORD("FrameRate"))    cfg.FileInfo.FrameRate  = GetValue(sLine);
-  else
-    return false;
-
-  return true;
-}
-
-/*****************************************************************************/
-static bool ParseOutput(string & sLine, ConfigFile& cfg)
-{
-       if(KEYWORD("BitstreamFile")) return GetString(sLine, cfg.BitstreamFileName);
-  else if(KEYWORD("RecFile"))       return GetString(sLine, cfg.RecFileName);
-  else if(KEYWORD("Format"))        cfg.RecFourCC = TFourCC(GetFourCC(sLine));
-  else
-    return false;
-
-  return true;
-}
-
-/*****************************************************************************/
-static bool GetBoolValue(const string& sLine)
-{
-  return bool(GetValue(sLine));
-}
-
-/*****************************************************************************/
-static bool ParseRateControl(string & sLine, AL_TRCParam & RCParam)
-{
-       if(KEYWORD("RateCtrlMode"))    RCParam.eRCMode        = AL_ERateCtrlMode(GetValue(sLine));
-  else if(KEYWORD("BitRate"))         RCParam.uTargetBitRate = GetValue(sLine)*1000;
-  else if(KEYWORD("MaxBitRate"))      RCParam.uMaxBitRate    = GetValue(sLine)*1000;
-  else if(KEYWORD("FrameRate"))       GetFps(sLine, RCParam.uFrameRate, RCParam.uClkRatio);
-  else if(KEYWORD("SliceQP"))         RCParam.iInitialQP     = GetValue(sLine);
-  else if(KEYWORD("MaxQP"))           RCParam.iMaxQP         = GetValue(sLine);
-  else if(KEYWORD("MinQP"))           RCParam.iMinQP         = GetValue(sLine);
-
-  else if(KEYWORD("InitialDelay"))    RCParam.uInitialRemDelay  = uint32_t(GetFloat(sLine) * 90000);
-  else if(KEYWORD("CPBSize"))         RCParam.uCPBSize          = uint32_t(GetFloat(sLine) * 90000);
-  else if(KEYWORD("IPDelta"))         RCParam.uIPDelta          = GetValue(sLine);
-  else if(KEYWORD("PBDelta"))         RCParam.uPBDelta          = GetValue(sLine);
-
-  else if(KEYWORD("ScnChgResilience")) GetFlag(&RCParam.eOptions, AL_RC_OPT_SCN_CHG_RES, sLine);
-
-  else if (KEYWORD("UseGoldenRef"))   RCParam.bUseGoldenRef = GetBoolValue(sLine);
-  else if (KEYWORD("GoldenRefFrequency"))   RCParam.uGoldenRefFrequency = GetValue(sLine);
-  else if (KEYWORD("PGoldenDelta"))   RCParam.uPGoldenDelta = GetValue(sLine);
-
-  else if (KEYWORD("MaxPSNR"))   RCParam.uMaxPSNR = GetFloat(sLine) * 100;
-  
-  else if (KEYWORD("MaxPictureSize")) RCParam.uMaxPictureSize = GetValue(sLine) * 1000;
-  else
-    return false;
-
-  return true;
-}
-
-/*****************************************************************************/
-static bool ParseGop(string & sLine, AL_TEncSettings & Settings)
-{
-  if(KEYWORD("GopCtrlMode")) Settings.tChParam[0].tGopParam.eMode      = AL_EGopCtrlMode(GetValue(sLine));
-  else if(KEYWORD("Gop.Length"))  Settings.tChParam[0].tGopParam.uGopLength = GetValue(sLine);
-  else if(KEYWORD("Gop.FreqIDR")) Settings.tChParam[0].tGopParam.uFreqIDR   = GetValue(sLine);
-  else if(KEYWORD("Gop.EnableLT")) Settings.tChParam[0].tGopParam.bEnableLT  = GetBoolValue(sLine);
-  else if(KEYWORD("Gop.FreqLT"))  Settings.tChParam[0].tGopParam.uFreqLT    = GetValue(sLine);
-  else if(
-      (Settings.tChParam[0].tGopParam.eMode == AL_GOP_MODE_DEFAULT)
-      ||(Settings.tChParam[0].tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL)
-      ||(Settings.tChParam[0].tGopParam.eMode == AL_GOP_MODE_ADAPTIVE)
-      )
+  auto curSection = Section::Input;
+  parser.addPath(curSection, "YUVFile", cfg.YUVFileName, "YUV input file");
+  parser.addCustom(curSection, "Width", [&](std::deque<Token>& tokens)
   {
-    if(KEYWORD("Gop.NumB"))        Settings.tChParam[0].tGopParam.uNumB      = GetValue(sLine);
-    else
-      return false;
-  }
-  else if(Settings.tChParam[0].tGopParam.eMode & AL_GOP_FLAG_LOW_DELAY)
+    cfg.FileInfo.PictWidth = parseArithmetic<int>(tokens);
+    AL_SetSrcWidth(&cfg.Settings.tChParam[0], cfg.FileInfo.PictWidth);
+  }, "Specifies YUV input width");
+
+  parser.addCustom(curSection, "Height", [&](std::deque<Token>& tokens)
   {
-    if(KEYWORD("Gop.GdrMode"))     Settings.tChParam[0].tGopParam.eGdrMode   = AL_EGdrMode(GetValue(sLine));
-    else
-      return false;
+    cfg.FileInfo.PictHeight = parseArithmetic<int>(tokens);
+    AL_SetSrcHeight(&cfg.Settings.tChParam[0], cfg.FileInfo.PictHeight);
+  }, "Specifies YUV input height");
+  parser.addCustom(curSection, "Format", [&](std::deque<Token>& tokens)
+  {
+    /* we might want to be able to show users which format are available */
+    if(!hasOnlyOneIdentifier(tokens))
+      throw std::runtime_error("Failed to parse FOURCC value");
+    cfg.FileInfo.FourCC = GetFourCCValue(tokens[0].text);
+  }, "Specifies YUV input format");
+  parser.addPath(curSection, "CmdFile", cfg.sCmdFileName, "File containing the dynamic commands to send to the encoder");
+  parser.addPath(curSection, "ROIFile", cfg.sRoiFileName, "File containing the Regions of Interest used to encode");
+#if AL_ENABLE_TWOPASS
+  parser.addPath(curSection, "TwoPassFile", cfg.sTwoPassFileName, "File containing the first pass statistics");
+#endif
+  parser.addArith(curSection, "FrameRate", cfg.FileInfo.FrameRate, "Specifies the number of frames per second of the source, if it isn't set, we take the RATE_CONTROL FrameRate value. If this parameter is greater than the frame rate specified in the rate control section, the encoder will drop some frames; when this parameter is lower than the frame rate specified in the rate control section, the encoder will repeat some frames");
+}
+
+static void populateOutputSection(ConfigParser& parser, ConfigFile& cfg)
+{
+  auto curSection = Section::Output;
+  parser.addPath(curSection, "BitstreamFile", cfg.BitstreamFileName, "Compressed output file");
+  parser.addPath(curSection, "RecFile", cfg.RecFileName, "Reconstructed YUV output file, if not set, the reconstructed picture is not saved");
+  parser.addCustom(curSection, "Format", [&](std::deque<Token>& tokens)
+  {
+    /* we might want to be able to show users which format are available */
+    if(!hasOnlyOneIdentifier(tokens))
+      throw std::runtime_error("Failed to parse FOURCC value");
+    cfg.RecFourCC = GetFourCCValue(tokens[0].text);
+  }, "Specifies Reconstructed YUV output format, if not set, the output format is the same than in the INPUT section");
+}
+
+static void SetFpsAndClkRatio(int value, uint16_t& iFps, uint16_t& iClkRatio)
+{
+  iFps = value / 1000;
+  iClkRatio = 1000;
+
+  if(value %= 1000)
+    iClkRatio += (1000 - value) / ++iFps;
+}
+
+static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCParam& RCParam)
+{
+  std::map<string, int> rateCtrlModes;
+  rateCtrlModes["CONST_QP"] = AL_RC_CONST_QP;
+  rateCtrlModes["CBR"] = AL_RC_CBR;
+  rateCtrlModes["VBR"] = AL_RC_VBR;
+  rateCtrlModes["LOW_LATENCY"] = AL_RC_LOW_LATENCY;
+  rateCtrlModes["CAPPED_VBR"] = AL_RC_CAPPED_VBR;
+  rateCtrlModes["BYPASS"] = AL_RC_BYPASS;
+
+  parser.addEnum(curSection, "RateCtrlMode", RCParam.eRCMode, rateCtrlModes, "Selects the way the bit rate is controlled");
+  parser.addArithMultipliedByConstant(curSection, "BitRate", RCParam.uTargetBitRate, 1000, "Target bit rate in Kbits/s. Unused if RateCtrlMode=CONST_QP");
+  parser.addArithMultipliedByConstant(curSection, "MaxBitRate", RCParam.uMaxBitRate, 1000);
+  parser.addCustom(curSection, "FrameRate", [&](std::deque<Token>& tokens)
+  {
+    auto tmp = parseArithmetic<int>(tokens) * 1000;
+    SetFpsAndClkRatio(tmp, RCParam.uFrameRate, RCParam.uClkRatio);
+  }, "Number of frames per second");
+  std::map<string, int> autoEnum {};
+  autoEnum["AUTO"] = -1;
+  parser.addArithOrEnum(curSection, "SliceQP", RCParam.iInitialQP, autoEnum, "Quantization parameter. When RateCtrlMode = CONST_QP, the specified QP is applied to all slices. In other cases, the specified QP is used as initial QP");
+  parser.addArithOrEnum(curSection, "MaxQP", RCParam.iMaxQP, autoEnum, "Maximum QP value allowed");
+  parser.addArithOrEnum(curSection, "MinQP", RCParam.iMinQP, autoEnum, "Minimum QP value allowed. This parameter is especially useful when using VBR rate control. In VBR, the value AUTO can be used to let the encoder select the MinQP according to SliceQP");
+  parser.addArithFunc<uint32_t, double>(curSection, "InitialDelay", RCParam.uInitialRemDelay, [&](double value)
+  {
+    return (uint32_t)(value * 90000);
+  }, "Specifies the initial removal delay as specified in the HRD model, in seconds. (unused in CONST_QP)");
+  parser.addArithFunc<uint32_t, double>(curSection, "CPBSize", RCParam.uCPBSize, [&](double value)
+  {
+    return (uint32_t)(value * 90000);
+  }, "Specifies the size of the Coded Picture Buffer as specified in the HRD model, in seconds. (unused in CONST_QP)");
+  parser.addArithOrEnum(curSection, "IPDelta", RCParam.uIPDelta, autoEnum, "Specifies the QP difference between I and P frames");
+  parser.addArithOrEnum(curSection, "PBDelta", RCParam.uPBDelta, autoEnum, "Specifies the QP difference between P and B frames");
+  parser.addFlag(curSection, "ScnChgResilience", RCParam.eOptions, AL_RC_OPT_SCN_CHG_RES);
+  parser.addBool(curSection, "UseGoldenRef", RCParam.bUseGoldenRef);
+  parser.addArith(curSection, "GoldenRefFrequency", RCParam.uGoldenRefFrequency);
+  parser.addArith(curSection, "PGoldenDelta", RCParam.uPGoldenDelta);
+  parser.addArithFunc<uint16_t, double>(curSection, "MaxPSNR", RCParam.uMaxPSNR, [&](double value)
+  {
+    return (uint16_t)(value * 100);
+  });
+  parser.addArithMultipliedByConstant(curSection, "MaxPictureSize", RCParam.uMaxPictureSize, 1000);
+}
+
+static void populateRateControlSection(ConfigParser& parser, ConfigFile& cfg)
+{
+  populateRCParam(Section::RateControl, parser, cfg.Settings.tChParam[0].tRCParam);
+}
+
+static void populateGopSection(ConfigParser& parser, ConfigFile& cfg)
+{
+  auto& GopParam = cfg.Settings.tChParam[0].tGopParam;
+  auto curSection = Section::Gop;
+  std::map<string, int> gopCtrlModes {};
+  gopCtrlModes["DEFAULT_GOP"] = AL_GOP_MODE_DEFAULT;
+  gopCtrlModes["PYRAMIDAL_GOP"] = AL_GOP_MODE_PYRAMIDAL;
+  gopCtrlModes["ADAPTIVE_GOP"] = AL_GOP_MODE_ADAPTIVE;
+  gopCtrlModes["BYPASS"] = AL_GOP_MODE_BYPASS;
+  gopCtrlModes["LOW_DELAY_P"] = AL_GOP_MODE_LOW_DELAY_P;
+  gopCtrlModes["LOW_DELAY_B"] = AL_GOP_MODE_LOW_DELAY_B;
+  parser.addEnum(curSection, "GopCtrlMode", GopParam.eMode, gopCtrlModes, "Specifies the Group Of Pictures configuration mode");
+  parser.addArith(curSection, "Gop.Length", GopParam.uGopLength, "GOP length in frames including the I picture. 0 for Intra only.");
+  std::map<string, int> freqIdrEnums {};
+  freqIdrEnums["SC_ONLY"] = 0x7FFFFFFF;
+  parser.addArithOrEnum(curSection, "Gop.FreqIDR", GopParam.uFreqIDR, freqIdrEnums, "Specifies the minimum number of frames between to IDR pictures (AVC, HEVC). IDR insertion depends on the position of the GOP boundary. -1 to disable IDR insertion");
+  parser.addBool(curSection, "Gop.EnableLT", GopParam.bEnableLT);
+  parser.addArith(curSection, "Gop.FreqLT", GopParam.uFreqLT, "Specifies the Long Term reference picture refresh frequency in number of frames");
+  parser.addArith(curSection, "Gop.NumB", GopParam.uNumB, "Maximum number of consecutive B frames in a GOP");
+  std::map<string, int> gdrModes {};
+  gdrModes["GDR_HORIZONTAL"] = AL_GDR_HORIZONTAL;
+  gdrModes["GDR_VERTICAL"] = AL_GDR_VERTICAL;
+  gdrModes["DISABLE"] = AL_GDR_OFF;
+  gdrModes["GDR_OFF"] = AL_GDR_OFF;
+  parser.addEnum(curSection, "Gop.GdrMode", GopParam.eGdrMode, gdrModes, "When GopCtrlMode is LOW_DELAY_{P,B}, this parameter specifies whether a Gradual Decoder Refresh scheme should be used or not");
+}
+
+static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Temporary& temp, std::ostream& warnStream)
+{
+  auto curSection = Section::Settings;
+  std::map<string, int> profiles {};
+
+  profiles["HEVC_MONO10"] = AL_PROFILE_HEVC_MONO10;
+  profiles["HEVC_MONO"] = AL_PROFILE_HEVC_MONO;
+  profiles["HEVC_MAIN_422_10_INTRA"] = AL_PROFILE_HEVC_MAIN_422_10_INTRA;
+  profiles["HEVC_MAIN_422_10"] = AL_PROFILE_HEVC_MAIN_422_10;
+  profiles["HEVC_MAIN_422"] = AL_PROFILE_HEVC_MAIN_422;
+  profiles["HEVC_MAIN_INTRA"] = AL_PROFILE_HEVC_MAIN_INTRA;
+  profiles["HEVC_MAIN_STILL"] = AL_PROFILE_HEVC_MAIN_STILL;
+  profiles["HEVC_MAIN10_INTRA"] = AL_PROFILE_HEVC_MAIN10_INTRA;
+  profiles["HEVC_MAIN10"] = AL_PROFILE_HEVC_MAIN10;
+  profiles["HEVC_MAIN"] = AL_PROFILE_HEVC_MAIN;
+  /* Baseline is mapped to Constrained_Baseline */
+  profiles["AVC_BASELINE"] = AL_PROFILE_AVC_C_BASELINE;
+  profiles["AVC_C_BASELINE"] = AL_PROFILE_AVC_C_BASELINE;
+  profiles["AVC_MAIN"] = AL_PROFILE_AVC_MAIN;
+  profiles["AVC_HIGH10_INTRA"] = AL_PROFILE_AVC_HIGH10_INTRA;
+  profiles["AVC_HIGH10"] = AL_PROFILE_AVC_HIGH10;
+  profiles["AVC_HIGH_422_INTRA"] = AL_PROFILE_AVC_HIGH_422_INTRA;
+  profiles["AVC_HIGH_422"] = AL_PROFILE_AVC_HIGH_422;
+  profiles["AVC_HIGH"] = AL_PROFILE_AVC_HIGH;
+  profiles["AVC_C_HIGH"] = AL_PROFILE_AVC_C_HIGH;
+  profiles["AVC_PROG_HIGH"] = AL_PROFILE_AVC_PROG_HIGH;
+  parser.addEnum(curSection, "Profile", cfg.Settings.tChParam[0].eProfile, profiles, "Specifies the profile to which the bitstream conforms");
+  parser.addArithFunc<uint8_t, double>(curSection, "Level", cfg.Settings.tChParam[0].uLevel, [&](double value)
+  {
+    return uint8_t((value + 0.01f) * 10);
+  }, "Specifies the Level to which the bitstream conforms");
+  std::map<string, int> tiers {};
+  tiers["MAIN_TIER"] = 0;
+  tiers["HIGH_TIER"] = 1;
+  parser.addEnum(curSection, "Tier", cfg.Settings.tChParam[0].uTier, tiers, "Specifies the tier to which the bitstream conforms");
+  parser.addArith(curSection, "NumSlices", cfg.Settings.tChParam[0].uNumSlices, "Number of slices used for each frame. Each slice contains one or more full LCU row(s) and they are spread over the frame as regularly as possible");
+  std::map<string, int> sliceSizeEnums {};
+  sliceSizeEnums["DISABLE"] = 0;
+  parser.addArithFuncOrEnum(curSection, "SliceSize", cfg.Settings.tChParam[0].uSliceSize, [&](int sliceSize)
+  {
+    return sliceSize * 95 / 100;
+  }, sliceSizeEnums, "Target Slice Size (AVC, HEVC only, not supported in AVC multicore) If set to 0, slices are defined by the NumSlices parameter, Otherwise it specifies the target slice size, in bytes, that the encoder uses to automatically split the bitstream into approximately equally sized slices, with a granularity of one LCU.");
+  parser.addBool(curSection, "DependentSlice", cfg.Settings.bDependentSlice, "When tere are several slices per frames, this parameter specifies whether the additional slices are dependent slice segments or regular slices (HEVC only)");
+  parser.addBool(curSection, "SubframeLatency", cfg.Settings.tChParam[0].bSubframeLatency, "Enable the subframe latency mode");
+  std::map<string, int> seis {};
+  seis["SEI_NONE"] = SEI_NONE;
+  seis["SEI_BP"] = SEI_BP;
+  seis["SEI_PT"] = SEI_PT;
+  seis["SEI_RP"] = SEI_RP;
+  seis["SEI_ALL"] = SEI_ALL;
+  parser.addEnum(curSection, "EnableSEI", cfg.Settings.uEnableSEI, seis, "Determines which Supplemental Enhancement Information are sent with the stream");
+  parser.addBool(curSection, "EnableAUD", cfg.Settings.bEnableAUD, "Determines if Access Unit Delimiter are added to the stream or not");
+  parser.addBool(curSection, "EnableFillerData", cfg.Settings.bEnableFillerData, "Specifies if filler data can be added to the stream or not");
+  std::map<string, int> aspectRatios;
+  aspectRatios["ASPECT_RATIO_AUTO"] = AL_ASPECT_RATIO_AUTO;
+  aspectRatios["ASPECT_RATIO_4_3"] = AL_ASPECT_RATIO_4_3;
+  aspectRatios["ASPECT_RATIO_16_9"] = AL_ASPECT_RATIO_16_9;
+  aspectRatios["ASPECT_RATIO_NONE"] = AL_ASPECT_RATIO_NONE;
+  parser.addEnum(curSection, "AspectRatio", cfg.Settings.eAspectRatio, aspectRatios, "Selects the display aspect ratio of the video sequence to be written in SPS/VUI");
+  std::map<string, int> colourDescriptions;
+  colourDescriptions["COLOUR_DESC_BT_709"] = COLOUR_DESC_BT_709;
+  colourDescriptions["COLOUR_DESC_BT_470_PAL"] = COLOUR_DESC_BT_470_PAL;
+  parser.addEnum(curSection, "ColourDescription", cfg.Settings.eColourDescription, colourDescriptions);
+  parser.addCustom(curSection, "ChromaMode", [&](std::deque<Token>& tokens)
+  {
+    std::map<string, int> chromaModes {};
+    chromaModes["CHROMA_MONO"] = CHROMA_MONO;
+    chromaModes["CHROMA_4_0_0"] = CHROMA_4_0_0;
+    chromaModes["CHROMA_4_2_0"] = CHROMA_4_2_0;
+    chromaModes["CHROMA_4_2_2"] = CHROMA_4_2_2;
+    chromaModes["CHROMA_4_4_4"] = CHROMA_4_4_4;
+    AL_EChromaMode mode = (AL_EChromaMode)parseEnum(tokens, chromaModes);
+    AL_SET_CHROMA_MODE(cfg.Settings.tChParam[0].ePicFormat, mode);
+  });
+  std::map<string, int> entropymodes {};
+  entropymodes["MODE_CAVLC"] = AL_MODE_CAVLC;
+  entropymodes["MODE_CABAC"] = AL_MODE_CABAC;
+  parser.addEnum(curSection, "EntropyMode", cfg.Settings.tChParam[0].eEntropyMode, entropymodes, "Selects the entropy coding mode");
+  parser.addCustom(curSection, "BitDepth", [&](std::deque<Token>& tokens)
+  {
+    auto bitdepth = parseArithmetic<int>(tokens);
+    AL_SET_BITDEPTH(cfg.Settings.tChParam[0].ePicFormat, bitdepth);
+  }, "Number of bits used to encode one pixel");
+
+  parser.addCustom(curSection, "BitDepthChroma", [&](std::deque<Token>& tokens)
+  {
+    auto bitdepth = parseArithmetic<int>(tokens);
+    warnStream << "Warning: using BitDepthChroma instead of BitDepth, this will set the BitDepth variable" << endl;
+    AL_SET_BITDEPTH(cfg.Settings.tChParam[0].ePicFormat, bitdepth);
+  }, "deprecated");
+
+  parser.addCustom(curSection, "BitDepthLuma", [&](std::deque<Token>& tokens)
+  {
+    auto bitdepth = parseArithmetic<int>(tokens);
+    warnStream << "Warning: using BitDepthLuma instead of BitDepth, this will set the BitDepth variable" << endl;
+    AL_SET_BITDEPTH(cfg.Settings.tChParam[0].ePicFormat, bitdepth);
+  }, "deprecated");
+
+  std::map<string, int> scalingmodes {};
+  scalingmodes["FLAT"] = AL_SCL_FLAT;
+  scalingmodes["DEFAULT"] = AL_SCL_DEFAULT;
+  scalingmodes["CUSTOM"] = AL_SCL_CUSTOM;
+  scalingmodes["RANDOM"] = AL_SCL_RANDOM;
+  parser.addEnum(curSection, "ScalingList", cfg.Settings.eScalingList, scalingmodes, "Specifies the scaling list mode");
+  parser.addPath(curSection, "FileScalingList", temp.sScalingListFile, "if ScalingList is CUSTOM, specifies the file containing the quantization matrices");
+  std::map<string, int> qpctrls {};
+  qpctrls["UNIFORM_QP"] = UNIFORM_QP;
+  qpctrls["CHOOSE_QP"] = CHOOSE_QP;
+  qpctrls["RAMP_QP"] = RAMP_QP;
+  qpctrls["RANDOM_QP"] = RANDOM_QP;
+  qpctrls["BORDER_QP"] = BORDER_QP;
+  qpctrls["ROI_QP"] = ROI_QP;
+  qpctrls["AUTO_QP"] = AUTO_QP;
+  qpctrls["ADAPTIVE_AUTO_QP"] = ADAPTIVE_AUTO_QP;
+  qpctrls["RELATIVE_QP"] = RELATIVE_QP;
+  qpctrls["RANDOM_SKIP"] = RANDOM_SKIP;
+  qpctrls["RANDOM_I_ONLY"] = RANDOM_I_ONLY;
+  qpctrls["LOAD_QP"] = LOAD_QP;
+  parser.addEnum(curSection, "QPCtrlMode", cfg.Settings.eQpCtrlMode, qpctrls, "Specifies how to generate the QP per CU");
+
+  parser.addPath(curSection, "QpTablesFolder", cfg.sQPTablesFolder);
+
+  std::map<string, int> ldamodes {};
+  ldamodes["DEFAULT_LDA"] = DEFAULT_LDA;
+  ldamodes["CUSTOM_LDA"] = CUSTOM_LDA;
+  ldamodes["AUTO_LDA"] = AUTO_LDA;
+  ldamodes["TEST_LDA"] = TEST_LDA;
+  ldamodes["DYNAMIC_LDA"] = DYNAMIC_LDA;
+  ldamodes["LOAD_LDA"] = LOAD_LDA;
+  parser.addEnum(curSection, "LambdaCtrlMode", cfg.Settings.tChParam[0].eLdaCtrlMode, ldamodes, "Specifies the lambda values used for rate-distortion optimization");
+  parser.addBool(curSection, "CabacInit", cfg.Settings.tChParam[0].uCabacInitIdc, "Specifies the CABAC initialization table index (AVC) or flag (HEVC)");
+  parser.addArith(curSection, "PicCbQpOffset", cfg.Settings.tChParam[0].iCbPicQpOffset, "Specifies the QP offset for the first chroma channel (Cb) at picture level (HEVC)");
+  parser.addArith(curSection, "PicCrQpOffset", cfg.Settings.tChParam[0].iCrPicQpOffset, "Specifies the QP offset for the second chroma channel (Cr) at picture level (HEVC)");
+  parser.addArith(curSection, "SliceCbQpOffset", cfg.Settings.tChParam[0].iCbSliceQpOffset, "Specifies the QP offset for the first chroma channel (Cb) at slice level (AVC/HEVC)");
+  parser.addArith(curSection, "SliceCrQpOffset", cfg.Settings.tChParam[0].iCrSliceQpOffset, "Specifies the QP offset for the second chroma channel (Cr) at slice level (AVC/HEVC)");
+  parser.addArith(curSection, "CuQpDeltaDepth", cfg.Settings.tChParam[0].uCuQPDeltaDepth, "Specifies the QP per CU granularity, Used only when QPCtrlMode is set to AUTO_QP or ADAPTIVE_AUTO_QP");
+  parser.addArith(curSection, "LoopFilter.BetaOffset", cfg.Settings.tChParam[0].iBetaOffset, "Specifies the beta offset (AVC/HEVC) or the Filter level (VP9) for the deblocking filter");
+  parser.addArith(curSection, "LoopFilter.TcOffset", cfg.Settings.tChParam[0].iTcOffset, "Specifies the Alpha_c0 offset (AVC), Tc offset (HEVC) or sharpness level (VP9) for the deblocking filter");
+  parser.addFlag(curSection, "LoopFilter.CrossSlice", cfg.Settings.tChParam[0].eOptions, AL_OPT_LF_X_SLICE, "In-loop filtering across the left and upper boundaries of each tile of the fame (HEVC, AVC)");
+  parser.addFlag(curSection, "LoopFilter.CrossTile", cfg.Settings.tChParam[0].eOptions, AL_OPT_LF_X_TILE, "In-loop filtering across the left and upper boundaries of each tile of the frame (HEVC)");
+  parser.addFlag(curSection, "LoopFilter", cfg.Settings.tChParam[0].eOptions, AL_OPT_LF, "Specifies if the deblocking filter should be used or not");
+  parser.addFlag(curSection, "ConstrainedIntraPred", cfg.Settings.tChParam[0].eOptions, AL_OPT_CONST_INTRA_PRED, "Specifies the value of constrained_intra_pred_flag syntax element (AVC/HEVC)");
+  parser.addFlag(curSection, "WaveFront", cfg.Settings.tChParam[0].eOptions, AL_OPT_WPP);
+  parser.addBool(curSection, "ForceLoad", cfg.Settings.bForceLoad, "When DEFAULT or CUSTOM scaling list, CUSTOM lambda parameters and/or QP tables are used, this parameter specifies whether the corresponding buffer must be reloaded for each frame or only for the first one");
+  parser.addFlag(curSection, "ForceMvOut", cfg.Settings.tChParam[0].eOptions, AL_OPT_FORCE_MV_OUT, "Force the encoder to output the Motion Vector buffer");
+  parser.addFlag(curSection, "ForceMvClip", cfg.Settings.tChParam[0].eOptions, AL_OPT_FORCE_MV_CLIP);
+  string l2cacheDesc = "";
+  l2cacheDesc = "Specifies if the L2 cache is used of not";
+  parser.addBool(curSection, "CacheLevel2", cfg.Settings.iPrefetchLevel2, l2cacheDesc);
+  parser.addArith(curSection, "ClipHrzRange", cfg.Settings.uClipHrzRange);
+  parser.addArith(curSection, "ClipVrtRange", cfg.Settings.uClipVrtRange);
+  parser.addFlag(curSection, "FixPredictor", cfg.Settings.tChParam[0].eOptions, AL_OPT_FIX_PREDICTOR, "When set to ENABLE, the motion estimation window is always centered on the current LCU position. This generates a fixed bandwidth for accessing the reference picture buffers. It is recommended to use the DISABLE value for maximum quality");
+  parser.addArith(curSection, "VrtRange_P", cfg.Settings.tChParam[0].pMeRange[SLICE_P][1], "Specifies the vertical search range used for P frames motion estimation");
+
+  std::map<string, int> srcmodes {};
+  srcmodes["NVX"] = AL_SRC_NVX;
+  srcmodes["TILE_64x4"] = AL_SRC_TILE_64x4;
+  srcmodes["COMP_64x4"] = AL_SRC_COMP_64x4;
+  srcmodes["TILE_32x4"] = AL_SRC_TILE_32x4;
+  srcmodes["COMP_32x4"] = AL_SRC_COMP_32x4;
+  parser.addEnum(curSection, "SrcFormat", cfg.Settings.tChParam[0].eSrcMode, srcmodes);
+  parser.addBool(curSection, "DisableIntra", cfg.Settings.bDisIntra);
+  parser.addFlag(curSection, "AvcLowLat", cfg.Settings.tChParam[0].eOptions, AL_OPT_LOWLAT_SYNC, "Enables a special synchronization mode for AVC low latency encoding (Validation only)");
+  parser.addBool(curSection, "SliceLat", cfg.Settings.tChParam[0].bSubframeLatency, "Enables slice latency mode");
+  parser.addBool(curSection, "LowLatInterrupt", cfg.Settings.tChParam[0].bSubframeLatency, "deprecated, same behaviour as SliceLat");
+  std::map<string, int> numCoreEnums;
+  numCoreEnums["AUTO"] = 0;
+  parser.addArithOrEnum(curSection, "NumCore", cfg.Settings.tChParam[0].uNumCore, numCoreEnums, "Number of core to use for this encoding");
+  parser.addFlag(curSection, "CostMode", cfg.Settings.tChParam[0].eOptions, AL_OPT_RDO_COST_MODE);
+  std::map<string, int> videoModes;
+  videoModes["PROGRESSIVE"] = AL_VM_PROGRESSIVE;
+  videoModes["INTERLACED_TOP"] = AL_VM_INTERLACED_TOP;
+  videoModes["INTERLACED_BOTTOM"] = AL_VM_INTERLACED_BOTTOM;
+  parser.addEnum(curSection, "VideoMode", cfg.Settings.tChParam[0].eVideoMode, videoModes);
+#if AL_ENABLE_TWOPASS
+  std::map<string, int> twoPassEnums;
+  twoPassEnums["DISABLE"] = 0;
+  parser.addArithOrEnum(curSection, "TwoPass", cfg.Settings.TwoPass, twoPassEnums, "Index of the pass currently encoded (in Twopass mode)");
+  parser.addArithOrEnum(curSection, "LookAhead", cfg.Settings.LookAhead, twoPassEnums, "Size of the LookAhead");
+#endif
+}
+
+static void populateRunSection(ConfigParser& parser, ConfigFile& cfg)
+{
+  auto curSection = Section::Run;
+  parser.addBool(curSection, "UseBoard", cfg.RunInfo.bUseBoard);
+  parser.addBool(curSection, "Loop", cfg.RunInfo.bLoop, "Specifies if it should loop back to the beginning of YUV input stream when it reaches the end of the file");
+  std::map<string, int> maxPicts {};
+  maxPicts["ALL"] = -1;
+  parser.addArithOrEnum(curSection, "MaxPicture", cfg.RunInfo.iMaxPict, maxPicts, "Number of frame to encode");
+  parser.addArith(curSection, "FirstPicture", cfg.RunInfo.iFirstPict, "Specifies the first frame to encode");
+  parser.addArith(curSection, "ScnChgLookAhead", cfg.RunInfo.iScnChgLookAhead);
+  parser.addArith(curSection, "InputSleep", cfg.RunInfo.uInputSleepInMilliseconds);
+}
+
+
+static void populateHardwareSection(ConfigParser& parser, ConfigFile& cfg)
+{
+  (void)parser, (void)cfg;
+  // nothing ?
+}
+
+
+static void populateIdentifiers(ConfigParser& parser, ConfigFile& cfg, Temporary& temporaries, std::ostream& warnStream)
+{
+  populateInputSection(parser, cfg);
+  populateOutputSection(parser, cfg);
+  populateRateControlSection(parser, cfg);
+  populateGopSection(parser, cfg);
+  populateSettingsSection(parser, cfg, temporaries, warnStream);
+  populateRunSection(parser, cfg);
+}
+
+static void parseSection(ConfigParser& parser, Tokenizer& tokenizer, ConfigFile& cfg, Temporary& temp)
+{
+  Token section = tokenizer.getToken();
+  Token closeBracket = tokenizer.getToken();
+
+  if(closeBracket.type != TokenType::CloseBracket)
+    throw TokenError(closeBracket, "expected closing bracket while parsing section");
+
+  if(section.type != TokenType::Identifier)
+    throw TokenError(section, "expected section name while parsing section");
+
+  parser.updateSection(section.text);
+}
+
+static void parseIdentifier(ConfigParser& parser, Tokenizer& tokenizer, Token const& identToken)
+{
+  /* We have all the expected identifier names in a map and function to call if
+   * they are detected. each identifier should have it own keyword checking */
+  Token equal = tokenizer.getToken();
+
+  if(equal.type != TokenType::Equal)
+    throw TokenError(equal, "expected equal sign while parsing identifier");
+  Token token = tokenizer.getToken();
+  std::deque<Token> tokens {};
+
+  while(token.type != TokenType::EndOfLine && token.type != TokenType::EndOfFile)
+  {
+    tokens.push_back(token);
+    token = tokenizer.getToken();
   }
 
-  return true;
+  if(tokens.size() == 0)
+    throw TokenError(token, "expected value after equal sign");
+
+  parser.parseIdentifiers(identToken, tokens);
 }
 
-/*****************************************************************************/
-static bool ParseSettings(string & sLine, AL_TEncSettings & Settings, string& sScalingListFile)
+static string readWholeFileInMemory(char const* filename)
 {
-       if(KEYWORD("Profile"))                Settings.tChParam[0].eProfile  = AL_EProfile(GetValue(sLine));
-  else if(KEYWORD("Level"))                  Settings.tChParam[0].uLevel    = uint8_t((GetFloat(sLine) + 0.01f)*10);
-  else if(KEYWORD("Tier"))                   Settings.tChParam[0].uTier     = GetValue(sLine);
+  std::ifstream in(filename);
 
-  else if(KEYWORD("NumSlices"))              Settings.tChParam[0].uNumSlices = GetValue(sLine);
-  else if(KEYWORD("SliceSize"))              Settings.tChParam[0].uSliceSize = GetValue(sLine) * 95 / 100; //add entropy precision error, explicit ceil() for Windows/Unix rounding mismatch.
-  else if(KEYWORD("DependentSlice"))         Settings.bDependentSlice     = GetBoolValue(sLine);
-  else if(KEYWORD("SubframeLatency"))        Settings.tChParam[0].bSubframeLatency = GetValue(sLine);
+  if(!in.is_open())
+    throw std::runtime_error("Failed to open " + string(filename));
 
-  else if(KEYWORD("EnableSEI"))              Settings.uEnableSEI         = uint32_t(GetValue(sLine));
-  else if(KEYWORD("EnableAUD"))              Settings.bEnableAUD         = GetBoolValue(sLine);
-  else if(KEYWORD("EnableFillerData"))       Settings.bEnableFillerData  = GetBoolValue(sLine);
-
-  else if(KEYWORD("AspectRatio"))            Settings.eAspectRatio       = AL_EAspectRatio(GetValue(sLine));
-  else if(KEYWORD("ColourDescription"))      Settings.eColourDescription = AL_EColourDescription(GetValue(sLine));
-  else if(KEYWORD("ChromaMode"))             AL_SET_CHROMA_MODE(Settings.tChParam[0].ePicFormat, AL_EChromaMode(GetValue(sLine)));
-
-  else if(KEYWORD("EntropyMode"))            Settings.tChParam[0].eEntropyMode = AL_EEntropyMode(GetValue(sLine));
-  else if(KEYWORD("BitDepth"))               AL_SET_BITDEPTH(Settings.tChParam[0].ePicFormat, GetValue(sLine));
-  else if(KEYWORD("ScalingList"))            Settings.eScalingList         = (AL_EScalingList)GetValue(sLine);
-  else if(KEYWORD("FileScalingList"))        GetString(sLine, sScalingListFile);
-  else if(KEYWORD("QPCtrlMode"))             Settings.eQpCtrlMode          = AL_EQpCtrlMode(GetValue(sLine));
-  else if(KEYWORD("LambdaCtrlMode"))         Settings.tChParam[0].eLdaCtrlMode         = AL_ELdaCtrlMode(GetValue(sLine));
-
-  else if(KEYWORD("CabacInit"))              Settings.tChParam[0].uCabacInitIdc    = uint8_t(GetValue(sLine));
-  else if(KEYWORD("PicCbQpOffset"))          Settings.tChParam[0].iCbPicQpOffset   = int8_t(GetValue(sLine));
-  else if(KEYWORD("PicCrQpOffset"))          Settings.tChParam[0].iCrPicQpOffset   = int8_t(GetValue(sLine));
-  else if(KEYWORD("SliceCbQpOffset"))        Settings.tChParam[0].iCbSliceQpOffset = int8_t(GetValue(sLine));
-  else if(KEYWORD("SliceCrQpOffset"))        Settings.tChParam[0].iCrSliceQpOffset = int8_t(GetValue(sLine));
-
-
-  else if(KEYWORD("CuQpDeltaDepth"))         Settings.tChParam[0].uCuQPDeltaDepth  = int8_t(GetValue(sLine));
-
-  else if(KEYWORD("LoopFilter.BetaOffset"))  Settings.tChParam[0].iBetaOffset = int8_t(GetValue(sLine));
-  else if(KEYWORD("LoopFilter.TcOffset"))    Settings.tChParam[0].iTcOffset   = int8_t(GetValue(sLine));
-  else if(KEYWORD("LoopFilter.CrossSlice"))  GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_LF_X_SLICE, sLine);
-  else if(KEYWORD("LoopFilter.CrossTile"))   GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_LF_X_TILE, sLine);
-  else if(KEYWORD("LoopFilter"))             GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_LF, sLine);
-
-  else if(KEYWORD("ConstrainedIntraPred"))   GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_CONST_INTRA_PRED, sLine);
-
-  else if(KEYWORD("WaveFront"))              GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_WPP, sLine);
-  else if(KEYWORD("ForceLoad"))              Settings.bForceLoad   = GetBoolValue(sLine);
-  else if(KEYWORD("ForceMvOut"))             GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_FORCE_MV_OUT, sLine);
-  else if(KEYWORD("ForceMvClip"))            GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_FORCE_MV_CLIP, sLine);
-  else if(KEYWORD("CacheLevel2"))            Settings.iPrefetchLevel2 = GetBoolValue(sLine);
-  else if(KEYWORD("ClipHrzRange"))           Settings.uClipHrzRange = uint32_t(GetValue(sLine));
-  else if(KEYWORD("ClipVrtRange"))           Settings.uClipVrtRange = uint32_t(GetValue(sLine));
-  else if(KEYWORD("FixPredictor"))           GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_FIX_PREDICTOR, sLine);
-  else if(KEYWORD("VrtRange_P"))             Settings.tChParam[0].pMeRange[SLICE_P][1] = GetValue(sLine);
-  else if(KEYWORD("SrcFormat"))              Settings.tChParam[0].eSrcMode = (AL_ESrcMode)GetValue(sLine);
-  else if(KEYWORD("DisableIntra"))           Settings.bDisIntra  = GetBoolValue(sLine);
-  else if(KEYWORD("AvcLowLat"))              GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_LOWLAT_SYNC, sLine);
-  else if(KEYWORD("SliceLat"))               Settings.tChParam[0].bSubframeLatency = GetBoolValue(sLine);
-  else if(KEYWORD("LowLatInterrupt"))        Settings.tChParam[0].bSubframeLatency = GetBoolValue(sLine); // Deprecated : same behaviour as slicelat
-  else if(KEYWORD("NumCore"))                Settings.tChParam[0].uNumCore = GetValue(sLine);
-  else if(KEYWORD("CostMode"))               GetFlag(&Settings.tChParam[0].eOptions, AL_OPT_RDO_COST_MODE, sLine);
-  else if(KEYWORD("VideoMode"))              Settings.tChParam[0].eVideoMode = AL_EVideoMode(GetValue(sLine));
-  // backward compatibility
-  else
-    return false;
-
-  return true;
+  std::stringstream ss;
+  ss << in.rdbuf();
+  return ss.str();
 }
 
-/*****************************************************************************/
-static bool ParseRun(string& sLine, TCfgRunInfo&  RunInfo)
+
+typedef enum e_SLMode
 {
-       if(KEYWORD("UseBoard"))        RunInfo.bUseBoard  = (GetValue(sLine) != 0);
-  else if(KEYWORD("Loop"))            RunInfo.bLoop      = (GetValue(sLine) != 0);
-  else if(KEYWORD("MaxPicture"))      RunInfo.iMaxPict   = GetValue(sLine);
-  else if(KEYWORD("FirstPicture"))    RunInfo.iFirstPict = GetValue(sLine);
-  else if(KEYWORD("ScnChgLookAhead")) RunInfo.iScnChgLookAhead = GetValue(sLine);
-  else if(KEYWORD("InputSleep"))      RunInfo.uInputSleepInMilliseconds = GetValue(sLine);
-  else
-    return false;
+  SL_4x4_Y_INTRA,
+  SL_4x4_Cb_INTRA,
+  SL_4x4_Cr_INTRA,
+  SL_4x4_Y_INTER,
+  SL_4x4_Cb_INTER,
+  SL_4x4_Cr_INTER,
+  SL_8x8_Y_INTRA,
+  SL_8x8_Cb_INTRA,
+  SL_8x8_Cr_INTRA,
+  SL_8x8_Y_INTER,
+  SL_8x8_Cb_INTER,
+  SL_8x8_Cr_INTER,
+  SL_16x16_Y_INTRA,
+  SL_16x16_Cb_INTRA,
+  SL_16x16_Cr_INTRA,
+  SL_16x16_Y_INTER,
+  SL_16x16_Cb_INTER,
+  SL_16x16_Cr_INTER,
+  SL_32x32_Y_INTRA,
+  SL_32x32_Y_INTER,
+  SL_DC,
+  SL_ERR
+}ESLMode;
 
-  return true;
-}
-
-
-/*****************************************************************************/
 static string chomp(string sLine)
 {
   // Trim left
@@ -670,98 +529,101 @@ static string chomp(string sLine)
 
   // Remove CR
   zFirst = sLine.find_first_of("\r\n");
+
   if(zFirst != sLine.npos)
     sLine.erase(zFirst, sLine.npos);
   return sLine;
 }
 
-/*****************************************************************************/
-typedef enum e_SLMode
+static uint8_t ISAVCModeAllowed[SL_ERR] = { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+#define KEYWORD(T) (!sLine.compare(0, sizeof(T) - 1, T))
+static bool ParseScalingListMode(std::string& sLine, ESLMode& Mode)
 {
-  SL_4x4_Y_INTRA     ,
-  SL_4x4_Cb_INTRA    ,
-  SL_4x4_Cr_INTRA    ,
-  SL_4x4_Y_INTER     ,
-  SL_4x4_Cb_INTER    ,
-  SL_4x4_Cr_INTER    ,
-  SL_8x8_Y_INTRA     ,
-  SL_8x8_Cb_INTRA    ,
-  SL_8x8_Cr_INTRA    ,
-  SL_8x8_Y_INTER     ,
-  SL_8x8_Cb_INTER    ,
-  SL_8x8_Cr_INTER    ,
-  SL_16x16_Y_INTRA   ,
-  SL_16x16_Cb_INTRA  ,
-  SL_16x16_Cr_INTRA  ,
-  SL_16x16_Y_INTER   ,
-  SL_16x16_Cb_INTER  ,
-  SL_16x16_Cr_INTER  ,
-  SL_32x32_Y_INTRA   ,
-  SL_32x32_Y_INTER   ,
-  SL_DC        ,
-  SL_ERR
-} ESLMode;
-
-
-/*****************************************************************************/
-uint8_t ISAVCModeAllowed[SL_ERR] = {1,1,1,1,1,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0};
-
-static bool ParseScalingListMode(std::string& sLine, ESLMode & Mode)
-{
-       if(KEYWORD("[4x4 Y Intra]"))     Mode = SL_4x4_Y_INTRA;
-  else if(KEYWORD("[4x4 Cb Intra]"))    Mode = SL_4x4_Cb_INTRA;
-  else if(KEYWORD("[4x4 Cr Intra]"))    Mode = SL_4x4_Cr_INTRA;
-  else if(KEYWORD("[4x4 Y Inter]"))     Mode = SL_4x4_Y_INTER;
-  else if(KEYWORD("[4x4 Cb Inter]"))    Mode = SL_4x4_Cb_INTER;
-  else if(KEYWORD("[4x4 Cr Inter]"))    Mode = SL_4x4_Cr_INTER;
-  else if(KEYWORD("[8x8 Y Intra]"))     Mode = SL_8x8_Y_INTRA;
-  else if(KEYWORD("[8x8 Cb Intra]"))    Mode = SL_8x8_Cb_INTRA;
-  else if(KEYWORD("[8x8 Cr Intra]"))    Mode = SL_8x8_Cr_INTRA;
-  else if(KEYWORD("[8x8 Y Inter]"))     Mode = SL_8x8_Y_INTER;
-  else if(KEYWORD("[8x8 Cb Inter]"))    Mode = SL_8x8_Cb_INTER;
-  else if(KEYWORD("[8x8 Cr Inter]"))    Mode = SL_8x8_Cr_INTER;
-  else if(KEYWORD("[16x16 Y Intra]"))   Mode = SL_16x16_Y_INTRA;
-  else if(KEYWORD("[16x16 Cb Intra]"))  Mode = SL_16x16_Cb_INTRA;
-  else if(KEYWORD("[16x16 Cr Intra]"))  Mode = SL_16x16_Cr_INTRA;
-  else if(KEYWORD("[16x16 Y Inter]"))   Mode = SL_16x16_Y_INTER;
-  else if(KEYWORD("[16x16 Cb Inter]"))  Mode = SL_16x16_Cb_INTER;
-  else if(KEYWORD("[16x16 Cr Inter]"))  Mode = SL_16x16_Cr_INTER;
-  else if(KEYWORD("[32x32 Y Intra]"))   Mode = SL_32x32_Y_INTRA;
-  else if(KEYWORD("[32x32 Y Inter]"))   Mode = SL_32x32_Y_INTER;
-  else if(KEYWORD("[DC]"))  Mode = SL_DC;
+  if(KEYWORD("[4x4 Y Intra]"))
+    Mode = SL_4x4_Y_INTRA;
+  else if(KEYWORD("[4x4 Cb Intra]"))
+    Mode = SL_4x4_Cb_INTRA;
+  else if(KEYWORD("[4x4 Cr Intra]"))
+    Mode = SL_4x4_Cr_INTRA;
+  else if(KEYWORD("[4x4 Y Inter]"))
+    Mode = SL_4x4_Y_INTER;
+  else if(KEYWORD("[4x4 Cb Inter]"))
+    Mode = SL_4x4_Cb_INTER;
+  else if(KEYWORD("[4x4 Cr Inter]"))
+    Mode = SL_4x4_Cr_INTER;
+  else if(KEYWORD("[8x8 Y Intra]"))
+    Mode = SL_8x8_Y_INTRA;
+  else if(KEYWORD("[8x8 Cb Intra]"))
+    Mode = SL_8x8_Cb_INTRA;
+  else if(KEYWORD("[8x8 Cr Intra]"))
+    Mode = SL_8x8_Cr_INTRA;
+  else if(KEYWORD("[8x8 Y Inter]"))
+    Mode = SL_8x8_Y_INTER;
+  else if(KEYWORD("[8x8 Cb Inter]"))
+    Mode = SL_8x8_Cb_INTER;
+  else if(KEYWORD("[8x8 Cr Inter]"))
+    Mode = SL_8x8_Cr_INTER;
+  else if(KEYWORD("[16x16 Y Intra]"))
+    Mode = SL_16x16_Y_INTRA;
+  else if(KEYWORD("[16x16 Cb Intra]"))
+    Mode = SL_16x16_Cb_INTRA;
+  else if(KEYWORD("[16x16 Cr Intra]"))
+    Mode = SL_16x16_Cr_INTRA;
+  else if(KEYWORD("[16x16 Y Inter]"))
+    Mode = SL_16x16_Y_INTER;
+  else if(KEYWORD("[16x16 Cb Inter]"))
+    Mode = SL_16x16_Cb_INTER;
+  else if(KEYWORD("[16x16 Cr Inter]"))
+    Mode = SL_16x16_Cr_INTER;
+  else if(KEYWORD("[32x32 Y Intra]"))
+    Mode = SL_32x32_Y_INTRA;
+  else if(KEYWORD("[32x32 Y Inter]"))
+    Mode = SL_32x32_Y_INTER;
+  else if(KEYWORD("[DC]"))
+    Mode = SL_DC;
   else
     return false;
 
   return true;
 }
 
-/*****************************************************************************/
-static bool ParseMatrice(ifstream &SLFile, string& sLine, int &iLine, AL_TEncSettings & Settings, ESLMode Mode)
+static bool ParseMatrice(std::ifstream& SLFile, string& sLine, int& iLine, AL_TEncSettings& Settings, ESLMode Mode)
 {
   int iNumCoefW = (Mode < SL_8x8_Y_INTRA) ? 4 : 8;
   int iNumCoefH = (Mode == SL_DC) ? 1 : iNumCoefW;
+  static constexpr int MAX_LUMA_DC_COEFF = 50;
 
-  int iSizeID = (Mode < SL_8x8_Y_INTRA) ? 0 : (Mode < SL_16x16_Y_INTRA) ? 1 : (Mode < SL_32x32_Y_INTRA) ? 2 : 3 ;
+  int iSizeID = (Mode < SL_8x8_Y_INTRA) ? 0 : (Mode < SL_16x16_Y_INTRA) ? 1 : (Mode < SL_32x32_Y_INTRA) ? 2 : 3;
   int iMatrixID = (Mode < SL_32x32_Y_INTRA) ? Mode % 6 : (Mode == SL_32x32_Y_INTRA) ? 0 : 3;
 
-  uint8_t * pMatrix = (Mode == SL_DC) ? Settings.DcCoeff : Settings.ScalingList[iSizeID][iMatrixID];
+  uint8_t* pMatrix = (Mode == SL_DC) ? Settings.DcCoeff : Settings.ScalingList[iSizeID][iMatrixID];
+
   for(int i = 0; i < iNumCoefH; ++i)
   {
     getline(SLFile, sLine);
     ++iLine;
 
-    stringstream ss(sLine);
+    std::stringstream ss(sLine);
+
     for(int j = 0; j < iNumCoefW; ++j)
     {
       string sVal;
       ss >> sVal;
-      if(!sVal.empty() && isdigit(sVal[0])) {
-          pMatrix[j + i * iNumCoefH] = std::stoi(sVal);
-      } else
+
+      if(!sVal.empty() && isdigit(sVal[0]))
+      {
+        pMatrix[j + i * iNumCoefH] = std::stoi(sVal);
+      }
+      else
         return false;
     }
   }
-  if (Mode == SL_DC)
+
+  if(Mode == SL_8x8_Y_INTRA || Mode == SL_8x8_Y_INTER || Mode == SL_4x4_Y_INTER || Mode == SL_4x4_Y_INTRA)
+    pMatrix[0] = std::min<int>(pMatrix[0], MAX_LUMA_DC_COEFF);
+
+  if(Mode == SL_DC)
   {
     int iSizeMatrixID = (iSizeID == 3 && iMatrixID == 3) ? 7 : (iSizeID - 2) * 6 + iMatrixID;
     Settings.DcCoeffFlag[iSizeMatrixID] = 1;
@@ -770,18 +632,18 @@ static bool ParseMatrice(ifstream &SLFile, string& sLine, int &iLine, AL_TEncSet
     Settings.SclFlag[iSizeID][iMatrixID] = 1;
   return true;
 }
-/*****************************************************************************/
-static void RandomMatrice(AL_TEncSettings & Settings, ESLMode Mode)
+
+static void RandomMatrice(AL_TEncSettings& Settings, ESLMode Mode)
 {
   static int iRandMt = 0;
   int iNumCoefW = (Mode < SL_8x8_Y_INTRA) ? 4 : 8;
   int iNumCoefH = (Mode == SL_DC) ? 1 : iNumCoefW;
 
-  int iSizeID = (Mode < SL_8x8_Y_INTRA) ? 0 : (Mode < SL_16x16_Y_INTRA) ? 1 : (Mode < SL_32x32_Y_INTRA) ? 2 : 3 ;
+  int iSizeID = (Mode < SL_8x8_Y_INTRA) ? 0 : (Mode < SL_16x16_Y_INTRA) ? 1 : (Mode < SL_32x32_Y_INTRA) ? 2 : 3;
   int iMatrixID = (Mode < SL_32x32_Y_INTRA) ? Mode % 6 : (Mode == SL_32x32_Y_INTRA) ? 0 : 3;
 
-  uint8_t * pMatrix = (Mode == SL_DC) ? Settings.DcCoeff : Settings.ScalingList[iSizeID][iMatrixID];
-  uint32_t iRand = iRandMt ++;
+  uint8_t* pMatrix = (Mode == SL_DC) ? Settings.DcCoeff : Settings.ScalingList[iSizeID][iMatrixID];
+  uint32_t iRand = iRandMt++;
 
   for(int i = 0; i < iNumCoefH; ++i)
   {
@@ -792,16 +654,16 @@ static void RandomMatrice(AL_TEncSettings & Settings, ESLMode Mode)
     }
   }
 }
-static void GenerateMatrice(AL_TEncSettings & Settings)
+
+static void GenerateMatrice(AL_TEncSettings& Settings)
 {
-  for (int iMode = 0; iMode < SL_ERR; ++iMode)
+  for(int iMode = 0; iMode < SL_ERR; ++iMode)
     RandomMatrice(Settings, (ESLMode)iMode);
 }
-/*****************************************************************************/
 
-static bool ParseScalingListFile(const string& sSLFileName, AL_TEncSettings & Settings, ostream &warnstream)
+static bool ParseScalingListFile(const string& sSLFileName, AL_TEncSettings& Settings, std::ostream& warnstream)
 {
-  ifstream SLFile(sSLFileName.c_str());
+  std::ifstream SLFile(sSLFileName.c_str());
 
   if(!SLFile.is_open())
   {
@@ -812,7 +674,7 @@ static bool ParseScalingListFile(const string& sSLFileName, AL_TEncSettings & Se
 
   int iLine = 0;
 
-  memset(Settings.SclFlag    , 0, sizeof(Settings.SclFlag));
+  memset(Settings.SclFlag, 0, sizeof(Settings.SclFlag));
   memset(Settings.DcCoeffFlag, 0, sizeof(Settings.DcCoeffFlag));
 
   memset(Settings.ScalingList, -1, sizeof(Settings.ScalingList));
@@ -822,7 +684,9 @@ static bool ParseScalingListFile(const string& sSLFileName, AL_TEncSettings & Se
   {
     string sLine;
     getline(SLFile, sLine);
-    if(SLFile.fail()) break;
+
+    if(SLFile.fail())
+      break;
 
     ++iLine;
 
@@ -839,6 +703,7 @@ static bool ParseScalingListFile(const string& sSLFileName, AL_TEncSettings & Se
         warnstream << iLine << " => Invalid command line in Scaling list file, using Default" << endl;
         return false;
       }
+
       if(eMode < SL_ERR)
       {
         if(!ParseMatrice(SLFile, sLine, iLine, Settings, eMode))
@@ -849,147 +714,199 @@ static bool ParseScalingListFile(const string& sSLFileName, AL_TEncSettings & Se
       }
     }
   }
+
   return true;
 }
 
-/*****************************************************************************/
-static void ParseOneLine(int &iLine,
-                         ESection &Section,
-                         string& sScalingListFile,
-                         string& sZapperFile,
-                         string& sLine,
-                         ConfigFile& cfg,
-                         ostream & output)
+static void GetScalingList(AL_TEncSettings& Settings, string const& sScalingListFile, std::ostream& errstream)
 {
-  (void)sZapperFile;
-  auto& Settings = cfg.Settings;
-  // Remove comments
-  string::size_type pos = sLine.find_first_of('#');
-  if(pos != sLine.npos)
-    sLine.resize(pos);
-
-  sLine = chomp(sLine);
-
-  if(sLine.empty())
+  if(Settings.eScalingList == AL_SCL_CUSTOM)
   {
-    // nothing to do
-  }
-  else if(sLine[0] == '[') // Section select
-  {
-    if(!ParseSection(sLine, Section))
+    if(!ParseScalingListFile(sScalingListFile, Settings, errstream))
     {
-      output << iLine << " => Unknown section : " << sLine << endl;
-      ConfigError();
+      Settings.eScalingList = AL_SCL_DEFAULT;
     }
   }
-  else if(Section == CFG_SEC_INPUT)
+  else if(Settings.eScalingList == AL_SCL_RANDOM)
   {
-    if(!ParseInput(sLine, cfg))
-    {
-      output << iLine << " => Invalid command line in section INPUT : " << endl << sLine << endl;
-      ConfigError();
-    }
-  }
-  else if(Section == CFG_SEC_OUTPUT)
-  {
-    if(!ParseOutput(sLine, cfg))
-    {
-      output << iLine << " => Invalid command line in section OUTPUT : " << endl << sLine << endl;
-      ConfigError();
-    }
-  }
-  else if(Section == CFG_SEC_RATE_CONTROL)
-  {
-    if(!ParseRateControl(sLine, Settings.tChParam[0].tRCParam))
-    {
-      output << iLine << " => Invalid command line in section RATE_CONTROL : " << endl << sLine << endl;
-      ConfigError();
-    }
-  }
-  else if(Section == CFG_SEC_GOP)
-  {
-    if(!ParseGop(sLine, Settings))
-    {
-      output << iLine << " => Invalid command line in section GOP : " << endl << sLine << endl;
-      ConfigError();
-    }
-  }
-  else if(Section == CFG_SEC_SETTINGS)
-  {
-    if(!ParseSettings(sLine, Settings, sScalingListFile))
-    {
-      output << iLine << " => Invalid command line in section SETTINGS : " << endl << sLine << endl;
-      ConfigError();
-    }
-  }
-  else if(Section == CFG_SEC_RUN)
-  {
-    if(!ParseRun(sLine, cfg.RunInfo))
-    {
-      output << iLine << " => Invalid command line in section RUN : " << endl << sLine << endl;
-      ConfigError();
-    }
+    Settings.eScalingList = AL_SCL_CUSTOM;
+    GenerateMatrice(Settings);
   }
 }
+
 
 /* Perform some settings coherence checks after complete parsing. */
-static void PostParsingChecks(AL_TEncSettings & Settings)
+static void PostParsingChecks(AL_TEncSettings& Settings)
 {
-  (void) Settings;
+  auto& GopParam = Settings.tChParam[0].tGopParam;
+
+  if((GopParam.eMode != AL_GOP_MODE_DEFAULT)
+     && (GopParam.eMode != AL_GOP_MODE_PYRAMIDAL)
+     && (GopParam.eMode != AL_GOP_MODE_ADAPTIVE)
+     && (GopParam.uNumB > 0))
+    throw std::runtime_error("Unsupported Gop.NumB value in this gop mode");
+
+
+  if(!(GopParam.eMode & AL_GOP_FLAG_LOW_DELAY)
+     && GopParam.eGdrMode != AL_GDR_OFF)
+    throw std::runtime_error("GDR mode is not supported if the gop mode is not low delay");
+
 }
 
-
-static void GetScalingList(AL_TEncSettings& Settings, string& sScalingListFile, ostream& errstream)
+static void SetDefaultValue(ConfigFile& cfg)
 {
-    if(Settings.eScalingList == AL_SCL_CUSTOM) {
-        if(!ParseScalingListFile(sScalingListFile, Settings, errstream)) {
-            Settings.eScalingList = AL_SCL_DEFAULT;
-        }
-    } else if(Settings.eScalingList == AL_SCL_RANDOM) {
-        Settings.eScalingList = AL_SCL_CUSTOM;
-        GenerateMatrice(Settings);
-    }
 }
 
-/*****************************************************************************/
-
-void ParseConfigFile(const string& sCfgFileName, ConfigFile& cfg, ostream& warnStream = cerr)
+static void PostParsingInit(ConfigFile& cfg, Temporary const& temporaries, std::ostream& warnStream)
 {
-  strict_mode = cfg.strict_mode;
-  ifstream CfgFile(sCfgFileName);
+  GetScalingList(cfg.Settings, temporaries.sScalingListFile, warnStream);
+}
 
-  if(!CfgFile.is_open())
-    throw runtime_error("Cannot parse config file: '" + sCfgFileName + "'");
+static void ParseConfig(string const& toParse, ConfigFile& cfg, Temporary& temporaries, std::ostream& warnStream = cerr, bool debug = false)
+{
+  std::ofstream nullsink;
+  nullsink.setstate(std::ios_base::badbit);
+  std::ostream* logger;
 
-  ESection Section = CFG_SEC_GLOBAL;
+  if(debug)
+    logger = &cout;
+  else
+    logger = &nullsink;
 
-  string sScalingListFile = "";
-  string sZapperFile = "";
-  int iLine = 0;
-  for(;;)
+  Tokenizer tokenizer {
+    toParse, logger
+  };
+
+  SetDefaultValue(cfg);
+
+  ConfigParser parser {};
+  populateIdentifiers(parser, cfg, temporaries, warnStream);
+  bool parsing = true;
+
+  while(parsing)
   {
-    string sLine;
-    getline(CfgFile, sLine);
-    if(CfgFile.fail()) break;
-
-    ParseOneLine(iLine, Section, sScalingListFile, sZapperFile, sLine, cfg, cerr);
-
-    ++iLine;
+    try
+    {
+      Token token = tokenizer.getToken();
+      switch(token.type)
+      {
+      default:
+        break;
+      case TokenType::OpenBracket:
+        parseSection(parser, tokenizer, cfg, temporaries);
+        break;
+      case TokenType::Identifier:
+        parseIdentifier(parser, tokenizer, token);
+        break;
+      case TokenType::EndOfFile:
+        parsing = false;
+        break;
+      }
+    }
+    catch(std::runtime_error& e)
+    {
+      if(cfg.strict_mode)
+        throw;
+      else
+        cerr << "Error: " << e.what() << endl;
+    }
   }
 
-
-  AL_SetSrcWidth(&cfg.Settings.tChParam[0], cfg.FileInfo.PictWidth);
-  AL_SetSrcHeight(&cfg.Settings.tChParam[0], cfg.FileInfo.PictHeight);
-
-  PostParsingChecks(cfg.Settings);
-
-  ToNativePath(sScalingListFile);
-  ToNativePath(cfg.YUVFileName);
-  ToNativePath(cfg.BitstreamFileName);
-  ToNativePath(cfg.RecFileName);
-  ToNativePath(cfg.sCmdFileName);
-  ToNativePath(cfg.sRoiFileName);
-
-  GetScalingList(cfg.Settings, sScalingListFile, warnStream);
 }
-/*****************************************************************************/
+
+static void createDescriptionChunks(std::deque<string>& chunks, string& desc)
+{
+  std::stringstream description(desc);
+
+  constexpr int maxChunkSize = 70;
+  string curChunk = "";
+  string word = "";
+
+  while(description >> word)
+  {
+    word += " ";
+
+    if(curChunk.length() + word.length() >= maxChunkSize)
+    {
+      chunks.push_back(curChunk);
+      curChunk = "";
+    }
+    curChunk += word;
+  }
+
+  if(!curChunk.empty())
+    chunks.push_back(curChunk);
+}
+
+static void printSectionBanner(Section section)
+{
+  cout << "--------------------------- [" << toString(section) << "] ---------------------------" << endl << endl;
+}
+
+static void printIdentifierDescription(string& identifier, std::deque<string>& chunks)
+{
+  string firstChunk = "";
+
+  if(!chunks.empty())
+  {
+    firstChunk = chunks.front();
+    chunks.pop_front();
+  }
+
+  std::stringstream ss {};
+  ss << std::setfill(' ') << std::setw(24) << std::left << identifier << " " << firstChunk << endl;
+
+  for(auto& chunk : chunks)
+    ss << std::setfill(' ') << std::setw(25) << " " << chunk << endl;
+
+  cout << ss.str() << endl;
+}
+
+void PrintConfigFileUsage()
+{
+  ConfigFile cfg {};
+  Temporary temporaries {};
+  ConfigParser parser {};
+  populateIdentifiers(parser, cfg, temporaries, cerr);
+
+  for(auto& section_ : parser.identifiers)
+  {
+    printSectionBanner(section_.first);
+
+    for(auto identifier_ : section_.second)
+    {
+      auto identifier = identifier_.first;
+      auto desc = identifier_.second.desc;
+      std::deque<string> chunks {};
+      createDescriptionChunks(chunks, desc);
+      printIdentifierDescription(identifier, chunks);
+    }
+  }
+}
+
+void ParseConfig(string const& toParse, ConfigFile& cfg, std::ostream& warnStream, bool debug)
+{
+  Temporary temporaries {};
+  ParseConfig(toParse, cfg, temporaries, warnStream, debug);
+}
+
+void ParseConfigFile(string const& cfgFilename, ConfigFile& cfg, std::ostream& warnStream, bool debug)
+{
+  Temporary temporaries {};
+  ParseConfig(readWholeFileInMemory(cfgFilename.c_str()), cfg, temporaries, warnStream, debug);
+  PostParsingInit(cfg, temporaries, warnStream);
+  PostParsingChecks(cfg.Settings);
+}
+
+template<>
+double get(ArithToken<double> const& arith)
+{
+  if(!arith.valid)
+  {
+    Token const& token = arith.token;
+    return std::strtod(token.text.c_str(), NULL);
+  }
+  else
+    return arith.value;
+}
+

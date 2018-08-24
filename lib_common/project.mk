@@ -1,6 +1,5 @@
 LIB_COMMON_SRC:=\
 	lib_common/Utils.c\
-	lib_common/UtilsQp.c\
 	lib_common/BufCommon.c\
 	lib_common/AllocatorDefault.c\
 	lib_common/ChannelResources.c\
@@ -11,6 +10,7 @@ LIB_COMMON_SRC:=\
 	lib_common/BufferCircMeta.c\
 	lib_common/BufferStreamMeta.c\
 	lib_common/BufferPictureMeta.c\
+	lib_common/BufferLookAheadMeta.c\
 	lib_common/Fifo.c\
 	lib_common/AvcLevelsLimit.c\
 	lib_common/StreamBuffer.c\

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -35,41 +35,70 @@
 *
 ******************************************************************************/
 
-#pragma once
+#if AL_ENABLE_TWOPASS
+#include "lib_common/BufferLookAheadMeta.h"
+#include "lib_rtos/lib_rtos.h"
+#include <assert.h>
 
-extern "C"
+static bool LookAheadMeta_Destroy(AL_TMetaData* pMeta)
 {
-#include "lib_common/BufferAPI.h"
-#include "lib_common/FourCC.h"
+  AL_TLookAheadMetaData* pLookAheadMeta = (AL_TLookAheadMetaData*)pMeta;
+  Rtos_Free(pLookAheadMeta);
+  return true;
 }
 
-#include <fstream>
-
-class CompFrameWriter
+AL_TLookAheadMetaData* AL_LookAheadMetaData_Create()
 {
-public:
-  CompFrameWriter(std::ofstream& recFile, std::ofstream& mapFile, std::ofstream& mapLogFile, bool isAvc, uint32_t mapLHeightRouding = 16);
+  AL_TLookAheadMetaData* pMeta;
 
-  bool IsHeaderWritten();
-  void WriteHeader(uint32_t uWidth, uint32_t uHeight, const TFourCC& tCompFourCC, uint8_t uTileDesc);
-  bool WriteFrame(AL_TBuffer* pBuf);
+  pMeta = Rtos_Malloc(sizeof(*pMeta));
 
-private:
-  std::ofstream& m_recFile;
-  std::ofstream& m_mapFile;
-  std::ofstream& m_mapLogFile;
-  bool m_bIsAvc;
-  uint32_t m_uMapLHeightRouding;
-  bool m_bIsHeaderWritten = false;
+  if(!pMeta)
+    return NULL;
 
-  int RoundUp(uint32_t iVal, uint32_t iRound);
-  int RoundUpAndMul(uint32_t iVal, uint32_t iRound, uint8_t iDivLog2);
-  int RoundUpAndDivide(uint32_t iVal, uint32_t iRound, uint8_t iMulLog2);
-};
+  pMeta->tMeta.eType = AL_META_TYPE_LOOKAHEAD;
+  pMeta->tMeta.MetaDestroy = LookAheadMeta_Destroy;
 
-/****************************************************************************/
-inline bool CompFrameWriter::IsHeaderWritten()
-{
-  return m_bIsHeaderWritten;
+  AL_LookAheadMetaData_Reset(pMeta);
+
+  return pMeta;
 }
+
+AL_TLookAheadMetaData* AL_LookAheadMetaData_Clone(AL_TLookAheadMetaData* pMeta)
+{
+  if(!pMeta)
+    return NULL;
+
+  AL_TLookAheadMetaData* pLookAheadMeta = AL_LookAheadMetaData_Create();
+
+  if(!pLookAheadMeta)
+    return NULL;
+  AL_LookAheadMetaData_Copy(pMeta, pLookAheadMeta);
+  return pLookAheadMeta;
+}
+
+void AL_LookAheadMetaData_Copy(AL_TLookAheadMetaData* pMetaSrc, AL_TLookAheadMetaData* pMetaDest)
+{
+  if(!pMetaSrc || !pMetaDest)
+    return;
+
+  pMetaDest->iPictureSize = pMetaSrc->iPictureSize;
+  pMetaDest->iPercentIntra = pMetaSrc->iPercentIntra;
+  pMetaDest->bNextSceneChange = pMetaSrc->bNextSceneChange;
+  pMetaDest->iIPRatio = pMetaSrc->iIPRatio;
+  pMetaDest->iPercentSkip = pMetaSrc->iPercentSkip;
+  pMetaDest->iComplexity = pMetaSrc->iComplexity;
+}
+
+void AL_LookAheadMetaData_Reset(AL_TLookAheadMetaData* pMeta)
+{
+  pMeta->iPictureSize = -1;
+  pMeta->iPercentIntra = -1;
+  pMeta->bNextSceneChange = false;
+  pMeta->iIPRatio = 1000;
+  pMeta->iPercentSkip = -1;
+  pMeta->iComplexity = 1000;
+}
+
+#endif
 

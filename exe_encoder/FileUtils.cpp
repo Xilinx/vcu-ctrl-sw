@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -42,11 +42,38 @@
 
 #include "FileUtils.h"
 
+static const char CurrentDirectory = '.';
+static const char PathSeparator = '/';
+static const char WinPathSeparator = '\\';
+
+/****************************************************************************/
+void formatFolderPath(std::string& folderPath)
+{
+  if(folderPath.empty())
+  {
+    folderPath += CurrentDirectory;
+  }
+
+  if(folderPath[folderPath.size() - 1] != PathSeparator && folderPath[folderPath.size() - 1] != WinPathSeparator)
+  {
+    folderPath += PathSeparator;
+  }
+}
+
+/****************************************************************************/
+std::string combinePath(const std::string& folder, const std::string& filename)
+{
+  std::string formatedFolderPath = folder;
+  formatFolderPath(formatedFolderPath);
+  return formatedFolderPath + filename;
+}
+
+/****************************************************************************/
 std::string createFileNameWithID(const std::string& path, const std::string& motif, const std::string& extension, int iFrameID)
 {
   std::ostringstream filename;
-  filename << path << motif << "_" << iFrameID << extension;
-  return filename.str();
+  filename << motif << "_" << iFrameID << extension;
+  return combinePath(path, filename.str());
 }
 
 /****************************************************************************/

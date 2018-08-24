@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -773,12 +773,13 @@ static void writeSeiBufferingPeriod(AL_TBitStreamLite* pBS, AL_TSps const* pISps
 }
 
 /******************************************************************************/
-static void writeSeiRecoveryPoint(AL_TBitStreamLite* pBS)
+static void writeSeiRecoveryPoint(AL_TBitStreamLite* pBS, int iRecoveryFrameCnt)
 {
   int bookmark = AL_RbspEncoding_BeginSEI(pBS, 6);
 
-  AL_BitStreamLite_PutUE(pBS, 0);
-  AL_BitStreamLite_PutBits(pBS, 4, 0x8);
+  AL_BitStreamLite_PutSE(pBS, iRecoveryFrameCnt);
+  AL_BitStreamLite_PutBit(pBS, 1); // exact_match_flag
+  AL_BitStreamLite_PutBit(pBS, 0); // broken_link_flag
 
   AL_BitStreamLite_EndOfSEIPayload(pBS);
 

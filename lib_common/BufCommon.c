@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -122,7 +122,7 @@ void AL_CopyYuv(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 }
 
 /****************************************************************************/
-int AL_CLEAN_BUFFERS;
+int AL_CLEAN_BUFFERS = 0;
 
 void AL_CleanupMemory(void* pDst, size_t uSize)
 {

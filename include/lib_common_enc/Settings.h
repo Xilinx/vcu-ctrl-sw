@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -120,7 +120,7 @@ typedef enum e_QPCtrlMode
 /*************************************************************************//*!
    \brief Encoder Parameters
 *****************************************************************************/
-typedef struct t_EncSettings
+typedef AL_INTROSPECT (category = "debug") struct t_EncSettings
 {
   // Stream
   AL_TEncChanParam tChParam[MAX_NUM_LAYER];
@@ -146,6 +146,10 @@ typedef struct t_EncSettings
   uint8_t DcCoeff[8];
   uint8_t DcCoeffFlag[8];
   bool bEnableWatchdog;
+#if AL_ENABLE_TWOPASS
+  int LookAhead;
+  int TwoPass;
+#endif
 }AL_TEncSettings;
 
 /*************************************************************************//*!

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -93,10 +93,18 @@ typedef struct AL_t_PictureInfo
   int32_t iDpbOutputDelay;
   uint8_t uRefPicSetIdx;
   int8_t iQpOffset;
+  int iRecoveryCnt;
+
+  bool bForceQp;
+  int8_t iQpSet;
 
   uint16_t uGdrPos; /*!< Gradual Refresh position */
   AL_EGdrMode eGdrMode; /*!< Gradual Refresh Mode */
 
+
+#if AL_ENABLE_TWOPASS
+  AL_TLookAheadParam tLAParam;
+#endif
 }AL_TPictureInfo;
 
 /*@}*/

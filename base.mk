@@ -13,6 +13,8 @@ endif
 
 LINK_COMPAT:=
 
+INTROSPECT_FLAGS=
+
 ifneq ($(ENABLE_STATIC),0)
 	LINK_COMPAT+=-static-libstdc++ -static-libgcc -static
 endif
@@ -23,13 +25,13 @@ endif
 
 $(BIN)/%.cpp.o: %.cpp
 	@mkdir -p $(dir $@)
-	$(Q)$(CXX) $(CFLAGS) $(INCLUDES) -std=c++11 -o $@ -c $<
+	$(Q)$(CXX) $(CFLAGS) $(INTROSPECT_FLAGS) $(INCLUDES) -std=c++11 -o $@ -c $<
 	@$(CXX) -MP -MM "$<" -MT "$@" -o "$(BIN)/$*_cpp.deps" $(INCLUDES) $(CFLAGS) -std=c++11
 	@echo "CXX $<"
 
 $(BIN)/%.c.o: %.c
 	@mkdir -p $(dir $@)
-	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -std=gnu99 -o $@ -c $<
+	$(Q)$(CC) $(CFLAGS) $(INTROSPECT_FLAGS) $(INCLUDES) -std=gnu99 -o $@ -c $<
 	@$(CC) -MP -MM "$<" -MT "$@" -o "$(BIN)/$*_c.deps" $(INCLUDES) $(CFLAGS)
 	@echo "CC $<"
 

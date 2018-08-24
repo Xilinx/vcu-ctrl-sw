@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -53,13 +53,13 @@ extern "C"
 
 #include <string>
 #include <vector>
-using namespace std;
+#include <iostream>
 
 
 /*************************************************************************//*!
    \brief Mimics structure for RUN Section of cfg file
 *****************************************************************************/
-typedef struct tCfgRunInfo
+typedef AL_INTROSPECT (category = "debug") struct tCfgRunInfo
 {
   bool bUseBoard;
   SCHEDULER_TYPE iSchedulerType;
@@ -67,39 +67,47 @@ typedef struct tCfgRunInfo
   int iMaxPict;
   unsigned int iFirstPict;
   unsigned int iScnChgLookAhead;
-  AL_64U uInputSleepInMilliseconds;
-  string sMd5Path;
+  std::string sMd5Path;
   int eVQDescr;
   IpCtrlMode ipCtrlMode;
   std::string logsFile = "";
   bool trackDma = false;
   bool printPictureType = false;
+  AL_64U uInputSleepInMilliseconds;
 }TCfgRunInfo;
 
 
 /*************************************************************************//*!
    \brief Whole configuration file
 *****************************************************************************/
-struct ConfigFile
+AL_INTROSPECT(category = "debug") struct ConfigFile
 {
   // \brief YUV input file name(s)
-  string YUVFileName;
+  std::string YUVFileName;
 
   // \brief Output bitstream file name
-  string BitstreamFileName;
+  std::string BitstreamFileName;
 
   // \brief Reconstructed YUV output file name
-  string RecFileName;
+  std::string RecFileName;
 
   // \brief Name of the file specifying the frame numbers where scene changes
   // happen
-  string sCmdFileName;
+  std::string sCmdFileName;
 
   // \brief Name of the file specifying the region of interest per frame is specified
   // happen
-  string sRoiFileName;
+  std::string sRoiFileName;
+
+  // \brief Folder where qp tables files are located, if load qp enabled.
+  std::string sQPTablesFolder;
 
 
+
+#if AL_ENABLE_TWOPASS
+  // \brief Name of the file that reads/writes video statistics for TwoPassMode
+  std::string sTwoPassFileName;
+#endif
 
   // \brief Information relative to YUV input file (from section INPUT)
   TYUVFileInfo FileInfo;
@@ -125,29 +133,8 @@ struct ConfigFile
    according to the config file content.
    \param[out] warnStream warning stream
 *****************************************************************************/
-void ParseConfigFile(const string& sCfgFileName, ConfigFile& cfg, ostream& warnStream);
-
-/*************************************************************************//*!
-   \brief Retrives the numerical value corresponding to a string word
-   \param[in]  sLine the string word
-   \return the FOURCC value
-*****************************************************************************/
-int GetCmdlineValue(const string& sLine);
-
-/*************************************************************************//*!
-   \brief Retrieve a FourCC numerical value from a string word
-   \param[in]  sLine the string word
-   \return the FOURCC value
-*****************************************************************************/
-TFourCC GetCmdlineFourCC(const string& sLine);
-
-/*************************************************************************//*!
-   \brief Retrieve the numerical framerate value frome a string
-   \param[in]  sLine the string word
-   \param[out] iFps the Number of frame per second
-   \param[out] iClkRatio the clock ratio (1000 or 1001)
-*****************************************************************************/
-void GetFpsCmdline(const string& sLine, uint16_t& iFps, uint16_t& iClkRatio);
-
+void ParseConfigFile(std::string const& sCfgFileName, ConfigFile& cfg, std::ostream& warnStream = std::cerr, bool debug = false);
+void ParseConfig(std::string const& toParse, ConfigFile& cfg, std::ostream& warnStream = std::cerr, bool debug = false);
+void PrintConfigFileUsage();
 /*@}*/
 

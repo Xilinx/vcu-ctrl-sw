@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -145,7 +145,7 @@ static void AL_AVC_sref_pic_list_reordering(AL_TRbspParser* pRP, AL_TAvcSliceHdr
           pSlice->long_term_pic_num_l0[idx3] = ue(pRP);
         }
       }
-      while(pSlice->reordering_of_pic_nums_idc_l0[idx1] != 3 && idx1 < AL_MAX_REFERENCE_PICTURE_REORDER);
+      while(idx1 < AL_MAX_REFERENCE_PICTURE_REORDER && pSlice->reordering_of_pic_nums_idc_l0[idx1] != 3);
   }
 
   if(pSlice->slice_type == SLICE_B)
@@ -174,7 +174,7 @@ static void AL_AVC_sref_pic_list_reordering(AL_TRbspParser* pRP, AL_TAvcSliceHdr
           pSlice->long_term_pic_num_l1[idx3] = ue(pRP);
         }
       }
-      while(pSlice->reordering_of_pic_nums_idc_l1[idx1] != 3 && idx1 < AL_MAX_REFERENCE_PICTURE_REORDER);
+      while(idx1 < AL_MAX_REFERENCE_PICTURE_REORDER && pSlice->reordering_of_pic_nums_idc_l1[idx1] != 3);
   }
 }
 

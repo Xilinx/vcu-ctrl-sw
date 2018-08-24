@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -115,6 +115,7 @@ void Rtos_DeleteThread(AL_THREAD Thread);
 void* Rtos_DriverOpen(char const* name);
 void Rtos_DriverClose(void* drv);
 int Rtos_DriverIoctl(void* drv, unsigned long int req, void* data);
+int Rtos_DriverPoll(void* drv, int timeout);
 
 /****************************************************************************/
 /*  Atomics */

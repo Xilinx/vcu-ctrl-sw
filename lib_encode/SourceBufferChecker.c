@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -51,15 +51,8 @@ void AL_SrcBuffersChecker_Init(AL_TSrcBufferChecker* pCtx, AL_TEncChanParam cons
   pCtx->width = AL_GetSrcWidth(*pChParam);
   pCtx->height = AL_GetSrcHeight(*pChParam);
 
-  AL_TPicFormat picFmt =
-  {
-    AL_GET_CHROMA_MODE(pChParam->ePicFormat),
-    AL_GET_BITDEPTH(pChParam->ePicFormat),
-    AL_GetSrcStorageMode(pChParam->eSrcMode)
-  };
-
-  pCtx->picFmt = picFmt;
-  pCtx->fourCC = AL_EncGetSrcFourCC(pCtx->picFmt);
+  pCtx->picFmt = AL_EncGetSrcPicFormat(AL_GET_CHROMA_MODE(pChParam->ePicFormat), pChParam->uSrcBitDepth, AL_GetSrcStorageMode(pChParam->eSrcMode), AL_IsSrcCompressed(pChParam->eSrcMode));
+  pCtx->fourCC = AL_GetFourCC(pCtx->picFmt);
   pCtx->srcMode = pChParam->eSrcMode;
 }
 

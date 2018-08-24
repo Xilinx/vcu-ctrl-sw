@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +39,7 @@
 #include "lib_common_enc/EncBuffers.h"
 #include "lib_common/BufCommonInternal.h"
 #include "EncEPBuffer.h"
-#include "lib_common_enc/ChooseLda.h"
+#include "lib_common_enc/Lambdas.h"
 
 #define ENC_MAX_CMD (AL_MAX_NUM_B_PICT + 3)
 

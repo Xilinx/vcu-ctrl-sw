@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -325,20 +325,17 @@ void AL_AVC_PictMngr_EndParsing(AL_TPictMngrCtx* pCtx, bool bClearRef, AL_EMarki
     uNode = AL_Dpb_GetNextPOC(pDpb, uNode);
   }
 
-  // Add newRef
+  uint8_t uDelete = AL_Dpb_SearchPOC(&pCtx->DPB, pCtx->iCurFramePOC);
+  bool bIsPOCAlreadyInDPB = uDelete != uEndOfList;
 
+  if(bIsPOCAlreadyInDPB)
   {
-    // remove
-    uint8_t uDelete = AL_Dpb_SearchPOC(&pCtx->DPB, pCtx->iCurFramePOC);
+    if(AL_Dpb_GetOutputFlag(pDpb, uDelete))
+      AL_Dpb_Display(pDpb, uDelete);
 
-    if(uDelete != uEndOfList)
-    {
-      if(AL_Dpb_GetOutputFlag(pDpb, uDelete))
-        AL_Dpb_Display(pDpb, uDelete);
-
-      AL_Dpb_Remove(pDpb, uDelete);
-    }
+    AL_Dpb_Remove(pDpb, uDelete);
   }
+
   AL_PictMngr_Insert(pCtx, pCtx->iCurFramePOC, 0, pCtx->uRecID, pCtx->uMvID, 1, eMarkingFlag, 0, 0);
   AL_Dpb_ResetMMCO5(&pCtx->DPB);
 }

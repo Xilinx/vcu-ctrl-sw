@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -46,6 +46,7 @@
 #include "CodecUtils.h"
 #include "al_resource.h"
 #include "lib_app/utils.h"
+#include "lib_app/BuildInfo.h"
 
 /******************************************************************************/
 void DisplayFrameStatus(int iFrameNum)
@@ -57,21 +58,25 @@ void DisplayFrameStatus(int iFrameNum)
 #endif
 }
 
+#if !HAS_COMPIL_FLAGS
+#define AL_COMPIL_FLAGS ""
+#endif
+
+void DisplayBuildInfo()
+{
+  BuildInfoDisplay displayBuildInfo {
+    SVN_REV, AL_CONFIGURE_COMMANDLINE, AL_COMPIL_FLAGS
+  };
+  displayBuildInfo();
+}
 
 /*****************************************************************************/
 void DisplayVersionInfo()
 {
-  Message("%s - %s v%d.%d.%d - %s\n", AL_DECODER_COMPANY,
-          AL_DECODER_PRODUCT_NAME,
-          AL_DECODER_VERSION,
-          AL_DECODER_COPYRIGHT);
-
-  SetConsoleColor(CC_YELLOW);
-
-  Message("%s\n", AL_DECODER_COMMENTS);
-
-  SetConsoleColor(CC_DEFAULT);
-
-  Message("\n");
+  DisplayVersionInfo(AL_DECODER_COMPANY,
+                     AL_DECODER_PRODUCT_NAME,
+                     AL_DECODER_VERSION,
+                     AL_DECODER_COPYRIGHT,
+                     AL_DECODER_COMMENTS);
 }
 

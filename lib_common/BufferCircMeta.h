@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -42,11 +42,11 @@
 typedef struct AL_t_CircMetaData
 {
   AL_TMetaData tMeta;
-  uint32_t uOffset;
-  uint32_t uAvailSize;
+  int32_t iOffset;
+  int32_t iAvailSize;
   bool bLastBuffer;
 }AL_TCircMetaData;
 
-AL_TCircMetaData* AL_CircMetaData_Create(uint32_t uOffset, uint32_t uAvailSize, bool bLastBuffer);
+AL_TCircMetaData* AL_CircMetaData_Create(int32_t iOffset, int32_t iAvailSize, bool bLastBuffer);
 AL_TCircMetaData* AL_CircMetaData_Clone(AL_TCircMetaData* pMeta);
 

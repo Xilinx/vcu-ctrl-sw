@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -86,7 +86,9 @@ bool LoadLambdaFromFile(char const* lambdaFileName, TBufferEP* pEP)
 
   for(int i = 0; i <= 51; i++)
   {
-    fgets(sLine, 256, lambdaFile);
+    /* failed to parse */
+    if(!fgets(sLine, 256, lambdaFile))
+      return false;
     pLambdas[i][0] = FromHex(sLine[6], sLine[7]);
     pLambdas[i][1] = FromHex(sLine[4], sLine[5]);
     pLambdas[i][2] = FromHex(sLine[2], sLine[3]);
@@ -94,6 +96,8 @@ bool LoadLambdaFromFile(char const* lambdaFileName, TBufferEP* pEP)
   }
 
   pEP->uFlags |= EP1_BUF_LAMBDAS.Flag;
+
+  fclose(lambdaFile);
 
   return true;
 }

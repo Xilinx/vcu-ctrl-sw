@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -193,6 +193,15 @@ bool AL_Common_Encoder_SetBitRate(AL_TEncoder* pEnc, int iBitRate, int iLayerID)
    uClkRatio = 1001 gives 59.94 fps
 *****************************************************************************/
 bool AL_Common_Encoder_SetFrameRate(AL_TEncoder* pEnc, uint16_t uFrameRate, uint16_t uClkRatio);
+
+/*************************************************************************//*!
+   \brief Changes the quantization parameter for the next pushed frame
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] iQP The new quantization parameter
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError
+   to retrieve the error code
+*****************************************************************************/
+bool AL_Common_Encoder_SetQP(AL_TEncoder* pEnc, int16_t iQP);
 
 
 

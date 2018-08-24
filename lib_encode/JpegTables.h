@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -35,45 +35,4 @@
 *
 ******************************************************************************/
 
-#pragma once
-#include "lib_rtos/types.h"
-
-typedef enum
-{
-  DRIVER_SUCCESS,
-  DRIVER_ERROR_UNKNOWN,
-  DRIVER_ERROR_NO_MEMORY,
-  DRIVER_ERROR_CHANNEL,
-}AL_EDriverError;
-
-typedef struct AL_t_driver AL_TDriver;
-typedef struct
-{
-  int (* pfnOpen)(AL_TDriver* driver, const char* device);
-  void (* pfnClose)(AL_TDriver* driver, int fd);
-  AL_EDriverError (* pfnPostMessage)(AL_TDriver* driver, int fd, long unsigned int messageId, void* data);
-}AL_DriverVtable;
-
-struct AL_t_driver
-{
-  const AL_DriverVtable* vtable;
-};
-
-static inline
-int AL_Driver_Open(AL_TDriver* driver, const char* device)
-{
-  return driver->vtable->pfnOpen(driver, device);
-}
-
-static inline
-void AL_Driver_Close(AL_TDriver* driver, int fd)
-{
-  driver->vtable->pfnClose(driver, fd);
-}
-
-static inline
-AL_EDriverError AL_Driver_PostMessage(AL_TDriver* driver, int fd, long unsigned int messageId, void* data)
-{
-  return driver->vtable->pfnPostMessage(driver, fd, messageId, data);
-}
 

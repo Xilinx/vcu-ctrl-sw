@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -185,17 +185,19 @@ void AL_PictMngr_Deinit(AL_TPictMngrCtx* pCtx);
    \brief Lock reference motion vector buffers
    \param[in] pCtx Pointer to a Picture manager context object
    \param[in] uNumRef Number of reference pictures
+   \param[in] pRefFrameID List of rec buffers IDs associated to the reference pictures
    \param[in] pRefMvID List of motion vectors buffer IDs associated to the reference pictures
 *****************************************************************************/
-void AL_PictMngr_LockRefMvID(AL_TPictMngrCtx* pCtx, uint8_t uNumRef, uint8_t* pRefMvID);
+void AL_PictMngr_LockRefID(AL_TPictMngrCtx* pCtx, uint8_t uNumRef, uint8_t* pRefFrameID, uint8_t* pRefMvID);
 
 /*************************************************************************//*!
    \brief Unlock reference motion vector buffers
    \param[in] pCtx Pointer to a Picture manager context object
    \param[in] uNumRef Number of reference pictures
+   \param[in] pRefFrameID List of rec buffers IDs associated to the reference pictures
    \param[in] pRefMvID List of motion vectors buffer IDs associated to the reference pictures
 *****************************************************************************/
-void AL_PictMngr_UnlockRefMvID(AL_TPictMngrCtx* pCtx, uint8_t uNumRef, uint8_t* pRefMvID);
+void AL_PictMngr_UnlockRefID(AL_TPictMngrCtx* pCtx, uint8_t uNumRef, uint8_t* pRefFrameID, uint8_t* pRefMvID);
 
 /*************************************************************************//*!
    \brief Retrieves the current decoded frame identifier
@@ -306,6 +308,15 @@ AL_TBuffer* AL_PictMngr_GetDisplayBufferFromID(AL_TPictMngrCtx* pCtx, int iFrame
    \return Picture buffer's pointer
 *****************************************************************************/
 AL_TBuffer* AL_PictMngr_GetRecBufferFromID(AL_TPictMngrCtx* pCtx, int iFrameID);
+
+/*************************************************************************//*!
+   \brief This function returns the reconstructed picture buffer associated to a displayed buffer
+   \param[in]  pCtx      Pointer to a Picture manager context object
+   \param[in]  pDisplayBuf  Display buffer pointer
+   \param[out] pInfo     Pointer to retrieve information about the decoded frame
+   \return Reconstructed picture buffer's pointer
+*****************************************************************************/
+AL_TBuffer* AL_PictMngr_GetRecBufferFromDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TBuffer* pDisplayBuf, AL_TInfoDecode* pInfo);
 
 void AL_PictMngr_UpdateDisplayBufferCRC(AL_TPictMngrCtx* pCtx, int iFrameID, uint32_t uCRC);
 void AL_PictMngr_UpdateDisplayBufferCrop(AL_TPictMngrCtx* pCtx, int iFrameID, AL_TCropInfo tCrop);

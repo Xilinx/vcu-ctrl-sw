@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -49,8 +49,7 @@
 #define DPB_GET_MUTEX(pDpb) Rtos_GetMutex(pDpb->Mutex)
 #define DPB_RELEASE_MUTEX(pDpb) Rtos_ReleaseMutex(pDpb->Mutex)
 
-/*****************************************************************************/
-static void AL_DispFifo_sInit(AL_TDispFifo* pFifo)
+static void DispFifo_Init(AL_TDispFifo* pFifo)
 {
   for(int i = 0; i < FRM_BUF_POOL_SIZE; ++i)
   {
@@ -62,10 +61,53 @@ static void AL_DispFifo_sInit(AL_TDispFifo* pFifo)
   pFifo->uNumFrm = 0;
 }
 
-/*************************************************************************/
-static void AL_DispFifo_sDeinit(AL_TDispFifo* pFifo)
+static void DispFifo_Deinit(AL_TDispFifo* pFifo)
 {
   (void)pFifo;
+}
+
+static bool DispFifo_IsEmpty(AL_TDispFifo* fifo)
+{
+  uint8_t uEnd = (fifo->uFirstFrm + fifo->uNumFrm) % FRM_BUF_POOL_SIZE;
+  uint8_t uBegin = fifo->uFirstFrm;
+  return uBegin == uEnd && fifo->uNumFrm != FRM_BUF_POOL_SIZE;
+}
+
+static void DispFifo_Queue(AL_TDispFifo* fifo, uint8_t uFrmID, uint32_t uPicLatency)
+{
+  uint8_t uID = fifo->uFirstFrm + fifo->uNumFrm++;
+
+  fifo->pFrmIDs[uID % FRM_BUF_POOL_SIZE] = uFrmID;
+  fifo->pPicLatency[uFrmID] = uPicLatency;
+}
+
+static uint8_t DispFifo_Peek(AL_TDispFifo* fifo)
+{
+  return fifo->pFrmIDs[fifo->uFirstFrm];
+}
+
+static uint8_t DispFifo_Dequeue(AL_TDispFifo* fifo)
+{
+  uint8_t uFrmID = fifo->pFrmIDs[fifo->uFirstFrm];
+
+  if(uFrmID != UndefID)
+  {
+    fifo->pFrmIDs[fifo->uFirstFrm] = UndefID;
+    fifo->uFirstFrm = (fifo->uFirstFrm + 1) % FRM_BUF_POOL_SIZE;
+    fifo->uNumFrm--;
+    fifo->pFrmStatus[uFrmID] = AL_NOT_NEEDED_FOR_OUTPUT;
+  }
+  return uFrmID;
+}
+
+static AL_EPicStatus DispFifo_GetStatus(AL_TDispFifo* fifo, uint8_t uFrmID)
+{
+  return fifo->pFrmStatus[uFrmID];
+}
+
+static void DispFifo_SetStatus(AL_TDispFifo* fifo, uint8_t uFrmID, AL_EPicStatus eStatus)
+{
+  fifo->pFrmStatus[uFrmID] = eStatus;
 }
 
 /*****************************************************************************/
@@ -122,13 +164,12 @@ static void AL_Dpb_sReleasePicID(AL_TDpb* pDpb, uint8_t uPicID)
 /*****************************************************************************/
 static void AL_Dpb_sAddToDisplayList(AL_TDpb* pDpb, uint8_t uNode)
 {
-  uint8_t uID = pDpb->DispFifo.uFirstFrm + pDpb->DispFifo.uNumFrm++;
+  AL_TDpbNode* node = &pDpb->Nodes[uNode];
+  DispFifo_Queue(&pDpb->DispFifo, node->uFrmID, node->uPicLatency);
 
-  pDpb->DispFifo.pFrmIDs[uID % FRM_BUF_POOL_SIZE] = pDpb->Nodes[uNode].uFrmID;
-  pDpb->DispFifo.pPicLatency[pDpb->Nodes[uNode].uFrmID] = pDpb->Nodes[uNode].uPicLatency;
-
-  pDpb->tCallbacks.pfnIncrementFrmBuf(pDpb->tCallbacks.pUserParam, pDpb->Nodes[uNode].uFrmID);
-  pDpb->tCallbacks.pfnOutputFrmBuf(pDpb->tCallbacks.pUserParam, pDpb->Nodes[uNode].uFrmID);
+  AL_TDpbCallback* cb = &pDpb->tCallbacks;
+  cb->pfnIncrementFrmBuf(cb->pUserParam, node->uFrmID);
+  cb->pfnOutputFrmBuf(cb->pUserParam, node->uFrmID);
 }
 
 /*****************************************************************************/
@@ -455,12 +496,12 @@ static void AL_Dpb_sReleaseUnusedBuf(AL_TDpb* pDpb, bool bAll)
 
   while(iNum--)
   {
-    pDpb->tCallbacks.pfnDecrementFrmBuf(pDpb->tCallbacks.pUserParam, pDpb->pDltFrmIDLst[pDpb->iDltFrmLstHead++]);
-    pDpb->tCallbacks.pfnDecrementMvBuf(pDpb->tCallbacks.pUserParam, pDpb->pDltMvIDLst[pDpb->iDltMvLstHead++]);
+    AL_TDpbCallback* cb = &pDpb->tCallbacks;
+    cb->pfnDecrementFrmBuf(cb->pUserParam, pDpb->pDltFrmIDLst[pDpb->iDltFrmLstHead]);
+    cb->pfnDecrementMvBuf(cb->pUserParam, pDpb->pDltMvIDLst[pDpb->iDltMvLstHead]);
 
-    pDpb->iDltFrmLstHead %= FRM_BUF_POOL_SIZE;
-    pDpb->iDltMvLstHead %= MAX_DPB_SIZE;
-
+    pDpb->iDltFrmLstHead = (pDpb->iDltFrmLstHead + 1) % FRM_BUF_POOL_SIZE;
+    pDpb->iDltMvLstHead = (pDpb->iDltMvLstHead + 1) % MAX_DPB_SIZE;
     --pDpb->iNumDltPic;
   }
 }
@@ -490,7 +531,7 @@ static void AL_Dpb_sFillWaitingPicture(AL_TDpb* pDpb)
 /***************************************************************************/
 
 /*****************************************************************************/
-void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, AL_EDpbMode eMode, AL_TPictureManagerCallbacks tCallbacks)
+void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, AL_EDpbMode eMode, AL_TDpbCallback tCallbacks)
 {
   for(int i = 0; i < PIC_ID_POOL_SIZE; i++)
   {
@@ -533,7 +574,7 @@ void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, AL_EDpbMode eMode, AL_TPictureM
 
   pDpb->Mutex = Rtos_CreateMutex();
 
-  AL_DispFifo_sInit(&pDpb->DispFifo);
+  DispFifo_Init(&pDpb->DispFifo);
 
   pDpb->tCallbacks = tCallbacks;
 }
@@ -543,7 +584,7 @@ void AL_Dpb_Terminate(AL_TDpb* pDpb)
 {
   DPB_GET_MUTEX(pDpb);
   AL_Dpb_sReleaseUnusedBuf(pDpb, true);
-  AL_DispFifo_sDeinit(&pDpb->DispFifo);
+  DispFifo_Deinit(&pDpb->DispFifo);
   DPB_RELEASE_MUTEX(pDpb);
 }
 
@@ -598,12 +639,6 @@ uint8_t AL_Dpb_GetMarkingFlag(AL_TDpb* pDpb, uint8_t uNode)
   return pDpb->Nodes[uNode].eMarking_flag;
 }
 
-/*****************************************************************************/
-uint8_t AL_Dpb_GetFifoLast(AL_TDpb* pDpb)
-{
-  return pDpb->DispFifo.uFirstFrm + pDpb->DispFifo.uNumFrm;
-}
-
 /*************************************************************************/
 uint32_t AL_Dpb_GetPicLatency_FromNode(AL_TDpb* pDpb, uint8_t uNode)
 {
@@ -612,14 +647,11 @@ uint32_t AL_Dpb_GetPicLatency_FromNode(AL_TDpb* pDpb, uint8_t uNode)
 }
 
 /*************************************************************************/
-uint32_t AL_Dpb_GetPicLatency_FromFifo(AL_TDpb* pDpb, uint8_t uFrmID)
-{
-  return pDpb->DispFifo.pPicLatency[uFrmID];
-}
-
-/*************************************************************************/
 uint8_t AL_Dpb_GetPicID_FromNode(AL_TDpb* pDpb, uint8_t uNode)
 {
+  if(uNode == uEndOfList)
+    return UndefID;
+
   assert(uNode < MAX_DPB_SIZE);
   return pDpb->Nodes[uNode].uPicID;
 }
@@ -627,6 +659,9 @@ uint8_t AL_Dpb_GetPicID_FromNode(AL_TDpb* pDpb, uint8_t uNode)
 /*************************************************************************/
 uint8_t AL_Dpb_GetMvID_FromNode(AL_TDpb* pDpb, uint8_t uNode)
 {
+  if(uNode == uEndOfList)
+    return UndefID;
+
   assert(uNode < MAX_DPB_SIZE);
   return pDpb->Nodes[uNode].uMvID;
 }
@@ -634,14 +669,11 @@ uint8_t AL_Dpb_GetMvID_FromNode(AL_TDpb* pDpb, uint8_t uNode)
 /*************************************************************************/
 uint8_t AL_Dpb_GetFrmID_FromNode(AL_TDpb* pDpb, uint8_t uNode)
 {
+  if(uNode == uEndOfList)
+    return UndefID;
+
   assert(uNode < MAX_DPB_SIZE);
   return pDpb->Nodes[uNode].uFrmID;
-}
-
-/*************************************************************************/
-uint8_t AL_Dpb_GetFrmID_FromFifo(AL_TDpb* pDpb, uint8_t uID)
-{
-  return pDpb->DispFifo.pFrmIDs[uID % FRM_BUF_POOL_SIZE];
 }
 
 /*************************************************************************/
@@ -858,14 +890,13 @@ uint8_t AL_Dpb_GetDisplayBuffer(AL_TDpb* pDpb)
 {
   DPB_GET_MUTEX(pDpb);
 
-  uint8_t uEnd = AL_Dpb_GetFifoLast(pDpb) % FRM_BUF_POOL_SIZE;
   uint8_t uFrmID = UndefID;
 
-  if(pDpb->DispFifo.uFirstFrm != uEnd || pDpb->DispFifo.uNumFrm == FRM_BUF_POOL_SIZE)
+  if(!DispFifo_IsEmpty(&pDpb->DispFifo))
   {
-    uFrmID = pDpb->DispFifo.pFrmIDs[pDpb->DispFifo.uFirstFrm];
+    uFrmID = DispFifo_Peek(&pDpb->DispFifo);
 
-    if(pDpb->DispFifo.pFrmStatus[uFrmID] != AL_READY_FOR_OUTPUT)
+    if(DispFifo_GetStatus(&pDpb->DispFifo, uFrmID) != AL_READY_FOR_OUTPUT)
       uFrmID = UndefID;
   }
 
@@ -877,16 +908,11 @@ uint8_t AL_Dpb_GetDisplayBuffer(AL_TDpb* pDpb)
 uint8_t AL_Dpb_ReleaseDisplayBuffer(AL_TDpb* pDpb)
 {
   DPB_GET_MUTEX(pDpb);
-  uint8_t uFrmID = pDpb->DispFifo.pFrmIDs[pDpb->DispFifo.uFirstFrm];
+  uint8_t uFrmID = DispFifo_Dequeue(&pDpb->DispFifo);
+  AL_TDpbCallback* cb = &pDpb->tCallbacks;
 
   if(uFrmID != UndefID)
-  {
-    pDpb->DispFifo.pFrmIDs[pDpb->DispFifo.uFirstFrm] = UndefID;
-    pDpb->DispFifo.uFirstFrm = (pDpb->DispFifo.uFirstFrm + 1) % FRM_BUF_POOL_SIZE;
-    pDpb->DispFifo.uNumFrm--;
-    pDpb->DispFifo.pFrmStatus[uFrmID] = AL_NOT_NEEDED_FOR_OUTPUT;
-    pDpb->tCallbacks.pfnDecrementFrmBuf(pDpb->tCallbacks.pUserParam, uFrmID);
-  }
+    cb->pfnDecrementFrmBuf(cb->pUserParam, uFrmID);
   DPB_RELEASE_MUTEX(pDpb);
   return uFrmID;
 }
@@ -935,13 +961,12 @@ void AL_Dpb_HEVC_Cleanup(AL_TDpb* pDpb, uint32_t uMaxLatency, uint8_t MaxNumOutp
 
   while(uNode != uEndOfList)
   {
-    if(AL_Dpb_GetOutputFlag(pDpb, uNode) && ((AL_Dpb_GetPicLatency_FromNode(pDpb, uNode) >= uMaxLatency) ||
-                                             (AL_Dpb_GetNumOutputPict(pDpb) > MaxNumOutput)))
-    {
-      AL_Dpb_Display(pDpb, uNode);
-    }
+    bool bShouldBeDisplayed = AL_Dpb_GetOutputFlag(pDpb, uNode) && ((AL_Dpb_GetPicLatency_FromNode(pDpb, uNode) >= uMaxLatency) || (AL_Dpb_GetNumOutputPict(pDpb) > MaxNumOutput));
 
-    if(pNodes[uNode].eMarking_flag == UNUSED_FOR_REF && !pNodes[uNode].pic_output_flag)
+    if(bShouldBeDisplayed)
+      AL_Dpb_Display(pDpb, uNode);
+
+    if(pNodes[uNode].eMarking_flag == UNUSED_FOR_REF && !AL_Dpb_GetOutputFlag(pDpb, uNode))
     {
       uint8_t uDelete = uNode;
       uNode = pNodes[uNode].uNextPOC;
@@ -997,85 +1022,106 @@ void AL_Dpb_AVC_Cleanup(AL_TDpb* pDpb)
   DPB_RELEASE_MUTEX(pDpb);
 }
 
+// Remove from POC ordered linked list
+static void RemoveFromPocList(AL_TDpb* pDpb, uint8_t uNode)
+{
+  AL_TDpbNode* pNode = &pDpb->Nodes[uNode];
+  uint8_t uPrev = pNode->uPrevPOC;
+  uint8_t uNext = pNode->uNextPOC;
+
+  if(pDpb->uHeadPOC == uNode)
+    pDpb->uHeadPOC = uNext;
+
+  if(uPrev != uEndOfList)
+    pDpb->Nodes[uPrev].uNextPOC = uNext;
+
+  if(uNext != uEndOfList)
+    pDpb->Nodes[uNext].uPrevPOC = uPrev;
+  else
+    pDpb->uLastPOC = uPrev;
+}
+
+// Remove from poc lsb ordered linked list
+static void RemoveFromPocLsbList(AL_TDpb* pDpb, uint8_t uNode)
+{
+  AL_TDpbNode* pNode = &pDpb->Nodes[uNode];
+  uint8_t uPrev = pNode->uPrevPocLsb;
+  uint8_t uNext = pNode->uNextPocLsb;
+
+  if(pDpb->uHeadPocLsb == uNode)
+    pDpb->uHeadPocLsb = uNext;
+
+  if(uPrev != uEndOfList)
+    pDpb->Nodes[uPrev].uNextPocLsb = uNext;
+
+  if(uNext != uEndOfList)
+    pDpb->Nodes[uNext].uPrevPocLsb = uPrev;
+}
+
+// Remove from Decoding ordered linked list
+static void RemoveFromDecOrderList(AL_TDpb* pDpb, uint8_t uNode)
+{
+  AL_TDpbNode* pNode = &pDpb->Nodes[uNode];
+  uint8_t uPrev = pNode->uPrevDecOrder;
+  uint8_t uNext = pNode->uNextDecOrder;
+
+  if(pDpb->uHeadDecOrder == uNode)
+    pDpb->uHeadDecOrder = uNext;
+
+  if(uPrev != uEndOfList)
+    pDpb->Nodes[uPrev].uNextDecOrder = uNext;
+
+  if(uNext != uEndOfList)
+    pDpb->Nodes[uNext].uPrevDecOrder = uPrev;
+}
+
 /*************************************************************************/
 uint8_t AL_Dpb_Remove(AL_TDpb* pDpb, uint8_t uNode)
 {
   DPB_GET_MUTEX(pDpb);
-  uint8_t uFrmID = UndefID;
 
-  if(uNode != uEndOfList)
+  if(uNode == uEndOfList)
   {
-    uint8_t uPrev = pDpb->Nodes[uNode].uPrevPOC;
-    uint8_t uNext = pDpb->Nodes[uNode].uNextPOC;
-    uint8_t uMvID = pDpb->Nodes[uNode].uMvID;
-
-    uint8_t uNE = pDpb->Nodes[uNode].non_existing;
-    uFrmID = pDpb->Nodes[uNode].uFrmID;
-
-    // Remove from POC ordered linked list
-    if(pDpb->uHeadPOC == uNode)
-      pDpb->uHeadPOC = uNext;
-
-    if(uPrev != uEndOfList)
-      pDpb->Nodes[uPrev].uNextPOC = uNext;
-
-    if(uNext != uEndOfList)
-      pDpb->Nodes[uNext].uPrevPOC = uPrev;
-    else
-      pDpb->uLastPOC = uPrev;
-
-    // Remove from poc lsb ordered linked list
-    uPrev = pDpb->Nodes[uNode].uPrevPocLsb;
-    uNext = pDpb->Nodes[uNode].uNextPocLsb;
-
-    if(pDpb->uHeadPocLsb == uNode)
-      pDpb->uHeadPocLsb = uNext;
-
-    if(uPrev != uEndOfList)
-      pDpb->Nodes[uPrev].uNextPocLsb = uNext;
-
-    if(uNext != uEndOfList)
-      pDpb->Nodes[uNext].uPrevPocLsb = uPrev;
-
-    // Remove from Decoding ordered linked list
-    uPrev = pDpb->Nodes[uNode].uPrevDecOrder;
-    uNext = pDpb->Nodes[uNode].uNextDecOrder;
-
-    if(pDpb->uHeadDecOrder == uNode)
-      pDpb->uHeadDecOrder = uNext;
-
-    if(uPrev != uEndOfList)
-      pDpb->Nodes[uPrev].uNextDecOrder = uNext;
-
-    if(uNext != uEndOfList)
-      pDpb->Nodes[uNext].uPrevDecOrder = uPrev;
-
-    // Release node
-    AL_Dpb_sReleasePicID(pDpb, pDpb->Nodes[uNode].uPicID);
-
-    // Update ref counter
-    if(pDpb->Nodes[uNode].eMarking_flag != UNUSED_FOR_REF)
-      --pDpb->uCountRef;
-    --pDpb->uCountPic;
-
-    // Reset node information
-    AL_Dpb_sResetNodeInfo(pDpb, &pDpb->Nodes[uNode]);
-
-    // assigned pic id to the awaiting picture
-    if(pDpb->bPicWaiting && pDpb->FreePicIdCnt)
-      AL_Dpb_sFillWaitingPicture(pDpb);
-
-    if(!uNE)
-    {
-      pDpb->pDltFrmIDLst[pDpb->iDltFrmLstTail++] = uFrmID;
-      pDpb->pDltMvIDLst[pDpb->iDltMvLstTail++] = uMvID;
-
-      pDpb->iDltFrmLstTail %= FRM_BUF_POOL_SIZE;
-      pDpb->iDltMvLstTail %= MAX_DPB_SIZE;
-
-      ++pDpb->iNumDltPic;
-    }
+    DPB_RELEASE_MUTEX(pDpb);
+    return UndefID;
   }
+
+  AL_TDpbNode* pNode = &pDpb->Nodes[uNode];
+
+  uint8_t uMvID = pNode->uMvID;
+  uint8_t uNonExisting = pNode->non_existing;
+  uint8_t uFrmID = pNode->uFrmID;
+
+  RemoveFromPocList(pDpb, uNode);
+  RemoveFromPocLsbList(pDpb, uNode);
+  RemoveFromDecOrderList(pDpb, uNode);
+
+  // Release node
+  AL_Dpb_sReleasePicID(pDpb, pNode->uPicID);
+
+  // Update ref counter
+  if(pNode->eMarking_flag != UNUSED_FOR_REF)
+    --pDpb->uCountRef;
+  --pDpb->uCountPic;
+
+  // Reset node information
+  AL_Dpb_sResetNodeInfo(pDpb, pNode);
+
+  // assigned pic id to the awaiting picture
+  if(pDpb->bPicWaiting && pDpb->FreePicIdCnt)
+    AL_Dpb_sFillWaitingPicture(pDpb);
+
+  if(!uNonExisting)
+  {
+    pDpb->pDltFrmIDLst[pDpb->iDltFrmLstTail] = uFrmID;
+    pDpb->pDltMvIDLst[pDpb->iDltMvLstTail] = uMvID;
+
+    pDpb->iDltFrmLstTail = (pDpb->iDltFrmLstTail + 1) % FRM_BUF_POOL_SIZE;
+    pDpb->iDltMvLstTail = (pDpb->iDltMvLstTail + 1) % MAX_DPB_SIZE;
+
+    ++pDpb->iNumDltPic;
+  }
+
   DPB_RELEASE_MUTEX(pDpb);
 
   return uFrmID;
@@ -1117,38 +1163,39 @@ void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, uint32_t uPocLsb, uint8_t uNode
   }
 
   pDpb->uCurRef = uNode;
+  AL_TDpbNode* pNode = &pDpb->Nodes[uNode];
 
   // Assign frame buffer informations
-  pDpb->Nodes[uNode].iFramePOC = iFramePOC;
-  pDpb->Nodes[uNode].slice_pic_order_cnt_lsb = uPocLsb;
-  pDpb->Nodes[uNode].uFrmID = uFrmID;
-  pDpb->Nodes[uNode].uMvID = uMvID;
-  pDpb->Nodes[uNode].uPicID = uPicID;
-  pDpb->Nodes[uNode].eMarking_flag = eMarkingFlag;
-  pDpb->Nodes[uNode].uNodeID = uNode;
-  pDpb->Nodes[uNode].pic_output_flag = pic_output_flag;
-  pDpb->Nodes[uNode].bIsReset = false;
-  pDpb->Nodes[uNode].non_existing = uNonExisting;
-  pDpb->Nodes[uNode].eNUT = eNUT;
+  pNode->iFramePOC = iFramePOC;
+  pNode->slice_pic_order_cnt_lsb = uPocLsb;
+  pNode->uFrmID = uFrmID;
+  pNode->uMvID = uMvID;
+  pNode->uPicID = uPicID;
+  pNode->eMarking_flag = eMarkingFlag;
+  pNode->uNodeID = uNode;
+  pNode->pic_output_flag = pic_output_flag;
+  pNode->bIsReset = false;
+  pNode->non_existing = uNonExisting;
+  pNode->eNUT = eNUT;
 
   // Update frame status in display fifo list
   if(uFrmID != uEndOfList)
-    pDpb->DispFifo.pFrmStatus[uFrmID] = pic_output_flag ? AL_NOT_READY_FOR_OUTPUT : AL_NOT_NEEDED_FOR_OUTPUT;
+    DispFifo_SetStatus(&pDpb->DispFifo, uFrmID, pic_output_flag ? AL_NOT_READY_FOR_OUTPUT : AL_NOT_NEEDED_FOR_OUTPUT);
 
   // Insert it in the POC ordered linked list
   if(pDpb->uHeadPOC == uEndOfList)
   {
-    pDpb->Nodes[uNode].uPrevPOC = uEndOfList;
-    pDpb->Nodes[uNode].uNextPOC = uEndOfList;
+    pNode->uPrevPOC = uEndOfList;
+    pNode->uNextPOC = uEndOfList;
     pDpb->uHeadPOC = uNode;
     pDpb->uLastPOC = uNode;
 
-    pDpb->Nodes[uNode].uPrevPocLsb = uEndOfList;
-    pDpb->Nodes[uNode].uNextPocLsb = uEndOfList;
+    pNode->uPrevPocLsb = uEndOfList;
+    pNode->uNextPocLsb = uEndOfList;
     pDpb->uHeadPocLsb = uNode;
 
-    pDpb->Nodes[uNode].uPrevDecOrder = uEndOfList;
-    pDpb->Nodes[uNode].uNextDecOrder = uEndOfList;
+    pNode->uPrevDecOrder = uEndOfList;
+    pNode->uNextDecOrder = uEndOfList;
     pDpb->uHeadDecOrder = uNode;
   }
   else
@@ -1164,8 +1211,8 @@ void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, uint32_t uPocLsb, uint8_t uNode
       {
         uint8_t uPrev = pDpb->Nodes[uCurPOC].uPrevPOC;
 
-        pDpb->Nodes[uNode].uPrevPOC = uPrev;
-        pDpb->Nodes[uNode].uNextPOC = uCurPOC;
+        pNode->uPrevPOC = uPrev;
+        pNode->uNextPOC = uCurPOC;
         pDpb->Nodes[uCurPOC].uPrevPOC = uNode;
 
         if(uPrev != uEndOfList)
@@ -1177,8 +1224,8 @@ void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, uint32_t uPocLsb, uint8_t uNode
       }
       else if(pDpb->Nodes[uCurPOC].uNextPOC == uEndOfList)
       {
-        pDpb->Nodes[uNode].uNextPOC = uEndOfList;
-        pDpb->Nodes[uNode].uPrevPOC = uCurPOC;
+        pNode->uNextPOC = uEndOfList;
+        pNode->uPrevPOC = uCurPOC;
         pDpb->Nodes[uCurPOC].uNextPOC = uNode;
 
         pDpb->uLastPOC = uNode;
@@ -1191,12 +1238,14 @@ void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, uint32_t uPocLsb, uint8_t uNode
     while(true)
     {
       // compute poc lsb ordered list
-      if(pDpb->Nodes[uCurPocLsb].slice_pic_order_cnt_lsb > uPocLsb)
+      AL_TDpbNode* pNodeCurPocLsb = &pDpb->Nodes[uCurPocLsb];
+
+      if(pNodeCurPocLsb->slice_pic_order_cnt_lsb > uPocLsb)
       {
-        uint8_t uPrev = pDpb->Nodes[uCurPocLsb].uPrevPocLsb;
-        pDpb->Nodes[uNode].uPrevPocLsb = uPrev;
-        pDpb->Nodes[uNode].uNextPocLsb = uCurPocLsb;
-        pDpb->Nodes[uCurPocLsb].uPrevPocLsb = uNode;
+        uint8_t uPrev = pNodeCurPocLsb->uPrevPocLsb;
+        pNode->uPrevPocLsb = uPrev;
+        pNode->uNextPocLsb = uCurPocLsb;
+        pNodeCurPocLsb->uPrevPocLsb = uNode;
 
         if(uPrev != uEndOfList)
           pDpb->Nodes[uPrev].uNextPocLsb = uNode;
@@ -1205,23 +1254,23 @@ void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, uint32_t uPocLsb, uint8_t uNode
           pDpb->uHeadPocLsb = uNode;
         break;
       }
-      else if(pDpb->Nodes[uCurPocLsb].uNextPocLsb == uEndOfList)
+      else if(pNodeCurPocLsb->uNextPocLsb == uEndOfList)
       {
-        pDpb->Nodes[uNode].uNextPocLsb = uEndOfList;
-        pDpb->Nodes[uNode].uPrevPocLsb = uCurPocLsb;
-        pDpb->Nodes[uCurPocLsb].uNextPocLsb = uNode;
+        pNode->uNextPocLsb = uEndOfList;
+        pNode->uPrevPocLsb = uCurPocLsb;
+        pNodeCurPocLsb->uNextPocLsb = uNode;
         break;
       }
       else
-        uCurPocLsb = pDpb->Nodes[uCurPocLsb].uNextPocLsb;
+        uCurPocLsb = pNodeCurPocLsb->uNextPocLsb;
     }
 
     // Decoding order linked list
     while(pDpb->Nodes[uCurDecOrder].uNextDecOrder != uEndOfList)
       uCurDecOrder = pDpb->Nodes[uCurDecOrder].uNextDecOrder;
 
-    pDpb->Nodes[uNode].uPrevDecOrder = uCurDecOrder;
-    pDpb->Nodes[uNode].uNextDecOrder = uEndOfList;
+    pNode->uPrevDecOrder = uCurDecOrder;
+    pNode->uNextDecOrder = uEndOfList;
     pDpb->Nodes[uCurDecOrder].uNextDecOrder = uNode;
   }
 
@@ -1233,11 +1282,13 @@ void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, uint32_t uPocLsb, uint8_t uNode
   if(pic_output_flag)
     ++pDpb->uNumOutputPic;
 
+  AL_TDpbCallback* cb = &pDpb->tCallbacks;
+
   if(uFrmID != uEndOfList)
-    pDpb->tCallbacks.pfnIncrementFrmBuf(pDpb->tCallbacks.pUserParam, uFrmID);
+    cb->pfnIncrementFrmBuf(cb->pUserParam, uFrmID);
 
   if(uMvID != uEndOfList)
-    pDpb->tCallbacks.pfnIncrementMvBuf(pDpb->tCallbacks.pUserParam, uMvID);
+    cb->pfnIncrementMvBuf(cb->pUserParam, uMvID);
   DPB_RELEASE_MUTEX(pDpb);
 }
 
@@ -1271,14 +1322,14 @@ void AL_Dpb_EndDecoding(AL_TDpb* pDpb, int iFrmID)
   AL_Dpb_sReleaseUnusedBuf(pDpb, false);
 
   // Set Frame Availability
-  if(pDpb->DispFifo.pFrmStatus[iFrmID] == AL_NOT_READY_FOR_OUTPUT)
+  if(DispFifo_GetStatus(&pDpb->DispFifo, iFrmID) == AL_NOT_READY_FOR_OUTPUT)
   {
-    pDpb->DispFifo.pFrmStatus[iFrmID] = AL_READY_FOR_OUTPUT;
+    DispFifo_SetStatus(&pDpb->DispFifo, iFrmID, AL_READY_FOR_OUTPUT);
 
     if(AL_Dpb_sIsLowRef(pDpb))
     {
-      uint8_t const uNode = Dpb_GetNodeFromFrmID(pDpb, iFrmID);
-      bool const isInDisplayList = (uNode == uEndOfList);
+      uint8_t uNode = Dpb_GetNodeFromFrmID(pDpb, iFrmID);
+      bool isInDisplayList = (uNode == uEndOfList);
 
       if(!isInDisplayList && AL_Dpb_GetOutputFlag(pDpb, uNode))
         AL_Dpb_Display(pDpb, uNode);

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2017 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,16 @@
 #pragma once
 
 #include "lib_rtos/types.h"
+#include "lib_common_enc/EncChanParam.h"
 #define LDA_TABLE_SIZE 208
+
+static const AL_TBufInfo EP1_BUF_LAMBDAS =
+{
+  1, 256, 0
+}; // only 208 bytes used
+
+typedef uint8_t AL_TLambdas[4];
+
 typedef uint8_t TLambdasTable[LDA_TABLE_SIZE];
 
 static const TLambdasTable DEFAULT_LDA_TABLE =
