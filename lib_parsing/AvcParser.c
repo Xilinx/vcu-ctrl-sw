@@ -600,9 +600,8 @@ static bool sei_pic_timing(AL_TRbspParser* pRP, AL_TAvcSps* pSPS, AL_TAvcPicTimi
             }
           }
         }
+        pClockTS->time_offset = i(pRP, time_offset_length);
       } // clock_timestamp_flag
-
-      pClockTS->time_offset = i(pRP, time_offset_length);
     }
   }
 
