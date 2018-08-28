@@ -197,22 +197,6 @@ static void AL_sDecoder_CallDisplay(AL_TDecCtx* pCtx)
       break;
 
     assert(AL_Buffer_GetData(pFrameToDisplay));
-#if AL_ENABLE_RASTER_OUTPUT & AL_ENABLE_SITE
-
-    if(AL_OUTPUT_ALL == pCtx->chanParam.eBufferOutputMode)
-    {
-      // First, output internal reconstructed buffer
-      AL_TInfoDecode pInfoInternal = { 0 };
-      AL_TBuffer* pInternalRec = AL_PictMngr_GetRecBufferFromDisplayBuffer(&pCtx->PictMngr, pFrameToDisplay, &pInfoInternal);
-
-      if(!pInternalRec)
-        break;
-
-      assert(AL_Buffer_GetData(pInternalRec));
-      pCtx->displayCB.func(pInternalRec, &pInfoInternal, pCtx->displayCB.userParam);
-    }
-#endif
-
     pCtx->displayCB.func(pFrameToDisplay, &pInfo, pCtx->displayCB.userParam);
     AL_PictMngr_SignalCallbackDisplayIsDone(&pCtx->PictMngr, pFrameToDisplay);
   }
