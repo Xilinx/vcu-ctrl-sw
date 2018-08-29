@@ -103,11 +103,10 @@ bool AL_NeedsCropping(AL_TCropInfo const* pInfo);
    \param[in] tStreamSettings Settings describing the stream to decode
    \param[in] iStack Number of requests that should be stacked inside the decoder
    at the same time (affects performances)
-   \param[in] eMode DPB mode used to decode the stream
    \return Returns the minimum number of output buffers required to decode
    the AVC stream in the specified dpb mode
  ***************************************************************************/
-int AL_AVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iStack, AL_EDpbMode eMode);
+int AL_AVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iStack);
 
 /*************************************************************************//*!
    \brief Returns the minimum number of output buffers required to decode
@@ -115,11 +114,10 @@ int AL_AVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iSt
    \param[in] tStreamSettings Settings describing the stream to decode
    \param[in] iStack Number of requests that should be stacked inside the decoder
    at the same time (affects performances)
-   \param[in] eMode DPB Mode used to decode the stream
    \return Returns the minimum number of output buffers required to decode
    the HEVC stream in the specified dpb mode
  ***************************************************************************/
-int AL_HEVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iStack, AL_EDpbMode eMode);
+int AL_HEVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iStack);
 
 /*@}*/
 

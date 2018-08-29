@@ -56,20 +56,18 @@ typedef enum AL_e_DpbMode
    \param[in] iLevel Level of the current H264 stream
    \param[in] iWidth Width of the current H264 stream
    \param[in] iHeight Height of the current H264 stream
-   \param[in] eMode Mode of the DPB
    \return return the maximum size of the DBP allowed by the specified level
 *****************************************************************************/
-int AL_AVC_GetMaxDPBSize(int iLevel, int iWidth, int iHeight, AL_EDpbMode eMode);
+int AL_AVC_GetMaxDPBSize(int iLevel, int iWidth, int iHeight);
 
 /*************************************************************************//*!
    \brief Retrieves the maximum DBP size respect to the level constraint
    \param[in] iLevel Level of the current HEVC stream (i.e. general_level_idc / 3)
    \param[in] iWidth Width of the current HEVC stream
    \param[in] iHeight Height of the current HEVC stream
-   \param[in] eMode Mode of the DPB
    \return return the maximum size of the DBP allowed by the specified level
  ***************************************************************************/
-int AL_HEVC_GetMaxDPBSize(int iLevel, int iWidth, int iHeight, AL_EDpbMode eMode);
+int AL_HEVC_GetMaxDPBSize(int iLevel, int iWidth, int iHeight);
 
 /*@}*/
 
