@@ -355,7 +355,7 @@ static void concealSlice(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSlicePar
   pSP->eSliceType = SLICE_CONCEAL;
   AL_Default_Decoder_SetError(pCtx, AL_WARN_CONCEAL_DETECT);
 
-  if(eNUT == 5)
+  if(eNUT == AL_AVC_NUT_VCL_IDR)
   {
     pCtx->PictMngr.iCurFramePOC = 0;
     pSP->ValidConceal = false;
@@ -415,8 +415,10 @@ static void reallyEndFrame(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_TDecPicParam* pPP,
 
   if(pCtx->chanParam.eDecUnit == AL_AU_UNIT)
     AL_LaunchFrameDecoding(pCtx);
-  else
+
+  if(pCtx->chanParam.eDecUnit == AL_VCL_NAL_UNIT)
     AL_LaunchSliceDecoding(pCtx, true, hasPreviousSlice);
+
   UpdateContextAtEndOfFrame(pCtx);
 }
 

@@ -197,6 +197,7 @@ static void AL_sDecoder_CallDisplay(AL_TDecCtx* pCtx)
       break;
 
     assert(AL_Buffer_GetData(pFrameToDisplay));
+
     pCtx->displayCB.func(pFrameToDisplay, &pInfo, pCtx->displayCB.userParam);
     AL_PictMngr_SignalCallbackDisplayIsDone(&pCtx->PictMngr, pFrameToDisplay);
   }
@@ -392,28 +393,22 @@ static bool isSuffixSei(AL_ECodec codec, int nut)
     return nut == AL_HEVC_NUT_SUFFIX_SEI;
 }
 
-static bool checkSeiUUID(uint8_t* pBufs, AL_TNal nal, AL_ECodec codec)
+static bool checkSeiUUID(uint8_t* pBufs, AL_TNal* pNal, AL_ECodec codec)
 {
   uint32_t const uTotalUUIDSize = isAVC(codec) ? 23 : 24;
 
-  if(nal.uSize != uTotalUUIDSize)
+  if(pNal->uSize != uTotalUUIDSize)
     return false;
 
   int const iStart = isAVC(codec) ? 6 : 7;
 
   for(int i = 0; i < 16; i++)
   {
-    if(SEI_SUFFIX_USER_DATA_UNREGISTERED_UUID[i] != pBufs[nal.tStartCode.uPosition + iStart + i])
+    if(SEI_SUFFIX_USER_DATA_UNREGISTERED_UUID[i] != pBufs[pNal->tStartCode.uPosition + iStart + i])
       return false;
   }
 
   return true;
-}
-
-/*****************************************************************************/
-static bool isEndOfFrameDelimiter(AL_ECodec codec, int nut, uint8_t* pBuf, AL_TNal nal)
-{
-  return isAud(codec, nut) || (isSuffixSei(codec, nut) && checkSeiUUID(pBuf, nal, codec));
 }
 
 /*****************************************************************************/
@@ -433,11 +428,6 @@ static uint32_t skipNalHeader(uint32_t uPos, AL_ECodec eCodec, uint32_t uSize)
 {
   int const iNalHdrSize = isAVC(eCodec) ? AVC_NAL_HDR_SIZE : HEVC_NAL_HDR_SIZE;
   return (uPos + iNalHdrSize) % uSize; // skip start code + nal header
-}
-
-static bool isLastNalComplete(AL_ECodec eCodec, AL_ENut eNUT, uint8_t* pBuf, AL_TNal nal)
-{
-  return isAud(eCodec, eNUT) || (isSuffixSei(eCodec, eNUT) && checkSeiUUID(pBuf, nal, eCodec));
 }
 
 static bool isVcl(AL_ECodec eCodec, AL_ENut eNUT)
@@ -461,78 +451,76 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
 
   int const iNalCount = (int)pCtx->uNumSC;
   AL_ECodec const eCodec = pCtx->chanParam.eCodec;
-  int const notFound = -1;
-  int iLastVclNal = notFound;
-  int iLastNonVclNal = notFound;
-
+  int const iIsNotLastSlice = -1;
   AL_TNal* pTable = (AL_TNal*)pCtx->SCTable.tMD.pVirtualAddr;
   uint8_t* pBuf = pStream->tMD.pVirtualAddr;
   uint32_t uSize = pStream->tMD.uSize;
 
+  bool bVCLNalSeen = false;
+  int iNalFound = 0;
+
   for(int iNal = 0; iNal < iNalCount; ++iNal)
   {
-    AL_ENut eNUT = pTable[iNal].tStartCode.uNUT;
+    AL_TNal* pNal = &pTable[iNal];
+    AL_ENut eNUT = pNal->tStartCode.uNUT;
 
-    // The NAL returned by the last start code of the SCD might not be complete
-    if((iNal == iNalCount - 1) && !isLastNalComplete(eCodec, eNUT, pBuf, pTable[iNal]))
-      return false;
+    if(iNal > 0)
+      iNalFound++;
+
+    if(!isVcl(eCodec, eNUT))
+    {
+      if(isAud(eCodec, eNUT))
+      {
+        if(bVCLNalSeen)
+        {
+          iNalFound--;
+          *pLastStartCodeInDecodingUnit = iNalFound;
+          return true;
+        }
+      }
+
+      if(isSuffixSei(eCodec, eNUT) && checkSeiUUID(pBuf, pNal, eCodec))
+      {
+        if(bVCLNalSeen)
+        {
+          *pLastStartCodeInDecodingUnit = iNalFound;
+          return true;
+        }
+      }
+    }
 
     if(isVcl(eCodec, eNUT))
     {
-      uint32_t uPos = pTable[iNal].tStartCode.uPosition;
-      assert(isStartCode(pBuf, uSize, uPos));
-      uPos = skipNalHeader(uPos, eCodec, uSize);
-      bool const IsFirstSlice = isFirstSlice(pBuf, uPos);
+      int iNalHdrSize = isAVC(eCodec) ? AVC_NAL_HDR_SIZE : HEVC_NAL_HDR_SIZE;
 
-      bool isPreviousNalConfirmed = false;
-      switch(pCtx->chanParam.eDecUnit)
+      if((int)pNal->uSize >= iNalHdrSize)
       {
-      case AL_AU_UNIT:
-      {
-        /* if we found some vcl nals before finding a new AU */
-        isPreviousNalConfirmed = (iLastVclNal != notFound && IsFirstSlice);
-        break;
-      }
-      case AL_VCL_NAL_UNIT:
-      {
-        /* if we found a vcl nal before this one */
-        isPreviousNalConfirmed = iLastVclNal != notFound;
-        break;
-      }
-      default:
-        assert(0);
+        uint32_t uPos = pNal->tStartCode.uPosition;
+        assert(isStartCode(pBuf, uSize, uPos));
+        uPos = skipNalHeader(uPos, eCodec, uSize);
+        bool bIsFirstSlice = isFirstSlice(pBuf, uPos);
+
+        if(bVCLNalSeen && bIsFirstSlice)
+        {
+          iNalFound--;
+          *pLastStartCodeInDecodingUnit = iNalFound;
+          return true;
+        }
       }
 
-      if(isPreviousNalConfirmed)
+      if(pCtx->chanParam.eDecUnit == AL_VCL_NAL_UNIT)
       {
-        *pLastStartCodeInDecodingUnit = Max(iLastNonVclNal, iLastVclNal);
-        *iLastVclNalInDecodingUnit = IsFirstSlice ? iLastVclNal : notFound;
-        return true;
+        if(bVCLNalSeen)
+        {
+          iNalFound--;
+          *pLastStartCodeInDecodingUnit = iNalFound;
+          *iLastVclNalInDecodingUnit = iIsNotLastSlice;
+          return true;
+        }
       }
 
-      if(iLastVclNal == notFound || !IsFirstSlice)
-        iLastVclNal = iNal;
-      iLastNonVclNal = notFound;
-    }
-    else
-    {
-      iLastNonVclNal = iNal;
-
-      if(isEndOfFrameDelimiter(eCodec, eNUT, pBuf, pTable[iNal]))
-      {
-        if(iLastVclNal == notFound)
-          continue;
-
-        /* we are the last nal in the access unit */
-        *pLastStartCodeInDecodingUnit = iLastNonVclNal;
-
-        /* we are in fact an AUD, the first nal of the next access unit */
-        if(isAud(eCodec, eNUT))
-          *pLastStartCodeInDecodingUnit -= 1;
-
-        *iLastVclNalInDecodingUnit = iLastVclNal;
-        return true;
-      }
+      bVCLNalSeen = true;
+      *iLastVclNalInDecodingUnit = iNal;
     }
   }
 
