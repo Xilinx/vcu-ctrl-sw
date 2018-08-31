@@ -59,6 +59,7 @@ typedef struct
   int fd;
   AL_THREAD thread;
   int32_t shouldContinue;
+  bool outputRec;
 }Channel;
 
 #if __linux__
@@ -115,6 +116,7 @@ static AL_ERR createChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEnc
 
   struct al5_channel_config msg = { 0 };
   setChannelParam(&msg.param, pChParam, pEP1);
+  chan->outputRec = pChParam->eOptions & AL_OPT_FORCE_REC;
 
   AL_EDriverError errdrv = AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_CONFIG_CHANNEL, &msg);
 
@@ -209,6 +211,9 @@ static bool getRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPic* p
   Channel* chan = hChannel;
   struct al5_reconstructed_info msg = { 0 };
 
+  if(!chan->outputRec)
+    return false;
+
   if(AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_GET_REC_PICTURE, &msg) != DRIVER_SUCCESS)
     return false;
 
@@ -234,7 +239,7 @@ static bool releaseRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPi
   Channel* chan = hChannel;
   AL_HANDLE hRecBuf = pRecPic->tBuf.tMD.hAllocBuf;
 
-  if(!hRecBuf)
+  if(!hRecBuf || !chan->outputRec)
     return false;
 
   AL_TAllocator* pAllocator = schedulerMcu->allocator;
@@ -242,8 +247,10 @@ static bool releaseRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPi
 
   if(AL_Driver_PostMessage(schedulerMcu->driver, chan->fd, AL_MCU_RELEASE_REC_PICTURE, &fd) != DRIVER_SUCCESS)
     return false;
+
   AL_Allocator_Free(pAllocator, hRecBuf);
   close(fd);
+
   return true;
 }
 
