@@ -622,7 +622,7 @@ static bool RefillStartCodes(AL_TDecCtx* pCtx, TCircBuffer* pScStreamView)
   {
     AL_TNal* dst = (AL_TNal*)pCtx->SCTable.tMD.pVirtualAddr;
     AL_TStartCode const* src = (AL_TStartCode const*)scBuffer.pVirtualAddr;
-    dst[pCtx->uNumSC - 1].uSize = DeltaPosition(dst[pCtx->uNumSC - 1].tStartCode.uPosition, src[0].uPosition, scBuffer.uSize);
+    dst[pCtx->uNumSC - 1].uSize = DeltaPosition(dst[pCtx->uNumSC - 1].tStartCode.uPosition, src[0].uPosition, ScdBuffer.uMaxSize);
   }
 
   for(int i = 0; i < pCtx->ScdStatus.uNumSC; i++)
@@ -632,9 +632,9 @@ static bool RefillStartCodes(AL_TDecCtx* pCtx, TCircBuffer* pScStreamView)
     dst[pCtx->uNumSC].tStartCode = src[i];
 
     if(i + 1 == pCtx->ScdStatus.uNumSC)
-      dst[pCtx->uNumSC].uSize = DeltaPosition(src[i].uPosition, pScStreamView->iOffset, scBuffer.uSize);
+      dst[pCtx->uNumSC].uSize = DeltaPosition(src[i].uPosition, pScStreamView->iOffset, ScdBuffer.uMaxSize);
     else
-      dst[pCtx->uNumSC].uSize = DeltaPosition(src[i].uPosition, src[i + 1].uPosition, scBuffer.uSize);
+      dst[pCtx->uNumSC].uSize = DeltaPosition(src[i].uPosition, src[i + 1].uPosition, ScdBuffer.uMaxSize);
     pCtx->uNumSC++;
   }
 
