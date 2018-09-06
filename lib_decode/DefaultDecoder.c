@@ -493,7 +493,8 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
     {
       int iNalHdrSize = isAVC(eCodec) ? AVC_NAL_HDR_SIZE : HEVC_NAL_HDR_SIZE;
 
-      if((int)pNal->uSize >= iNalHdrSize)
+      // We want to check the first byte avec NAL_HDR_SIZE
+      if((int)pNal->uSize > iNalHdrSize)
       {
         uint32_t uPos = pNal->tStartCode.uPosition;
         assert(isStartCode(pBuf, uSize, uPos));
