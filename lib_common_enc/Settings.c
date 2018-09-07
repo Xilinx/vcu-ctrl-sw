@@ -928,6 +928,11 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     MSG("!! Shouldn't have TwoPass and LookAhead at the same time !!");
   }
 
+  if((pSettings->TwoPass != 0 || pSettings->LookAhead != 0) && pChParam->bSubframeLatency)
+  {
+    ++err;
+    MSG("!! Shouldn't have SliceLat and TwoPass/LookAhead at the same time !!");
+  }
 #endif
 
 
