@@ -936,7 +936,7 @@ static AL_TBuffer* AllocEosBufferHEVC()
 {
   static const uint8_t EOSNal[] =
   {
-    0, 0, 1, 0x28, 0, 0x80, 0, 0, 1, 0, 0
+    0, 0, 1, 0x28, 0, 0x80
   }; // simulate a new frame
   return AL_Buffer_WrapData((uint8_t*)EOSNal, sizeof EOSNal, &AL_Buffer_Destroy);
 }
@@ -946,7 +946,7 @@ static AL_TBuffer* AllocEosBufferAVC()
 {
   static const uint8_t EOSNal[] =
   {
-    0, 0, 1, 0x01, 0x80, 0, 0, 1, 0, 0
+    0, 0, 1, 0x01, 0x80
   }; // simulate a new AU
   return AL_Buffer_WrapData((uint8_t*)EOSNal, sizeof EOSNal, &AL_Buffer_Destroy);
 }
