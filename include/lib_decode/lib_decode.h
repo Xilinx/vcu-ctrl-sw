@@ -213,6 +213,14 @@ int AL_Decoder_GetMaxBD(AL_HDecoder hDec);
 AL_ERR AL_Decoder_GetLastError(AL_HDecoder hDec);
 
 /*************************************************************************//*!
+   \brief Retrieves the error status related to a specific frame
+   \param[in]  hDec  Handle to a decoder object.
+   \param[in]  pBuf  Pointer to the decoded picture buffer for which to get the error status
+   \return return the frame error status
+*****************************************************************************/
+AL_ERR AL_Decoder_GetFrameError(AL_HDecoder hDec, AL_TBuffer* pBuf);
+
+/*************************************************************************//*!
    \brief Preallocates internal buffers.
    This is only usable if Stream settings are set. Calling this function without
    the stream settings will assert.

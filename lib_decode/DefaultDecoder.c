@@ -163,7 +163,7 @@ bool AL_Decoder_Alloc(AL_TDecCtx* pCtx, TMemDesc* pMD, uint32_t uSize, char cons
 {
   if(!MemDesc_AllocNamed(pMD, pCtx->pAllocator, uSize, name))
   {
-    pCtx->error = AL_ERR_NO_MEMORY;
+    AL_Default_Decoder_SetError(pCtx, AL_ERR_NO_MEMORY, -1);
     return false;
   }
 
@@ -873,6 +873,23 @@ AL_ERR AL_Default_Decoder_GetLastError(AL_TDecoder* pAbsDec)
 }
 
 /*****************************************************************************/
+AL_ERR AL_Default_Decoder_GetFrameError(AL_TDecoder* pAbsDec, AL_TBuffer* pBuf)
+{
+  AL_TDefaultDecoder* pDec = (AL_TDefaultDecoder*)pAbsDec;
+  AL_TDecCtx* pCtx = &pDec->ctx;
+
+  AL_ERR error;
+  bool bUseLastError = pBuf == NULL || !AL_PictMngr_GetFrameEncodingError(&pCtx->PictMngr, pBuf, &error);
+
+  if(bUseLastError)
+  {
+    error = AL_Default_Decoder_GetLastError(pAbsDec);
+  }
+
+  return error;
+}
+
+/*****************************************************************************/
 bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
 {
   AL_TDefaultDecoder* pDec = (AL_TDefaultDecoder*)pAbsDec;
@@ -884,7 +901,7 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
 
   if(pCtx->tStreamSettings.eSequenceMode == AL_SM_MAX_ENUM)
   {
-    pCtx->error = AL_ERR_REQUEST_MALFORMED;
+    AL_Default_Decoder_SetError(pCtx, AL_ERR_REQUEST_MALFORMED, -1);
     return false;
   }
 
@@ -927,7 +944,7 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
 
   return true;
   fail_alloc:
-  pCtx->error = AL_ERR_NO_MEMORY;
+  AL_Default_Decoder_SetError(pCtx, AL_ERR_NO_MEMORY, -1);
   return false;
 }
 
@@ -1103,11 +1120,16 @@ bool AL_Default_Decoder_AllocMv(AL_TDecCtx* pCtx, int iMVSize, int iPOCSize, int
 }
 
 /*****************************************************************************/
-void AL_Default_Decoder_SetError(AL_TDecCtx* pCtx, AL_ERR eError)
+void AL_Default_Decoder_SetError(AL_TDecCtx* pCtx, AL_ERR eError, int iFrameID)
 {
   Rtos_GetMutex(pCtx->DecMutex);
   pCtx->error = eError;
   Rtos_ReleaseMutex(pCtx->DecMutex);
+
+  if(iFrameID != -1)
+  {
+    AL_PictMngr_UpdateDisplayBufferError(&pCtx->PictMngr, iFrameID, eError);
+  }
 }
 
 
@@ -1121,6 +1143,7 @@ static AL_TDecoderVtable const AL_Default_Decoder_Vtable =
   &AL_Default_Decoder_PutDecPict,
   &AL_Default_Decoder_GetMaxBD,
   &AL_Default_Decoder_GetLastError,
+  &AL_Default_Decoder_GetFrameError,
   &AL_Default_Decoder_PreallocateBuffers,
 
   // only for the feeders
@@ -1269,7 +1292,7 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel,
     goto cleanup;
 
   pCtx->Feeder->eosBuffer = pCtx->eosBuffer;
-  pCtx->error = AL_SUCCESS;
+  AL_Default_Decoder_SetError(pCtx, AL_SUCCESS, -1);
 
   *hDec = (AL_TDecoder*)pDec;
 

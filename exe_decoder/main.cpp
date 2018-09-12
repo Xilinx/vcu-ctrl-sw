@@ -861,27 +861,21 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
 {
   unique_lock<mutex> lock(hMutex);
 
-  auto eErr = AL_Decoder_GetLastError(hDec);
+  AL_ERR err = AL_Decoder_GetFrameError(hDec, pFrame);
+  bool bExitError = err != AL_SUCCESS && err != AL_WARN_CONCEAL_DETECT;
 
-  if(eErr == AL_WARN_CONCEAL_DETECT)
+  if(bExitError || isEOS(pFrame, pInfo))
   {
+    if(bExitError)
+      Message(CC_RED, "Error: %d", err);
+    else
+      Message(CC_GREY, "Complete");
+    Rtos_SetEvent(hExitMain);
+    return;
+  }
+
+  if(err == AL_WARN_CONCEAL_DETECT)
     iNumFrameConceal++;
-    eErr = AL_SUCCESS;
-  }
-
-  if(eErr)
-  {
-    Message(CC_RED, "Error: %d", eErr);
-    Rtos_SetEvent(hExitMain);
-    return;
-  }
-
-  if(isEOS(pFrame, pInfo))
-  {
-    Message(CC_GREY, "Complete");
-    Rtos_SetEvent(hExitMain);
-    return;
-  }
 
   if(isReleaseFrame(pFrame, pInfo))
     return;

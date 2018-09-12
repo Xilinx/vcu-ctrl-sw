@@ -314,7 +314,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
   return true;
 
   fail_alloc:
-  AL_Default_Decoder_SetError(pCtx, AL_ERR_NO_MEMORY);
+  AL_Default_Decoder_SetError(pCtx, AL_ERR_NO_MEMORY, -1);
   return false;
 }
 
@@ -340,7 +340,7 @@ static bool initChannel(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
 
   if(eError != AL_SUCCESS)
   {
-    AL_Default_Decoder_SetError(pCtx, eError);
+    AL_Default_Decoder_SetError(pCtx, eError, -1);
     pCtx->eChanState = CHAN_INVALID;
     return false;
   }
@@ -518,7 +518,7 @@ static void processScalingList(AL_THevcAup* pAUP, AL_THevcSliceHdr* pSlice, AL_T
 static void concealSlice(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, AL_THevcSliceHdr* pSlice, bool bSliceHdrValid)
 {
   pSP->eSliceType = pSlice->slice_type = SLICE_CONCEAL;
-  AL_Default_Decoder_SetError(pCtx, AL_WARN_CONCEAL_DETECT);
+  AL_Default_Decoder_SetError(pCtx, AL_WARN_CONCEAL_DETECT, pPP->FrmID);
 
   AL_HEVC_FillPictParameters(pSlice, pCtx, pPP);
   AL_HEVC_FillSliceParameters(pSlice, pCtx, pSP, true);

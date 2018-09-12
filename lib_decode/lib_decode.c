@@ -135,6 +135,13 @@ AL_ERR AL_Decoder_GetLastError(AL_HDecoder hDec)
 }
 
 /*****************************************************************************/
+AL_ERR AL_Decoder_GetFrameError(AL_HDecoder hDec, AL_TBuffer* pBuf)
+{
+  AL_TDecoder* pDec = (AL_TDecoder*)hDec;
+  return pDec->vtable->pfnGetFrameError(pDec, pBuf);
+}
+
+/*****************************************************************************/
 bool AL_Decoder_PreallocateBuffers(AL_HDecoder hDec)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)hDec;

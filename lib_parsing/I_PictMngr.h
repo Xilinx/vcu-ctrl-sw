@@ -72,6 +72,7 @@ typedef struct
   uint32_t uCRC;
   AL_TCropInfo tCrop;
   AL_EPicStruct ePicStruct;
+  AL_ERR eError;
 }AL_TFrameFifo;
 
 typedef struct t_FrmBufPool
@@ -318,9 +319,19 @@ AL_TBuffer* AL_PictMngr_GetRecBufferFromID(AL_TPictMngrCtx* pCtx, int iFrameID);
 *****************************************************************************/
 AL_TBuffer* AL_PictMngr_GetRecBufferFromDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TBuffer* pDisplayBuf, AL_TInfoDecode* pInfo);
 
+/*************************************************************************//*!
+   \brief This function returns the encoding error status associated to a display or rec buffer
+   \param[in]  pCtx      Pointer to a Picture manager context object
+   \param[in]  pDisplayBuf  Display/Rec buffer pointer
+   \param[out] pError    Pointer to the error status
+   \return true if error status found, false if pointer to buffer not found
+*****************************************************************************/
+bool AL_PictMngr_GetFrameEncodingError(AL_TPictMngrCtx* pCtx, AL_TBuffer* pBuf, AL_ERR* pError);
+
 void AL_PictMngr_UpdateDisplayBufferCRC(AL_TPictMngrCtx* pCtx, int iFrameID, uint32_t uCRC);
 void AL_PictMngr_UpdateDisplayBufferCrop(AL_TPictMngrCtx* pCtx, int iFrameID, AL_TCropInfo tCrop);
 void AL_PictMngr_UpdateDisplayBufferPicStruct(AL_TPictMngrCtx* pCtx, int iFrameID, AL_EPicStruct ePicStruct);
+void AL_PictMngr_UpdateDisplayBufferError(AL_TPictMngrCtx* pCtx, int iFrameID, AL_ERR eError);
 void AL_PictMngr_SignalCallbackDisplayIsDone(AL_TPictMngrCtx* pCtx, AL_TBuffer* pDisplayedFrame);
 void AL_PictMngr_SignalCallbackReleaseIsDone(AL_TPictMngrCtx* pCtx, AL_TBuffer* pReleasedFrame);
 AL_TBuffer* AL_PictMngr_GetUnusedDisplayBuffer(AL_TPictMngrCtx* pCtx);

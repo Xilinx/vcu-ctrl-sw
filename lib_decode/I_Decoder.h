@@ -59,6 +59,7 @@ typedef struct
   void (* pfnPutDisplayPicture)(AL_TDecoder* pDec, AL_TBuffer* pDisplay);
   int (* pfnGetMaxBD)(AL_TDecoder* pDec);
   AL_ERR (* pfnGetLastError)(AL_TDecoder* pDec);
+  AL_ERR (* pfnGetFrameError)(AL_TDecoder* pDec, AL_TBuffer* pBuf);
   bool (* pfnPreallocateBuffers)(AL_TDecoder* pDec);
 
   // only for the feeders

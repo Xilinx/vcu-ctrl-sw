@@ -110,11 +110,12 @@ bool AL_Default_Decoder_AllocPool(AL_TDecCtx* pCtx, int iWPSize, int iSPSize, in
 bool AL_Default_Decoder_AllocMv(AL_TDecCtx* pCtx, int iMVSize, int iPOCSize, int iNum);
 
 /*************************************************************************//*!
-   \brief This function allocate comp memory blocks used by the decoder
+   \brief This function sets an error
    \param[in] pCtx decoder context
    \param[in] eError Error to set
+   \param[in] iFrameID Id of the erronous frame, -1 if error is not frame-related
 *****************************************************************************/
-void AL_Default_Decoder_SetError(AL_TDecCtx* pCtx, AL_ERR eError);
+void AL_Default_Decoder_SetError(AL_TDecCtx* pCtx, AL_ERR eError, int iFrameID);
 
 
 /*************************************************************************//*!
