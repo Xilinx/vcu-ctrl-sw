@@ -656,9 +656,9 @@ static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, TYUVF
 
 #if AL_ENABLE_TWOPASS
 
-  // the LookAhead needs one stream buffer to work
+  // the LookAhead needs one stream buffer to work (2 in AVC multi-core)
   if(AL_TwoPassMngr_HasLookAhead(Settings))
-    numStreams += 1;
+    numStreams += (Settings.tChParam[0].eProfile & AL_PROFILE_AVC) ? 2 : 1;
 #endif
 
   if(Settings.tChParam[0].bSubframeLatency)
@@ -828,8 +828,8 @@ void SafeMain(int argc, char** argv)
 
 #if AL_ENABLE_TWOPASS
 
-    // the Lookahead needs one stream buffer to work
-    if(i == 0 && AL_TwoPassMngr_HasLookAhead(cfg.Settings))
+    // the Lookahead needs one stream buffer to work (2 in AVC multi-core)
+    if(AL_TwoPassMngr_HasLookAhead(cfg.Settings) && i < ((Settings.tChParam[0].eProfile & AL_PROFILE_AVC) ? 2 : 1))
       hEnc = encFirstPassLA->hEnc;
 #endif
     bool bRet = AL_Encoder_PutStreamBuffer(hEnc, pStream);
