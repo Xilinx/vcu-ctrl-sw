@@ -811,6 +811,7 @@ struct ResChgParam
 struct DecodeParam
 {
   AL_HDecoder hDec;
+  AL_EVENT hExitMain = NULL;
   atomic<int> decodedFrames;
 };
 
@@ -831,9 +832,7 @@ static void sFrameDecoded(AL_TBuffer* pDecodedFrame, void* pUserParam)
 
   if(!pDecodedFrame)
   {
-    auto error = codec_error(AL_Decoder_GetLastError(pParam->hDec));
-    cerr << endl << "Codec error: " << error.what() << endl;
-    exit(error.Code);
+    Rtos_SetEvent(pParam->hExitMain);
   }
   pParam->decodedFrames++;
 };
@@ -999,7 +998,7 @@ static void sParsedSei(int iPayloadType, uint8_t* pPayload, int iPayloadSize, vo
   }
 }
 
-static void sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSettings const* pSettings, AL_TCropInfo const* pCropInfo, void* pUserParam)
+static AL_ERR sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSettings const* pSettings, AL_TCropInfo const* pCropInfo, void* pUserParam)
 {
   ResChgParam* p = (ResChgParam*)pUserParam;
   AL_TDecSettings* pDecSettings = p->pDecSettings;
@@ -1007,7 +1006,7 @@ static void sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSett
   unique_lock<mutex> lock(p->hMutex);
 
   if(!p->hDec)
-    return;
+    return AL_ERROR;
 
   bool bMainOutputCompression;
   AL_e_FbStorageMode eMainOutputStorageMode = getMainOutputStorageMode(*pDecSettings, bMainOutputCompression);
@@ -1023,7 +1022,7 @@ static void sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSett
 
   /* We do not support in stream resolution change */
   if(p->bPoolIsInit)
-    throw codec_error(AL_ERR_RESOLUTION_CHANGE);
+    return AL_ERR_RESOLUTION_CHANGE;
 
   AL_TBufPoolConfig BufPoolConfig;
   BufPoolConfig.zBufSize = BufferSize;
@@ -1039,7 +1038,7 @@ static void sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSett
   BufPoolConfig.pMetaData = (AL_TMetaData*)pSrcMeta;
 
   if(!p->bufPool.Init(p->pAllocator, BufPoolConfig))
-    throw codec_error(AL_ERR_NO_MEMORY);
+    return AL_ERR_NO_MEMORY;
 
   p->bPoolIsInit = true;
 
@@ -1050,6 +1049,8 @@ static void sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSett
     AL_Decoder_PutDisplayPicture(p->hDec, pDecPict);
     AL_Buffer_Unref(pDecPict);
   }
+
+  return AL_SUCCESS;
 }
 
 /******************************************************************************/
@@ -1214,6 +1215,7 @@ void SafeMain(int argc, char** argv)
   ResolutionFoundParam.pDecSettings = &Settings;
 
   DecodeParam tDecodeParam {};
+  tDecodeParam.hExitMain = display.hExitMain;
 
   AL_TDecCallBacks CB {};
   CB.endDecodingCB = { &sFrameDecoded, &tDecodeParam };

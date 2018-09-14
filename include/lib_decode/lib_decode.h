@@ -90,10 +90,12 @@ typedef struct
    \brief Resolution change callback definition.
    It is called only once when the first decoding process occurs.
    The decoder doesn't support a change of resolution inside a stream
+   Callback must return an error code that can be different from AL_SUCCESS
+   in case of memory allocation error
 *****************************************************************************/
 typedef struct
 {
-  void (* func)(int BufferNumber, int BufferSize, AL_TStreamSettings const* pSettings, AL_TCropInfo const* pCropInfo, void* pUserParam);
+  AL_ERR (* func)(int BufferNumber, int BufferSize, AL_TStreamSettings const* pSettings, AL_TCropInfo const* pCropInfo, void* pUserParam);
   void* userParam;
 }AL_CB_ResolutionFound;
 

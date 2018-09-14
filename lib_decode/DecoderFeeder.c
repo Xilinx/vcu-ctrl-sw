@@ -109,7 +109,7 @@ static bool Slave_Process(DecoderFeederSlave* slave, TCircBuffer* startCodeStrea
     if(eErr != ERR_UNIT_NOT_FOUND)
       slave->stopped = false;
 
-    if(eErr == ERR_UNIT_INVALID_CHANNEL)
+    if(eErr == ERR_UNIT_INVALID_CHANNEL || eErr == ERR_UNIT_DYNAMIC_ALLOC)
       return false;
   }
 

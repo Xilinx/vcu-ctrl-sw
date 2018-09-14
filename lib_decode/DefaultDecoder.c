@@ -702,6 +702,9 @@ static UNIT_ERROR DecodeOneUnit(AL_TDecCtx* pCtx, TCircBuffer* pScStreamView, in
     if(pCtx->eChanState == CHAN_INVALID)
       return ERR_UNIT_INVALID_CHANNEL;
 
+    if(pCtx->error == AL_ERR_NO_MEMORY || pCtx->error == AL_ERR_RESOLUTION_CHANGE)
+      return ERR_UNIT_DYNAMIC_ALLOC;
+
     if(bIsLastVclNal)
     {
       pCtx->bFirstSliceInFrameIsValid = false;
@@ -897,6 +900,7 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
   assert(!pCtx->bIsBuffersAllocated);
   assert(IsAllStreamSettingsSet(pCtx->tStreamSettings));
 
+  AL_ERR error = AL_ERR_NO_MEMORY;
   AL_TStreamSettings tStreamSettings = pCtx->tStreamSettings;
 
   if(pCtx->tStreamSettings.eSequenceMode == AL_SM_MAX_ENUM)
@@ -938,13 +942,16 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
   int iSizeYuv = AL_GetAllocSize_Frame(tStreamSettings.tDim, tStreamSettings.eChroma, tStreamSettings.iBitDepth, bEnableDisplayCompression, eDisplayStorageMode);
   AL_TCropInfo const tCropInfo = { false, 0, 0, 0, 0 }; // XXX
 
-  pCtx->resolutionFoundCB.func(iMaxBuf, iSizeYuv, &tStreamSettings, &tCropInfo, pCtx->resolutionFoundCB.userParam);
+  error = pCtx->resolutionFoundCB.func(iMaxBuf, iSizeYuv, &tStreamSettings, &tCropInfo, pCtx->resolutionFoundCB.userParam);
+
+  if(error != AL_SUCCESS)
+    goto fail_alloc;
 
   pCtx->bIsBuffersAllocated = true;
 
   return true;
   fail_alloc:
-  AL_Default_Decoder_SetError(pCtx, AL_ERR_NO_MEMORY, -1);
+  AL_Default_Decoder_SetError(pCtx, error, -1);
   return false;
 }
 

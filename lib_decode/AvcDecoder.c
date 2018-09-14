@@ -183,6 +183,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
   const AL_EChromaMode eSPSChromaMode = (AL_EChromaMode)pSPS->chroma_format_idc;
   const int iSizeCompData = AL_GetAllocSize_AvcCompData(tSPSDim, eSPSChromaMode);
   const int iSizeCompMap = AL_GetAllocSize_DecCompMap(tSPSDim);
+  AL_ERR error = AL_ERR_NO_MEMORY;
 
   if(!AL_Default_Decoder_AllocPool(pCtx, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap))
     goto fail_alloc;
@@ -219,12 +220,15 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
   pCtx->tStreamSettings.iProfileIdc = pSPS->profile_idc;
   pCtx->tStreamSettings.eSequenceMode = AL_SM_PROGRESSIVE;
 
-  pCtx->resolutionFoundCB.func(iMaxBuf, iSizeYuv, &pCtx->tStreamSettings, &tCropInfo, pCtx->resolutionFoundCB.userParam);
+  error = pCtx->resolutionFoundCB.func(iMaxBuf, iSizeYuv, &pCtx->tStreamSettings, &tCropInfo, pCtx->resolutionFoundCB.userParam);
+
+  if(error != AL_SUCCESS)
+    goto fail_alloc;
 
   return true;
 
   fail_alloc:
-  AL_Default_Decoder_SetError(pCtx, AL_ERR_NO_MEMORY, -1);
+  AL_Default_Decoder_SetError(pCtx, error, -1);
   return false;
 }
 
