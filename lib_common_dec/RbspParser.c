@@ -295,12 +295,12 @@ uint8_t* get_raw_data(AL_TRbspParser* pRP)
 /*****************************************************************************/
 uint8_t get_next_bit(AL_TRbspParser* pRP)
 {
-  int bit_offset = (int)(pRP->iTotalBitIndex & 0x07);
-  uint8_t bit;
-
   if(pRP->iTrailingBitOneIndex < pRP->iTotalBitIndex + 1)
     if(!fetch_data(pRP))
       return -1;
+
+  int bit_offset = (int)(pRP->iTotalBitIndex & 0x07);
+  uint8_t bit;
 
   if(*(pRP->pByte) & (0x80 >> bit_offset))
     bit = 1;
@@ -362,10 +362,9 @@ uint32_t u(AL_TRbspParser* pRP, uint8_t iNumBits)
     return 0;
 
   if(iNumBits == 1)
-  {
     return get_next_bit(pRP);
-  }
-  else if(iNumBits <= 24)
+
+  if(iNumBits <= 24)
   {
     uint32_t c = get_cache_24(pRP);
     uint32_t mask = ((1 << iNumBits) - 1);
@@ -373,36 +372,34 @@ uint32_t u(AL_TRbspParser* pRP, uint8_t iNumBits)
     skip(pRP, iNumBits);
     return val2;
   }
-  else
+
+  uint32_t val = get_cache_24(pRP);
+  skip(pRP, 24);
+
+  for(int i = 0; i < iNumBits - 24; ++i)
   {
-    uint32_t val = get_cache_24(pRP);
-    skip(pRP, 24);
-
-    for(int i = 0; i < iNumBits - 24; ++i)
-    {
-      val <<= 1;
-      val |= get_next_bit(pRP);
-    }
-
-    return val;
+    val <<= 1;
+    val |= get_next_bit(pRP);
   }
+
+  return val;
 }
 
 /*****************************************************************************/
 int32_t i(AL_TRbspParser* pRP, uint8_t iNumBits)
 {
-  int abs_val;
-  uint32_t val_u = u(pRP, iNumBits);
   uint32_t mask = 0;
 
   if(iNumBits > 0)
     mask = (1 << (iNumBits - 1)) - 1; // mask=000001111 (when n=5)
-  abs_val = val_u & mask;
+
+  uint32_t val_u = u(pRP, iNumBits);
+  int abs_val = val_u & mask;
 
   if(val_u & ~mask)
     return -abs_val;
-  else
-    return abs_val;
+
+  return abs_val;
 }
 
 /*****************************************************************************/
@@ -410,39 +407,38 @@ uint32_t ue(AL_TRbspParser* pRP)
 {
   if(!more_rbsp_data_conceal(pRP))
     return 0;
+
+  uint32_t c = get_cache_24(pRP);
+  int n = 23 - al_log2(c);
+
+  // if the code is too long, fallback to classic decoding
+  if(n == 23)
+  {
+    // See section 9.1
+    n = 0;
+
+    while(true)
+    {
+      uint8_t bit = get_next_bit(pRP);
+
+      if(bit == 1)
+        break;
+
+      if(bit == 255)
+        return 0;
+
+      ++n;
+    }
+  }
   else
   {
-    uint32_t c = get_cache_24(pRP);
-    int n = 23 - al_log2(c);
-
-    // if the code is too long, fallback to classic decoding
-    if(n == 23)
-    {
-      // See section 9.1
-      n = 0;
-
-      for(;;)
-      {
-        uint8_t bit = get_next_bit(pRP);
-
-        if(bit == 1)
-          break;
-        else if(bit == 255)
-          return 0;
-
-        ++n;
-      }
-    }
-    else
-    {
-      skip(pRP, n + 1);
-    }
-
-    if(n)
-      return (1 << n) - 1 + u(pRP, n);
-    else
-      return 0;
+    skip(pRP, n + 1);
   }
+
+  if(n)
+    return (1 << n) - 1 + u(pRP, n);
+
+  return 0;
 }
 
 /*****************************************************************************/
@@ -450,13 +446,11 @@ int se(AL_TRbspParser* pRP)
 {
   if(!more_rbsp_data_conceal(pRP))
     return 0;
-  else
-  {
-    uint32_t k = ue(pRP);
-    int iValue = (k + 1) >> 1;
 
-    return even(k + 1) ? iValue : -iValue;
-  }
+  uint32_t k = ue(pRP);
+  int iValue = (k + 1) >> 1;
+
+  return even(k + 1) ? iValue : -iValue;
 }
 
 /*****************************************************************************/

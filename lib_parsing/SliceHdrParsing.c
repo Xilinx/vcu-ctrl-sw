@@ -50,6 +50,12 @@ static const int AVC_SLICE_TYPE[5] =
   1, 0, 2, 3, 4
 };
 
+static void skipAllZerosAndTheNextByte(AL_TRbspParser* pRP)
+{
+  while(u(pRP, 8) == 0x00)
+    ;
+}
+
 /***************************************************************************/
 /*   A V C   S L I C E   H E A D E R   P A R S I N G   f u n c t i o n s   */
 /***************************************************************************/
@@ -181,59 +187,58 @@ static void AL_AVC_sref_pic_list_reordering(AL_TRbspParser* pRP, AL_TAvcSliceHdr
 /*****************************************************************************/
 static void AL_AVC_sdec_ref_pic_marking(AL_TRbspParser* pRP, AL_TAvcSliceHdr* pSlice)
 {
-  if(pSlice->nal_unit_type == 5)
+  if(pSlice->nal_unit_type == AL_AVC_NUT_VCL_IDR)
   {
     pSlice->no_output_of_prior_pics_flag = u(pRP, 1);
     pSlice->long_term_reference_flag = u(pRP, 1);
+    return;
   }
-  else
+
+  pSlice->adaptive_ref_pic_marking_mode_flag = u(pRP, 1);
+
+  if(!pSlice->adaptive_ref_pic_marking_mode_flag)
+    return;
+
+  int idx1 = 0;
+  int idx2 = 0;
+  int idx3 = 0;
+  int idx4 = 0;
+  int idx5 = 0;
+
+  int op;
+
+  do
   {
-    pSlice->adaptive_ref_pic_marking_mode_flag = u(pRP, 1);
+    op = ue(pRP);
 
-    if(pSlice->adaptive_ref_pic_marking_mode_flag)
+    pSlice->memory_management_control_operation[idx1] = op;
+    ++idx1;
+
+    if(op == 1 || op == 3)
     {
-      int idx1 = 0;
-      int idx2 = 0;
-      int idx3 = 0;
-      int idx4 = 0;
-      int idx5 = 0;
+      pSlice->difference_of_pic_nums_minus1[idx2] = ue(pRP);
+      ++idx2;
+    }
 
-      int op;
+    if(op == 2)
+    {
+      pSlice->long_term_pic_num[idx3] = ue(pRP);
+      ++idx3;
+    }
 
-      do
-      {
-        op = ue(pRP);
+    if(op == 3 || op == 6)
+    {
+      pSlice->long_term_frame_idx[idx4] = ue(pRP);
+      ++idx4;
+    }
 
-        pSlice->memory_management_control_operation[idx1] = op;
-        ++idx1;
-
-        if(op == 1 || op == 3)
-        {
-          pSlice->difference_of_pic_nums_minus1[idx2] = ue(pRP);
-          ++idx2;
-        }
-
-        if(op == 2)
-        {
-          pSlice->long_term_pic_num[idx3] = ue(pRP);
-          ++idx3;
-        }
-
-        if(op == 3 || op == 6)
-        {
-          pSlice->long_term_frame_idx[idx4] = ue(pRP);
-          ++idx4;
-        }
-
-        if(op == 4)
-        {
-          pSlice->max_long_term_frame_idx_plus1[idx5] = ue(pRP);
-          ++idx5;
-        }
-      }
-      while(op != 0);
+    if(op == 4)
+    {
+      pSlice->max_long_term_frame_idx_plus1[idx5] = ue(pRP);
+      ++idx5;
     }
   }
+  while(op != 0);
 }
 
 /*****************************************************************************/
@@ -245,12 +250,8 @@ static bool ApplyAvcSPSAndReturn(AL_TAvcSliceHdr* pSlice, AL_TAvcPps const* pPPS
 }
 
 /*****************************************************************************/
-bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TConceal* pConceal, AL_TAvcPps pPPSTable[])
+static void setAvcSliceHeaderDefaultValues(AL_TAvcSliceHdr* pSlice)
 {
-  if(!pConceal->bHasPPS)
-    return false;
-
-  // header default values
   pSlice->field_pic_flag = 0;
   pSlice->redundant_pic_cnt = 0;
   pSlice->bottom_field_flag = 0;
@@ -261,11 +262,17 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
   pSlice->slice_alpha_c0_offset_div2 = 0;
   pSlice->slice_beta_offset_div2 = 0;
   pSlice->direct_spatial_mv_pred_flag = 0;
+}
 
-  // Skip all 0x00s and one 0x01
-  while(u(pRP, 8) == 0x00)
-  {
-  }
+/*****************************************************************************/
+bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TConceal* pConceal, AL_TAvcPps pPPSTable[])
+{
+  if(!pConceal->bHasPPS)
+    return false;
+
+  setAvcSliceHeaderDefaultValues(pSlice);
+
+  skipAllZerosAndTheNextByte(pRP);
 
   // Read NUT
   u(pRP, 1);
@@ -294,13 +301,14 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
   pSlice->slice_type = AVC_SLICE_TYPE[pSlice->slice_type];
 
   // check slice_type coherency
-  if((pSlice->slice_type > AL_AVC_MAX_SLICE_TYPE) || (pSlice->nal_unit_type == 0x05 && pSlice->slice_type != SLICE_I && pSlice->slice_type != SLICE_SI))
+  if((pSlice->slice_type > AL_AVC_MAX_SLICE_TYPE) || (pSlice->nal_unit_type == AL_AVC_NUT_VCL_IDR && pSlice->slice_type != SLICE_I && pSlice->slice_type != SLICE_SI))
+    return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
+
+  if(pConceal->bValidFrame && (pSlice->pic_parameter_set_id != pConceal->iActivePPS))
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
 
   if(!pConceal->bValidFrame)
     pConceal->iActivePPS = pSlice->pic_parameter_set_id;
-  else if(pSlice->pic_parameter_set_id != pConceal->iActivePPS)
-    return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
 
   // check first MB offset coherency
   if(pSlice->first_mb_in_slice <= pConceal->iFirstLCU)
@@ -309,7 +317,7 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
   pSlice->slice_type %= 5;
 
   // check slice_type coherency
-  if(pSlice->nal_unit_type == 0x05 && pSlice->slice_type != SLICE_I)
+  if(pSlice->nal_unit_type == AL_AVC_NUT_VCL_IDR && pSlice->slice_type != SLICE_I)
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
 
   // select the pps for the current picture
@@ -346,7 +354,7 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
       pSlice->bottom_field_flag = u(pRP, 1);
   }
 
-  if(pSlice->nal_unit_type == 5)
+  if(pSlice->nal_unit_type == AL_AVC_NUT_VCL_IDR)
     pSlice->idr_pic_id = Clip3(ue(pRP), 0, AL_MAX_IDR_PIC_ID);
 
   if(pSps->pic_order_cnt_type == 0)
@@ -398,8 +406,7 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
   AL_AVC_sref_pic_list_reordering(pRP, pSlice);
 
   if(
-    (pPps->weighted_pred_flag && pSlice->slice_type == SLICE_P)
-    ||
+    (pPps->weighted_pred_flag && pSlice->slice_type == SLICE_P) ||
     (pPps->weighted_bipred_idc == 1 && pSlice->slice_type == SLICE_B)
     )
   {
@@ -653,16 +660,15 @@ void InitRefPictSet(AL_THevcSliceHdr* pSlice)
   pSlice->NumPocTotalCurr = pSlice->NumPocStCurrBefore + pSlice->NumPocStCurrAfter + pSlice->NumPocLtCurr;
 }
 
-static void skipAllZerosAndTheNextByte(AL_TRbspParser* pRP)
-{
-  while(u(pRP, 8) == 0x00)
-  {
-  }
-}
-
 static bool noValidPpsHasEverBeenParsed(AL_TConceal* pConceal)
 {
   return pConceal->iLastPPSId == -1;
+}
+
+/*****************************************************************************/
+static bool isHevcIDR(AL_ENut eNUT)
+{
+  return eNUT == AL_HEVC_NUT_IDR_W_RADL || eNUT == AL_HEVC_NUT_IDR_N_LP;
 }
 
 /*****************************************************************************/
@@ -678,8 +684,8 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
   pSlice->nuh_layer_id = u(pRP, 6);
   pSlice->temporal_id_plus1 = u(pRP, 3);
 
-  pSlice->RapPicFlag = (pSlice->nal_unit_type >= 16 && pSlice->nal_unit_type <= 23) ? 1 : 0;
-  pSlice->IdrPicFlag = (pSlice->nal_unit_type == 19 || pSlice->nal_unit_type == 20) ? 1 : 0;
+  pSlice->RapPicFlag = (pSlice->nal_unit_type >= AL_HEVC_NUT_BLA_W_LP && pSlice->nal_unit_type <= AL_HEVC_NUT_RSV_IRAP_VCL23) ? 1 : 0;
+  pSlice->IdrPicFlag = isHevcIDR(pSlice->nal_unit_type) ? 1 : 0;
 
   if(!more_rbsp_data(pRP))
     return false;
@@ -746,7 +752,8 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
 
   if(pSlice->slice_segment_address <= pConceal->iFirstLCU && !pPps->tiles_enabled_flag && !pPps->entropy_coding_sync_enabled_flag)
     return false;
-  else if(!pConceal->bValidFrame && pSlice->slice_segment_address)
+
+  if(!pConceal->bValidFrame && pSlice->slice_segment_address)
   {
     if(pSlice->dependent_slice_segment_flag)
       return false;

@@ -60,41 +60,31 @@
 
 
 /******************************************************************************/
-static AL_TCropInfo getCropInfo(AL_TAvcSps const* pSPS)
+static void updateCropInfo(AL_TAvcSps const* pSPS, AL_TCropInfo* pCropInfo)
 {
-  AL_TCropInfo tCropInfo =
+  pCropInfo->bCropping = true;
+
+  if(pSPS->chroma_format_idc == 1 || pSPS->chroma_format_idc == 2)
   {
-    false, 0, 0, 0, 0
-  };
-
-  tCropInfo.bCropping = pSPS->frame_cropping_flag;
-
-  if(tCropInfo.bCropping)
+    pCropInfo->uCropOffsetLeft += 2 * pSPS->frame_crop_left_offset;
+    pCropInfo->uCropOffsetRight += 2 * pSPS->frame_crop_right_offset;
+  }
+  else
   {
-    if(pSPS->chroma_format_idc == 1 || pSPS->chroma_format_idc == 2)
-    {
-      tCropInfo.uCropOffsetLeft += 2 * pSPS->frame_crop_left_offset;
-      tCropInfo.uCropOffsetRight += 2 * pSPS->frame_crop_right_offset;
-    }
-    else
-    {
-      tCropInfo.uCropOffsetLeft += pSPS->frame_crop_left_offset;
-      tCropInfo.uCropOffsetRight += pSPS->frame_crop_right_offset;
-    }
-
-    if(pSPS->chroma_format_idc == 1)
-    {
-      tCropInfo.uCropOffsetTop += 2 * pSPS->frame_crop_top_offset;
-      tCropInfo.uCropOffsetBottom += 2 * pSPS->frame_crop_bottom_offset;
-    }
-    else
-    {
-      tCropInfo.uCropOffsetTop += pSPS->frame_crop_top_offset;
-      tCropInfo.uCropOffsetBottom += pSPS->frame_crop_bottom_offset;
-    }
+    pCropInfo->uCropOffsetLeft += pSPS->frame_crop_left_offset;
+    pCropInfo->uCropOffsetRight += pSPS->frame_crop_right_offset;
   }
 
-  return tCropInfo;
+  if(pSPS->chroma_format_idc == 1)
+  {
+    pCropInfo->uCropOffsetTop += 2 * pSPS->frame_crop_top_offset;
+    pCropInfo->uCropOffsetBottom += 2 * pSPS->frame_crop_bottom_offset;
+  }
+  else
+  {
+    pCropInfo->uCropOffsetTop += pSPS->frame_crop_top_offset;
+    pCropInfo->uCropOffsetBottom += pSPS->frame_crop_bottom_offset;
+  }
 }
 
 /*************************************************************************/
@@ -151,7 +141,11 @@ static bool isSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, AL_TStream
   if((pStreamSettings->eChroma != CHROMA_MAX_ENUM) && (pStreamSettings->eChroma < eSPSChromaMode))
     return false;
 
-  const AL_TCropInfo tSPSCropInfo = getCropInfo(pSPS);
+  AL_TCropInfo tSPSCropInfo = { false, 0, 0, 0, 0 };
+
+  if(pSPS->frame_cropping_flag)
+    updateCropInfo(pSPS, &tSPSCropInfo);
+
   const int iSPSCropWidth = tSPSCropInfo.uCropOffsetLeft + tSPSCropInfo.uCropOffsetRight;
   const AL_TDimension tSPSDim = { (pSPS->pic_width_in_mbs_minus1 + 1) * 16, (pSPS->pic_height_in_map_units_minus1 + 1) * 16 };
 
@@ -211,7 +205,10 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
   AL_EFbStorageMode eDisplayStorageMode = AL_Default_Decoder_GetDisplayStorageMode(pCtx, &bEnableDisplayCompression);
 
   int iSizeYuv = AL_GetAllocSize_Frame(tSPSDim, eSPSChromaMode, iSPSMaxBitDepth, bEnableDisplayCompression, eDisplayStorageMode);
-  const AL_TCropInfo tCropInfo = getCropInfo(pSPS);
+  AL_TCropInfo tCropInfo = { false, 0, 0, 0, 0 };
+
+  if(pSPS->frame_cropping_flag)
+    updateCropInfo(pSPS, &tCropInfo);
 
   pCtx->tStreamSettings.tDim = tSPSDim;
   pCtx->tStreamSettings.eChroma = eSPSChromaMode;
@@ -489,6 +486,30 @@ static bool constructRefPicList(AL_TAvcSliceHdr* pSlice, AL_TDecCtx* pCtx, TBuff
 }
 
 /*****************************************************************************/
+static bool isRandomAccessPoint(AL_ENut eNUT)
+{
+  return eNUT == AL_AVC_NUT_VCL_IDR;
+}
+
+/*****************************************************************************/
+static bool isValidSyncPoint(AL_ENut eNUT, int iRecoveryCnt)
+{
+  if(isRandomAccessPoint(eNUT))
+    return true;
+
+  if(iRecoveryCnt)
+    return true;
+
+  return false;
+}
+
+/*****************************************************************************/
+static bool isCurrentFrameValidSyncPoint(AL_ENut eNUT, AL_ESliceType ePictureType)
+{
+  return eNUT == AL_AVC_NUT_VCL_NON_IDR && ePictureType == SLICE_I;
+}
+
+/*****************************************************************************/
 static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIsLastAUNal, int* iNumSlice)
 {
   // Slice header deanti-emulation
@@ -592,19 +613,22 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   if(bLastSlice && !bIsLastAUNal)
     isValid = false;
 
-  AL_TScl ScalingList;
+  AL_TScl ScalingList = { 0 };
 
   if(isValid)
   {
-    /*check if the first Access Unit is a random access point*/
     if(!(*bFirstIsValid))
     {
-      bool const bIsRAP = (eNUT == AL_AVC_NUT_VCL_IDR);
-
-      if(bIsRAP || pAUP->iRecoveryCnt)
-        *bFirstIsValid = true;
-      else
-        return; // SkipNal();
+      if(!isValidSyncPoint(eNUT, pAUP->iRecoveryCnt))
+      {
+        if(!(pCtx->bUseIFramesAsSyncPoint && isCurrentFrameValidSyncPoint(eNUT, pAUP->ePictureType)))
+        {
+          *bBeginFrameIsValid = false;
+          AL_CancelFrameBuffers(pCtx);
+          return;
+        }
+      }
+      *bFirstIsValid = true;
     }
 
     // update Nal Unit size

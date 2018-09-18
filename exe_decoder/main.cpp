@@ -125,6 +125,7 @@ AL_TDecSettings getDefaultDecSettings()
   settings.tStream.eSequenceMode = AL_SM_MAX_ENUM;
   settings.eCodec = AL_CODEC_HEVC;
   settings.eBufferOutputMode = AL_OUTPUT_INTERNAL;
+  settings.bUseIFramesAsSyncPoint = false;
 
   return settings;
 }
@@ -370,6 +371,10 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addFlag("-noyuv", &Config.bEnableYUVOutput,
               "Disable writing output YUV file",
               false);
+
+  opt.addFlag("--sync-i-frames", &Config.tDecSettings.bUseIFramesAsSyncPoint,
+              "Allow decoder to sync on I frames is configurations' nals are presents",
+              true);
 
   opt.addInt("-loop", &Config.iLoop, "Number of Decoding loop (optional)");
 

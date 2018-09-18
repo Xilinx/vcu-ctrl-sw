@@ -402,8 +402,9 @@ static bool checkSeiUUID(uint8_t* pBufs, AL_TNal* pNal, AL_ECodec codec)
     return false;
 
   int const iStart = isAVC(codec) ? 6 : 7;
+  int const iSize = sizeof(SEI_SUFFIX_USER_DATA_UNREGISTERED_UUID) / sizeof(*SEI_SUFFIX_USER_DATA_UNREGISTERED_UUID);
 
-  for(int i = 0; i < 16; i++)
+  for(int i = 0; i < iSize; i++)
   {
     if(SEI_SUFFIX_USER_DATA_UNREGISTERED_UUID[i] != pBufs[pNal->tStartCode.uPosition + iStart + i])
       return false;
@@ -446,6 +447,12 @@ static bool isFirstSlice(uint8_t* pBuf, uint32_t uPos)
   // in AVC, the first bit of the slice data is 1. (first_mb_in_slice = 0 encoded in ue)
   // in HEVC, the first bit is 1 too. (first_slice_segment_in_pic_flag = 1 if true))
   return pBuf[uPos] & 0x80;
+}
+
+/*****************************************************************************/
+static bool isFirstSliceStatusAvailable(int iSize, int iNalHdrSize)
+{
+  return iSize > iNalHdrSize;
 }
 
 /*****************************************************************************/
@@ -498,8 +505,7 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
     {
       int iNalHdrSize = isAVC(eCodec) ? AVC_NAL_HDR_SIZE : HEVC_NAL_HDR_SIZE;
 
-      // We want to check the first byte avec NAL_HDR_SIZE
-      if((int)pNal->uSize > iNalHdrSize)
+      if(isFirstSliceStatusAvailable(pNal->uSize, iNalHdrSize))
       {
         uint32_t uPos = pNal->tStartCode.uPosition;
         assert(isStartCode(pBuf, uSize, uPos));
@@ -992,6 +998,12 @@ static bool CheckStreamSettings(AL_TStreamSettings tStreamSettings)
 }
 
 /*****************************************************************************/
+static bool CheckDecodeUnit(AL_EDecUnit eDecUnit)
+{
+  return eDecUnit != AL_DEC_UNIT_MAX_ENUM;
+}
+
+/*****************************************************************************/
 static bool isSubframe(AL_EDecUnit eDecUnit)
 {
   return eDecUnit == AL_VCL_NAL_UNIT;
@@ -1025,6 +1037,9 @@ static bool CheckSettings(AL_TDecSettings const* pSettings)
   if((pSettings->uDDRWidth != 16) && (pSettings->uDDRWidth != 32) && (pSettings->uDDRWidth != 64))
     return false;
 
+  if(!CheckDecodeUnit(pSettings->eDecUnit))
+    return false;
+
   if(isSubframe(pSettings->eDecUnit) && pSettings->bParallelWPP)
     return false;
 
@@ -1044,6 +1059,7 @@ static void AssignSettings(AL_TDecCtx* const pCtx, AL_TDecSettings const* const 
   pCtx->bForceFrameRate = pSettings->bForceFrameRate;
   pCtx->eDpbMode = pSettings->eDpbMode;
   pCtx->tStreamSettings = pSettings->tStream;
+  pCtx->bUseIFramesAsSyncPoint = pSettings->bUseIFramesAsSyncPoint;
 
   AL_TDecChanParam* pChan = &pCtx->chanParam;
   pChan->uMaxLatency = pSettings->iStackSize;

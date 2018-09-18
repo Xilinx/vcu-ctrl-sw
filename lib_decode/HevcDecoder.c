@@ -58,41 +58,31 @@
 
 
 /******************************************************************************/
-static AL_TCropInfo getCropInfo(AL_THevcSps const* pSPS)
+static void updateCropInfo(AL_THevcSps const* pSPS, AL_TCropInfo* pCropInfo)
 {
-  AL_TCropInfo tCropInfo =
+  pCropInfo->bCropping = true;
+
+  if(pSPS->chroma_format_idc == 1 || pSPS->chroma_format_idc == 2)
   {
-    false, 0, 0, 0, 0
-  };
-
-  tCropInfo.bCropping = pSPS->conformance_window_flag;
-
-  if(tCropInfo.bCropping)
+    pCropInfo->uCropOffsetLeft += 2 * pSPS->conf_win_left_offset;
+    pCropInfo->uCropOffsetRight += 2 * pSPS->conf_win_right_offset;
+  }
+  else
   {
-    if(pSPS->chroma_format_idc == 1 || pSPS->chroma_format_idc == 2)
-    {
-      tCropInfo.uCropOffsetLeft += 2 * pSPS->conf_win_left_offset;
-      tCropInfo.uCropOffsetRight += 2 * pSPS->conf_win_right_offset;
-    }
-    else
-    {
-      tCropInfo.uCropOffsetLeft += pSPS->conf_win_left_offset;
-      tCropInfo.uCropOffsetRight += pSPS->conf_win_right_offset;
-    }
-
-    if(pSPS->chroma_format_idc == 1)
-    {
-      tCropInfo.uCropOffsetTop += 2 * pSPS->conf_win_top_offset;
-      tCropInfo.uCropOffsetBottom += 2 * pSPS->conf_win_bottom_offset;
-    }
-    else
-    {
-      tCropInfo.uCropOffsetTop += pSPS->conf_win_top_offset;
-      tCropInfo.uCropOffsetBottom += pSPS->conf_win_bottom_offset;
-    }
+    pCropInfo->uCropOffsetLeft += pSPS->conf_win_left_offset;
+    pCropInfo->uCropOffsetRight += pSPS->conf_win_right_offset;
   }
 
-  return tCropInfo;
+  if(pSPS->chroma_format_idc == 1)
+  {
+    pCropInfo->uCropOffsetTop += 2 * pSPS->conf_win_top_offset;
+    pCropInfo->uCropOffsetBottom += 2 * pSPS->conf_win_bottom_offset;
+  }
+  else
+  {
+    pCropInfo->uCropOffsetTop += pSPS->conf_win_top_offset;
+    pCropInfo->uCropOffsetBottom += pSPS->conf_win_bottom_offset;
+  }
 }
 
 /*************************************************************************/
@@ -237,7 +227,11 @@ static bool isSPSCompatibleWithStreamSettings(AL_THevcSps const* pSPS, AL_TStrea
   if((pStreamSettings->eChroma != CHROMA_MAX_ENUM) && (pStreamSettings->eChroma < eSPSChromaMode))
     return false;
 
-  const AL_TCropInfo tSPSCropInfo = getCropInfo(pSPS);
+  AL_TCropInfo tSPSCropInfo = { false, 0, 0, 0, 0 };
+
+  if(pSPS->conformance_window_flag)
+    updateCropInfo(pSPS, &tSPSCropInfo);
+
   const int iSPSCropWidth = tSPSCropInfo.uCropOffsetLeft + tSPSCropInfo.uCropOffsetRight;
   const AL_TDimension tSPSDim = { pSPS->pic_width_in_luma_samples, pSPS->pic_height_in_luma_samples };
 
@@ -300,7 +294,11 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
   AL_EFbStorageMode eDisplayStorageMode = AL_Default_Decoder_GetDisplayStorageMode(pCtx, &bEnableDisplayCompression);
 
   int iSizeYuv = AL_GetAllocSize_Frame(tSPSDim, eSPSChromaMode, iSPSMaxBitDepth, bEnableDisplayCompression, eDisplayStorageMode);
-  const AL_TCropInfo tCropInfo = getCropInfo(pSPS);
+
+  AL_TCropInfo tCropInfo = { false, 0, 0, 0, 0 };
+
+  if(pSPS->conformance_window_flag)
+    updateCropInfo(pSPS, &tCropInfo);
 
   pCtx->tStreamSettings.tDim = tSPSDim;
   pCtx->tStreamSettings.eChroma = eSPSChromaMode;
@@ -556,10 +554,12 @@ static void endFrame(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_THevcSliceHdr* pSlice, A
   AL_HEVC_PictMngr_UpdateRecInfo(&pCtx->PictMngr, pSlice->pSPS, pPP);
   AL_HEVC_PictMngr_EndFrame(&pCtx->PictMngr, pSlice->slice_pic_order_cnt_lsb, eNUT, pSlice, pic_output_flag);
 
-  if(pCtx->chanParam.eDecUnit == AL_AU_UNIT) /* launch HW for each frame(default mode)*/
+  if(pCtx->chanParam.eDecUnit == AL_AU_UNIT)
     AL_LaunchFrameDecoding(pCtx);
-  else
+
+  if(pCtx->chanParam.eDecUnit == AL_VCL_NAL_UNIT)
     AL_LaunchSliceDecoding(pCtx, true, true);
+
   UpdateContextAtEndOfFrame(pCtx);
 }
 
@@ -583,13 +583,37 @@ static void finishPreviousFrame(AL_TDecCtx* pCtx)
 }
 
 /*****************************************************************************/
+static bool isRandomAccessPoint(AL_ENut eNUT)
+{
+  return AL_HEVC_IsCRA(eNUT) || AL_HEVC_IsBLA(eNUT) || AL_HEVC_IsIDR(eNUT) || (eNUT == AL_HEVC_NUT_RSV_IRAP_VCL22) || (eNUT == AL_HEVC_NUT_RSV_IRAP_VCL23);
+}
+
+/*****************************************************************************/
+static bool isValidSyncPoint(AL_ENut eNUT, int iRecoveryCnt)
+{
+  if(isRandomAccessPoint(eNUT))
+    return true;
+
+  if(iRecoveryCnt)
+    return true;
+
+  return false;
+}
+
+/*****************************************************************************/
+static bool isCurrentFrameValidSyncPoint(AL_ENut eNUT, AL_ESliceType ePictureType)
+{
+  return eNUT == AL_HEVC_NUT_TRAIL_R && ePictureType == SLICE_I;
+}
+
+/*****************************************************************************/
 static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIsLastAUNal, int* iNumSlice)
 {
   // ignore RASL picture associated with an IRAP picture that has NoRaslOutputFlag = 1
   if(AL_HEVC_IsRASL(eNUT) && pCtx->uNoRaslOutputFlag)
-    return; // SkipNal();
+    return;
 
-  bool const bIsRAP = AL_HEVC_IsCRA(eNUT) || AL_HEVC_IsBLA(eNUT) || AL_HEVC_IsIDR(eNUT) || eNUT == AL_HEVC_NUT_RSV_IRAP_VCL22 || eNUT == AL_HEVC_NUT_RSV_IRAP_VCL23;// CRA, BLA IDR or RAP nal
+  bool const bIsRAP = isRandomAccessPoint(eNUT);
 
   if(bIsRAP)
     pCtx->uNoRaslOutputFlag = (pCtx->bIsFirstPicture || pCtx->bLastIsEOS || AL_HEVC_IsBLA(eNUT) || AL_HEVC_IsIDR(eNUT)) ? 1 : 0;
@@ -636,15 +660,12 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
 
   if(!isValid)
   {
-    if(*bFirstIsValid)
-    {
-      AL_HEVC_PictMngr_RemoveHeadFrame(&pCtx->PictMngr);
-    }
-    else
+    if(!*bFirstIsValid)
     {
       pCtx->bIsFirstPicture = false;
-      return; // SkipNal();
+      return;
     }
+    AL_HEVC_PictMngr_RemoveHeadFrame(&pCtx->PictMngr);
   }
 
   if(isValid)
@@ -715,20 +736,23 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   if(bLastSlice && !bIsLastAUNal)
     isValid = false;
 
-  AL_TScl ScalingList;
+  AL_TScl ScalingList = { 0 };
 
   if(isValid)
   {
-    /*check if the first Access Unit is a random access point*/
     if(!(*bFirstIsValid))
     {
-      if(bIsRAP || pAUP->iRecoveryCnt)
-        *bFirstIsValid = true;
-      else
+      if(!isValidSyncPoint(eNUT, pAUP->iRecoveryCnt))
       {
-        pCtx->bIsFirstPicture = false;
-        return;
+        if(!(pCtx->bUseIFramesAsSyncPoint && isCurrentFrameValidSyncPoint(eNUT, pSlice->slice_type)))
+        {
+          pCtx->bIsFirstPicture = false;
+          *bBeginFrameIsValid = false;
+          AL_CancelFrameBuffers(pCtx);
+          return;
+        }
       }
+      *bFirstIsValid = true;
     }
 
     UpdateCircBuffer(&rp, pBufStream, &pSlice->slice_header_length);
@@ -767,7 +791,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
       UpdateContextAtEndOfFrame(pCtx);
     }
 
-    return; // SkipNal();
+    return;
   }
 
   // Launch slice decoding

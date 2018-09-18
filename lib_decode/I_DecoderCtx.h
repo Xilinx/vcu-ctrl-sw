@@ -165,6 +165,7 @@ typedef struct t_Dec_Ctx
   AL_ERR error;
   bool bIsFirstSPSChecked;
   bool bIsBuffersAllocated;
+  bool bUseIFramesAsSyncPoint;
   AL_TStreamSettings tStreamSettings;
   AL_TBuffer* eosBuffer;
 
