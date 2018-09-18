@@ -35,8 +35,8 @@
 *
 ******************************************************************************/
 
-#include <string.h>
-#include <assert.h>
+#include <cstring>
+#include <cassert>
 
 extern "C"
 {

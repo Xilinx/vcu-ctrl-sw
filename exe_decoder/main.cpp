@@ -405,9 +405,7 @@ static Config ParseCommandLine(int argc, char* argv[])
   if(bMainOutputCompression)
   {
     if(bCertCRC)
-    {
       throw runtime_error("Certification CRC unavaible with fbc");
-    }
     bCertCRC = false;
   }
 

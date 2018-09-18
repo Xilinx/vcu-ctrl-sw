@@ -41,7 +41,7 @@
 #include <iomanip>
 #include <iostream>
 #include <string>
-#include <assert.h>
+#include <cassert>
 
 #include "CodecUtils.h"
 #include "al_resource.h"

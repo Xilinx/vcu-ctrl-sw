@@ -644,7 +644,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
       UpdateContextAtEndOfFrame(pCtx);
     }
 
-    return; // SkipNal();
+    return;
   }
 
   // Launch slice decoding

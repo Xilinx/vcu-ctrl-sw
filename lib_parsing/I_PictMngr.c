@@ -88,13 +88,6 @@ static bool sRecBuffers_HasBuf(AL_TRecBuffers* tRecBuffers, AL_TBuffer* pBuf, AL
   (void)pPool;
   bool bHasBuf = tRecBuffers->pFrame == pBuf;
 
-#if AL_ENABLE_RASTER_OUTPUT
-
-  if(pPool->bHasRasterFrame)
-  {
-    bHasBuf |= tRecBuffers->pRasterFrame == pBuf;
-  }
-#endif
 
   return bHasBuf;
 }
@@ -923,9 +916,7 @@ static AL_TBuffer* sFrmBufPool_GetRecBufferFromDisplayBuffer(AL_TFrmBufPool* pPo
   *iFrameID = sFrmBufPool_GetFrameIDFromDisplay(pPool, pDisplayBuf);
 
   if(*iFrameID != -1)
-  {
     pRecBuf = sFrmBufPool_GetBufferFromID(pPool, *iFrameID).pFrame;
-  }
 
   Rtos_ReleaseMutex(pPool->Mutex);
 
@@ -935,16 +926,17 @@ static AL_TBuffer* sFrmBufPool_GetRecBufferFromDisplayBuffer(AL_TFrmBufPool* pPo
 /*************************************************************************/
 AL_TBuffer* AL_PictMngr_GetRecBufferFromDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TBuffer* pDisplayBuf, AL_TInfoDecode* pInfo)
 {
-  if(NULL == pDisplayBuf)
+  if(pDisplayBuf == NULL)
     return NULL;
 
-  AL_EFbStorageMode eOutputStorageMode = pCtx->eFbStorageMode;
   int iFrameID;
-
   AL_TBuffer* pRecBuf = sFrmBufPool_GetRecBufferFromDisplayBuffer(&pCtx->FrmBufPool, pDisplayBuf, &iFrameID);
 
   if(pInfo != NULL && pRecBuf != NULL)
+  {
+    AL_EFbStorageMode eOutputStorageMode = pCtx->eFbStorageMode;
     sFrmBufPool_GetInfoDecode(&pCtx->FrmBufPool, iFrameID, pInfo, eOutputStorageMode, pCtx->iBitdepth, false);
+  }
 
   return pRecBuf;
 }

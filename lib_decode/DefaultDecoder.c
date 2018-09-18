@@ -393,6 +393,7 @@ static bool isSuffixSei(AL_ECodec codec, int nut)
     return nut == AL_HEVC_NUT_SUFFIX_SEI;
 }
 
+/*****************************************************************************/
 static bool checkSeiUUID(uint8_t* pBufs, AL_TNal* pNal, AL_ECodec codec)
 {
   uint32_t const uTotalUUIDSize = isAVC(codec) ? 23 : 24;
@@ -417,6 +418,7 @@ static bool enoughStartCode(int iNumStartCode)
   return iNumStartCode > 1;
 }
 
+/*****************************************************************************/
 static bool isStartCode(uint8_t* pBuf, uint32_t uSize, uint32_t uPos)
 {
   return (pBuf[uPos % uSize] == 0x00) &&
@@ -424,18 +426,21 @@ static bool isStartCode(uint8_t* pBuf, uint32_t uSize, uint32_t uPos)
          (pBuf[(uPos + 2) % uSize] == 0x01);
 }
 
+/*****************************************************************************/
 static uint32_t skipNalHeader(uint32_t uPos, AL_ECodec eCodec, uint32_t uSize)
 {
   int const iNalHdrSize = isAVC(eCodec) ? AVC_NAL_HDR_SIZE : HEVC_NAL_HDR_SIZE;
   return (uPos + iNalHdrSize) % uSize; // skip start code + nal header
 }
 
+/*****************************************************************************/
 static bool isVcl(AL_ECodec eCodec, AL_ENut eNUT)
 {
   return isAVC(eCodec) ? AL_AVC_IsVcl(eNUT) : AL_HEVC_IsVcl(eNUT);
 }
 
 /* should only be used when the position is right after the nal header */
+/*****************************************************************************/
 static bool isFirstSlice(uint8_t* pBuf, uint32_t uPos)
 {
   // in AVC, the first bit of the slice data is 1. (first_mb_in_slice = 0 encoded in ue)
