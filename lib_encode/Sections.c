@@ -219,7 +219,9 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
   if(nalsData->shouldWriteFillerData && pPicStatus->iFiller)
   {
     int iBookmark = AL_BitStreamLite_GetBitsCount(&bs);
-    WriteFillerData(&bs, nuts.fdNut, nuts.GetNalHeader(nuts.fdNut, 0), pPicStatus->iFiller);
+    int iSpaceForSeiSuffix = 0;
+    iSpaceForSeiSuffix = (pPicStatus->bIsLastSlice && isSuffix(nalsData->seiFlags) && (nalsData->seiFlags & SEI_EOF)) ? 24 : 0;
+    WriteFillerData(&bs, nuts.fdNut, nuts.GetNalHeader(nuts.fdNut, 0), pPicStatus->iFiller, iSpaceForSeiSuffix);
     int iWritten = (AL_BitStreamLite_GetBitsCount(&bs) - iBookmark) / 8;
 
     if(iWritten != pPicStatus->iFiller)
