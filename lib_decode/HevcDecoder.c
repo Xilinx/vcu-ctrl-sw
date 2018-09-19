@@ -256,6 +256,9 @@ static bool isSPSCompatibleWithStreamSettings(AL_THevcSps const* pSPS, AL_TStrea
 
   AL_ESequenceMode sequenceMode = getSequenceMode(pSPS);
 
+  if(sequenceMode == AL_SM_MAX_ENUM)
+    return false;
+
   if(sequenceMode != AL_SM_UNKNOWN)
   {
     if(((pStreamSettings->eSequenceMode != AL_SM_MAX_ENUM) && pStreamSettings->eSequenceMode != AL_SM_UNKNOWN) && (pStreamSettings->eSequenceMode != sequenceMode))
