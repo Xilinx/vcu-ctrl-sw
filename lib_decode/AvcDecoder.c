@@ -121,22 +121,33 @@ static int getMaxNumberOfSlices(AL_TAvcSps const* pSPS)
 /*****************************************************************************/
 static bool isSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, AL_TStreamSettings const* pStreamSettings)
 {
-  const int iSPSLumaBitDepth = pSPS->bit_depth_luma_minus8 + 8;
+  int iSPSLumaBitDepth = pSPS->bit_depth_luma_minus8 + 8;
+
+  if(iSPSLumaBitDepth > HW_IP_BIT_DEPTH)
+    return false;
 
   if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSLumaBitDepth))
     return false;
 
-  const int iSPSChromaBitDepth = pSPS->bit_depth_chroma_minus8 + 8;
+  int iSPSChromaBitDepth = pSPS->bit_depth_chroma_minus8 + 8;
+
+  if(iSPSChromaBitDepth > HW_IP_BIT_DEPTH)
+    return false;
 
   if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSChromaBitDepth))
     return false;
 
-  const int iSPSLevel = pSPS->constraint_set3_flag ? 9 : pSPS->level_idc; /* We treat constraint set 3 as a level 9 */
+  int iSPSMaxBitDepth = getMaxBitDepth(pSPS->profile_idc);
+
+  if(iSPSMaxBitDepth > HW_IP_BIT_DEPTH)
+    return false;
+
+  int iSPSLevel = pSPS->constraint_set3_flag ? 9 : pSPS->level_idc; /* We treat constraint set 3 as a level 9 */
 
   if((pStreamSettings->iLevel > 0) && (pStreamSettings->iLevel < iSPSLevel))
     return false;
 
-  const AL_EChromaMode eSPSChromaMode = (AL_EChromaMode)pSPS->chroma_format_idc;
+  AL_EChromaMode eSPSChromaMode = (AL_EChromaMode)pSPS->chroma_format_idc;
 
   if((pStreamSettings->eChroma != CHROMA_MAX_ENUM) && (pStreamSettings->eChroma < eSPSChromaMode))
     return false;
@@ -146,13 +157,13 @@ static bool isSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, AL_TStream
   if(pSPS->frame_cropping_flag)
     updateCropInfo(pSPS, &tSPSCropInfo);
 
-  const int iSPSCropWidth = tSPSCropInfo.uCropOffsetLeft + tSPSCropInfo.uCropOffsetRight;
-  const AL_TDimension tSPSDim = { (pSPS->pic_width_in_mbs_minus1 + 1) * 16, (pSPS->pic_height_in_map_units_minus1 + 1) * 16 };
+  int iSPSCropWidth = tSPSCropInfo.uCropOffsetLeft + tSPSCropInfo.uCropOffsetRight;
+  AL_TDimension tSPSDim = { (pSPS->pic_width_in_mbs_minus1 + 1) * 16, (pSPS->pic_height_in_map_units_minus1 + 1) * 16 };
 
   if((pStreamSettings->tDim.iWidth > 0) && (pStreamSettings->tDim.iWidth < (tSPSDim.iWidth - iSPSCropWidth)))
     return false;
 
-  const int iSPSCropHeight = tSPSCropInfo.uCropOffsetTop + tSPSCropInfo.uCropOffsetBottom;
+  int iSPSCropHeight = tSPSCropInfo.uCropOffsetTop + tSPSCropInfo.uCropOffsetBottom;
 
   if((pStreamSettings->tDim.iHeight > 0) && (pStreamSettings->tDim.iHeight < (tSPSDim.iHeight - iSPSCropHeight)))
     return false;

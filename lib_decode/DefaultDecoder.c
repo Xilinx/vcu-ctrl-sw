@@ -914,6 +914,12 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
   AL_ERR error = AL_ERR_NO_MEMORY;
   AL_TStreamSettings tStreamSettings = pCtx->tStreamSettings;
 
+  if(pCtx->tStreamSettings.iBitDepth > HW_IP_BIT_DEPTH)
+  {
+    AL_Default_Decoder_SetError(pCtx, AL_ERR_REQUEST_MALFORMED, -1);
+    return false;
+  }
+
   if(pCtx->tStreamSettings.eSequenceMode == AL_SM_MAX_ENUM)
   {
     AL_Default_Decoder_SetError(pCtx, AL_ERR_REQUEST_MALFORMED, -1);
@@ -992,6 +998,9 @@ static bool CheckStreamSettings(AL_TStreamSettings tStreamSettings)
   if(IsAtLeastOneStreamSettingsSet(tStreamSettings))
   {
     if(!IsAllStreamSettingsSet(tStreamSettings))
+      return false;
+
+    if(tStreamSettings.iBitDepth > HW_IP_BIT_DEPTH)
       return false;
   }
   return true;
