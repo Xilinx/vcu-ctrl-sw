@@ -629,6 +629,16 @@ static void AL_HEVC_UpdateHrdParameters(AL_THevcSps* pSPS, AL_TSubHrdParam* pSub
   pSPS->vui_param.hrd_param.elemental_duration_in_tc_minus1[0] = 0;
 }
 
+#if AL_ENABLE_GDR
+/****************************************************************************/
+static bool isGdrEnabled(AL_TEncSettings const* pSettings)
+{
+  AL_TGopParam const* pGop = &pSettings->tChParam[0].tGopParam;
+  return (pGop->eGdrMode & AL_GDR_ON) != 0;
+}
+
+#endif
+
 /****************************************************************************/
 void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize)
 {
@@ -671,6 +681,11 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
 
   pSPS->log2_max_pic_order_cnt_lsb_minus4 = 6;
   pSPS->log2_max_frame_num_minus4 = Clip3(AL_sLog2(pSPS->max_num_ref_frames) - 4, 0, 12);
+#if AL_ENABLE_GDR
+
+  if(isGdrEnabled(pSettings))
+    pSPS->log2_max_frame_num_minus4 = 6; // 6 is to support AVC 8K GDR
+#endif
 
   // frame_mbs_only_flag:
   // - is set to 0 whenever possible (we allow field pictures).

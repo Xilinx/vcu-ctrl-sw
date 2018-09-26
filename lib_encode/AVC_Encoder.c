@@ -65,10 +65,33 @@ static void GenerateSkippedPictureData(AL_TEncCtx* pCtx, AL_TEncChanParam* pChPa
   AL_AVC_GenerateSkippedPicture(pSkipPicture, pCtx->iNumLCU, true, 0);
 }
 
+#if AL_ENABLE_GDR
+/****************************************************************************/
+static bool isGdrEnabled(AL_TEncChanParam const* pChParam)
+{
+  AL_TGopParam const* pGop = &pChParam->tGopParam;
+  return (pGop->eGdrMode & AL_GDR_ON) != 0;
+}
+
+#endif
+
+static void initHlsSps(AL_TEncChanParam* pChParam, uint32_t* pSpsParam)
+{
+  *pSpsParam = AL_SPS_TEMPORAL_MVP_EN_FLAG; // TODO
+  AL_SET_SPS_LOG2_MAX_POC(pSpsParam, 10);
+  int log2_max_frame_num_minus4 = 0; // This value SHOULD be equals to IP_Utils SPS
+#if AL_ENABLE_GDR
+
+  if(isGdrEnabled(pChParam))
+    log2_max_frame_num_minus4 = 6; // 6 is to support AVC 8K GDR.
+#endif
+
+  AL_SET_SPS_LOG2_MAX_FRAME_NUM(pSpsParam, log2_max_frame_num_minus4 + 4);
+}
+
 static void initHls(AL_TEncChanParam* pChParam)
 {
-  // Update SPS & PPS Flags ------------------------------------------------
-  pChParam->uSpsParam = 0x4A | AL_SPS_TEMPORAL_MVP_EN_FLAG; // TODO
+  initHlsSps(pChParam, &pChParam->uSpsParam);
   pChParam->uPpsParam = AL_PPS_DBF_OVR_EN_FLAG; // TODO
   AL_Common_Encoder_SetHlsParam(pChParam);
 }

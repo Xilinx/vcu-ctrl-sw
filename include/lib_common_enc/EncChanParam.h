@@ -45,6 +45,7 @@
 #include "lib_rtos/types.h"
 #include "lib_common/SliceConsts.h"
 #include "lib_common/VideoMode.h"
+#include <assert.h>
 
 /*************************************************************************//*!
    \brief Encoding parameters buffers info structure
@@ -128,10 +129,54 @@ typedef enum __AL_ALIGNED__ (4) AL_e_HlsFlag
   AL_PPS_DISABLE_LF = 0x00002000,
 } AL_EHlsFlag;
 
-#define AL_GET_SPS_LOG2_MAX_POC(HlsParam) ((HlsParam) & AL_SPS_LOG2_MAX_POC_MASK)
-#define AL_GET_SPS_LOG2_MAX_FRAME_NUM(HlsParam) (((HlsParam) & AL_SPS_LOG2_MAX_FRAME_NUM_MASK) >> 4)
-#define AL_GET_SPS_LOG2_NUM_SHORT_TERM_RPS(HlsParam) (((HlsParam) & AL_SPS_LOG2_NUM_SHORT_TERM_RPS_MASK) >> 8)
-#define AL_GET_SPS_LOG2_NUM_LONG_TERM_RPS(HlsParam) (((HlsParam) & AL_SPS_LOG2_NUM_LONG_TERM_RPS_MASK) >> 14)
+static inline uint32_t AL_GET_SPS_LOG2_MAX_POC(uint32_t uHlsParam)
+{
+  return uHlsParam & AL_SPS_LOG2_MAX_POC_MASK;
+}
+
+static inline void AL_SET_SPS_LOG2_MAX_POC(uint32_t* pHlsParam, int iLog2MaxPoc)
+{
+  assert(pHlsParam);
+  assert(iLog2MaxPoc < 0xF);
+  *pHlsParam = ((*pHlsParam & ~AL_SPS_LOG2_MAX_POC_MASK) | iLog2MaxPoc);
+}
+
+static inline uint32_t AL_GET_SPS_LOG2_MAX_FRAME_NUM(uint32_t uHlsParam)
+{
+  return (uHlsParam & AL_SPS_LOG2_MAX_FRAME_NUM_MASK) >> 4;
+}
+
+static inline void AL_SET_SPS_LOG2_MAX_FRAME_NUM(uint32_t* pHlsParam, int iLog2MaxFrameNum)
+{
+  assert(pHlsParam);
+  assert(iLog2MaxFrameNum < 0xF);
+  *pHlsParam = ((*pHlsParam & ~AL_SPS_LOG2_MAX_FRAME_NUM_MASK) | (iLog2MaxFrameNum << 4));
+}
+
+static inline uint32_t AL_GET_SPS_LOG2_NUM_SHORT_TERM_RPS(uint32_t uHlsParam)
+{
+  return (uHlsParam & AL_SPS_LOG2_NUM_SHORT_TERM_RPS_MASK) >> 8;
+}
+
+static inline void AL_SET_SPS_LOG2_NUM_SHORT_TERM_RPS(uint32_t* pHlsParam, int iLog2NumShortTermRps)
+{
+  assert(pHlsParam);
+  assert(iLog2NumShortTermRps < 0x3F);
+  *pHlsParam = ((*pHlsParam & ~AL_SPS_LOG2_NUM_SHORT_TERM_RPS_MASK) | (iLog2NumShortTermRps << 8));
+}
+
+static inline uint32_t AL_GET_SPS_LOG2_NUM_LONG_TERM_RPS(uint32_t uHlsParam)
+{
+  return (uHlsParam & AL_SPS_LOG2_NUM_LONG_TERM_RPS_MASK) >> 14;
+}
+
+static inline void AL_SET_SPS_LOG2_NUM_LONG_TERM_RPS(uint32_t* pHlsParam, int iLog2NumLongTermRps)
+{
+  assert(pHlsParam);
+  assert(iLog2NumLongTermRps < 0xFC);
+  *pHlsParam = ((*pHlsParam & ~AL_SPS_LOG2_NUM_LONG_TERM_RPS_MASK) | (iLog2NumLongTermRps << 14));
+}
+
 #define AL_GET_SPS_TEMPORAL_MVP_EN_FLAG(HlsParam) (((HlsParam) & AL_SPS_TEMPORAL_MVP_EN_FLAG) >> 20)
 
 #define AL_GET_PPS_ENABLE_REORDERING(HlsParam) ((HlsParam) & AL_PPS_ENABLE_REORDERING)
