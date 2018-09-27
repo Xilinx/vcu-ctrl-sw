@@ -65,7 +65,7 @@ endif
 -include ref.mk
 
 ##############################################################
-# AL_Decoder
+# ctrlsw_decoder
 ##############################################################
 ifneq ($(ENABLE_DECODER),0)
   -include lib_parsing/project.mk
@@ -75,7 +75,7 @@ ifneq ($(ENABLE_DECODER),0)
 endif
 
 ##############################################################
-# AL_Encoder
+# ctrlsw_encoder
 ##############################################################
 ifneq ($(ENABLE_ENCODER),0)
   -include exe_encoder/project.mk

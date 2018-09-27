@@ -23,7 +23,7 @@ $ make
 The resulting binaries will be available in the bin/ directory
 
 You can test it on a very simple configuration with the following command:
-$ ./bin/AL_Encoder.exe -cfg test/config/encode.simple.cfg
+$ ./bin/ctrlsw_encoder -cfg test/config/encode.simple.cfg
 
 Libraries
 =========
