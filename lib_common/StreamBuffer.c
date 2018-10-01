@@ -37,6 +37,7 @@
 
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/StreamBufferPrivate.h"
+#include "lib_common/AvcLevelsLimit.h"
 
 /****************************************************************************/
 int GetBlk64x64(AL_TDimension tDim)
@@ -90,11 +91,16 @@ int GetMaxVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth)
 }
 
 /****************************************************************************/
-int AL_GetMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth)
+int AL_GetMaxNalSize(AL_ECodec eCodec, AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth, int iLevel, int iProfileIdc)
 {
+  (void)eCodec, (void)iProfileIdc;
   /* Actual worst case: 5/3*PCM + one slice per MB/LCU. */
   int iMaxPCM = GetMaxVclNalSize(tDim, eMode, iBitDepth);
-  int iNumSlices = GetBlk16x16(tDim);
+  int iNumSlices = iLevel > 52 ? 600 : 200;
+
+  if(eCodec == AL_CODEC_AVC)
+    iNumSlices = Avc_GetMaxNumberOfSlices(iProfileIdc, iLevel, 1, 60, INT32_MAX);
+
   iMaxPCM += 2048 + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
 
   return RoundUp(iMaxPCM, 32);

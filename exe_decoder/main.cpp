@@ -436,7 +436,7 @@ static Config ParseCommandLine(int argc, char* argv[])
     // silently correct user settings
     Config.uInputBufferNum = max(1u, Config.uInputBufferNum);
     Config.zInputBufferSize = max(size_t(1), Config.zInputBufferSize);
-    Config.zInputBufferSize = (!preAllocArgs.empty() && Config.zInputBufferSize == zDefaultInputBufferSize) ? AL_GetMaxNalSize(Config.tDecSettings.tStream.tDim, Config.tDecSettings.tStream.eChroma, Config.tDecSettings.tStream.iBitDepth) : Config.zInputBufferSize;
+    Config.zInputBufferSize = (!preAllocArgs.empty() && Config.zInputBufferSize == zDefaultInputBufferSize) ? AL_GetMaxNalSize(Config.tDecSettings.eCodec, Config.tDecSettings.tStream.tDim, Config.tDecSettings.tStream.eChroma, Config.tDecSettings.tStream.iBitDepth, Config.tDecSettings.tStream.iLevel, Config.tDecSettings.tStream.iProfileIdc) : Config.zInputBufferSize;
     Config.tDecSettings.iStackSize = max(1, Config.tDecSettings.iStackSize);
   }
 
