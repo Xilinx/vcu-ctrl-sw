@@ -93,9 +93,9 @@ int GetMaxVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth)
 /****************************************************************************/
 int AL_GetMaxNalSize(AL_ECodec eCodec, AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth, int iLevel, int iProfileIdc)
 {
-  (void)eCodec, (void)iProfileIdc;
+  (void)iProfileIdc;
   /* Actual worst case: 5/3*PCM + one slice per MB/LCU. */
-  int iMaxPCM = GetMaxVclNalSize(tDim, eMode, iBitDepth);
+  int iMaxPCM = eCodec == AL_CODEC_HEVC ? GetMaxVclNalSize(tDim, eMode, iBitDepth) : GetPcmVclNalSize(tDim, eMode, iBitDepth);
   int iNumSlices = iLevel > 52 ? 600 : 200;
 
   if(eCodec == AL_CODEC_AVC)
