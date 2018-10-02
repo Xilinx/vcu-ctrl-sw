@@ -57,7 +57,7 @@
    \param[in] eMode Chroma subsampling
    \param[in] iBitDepth Bitdepth
    \param[in] iLevel Level
-   \paarm[in] iProfileIdc Profile idc
+   \param[in] iProfileIdc Profile idc
    \return maximum size of one NAL unit
 *****************************************************************************/
 int AL_GetMaxNalSize(AL_ECodec eCodec, AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth, int iLevel, int iProfileIdc);
