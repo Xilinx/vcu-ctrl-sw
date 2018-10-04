@@ -1045,7 +1045,7 @@ static AL_ERR sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSe
 
   p->bPoolIsInit = true;
 
-  for(int i = 0; i < BufferNumber; ++i)
+  for(int i = 0; i < (int)BufPoolConfig.uNumBuf; ++i)
   {
     auto pDecPict = p->bufPool.GetBuffer(AL_BUF_MODE_NONBLOCK);
     assert(pDecPict);
