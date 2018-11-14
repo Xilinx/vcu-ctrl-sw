@@ -142,6 +142,7 @@ typedef struct
   AL_TStreamSettings tStream; /*!< Stream's settings. These need to be set if you want to preallocate the buffer. memset to 0 otherwise */
   AL_EBufferOutputMode eBufferOutputMode; /*!< Reconstructed buffers output mode */
   bool bUseIFramesAsSyncPoint; /*!< Allow decoder to sync on I frames if configurations' nals are presents */
+  bool bUseEarlyCallback; /*< Lowlat phase 2. This only makes sense with special support for hw synchro */
 }AL_TDecSettings;
 
 /*************************************************************************//*!

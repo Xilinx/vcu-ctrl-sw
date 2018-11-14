@@ -69,6 +69,7 @@ typedef struct
   int iNext;
   int iAccessCnt;
   bool bWillBeOutputed;
+  bool bOutEarly;
   uint32_t uCRC;
   AL_TCropInfo tCrop;
   AL_EPicStruct ePicStruct;
@@ -286,6 +287,7 @@ void AL_PictMngr_EndDecoding(AL_TPictMngrCtx* pCtx, int iFrameID);
    NULL otherwise
 *****************************************************************************/
 AL_TBuffer* AL_PictMngr_GetDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo);
+AL_TBuffer* AL_PictMngr_ForceDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo, int iFrameID);
 
 /*************************************************************************//*!
    \brief This function add a display frame buffer in the picture manager

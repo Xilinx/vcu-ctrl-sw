@@ -45,7 +45,7 @@
 #include "lib_rtos/types.h"
 #include "lib_common/MemDesc.h"
 #include "lib_common/FourCC.h"
-#include "lib_common/OffsetYC.h"
+#include "lib_common/BufferSrcMeta.h"
 
 /*************************************************************************//*!
    \brief Frame buffer stored as IYUV planar format (also called I420)
@@ -55,15 +55,8 @@ typedef struct t_BufferYuv
 {
   TMemDesc tMD; /*!< Memory descriptor associated to the buffer */
 
-  int iWidth; /*!< Width in pixel of the frame */
-  int iHeight; /*!< Height in pixel of the frame */
-
-  int iPitchY; /*!< offset in bytes between a Luma pixel and the Luma
-                     pixel on the next line with same horizontal position*/
-  int iPitchC; /*!< offset in bytes between a chroma pixel and the chroma
-                     pixel on the next line with same horizontal position*/
-  AL_TOffsetYC tOffsetYC; /*< offset for luma and chroma addresses */
-
+  AL_TDimension tDim; /*!< Dimension in pixel of the frame */
+  AL_TPlane tPlanes[AL_PLANE_MAX_ENUM]; /*!< Array of color planes parameters */
   TFourCC tFourCC; /*!< FOURCC identifier */
 }TBufferYuv;
 

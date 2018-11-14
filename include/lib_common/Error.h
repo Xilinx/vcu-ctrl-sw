@@ -81,7 +81,7 @@ enum
   AL_ERR_CHAN_CREATION_NO_CHANNEL_AVAILABLE = AL_DEF_ERROR(13),
   /*! The processing power of the available cores is insufficient to handle this channel */
   AL_ERR_CHAN_CREATION_RESOURCE_UNAVAILABLE = AL_DEF_ERROR(14),
-  /*! Couldn't spread the load on enough cores (special case of ERROR_RESOURCE_UNAVAILABLE)
+  /*! Couldn't spread the load on enough cores (a special case of ERROR_RESOURCE_UNAVAILABLE)
    * or the load can't be spread so much (each core has a requirement on the minimal number
    * of resources it can handle) */
   AL_ERR_CHAN_CREATION_NOT_ENOUGH_CORES = AL_DEF_ERROR(15),

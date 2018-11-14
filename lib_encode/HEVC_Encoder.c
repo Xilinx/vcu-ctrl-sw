@@ -72,9 +72,19 @@ static void GenerateSkippedPictureData(AL_TEncCtx* pCtx, AL_TEncChanParam* pChPa
 static void initHls(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
 {
   // Update SPS & PPS Flags ------------------------------------------------
-  pChParam->uSpsParam = 0x0A | AL_SPS_TEMPORAL_MVP_EN_FLAG; // TODO
-  pChParam->uSpsParam |= ceil_log2((pChParam->tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL) ? pChParam->tGopParam.uNumB + 1 : pChParam->tGopParam.uNumB > 2 ? AL_NUM_RPS_EXT : AL_NUM_RPS) << 8;
+  uint32_t* pSpsParam = &pChParam->uSpsParam;
+  *pSpsParam = AL_SPS_TEMPORAL_MVP_EN_FLAG; // TODO
+  AL_SET_SPS_LOG2_MAX_POC(pSpsParam, 10);
 
+  int num_short_term_ref_pic_sets_log2 = 0;
+
+  if(pChParam->tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL)
+  {
+    num_short_term_ref_pic_sets_log2 = ceil_log2(pChParam->tGopParam.uNumB + 1);
+    assert(num_short_term_ref_pic_sets_log2 != 0);
+  }
+
+  AL_SET_SPS_LOG2_NUM_SHORT_TERM_RPS(pSpsParam, num_short_term_ref_pic_sets_log2);
   pChParam->uPpsParam |= AL_PPS_ENABLE_REORDERING;
 
   AL_Common_Encoder_SetHlsParam(pChParam);

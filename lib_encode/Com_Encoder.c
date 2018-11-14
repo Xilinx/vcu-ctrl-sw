@@ -41,9 +41,7 @@
 #include "lib_common/StreamSection.h"
 #include "lib_common/BufferStreamMeta.h"
 #include "lib_common/BufferPictureMeta.h"
-#if AL_ENABLE_TWOPASS
 #include "lib_common/BufferLookAheadMeta.h"
-#endif
 #include "lib_common_enc/IpEncFourCC.h"
 #include <assert.h>
 #include "lib_common/Utils.h"
@@ -205,7 +203,8 @@ bool AL_Common_Encoder_PutStreamBuffer(AL_TEncoder* pEnc, AL_TBuffer* pStream, i
   AL_Buffer_Ref(pStream);
 
   /* Can call AL_Common_Encoder_PutStreamBuffer again */
-  AL_ISchedulerEnc_PutStreamBuffer(pCtx->pScheduler, pCtx->tLayerCtx[iLayerID].hChannel, pStream, curStreamSent, ENC_MAX_HEADER_SIZE);
+  int iOffset = ENC_MAX_HEADER_SIZE;
+  AL_ISchedulerEnc_PutStreamBuffer(pCtx->pScheduler, pCtx->tLayerCtx[iLayerID].hChannel, pStream, curStreamSent, iOffset);
   Rtos_ReleaseMutex(pCtx->Mutex);
 
   return true;
@@ -307,7 +306,6 @@ void AL_Common_Encoder_SetEncodingOptions(AL_TEncCtx* pCtx, AL_TFrameInfo* pFI, 
 
 }
 
-#if AL_ENABLE_TWOPASS
 /****************************************************************************/
 void AL_Common_Encoder_ProcessLookAheadParam(AL_TEncoder* pEnc, AL_TEncInfo* pEI, AL_TBuffer* pFrame)
 {
@@ -323,10 +321,10 @@ void AL_Common_Encoder_ProcessLookAheadParam(AL_TEncoder* pEnc, AL_TEncInfo* pEI
     pEI->tLAParam.iSCPictureSize = pMetaDataLA->iPictureSize;
     pEI->tLAParam.iSCIPRatio = pMetaDataLA->iIPRatio;
     pEI->tLAParam.iComplexity = pMetaDataLA->iComplexity;
+    pEI->tLAParam.iTargetLevel = pMetaDataLA->iTargetLevel;
   }
 }
 
-#endif
 
 /***************************************************************************/
 bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer* pQpTable, int iLayerID)
@@ -370,9 +368,9 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
     addresses.pEP2 = 0;
   }
 
-  addresses.pSrc_Y = AL_Allocator_GetPhysicalAddr(pFrame->pAllocator, pFrame->hBuf);
-  addresses.pSrc_UV = AL_Allocator_GetPhysicalAddr(pFrame->pAllocator, pFrame->hBuf) + AL_SrcMetaData_GetOffsetC(pMetaData);
-  addresses.uPitchSrc = pMetaData->tPitches.iLuma;
+  addresses.pSrc_Y = AL_Allocator_GetPhysicalAddr(pFrame->pAllocator, pFrame->hBuf) + AL_SrcMetaData_GetOffsetY(pMetaData);
+  addresses.pSrc_UV = AL_Allocator_GetPhysicalAddr(pFrame->pAllocator, pFrame->hBuf) + AL_SrcMetaData_GetOffsetUV(pMetaData);
+  addresses.uPitchSrc = pMetaData->tPlanes[AL_PLANE_Y].iPitch;
 
   AL_TEncChanParam* pChParam = &pCtx->Settings.tChParam[iLayerID];
 
@@ -388,11 +386,9 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
 
   AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[iLayerID]);
 
-#if AL_ENABLE_TWOPASS
 
   if(pCtx->Settings.LookAhead > 0 || pCtx->Settings.TwoPass == 2)
     AL_Common_Encoder_ProcessLookAheadParam(pEnc, pEI, pFrame);
-#endif
 
 
   bool bRet = AL_ISchedulerEnc_EncodeOneFrame(pCtx->pScheduler, pCtx->tLayerCtx[iLayerID].hChannel, pEI, pReqInfo, &addresses);
@@ -419,10 +415,7 @@ AL_ERR AL_Common_Encoder_GetLastError(AL_TEncoder* pEnc)
 
 static void setMaxNumRef(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
 {
-  pCtx->iMaxNumRef = AL_GET_PPS_NUM_ACT_REF_L0(pChParam->uPpsParam);
-
-  if(pCtx->iMaxNumRef)
-    pCtx->iMaxNumRef += 1;
+  pCtx->iMaxNumRef = AL_GetNumberOfRef(pChParam->uPpsParam);
 }
 
 void AL_Common_Encoder_SetHlsParam(AL_TEncChanParam* pChParam)
@@ -859,7 +852,6 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
 
   AL_TBuffer* pSrc = (AL_TBuffer*)(uintptr_t)pPicStatus->SrcHandle;
 
-#if AL_ENABLE_TWOPASS
 
   if(pCtx->Settings.LookAhead > 0 || pCtx->Settings.TwoPass == 1)
   {
@@ -873,7 +865,6 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
       pPictureMetaLA->iPercentSkip = pPicStatus->iPercentSkip;
     }
   }
-#endif
 
   pCtx->tLayerCtx[iLayerID].callback.func(pCtx->tLayerCtx[iLayerID].callback.userParam, pStream, pSrc, iLayerID);
 

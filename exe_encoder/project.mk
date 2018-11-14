@@ -23,18 +23,23 @@ EXE_ENCODER_SRCS:=\
   $(LIB_CONV_SRC)\
   $(LIB_APP_SRC)\
 
+ifneq ($(ENABLE_BYPASS),0)
+endif
+
 ifneq ($(ENABLE_TWOPASS),0)
   EXE_ENCODER_SRCS+=$(THIS_EXE_ENCODER)/TwoPassMngr.cpp
 endif
 
 -include $(THIS_EXE_ENCODER)/site.mk
 
+ifneq ($(ENABLE_UNITTESTS),0)
 UNITTEST+=$(shell find $(THIS_EXE_ENCODER)/unittests -name "*.cpp")
 UNITTEST+=$(THIS_EXE_ENCODER)/ROIMngr.cpp
 UNITTEST+=$(THIS_EXE_ENCODER)/FileUtils.cpp
 UNITTEST+=$(THIS_EXE_ENCODER)/QPGenerator.cpp
 UNITTEST+=$(THIS_EXE_ENCODER)/EncCmdMngr.cpp
 UNITTEST+=$(PARSER_SRCS)
+endif
 
 EXE_ENCODER_OBJ:=$(EXE_ENCODER_SRCS:%=$(BIN)/%.o)
 
@@ -84,4 +89,9 @@ $(BIN)/AL_CfgParser.exe: $(EXE_CFG_PARSER_OBJ) $(LIB_ENCODER_A)
 
 TARGETS+=$(BIN)/AL_CfgParser.exe
 
+exe_encoder_src: $(EXE_ENCODER_SRCS) $(EXE_CFG_PARSER_SRCS)
+	@echo $(EXE_ENCODER_SRCS) $(EXE_CFG_PARSER_SRCS)
+
 $(BIN)/$(THIS_EXE_ENCODER)/unittests/commandsparser.cpp.o: CFLAGS+=-Wno-missing-field-initializers
+
+.PHONY: exe_encoder_src

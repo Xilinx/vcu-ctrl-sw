@@ -44,8 +44,24 @@
 
 #include "lib_common/BufferMeta.h"
 #include "lib_common/FourCC.h"
-#include "lib_common/OffsetYC.h"
-#include "lib_common/Pitches.h"
+
+/*************************************************************************//*!
+   \brief Plane parameters
+*****************************************************************************/
+typedef struct AL_t_Plane
+{
+  int iOffset; /*!< Offset of the plane from beginning of the buffer (in bytes) */
+  int iPitch; /*!< Pitch of the plane (in bytes) */
+}AL_TPlane;
+
+typedef enum AL_e_PlaneId
+{
+  AL_PLANE_Y,
+  AL_PLANE_UV,
+  AL_PLANE_MAP_Y,
+  AL_PLANE_MAP_UV,
+  AL_PLANE_MAX_ENUM, /* sentinel */
+}AL_EPlaneId;
 
 /*************************************************************************//*!
    \brief Useful information related to the framebuffer containing the picture
@@ -54,23 +70,24 @@ typedef struct AL_t_SrcMetaData
 {
   AL_TMetaData tMeta;
   AL_TDimension tDim; /*!< Dimension in pixel of the frame */
-  AL_TPitches tPitches; /*!< Luma & chroma pitches size */
-  AL_TOffsetYC tOffsetYC; /*!< Luma & chroma offset addresses */
+  AL_TPlane tPlanes[AL_PLANE_MAX_ENUM]; /*! < Array of color planes parameters */
   TFourCC tFourCC; /*!< FOURCC identifier */
 }AL_TSrcMetaData;
 
 /*************************************************************************//*!
    \brief Create a source metadata.
    \param[in] tDim Dimension of the the picture (width and height in pixels)
-   \param[in] tPitches Luma and chroma pitches in bytes
-   \param[in] tOffsetYC Offset to the beginning of the luma and of the chroma in bytes
+   \param[in] tYPlane Array of luma plane parameters (offset and pitch in bytes)
+   \param[in] tUVPlane Array of chroma plane parameters (offset and pitch in bytes)
    \param[in] tFourCC FourCC of the framebuffer
    \return Returns NULL in case of allocation failure. Returns a pointer
    to the metadata in case of success.
 *****************************************************************************/
-AL_TSrcMetaData* AL_SrcMetaData_Create(AL_TDimension tDim, AL_TPitches tPitches, AL_TOffsetYC tOffsetYC, TFourCC tFourCC);
+AL_TSrcMetaData* AL_SrcMetaData_Create(AL_TDimension tDim, AL_TPlane tYPlane, AL_TPlane tUVPlane, TFourCC tFourCC);
+void AL_SrcMetaData_AddPlane(AL_TSrcMetaData* pMeta, AL_TPlane tPlane, AL_EPlaneId ePlaneId);
 AL_TSrcMetaData* AL_SrcMetaData_Clone(AL_TSrcMetaData* pMeta);
-int AL_SrcMetaData_GetOffsetC(AL_TSrcMetaData* pMeta);
+int AL_SrcMetaData_GetOffsetY(AL_TSrcMetaData* pMeta);
+int AL_SrcMetaData_GetOffsetUV(AL_TSrcMetaData* pMeta);
 
 /*************************************************************************//*!
    \brief Get the size of the luma inside the picture

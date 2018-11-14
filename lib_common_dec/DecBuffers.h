@@ -163,6 +163,14 @@ int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_
 *****************************************************************************/
 int AL_GetAllocSize_DecReference(AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode, AL_EFbStorageMode eFrameBufferStorageMode);
 
+/*************************************************************************//*!
+   \brief Create the AL_TMetaData associated to the reconstruct buffers
+   \param[in] tDim Frame dimension (width, height) in pixel
+   \param[in] tFourCC FourCC of the frame buffer
+   \param[in] iPitch Pitch of the frame buffer
+   \return the AL_TMetaData
+*****************************************************************************/
+AL_TMetaData* AL_CreateRecBufMetaData(AL_TDimension tDim, int iPitch, TFourCC tFourCC);
 
 /*@}*/
 

@@ -73,6 +73,8 @@ struct BuildInfoDisplay
     if(strcmp(compilationFlags, ""))
       Message(CC_DEFAULT, "\nUsing compilation options:\n%s\n", compilationFlags);
 #endif
+
+    Message(CC_DEFAULT, "\nUsing allegro library version: %d.%d.%d\n", AL_VERSION_MAJOR, AL_VERSION_MINOR, AL_VERSION_STEP);
   }
 
   char const* svnRevision;

@@ -104,10 +104,8 @@ AL_INTROSPECT(category = "debug") struct ConfigFile
 
 
 
-#if AL_ENABLE_TWOPASS
   // \brief Name of the file that reads/writes video statistics for TwoPassMode
   std::string sTwoPassFileName;
-#endif
 
   // \brief Information relative to YUV input file (from section INPUT)
   TYUVFileInfo FileInfo;

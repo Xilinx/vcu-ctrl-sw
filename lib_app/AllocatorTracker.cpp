@@ -41,8 +41,7 @@
 #include <string>
 #include <map>
 #include <vector>
-
-#include <assert.h>
+#include <cassert>
 
 using namespace std;
 

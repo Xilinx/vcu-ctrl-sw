@@ -102,9 +102,7 @@ typedef struct AL_t_PictureInfo
   AL_EGdrMode eGdrMode; /*!< Gradual Refresh Mode */
 
 
-#if AL_ENABLE_TWOPASS
   AL_TLookAheadParam tLAParam;
-#endif
 }AL_TPictureInfo;
 
 /*@}*/

@@ -45,7 +45,7 @@ static bool SrcMeta_Destroy(AL_TMetaData* pMeta)
   return true;
 }
 
-AL_TSrcMetaData* AL_SrcMetaData_Create(AL_TDimension tDim, AL_TPitches tPitches, AL_TOffsetYC tOffsetYC, TFourCC tFourCC)
+AL_TSrcMetaData* AL_SrcMetaData_Create(AL_TDimension tDim, AL_TPlane tYPlane, AL_TPlane tUVPlane, TFourCC tFourCC)
 {
   AL_TSrcMetaData* pMeta = Rtos_Malloc(sizeof(*pMeta));
 
@@ -55,38 +55,55 @@ AL_TSrcMetaData* AL_SrcMetaData_Create(AL_TDimension tDim, AL_TPitches tPitches,
   pMeta->tMeta.eType = AL_META_TYPE_SOURCE;
   pMeta->tMeta.MetaDestroy = SrcMeta_Destroy;
 
-  pMeta->tDim.iWidth = tDim.iWidth;
-  pMeta->tDim.iHeight = tDim.iHeight;
+  pMeta->tDim = tDim;
 
-  pMeta->tPitches.iLuma = tPitches.iLuma;
-  pMeta->tPitches.iChroma = tPitches.iChroma;
+  pMeta->tPlanes[AL_PLANE_Y] = tYPlane;
+  pMeta->tPlanes[AL_PLANE_UV] = tUVPlane;
 
-  pMeta->tOffsetYC.iLuma = tOffsetYC.iLuma;
-  pMeta->tOffsetYC.iChroma = tOffsetYC.iChroma;
+  AL_TPlane tEmptyPlane = { 0, 0 };
+
+  for(int iId = AL_PLANE_MAP_Y; iId < AL_PLANE_MAX_ENUM; ++iId)
+    pMeta->tPlanes[iId] = tEmptyPlane;
 
   pMeta->tFourCC = tFourCC;
 
   return pMeta;
 }
 
-AL_TSrcMetaData* AL_SrcMetaData_Clone(AL_TSrcMetaData* pMeta)
+void AL_SrcMetaData_AddPlane(AL_TSrcMetaData* pMeta, AL_TPlane tPlane, AL_EPlaneId ePlaneId)
 {
-  return AL_SrcMetaData_Create(pMeta->tDim, pMeta->tPitches, pMeta->tOffsetYC, pMeta->tFourCC);
+  pMeta->tPlanes[ePlaneId] = tPlane;
 }
 
-int AL_SrcMetaData_GetOffsetC(AL_TSrcMetaData* pMeta)
+AL_TSrcMetaData* AL_SrcMetaData_Clone(AL_TSrcMetaData* pMeta)
 {
-  assert(pMeta->tPitches.iLuma * pMeta->tDim.iHeight <= pMeta->tOffsetYC.iChroma ||
+  AL_TSrcMetaData* pClone = AL_SrcMetaData_Create(pMeta->tDim, pMeta->tPlanes[AL_PLANE_Y], pMeta->tPlanes[AL_PLANE_UV], pMeta->tFourCC);
+
+  for(int iId = AL_PLANE_MAP_Y; iId < AL_PLANE_MAX_ENUM; ++iId)
+    AL_SrcMetaData_AddPlane(pClone, pMeta->tPlanes[iId], iId);
+
+  return pClone;
+}
+
+int AL_SrcMetaData_GetOffsetY(AL_TSrcMetaData* pMeta)
+{
+  assert(pMeta->tPlanes[AL_PLANE_Y].iOffset <= pMeta->tPlanes[AL_PLANE_UV].iOffset);
+  return pMeta->tPlanes[AL_PLANE_Y].iOffset;
+}
+
+int AL_SrcMetaData_GetOffsetUV(AL_TSrcMetaData* pMeta)
+{
+  assert(pMeta->tPlanes[AL_PLANE_Y].iPitch * pMeta->tDim.iHeight <= pMeta->tPlanes[AL_PLANE_UV].iOffset ||
          (AL_IsTiled(pMeta->tFourCC) &&
-          (pMeta->tPitches.iLuma * pMeta->tDim.iHeight / 4 <= pMeta->tOffsetYC.iChroma)));
-  return pMeta->tOffsetYC.iChroma;
+          (pMeta->tPlanes[AL_PLANE_Y].iPitch * pMeta->tDim.iHeight / 4 <= pMeta->tPlanes[AL_PLANE_UV].iOffset)));
+  return pMeta->tPlanes[AL_PLANE_UV].iOffset;
 }
 
 int AL_SrcMetaData_GetLumaSize(AL_TSrcMetaData* pMeta)
 {
   if(AL_IsTiled(pMeta->tFourCC))
-    return pMeta->tPitches.iLuma * pMeta->tDim.iHeight / 4;
-  return pMeta->tPitches.iLuma * pMeta->tDim.iHeight;
+    return pMeta->tPlanes[AL_PLANE_Y].iPitch * pMeta->tDim.iHeight / 4;
+  return pMeta->tPlanes[AL_PLANE_Y].iPitch * pMeta->tDim.iHeight;
 }
 
 int AL_SrcMetaData_GetChromaSize(AL_TSrcMetaData* pMeta)
@@ -99,7 +116,7 @@ int AL_SrcMetaData_GetChromaSize(AL_TSrcMetaData* pMeta)
   int const iHeightC = (eCMode == CHROMA_4_2_0) ? pMeta->tDim.iHeight / 2 : pMeta->tDim.iHeight;
 
   if(AL_IsTiled(pMeta->tFourCC))
-    return pMeta->tPitches.iChroma * iHeightC / 4;
-  return pMeta->tPitches.iChroma * iHeightC * 2;
+    return pMeta->tPlanes[AL_PLANE_UV].iPitch * iHeightC / 4;
+  return pMeta->tPlanes[AL_PLANE_UV].iPitch * iHeightC * 2;
 }
 

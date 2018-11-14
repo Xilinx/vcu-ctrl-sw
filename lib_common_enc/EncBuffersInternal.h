@@ -84,6 +84,12 @@ static const AL_TBufInfo EP3_BUF_RC_LVL =
 uint32_t AL_GetAllocSizeEP1();
 
 /*************************************************************************//*!
+   \brief  Retrieves the size of a Encoder parameters buffer 3 (HW RateCtrl) for one core
+   \return maximum size (in bytes) needed to store
+*****************************************************************************/
+uint32_t AL_GetAllocSizeEP3PerCore();
+
+/*************************************************************************//*!
    \brief  Retrieves the size of a Encoder parameters buffer 3 (HW RateCtrl)
    \return maximum size (in bytes) needed to store
 *****************************************************************************/
@@ -97,10 +103,6 @@ static const size_t MVBUFF_LONG_TERM_OFFSET = 128; // Long term flag List
 static const size_t MVBUFF_USED_POC = 132; // Used POCs
 static const size_t MVBUFF_MV_OFFSET = 256; // Motion Vectors
 
-/****************************************************************************/
-
-typedef TBufferYuv TBufferSrc;
-
 /*************************************************************************//*!
    \brief Retrieves the size of a Reference YUV frame buffer
    \param[in] tDim Frame dimensions
@@ -109,7 +111,7 @@ typedef TBufferYuv TBufferSrc;
    \param[in] eEncOption Encoding option flags
    \return maximum size (in bytes) needed for the YUV frame buffer
 *****************************************************************************/
-uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_EChEncOption eEncOption);
+uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bComp);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a compressed buffer(LCU header + MVDs + Residuals)

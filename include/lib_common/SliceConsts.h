@@ -63,12 +63,23 @@
 #define HEVC_PROFILE_IDC_RExt 4
 
 
+/****************************************************************************/
+typedef enum AL_e_Codec
+{
+  AL_CODEC_AVC,
+  AL_CODEC_HEVC,
+  AL_CODEC_JPEG,
+  AL_CODEC_VP9,
+  AL_CODEC_AV1,
+  AL_CODEC_INVALID, /* sentinel */
+}AL_ECodec;
+
 /*************************************************************************//*!
    \brief Profiles identifier
 *****************************************************************************/
 typedef enum __AL_ALIGNED__ (4) AL_e_Profile
 {
-  AL_PROFILE_AVC = 0x01000000,
+  AL_PROFILE_AVC = (AL_CODEC_AVC << 24),
   AL_PROFILE_AVC_CAVLC_444 = AL_PROFILE_AVC | AVC_PROFILE_IDC_CAVLC_444, // not supported
   AL_PROFILE_AVC_BASELINE = AL_PROFILE_AVC | AVC_PROFILE_IDC_BASELINE,
   AL_PROFILE_AVC_MAIN = AL_PROFILE_AVC | AVC_PROFILE_IDC_MAIN,
@@ -85,7 +96,7 @@ typedef enum __AL_ALIGNED__ (4) AL_e_Profile
   AL_PROFILE_AVC_HIGH_422_INTRA = AL_PROFILE_AVC_HIGH_422 | AL_CS_FLAGS(0x0008),
   AL_PROFILE_AVC_HIGH_444_INTRA = AL_PROFILE_AVC_HIGH_444_PRED | AL_CS_FLAGS(0x0008), // not supported
 
-  AL_PROFILE_HEVC = 0x02000000,
+  AL_PROFILE_HEVC = (AL_CODEC_HEVC << 24),
   AL_PROFILE_HEVC_MAIN = AL_PROFILE_HEVC | HEVC_PROFILE_IDC_MAIN,
   AL_PROFILE_HEVC_MAIN10 = AL_PROFILE_HEVC | HEVC_PROFILE_IDC_MAIN10,
   AL_PROFILE_HEVC_MAIN_STILL = AL_PROFILE_HEVC | HEVC_PROFILE_IDC_MAIN_STILL,
@@ -118,14 +129,14 @@ typedef enum __AL_ALIGNED__ (4) AL_e_Profile
 } AL_EProfile;
 
 /****************************************************************************/
-#define AL_GET_PROFILE_CODEC(Prof) (Prof & 0xFF000000)
+#define AL_GET_PROFILE_CODEC(Prof) ((Prof & 0xFF000000) >> 24)
 #define AL_GET_PROFILE_IDC(Prof) (Prof & 0x000000FF)
 #define AL_GET_PROFILE_CODED_AND_IDC(Prof) (Prof & 0xFF0000FF)
 #define AL_GET_RExt_FLAGS(Prof) ((Prof & 0x00FFFF00) >> 8)
 #define AL_GET_CS_FLAGS(Prof) ((Prof & 0x00FFFF00) >> 8)
 /****************************************************************************/
-#define AL_IS_AVC(Prof) (AL_GET_PROFILE_CODEC(Prof) == AL_PROFILE_AVC)
-#define AL_IS_HEVC(Prof) (AL_GET_PROFILE_CODEC(Prof) == AL_PROFILE_HEVC)
+#define AL_IS_AVC(Prof) (AL_GET_PROFILE_CODEC(Prof) == AL_CODEC_AVC)
+#define AL_IS_HEVC(Prof) (AL_GET_PROFILE_CODEC(Prof) == AL_CODEC_HEVC)
 
 /****************************************************************************/
 static AL_INLINE bool AL_IS_MONO_PROFILE(AL_EProfile eProf)
@@ -200,17 +211,6 @@ static AL_INLINE bool AL_IS_LOW_BITRATE_PROFILE(AL_EProfile eProf)
     );
   return bRes;
 }
-
-/****************************************************************************/
-typedef enum AL_e_Codec
-{
-  AL_CODEC_AVC,
-  AL_CODEC_HEVC,
-  AL_CODEC_JPEG,
-  AL_CODEC_VP9,
-  AL_CODEC_AV1,
-  AL_CODEC_INVALID, /* sentinel */
-}AL_ECodec;
 
 /*************************************************************************//*!
    \brief Scaling List identifier

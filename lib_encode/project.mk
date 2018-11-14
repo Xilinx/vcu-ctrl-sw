@@ -18,16 +18,34 @@ LIB_ENCODE_SRC+=\
 	lib_encode/lib_encoder.c\
 	lib_encode/SourceBufferChecker.c\
 	lib_encode/LoadLda.c\
-	lib_encode/JpegTables.c\
+
+ifneq ($(ENABLE_AOM),0)
+endif
+
+ifneq ($(ENABLE_AV1),0)
+endif
+
+ifneq ($(ENABLE_JPEG),0)
+  LIB_ENCODE_SRC+=lib_encode/JpegTables.c
+endif
+
+ifneq ($(ENABLE_RESIZE),0)
+endif
 
 LIB_ISCHEDULER_ENC_A=$(BIN)/liballegro_encscheduler.a
 LIB_ISCHEDULER_ENC_DLL=$(BIN)/liballegro_encscheduler.so
 
 ISCHEDULER_SRC:=\
-	lib_encode/DriverDataConversions.c\
 	lib_encode/ISchedulerCommon.c\
 	lib_encode/IScheduler.c\
-	lib_encode/SchedulerMcu.c\
+
+ifneq ($(ENABLE_BYPASS),0)
+endif
+
+ifneq ($(ENABLE_MCU),0)
+  ISCHEDULER_SRC+=lib_encode/DriverDataConversions.c
+  ISCHEDULER_SRC+=lib_encode/SchedulerMcu.c
+endif
 
 LIB_ISCHEDULER_ENC_SRC:=\
   $(ISCHEDULER_SRC)\
@@ -59,8 +77,7 @@ LIB_ENCODER_SRC:=\
 
 
 ifneq ($(ENABLE_TRACES),0)
-  LIB_ENCODER_SRC+=\
-    $(LIB_TRACE_SRC_ENC)
+  LIB_ENCODER_SRC+=$(LIB_TRACE_SRC_ENC)
 endif
 
 ifneq ($(ENABLE_STATIC),0)
@@ -69,9 +86,9 @@ ifneq ($(ENABLE_STATIC),0)
 endif
 
 ifneq ($(ENABLE_LIB_ISCHEDULER),0)
-	LIB_ENCODER_OBJ+=$(LIB_ISCHEDULER_ENC_DLL)
+  LIB_ENCODER_OBJ+=$(LIB_ISCHEDULER_ENC_DLL)
 else
-	LIB_ENCODER_OBJ+=$(LIB_ISCHEDULER_ENC_OBJ)
+  LIB_ENCODER_SRC+=$(LIB_ISCHEDULER_ENC_SRC)
 endif
 
 LIB_ENCODER_OBJ+=$(LIB_ENCODER_SRC:%=$(BIN)/%.o)
@@ -88,6 +105,7 @@ liballegro_encode_a: $(LIB_ENCODER_A)
 
 TARGETS+=liballegro_encode_dll
 
+ifneq ($(ENABLE_UNITTESTS),0)
 UNITTEST+=$(shell find lib_encode/unittests -name "*.cpp")
 UNITTEST+=$(LIB_ENCODE_SRC)
 UNITTEST+=$(ISCHEDULER_SRC)
@@ -98,5 +116,9 @@ UNITTEST+=$(LIB_BITSTREAM_SRC)
 UNITTEST+=$(LIB_COMMON_ENC_SRC)
 UNITTEST+=$(LIB_RATECTRL_SRC)
 UNITTEST+=$(LIB_TRACE_SRC_ENC)
+endif
 
-.PHONY: liballegro_encode liballegro_encode_dll liballegro_encode_a
+liballegro_encode_src: $(LIB_ENCODER_SRC)
+	@echo $(LIB_ENCODER_SRC)
+
+.PHONY: liballegro_encode liballegro_encode_dll liballegro_encode_a liballegro_encoder_src

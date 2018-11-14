@@ -53,9 +53,7 @@ typedef enum
   AL_META_TYPE_STREAM, /*< useful section of the buffer containing the bitstream */
   AL_META_TYPE_CIRCULAR, /*< circular buffer implementation inside the buffer */
   AL_META_TYPE_PICTURE, /*< useful information about the bitstream choices for the frame */
-#if AL_ENABLE_TWOPASS
   AL_META_TYPE_LOOKAHEAD, /*< useful information about the frame for the lookahead*/
-#endif
   AL_META_TYPE_MAX, /* sentinel */
   AL_META_TYPE_EXTENDED = 0x7F000000 /*< user can define their own metadatas after this value. */
 }AL_EMetaType;

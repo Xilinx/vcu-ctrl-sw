@@ -151,7 +151,6 @@ bool AL_HEVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecPicParam* pPP, AL
 /*************************************************************************/
 void AL_HEVC_PictMngr_ClearDPB(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, bool bClearRef, bool bNoOutputPrior)
 {
-  uint8_t uNode;
   AL_TDpb* pDpb = &pCtx->DPB;
 
   // pre decoding output process
@@ -163,7 +162,7 @@ void AL_HEVC_PictMngr_ClearDPB(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, bool bC
   }
 
   AL_Dpb_HEVC_Cleanup(pDpb, pSPS->SpsMaxLatency, pSPS->sps_num_reorder_pics[pSPS->sps_max_sub_layers_minus1]);
-  uNode = AL_Dpb_GetHeadPOC(pDpb);
+  uint8_t uNode = AL_Dpb_GetHeadPOC(pDpb);
 
   while(uNode != uEndOfList && AL_Dpb_GetPicCount(pDpb) >= (pSPS->sps_max_dec_pic_buffering_minus1[pSPS->sps_max_sub_layers_minus1] + 1))
   {
@@ -245,13 +244,12 @@ void AL_HEVC_PictMngr_RemoveHeadFrame(AL_TPictMngrCtx* pCtx)
 /*************************************************************************/
 void AL_HEVC_PictMngr_EndFrame(AL_TPictMngrCtx* pCtx, uint32_t uPocLsb, AL_ENut eNUT, AL_THevcSliceHdr* pSlice, uint8_t pic_output_flag)
 {
-  uint8_t uNode;
   AL_TDpb* pDpb = &pCtx->DPB;
 
   AL_HEVC_PictMngr_RemoveHeadFrame(pCtx);
 
   // post decoding output process
-  uNode = AL_Dpb_GetHeadPOC(pDpb);
+  uint8_t uNode = AL_Dpb_GetHeadPOC(pDpb);
 
   if(pic_output_flag)
   {
@@ -273,9 +271,8 @@ void AL_HEVC_PictMngr_EndFrame(AL_TPictMngrCtx* pCtx, uint32_t uPocLsb, AL_ENut 
 *****************************************************************************/
 void AL_HEVC_PictMngr_InitRefPictSet(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pSlice)
 {
-  uint8_t CurrDeltaPocMsbPresentFlag[16];
-  uint8_t FollDeltaPocMsbPresentFlag[16];
-  uint8_t uNode;
+  uint8_t CurrDeltaPocMsbPresentFlag[16] = { 0 };
+  uint8_t FollDeltaPocMsbPresentFlag[16] = { 0 };
   AL_TDpb* pDpb = &pCtx->DPB;
 
   // Fill the five lists of picture order count values
@@ -358,7 +355,7 @@ void AL_HEVC_PictMngr_InitRefPictSet(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pS
     pCtx->RefPicSetStFoll[i] = AL_Dpb_SearchPOC(&pCtx->DPB, pCtx->PocStFoll[i]);
 
   // reset picture marking on all the picture in the dbp
-  uNode = AL_Dpb_GetHeadPOC(&pCtx->DPB);
+  uint8_t uNode = AL_Dpb_GetHeadPOC(&pCtx->DPB);
 
   while(uNode != uEndOfList)
   {

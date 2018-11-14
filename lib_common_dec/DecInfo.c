@@ -54,6 +54,7 @@ bool AL_NeedsCropping(AL_TCropInfo const* pInfo)
   return false;
 }
 
+/******************************************************************************/
 int AVC_GetMinOutputBuffersNeeded(int iDpbMaxBuf, int iStack)
 {
   int const iRecBuf = REC_BUF;
@@ -68,7 +69,6 @@ int AL_AVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iSt
   return AVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, iStack);
 }
 
-/******************************************************************************/
 int HEVC_GetMinOutputBuffersNeeded(int iDpbMaxBuf, int iStack)
 {
   int const iRecBuf = 0;

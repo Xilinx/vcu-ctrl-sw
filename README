@@ -23,7 +23,7 @@ $ make
 The resulting binaries will be available in the bin/ directory
 
 You can test it on a very simple configuration with the following command:
-$ ./bin/AL_Encoder.exe -cfg test/config/encode.simple.cfg
+$ ./bin/AL_Encoder.exe -cfg test/config/encode_example.cfg
 
 Libraries
 =========
@@ -33,7 +33,6 @@ customers       Allows to change build options like traces enabling (config.h)
 lib_app         misc C++ utilities.
 lib_cfg         C++ configuration file parsing.
 lib_conv_yuv    C++ yuvs conversion helpers for the encoder (use lib_app)
-lib_preprocess  QP table management
 
 lib_rtos        wrapper around OS synchronization primitives.
 lib_common      misc C utilities.

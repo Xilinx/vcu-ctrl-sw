@@ -101,7 +101,7 @@ static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecP
 
   AL_TSrcMetaData* pRecMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pRec, AL_META_TYPE_SOURCE);
   assert(pRecMeta);
-  uint16_t uPitch = pRecMeta->tPitches.iLuma;
+  uint16_t uPitch = pRecMeta->tPlanes[AL_PLANE_Y].iPitch;
 
   uint32_t const u10BitsFlag = (iMaxBitDepth == 8) ? 0x00000000 : 0x80000000;
   pBufs->uPitch = uPitch | u10BitsFlag;

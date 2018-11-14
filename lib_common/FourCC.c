@@ -92,7 +92,7 @@ static const TFourCCMapping FourCCMappings[] =
   , AL_FOURCC_MAPPING(FOURCC2('T', '5', 'm', 'A'), CHROMA_4_0_0, 10, AL_FB_TILE_32x4, AL_C_ORDER_NO_CHROMA, false, false)
 
 
-  // Xilinx 10b packed
+  // 10b packed
   , AL_FOURCC_MAPPING(FOURCC2('X', 'V', '1', '0'), CHROMA_4_0_0, 10, AL_FB_RASTER, AL_C_ORDER_NO_CHROMA, false, true)
   , AL_FOURCC_MAPPING(FOURCC2('X', 'V', '1', '5'), CHROMA_4_2_0, 10, AL_FB_RASTER, AL_C_ORDER_SEMIPLANAR, false, true)
   , AL_FOURCC_MAPPING(FOURCC2('X', 'V', '2', '0'), CHROMA_4_2_2, 10, AL_FB_RASTER, AL_C_ORDER_SEMIPLANAR, false, true)

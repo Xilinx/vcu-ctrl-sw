@@ -35,7 +35,7 @@
 *
 ******************************************************************************/
 
-#include <assert.h>
+#include <cassert>
 extern "C"
 {
 #include "lib_rtos/lib_rtos.h"

@@ -35,7 +35,6 @@
 *
 ******************************************************************************/
 
-#if AL_ENABLE_TWOPASS
 /**************************************************************************//*!
    \addtogroup Buffers
    @{
@@ -48,7 +47,7 @@
 #include "lib_common/SliceConsts.h"
 
 /*************************************************************************//*!
-   \brief Structure used in LookAhead, to transmits frame
+   \brief Structure used in LookAhead and Twopass, to transmits frame
     informations between the two pass
 *****************************************************************************/
 typedef struct AL_t_LookAheadMetaData
@@ -60,6 +59,7 @@ typedef struct AL_t_LookAheadMetaData
   bool bNextSceneChange;  /*< if next frame is a scene change  */
   int32_t iIPRatio;       /*< current frame IPRatio for scene change*/
   int32_t iComplexity;    /*< current frame complexity */
+  int32_t iTargetLevel;   /*< current frame target CPB level */
 }AL_TLookAheadMetaData;
 
 /*************************************************************************//*!
@@ -72,5 +72,4 @@ void AL_LookAheadMetaData_Copy(AL_TLookAheadMetaData* pMetaSrc, AL_TLookAheadMet
 void AL_LookAheadMetaData_Reset(AL_TLookAheadMetaData* pMeta);
 
 /*@}*/
-#endif
 

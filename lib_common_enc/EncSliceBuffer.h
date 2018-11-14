@@ -39,6 +39,7 @@
 
 #include "lib_common/BufCommonInternal.h"
 #include "lib_common_enc/EncRecBuffer.h"
+#include "lib_common/BufferAPI.h"
 #include "EncEPBuffer.h"
 
 /*************************************************************************//*!
@@ -46,7 +47,7 @@
 *****************************************************************************/
 typedef struct t_SliceBuffersEnc
 {
-  TBufferYuv Src; /*!< Pointer to Source frame buffer. */
+  AL_TBuffer* pSrc; /*!< Pointer to Source frame buffer. */
   TBufferRec RefA; /*!< Pointer to frame buffer used as first reference picture.
                       (Required only for P Slice encoding; Can be set to
                       NULL for I Slice encoding) */
@@ -63,7 +64,8 @@ typedef struct t_SliceBuffersEnc
   TBuffer* pWPP; /*!< Pointer to Wavefront size buffer */
   TBufferEP* pEP1; /*!< Pointer to the lambdas & SclMtx buffer */
   TBufferEP* pEP2; /*!< Pointer to the QP table buffer */
-  TBufferEP* pEP3; /*!< Pointer to the HwRcCtx buffer */
+
+  TBufferEP Hwrc[AL_ENC_NUM_CORES]; /*!< Pointer to the HwRcCtx buffers for each core */
 
 
   TCircBuffer Stream;

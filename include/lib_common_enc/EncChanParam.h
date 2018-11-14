@@ -183,10 +183,33 @@ static inline void AL_SET_SPS_LOG2_NUM_LONG_TERM_RPS(uint32_t* pHlsParam, int iL
 #define AL_GET_PPS_CABAC_INIT_PRES_FLAG(HlsParam) (((HlsParam) & AL_PPS_CABAC_INIT_PRES_FLAG) >> 1)
 #define AL_GET_PPS_DBF_OVR_EN_FLAG(HlsParam) (((HlsParam) & AL_PPS_DBF_OVR_EN_FLAG) >> 2)
 #define AL_GET_PPS_SLICE_SEG_EN_FLAG(HlsParam) (((HlsParam) & AL_PPS_SLICE_SEG_EN_FLAG) >> 3)
-#define AL_GET_PPS_NUM_ACT_REF_L0(HlsParam) (((HlsParam) & AL_PPS_NUM_ACT_REF_L0) >> 4)
-#define AL_GET_PPS_NUM_ACT_REF_L1(HlsParam) (((HlsParam) & AL_PPS_NUM_ACT_REF_L1) >> 8)
 #define AL_GET_PPS_OVERRIDE_LF(HlsParam) (((HlsParam) & AL_PPS_OVERRIDE_LF) >> 12)
 #define AL_GET_PPS_DISABLE_LF(HlsParam) (((HlsParam) & AL_PPS_DISABLE_LF) >> 13)
+
+static inline uint32_t AL_GET_PPS_NUM_ACT_REF_L0(uint32_t HlsParam)
+{
+  uint32_t uNumRefL0Minus1 = (HlsParam & AL_PPS_NUM_ACT_REF_L0) >> 4;
+
+  if(uNumRefL0Minus1 > 0)
+    --uNumRefL0Minus1;
+  return uNumRefL0Minus1;
+}
+
+static inline uint32_t AL_GET_PPS_NUM_ACT_REF_L1(uint32_t HlsParam)
+{
+  uint32_t uNumRefL1Minus1 = (HlsParam & AL_PPS_NUM_ACT_REF_L1) >> 8;
+
+  if(uNumRefL1Minus1 > 0)
+    --uNumRefL1Minus1;
+  return uNumRefL1Minus1;
+}
+
+static inline uint32_t AL_GetNumberOfRef(uint32_t HlsParam)
+{
+  /* this takes advantage of the fact that the number of L0 ref is always
+   * bigger than the number of L1 refs */
+  return (HlsParam & AL_PPS_NUM_ACT_REF_L0) >> 4;
+}
 
 #define AL_SET_PPS_NUM_ACT_REF_L0(HlsParam, Num) (HlsParam) = ((HlsParam) & ~AL_PPS_NUM_ACT_REF_L0) | ((Num) << 4)
 #define AL_SET_PPS_NUM_ACT_REF_L1(HlsParam, Num) (HlsParam) = ((HlsParam) & ~AL_PPS_NUM_ACT_REF_L1) | ((Num) << 8)
@@ -241,6 +264,8 @@ typedef enum __AL_ALIGNED__ (4) AL_e_RateCtrlOption
 {
   AL_RC_OPT_NONE = 0x00000000,
   AL_RC_OPT_SCN_CHG_RES = 0x00000001,
+  AL_RC_OPT_DELAYED = 0x00000002,
+  AL_RC_OPT_STATIC_SCENE = 0x00000004,
   AL_RC_OPT_MAX_ENUM,
 } AL_ERateCtrlOption;
 
@@ -267,7 +292,7 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_RCPara
   AL_ERateCtrlOption eOptions;
   uint32_t uNumPel;
   uint16_t uMaxPSNR;
-  uint8_t uMaxPelVal;
+  uint16_t uMaxPelVal;
   uint32_t uMaxPictureSize;
 } AL_TRCParam;
 
@@ -323,7 +348,6 @@ typedef AL_INTROSPECT (category = "debug") struct AL_t_GopParam
   AL_EGdrMode eGdrMode;
 }AL_TGopParam;
 
-#if AL_ENABLE_TWOPASS
 /*************************************************************************//*!
    \brief First Pass infos parameters
 *****************************************************************************/
@@ -332,8 +356,8 @@ typedef struct AL_t_LookAheadParam
   int32_t iSCPictureSize;
   int32_t iSCIPRatio;
   int16_t iComplexity;
+  int16_t iTargetLevel;
 }AL_TLookAheadParam;
-#endif
 
 /*************************************************************************//*!
    \brief Max burst size
@@ -450,8 +474,8 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
 
 } AL_TEncChanParam;
 
-#define AL_GetWidthInLCU(tChParam) (((tChParam).uWidth + (1 << (tChParam).uMaxCuSize) - 1) >> (tChParam).uMaxCuSize)
-#define AL_GetHeightInLCU(tChParam) (((tChParam).uHeight + (1 << (tChParam).uMaxCuSize) - 1) >> (tChParam).uMaxCuSize)
+#define AL_GetWidthInLCU(tChParam) (ROUND_UP_POWER_OF_TWO((tChParam).uWidth, (tChParam).uMaxCuSize))
+#define AL_GetHeightInLCU(tChParam) (ROUND_UP_POWER_OF_TWO((tChParam).uHeight, (tChParam).uMaxCuSize))
 
 #define AL_ENTCOMP(tChParam) false
 

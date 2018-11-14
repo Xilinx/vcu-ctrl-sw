@@ -79,5 +79,3 @@ bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, in
 *****************************************************************************/
 bool GenerateROIBuffer(AL_TRoiMngrCtx* pRoiCtx, std::string const& sRoiFileName, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, int iFrameID, uint8_t* pQPs);
 
-/****************************************************************************/
-

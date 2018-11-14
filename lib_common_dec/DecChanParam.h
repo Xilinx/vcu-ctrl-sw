@@ -62,6 +62,7 @@ typedef struct AL_t_DecChannelParam
   bool bParallelWPP;
   bool bDisableCache;
   bool bFrameBufferCompression;
+  bool bUseEarlyCallback; /*< LLP2: this only makes sense with special support for hw synchro */
   AL_EFbStorageMode eFBStorageMode;
   AL_ECodec eCodec;
   int32_t iMaxSlices;

@@ -39,9 +39,7 @@
 
 #include "lib_common/BufferSrcMeta.h"
 #include "lib_common/BufferStreamMeta.h"
-#if AL_ENABLE_TWOPASS
 #include "lib_common/BufferLookAheadMeta.h"
-#endif
 
 AL_TMetaData* AL_MetaData_Clone(AL_TMetaData* pMeta)
 {
@@ -51,10 +49,8 @@ AL_TMetaData* AL_MetaData_Clone(AL_TMetaData* pMeta)
     return (AL_TMetaData*)AL_SrcMetaData_Clone((AL_TSrcMetaData*)pMeta);
   case AL_META_TYPE_STREAM:
     return (AL_TMetaData*)AL_StreamMetaData_Clone((AL_TStreamMetaData*)pMeta);
-#if AL_ENABLE_TWOPASS
   case AL_META_TYPE_LOOKAHEAD:
     return (AL_TMetaData*)AL_LookAheadMetaData_Clone((AL_TLookAheadMetaData*)pMeta);
-#endif
   default:
     return NULL;
   }

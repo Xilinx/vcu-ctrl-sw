@@ -36,8 +36,8 @@
 ******************************************************************************/
 
 #include "MD5.h"
-#include "string.h"
-#include <assert.h>
+#include <cstring>
+#include <cassert>
 
 // mix functions for processBlock()
 inline uint32_t F(uint32_t X, uint32_t Y, uint32_t Z)

@@ -46,6 +46,7 @@
 #include <assert.h>
 #include "lib_common_dec/DecBuffers.h"
 #include "lib_common/Utils.h"
+#include "lib_common/BufferSrcMeta.h"
 
 
 #include "lib_common/StreamBuffer.h"
@@ -157,6 +158,17 @@ int AL_GetAllocSize_DecReference(AL_TDimension tDim, int iPitch, AL_EChromaMode 
 }
 
 /*****************************************************************************/
+/*****************************************************************************/
+AL_TMetaData* AL_CreateRecBufMetaData(AL_TDimension tDim, int iMinPitch, TFourCC tFourCC)
+{
+  AL_EFbStorageMode eStorageMode = AL_GetStorageMode(tFourCC);
+  AL_TPlane tPlaneY = { 0, iMinPitch };
+  int iOffsetC = AL_GetAllocSize_DecReference(tDim, iMinPitch, CHROMA_MONO, eStorageMode);
+  AL_TPlane tPlaneUV = { iOffsetC, iMinPitch };
+  AL_TSrcMetaData* pSrcMeta = AL_SrcMetaData_Create(tDim, tPlaneY, tPlaneUV, tFourCC);
+
+  return (AL_TMetaData*)pSrcMeta;
+}
 
 /*!@}*/
 

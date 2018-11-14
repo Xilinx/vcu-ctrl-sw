@@ -35,7 +35,6 @@
 *
 ******************************************************************************/
 
-#if AL_ENABLE_TWOPASS
 #include "lib_common/BufferLookAheadMeta.h"
 #include "lib_rtos/lib_rtos.h"
 #include <assert.h>
@@ -88,6 +87,7 @@ void AL_LookAheadMetaData_Copy(AL_TLookAheadMetaData* pMetaSrc, AL_TLookAheadMet
   pMetaDest->iIPRatio = pMetaSrc->iIPRatio;
   pMetaDest->iPercentSkip = pMetaSrc->iPercentSkip;
   pMetaDest->iComplexity = pMetaSrc->iComplexity;
+  pMetaDest->iTargetLevel = pMetaSrc->iTargetLevel;
 }
 
 void AL_LookAheadMetaData_Reset(AL_TLookAheadMetaData* pMeta)
@@ -98,7 +98,7 @@ void AL_LookAheadMetaData_Reset(AL_TLookAheadMetaData* pMeta)
   pMeta->iIPRatio = 1000;
   pMeta->iPercentSkip = -1;
   pMeta->iComplexity = 1000;
+  pMeta->iTargetLevel = -1;
 }
 
-#endif
 

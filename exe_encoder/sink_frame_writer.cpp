@@ -217,11 +217,9 @@ private:
 
 unique_ptr<IFrameSink> createFrameWriter(string path, ConfigFile& cfg_, AL_TBuffer* Yuv_, int iLayerID_)
 {
-#if AL_ENABLE_TWOPASS
 
   if(cfg_.Settings.TwoPass == 1)
     return unique_ptr<IFrameSink>(new NullFrameSink);
-#endif
 
   return unique_ptr<IFrameSink>(new FrameWriter(path, cfg_, Yuv_, iLayerID_));
 }

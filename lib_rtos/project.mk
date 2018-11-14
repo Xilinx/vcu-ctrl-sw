@@ -30,8 +30,10 @@ lib_rtos_a: $(LIB_RTOS_A)
 
 lib_rtos_dll: $(LIB_RTOS_DLL)
 
+ifneq ($(ENABLE_UNITTESTS),0)
 UNITTEST+=$(shell find lib_rtos/unittests -name "*.cpp")
 UNITTEST+=$(LIB_RTOS_SRC)
+endif
 
 .PHONY: lib_rtos lib_rtos_dll lib_rtos_a
 

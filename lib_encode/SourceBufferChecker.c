@@ -39,6 +39,7 @@
 #include "lib_common/BufferSrcMeta.h"
 #include "lib_common_enc/EncBuffers.h"
 #include "lib_common_enc/IpEncFourCC.h"
+#include "lib_common/Utils.h"
 
 static uint32_t getExpectedSourceBufferSize(AL_TSrcBufferChecker* pCtx, int pitch, int strideHeight)
 {
@@ -66,7 +67,7 @@ static bool CheckMetaData(AL_TSrcBufferChecker* pCtx, AL_TSrcMetaData* pMetaData
   if(pMetaDataBuf == NULL)
     return false;
 
-  if(pMetaDataBuf->tDim.iWidth > pMetaDataBuf->tPitches.iLuma)
+  if(pMetaDataBuf->tDim.iWidth > pMetaDataBuf->tPlanes[AL_PLANE_Y].iPitch)
     return false;
 
   if(pMetaDataBuf->tDim.iWidth != pCtx->width)
@@ -88,27 +89,27 @@ static bool CheckMetaData(AL_TSrcBufferChecker* pCtx, AL_TSrcMetaData* pMetaData
   else
   iMinPitch = GetPitchYValue(pCtx->width);
 
-  if(pMetaDataBuf->tPitches.iLuma < iMinPitch)
+  if(pMetaDataBuf->tPlanes[AL_PLANE_Y].iPitch < iMinPitch)
     return false;
 
-  if(pMetaDataBuf->tPitches.iLuma % 32)
+  if(pMetaDataBuf->tPlanes[AL_PLANE_Y].iPitch % 32)
     return false;
 
   if(AL_GetChromaMode(pMetaDataBuf->tFourCC) != CHROMA_MONO)
   {
-    if(pMetaDataBuf->tDim.iWidth > pMetaDataBuf->tPitches.iChroma)
+    if(pMetaDataBuf->tDim.iWidth > pMetaDataBuf->tPlanes[AL_PLANE_UV].iPitch)
       return false;
 
-    if(pMetaDataBuf->tPitches.iChroma != pMetaDataBuf->tPitches.iLuma)
+    if(pMetaDataBuf->tPlanes[AL_PLANE_UV].iPitch != pMetaDataBuf->tPlanes[AL_PLANE_Y].iPitch)
       return false;
 
-    if((pMetaDataBuf->tOffsetYC.iLuma < pMetaDataBuf->tOffsetYC.iChroma) &&
-       (pMetaDataBuf->tOffsetYC.iChroma < AL_SrcMetaData_GetLumaSize(pMetaDataBuf))
+    if((pMetaDataBuf->tPlanes[AL_PLANE_Y].iOffset < pMetaDataBuf->tPlanes[AL_PLANE_UV].iOffset) &&
+       (pMetaDataBuf->tPlanes[AL_PLANE_UV].iOffset < AL_SrcMetaData_GetLumaSize(pMetaDataBuf))
        )
       return false;
 
-    if((pMetaDataBuf->tOffsetYC.iChroma < pMetaDataBuf->tOffsetYC.iLuma) &&
-       (pMetaDataBuf->tOffsetYC.iLuma < AL_SrcMetaData_GetChromaSize(pMetaDataBuf))
+    if((pMetaDataBuf->tPlanes[AL_PLANE_UV].iOffset < pMetaDataBuf->tPlanes[AL_PLANE_Y].iOffset) &&
+       (pMetaDataBuf->tPlanes[AL_PLANE_Y].iOffset < AL_SrcMetaData_GetChromaSize(pMetaDataBuf))
        )
       return false;
   }
@@ -126,8 +127,9 @@ bool AL_SrcBuffersChecker_CanBeUsed(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf
   if(!CheckMetaData(pCtx, pMeta))
     return false;
 
-  int const iPitch = pMeta->tPitches.iLuma;
-  int const strideHeight = pMeta->tOffsetYC.iChroma / iPitch;
+  int const iPitch = pMeta->tPlanes[AL_PLANE_Y].iPitch;
+  // We assume the strideHeight used is the smallest one. The check could be irrelevant if your strideHeight is higher.
+  int const strideHeight = RoundUp(pMeta->tDim.iHeight, 8);
   uint32_t const minSize = getExpectedSourceBufferSize(pCtx, iPitch, strideHeight);
 
   if(pBuf->zSize < minSize)

@@ -50,7 +50,7 @@
 #include "lib_common/FourCC.h"
 #include "EncChanParam.h"
 
-#define VP9_AUTO_FILT_LEVEL -1
+#define AOM_AUTO_FILT_LEVEL -1
 
 /*************************************************************************//*!
    \brief Enable/Disable flag identifier
@@ -146,10 +146,9 @@ typedef AL_INTROSPECT (category = "debug") struct t_EncSettings
   uint8_t DcCoeff[8];
   uint8_t DcCoeffFlag[8];
   bool bEnableWatchdog;
-#if AL_ENABLE_TWOPASS
   int LookAhead;
   int TwoPass;
-#endif
+  bool bEnableFirstPassCrop;
 }AL_TEncSettings;
 
 /*************************************************************************//*!

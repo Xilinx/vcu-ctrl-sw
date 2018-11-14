@@ -120,7 +120,8 @@ static SeiPrefixCtx createSeiPrefixCtx(AL_TSps* sps, int initialCpbRemovalDelay,
 static SeiSuffixCtx createSeiEOFSuffixCtx()
 {
   SeiSuffixCtx ctx;
-  Rtos_Memcpy(&ctx.uuid, SEI_SUFFIX_USER_DATA_UNREGISTERED_UUID, 16);
+  int iSize = sizeof(SEI_SUFFIX_USER_DATA_UNREGISTERED_UUID) / sizeof(*SEI_SUFFIX_USER_DATA_UNREGISTERED_UUID);
+  Rtos_Memcpy(&ctx.uuid, SEI_SUFFIX_USER_DATA_UNREGISTERED_UUID, iSize);
   return ctx;
 }
 
@@ -219,9 +220,11 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
   if(nalsData->shouldWriteFillerData && pPicStatus->iFiller)
   {
     int iBookmark = AL_BitStreamLite_GetBitsCount(&bs);
-    int iSpaceForSeiSuffix = 0;
-    iSpaceForSeiSuffix = (pPicStatus->bIsLastSlice && isSuffix(nalsData->seiFlags) && (nalsData->seiFlags & SEI_EOF)) ? 25 : 0;
-    WriteFillerData(&bs, nuts.fdNut, nuts.GetNalHeader(nuts.fdNut, 0), pPicStatus->iFiller, iSpaceForSeiSuffix);
+    int iSpaceForSEISuffix = 0;
+    /* 25 is for HEVC, 24 for AVC. This can be optimize */
+    iSpaceForSEISuffix = (pPicStatus->bIsLastSlice && isSuffix(nalsData->seiFlags) && (nalsData->seiFlags & SEI_EOF)) ? 25 : 0;
+
+    WriteFillerData(&bs, nuts.fdNut, nuts.GetNalHeader(nuts.fdNut, 0), pPicStatus->iFiller, iSpaceForSEISuffix);
     int iWritten = (AL_BitStreamLite_GetBitsCount(&bs) - iBookmark) / 8;
 
     if(iWritten != pPicStatus->iFiller)

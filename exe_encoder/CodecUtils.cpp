@@ -143,7 +143,7 @@ static TPaddingParams GetColumnPaddingParameters(AL_TSrcMetaData* pSrcMeta, uint
 {
   TPaddingParams tPadParams;
 
-  auto const pitch = isLuma ? pSrcMeta->tPitches.iLuma : pSrcMeta->tPitches.iChroma;
+  auto const pitch = isLuma ? pSrcMeta->tPlanes[AL_PLANE_Y].iPitch : pSrcMeta->tPlanes[AL_PLANE_UV].iPitch;
 
   tPadParams.uPadValue = isLuma ? 0 : 0x80;
   tPadParams.uNBByteToPad = pitch - uFileRowSize;
@@ -213,7 +213,7 @@ static uint32_t ReadFileLumaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32
 
   TPaddingParams tPadParams = GetColumnPaddingParameters(pSrcMeta, uFileRowSize, true);
 
-  assert((uint32_t)pSrcMeta->tPitches.iLuma >= uFileRowSize);
+  assert((uint32_t)pSrcMeta->tPlanes[AL_PLANE_Y].iPitch >= uFileRowSize);
 
   if(0 == tPadParams.uNBByteToPad)
   {
@@ -227,19 +227,19 @@ static uint32_t ReadFileLumaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32
     {
       File.read(pTmp, uFileRowSize);
       PadBuffer(pTmp + tPadParams.uPaddingOffset, tPadParams, pSrcMeta->tFourCC);
-      pTmp += pSrcMeta->tPitches.iLuma;
+      pTmp += pSrcMeta->tPlanes[AL_PLANE_Y].iPitch;
     }
   }
 
   if(bPadding && (pSrcMeta->tDim.iHeight & 15))
   {
     uint32_t uRowPadding = ((pSrcMeta->tDim.iHeight + 15) & ~15) - pSrcMeta->tDim.iHeight;
-    tPadParams.uNBByteToPad = uRowPadding * pSrcMeta->tPitches.iLuma;
+    tPadParams.uNBByteToPad = uRowPadding * pSrcMeta->tPlanes[AL_PLANE_Y].iPitch;
     tPadParams.uFirst32PackPadMask = 0x0;
     PadBuffer(pTmp, tPadParams, pSrcMeta->tFourCC);
     uFileNumRow += uRowPadding;
   }
-  return pSrcMeta->tPitches.iLuma * uFileNumRow;
+  return pSrcMeta->tPlanes[AL_PLANE_Y].iPitch * uFileNumRow;
 }
 
 /*****************************************************************************/
@@ -253,7 +253,7 @@ static uint32_t ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
 
   TPaddingParams tPadParams = GetColumnPaddingParameters(pSrcMeta, uRowSizeC, false);
 
-  assert((uint32_t)pSrcMeta->tPitches.iChroma >= uRowSizeC);
+  assert((uint32_t)pSrcMeta->tPlanes[AL_PLANE_UV].iPitch >= uRowSizeC);
 
   if(0 == tPadParams.uNBByteToPad)
   {
@@ -267,7 +267,7 @@ static uint32_t ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
     {
       File.read(pTmp, uRowSizeC);
       PadBuffer(pTmp + tPadParams.uPaddingOffset, tPadParams, pSrcMeta->tFourCC);
-      pTmp += pSrcMeta->tPitches.iChroma;
+      pTmp += pSrcMeta->tPlanes[AL_PLANE_UV].iPitch;
     }
   }
 
@@ -280,13 +280,13 @@ static uint32_t ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
     else
       uRowPadding = ((pSrcMeta->tDim.iHeight + 15) & ~15) - pSrcMeta->tDim.iHeight;
 
-    tPadParams.uNBByteToPad = uRowPadding * pSrcMeta->tPitches.iChroma;
+    tPadParams.uNBByteToPad = uRowPadding * pSrcMeta->tPlanes[AL_PLANE_UV].iPitch;
     PadBuffer(pTmp, tPadParams, pSrcMeta->tFourCC);
 
     uNumRowC += uRowPadding;
   }
 
-  return pSrcMeta->tPitches.iChroma * uNumRowC;
+  return pSrcMeta->tPlanes[AL_PLANE_UV].iPitch * uNumRowC;
 }
 
 /*****************************************************************************/
@@ -298,7 +298,7 @@ static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
 
   TPaddingParams tPadParams = GetColumnPaddingParameters(pSrcMeta, uFileRowSize, false);
 
-  assert((uint32_t)pSrcMeta->tPitches.iChroma >= uFileRowSize);
+  assert((uint32_t)pSrcMeta->tPlanes[AL_PLANE_UV].iPitch >= uFileRowSize);
 
   if(0 == tPadParams.uNBByteToPad)
   {
@@ -310,7 +310,7 @@ static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
     {
       File.read(pTmp, uFileRowSize);
       PadBuffer(pTmp + tPadParams.uPaddingOffset, tPadParams, pSrcMeta->tFourCC);
-      pTmp += pSrcMeta->tPitches.iChroma;
+      pTmp += pSrcMeta->tPlanes[AL_PLANE_UV].iPitch;
     }
   }
 }
@@ -381,7 +381,7 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf, int iWidth, int 
   char* pTmp = reinterpret_cast<char*>(AL_Buffer_GetData(pBuf));
   int uRowSizeLuma = GetIOLumaRowSize(pBufMeta->tFourCC, iWidth);
 
-  if(pBufMeta->tPitches.iLuma == uRowSizeLuma)
+  if(pBufMeta->tPlanes[AL_PLANE_Y].iPitch == uRowSizeLuma)
   {
     uint32_t uSizeY = iHeight * uRowSizeLuma;
     File.write(pTmp, uSizeY);
@@ -392,7 +392,7 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf, int iWidth, int 
     for(int h = 0; h < iHeight; h++)
     {
       File.write(pTmp, uRowSizeLuma);
-      pTmp += pBufMeta->tPitches.iLuma;
+      pTmp += pBufMeta->tPlanes[AL_PLANE_Y].iPitch;
     }
   }
 
@@ -401,14 +401,14 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf, int iWidth, int 
   {
     int iHeightC = (AL_GetChromaMode(pBufMeta->tFourCC) == CHROMA_4_2_0) ? iHeight >> 1 : iHeight;
 
-    if(pBufMeta->tPitches.iChroma == uRowSizeLuma)
+    if(pBufMeta->tPlanes[AL_PLANE_UV].iPitch == uRowSizeLuma)
       File.write(pTmp, iHeightC * uRowSizeLuma);
     else
     {
       for(int h = 0; h < iHeightC; ++h)
       {
         File.write(pTmp, uRowSizeLuma);
-        pTmp += pBufMeta->tPitches.iChroma;
+        pTmp += pBufMeta->tPlanes[AL_PLANE_UV].iPitch;
       }
     }
   }
@@ -420,7 +420,7 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf, int iWidth, int 
 
     int iSizePix = AL_GetPixelSize(pBufMeta->tFourCC);
 
-    if(pBufMeta->tPitches.iChroma == iWidthC * iSizePix)
+    if(pBufMeta->tPlanes[AL_PLANE_UV].iPitch == iWidthC * iSizePix)
     {
       uint32_t uSizeC = iWidthC * iHeightC * iSizePix;
       File.write(pTmp, uSizeC);
@@ -432,13 +432,13 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf, int iWidth, int 
       for(int h = 0; h < iHeightC; ++h)
       {
         File.write(pTmp, iWidthC * iSizePix);
-        pTmp += pBufMeta->tPitches.iChroma;
+        pTmp += pBufMeta->tPlanes[AL_PLANE_UV].iPitch;
       }
 
       for(int h = 0; h < iHeightC; ++h)
       {
         File.write(pTmp, iWidthC * iSizePix);
-        pTmp += pBufMeta->tPitches.iChroma;
+        pTmp += pBufMeta->tPlanes[AL_PLANE_UV].iPitch;
       }
     }
   }
@@ -479,16 +479,16 @@ unsigned int ReadNextFrameMV(std::ifstream& File, int& iX, int& iY)
     else if(sVal == "x_d:")
     {
       ss >> sVal;
-      iX = stoi(sVal) * -1;
+      iX = stoi(sVal);
     }
     else if(sVal == "y_d:")
     {
       ss >> sVal;
-      iY = stoi(sVal) * -1;
+      iY = stoi(sVal);
     }
     ss >> sVal;
   }
-  while(!ss.rdbuf()->in_avail() == 0);
+  while(!(ss.rdbuf()->in_avail() == 0));
 
   if(File.fail())
     return UINT_MAX;

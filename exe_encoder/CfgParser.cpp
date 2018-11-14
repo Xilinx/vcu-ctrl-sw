@@ -66,8 +66,8 @@ struct Temporary
   {
   }
 
-  std::string sScalingListFile = "";
-  std::string sZapperFile = "";
+  string sScalingListFile {};
+  string sZapperFile {};
 };
 
 static TFourCC GetFourCCValue(const string& sVal)
@@ -111,25 +111,24 @@ static void populateInputSection(ConfigParser& parser, ConfigFile& cfg)
   {
     cfg.FileInfo.PictWidth = parseArithmetic<int>(tokens);
     AL_SetSrcWidth(&cfg.Settings.tChParam[0], cfg.FileInfo.PictWidth);
-  }, "Specifies YUV input width");
+  }, "Specifies the YUV input width");
 
   parser.addCustom(curSection, "Height", [&](std::deque<Token>& tokens)
   {
     cfg.FileInfo.PictHeight = parseArithmetic<int>(tokens);
     AL_SetSrcHeight(&cfg.Settings.tChParam[0], cfg.FileInfo.PictHeight);
-  }, "Specifies YUV input height");
+  }, "Specifies the YUV input height");
   parser.addCustom(curSection, "Format", [&](std::deque<Token>& tokens)
   {
     /* we might want to be able to show users which format are available */
     if(!hasOnlyOneIdentifier(tokens))
       throw std::runtime_error("Failed to parse FOURCC value");
     cfg.FileInfo.FourCC = GetFourCCValue(tokens[0].text);
-  }, "Specifies YUV input format");
+  }, "Specifies the YUV input format");
   parser.addPath(curSection, "CmdFile", cfg.sCmdFileName, "File containing the dynamic commands to send to the encoder");
   parser.addPath(curSection, "ROIFile", cfg.sRoiFileName, "File containing the Regions of Interest used to encode");
-#if AL_ENABLE_TWOPASS
+  parser.addPath(curSection, "QpTablesFolder", cfg.sQPTablesFolder, "Specifies the location of the files containing the QP tables to use for each frame");
   parser.addPath(curSection, "TwoPassFile", cfg.sTwoPassFileName, "File containing the first pass statistics");
-#endif
   parser.addArith(curSection, "FrameRate", cfg.FileInfo.FrameRate, "Specifies the number of frames per second of the source, if it isn't set, we take the RATE_CONTROL FrameRate value. If this parameter is greater than the frame rate specified in the rate control section, the encoder will drop some frames; when this parameter is lower than the frame rate specified in the rate control section, the encoder will repeat some frames");
 }
 
@@ -193,10 +192,17 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
   parser.addBool(curSection, "UseGoldenRef", RCParam.bUseGoldenRef);
   parser.addArith(curSection, "GoldenRefFrequency", RCParam.uGoldenRefFrequency);
   parser.addArith(curSection, "PGoldenDelta", RCParam.uPGoldenDelta);
+#if AL_VERSION_GEN == AL_GEN_1
+  parser.addArithFunc<uint16_t, double>(curSection, "MaxQuality", RCParam.uMaxPSNR, [&](double value)
+  {
+    return std::max(std::min((uint16_t)((value + 28.0) * 100), (uint16_t)4800), (uint16_t)2800);
+  });
+#else
   parser.addArithFunc<uint16_t, double>(curSection, "MaxPSNR", RCParam.uMaxPSNR, [&](double value)
   {
     return (uint16_t)(value * 100);
   });
+#endif
   parser.addArithMultipliedByConstant(curSection, "MaxPictureSize", RCParam.uMaxPictureSize, 1000);
 }
 
@@ -220,7 +226,7 @@ static void populateGopSection(ConfigParser& parser, ConfigFile& cfg)
   parser.addArith(curSection, "Gop.Length", GopParam.uGopLength, "GOP length in frames including the I picture. 0 for Intra only.");
   std::map<string, int> freqIdrEnums {};
   freqIdrEnums["SC_ONLY"] = 0x7FFFFFFF;
-  parser.addArithOrEnum(curSection, "Gop.FreqIDR", GopParam.uFreqIDR, freqIdrEnums, "Specifies the minimum number of frames between to IDR pictures (AVC, HEVC). IDR insertion depends on the position of the GOP boundary. -1 to disable IDR insertion");
+  parser.addArithOrEnum(curSection, "Gop.FreqIDR", GopParam.uFreqIDR, freqIdrEnums, "Specifies the minimum number of frames between two IDR pictures (AVC, HEVC). IDR insertion depends on the position of the GOP boundary. -1 to disable IDR insertion");
   parser.addBool(curSection, "Gop.EnableLT", GopParam.bEnableLT);
   parser.addArith(curSection, "Gop.FreqLT", GopParam.uFreqLT, "Specifies the Long Term reference picture refresh frequency in number of frames");
   parser.addArith(curSection, "Gop.NumB", GopParam.uNumB, "Maximum number of consecutive B frames in a GOP");
@@ -274,7 +280,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   {
     return sliceSize * 95 / 100;
   }, sliceSizeEnums, "Target Slice Size (AVC, HEVC only, not supported in AVC multicore) If set to 0, slices are defined by the NumSlices parameter, Otherwise it specifies the target slice size, in bytes, that the encoder uses to automatically split the bitstream into approximately equally sized slices, with a granularity of one LCU.");
-  parser.addBool(curSection, "DependentSlice", cfg.Settings.bDependentSlice, "When tere are several slices per frames, this parameter specifies whether the additional slices are dependent slice segments or regular slices (HEVC only)");
+  parser.addBool(curSection, "DependentSlice", cfg.Settings.bDependentSlice, "When there are several slices per frames, this parameter specifies whether the additional slices are dependent slice segments or regular slices (HEVC only)");
   parser.addBool(curSection, "SubframeLatency", cfg.Settings.tChParam[0].bSubframeLatency, "Enable the subframe latency mode");
   std::map<string, int> seis {};
   seis["SEI_NONE"] = SEI_NONE;
@@ -305,7 +311,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
     chromaModes["CHROMA_4_4_4"] = CHROMA_4_4_4;
     AL_EChromaMode mode = (AL_EChromaMode)parseEnum(tokens, chromaModes);
     AL_SET_CHROMA_MODE(cfg.Settings.tChParam[0].ePicFormat, mode);
-  });
+  }, "Set the expected chroma mode of the encoder. Depending on the input fourcc, this might lead to a conversion. Together with the BitDepth, these options determine the final FourCC the encoder is expecting.");
   std::map<string, int> entropymodes {};
   entropymodes["MODE_CAVLC"] = AL_MODE_CAVLC;
   entropymodes["MODE_CABAC"] = AL_MODE_CABAC;
@@ -351,8 +357,6 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   qpctrls["RANDOM_I_ONLY"] = RANDOM_I_ONLY;
   qpctrls["LOAD_QP"] = LOAD_QP;
   parser.addEnum(curSection, "QPCtrlMode", cfg.Settings.eQpCtrlMode, qpctrls, "Specifies how to generate the QP per CU");
-
-  parser.addPath(curSection, "QpTablesFolder", cfg.sQPTablesFolder);
 
   std::map<string, int> ldamodes {};
   ldamodes["DEFAULT_LDA"] = DEFAULT_LDA;
@@ -406,33 +410,27 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   videoModes["INTERLACED_TOP"] = AL_VM_INTERLACED_TOP;
   videoModes["INTERLACED_BOTTOM"] = AL_VM_INTERLACED_BOTTOM;
   parser.addEnum(curSection, "VideoMode", cfg.Settings.tChParam[0].eVideoMode, videoModes);
-#if AL_ENABLE_TWOPASS
   std::map<string, int> twoPassEnums;
   twoPassEnums["DISABLE"] = 0;
   parser.addArithOrEnum(curSection, "TwoPass", cfg.Settings.TwoPass, twoPassEnums, "Index of the pass currently encoded (in Twopass mode)");
   parser.addArithOrEnum(curSection, "LookAhead", cfg.Settings.LookAhead, twoPassEnums, "Size of the LookAhead");
-#endif
+  parser.addBool(curSection, "CropFirstPass", cfg.Settings.bEnableFirstPassCrop, "Crop the video during first pass, to encode faster");
+
 }
 
 static void populateRunSection(ConfigParser& parser, ConfigFile& cfg)
 {
   auto curSection = Section::Run;
-  parser.addBool(curSection, "UseBoard", cfg.RunInfo.bUseBoard);
+  parser.addBool(curSection, "UseBoard", cfg.RunInfo.bUseBoard, "Specifies if we are using the reference model (DISABLE) or the actual hardware (ENABLE)");
   parser.addBool(curSection, "Loop", cfg.RunInfo.bLoop, "Specifies if it should loop back to the beginning of YUV input stream when it reaches the end of the file");
   std::map<string, int> maxPicts {};
   maxPicts["ALL"] = -1;
   parser.addArithOrEnum(curSection, "MaxPicture", cfg.RunInfo.iMaxPict, maxPicts, "Number of frame to encode");
   parser.addArith(curSection, "FirstPicture", cfg.RunInfo.iFirstPict, "Specifies the first frame to encode");
   parser.addArith(curSection, "ScnChgLookAhead", cfg.RunInfo.iScnChgLookAhead);
-  parser.addArith(curSection, "InputSleep", cfg.RunInfo.uInputSleepInMilliseconds);
+  parser.addArith(curSection, "InputSleep", cfg.RunInfo.uInputSleepInMilliseconds, "Time period in milliseconds. The encoder is given frames each time period (at a minimum)");
 }
 
-
-static void populateHardwareSection(ConfigParser& parser, ConfigFile& cfg)
-{
-  (void)parser, (void)cfg;
-  // nothing ?
-}
 
 
 static void populateIdentifiers(ConfigParser& parser, ConfigFile& cfg, Temporary& temporaries, std::ostream& warnStream)
@@ -447,6 +445,8 @@ static void populateIdentifiers(ConfigParser& parser, ConfigFile& cfg, Temporary
 
 static void parseSection(ConfigParser& parser, Tokenizer& tokenizer, ConfigFile& cfg, Temporary& temp)
 {
+  (void)cfg;
+  (void)temp;
   Token section = tokenizer.getToken();
   Token closeBracket = tokenizer.getToken();
 
@@ -538,7 +538,7 @@ static string chomp(string sLine)
 static uint8_t ISAVCModeAllowed[SL_ERR] = { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 #define KEYWORD(T) (!sLine.compare(0, sizeof(T) - 1, T))
-static bool ParseScalingListMode(std::string& sLine, ESLMode& Mode)
+static bool ParseScalingListMode(string& sLine, ESLMode& Mode)
 {
   if(KEYWORD("[4x4 Y Intra]"))
     Mode = SL_4x4_Y_INTRA;
@@ -755,6 +755,7 @@ static void PostParsingChecks(AL_TEncSettings& Settings)
 
 static void SetDefaultValue(ConfigFile& cfg)
 {
+  (void)cfg;
 }
 
 static void PostParsingInit(ConfigFile& cfg, Temporary const& temporaries, std::ostream& warnStream)
@@ -875,7 +876,7 @@ void PrintConfigFileUsage()
 
     for(auto identifier_ : section_.second)
     {
-      auto identifier = identifier_.first;
+      auto identifier = identifier_.second.showName;
       auto desc = identifier_.second.desc;
       std::deque<string> chunks {};
       createDescriptionChunks(chunks, desc);

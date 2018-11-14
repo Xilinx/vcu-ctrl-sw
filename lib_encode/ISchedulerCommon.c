@@ -43,13 +43,13 @@ void SetChannelInfo(AL_TCommonChannelInfo* pChanInfo, AL_TEncChanParam* pChParam
 {
   uint32_t uBitDepth = AL_GET_BITDEPTH(pChParam->ePicFormat);
   uint32_t eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
-  bool bComp = false;
   pChanInfo->uWidth = pChParam->uWidth;
   pChanInfo->uHeight = pChParam->uHeight;
   AL_TDimension tDim = { pChParam->uWidth, pChParam->uHeight };
   pChanInfo->uRecSizeY = AL_GetAllocSize_EncReference(tDim, uBitDepth, CHROMA_MONO, 0);
-  pChanInfo->uRecSize = AL_GetAllocSize_EncReference(tDim, uBitDepth, eChromaMode, bComp);
+  bool bComp = false;
 
+  pChanInfo->uRecSize = AL_GetAllocSize_EncReference(tDim, uBitDepth, eChromaMode, bComp);
   AL_TPicFormat picRecFormat = AL_EncGetRecPicFormat(eChromaMode, uBitDepth, bComp);
 
   pChanInfo->RecFourCC = AL_GetFourCC(picRecFormat);
@@ -59,14 +59,16 @@ void SetChannelInfo(AL_TCommonChannelInfo* pChanInfo, AL_TEncChanParam* pChParam
 
 static void setRecChannelWideInfo(TRecPic* pRecPic, AL_TCommonChannelInfo* pChanInfo)
 {
-  pRecPic->tBuf.iWidth = pChanInfo->uWidth;
-  pRecPic->tBuf.iHeight = pChanInfo->uHeight;
-  pRecPic->tBuf.iPitchY = pChanInfo->uRecPitchY;
-  pRecPic->tBuf.iPitchC = pChanInfo->uRecPitchC;
+  pRecPic->tBuf.tDim.iWidth = pChanInfo->uWidth;
+  pRecPic->tBuf.tDim.iHeight = pChanInfo->uHeight;
   pRecPic->tBuf.tFourCC = pChanInfo->RecFourCC;
+  pRecPic->tBuf.tPlanes[AL_PLANE_Y] = (AL_TPlane) {
+    0, pChanInfo->uRecPitchY
+  };
+  pRecPic->tBuf.tPlanes[AL_PLANE_UV] = (AL_TPlane) {
+    pChanInfo->uRecSizeY, pChanInfo->uRecPitchC
+  };
   pRecPic->tBuf.tMD.uSize = pChanInfo->uRecSize;
-  pRecPic->tBuf.tOffsetYC.iLuma = 0;
-  pRecPic->tBuf.tOffsetYC.iChroma = pChanInfo->uRecSizeY;
 }
 
 static void setRecSpecificInfo(TRecPic* pRecPic, AL_TReconstructedInfo* pRecInfo)

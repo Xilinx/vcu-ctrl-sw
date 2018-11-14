@@ -363,7 +363,7 @@ static void AL_Dpb_sDecodingMaxLongTermFrameIdx(AL_TDpb* pDpb, AL_TAvcSliceHdr* 
     uPic = pNodes[uPic].uNextDecOrder;
   }
 
-  pDpb->MaxLongTermFrameIdx = pSlice->max_long_term_frame_idx_plus1 ?
+  pDpb->MaxLongTermFrameIdx = pSlice->max_long_term_frame_idx_plus1[iIdx] ?
                               (pSlice->max_long_term_frame_idx_plus1[iIdx] - 1) : 0x7FFF;
 }
 
@@ -1293,9 +1293,9 @@ void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, uint32_t uPocLsb, uint8_t uNode
 }
 
 /*****************************************************************************/
-static bool AL_Dpb_sIsLowRef(AL_TDpb* pDpb)
+static bool AL_Dpb_sIsNoReordering(AL_TDpb* pDpb)
 {
-  return pDpb->eMode == AL_DPB_LOW_REF;
+  return pDpb->eMode == AL_DPB_NO_REORDERING;
 }
 
 /*****************************************************************************/
@@ -1326,7 +1326,7 @@ void AL_Dpb_EndDecoding(AL_TDpb* pDpb, int iFrmID)
   {
     DispFifo_SetStatus(&pDpb->DispFifo, iFrmID, AL_READY_FOR_OUTPUT);
 
-    if(AL_Dpb_sIsLowRef(pDpb))
+    if(AL_Dpb_sIsNoReordering(pDpb))
     {
       uint8_t uNode = Dpb_GetNodeFromFrmID(pDpb, iFrmID);
       bool isInDisplayList = (uNode == uEndOfList);

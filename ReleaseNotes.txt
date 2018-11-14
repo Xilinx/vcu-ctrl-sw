@@ -294,14 +294,33 @@
 2018-08-23 (v1.0.41)
 --------------------
   Added Features :
-    -- Add support of 32 channels 
-    -- Add (VPS), SPS, PPS and SEI Recovery point on first frame of GDR 
+    -- Add support of 32 channels
+    -- Add (VPS), SPS, PPS and SEI Recovery point on first frame of GDR
     -- Multi-channel support in slice lat mode
     -- new API for SEI insertionin Encoder
     -- SEI message callback in Decoder
-    
+
   Fixes :
     -- L2Prefetch Buffer + Wavefront not allowed
     -- Decoder error resilience improvement
     -- Improve rate control on some specific sequence
     -- Fix dynamic gop length change on I-frame
+
+
+2018-11-14 (v1.0.42)
+--------------------
+  Added Features :
+    -- LowLatency Phase 2
+
+  API:
+    -- Use planes (AL_TPlanes) to describe YUV buffers: SrcMetaData
+    -- AL_DPB_LOW_REF becomes AL_DPB_NO_REORDERING
+    -- AL_GetMaxNalSize requires codec, dimension, chroma mode, bitdepth, level and profile idc to compute a more accurate value
+    -- Version of the API is now 0.10.0
+    -- Add AL_VERSION_MAJOR, AL_VERSION_MINOR and AL_VERSION_STEP #defines
+
+  Fixes :
+    -- Improve rate control on specific sequences
+    -- Handle out of order interrupts in avc low latency case
+    -- Improve offline two pass algorithm quality
+    -- Memory leak in the decoder destroy channel call

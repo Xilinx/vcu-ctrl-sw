@@ -38,10 +38,9 @@
 /****************************************************************************
    -----------------------------------------------------------------------------
 ****************************************************************************/
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-#include <malloc.h>
+#include <cassert>
+#include <cstdlib>
+#include <cstring>
 #include <sstream>
 #include <fstream>
 
@@ -57,6 +56,21 @@ extern "C"
 #include "FileUtils.h"
 
 using namespace std;
+
+/****************************************************************************/
+// We need to have a determinist seed to compare soft and hard
+static int CreateSeed(int iNumLCUs, int iSliceQP, int iRandQP)
+{
+  return iNumLCUs * iSliceQP - (0xEFFACE << (iSliceQP >> 1)) + iRandQP;
+}
+
+/****************************************************************************/
+static int random_int(int& iSeed, int iMin, int iMax)
+{
+  iSeed = 1103515245u * iSeed + 12345;
+  int iRange = iMax - iMin + 1;
+  return iMin + abs(iSeed % iRange);
+}
 
 /****************************************************************************/
 static AL_INLINE int RoundUp(int iVal, int iRnd)
@@ -115,58 +129,35 @@ void Generate_RampQP(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumByte
   }
 }
 
-static uint32_t CreateSeed(int iNumLCUs, int iSliceQP, int iRandQP)
-{
-  return iNumLCUs * iSliceQP - (0xEFFACE << (iSliceQP >> 1)) + iRandQP;
-}
-
-static int GetNextRandomInt(int iRand)
-{
-  return 1103515245 * iRand + 12345;
-}
-
 /****************************************************************************/
 void Generate_RandomQP_VP9(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, int iMinQP, int iMaxQP, int16_t iSliceQP)
 {
   static int iRandQP = 0;
-  uint32_t iRand = CreateSeed(iNumLCUs, iSliceQP % 52, iRandQP);
-  int iRange = iMaxQP - iMinQP + 1;
+  int iSeed = CreateSeed(iNumLCUs, iSliceQP % 52, iRandQP);
   ++iRandQP;
 
   int16_t* pSeg = (int16_t*)pSegs;
 
   for(int iSeg = 0; iSeg < 8; iSeg++)
-  {
-    iRand = GetNextRandomInt(iRand);
-    pSeg[iSeg] = (iMinQP + (iRand % iRange));
-  }
+    pSeg[iSeg] = random_int(iSeed, iMinQP, iMaxQP);
 
   for(int iLCU = 0; iLCU < iNumLCUs; iLCU++)
-  {
-    iRand = GetNextRandomInt(iRand);
-    pQPs[iLCU] = (iRand % 8);
-  }
+    pQPs[iLCU] = random_int(iSeed, -7, 7);
 }
 
 /****************************************************************************/
 void Generate_RandomQP(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBytesPerLCU, int iMinQP, int iMaxQP, int16_t iSliceQP)
 {
   static int iRandQP = 0;
-
-  uint32_t iRand = CreateSeed(iNumLCUs, iSliceQP, iRandQP);
+  int iSeed = CreateSeed(iNumLCUs, iSliceQP, iRandQP);
   ++iRandQP;
-
-  int iRange = iMaxQP - iMinQP + 1;
 
   for(int iLCU = 0; iLCU < iNumLCUs; ++iLCU)
   {
     int iFirst = iLCU * iNumBytesPerLCU;
 
     for(int iQP = 0; iQP < iNumQPPerLCU; ++iQP)
-    {
-      iRand = GetNextRandomInt(iRand);
-      pQPs[iFirst + iQP] = (iMinQP + (iRand % iRange)) & MASK_QP;
-    }
+      pQPs[iFirst + iQP] = random_int(iSeed, iMinQP, iMaxQP) & MASK_QP;
   }
 }
 
@@ -450,6 +441,7 @@ static AL_ERoiQuality get_roi_quality(char* sLine, int iPos)
     return AL_ROI_QUALITY_DONT_CARE;
 
 
+
   return AL_ROI_QUALITY_MAX_ENUM;
 }
 
@@ -620,7 +612,7 @@ void Generate_BorderSkip(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNum
 /****************************************************************************/
 void Generate_Random_WithFlag(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBytesPerLCU, int16_t iSliceQP, int iRandFlag, int iPercent, uint8_t uFORCE)
 {
-  int iRand = CreateSeed(iNumLCUs, iSliceQP % 52, iRandFlag);
+  int iSeed = CreateSeed(iNumLCUs, iSliceQP % 52, iRandFlag);
 
   for(int iLCU = 0; iLCU < iNumLCUs; iLCU++)
   {
@@ -633,9 +625,7 @@ void Generate_Random_WithFlag(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int
         if((pQPs[iFirst + iQP] & MASK_FORCE) != (pQPs[iFirst] & MASK_FORCE)) // remove existing flag if different from depth 0
           pQPs[iFirst + iQP] &= ~MASK_FORCE;
 
-        iRand = GetNextRandomInt(iRand);
-
-        if(abs(iRand) % 100 <= iPercent)
+        if(random_int(iSeed, 0, 99) <= iPercent)
           pQPs[iFirst + iQP] |= uFORCE;
       }
     }

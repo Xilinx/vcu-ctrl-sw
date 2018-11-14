@@ -88,11 +88,9 @@ struct BitstreamWriter : IFrameSink
 
 unique_ptr<IFrameSink> createBitstreamWriter(string path, ConfigFile const& cfg)
 {
-#if AL_ENABLE_TWOPASS
 
   if(cfg.Settings.TwoPass == 1)
     return unique_ptr<IFrameSink>(new NullFrameSink);
-#endif
 
   return unique_ptr<IFrameSink>(new BitstreamWriter(path, cfg));
 }

@@ -40,25 +40,24 @@
 #include <fstream>
 #include <vector>
 #include <cstring>
+#include <deque>
 
 extern "C"
 {
 #include <lib_common/BufferLookAheadMeta.h>
+#include <lib_common/BufferSrcMeta.h>
 #include <lib_common/BufferAPI.h>
 #include <lib_common_enc/Settings.h>
 }
 
 bool AL_TwoPassMngr_HasLookAhead(AL_TEncSettings settings);
 void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings);
-bool AL_TwoPassMngr_SceneChangeDetected(AL_TBuffer* pPrevSrc, AL_TBuffer* pCurrentSrc);
-
-/*************************************************************************//*!
-   \brief Computes and returns the IPRatio between the two frames
-   \param[in] pCurrentSrc       Pointer to the I frame
-   \param[in] pNextSrc       Pointer to the P frame
-   \return the computed IPRatio
-*****************************************************************************/
-int32_t AL_TwoPassMngr_GetIPRatio(AL_TBuffer* pCurrentSrc, AL_TBuffer* pNextSrc);
+AL_TLookAheadMetaData* AL_TwoPassMngr_CreateAndAttachTwoPassMetaData(AL_TBuffer* Src);
+void AL_TwoPassMngr_CropSettings(AL_TEncSettings& settings, AL_TDimension tDimCrop);
+void AL_TwoPassMngr_CropBufferSrc(AL_TBuffer* Src);
+void AL_TwoPassMngr_UncropBufferSrc(AL_TBuffer* Src);
+bool AL_TwoPassMngr_GetCropResolution(AL_TDimension tDim, AL_TDimension& tDimCrop);
+void AL_TwoPassMngr_GetCropOffsets(AL_TDimension tDim, AL_TDimension tDimCrop, AL_TDimension tOffsets[5]);
 
 /***************************************************************************/
 /*Offline TwoPass structures and methods*/
@@ -71,26 +70,64 @@ int32_t AL_TwoPassMngr_GetIPRatio(AL_TBuffer* pCurrentSrc, AL_TBuffer* pNextSrc)
 */
 struct TwoPassMngr
 {
-  TwoPassMngr(std::string p_FileName, int p_iPass);
+  TwoPassMngr(std::string p_FileName, int p_iPass, bool p_bEnabledFirstPassCrop, int p_iGopSize, int p_iCpbLevel, int p_iInitialLevel, int p_iFrameRate);
   ~TwoPassMngr();
 
+  void AddFrame(AL_TLookAheadMetaData* pMetaData);
+  void GetFrame(AL_TLookAheadMetaData* pMetaData);
+  void Flush();
+
+  int iPass;
+  bool bEnableFirstPassCrop;
+
+private:
   void OpenLog();
   void CloseLog();
   void EmptyLog();
   void FillLog();
   void AddNewFrame(int iPictureSize, int iPercentIntra, int iPercentSkip);
-  void AddFrame(AL_TLookAheadMetaData* pMetaData);
-  void GetFrame(AL_TLookAheadMetaData* pMetaData);
-  void Flush();
-  AL_TLookAheadMetaData* CreateAndAttachTwoPassMetaData(AL_TBuffer* Src);
   void ComputeTwoPass();
   void ComputeComplexity();
+  bool HasPatternTwoFrames();
 
-  int iPass;
   std::string FileName;
   std::vector<AL_TLookAheadMetaData> tFrames;
-  int iCurrentFrame;
   std::ofstream outputFile;
   std::ifstream inputFile;
+  int iCurrentFrame = 0;
+
+  int iGopSize;
+  int iCpbLevel;
+  int iInitialLevel;
+  int iFrameRate;
+};
+
+/***************************************************************************/
+/*LookAhead structures and methods*/
+/***************************************************************************/
+
+/*
+** Struct for LookAhead management
+** Keeps the src buffers between the two pass
+** Compute lookahead metadata to improve second pass quality
+*/
+struct LookAheadMngr
+{
+  LookAheadMngr(int p_iLookAhead);
+  ~LookAheadMngr();
+
+  uint16_t uLookAheadSize;
+  bool bUseComplexity;
+  std::deque<AL_TBuffer*> m_fifo;
+
+
+  void ProcessLookAheadParams();
+  void ComputeComplexity();
+  bool HasPatternTwoFrames();
+
+private:
+  int iComplexity;
+  int iFrameCount;
+  int iComplexityDiff;
 };
 

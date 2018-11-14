@@ -40,20 +40,22 @@
 void ResetBufferRec(TBufferRec* pBufRec)
 {
   MemDesc_Init(&pBufRec->tMD);
-  pBufRec->iWidth = pBufRec->iHeight = 0;
-  pBufRec->iPitchY = pBufRec->iPitchC = 0;
+  pBufRec->tDim = (AL_TDimension) {
+    0, 0
+  };
+
+  for(int i = 0; i < AL_PLANE_MAX_ENUM; ++i)
+    pBufRec->tPlanes[i] = (AL_TPlane) {
+      0, 0
+    };
 }
 
 /****************************************************************************/
 uint32_t AL_GetRecPitch(uint32_t uBitDepth, uint32_t uWidth)
 {
   if(uBitDepth > 8)
-  {
     return ((uWidth + 63) >> 6) * 320;
-  }
-  else
-  {
-    return ((uWidth + 63) >> 6) * 256;
-  }
+
+  return ((uWidth + 63) >> 6) * 256;
 }
 

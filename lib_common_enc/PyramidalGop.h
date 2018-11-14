@@ -104,7 +104,7 @@ static AL_TGopFrm PYRAMIDAL_GOP_7[] =
   }
 };
 
-static AL_TGopFrm* getPyramidalFrames(int numB)
+static inline AL_TGopFrm* getPyramidalFrames(int numB)
 {
   switch(numB)
   {

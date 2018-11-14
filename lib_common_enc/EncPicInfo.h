@@ -66,9 +66,7 @@ typedef struct AL_t_EncInfo
   AL_EPicEncOption eEncOptions;
   int16_t iPpsQP;
 
-#if AL_ENABLE_TWOPASS
   AL_TLookAheadParam tLAParam;
-#endif
 
   AL_64U UserParam;
   AL_64U SrcHandle;
@@ -152,11 +150,9 @@ typedef struct AL_t_EncPicStatus
 
   uint8_t uCuQpDeltaDepth;
 
-#if AL_ENABLE_TWOPASS
   int32_t iPictureSize;
   int8_t iPercentIntra;
   int8_t iPercentSkip;
-#endif
 }AL_TEncPicStatus;
 
 #define AL_ERR_SRC_BUF_NOT_READY AL_DEF_ERROR(20)

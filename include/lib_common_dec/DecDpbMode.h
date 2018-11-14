@@ -47,7 +47,7 @@
 typedef enum AL_e_DpbMode
 {
   AL_DPB_NORMAL, /*< Follow DPB specification */
-  AL_DPB_LOW_REF, /*< Assume there is no reordering in the stream */
+  AL_DPB_NO_REORDERING, /*< Assume there is no reordering in the stream */
   AL_DPB_MAX_ENUM, /* sentinel */
 }AL_EDpbMode;
 

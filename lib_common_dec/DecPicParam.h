@@ -186,6 +186,7 @@ typedef struct AL_t_DecPicStatus
   uint32_t uCRC;
   bool bConceal;
   bool bHanged;
+  bool bNotFinishedYet; /* LLP2: the frame is not finished yet */
 }AL_TDecPicStatus;
 
 /*****************************************************************************/

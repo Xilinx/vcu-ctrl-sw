@@ -324,6 +324,7 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addString("-crc_ip", &Config.sCrc, "Output crc file");
   opt.addFlag("-wpp", &Config.tDecSettings.bParallelWPP, "Wavefront parallelization processing activation");
   opt.addFlag("-lowlat", &Config.tDecSettings.bLowLat, "Low latency decoding activation");
+  opt.addFlag("--use-early-callback", &Config.tDecSettings.bUseEarlyCallback, "Low latency phase 2. Call end decoding at decoding launch. This only makes sense with special support for harware synchronization");
   opt.addInt("-ddrwidth", &Config.tDecSettings.uDDRWidth, "Width of DDR requests (16, 32, 64) (default: 32)");
   opt.addFlag("-nocache", &Config.tDecSettings.bDisableCache, "Inactivate the cache");
   opt.addOption("--raster", [&]()
@@ -349,11 +350,13 @@ static Config ParseCommandLine(int argc, char* argv[])
 
   opt.addFlag("-lowref", &Config.tDecSettings.eDpbMode,
               "Specify decoder DPB Low ref (stream musn't have B-frame & reference must be at best 1)",
-              AL_DPB_LOW_REF);
+              AL_DPB_NO_REORDERING);
 
-  opt.addFlag("-slicelat", &Config.tDecSettings.eDecUnit,
-              "Specify decoder latency (default: Frame Latency)",
-              AL_VCL_NAL_UNIT);
+  opt.addOption("-slicelat", [&]()
+  {
+    Config.tDecSettings.eDecUnit = AL_VCL_NAL_UNIT;
+    Config.tDecSettings.eDpbMode = AL_DPB_NO_REORDERING;
+  }, "Specify decoder latency (default: Frame Latency)");
 
   opt.addFlag("-framelat", &Config.tDecSettings.eDecUnit,
               "Specify decoder latency (default: Frame Latency)",
@@ -602,13 +605,6 @@ AL_TO_IP GetConversionFunction(TFourCC input, int iBdOut)
     return Get10BitsConversionFunction(iPicFmt);
 }
 
-static void FillInternalOffsets(AL_TSrcMetaData* pMeta, AL_EFbStorageMode eFBStorageMode)
-{
-  pMeta->tOffsetYC.iLuma = 0;
-  AL_TDimension tDim = pMeta->tDim;
-  pMeta->tOffsetYC.iChroma = AL_GetAllocSize_DecReference(tDim, pMeta->tPitches.iLuma, CHROMA_MONO, eFBStorageMode);
-}
-
 static void ConvertFrameBuffer(AL_TBuffer& input, int iBdIn, AL_TBuffer& output, int iBdOut)
 {
   auto pRecMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(&input, AL_META_TYPE_SOURCE);
@@ -617,7 +613,6 @@ static void ConvertFrameBuffer(AL_TBuffer& input, int iBdIn, AL_TBuffer& output,
   pRecMeta->tFourCC = AL_GetDecFourCC(tPicFormat);
   auto const iSizePix = (iBdOut + 7) >> 3;
   uint32_t uSize = GetPictureSizeInSamples(pRecMeta) * iSizePix;
-  FillInternalOffsets(pRecMeta, tPicFormat.eStorageMode);
 
   if(uSize != output.zSize)
   {
@@ -630,11 +625,11 @@ static void ConvertFrameBuffer(AL_TBuffer& input, int iBdIn, AL_TBuffer& output,
   auto pYuvMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(&output, AL_META_TYPE_SOURCE);
   pYuvMeta->tDim.iWidth = pRecMeta->tDim.iWidth;
   pYuvMeta->tDim.iHeight = pRecMeta->tDim.iHeight;
-  pYuvMeta->tPitches.iLuma = iSizePix * pRecMeta->tDim.iWidth;
-  pYuvMeta->tPitches.iChroma = iSizePix * ((tPicFormat.eChromaMode == CHROMA_4_4_4) ? pRecMeta->tDim.iWidth : pRecMeta->tDim.iWidth >> 1);
+  pYuvMeta->tPlanes[AL_PLANE_Y].iPitch = iSizePix * pRecMeta->tDim.iWidth;
+  pYuvMeta->tPlanes[AL_PLANE_UV].iPitch = iSizePix * ((tPicFormat.eChromaMode == CHROMA_4_4_4) ? pRecMeta->tDim.iWidth : pRecMeta->tDim.iWidth >> 1);
   /* unused */
-  pYuvMeta->tOffsetYC.iLuma = 0;
-  pYuvMeta->tOffsetYC.iChroma = 0;
+  pYuvMeta->tPlanes[AL_PLANE_Y].iOffset = 0;
+  pYuvMeta->tPlanes[AL_PLANE_UV].iOffset = 0;
 
   auto AllegroConvert = GetConversionFunction(pRecMeta->tFourCC, iBdOut);
   AllegroConvert(&input, &output);
@@ -709,10 +704,9 @@ UncompressedOutputWriter::UncompressedOutputWriter(const string& sYuvFileName, c
   }
 
   // Conversion buffer allocation
-  AL_TPitches tPitches {};
-  AL_TOffsetYC tOffsetYC {};
+  AL_TPlane tPlane {};
   AL_TDimension tDimension {};
-  AL_TMetaData* Meta = (AL_TMetaData*)AL_SrcMetaData_Create(tDimension, tPitches, tOffsetYC, 0);
+  AL_TMetaData* Meta = (AL_TMetaData*)AL_SrcMetaData_Create(tDimension, tPlane, tPlane, 0);
   YuvBuffer = AL_Buffer_Create_And_Allocate(AL_GetDefaultAllocator(), 100, NULL);
 
   if(!YuvBuffer)
@@ -940,24 +934,24 @@ static void showStreamInfo(int BufferNumber, int BufferSize, AL_TStreamSettings 
   int iHeight = tDim.iHeight;
 
   stringstream ss;
-  ss << "Resolution : " << iWidth << "x" << iHeight << endl;
-  ss << "FourCC : " << FourCCToString(tFourCC) << endl;
-  ss << "Profile : " << pSettings->iProfileIdc << endl;
-  ss << "Level : " << pSettings->iLevel << endl;
-  ss << "Bitdepth : " << pSettings->iBitDepth << endl;
+  ss << "Resolution: " << iWidth << "x" << iHeight << endl;
+  ss << "FourCC: " << FourCCToString(tFourCC) << endl;
+  ss << "Profile: " << pSettings->iProfileIdc << endl;
+  ss << "Level: " << pSettings->iLevel << endl;
+  ss << "Bitdepth: " << pSettings->iBitDepth << endl;
 
   if(AL_NeedsCropping(pCropInfo))
   {
     auto uCropWidth = pCropInfo->uCropOffsetLeft + pCropInfo->uCropOffsetRight;
     auto uCropHeight = pCropInfo->uCropOffsetTop + pCropInfo->uCropOffsetBottom;
-    ss << "Crop top    : " << pCropInfo->uCropOffsetTop << endl;
-    ss << "Crop bottom : " << pCropInfo->uCropOffsetBottom << endl;
-    ss << "Crop left   : " << pCropInfo->uCropOffsetLeft << endl;
-    ss << "Crop right  : " << pCropInfo->uCropOffsetRight << endl;
-    ss << "Display resolution : " << iWidth - uCropWidth << "x" << iHeight - uCropHeight << endl;
+    ss << "Crop top: " << pCropInfo->uCropOffsetTop << endl;
+    ss << "Crop bottom: " << pCropInfo->uCropOffsetBottom << endl;
+    ss << "Crop left: " << pCropInfo->uCropOffsetLeft << endl;
+    ss << "Crop right: " << pCropInfo->uCropOffsetRight << endl;
+    ss << "Display resolution: " << iWidth - uCropWidth << "x" << iHeight - uCropHeight << endl;
   }
-  ss << "Sequence picture : " << SequencePictureToString(pSettings->eSequenceMode) << endl;
-  ss << "Buffers needed : " << BufferNumber << " of size " << BufferSize << endl;
+  ss << "Sequence picture: " << SequencePictureToString(pSettings->eSequenceMode) << endl;
+  ss << "Buffers needed: " << BufferNumber << " of size " << BufferSize << endl;
 
   Message(CC_DARK_BLUE, "%s\n", ss.str().c_str());
 }
@@ -1032,13 +1026,8 @@ static AL_ERR sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSe
   BufPoolConfig.uNumBuf = BufferNumber + uDefaultNumBuffersHeldByNextComponent;
   BufPoolConfig.debugName = "yuv";
 
-  AL_TDimension tDimension = { pSettings->tDim.iWidth, pSettings->tDim.iHeight };
-  AL_TPitches tPitches {
-    minPitch, minPitch
-  };
-  AL_TOffsetYC tOffsetYC {};
-  AL_TSrcMetaData* pSrcMeta = AL_SrcMetaData_Create(tDimension, tPitches, tOffsetYC, tFourCC);
-  BufPoolConfig.pMetaData = (AL_TMetaData*)pSrcMeta;
+  auto pMeta = AL_CreateRecBufMetaData(pSettings->tDim, minPitch, tFourCC);
+  BufPoolConfig.pMetaData = pMeta;
 
   if(!p->bufPool.Init(p->pAllocator, BufPoolConfig))
     return AL_ERR_NO_MEMORY;

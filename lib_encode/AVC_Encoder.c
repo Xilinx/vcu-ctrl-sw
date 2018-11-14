@@ -72,8 +72,10 @@ static bool isGdrEnabled(AL_TEncChanParam const* pChParam)
   return (pGop->eGdrMode & AL_GDR_ON) != 0;
 }
 
+
 static void initHlsSps(AL_TEncChanParam* pChParam, uint32_t* pSpsParam)
 {
+  (void)pChParam;
   *pSpsParam = AL_SPS_TEMPORAL_MVP_EN_FLAG; // TODO
   AL_SET_SPS_LOG2_MAX_POC(pSpsParam, 10);
   int log2_max_frame_num_minus4 = 0; // This value SHOULD be equals to IP_Utils SPS
@@ -128,6 +130,12 @@ static void ComputeQPInfo(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
   pChParam->tRCParam.iInitialQP = Clip3(pChParam->tRCParam.iInitialQP,
                                         pChParam->tRCParam.iMinQP,
                                         pChParam->tRCParam.iMaxQP);
+
+  if(pChParam->tRCParam.eRCMode == AL_RC_CAPPED_VBR)
+  {
+    pChParam->tRCParam.uMaxPelVal = AL_GET_BITDEPTH(pChParam->ePicFormat) == 8 ? 255 : 1023;
+    pChParam->tRCParam.uNumPel = pChParam->uWidth * pChParam->uHeight;
+  }
 }
 
 static void generateNals(AL_TEncCtx* pCtx, int iLayerID, bool bWriteVps)

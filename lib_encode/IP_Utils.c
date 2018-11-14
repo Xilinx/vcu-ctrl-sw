@@ -53,66 +53,6 @@
 /*************************************************************************//*!
    \brief AL_t_RPS: reference picture set
 *****************************************************************************/
-static struct AL_t_RPS
-{
-  uint8_t uNumNegPics;
-  uint8_t uNumPosPics;
-  uint8_t uDeltaPoc[16]; // minus 1
-  uint8_t uUsedByCurPic[16];
-} AL_HEVC_RPS[AL_NUM_RPS_EXT] =
-{
-  { 0, 0, { 0, 0 }, { 0, 0 }
-  }, // 0 : IOnly
-  { 1, 0, { 1, 0 }, { 1, 0 }
-  }, // 1 : IP or 1st B in LowDelay B
-  { 1, 0, { 3, 0 }, { 0, 0 }
-  }, // 2 : I with 1B
-  { 1, 0, { 5, 0 }, { 1, 0 }
-  }, // 3 : I with 2B
-  { 1, 0, { 3, 0 }, { 1, 0 }
-  }, // 4 : P with 1B
-  { 1, 0, { 5, 0 }, { 1, 0 }
-  }, // 5 : P with 2B
-  { 1, 1, { 1, 1 }, { 1, 1 }
-  }, // 6 : 1B
-  { 1, 1, { 1, 3 }, { 1, 1 }
-  }, // 7 : 1st B with 2B
-  { 1, 1, { 3, 1 }, { 1, 1 }
-  }, // 8 : 2nd B with 2B
-  { 2, 0, { 1, 1 }, { 1, 1 }
-  }, // 9 : not 1st B in LowDelay B
-  { 2, 0, { 1, 3 }, { 1, 1 }
-  }, // 10 : not 1st B in LowDelay B
-  { 2, 0, { 1, 5 }, { 1, 1 }
-  }, // 11 : not 1st B in LowDelay B
-  { 2, 0, { 1, 7 }, { 1, 1 }
-  }, // 12 : not 1st B in LowDelay B
-
-  { 1, 0, { 7, 0 }, { 1, 0 }
-  }, // 13 : I with 3B
-  { 1, 0, { 7, 0 }, { 1, 0 }
-  }, // 14 : P with 3B
-  { 1, 1, { 1, 5 }, { 1, 1 }
-  }, // 15 : 1st B with 3B
-  { 1, 1, { 3, 3 }, { 1, 1 }
-  }, // 16 : 2nd B with 3B
-  { 1, 1, { 5, 1 }, { 1, 1 }
-  }, // 17 : 3rd B with 3B
-
-  { 1, 0, { 9, 0 }, { 1, 0 }
-  }, // 18 : I with 4B
-  { 1, 0, { 9, 0 }, { 1, 0 }
-  }, // 19 : P with 4B
-  { 1, 1, { 1, 7 }, { 1, 1 }
-  }, // 20 : 1st B with 4B
-  { 1, 1, { 3, 5 }, { 1, 1 }
-  }, // 21 : 2nd B with 4B
-  { 1, 1, { 5, 3 }, { 1, 1 }
-  }, // 22 : 3rd B with 4B
-  { 1, 1, { 7, 1 }, { 1, 1 }
-  }, // 23 : 4th B with 4B
-};
-
 
 /****************************************************************************/
 static uint8_t getMax10BitConstraintFlag(int iBitDepth, AL_EChromaMode eChromaMode)
@@ -636,6 +576,7 @@ static bool isGdrEnabled(AL_TEncSettings const* pSettings)
   return (pGop->eGdrMode & AL_GDR_ON) != 0;
 }
 
+
 /****************************************************************************/
 void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize)
 {
@@ -862,36 +803,9 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
     pSPS->pcm_loop_filter_disabled_flag = (pChParam->eOptions & AL_OPT_LF) ? 0 : 1;
   }
 
-  if(
-    (pChParam->tGopParam.eMode == AL_GOP_MODE_DEFAULT)
-    || (pChParam->tGopParam.eMode & AL_GOP_FLAG_LOW_DELAY)
-    || (pChParam->tGopParam.eMode == AL_GOP_MODE_ADAPTIVE)
-    )
-  {
-    pSPS->num_short_term_ref_pic_sets = pChParam->tGopParam.uNumB > 2 ? AL_NUM_RPS_EXT : AL_NUM_RPS;
+  pSPS->num_short_term_ref_pic_sets = 0;
 
-    for(int i = 0; i < pSPS->num_short_term_ref_pic_sets; ++i)
-    {
-      pSPS->short_term_ref_pic_set[i].inter_ref_pic_set_prediction_flag = 0;
-      pSPS->short_term_ref_pic_set[i].num_negative_pics = AL_HEVC_RPS[i].uNumNegPics;
-      pSPS->short_term_ref_pic_set[i].num_positive_pics = AL_HEVC_RPS[i].uNumPosPics;
-
-      for(int iPic = 0; iPic < pSPS->short_term_ref_pic_set[i].num_negative_pics; ++iPic)
-      {
-        pSPS->short_term_ref_pic_set[i].delta_poc_s0_minus1[iPic] = AL_HEVC_RPS[i].uDeltaPoc[iPic];
-        pSPS->short_term_ref_pic_set[i].used_by_curr_pic_s0_flag[iPic] = AL_HEVC_RPS[i].uUsedByCurPic[iPic];
-      }
-
-      for(int iPic = 0; iPic < pSPS->short_term_ref_pic_set[i].num_positive_pics; ++iPic)
-      {
-        int iIndex = pSPS->short_term_ref_pic_set[i].num_negative_pics + iPic;
-
-        pSPS->short_term_ref_pic_set[i].delta_poc_s1_minus1[iPic] = AL_HEVC_RPS[i].uDeltaPoc[iIndex];
-        pSPS->short_term_ref_pic_set[i].used_by_curr_pic_s1_flag[iPic] = AL_HEVC_RPS[i].uUsedByCurPic[iIndex];
-      }
-    }
-  }
-  else if(pChParam->tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL)
+  if(pChParam->tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL)
   {
     int const NumB = pChParam->tGopParam.uNumB;
     pSPS->num_short_term_ref_pic_sets = NumB + 1;
@@ -942,8 +856,6 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
       }
     }
   }
-  else
-    assert(0);
 
   pSPS->long_term_ref_pics_present_flag = AL_GET_SPS_LOG2_NUM_LONG_TERM_RPS(pChParam->uSpsParam) ? 1 : 0;
   pSPS->num_long_term_ref_pics_sps = 0;
@@ -1095,6 +1007,9 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
   pPPS->cu_qp_delta_enabled_flag = pSettings->eQpCtrlMode ||
                                    (pChParam->tRCParam.eRCMode == AL_RC_LOW_LATENCY) ||
                                    (pChParam->tRCParam.uMaxPictureSize > 0) ||
+#if  AL_VERSION_GEN == AL_GEN_1
+                                   (pChParam->tRCParam.eRCMode == AL_RC_CAPPED_VBR) ||
+#endif
                                    pChParam->uSliceSize ? 1 : 0;
   pPPS->diff_cu_qp_delta_depth = pChParam->uCuQPDeltaDepth;
 
@@ -1114,6 +1029,7 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
   pPPS->loop_filter_across_slices_enabled_flag = (pChParam->eOptions & AL_OPT_LF_X_SLICE) ? 1 : 0;
 
   pPPS->deblocking_filter_control_present_flag = (!(pChParam->eOptions & AL_OPT_LF) || (pChParam->iBetaOffset || pChParam->iTcOffset)) ? 1 : 0;
+
 
   if(isGdrEnabled(pSettings))
     pPPS->deblocking_filter_control_present_flag = 1;

@@ -53,9 +53,6 @@
 typedef AL_TEncSliceStatus TStreamInfo;
 typedef struct AL_t_EncPicStatus AL_TEncPicStatus;
 
-#define AL_NUM_RPS 13
-#define AL_NUM_RPS_EXT 24
-
 /****************************************************************************/
 static const int MAX_IDX_BIT_PER_PEL = 35;
 static const int AL_BitPerPixelQP[36][2] = /* x1000 */

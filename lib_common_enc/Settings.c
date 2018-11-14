@@ -585,7 +585,7 @@ void AL_Settings_SetDefaultRCParam(AL_TRCParam* pRCParam)
   pRCParam->uIPDelta = -1;
   pRCParam->uPBDelta = -1;
   pRCParam->uMaxPelVal = 255;
-  pRCParam->uMaxPSNR = 42;
+  pRCParam->uMaxPSNR = 4200;
   pRCParam->eOptions = AL_RC_OPT_NONE;
 
   pRCParam->bUseGoldenRef = false;
@@ -662,10 +662,9 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 
 
 
-#if AL_ENABLE_TWOPASS
   pSettings->LookAhead = 0;
   pSettings->TwoPass = 0;
-#endif
+  pSettings->bEnableFirstPassCrop = false;
 
 
   pSettings->tChParam[0].eVideoMode = AL_VM_PROGRESSIVE;
@@ -722,7 +721,6 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     ++err;
     MSG("The hardware IP doesn't support 10-bit encoding");
   }
-
 
   if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == CHROMA_4_4_4)
   {
@@ -855,6 +853,15 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
       ++err;
       MSG("Invalid parameter : CbQpOffset");
     }
+
+#if !AL_ENABLE_CTB_64X64
+
+    if(pChParam->uMaxCuSize != 5)
+    {
+      ++err;
+      MSG("!! MaxCUSize Not allowed !!");
+    }
+#endif
   }
   else if(AL_IS_AVC(pChParam->eProfile))
   {
@@ -908,7 +915,6 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     MSG("!! Interlaced Video mode is not supported in this profile !!");
   }
 
-#if AL_ENABLE_TWOPASS
 
   if(pSettings->LookAhead < 2 && pSettings->LookAhead != 0)
   {
@@ -933,7 +939,14 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     ++err;
     MSG("!! Shouldn't have SliceLat and TwoPass/LookAhead at the same time !!");
   }
-#endif
+
+  if(pSettings->bEnableFirstPassCrop && (pChParam->uHeight % 8 != 0 || pChParam->uWidth % 4 != 0))
+  {
+    ++err;
+    MSG("!! In CropFirstPass mode, Height must be multiple of 8 and Width of 4 !!");
+  }
+
+
 
 
   return err;

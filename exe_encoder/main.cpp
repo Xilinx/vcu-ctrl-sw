@@ -69,9 +69,7 @@ extern "C"
 #include "lib_common/BufferSrcMeta.h"
 #include "lib_common/BufferStreamMeta.h"
 #include "lib_common/BufferPictureMeta.h"
-#if AL_ENABLE_TWOPASS
 #include "lib_common/BufferLookAheadMeta.h"
-#endif
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/Utils.h"
 #include "lib_common/versions.h"
@@ -82,9 +80,7 @@ extern "C"
 
 #include "lib_conv_yuv/lib_conv_yuv.h"
 #include "sink_encoder.h"
-#if AL_ENABLE_TWOPASS
 #include "sink_lookahead.h"
-#endif
 #include "sink_bitstream_writer.h"
 #include "sink_frame_writer.h"
 #include "sink_md5.h"
@@ -326,11 +322,10 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
 
 
 
-#if AL_ENABLE_TWOPASS
   opt.addInt("--lookahead", &cfg.Settings.LookAhead, "Set the twopass LookAhead size");
   opt.addInt("--pass", &cfg.Settings.TwoPass, "Specify which pass we are encoding");
-  opt.addString("--twopass-logfile", &cfg.sTwoPassFileName, "File for video statistics used in twopass");
-#endif
+  opt.addString("--pass-logfile", &cfg.sTwoPassFileName, "LogFile to transmit dual pass statistics");
+  opt.addFlag("--first-pass-cropped", &cfg.Settings.bEnableFirstPassCrop, "Crop the video during first pass, to encode faster");
 
   opt.addOption("--set", [&]()
   {
@@ -416,11 +411,9 @@ void ValidateConfig(ConfigFile& cfg)
       throw runtime_error("Fatal coherency error in settings");
   }
 
-#if AL_ENABLE_TWOPASS
 
   if(cfg.Settings.TwoPass == 1)
     AL_TwoPassMngr_SetPass1Settings(cfg.Settings);
-#endif
 
   SetConsoleColor(CC_DEFAULT);
 }
@@ -452,13 +445,27 @@ void SetMoreDefaults(ConfigFile& cfg)
   }
 }
 
-static AL_TOffsetYC GetOffsetYC(int iPitchY, int iHeight, TFourCC fourCC)
+static AL_TPlane GetCPlane(int iPitchY, int iHeight, TFourCC fourCC)
 {
-  AL_TOffsetYC tOffsetYC;
-  tOffsetYC.iLuma = 0;
+  AL_TPlane tPlane;
   auto const iNumLinesInPitch = AL_GetNumLinesInPitch(AL_GetStorageMode(fourCC));
-  tOffsetYC.iChroma = (int)(iPitchY * iHeight / iNumLinesInPitch);
-  return tOffsetYC;
+  tPlane.iOffset = (int)(iPitchY * iHeight / iNumLinesInPitch);
+  tPlane.iPitch = AL_IsSemiPlanar(fourCC) ? iPitchY : iPitchY / 2;
+  return tPlane;
+}
+
+static AL_TPlane GetYMapPlane(int iSizeY, int iWidth, TFourCC fourCC)
+{
+  return {
+           0, 0
+  };
+}
+
+static AL_TPlane GetCMapPlane(AL_TDimension tDim, AL_TPlane tYMapPlane, TFourCC fourCC)
+{
+  return {
+           0, 0
+  };
 }
 
 /*****************************************************************************/
@@ -467,10 +474,11 @@ shared_ptr<AL_TBuffer> AllocateConversionBuffer(vector<uint8_t>& YuvBuffer, int 
 {
   /* we want to read from /write to a file, so no alignement is necessary */
   int const iWidthInBytes = GetIOLumaRowSize(tFourCC, static_cast<uint32_t>(iWidth));
-  AL_TPitches tPitches {
-    iWidthInBytes, AL_IsSemiPlanar(tFourCC) ? iWidthInBytes : iWidthInBytes / 2
+  AL_TPlane tYPlane {
+    0, iWidthInBytes
   };
-  uint32_t uSize = tPitches.iLuma * iHeight;
+
+  uint32_t uSize = tYPlane.iPitch * iHeight;
   switch(AL_GetChromaMode(tFourCC))
   {
   case CHROMA_4_2_0:
@@ -486,9 +494,10 @@ shared_ptr<AL_TBuffer> AllocateConversionBuffer(vector<uint8_t>& YuvBuffer, int 
   YuvBuffer.resize(uSize);
   AL_TBuffer* Yuv = AL_Buffer_WrapData(YuvBuffer.data(), uSize, NULL);
 
-  AL_TOffsetYC tOffsetYC = GetOffsetYC(tPitches.iLuma, iHeight, tFourCC);
+  auto tCPlane = GetCPlane(tYPlane.iPitch, iHeight, tFourCC);
   AL_TDimension tDimension = { iWidth, iHeight };
-  AL_TMetaData* pMeta = (AL_TMetaData*)AL_SrcMetaData_Create(tDimension, tPitches, tOffsetYC, tFourCC);
+  assert(AL_IsCompressed(tFourCC) == false);
+  AL_TMetaData* pMeta = (AL_TMetaData*)AL_SrcMetaData_Create(tDimension, tYPlane, tCPlane, tFourCC);
 
   if(!pMeta)
     throw runtime_error("Couldn't allocate conversion buffer");
@@ -522,19 +531,16 @@ bool ConvertSrcBuffer(AL_TEncChanParam& tChParam, TYUVFileInfo& FileInfo, vector
   return shouldConvert;
 }
 
-static AL_TPitches SetPitchYC(int iWidth, TFourCC tFourCC)
+static int ComputeYPitch(int iWidth, TFourCC tFourCC)
 {
-  AL_TPitches p;
-  p.iLuma = AL_EncGetMinPitch(iWidth, AL_GetBitDepth(tFourCC), AL_GetStorageMode(tFourCC));
+  auto iPitch = AL_EncGetMinPitch(iWidth, AL_GetBitDepth(tFourCC), AL_GetStorageMode(tFourCC));
 
   if(g_Stride != -1)
   {
-    assert(g_Stride >= p.iLuma);
-    p.iLuma = g_Stride;
+    assert(g_Stride >= iPitch);
+    iPitch = g_Stride;
   }
-
-  p.iChroma = AL_IsSemiPlanar(tFourCC) ? p.iLuma : p.iLuma / 2;
-  return p;
+  return iPitch;
 }
 
 static bool isLastPict(int iPictCount, int iMaxPict)
@@ -634,17 +640,21 @@ static AL_TBufPoolConfig GetSrcBufPoolConfig(unique_ptr<IConvSrc>& pSrcConv, TFr
 {
   auto const tPictFormat = AL_EncGetSrcPicFormat(FrameInfo.eCMode, FrameInfo.iBitDepth, AL_GetSrcStorageMode(eSrcMode), AL_IsSrcCompressed(eSrcMode));
   TFourCC FourCC = AL_GetFourCC(tPictFormat);
-  AL_TPitches p = SetPitchYC(FrameInfo.iWidth, FourCC);
+  AL_TPlane tYPlane = { 0, ComputeYPitch(FrameInfo.iWidth, FourCC) };
   int iStrideHeight = (FrameInfo.iHeight + 7) & ~7;
 
   if(g_StrideHeight != -1)
     iStrideHeight = g_StrideHeight;
 
-  AL_TOffsetYC tOffsetYC = GetOffsetYC(p.iLuma, iStrideHeight, FourCC);
-  AL_TMetaData* pMetaData = (AL_TMetaData*)AL_SrcMetaData_Create({ FrameInfo.iWidth, FrameInfo.iHeight }, p, tOffsetYC, FourCC);
-  int iSrcSize = pSrcConv->GetSrcBufSize(p.iLuma, iStrideHeight);
+  auto tCPlane = GetCPlane(tYPlane.iPitch, iStrideHeight, FourCC);
+  auto pMetaData = AL_SrcMetaData_Create({ FrameInfo.iWidth, FrameInfo.iHeight }, tYPlane, tCPlane, FourCC);
+  auto tYMapPlane = GetYMapPlane(tCPlane.iOffset, FrameInfo.iWidth, FourCC);
+  AL_SrcMetaData_AddPlane(pMetaData, tYMapPlane, AL_PLANE_MAP_Y);
+  auto tCMapPlane = GetCMapPlane({ FrameInfo.iWidth, FrameInfo.iHeight }, tYMapPlane, FourCC);
+  AL_SrcMetaData_AddPlane(pMetaData, tCMapPlane, AL_PLANE_MAP_UV);
+  int iSrcSize = pSrcConv->GetSrcBufSize(tYPlane.iPitch, iStrideHeight);
 
-  return GetBufPoolConfig("src", pMetaData, iSrcSize, frameBuffersCount);
+  return GetBufPoolConfig("src", (AL_TMetaData*)(pMetaData), iSrcSize, frameBuffersCount);
 }
 
 /*****************************************************************************/
@@ -654,12 +664,16 @@ static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, TYUVF
   AL_TDimension dim = { FileInfo.PictWidth, FileInfo.PictHeight };
   auto streamSize = AL_GetMitigatedMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat));
 
-#if AL_ENABLE_TWOPASS
 
-  // the LookAhead needs one stream buffer to work (2 in AVC multi-core)
   if(AL_TwoPassMngr_HasLookAhead(Settings))
-    numStreams += (Settings.tChParam[0].eProfile & AL_PROFILE_AVC) ? 2 : 1;
-#endif
+  {
+    int extraLookAheadStream = 1;
+
+    // the look ahead needs one more stream buffer to work in AVC due to (potential) multi-core
+    if(AL_IS_AVC(Settings.tChParam[0].eProfile))
+      extraLookAheadStream += 1;
+    numStreams += extraLookAheadStream;
+  }
 
   if(Settings.tChParam[0].bSubframeLatency)
   {
@@ -752,12 +766,10 @@ void SafeMain(int argc, char** argv)
   BufPool SrcBufPool;
 
   int frameBuffersCount = 2 + Settings.tChParam[0].tGopParam.uNumB;
-#if AL_ENABLE_TWOPASS
 
   // the LookAhead needs LookAheadSize source buffers to work
   if(AL_TwoPassMngr_HasLookAhead(cfg.Settings))
     frameBuffersCount += cfg.Settings.LookAhead;
-#endif
   auto QpBufPoolConfig = GetQpBufPoolConfig(Settings, Settings.tChParam[0], frameBuffersCount);
   BufPool QpBufPool(pAllocator, QpBufPoolConfig);
 
@@ -774,7 +786,6 @@ void SafeMain(int argc, char** argv)
 
   IFrameSink* firstSink = enc.get();
 
-#if AL_ENABLE_TWOPASS
   unique_ptr<EncoderLookAheadSink> encFirstPassLA;
 
   if(AL_TwoPassMngr_HasLookAhead(cfg.Settings))
@@ -784,7 +795,6 @@ void SafeMain(int argc, char** argv)
     encFirstPassLA->next = firstSink;
     firstSink = encFirstPassLA.get();
   }
-#endif
 
   // Input/Output Format conversion
   shared_ptr<AL_TBuffer> SrcYuv;
@@ -811,7 +821,7 @@ void SafeMain(int argc, char** argv)
   }
 
 
-  for(unsigned int i = 0; i < StreamBufPoolConfig.uNumBuf; ++i)
+  for(int i = 0; i < (int)StreamBufPoolConfig.uNumBuf; ++i)
   {
     AL_TBuffer* pStream = StreamBufPool.GetBuffer(AL_BUF_MODE_NONBLOCK);
     assert(pStream);
@@ -826,12 +836,14 @@ void SafeMain(int argc, char** argv)
 
     AL_HEncoder hEnc = enc->hEnc;
 
-#if AL_ENABLE_TWOPASS
+    int iStreamNum = 1;
 
-    // the Lookahead needs one stream buffer to work (2 in AVC multi-core)
-    if(AL_TwoPassMngr_HasLookAhead(cfg.Settings) && i < ((Settings.tChParam[0].eProfile & AL_PROFILE_AVC) ? 2 : 1))
+    // the look ahead needs one more stream buffer to work AVC due to (potential) multi-core
+    if(AL_IS_AVC(Settings.tChParam[0].eProfile))
+      iStreamNum += 1;
+
+    if(AL_TwoPassMngr_HasLookAhead(cfg.Settings) && i < iStreamNum)
       hEnc = encFirstPassLA->hEnc;
-#endif
     bool bRet = AL_Encoder_PutStreamBuffer(hEnc, pStream);
     assert(bRet);
     AL_Buffer_Unref(pStream);

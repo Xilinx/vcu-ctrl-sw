@@ -103,12 +103,18 @@ uint32_t AL_GetAllocSizeEP2(AL_TDimension tDim, uint8_t uMaxCuSize)
   return (uint32_t)(EP2_BUF_QP_CTRL.Size + EP2_BUF_SEG_CTRL.Size) + RoundUp(uMaxSize, 128);
 }
 
+
+/****************************************************************************/
+uint32_t AL_GetAllocSizeEP3PerCore()
+{
+  return (uint32_t)(EP3_BUF_RC_TABLE1.Size + EP3_BUF_RC_TABLE2.Size + EP3_BUF_RC_CTX.Size + EP3_BUF_RC_LVL.Size);
+  ;
+}
+
 /****************************************************************************/
 uint32_t AL_GetAllocSizeEP3()
 {
-  uint32_t uHwRCSize = (uint32_t)(EP3_BUF_RC_TABLE1.Size + EP3_BUF_RC_TABLE2.Size + EP3_BUF_RC_CTX.Size + EP3_BUF_RC_LVL.Size);
-  uint32_t uMaxSize = uHwRCSize * AL_ENC_NUM_CORES;
-
+  uint32_t uMaxSize = AL_GetAllocSizeEP3PerCore() * AL_ENC_NUM_CORES;
   return RoundUp(uMaxSize, 128);
 }
 
@@ -243,11 +249,8 @@ static int AL_RndUpPow2(int iVal)
 #endif
 
 /****************************************************************************/
-uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_EChEncOption eEncOption)
+uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bComp)
 {
-  (void)eEncOption;
-  bool bComp = false;
-
   AL_TDimension RoundedDim;
   RoundedDim.iHeight = RoundUp(tDim.iHeight, 64);
   RoundedDim.iWidth = RoundUp(tDim.iWidth, 64);

@@ -42,16 +42,16 @@
 #include "EncCmdMngr.h"
 #include "CommandsSender.h"
 
-#if AL_ENABLE_TWOPASS
 #include "TwoPassMngr.h"
-#endif
 
 #include "FileUtils.h"
+
 
 #include <string>
 #include <memory>
 #include <fstream>
 #include <stdexcept>
+#include <map>
 
 static bool PreprocessQP(uint8_t* pQPs, const AL_TEncSettings& Settings, const AL_TEncChanParam& tChParam, const std::string& sQPTablesFolder, int iFrameCountSent)
 {
@@ -65,24 +65,36 @@ static bool PreprocessQP(uint8_t* pQPs, const AL_TEncSettings& Settings, const A
 class QPBuffers
 {
 public:
-  QPBuffers(BufPool& bufpool, const AL_TEncSettings& settings, const AL_TEncChanParam& tChParam) :
-    bufpool(bufpool), isExternQpTable(settings.eQpCtrlMode & (MASK_QP_TABLE_EXT)), settings(settings)
+  struct QPLayerInfo
   {
-    (void)tChParam;
-    pRoiCtx = AL_RoiMngr_Create(tChParam.uWidth, tChParam.uHeight, tChParam.eProfile, AL_ROI_QUALITY_LOW, AL_ROI_QUALITY_ORDER);
-    initQpBuffers(bufpool);
+    BufPool* bufPool;
+    std::string sQPTablesFolder;
+    std::string sRoiFileName;
+  };
+
+  QPBuffers(const AL_TEncSettings& settings) :
+    isExternQpTable(settings.eQpCtrlMode & (MASK_QP_TABLE_EXT)), settings(settings)
+  {
   }
 
   ~QPBuffers()
   {
-    AL_RoiMngr_Destroy(pRoiCtx);
+
+    for(auto roiCtx = mQPLayerRoiCtxs.begin(); roiCtx != mQPLayerRoiCtxs.end(); roiCtx++)
+      AL_RoiMngr_Destroy(roiCtx->second);
+
   }
 
+  void SetBufPool(QPLayerInfo& qpLayerInfo)
+  {
+    initLayer(qpLayerInfo, 0);
+  }
 
   AL_TBuffer* getBuffer(int frameNum)
   {
-    return getBuffer(frameNum, &bufpool, settings.tChParam[0]);
+    return getBufferP(frameNum, 0);
   }
+
 
   void releaseBuffer(AL_TBuffer* buffer)
   {
@@ -91,24 +103,13 @@ public:
     AL_Buffer_Unref(buffer);
   }
 
-  void setRoiFileName(std::string const& roiFileName)
-  {
-    sRoiFileName = roiFileName;
-  }
-
-
-  void setQPTablesFolder(std::string const& sQPTablesFolder)
-  {
-    this->sQPTablesFolder = sQPTablesFolder;
-  }
-
 private:
-  void initQpBuffers(BufPool& BufPool)
+  void initLayer(QPLayerInfo& qpLayerInfo, int iLayerID)
   {
     // set QpBuf memory to 0 for traces
     std::vector<AL_TBuffer*> qpBufs;
 
-    while(auto curQp = BufPool.GetBuffer(AL_BUF_MODE_NONBLOCK))
+    while(auto curQp = qpLayerInfo.bufPool->GetBuffer(AL_BUF_MODE_NONBLOCK))
     {
       qpBufs.push_back(curQp);
       Rtos_Memset(AL_Buffer_GetData(curQp), 0, curQp->zSize);
@@ -116,19 +117,26 @@ private:
 
     for(auto qpBuf : qpBufs)
       AL_Buffer_Unref(qpBuf);
+
+    mQPLayerInfos[iLayerID] = qpLayerInfo;
+    auto& tChParam = settings.tChParam[iLayerID];
+    mQPLayerRoiCtxs[iLayerID] = AL_RoiMngr_Create(tChParam.uWidth, tChParam.uHeight, tChParam.eProfile, AL_ROI_QUALITY_LOW, AL_ROI_QUALITY_ORDER);
   }
 
-  AL_TBuffer* getBuffer(int frameNum, BufPool* pBufPool, const AL_TEncChanParam& tChParam)
+  AL_TBuffer* getBufferP(int frameNum, int iLayerID)
   {
-    if(!isExternQpTable)
+    if(!isExternQpTable || mQPLayerInfos.find(iLayerID) == mQPLayerInfos.end())
       return nullptr;
 
-    AL_TBuffer* pQpBuf = pBufPool->GetBuffer();
-    bool bRet = PreprocessQP(AL_Buffer_GetData(pQpBuf), settings, tChParam, sQPTablesFolder, frameNum);
+    auto& layerInfo = mQPLayerInfos[iLayerID];
+    auto& tLayerChParam = settings.tChParam[iLayerID];
+
+    AL_TBuffer* pQpBuf = layerInfo.bufPool->GetBuffer();
+    bool bRet = PreprocessQP(AL_Buffer_GetData(pQpBuf), settings, tLayerChParam, layerInfo.sQPTablesFolder, frameNum);
 
     if(!bRet)
-      bRet = GenerateROIBuffer(pRoiCtx, sRoiFileName, AL_GetWidthInLCU(tChParam), AL_GetHeightInLCU(tChParam),
-                               tChParam.eProfile, frameNum, AL_Buffer_GetData(pQpBuf) + EP2_BUF_QP_BY_MB.Offset);
+      bRet = GenerateROIBuffer(mQPLayerRoiCtxs[iLayerID], layerInfo.sRoiFileName, AL_GetWidthInLCU(tLayerChParam), AL_GetHeightInLCU(tLayerChParam),
+                               tLayerChParam.eProfile, frameNum, AL_Buffer_GetData(pQpBuf) + EP2_BUF_QP_BY_MB.Offset);
 
     if(!bRet)
     {
@@ -140,13 +148,10 @@ private:
   }
 
 private:
-  BufPool& bufpool;
   bool isExternQpTable;
   const AL_TEncSettings& settings;
-  std::string sQPTablesFolder;
-
-  std::string sRoiFileName;
-  AL_TRoiMngrCtx* pRoiCtx;
+  std::map<int, QPLayerInfo> mQPLayerInfos;
+  std::map<int, AL_TRoiMngrCtx*> mQPLayerRoiCtxs;
 };
 
 
@@ -163,8 +168,8 @@ const char* EncoderErrorToString(AL_ERR eErr)
 {
   switch(eErr)
   {
-  case AL_ERR_STREAM_OVERFLOW: return "Stream Error : Stream overflow";
-  case AL_ERR_TOO_MANY_SLICES: return "Stream Error : Too many slices";
+  case AL_ERR_STREAM_OVERFLOW: return "Stream Error: Stream overflow";
+  case AL_ERR_TOO_MANY_SLICES: return "Stream Error: Too many slices";
   case AL_ERR_CHAN_CREATION_NO_CHANNEL_AVAILABLE: return "Channel creation failed, no channel available";
   case AL_ERR_CHAN_CREATION_RESOURCE_UNAVAILABLE: return "Channel creation failed, processing power of the available cores insufficient";
   case AL_ERR_CHAN_CREATION_NOT_ENOUGH_CORES: return "Channel creation failed, couldn't spread the load on enough cores";
@@ -194,7 +199,7 @@ void ThrowEncoderError(AL_ERR eErr)
     throw codec_error(msg, eErr);
   }
 
-  if(eErr != AL_SUCCESS)
+  if(eErr != AL_SUCCESS && (eErr != AL_WARN_LCU_OVERFLOW || g_EncoderLastError == AL_SUCCESS))
     g_EncoderLastError = eErr;
 }
 
@@ -216,14 +221,18 @@ struct EncoderSink : IFrameSink
               ) :
     CmdFile(cfg.sCmdFileName, false),
     EncCmd(CmdFile.fp, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
-#if AL_ENABLE_TWOPASS
-    twoPassMngr(cfg.sTwoPassFileName, cfg.Settings.TwoPass),
-#endif
-    qpBuffers(qpBufPool, cfg.Settings, cfg.Settings.tChParam[0])
+    twoPassMngr(cfg.sTwoPassFileName, cfg.Settings.TwoPass, cfg.Settings.bEnableFirstPassCrop, cfg.Settings.tChParam[0].tGopParam.uGopLength,
+                cfg.Settings.tChParam[0].tRCParam.uCPBSize / 90, cfg.Settings.tChParam[0].tRCParam.uInitialRemDelay / 90, cfg.FileInfo.FrameRate),
+    qpBuffers(cfg.Settings)
   {
-    qpBuffers.setRoiFileName(cfg.sRoiFileName);
+    QPBuffers::QPLayerInfo qpInf
+    {
+      &qpBufPool,
+      cfg.sQPTablesFolder,
+      cfg.sRoiFileName
+    };
 
-    qpBuffers.setQPTablesFolder(cfg.sQPTablesFolder);
+    qpBuffers.SetBufPool(qpInf);
 
     AL_CB_EndEncoding onEndEncoding = { &EncoderSink::EndEncoding, this };
 
@@ -267,16 +276,17 @@ struct EncoderSink : IFrameSink
       EncCmd.Process(commandsSender.get(), m_picCount);
 
 
-#if AL_ENABLE_TWOPASS
 
       if(twoPassMngr.iPass)
       {
-        auto pPictureMetaTP = twoPassMngr.CreateAndAttachTwoPassMetaData(Src);
+        auto pPictureMetaTP = AL_TwoPassMngr_CreateAndAttachTwoPassMetaData(Src);
 
         if(twoPassMngr.iPass == 2)
           twoPassMngr.GetFrame(pPictureMetaTP);
+
+        if(twoPassMngr.iPass == 1 && twoPassMngr.bEnableFirstPassCrop)
+          AL_TwoPassMngr_CropBufferSrc(Src);
       }
-#endif
 
       QpBuf = qpBuffers.getBuffer(m_picCount);
     }
@@ -303,9 +313,7 @@ private:
   uint64_t m_EndTime = 0;
   safe_ifstream CmdFile;
   CEncCmdMngr EncCmd;
-#if AL_ENABLE_TWOPASS
   TwoPassMngr twoPassMngr;
-#endif
   QPBuffers qpBuffers;
   std::unique_ptr<CommandsSender> commandsSender;
 
@@ -326,7 +334,6 @@ private:
     if(isStreamReleased(pStream, pSrc) || isSourceReleased(pStream, pSrc))
       return;
 
-#if AL_ENABLE_TWOPASS
 
     if(pThis->twoPassMngr.iPass == 1)
     {
@@ -335,10 +342,18 @@ private:
       else
       {
         auto pPictureMetaTP = (AL_TLookAheadMetaData*)AL_Buffer_GetMetaData(pSrc, AL_META_TYPE_LOOKAHEAD);
+
+        if(pThis->twoPassMngr.bEnableFirstPassCrop)
+        {
+          AL_TwoPassMngr_UncropBufferSrc((AL_TBuffer*)pSrc);
+
+          if(pPictureMetaTP)
+            pPictureMetaTP->iPictureSize = (int32_t)(((uint64_t)pPictureMetaTP->iPictureSize * 3500) / 1000);
+        }
+
         pThis->twoPassMngr.AddFrame(pPictureMetaTP);
       }
     }
-#endif
 
     pThis->processOutput(pStream);
   }
@@ -415,10 +430,7 @@ private:
   static AL_TBuffer* WrapBufferYuv(TBufferYuv* frame)
   {
     AL_TBuffer* pBuf = AL_Buffer_WrapData(frame->tMD.pVirtualAddr, frame->tMD.uSize, NULL);
-    AL_TPitches tPitches = { frame->iPitchY, frame->iPitchC };
-    AL_TOffsetYC tOffsetYC = frame->tOffsetYC;
-    AL_TDimension tDimension = { frame->iWidth, frame->iHeight };
-    AL_TSrcMetaData* pBufMeta = AL_SrcMetaData_Create(tDimension, tPitches, tOffsetYC, frame->tFourCC);
+    AL_TSrcMetaData* pBufMeta = AL_SrcMetaData_Create(frame->tDim, frame->tPlanes[AL_PLANE_Y], frame->tPlanes[AL_PLANE_UV], frame->tFourCC);
     AL_Buffer_AddMetaData(pBuf, (AL_TMetaData*)pBufMeta);
     return pBuf;
   }

@@ -268,7 +268,7 @@ void ConfigParser::parseIdentifiers(Token const& ident, std::deque<Token>& token
 {
   try
   {
-    identifiers.at(curSection).at(ident.text).func(tokens);
+    identifiers.at(curSection).at(tolowerStr(ident.text)).func(tokens);
   }
   catch(std::out_of_range &)
   {
@@ -335,16 +335,16 @@ std::string ConfigParser::nearestMatch(std::string const& wrong)
   {
     for(auto section : identifiers)
       for(auto const & right : identifiers.at(section.first))
-        if(wrong == right.first)
+        if(wrong == right.second.showName)
           otherSectionMatch = wrong + " but in section [" + toString(section.first) + "]";
 
     for(auto const& right : identifiers.at(curSection))
     {
-      auto distance = levenshteinDistance(right.first, wrong);
+      auto distance = levenshteinDistance(right.second.showName, wrong);
 
       if(distance < minDistance)
       {
-        match = right.first;
+        match = right.second.showName;
         minDistance = distance;
       }
     }
