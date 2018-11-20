@@ -1093,6 +1093,9 @@ static bool CheckSettings(AL_TDecSettings const* pSettings)
   if((pSettings->uDDRWidth != 16) && (pSettings->uDDRWidth != 32) && (pSettings->uDDRWidth != 64))
     return false;
 
+  if((pSettings->uFrameRate == 0) && pSettings->bForceFrameRate)
+    return false;
+
   if(!CheckDecodeUnit(pSettings->eDecUnit))
     return false;
 
@@ -1121,7 +1124,7 @@ static void AssignSettings(AL_TDecCtx* const pCtx, AL_TDecSettings const* const 
   pChan->uMaxLatency = pSettings->iStackSize;
   pChan->uNumCore = pSettings->uNumCore;
   pChan->uClkRatio = pSettings->uClkRatio;
-  pChan->uFrameRate = pSettings->uFrameRate;
+  pChan->uFrameRate = pSettings->uFrameRate == 0 ? 1000 : pSettings->uFrameRate;
   pChan->bDisableCache = pSettings->bDisableCache;
   pChan->bFrameBufferCompression = pSettings->bFrameBufferCompression;
   pChan->eFBStorageMode = pSettings->eFBStorageMode;
