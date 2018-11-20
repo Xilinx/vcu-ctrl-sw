@@ -1,4 +1,0 @@
-LIBRARY AL_fpga
-EXPORTS
-  Board_Create
-  DmaAlloc_Create

@@ -43,6 +43,19 @@ extern "C"
 #include "lib_rtos/lib_rtos.h"
 }
 
+struct AL_TRoiNode
+{
+  AL_TRoiNode* pPrev;
+  AL_TRoiNode* pNext;
+
+  int iPosX;
+  int iPosY;
+  int iWidth;
+  int iHeight;
+
+  int8_t iDeltaQP;
+};
+
 /****************************************************************************/
 static AL_INLINE int RoundUp(int iVal, int iRnd)
 {

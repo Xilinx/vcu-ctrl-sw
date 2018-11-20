@@ -280,14 +280,15 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
   pSlice->nal_unit_type = u(pRP, 5);
   pSlice->first_mb_in_slice = ue(pRP);
   pSlice->slice_type = ue(pRP);
-  pSlice->pic_parameter_set_id = ue(pRP);
 
-  int const currentPPSId = pSlice->pic_parameter_set_id;
+  int const currentPPSId = ue(pRP);
 
   AL_TAvcPps const* pFallbackPps = &pPPSTable[pConceal->iLastPPSId];
 
-  if(pPPSTable[currentPPSId].bConceal)
+  if(currentPPSId > AL_AVC_MAX_PPS || pPPSTable[currentPPSId].bConceal)
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
+
+  pSlice->pic_parameter_set_id = currentPPSId;
 
   int const MaxNumMb = (pPPSTable[currentPPSId].pSPS->pic_height_in_map_units_minus1 + 1) * (pPPSTable[currentPPSId].pSPS->pic_width_in_mbs_minus1 + 1);
 
@@ -320,22 +321,15 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
   if(pSlice->nal_unit_type == AL_AVC_NUT_VCL_IDR && pSlice->slice_type != SLICE_I)
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
 
-  // select the pps for the current picture
-  pSlice->pPPS = &pPPSTable[currentPPSId];
+  // select the pps & sps for the current picture
+  AL_TAvcPps const* pPps = pSlice->pPPS = &pPPSTable[currentPPSId];
 
-  if(pSlice->pPPS->bConceal)
+  if(pPps->bConceal)
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
 
-  AL_TAvcPps const* pPps = pSlice->pPPS;
+  AL_TAvcSps const* pSps = pSlice->pSPS = pPps->pSPS;
 
-  pSlice->pSPS = pPps->pSPS;
-
-  if(pSlice->pSPS->bConceal)
-    return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
-
-  AL_TAvcSps const* pSps = pSlice->pSPS;
-
-  if(pPps->bConceal || pSps->bConceal)
+  if(pSps->bConceal)
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
 
   // check if NAL isn't empty
@@ -394,8 +388,8 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
     else
     {
       // infer values from ParserPPS
-      pSlice->num_ref_idx_l0_active_minus1 = pSlice->pPPS->num_ref_idx_l0_active_minus1;
-      pSlice->num_ref_idx_l1_active_minus1 = pSlice->pPPS->num_ref_idx_l1_active_minus1;
+      pSlice->num_ref_idx_l0_active_minus1 = pPps->num_ref_idx_l0_active_minus1;
+      pSlice->num_ref_idx_l1_active_minus1 = pPps->num_ref_idx_l1_active_minus1;
     }
   }
 
@@ -444,7 +438,6 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
   if(pPps->num_slice_groups_minus1 > 0 && pPps->slice_group_map_type >= 3 && pPps->slice_group_map_type <= 5)
     assert(0);
   pConceal->iFirstLCU = pSlice->first_mb_in_slice;
-  pConceal->iLastPPSId = pSlice->pic_parameter_set_id;
   return true;
 }
 

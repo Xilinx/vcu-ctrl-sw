@@ -586,7 +586,7 @@ void AL_Settings_SetDefaultRCParam(AL_TRCParam* pRCParam)
   pRCParam->uPBDelta = -1;
   pRCParam->uMaxPelVal = 255;
   pRCParam->uMaxPSNR = 4200;
-  pRCParam->eOptions = AL_RC_OPT_NONE;
+  pRCParam->eOptions = AL_RC_OPT_SCN_CHG_RES;
 
   pRCParam->bUseGoldenRef = false;
   pRCParam->uGoldenRefFrequency = 10;
@@ -686,6 +686,7 @@ static void AL_sCheckRange(int16_t* pRange, const int16_t iMaxRange, FILE* pOut)
 
 void AL_Settings_SetDefaultParam(AL_TEncSettings* pSettings)
 {
+
   if(AL_IS_AVC(pSettings->tChParam[0].eProfile))
     AL_sSettings_SetDefaultAVCParam(pSettings);
 
@@ -854,14 +855,12 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
       MSG("Invalid parameter : CbQpOffset");
     }
 
-#if !AL_ENABLE_CTB_64X64
 
     if(pChParam->uMaxCuSize != 5)
     {
       ++err;
       MSG("!! MaxCUSize Not allowed !!");
     }
-#endif
   }
   else if(AL_IS_AVC(pChParam->eProfile))
   {

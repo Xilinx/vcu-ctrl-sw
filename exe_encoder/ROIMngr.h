@@ -35,6 +35,13 @@
 *
 ******************************************************************************/
 
+/****************************************************************************
+   -----------------------------------------------------------------------------
+ **************************************************************************//*!
+   \addtogroup ExeEncoder
+   @{
+   \file
+ *****************************************************************************/
 #pragma once
 
 extern "C"
@@ -42,6 +49,9 @@ extern "C"
 #include <lib_common_enc/EncBuffers.h>
 }
 
+/*************************************************************************//*!
+   \brief Types of ROI
+*****************************************************************************/
 typedef enum al_eRoiQuality
 {
   AL_ROI_QUALITY_HIGH = -5,
@@ -51,6 +61,9 @@ typedef enum al_eRoiQuality
   AL_ROI_QUALITY_MAX_ENUM,
 }AL_ERoiQuality;
 
+/*************************************************************************//*!
+   \brief Priority in case of intersecting ROIs
+*****************************************************************************/
 typedef enum al_eRoiOrder
 {
   AL_ROI_INCOMING_ORDER,
@@ -58,19 +71,11 @@ typedef enum al_eRoiOrder
   AL_ROI_MAX_ORDER,
 }AL_ERoiOrder;
 
-struct AL_TRoiNode
-{
-  AL_TRoiNode* pPrev;
-  AL_TRoiNode* pNext;
+struct AL_TRoiNode;
 
-  int iPosX;
-  int iPosY;
-  int iWidth;
-  int iHeight;
-
-  int8_t iDeltaQP;
-};
-
+/*************************************************************************//*!
+   \brief ROI Manager context
+*****************************************************************************/
 struct AL_TRoiMngrCtx
 {
   int8_t iMinQP;
@@ -91,13 +96,48 @@ struct AL_TRoiMngrCtx
   AL_TRoiNode* pLastNode;
 };
 
+/*************************************************************************//*!
+   \brief Create a ROI Manager context
+   \param[in] iPicWidth Source width
+   \param[in] iPicHeight Source Height
+   \param[in] eProf Codec profile
+   \param[in] eBkgQuality Default quality applied to the background
+   \param[in] eOrder ROI priority
+   \returns Pointer to the ROI Manager context created
+*****************************************************************************/
 AL_TRoiMngrCtx* AL_RoiMngr_Create(int iPicWidth, int iPicHeight, AL_EProfile eProf, AL_ERoiQuality eBkgQuality, AL_ERoiOrder eOrder);
 
+/*************************************************************************//*!
+   \brief Destroy a ROI Manager context
+   \param[in] pCtx Pointer to the ROI Manager context to destroy
+*****************************************************************************/
 void AL_RoiMngr_Destroy(AL_TRoiMngrCtx* pCtx);
 
+/*************************************************************************//*!
+   \brief Clear all ROIs of a ROI Manager
+   \param[in] pCtx Pointer to the ROI Manager context to clear
+*****************************************************************************/
 void AL_RoiMngr_Clear(AL_TRoiMngrCtx* pCtx);
 
+/*************************************************************************//*!
+   \brief Add a ROI to a ROI Manager
+   \param[in] pCtx Pointer to the ROI Manager context
+   \param[in] iPosX Left position of the ROI
+   \param[in] iPosY Top position of the ROI
+   \param[in] iWidth Width of the ROI
+   \param[in] iHeight Height of the ROI
+   \param[in] eQuality Quality of the ROI
+   \param[in] pCtx Pointer to the ROI Manager context
+   \return True if the ROI was successfully added
+*****************************************************************************/
 bool AL_RoiMngr_AddROI(AL_TRoiMngrCtx* pCtx, int iPosX, int iPosY, int iWidth, int iHeight, AL_ERoiQuality eQuality);
 
+/*************************************************************************//*!
+   \brief Fill a QP table buffer according to the configuration of a ROI Manager
+   \param[in] pCtx Pointer to the ROI Manager context
+   \param[in] iNumQPPerLCU Number of QP values for a codec LCU
+   \param[in] iNumBytesPerLCU Number of bytes storing the QPs for one LCU
+   \param[out] pBuf The buffer of QPs to fill
+*****************************************************************************/
 void AL_RoiMngr_FillBuff(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerLCU, uint8_t* pBuf);
 

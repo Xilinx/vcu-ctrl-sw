@@ -65,13 +65,15 @@ static void initPps(AL_THevcPps* pPPS)
   pPPS->chroma_qp_offset_list_enabled_flag = 0;
   pPPS->log2_sao_offset_scale_chroma = 0;
   pPPS->log2_sao_offset_scale_chroma = 0;
+
+  pPPS->bConceal = true;
 }
 
 /*****************************************************************************/
-void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint8_t* pPpsId)
+void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
 {
   AL_THevcAup* aup = &pIAup->hevcAup;
-  uint8_t pps_id, QpBdOffset;
+  uint16_t pps_id, QpBdOffset;
   uint16_t uLCUWidth, uLCUHeight;
   AL_THevcPps* pPPS;
 
@@ -84,10 +86,11 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint8_t* pPpsId)
   pps_id = ue(pRP);
   pPPS = &aup->pPPS[pps_id];
 
-  *pPpsId = pps_id;
+  if(pPpsId)
+    *pPpsId = pps_id;
+
   // default values
   initPps(pPPS);
-  pPPS->bConceal = true;
 
   if(pps_id >= AL_HEVC_MAX_PPS)
     return;

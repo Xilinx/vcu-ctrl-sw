@@ -15,13 +15,16 @@ EXE_ENCODER_SRCS:=\
   $(THIS_EXE_ENCODER)/sink_frame_writer.cpp\
   $(THIS_EXE_ENCODER)/sink_md5.cpp\
   $(THIS_EXE_ENCODER)/MD5.cpp\
-  $(THIS_EXE_ENCODER)/ROIMngr.cpp\
   $(THIS_EXE_ENCODER)/EncCmdMngr.cpp\
   $(THIS_EXE_ENCODER)/QPGenerator.cpp\
   $(THIS_EXE_ENCODER)/CommandsSender.cpp\
   $(PARSER_SRCS)\
   $(LIB_CONV_SRC)\
   $(LIB_APP_SRC)\
+
+ifneq ($(ENABLE_ROI),0)
+  EXE_ENCODER_SRCS+=$(THIS_EXE_ENCODER)/ROIMngr.cpp
+endif
 
 ifneq ($(ENABLE_BYPASS),0)
 endif

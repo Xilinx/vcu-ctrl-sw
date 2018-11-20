@@ -56,7 +56,10 @@ extern "C" {
 
 #include "convert.h"
 
-#define RND_10B_TO_8B(val) (((val) >= 0x3FC) ? 0xFF : (((val) + 2) >> 2))
+static inline uint8_t RND_10B_TO_8B(uint16_t val)
+{
+  return (uint8_t)(((val) >= 0x3FC) ? 0xFF : (((val) + 2) >> 2));
+}
 
 static void SetFourCC(AL_TSrcMetaData* pMetaData, TFourCC tFourCC420, TFourCC tFourCC422, int iScale)
 {
@@ -2067,7 +2070,84 @@ void T628_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 }
 
 /****************************************************************************/
-void T60A_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+template<typename TUntiled, typename FConvert>
+static void Untile4x4Block10b(uint16_t* pTiled4x4, TUntiled* pUntiled, int iUntiledPitch, FConvert convert)
+{
+  pUntiled[0] = convert(pTiled4x4[0] & 0x3FF);
+  pUntiled[1] = convert(((pTiled4x4[0] >> 10) | (pTiled4x4[1] << 6)) & 0x3FF);
+  pUntiled[2] = convert((pTiled4x4[1] >> 4) & 0x3FF);
+  pUntiled[3] = convert(((pTiled4x4[1] >> 14) | (pTiled4x4[2] << 2)) & 0x3FF);
+  pUntiled += iUntiledPitch;
+  pUntiled[0] = convert(((pTiled4x4[2] >> 8) | (pTiled4x4[3] << 8)) & 0x3FF);
+  pUntiled[1] = convert((pTiled4x4[3] >> 2) & 0x3FF);
+  pUntiled[2] = convert(((pTiled4x4[3] >> 12) | (pTiled4x4[4] << 4)) & 0x3FF);
+  pUntiled[3] = convert(pTiled4x4[4] >> 6);
+  pUntiled += iUntiledPitch;
+  pUntiled[0] = convert(pTiled4x4[5] & 0x3FF);
+  pUntiled[1] = convert(((pTiled4x4[5] >> 10) | (pTiled4x4[6] << 6)) & 0x3FF);
+  pUntiled[2] = convert((pTiled4x4[6] >> 4) & 0x3FF);
+  pUntiled[3] = convert(((pTiled4x4[6] >> 14) | (pTiled4x4[7] << 2)) & 0x3FF);
+  pUntiled += iUntiledPitch;
+  pUntiled[0] = convert(((pTiled4x4[7] >> 8) | (pTiled4x4[8] << 8)) & 0x3FF);
+  pUntiled[1] = convert((pTiled4x4[8] >> 2) & 0x3FF);
+  pUntiled[2] = convert(((pTiled4x4[8] >> 12) | (pTiled4x4[9] << 4)) & 0x3FF);
+  pUntiled[3] = convert(pTiled4x4[9] >> 6);
+}
+
+/****************************************************************************/
+static void Untile4x4Block10bTo8b(uint16_t* pTiled4x4, uint8_t* pUntiled, int iUntiledPitch)
+{
+  Untile4x4Block10b<uint8_t>(pTiled4x4, pUntiled, iUntiledPitch, RND_10B_TO_8B);
+}
+
+/****************************************************************************/
+static void Untile4x4Block10bTo10b(uint16_t* pTiled4x4, uint16_t* pUntiled, int iUntiledPitch)
+{
+  Untile4x4Block10b<uint16_t>(pTiled4x4, pUntiled, iUntiledPitch, [](uint16_t u16) { return u16; });
+}
+
+/****************************************************************************/
+template<typename TUntiled, typename FConvert>
+static void Untile4x4ChromaBlock10bToPlanar(uint16_t* pTiled4x4, TUntiled* pUntiledU, TUntiled* pUntiledV, int iUntiledPitch, FConvert convert)
+{
+  pUntiledU[0] = convert(pTiled4x4[0] & 0x3FF);
+  pUntiledV[0] = convert(((pTiled4x4[0] >> 10) | (pTiled4x4[1] << 6)) & 0x3FF);
+  pUntiledU[1] = convert((pTiled4x4[1] >> 4) & 0x3FF);
+  pUntiledV[1] = convert(((pTiled4x4[1] >> 14) | (pTiled4x4[2] << 2)) & 0x3FF);
+  pUntiledU += iUntiledPitch;
+  pUntiledV += iUntiledPitch;
+  pUntiledU[0] = convert(((pTiled4x4[2] >> 8) | (pTiled4x4[3] << 8)) & 0x3FF);
+  pUntiledV[0] = convert((pTiled4x4[3] >> 2) & 0x3FF);
+  pUntiledU[1] = convert(((pTiled4x4[3] >> 12) | (pTiled4x4[4] << 4)) & 0x3FF);
+  pUntiledV[1] = convert(pTiled4x4[4] >> 6);
+  pUntiledU += iUntiledPitch;
+  pUntiledV += iUntiledPitch;
+  pUntiledU[0] = convert(pTiled4x4[5] & 0x3FF);
+  pUntiledV[0] = convert(((pTiled4x4[5] >> 10) | (pTiled4x4[6] << 6)) & 0x3FF);
+  pUntiledU[1] = convert((pTiled4x4[6] >> 4) & 0x3FF);
+  pUntiledV[1] = convert(((pTiled4x4[6] >> 14) | (pTiled4x4[7] << 2)) & 0x3FF);
+  pUntiledU += iUntiledPitch;
+  pUntiledV += iUntiledPitch;
+  pUntiledU[0] = convert(((pTiled4x4[7] >> 8) | (pTiled4x4[8] << 8)) & 0x3FF);
+  pUntiledV[0] = convert((pTiled4x4[8] >> 2) & 0x3FF);
+  pUntiledU[1] = convert(((pTiled4x4[8] >> 12) | (pTiled4x4[9] << 4)) & 0x3FF);
+  pUntiledV[1] = convert(pTiled4x4[9] >> 6);
+}
+
+/****************************************************************************/
+static void Untile4x4ChromaBlock10bToPlanar8b(uint16_t* pTiled4x4, uint8_t* pUntiledU, uint8_t* pUntiledV, int iUntiledPitch)
+{
+  Untile4x4ChromaBlock10bToPlanar<uint8_t>(pTiled4x4, pUntiledU, pUntiledV, iUntiledPitch, RND_10B_TO_8B);
+}
+
+/****************************************************************************/
+static void Untile4x4ChromaBlock10bToPlanar10b(uint16_t* pTiled4x4, uint16_t* pUntiledU, uint16_t* pUntiledV, int iUntiledPitch)
+{
+  Untile4x4ChromaBlock10bToPlanar<uint16_t>(pTiled4x4, pUntiledU, pUntiledV, iUntiledPitch, [](uint16_t u16) { return u16; });
+}
+
+/****************************************************************************/
+static void T60A_To_Planar8b(AL_TBuffer const* pSrc, AL_TBuffer* pDst, bool bDstUFirst, TFourCC tDstFourCC)
 {
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pSrc, AL_META_TYPE_SOURCE);
   AL_TSrcMetaData* pDstMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pDst, AL_META_TYPE_SOURCE);
@@ -2081,8 +2161,11 @@ void T60A_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
   const int iSrcLumaSize = (((pSrcMeta->tDim.iHeight + 63) & ~63) >> 2) * pSrcMeta->tPlanes[AL_PLANE_Y].iPitch;
   int iHeightC = pDstMeta->tDim.iHeight >> 1;
 
-  int iOffsetU = pDstMeta->tPlanes[AL_PLANE_Y].iPitch * pDstMeta->tDim.iHeight;
-  int iOffsetV = iOffsetU + (pDstMeta->tPlanes[AL_PLANE_UV].iPitch * iHeightC);
+  int iFirstOffsetC = pDstMeta->tPlanes[AL_PLANE_Y].iPitch * pDstMeta->tDim.iHeight;
+  int iSecondOffsetC = iFirstOffsetC + (pDstMeta->tPlanes[AL_PLANE_UV].iPitch * iHeightC);
+
+  int iOffsetU = bDstUFirst ? iFirstOffsetC : iSecondOffsetC;
+  int iOffsetV = bDstUFirst ? iSecondOffsetC : iFirstOffsetC;
 
   uint8_t* pSrcData = AL_Buffer_GetData(pSrc);
   uint8_t* pDstData = AL_Buffer_GetData(pDst);
@@ -2109,29 +2192,7 @@ void T60A_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
         {
           uint8_t* pOutU = pDstData + iOffsetU + (H + h) * pDstMeta->tPlanes[AL_PLANE_UV].iPitch + (W + w) / 2;
           uint8_t* pOutV = pDstData + iOffsetV + (H + h) * pDstMeta->tPlanes[AL_PLANE_UV].iPitch + (W + w) / 2;
-
-          pOutU[0] = (uint8_t)RND_10B_TO_8B(pInC[0] & 0x3FF);
-          pOutV[0] = (uint8_t)RND_10B_TO_8B(((pInC[0] >> 10) | (pInC[1] << 6)) & 0x3FF);
-          pOutU[1] = (uint8_t)RND_10B_TO_8B((pInC[1] >> 4) & 0x3FF);
-          pOutV[1] = (uint8_t)RND_10B_TO_8B(((pInC[1] >> 14) | (pInC[2] << 2)) & 0x3FF);
-          pOutU += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-          pOutV += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-          pOutU[0] = (uint8_t)RND_10B_TO_8B(((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF);
-          pOutV[0] = (uint8_t)RND_10B_TO_8B((pInC[3] >> 2) & 0x3FF);
-          pOutU[1] = (uint8_t)RND_10B_TO_8B(((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF);
-          pOutV[1] = (uint8_t)RND_10B_TO_8B(pInC[4] >> 6);
-          pOutU += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-          pOutV += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-          pOutU[0] = (uint8_t)RND_10B_TO_8B(pInC[5] & 0x3FF);
-          pOutV[0] = (uint8_t)RND_10B_TO_8B(((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF);
-          pOutU[1] = (uint8_t)RND_10B_TO_8B((pInC[6] >> 4) & 0x3FF);
-          pOutV[1] = (uint8_t)RND_10B_TO_8B(((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF);
-          pOutU += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-          pOutV += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-          pOutU[0] = (uint8_t)RND_10B_TO_8B(((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF);
-          pOutV[0] = (uint8_t)RND_10B_TO_8B((pInC[8] >> 2) & 0x3FF);
-          pOutU[1] = (uint8_t)RND_10B_TO_8B(((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF);
-          pOutV[1] = (uint8_t)RND_10B_TO_8B(pInC[9] >> 6);
+          Untile4x4ChromaBlock10bToPlanar8b(pInC, pOutU, pOutV, pDstMeta->tPlanes[AL_PLANE_UV].iPitch);
           pInC += 10;
         }
 
@@ -2142,7 +2203,13 @@ void T60A_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
     }
   }
 
-  pDstMeta->tFourCC = FOURCC(I420);
+  pDstMeta->tFourCC = tDstFourCC;
+}
+
+/****************************************************************************/
+void T60A_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  T60A_To_Planar8b(pSrc, pDst, true, FOURCC(I420));
 }
 
 /****************************************************************************/
@@ -2157,80 +2224,7 @@ void T60A_To_IYUV(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 /****************************************************************************/
 void T60A_To_YV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 {
-  AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pSrc, AL_META_TYPE_SOURCE);
-  AL_TSrcMetaData* pDstMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pDst, AL_META_TYPE_SOURCE);
-
-  // Luma
-  T60A_To_Y800(pSrc, pDst);
-
-  // Chroma
-  const int iTileW = 64;
-  const int iTileH = 4;
-  const int iSrcLumaSize = (((pSrcMeta->tDim.iHeight + 63) & ~63) >> 2) * pSrcMeta->tPlanes[AL_PLANE_Y].iPitch;
-  int iHeightC = pDstMeta->tDim.iHeight >> 1;
-
-  int iOffsetV = pDstMeta->tPlanes[AL_PLANE_Y].iPitch * pDstMeta->tDim.iHeight;
-  int iOffsetU = iOffsetV + (pDstMeta->tPlanes[AL_PLANE_UV].iPitch * iHeightC);
-
-  uint8_t* pSrcData = AL_Buffer_GetData(pSrc);
-  uint8_t* pDstData = AL_Buffer_GetData(pDst);
-
-  for(int H = 0; H < iHeightC; H += iTileH)
-  {
-    uint16_t* pInC = (uint16_t*)(pSrcData + iSrcLumaSize + (H / iTileH) * pSrcMeta->tPlanes[AL_PLANE_UV].iPitch);
-
-    int iCropH = (H + iTileH) - iHeightC;
-
-    if(iCropH < 0)
-      iCropH = 0;
-
-    for(int W = 0; W < pDstMeta->tDim.iWidth; W += iTileW)
-    {
-      int iCropW = (W + iTileW) - pDstMeta->tDim.iWidth;
-
-      if(iCropW < 0)
-        iCropW = 0;
-
-      for(int h = 0; h < iTileH - iCropH; h += 4)
-      {
-        for(int w = 0; w < iTileW - iCropW; w += 4)
-        {
-          uint8_t* pOutU = pDstData + iOffsetU + (H + h) * pDstMeta->tPlanes[AL_PLANE_UV].iPitch + (W + w) / 2;
-          uint8_t* pOutV = pDstData + iOffsetV + (H + h) * pDstMeta->tPlanes[AL_PLANE_UV].iPitch + (W + w) / 2;
-
-          pOutU[0] = (uint8_t)RND_10B_TO_8B(pInC[0] & 0x3FF);
-          pOutV[0] = (uint8_t)RND_10B_TO_8B(((pInC[0] >> 10) | (pInC[1] << 6)) & 0x3FF);
-          pOutU[1] = (uint8_t)RND_10B_TO_8B((pInC[1] >> 4) & 0x3FF);
-          pOutV[1] = (uint8_t)RND_10B_TO_8B(((pInC[1] >> 14) | (pInC[2] << 2)) & 0x3FF);
-          pOutU += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-          pOutV += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-          pOutU[0] = (uint8_t)RND_10B_TO_8B(((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF);
-          pOutV[0] = (uint8_t)RND_10B_TO_8B((pInC[3] >> 2) & 0x3FF);
-          pOutU[1] = (uint8_t)RND_10B_TO_8B(((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF);
-          pOutV[1] = (uint8_t)RND_10B_TO_8B(pInC[4] >> 6);
-          pOutU += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-          pOutV += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-          pOutU[0] = (uint8_t)RND_10B_TO_8B(pInC[5] & 0x3FF);
-          pOutV[0] = (uint8_t)RND_10B_TO_8B(((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF);
-          pOutU[1] = (uint8_t)RND_10B_TO_8B((pInC[6] >> 4) & 0x3FF);
-          pOutV[1] = (uint8_t)RND_10B_TO_8B(((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF);
-          pOutU += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-          pOutV += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-          pOutU[0] = (uint8_t)RND_10B_TO_8B(((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF);
-          pOutV[0] = (uint8_t)RND_10B_TO_8B((pInC[8] >> 2) & 0x3FF);
-          pOutU[1] = (uint8_t)RND_10B_TO_8B(((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF);
-          pOutV[1] = (uint8_t)RND_10B_TO_8B(pInC[9] >> 6);
-          pInC += 10;
-        }
-
-        pInC += 5 * iCropW / sizeof(uint16_t);
-      }
-
-      pInC += iCropH * iTileW * 5 / 4 / sizeof(uint16_t);
-    }
-  }
-
-  pDstMeta->tFourCC = FOURCC(YV12);
+  T60A_To_Planar8b(pSrc, pDst, false, FOURCC(YV12));
 }
 
 /****************************************************************************/
@@ -2274,26 +2268,7 @@ void T60A_To_NV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint8_t* pOutC = pDstData + iOffsetC + (H + h) * pDstMeta->tPlanes[AL_PLANE_UV].iPitch + (W + w);
-
-          pOutC[0] = (uint8_t)RND_10B_TO_8B(pInC[0] & 0x3FF);
-          pOutC[1] = (uint8_t)RND_10B_TO_8B(((pInC[0] >> 10) | (pInC[1] << 6)) & 0x3FF);
-          pOutC[2] = (uint8_t)RND_10B_TO_8B((pInC[1] >> 4) & 0x3FF);
-          pOutC[3] = (uint8_t)RND_10B_TO_8B(((pInC[1] >> 14) | (pInC[2] << 2)) & 0x3FF);
-          pOutC += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-          pOutC[0] = (uint8_t)RND_10B_TO_8B(((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF);
-          pOutC[1] = (uint8_t)RND_10B_TO_8B((pInC[3] >> 2) & 0x3FF);
-          pOutC[2] = (uint8_t)RND_10B_TO_8B(((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF);
-          pOutC[3] = (uint8_t)RND_10B_TO_8B(pInC[4] >> 6);
-          pOutC += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-          pOutC[0] = (uint8_t)RND_10B_TO_8B(pInC[5] & 0x3FF);
-          pOutC[1] = (uint8_t)RND_10B_TO_8B(((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF);
-          pOutC[2] = (uint8_t)RND_10B_TO_8B((pInC[6] >> 4) & 0x3FF);
-          pOutC[3] = (uint8_t)RND_10B_TO_8B(((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF);
-          pOutC += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-          pOutC[0] = (uint8_t)RND_10B_TO_8B(((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF);
-          pOutC[1] = (uint8_t)RND_10B_TO_8B((pInC[8] >> 2) & 0x3FF);
-          pOutC[2] = (uint8_t)RND_10B_TO_8B(((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF);
-          pOutC[3] = (uint8_t)RND_10B_TO_8B(pInC[9] >> 6);
+          Untile4x4Block10bTo8b(pInC, pOutC, pDstMeta->tPlanes[AL_PLANE_UV].iPitch);
           pInC += 10;
         }
 
@@ -2341,26 +2316,7 @@ void T60A_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint8_t* pOutY = pDstData + (H + h) * pDstMeta->tPlanes[AL_PLANE_Y].iPitch + (W + w);
-
-          pOutY[0] = (uint8_t)RND_10B_TO_8B(pInY[0] & 0x3FF);
-          pOutY[1] = (uint8_t)RND_10B_TO_8B(((pInY[0] >> 10) | (pInY[1] << 6)) & 0x3FF);
-          pOutY[2] = (uint8_t)RND_10B_TO_8B((pInY[1] >> 4) & 0x3FF);
-          pOutY[3] = (uint8_t)RND_10B_TO_8B(((pInY[1] >> 14) | (pInY[2] << 2)) & 0x3FF);
-          pOutY += pDstMeta->tPlanes[AL_PLANE_Y].iPitch;
-          pOutY[0] = (uint8_t)RND_10B_TO_8B(((pInY[2] >> 8) | (pInY[3] << 8)) & 0x3FF);
-          pOutY[1] = (uint8_t)RND_10B_TO_8B((pInY[3] >> 2) & 0x3FF);
-          pOutY[2] = (uint8_t)RND_10B_TO_8B(((pInY[3] >> 12) | (pInY[4] << 4)) & 0x3FF);
-          pOutY[3] = (uint8_t)RND_10B_TO_8B(pInY[4] >> 6);
-          pOutY += pDstMeta->tPlanes[AL_PLANE_Y].iPitch;
-          pOutY[0] = (uint8_t)RND_10B_TO_8B(pInY[5] & 0x3FF);
-          pOutY[1] = (uint8_t)RND_10B_TO_8B(((pInY[5] >> 10) | (pInY[6] << 6)) & 0x3FF);
-          pOutY[2] = (uint8_t)RND_10B_TO_8B((pInY[6] >> 4) & 0x3FF);
-          pOutY[3] = (uint8_t)RND_10B_TO_8B(((pInY[6] >> 14) | (pInY[7] << 2)) & 0x3FF);
-          pOutY += pDstMeta->tPlanes[AL_PLANE_Y].iPitch;
-          pOutY[0] = (uint8_t)RND_10B_TO_8B(((pInY[7] >> 8) | (pInY[8] << 8)) & 0x3FF);
-          pOutY[1] = (uint8_t)RND_10B_TO_8B((pInY[8] >> 2) & 0x3FF);
-          pOutY[2] = (uint8_t)RND_10B_TO_8B(((pInY[8] >> 12) | (pInY[9] << 4)) & 0x3FF);
-          pOutY[3] = (uint8_t)RND_10B_TO_8B(pInY[9] >> 6);
+          Untile4x4Block10bTo8b(pInY, pOutY, pDstMeta->tPlanes[AL_PLANE_Y].iPitch);
           pInY += 10;
         }
 
@@ -2409,26 +2365,7 @@ void T60A_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint16_t* pOutY = ((uint16_t*)pDstData) + (H + h) * uDstPitchLuma + (W + w);
-
-          pOutY[0] = pInY[0] & 0x3FF;
-          pOutY[1] = ((pInY[0] >> 10) | (pInY[1] << 6)) & 0x3FF;
-          pOutY[2] = (pInY[1] >> 4) & 0x3FF;
-          pOutY[3] = ((pInY[1] >> 14) | (pInY[2] << 2)) & 0x3FF;
-          pOutY += uDstPitchLuma;
-          pOutY[0] = ((pInY[2] >> 8) | (pInY[3] << 8)) & 0x3FF;
-          pOutY[1] = (pInY[3] >> 2) & 0x3FF;
-          pOutY[2] = ((pInY[3] >> 12) | (pInY[4] << 4)) & 0x3FF;
-          pOutY[3] = pInY[4] >> 6;
-          pOutY += uDstPitchLuma;
-          pOutY[0] = pInY[5] & 0x3FF;
-          pOutY[1] = ((pInY[5] >> 10) | (pInY[6] << 6)) & 0x3FF;
-          pOutY[2] = (pInY[6] >> 4) & 0x3FF;
-          pOutY[3] = ((pInY[6] >> 14) | (pInY[7] << 2)) & 0x3FF;
-          pOutY += uDstPitchLuma;
-          pOutY[0] = ((pInY[7] >> 8) | (pInY[8] << 8)) & 0x3FF;
-          pOutY[1] = (pInY[8] >> 2) & 0x3FF;
-          pOutY[2] = ((pInY[8] >> 12) | (pInY[9] << 4)) & 0x3FF;
-          pOutY[3] = pInY[9] >> 6;
+          Untile4x4Block10bTo10b(pInY, pOutY, uDstPitchLuma);
           pInY += 10;
         }
 
@@ -2484,26 +2421,7 @@ void T60A_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint16_t* pOutC = ((uint16_t*)(pDstData + iOffsetC)) + (H + h) * iDstPitchChroma + (W + w);
-
-          pOutC[0] = pInC[0] & 0x3FF;
-          pOutC[1] = ((pInC[0] >> 10) | (pInC[1] << 6)) & 0x3FF;
-          pOutC[2] = (pInC[1] >> 4) & 0x3FF;
-          pOutC[3] = ((pInC[1] >> 14) | (pInC[2] << 2)) & 0x3FF;
-          pOutC += iDstPitchChroma;
-          pOutC[0] = ((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF;
-          pOutC[1] = (pInC[3] >> 2) & 0x3FF;
-          pOutC[2] = ((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF;
-          pOutC[3] = pInC[4] >> 6;
-          pOutC += iDstPitchChroma;
-          pOutC[0] = pInC[5] & 0x3FF;
-          pOutC[1] = ((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF;
-          pOutC[2] = (pInC[6] >> 4) & 0x3FF;
-          pOutC[3] = ((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF;
-          pOutC += iDstPitchChroma;
-          pOutC[0] = ((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF;
-          pOutC[1] = (pInC[8] >> 2) & 0x3FF;
-          pOutC[2] = ((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF;
-          pOutC[3] = pInC[9] >> 6;
+          Untile4x4Block10bTo10b(pInC, pOutC, iDstPitchChroma);
           pInC += 10;
         }
 
@@ -2561,29 +2479,7 @@ void T60A_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
         {
           uint16_t* pOutU = ((uint16_t*)(pDstData + iOffsetU)) + (H + h) * iDstPitchChroma + (W + w) / 2;
           uint16_t* pOutV = ((uint16_t*)(pDstData + iOffsetV)) + (H + h) * iDstPitchChroma + (W + w) / 2;
-
-          pOutU[0] = pInC[0] & 0x3FF;
-          pOutV[0] = ((pInC[0] >> 10) | (pInC[1] << 6)) & 0x3FF;
-          pOutU[1] = (pInC[1] >> 4) & 0x3FF;
-          pOutV[1] = ((pInC[1] >> 14) | (pInC[2] << 2)) & 0x3FF;
-          pOutU += iDstPitchChroma;
-          pOutV += iDstPitchChroma;
-          pOutU[0] = ((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF;
-          pOutV[0] = (pInC[3] >> 2) & 0x3FF;
-          pOutU[1] = ((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF;
-          pOutV[1] = pInC[4] >> 6;
-          pOutU += iDstPitchChroma;
-          pOutV += iDstPitchChroma;
-          pOutU[0] = pInC[5] & 0x3FF;
-          pOutV[0] = ((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF;
-          pOutU[1] = (pInC[6] >> 4) & 0x3FF;
-          pOutV[1] = ((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF;
-          pOutU += iDstPitchChroma;
-          pOutV += iDstPitchChroma;
-          pOutU[0] = ((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF;
-          pOutV[0] = (pInC[8] >> 2) & 0x3FF;
-          pOutU[1] = ((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF;
-          pOutV[1] = pInC[9] >> 6;
+          Untile4x4ChromaBlock10bToPlanar10b(pInC, pOutU, pOutV, iDstPitchChroma);
           pInC += 10;
         }
 
@@ -2651,44 +2547,24 @@ void T62A_To_I422(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
   // Chroma
   const int iSrcLumaSize = (((pSrcMeta->tDim.iHeight + 63) & ~63) >> 2) * pSrcMeta->tPlanes[AL_PLANE_Y].iPitch;
   uint16_t* pInC = (uint16_t*)(AL_Buffer_GetData(pSrc) + iSrcLumaSize);
-  uint8_t* pOutU = AL_Buffer_GetData(pDst) + (pDstMeta->tPlanes[AL_PLANE_Y].iPitch * pDstMeta->tDim.iHeight);
-  uint8_t* pOutV = pOutU + (pDstMeta->tPlanes[AL_PLANE_UV].iPitch * pDstMeta->tDim.iHeight);
+
+  int iOffsetU = pDstMeta->tPlanes[AL_PLANE_Y].iPitch * pDstMeta->tDim.iHeight;
+  int iOffsetV = iOffsetU + (pDstMeta->tPlanes[AL_PLANE_UV].iPitch * pDstMeta->tDim.iHeight);
 
   int iJump = (pSrcMeta->tPlanes[AL_PLANE_UV].iPitch - (pDstMeta->tDim.iWidth * 5)) / sizeof(uint16_t);
+
+  uint8_t* pDstData = AL_Buffer_GetData(pDst);
 
   for(int h = 0; h < pDstMeta->tDim.iHeight; h += 4)
   {
     for(int w = 0; w < pDstMeta->tDim.iWidth; w += 4)
     {
-      pOutU[0] = (uint8_t)RND_10B_TO_8B(pInC[0] & 0x3FF);
-      pOutV[0] = (uint8_t)RND_10B_TO_8B(((pInC[0] >> 10) | (pInC[1] << 6)) & 0x3FF);
-      pOutU[1] = (uint8_t)RND_10B_TO_8B((pInC[1] >> 4) & 0x3FF);
-      pOutV[1] = (uint8_t)RND_10B_TO_8B(((pInC[1] >> 14) | (pInC[2] << 2)) & 0x3FF);
-      pOutU += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-      pOutV += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-      pOutU[0] = (uint8_t)RND_10B_TO_8B(((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF);
-      pOutV[0] = (uint8_t)RND_10B_TO_8B((pInC[3] >> 2) & 0x3FF);
-      pOutU[1] = (uint8_t)RND_10B_TO_8B(((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF);
-      pOutV[1] = (uint8_t)RND_10B_TO_8B(pInC[4] >> 6);
-      pOutU += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-      pOutV += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-      pOutU[0] = (uint8_t)RND_10B_TO_8B(pInC[5] & 0x3FF);
-      pOutV[0] = (uint8_t)RND_10B_TO_8B(((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF);
-      pOutU[1] = (uint8_t)RND_10B_TO_8B((pInC[6] >> 4) & 0x3FF);
-      pOutV[1] = (uint8_t)RND_10B_TO_8B(((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF);
-      pOutU += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-      pOutV += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-      pOutU[0] = (uint8_t)RND_10B_TO_8B(((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF);
-      pOutV[0] = (uint8_t)RND_10B_TO_8B((pInC[8] >> 2) & 0x3FF);
-      pOutU[1] = (uint8_t)RND_10B_TO_8B(((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF);
-      pOutV[1] = (uint8_t)RND_10B_TO_8B(pInC[9] >> 6);
-      pOutU -= 3 * pDstMeta->tPlanes[AL_PLANE_UV].iPitch - 2;
-      pOutV -= 3 * pDstMeta->tPlanes[AL_PLANE_UV].iPitch - 2;
+      uint8_t* pOutU = pDstData + iOffsetU + h * pDstMeta->tPlanes[AL_PLANE_UV].iPitch + w / 2;
+      uint8_t* pOutV = pDstData + iOffsetV + h * pDstMeta->tPlanes[AL_PLANE_UV].iPitch + w / 2;
+      Untile4x4ChromaBlock10bToPlanar8b(pInC, pOutU, pOutV, pDstMeta->tPlanes[AL_PLANE_UV].iPitch);
       pInC += 10;
     }
 
-    pOutU += pDstMeta->tPlanes[AL_PLANE_UV].iPitch * 4 - (pDstMeta->tDim.iWidth / 2);
-    pOutV += pDstMeta->tPlanes[AL_PLANE_UV].iPitch * 4 - (pDstMeta->tDim.iWidth / 2);
     pInC += iJump;
   }
 
@@ -2715,25 +2591,7 @@ void T62A_To_NV16(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
   {
     for(int w = 0; w < pDstMeta->tDim.iWidth; w += 4)
     {
-      pOutC[0] = (uint8_t)RND_10B_TO_8B(pInC[0] & 0x3FF);
-      pOutC[1] = (uint8_t)RND_10B_TO_8B(((pInC[0] >> 10) | (pInC[1] << 6)) & 0x3FF);
-      pOutC[2] = (uint8_t)RND_10B_TO_8B((pInC[1] >> 4) & 0x3FF);
-      pOutC[3] = (uint8_t)RND_10B_TO_8B(((pInC[1] >> 14) | (pInC[2] << 2)) & 0x3FF);
-      pOutC += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-      pOutC[0] = (uint8_t)RND_10B_TO_8B(((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF);
-      pOutC[1] = (uint8_t)RND_10B_TO_8B((pInC[3] >> 2) & 0x3FF);
-      pOutC[2] = (uint8_t)RND_10B_TO_8B(((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF);
-      pOutC[3] = (uint8_t)RND_10B_TO_8B(pInC[4] >> 6);
-      pOutC += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-      pOutC[0] = (uint8_t)RND_10B_TO_8B(pInC[5] & 0x3FF);
-      pOutC[1] = (uint8_t)RND_10B_TO_8B(((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF);
-      pOutC[2] = (uint8_t)RND_10B_TO_8B((pInC[6] >> 4) & 0x3FF);
-      pOutC[3] = (uint8_t)RND_10B_TO_8B(((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF);
-      pOutC += pDstMeta->tPlanes[AL_PLANE_UV].iPitch;
-      pOutC[0] = (uint8_t)RND_10B_TO_8B(((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF);
-      pOutC[1] = (uint8_t)RND_10B_TO_8B((pInC[8] >> 2) & 0x3FF);
-      pOutC[2] = (uint8_t)RND_10B_TO_8B(((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF);
-      pOutC[3] = (uint8_t)RND_10B_TO_8B(pInC[9] >> 6);
+      Untile4x4Block10bTo8b(pInC, pOutC, pDstMeta->tPlanes[AL_PLANE_UV].iPitch);
       pOutC -= 3 * pDstMeta->tPlanes[AL_PLANE_UV].iPitch - 4;
       pInC += 10;
     }
@@ -2772,29 +2630,7 @@ void T62A_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
     {
       uint16_t* pOutU = ((uint16_t*)(pDstData + iOffsetU)) + h * iDstPitchChroma + w / 2;
       uint16_t* pOutV = ((uint16_t*)(pDstData + iOffsetV)) + h * iDstPitchChroma + w / 2;
-
-      pOutU[0] = pInC[0] & 0x3FF;
-      pOutV[0] = ((pInC[0] >> 10) | (pInC[1] << 6)) & 0x3FF;
-      pOutU[1] = (pInC[1] >> 4) & 0x3FF;
-      pOutV[1] = ((pInC[1] >> 14) | (pInC[2] << 2)) & 0x3FF;
-      pOutU += iDstPitchChroma;
-      pOutV += iDstPitchChroma;
-      pOutU[0] = ((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF;
-      pOutV[0] = (pInC[3] >> 2) & 0x3FF;
-      pOutU[1] = ((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF;
-      pOutV[1] = pInC[4] >> 6;
-      pOutU += iDstPitchChroma;
-      pOutV += iDstPitchChroma;
-      pOutU[0] = pInC[5] & 0x3FF;
-      pOutV[0] = ((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF;
-      pOutU[1] = (pInC[6] >> 4) & 0x3FF;
-      pOutV[1] = ((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF;
-      pOutU += iDstPitchChroma;
-      pOutV += iDstPitchChroma;
-      pOutU[0] = ((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF;
-      pOutV[0] = (pInC[8] >> 2) & 0x3FF;
-      pOutU[1] = ((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF;
-      pOutV[1] = pInC[9] >> 6;
+      Untile4x4ChromaBlock10bToPlanar10b(pInC, pOutU, pOutV, iDstPitchChroma);
       pInC += 10;
     }
 
@@ -2829,26 +2665,7 @@ void T62A_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
     for(int w = 0; w < pDstMeta->tDim.iWidth; w += 4)
     {
       uint16_t* pOutC = ((uint16_t*)(pDstData + iOffsetC)) + h * iDstPitchChroma + w;
-
-      pOutC[0] = pInC[0] & 0x3FF;
-      pOutC[1] = ((pInC[0] >> 10) | (pInC[1] << 6)) & 0x3FF;
-      pOutC[2] = (pInC[1] >> 4) & 0x3FF;
-      pOutC[3] = ((pInC[1] >> 14) | (pInC[2] << 2)) & 0x3FF;
-      pOutC += iDstPitchChroma;
-      pOutC[0] = ((pInC[2] >> 8) | (pInC[3] << 8)) & 0x3FF;
-      pOutC[1] = (pInC[3] >> 2) & 0x3FF;
-      pOutC[2] = ((pInC[3] >> 12) | (pInC[4] << 4)) & 0x3FF;
-      pOutC[3] = pInC[4] >> 6;
-      pOutC += iDstPitchChroma;
-      pOutC[0] = pInC[5] & 0x3FF;
-      pOutC[1] = ((pInC[5] >> 10) | (pInC[6] << 6)) & 0x3FF;
-      pOutC[2] = (pInC[6] >> 4) & 0x3FF;
-      pOutC[3] = ((pInC[6] >> 14) | (pInC[7] << 2)) & 0x3FF;
-      pOutC += iDstPitchChroma;
-      pOutC[0] = ((pInC[7] >> 8) | (pInC[8] << 8)) & 0x3FF;
-      pOutC[1] = (pInC[8] >> 2) & 0x3FF;
-      pOutC[2] = ((pInC[8] >> 12) | (pInC[9] << 4)) & 0x3FF;
-      pOutC[3] = pInC[9] >> 6;
+      Untile4x4Block10bTo10b(pInC, pOutC, iDstPitchChroma);
       pInC += 10;
     }
 

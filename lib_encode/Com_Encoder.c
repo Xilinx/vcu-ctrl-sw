@@ -327,6 +327,15 @@ void AL_Common_Encoder_ProcessLookAheadParam(AL_TEncoder* pEnc, AL_TEncInfo* pEI
 
 
 /***************************************************************************/
+static bool CheckQPTable(AL_TEncCtx* pCtx, AL_TBuffer* pQpTable)
+{
+  if(pCtx->Settings.eQpCtrlMode & MASK_QP_TABLE_EXT)
+    return NULL != pQpTable;
+
+  return true;
+}
+
+/***************************************************************************/
 bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer* pQpTable, int iLayerID)
 {
   AL_TEncCtx* pCtx = pEnc->pCtx;
@@ -335,6 +344,9 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
     return EndOfStream(pEnc, iLayerID);
 
   if(!AL_SrcBuffersChecker_CanBeUsed(&pCtx->tLayerCtx[iLayerID].srcBufferChecker, pFrame))
+    return false;
+
+  if(!CheckQPTable(pCtx, pQpTable))
     return false;
 
   AL_Common_Encoder_WaitReadiness(pCtx);

@@ -50,7 +50,7 @@ static void initPps(AL_TAvcPps* pPPS)
   pPPS->bConceal = true;
 }
 
-AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
+AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
 {
   uint16_t pps_id, QpBdOffset;
   AL_TAvcPps tempPPS;
@@ -63,6 +63,9 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   pps_id = ue(pRP);
 
   COMPLY(pps_id < AL_AVC_MAX_PPS);
+
+  if(pPpsId)
+    *pPpsId = pps_id;
 
   initPps(&tempPPS);
 
@@ -262,6 +265,7 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   COMPLY(tempPPS.num_slice_groups_minus1 == 0); // baseline profile only
 
   pIAup->avcAup.pPPS[pps_id] = tempPPS;
+
   return AL_OK;
 }
 

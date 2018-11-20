@@ -715,12 +715,21 @@ static bool isSliceData(AL_ENut nut)
   }
 }
 
-static AL_PARSE_RESULT parsePPSandUpdateConcealment(AL_TAup* aup, AL_TRbspParser* rp, AL_TDecCtx* pCtx)
+/*****************************************************************************/
+static AL_PARSE_RESULT parsePPSandUpdateConcealment(AL_TAup* IAup, AL_TRbspParser* rp, AL_TDecCtx* pCtx)
 {
-  AL_PARSE_RESULT result = AL_AVC_ParsePPS(aup, rp);
+  uint16_t PpsId;
+  AL_PARSE_RESULT result = AL_AVC_ParsePPS(IAup, rp, &PpsId);
 
-  if(!aup->avcAup.pPPS->bConceal)
+  AL_TAvcAup* aup = &IAup->avcAup;
+
+  if(!aup->pPPS[PpsId].bConceal)
+  {
     pCtx->tConceal.bHasPPS = true;
+
+    if(pCtx->tConceal.iLastPPSId <= PpsId)
+      pCtx->tConceal.iLastPPSId = PpsId;
+  }
 
   return result;
 }
