@@ -802,7 +802,7 @@ void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 }
 
 /*****************************************************************************/
-static uint8_t sei_active_parameter_sets(AL_TRbspParser* pRP, AL_THevcAup* aup)
+static bool sei_active_parameter_sets(AL_TRbspParser* pRP, AL_THevcAup* aup, uint8_t* pSpsId)
 {
   uint8_t active_video_parameter_set_id = u(pRP, 4);
   /*self_Containd_cvs_flag =*/ u(pRP, 1);
@@ -820,7 +820,9 @@ static uint8_t sei_active_parameter_sets(AL_TRbspParser* pRP, AL_THevcAup* aup)
   for(int i = pVPS->vps_base_layer_internal_flag; i <= MaxLayersMinus1; ++i)
     /*layer_sps_idx[i] =*/ ue(pRP);
 
-  return active_seq_parameter_set_id[0];
+  *pSpsId = active_seq_parameter_set_id[0];
+  
+  return true;
 }
 
 /*****************************************************************************/
@@ -895,6 +897,18 @@ static bool sei_recovery_point(AL_TRbspParser* pRP, AL_TRecoveryPoint* pRecovery
 #define ACTIVE_PARAMETER_SETS 129
 #define RECOVERY_POINT 6
 
+#define PARSE_OR_SKIP(ParseCmd) \
+  uint32_t uOffset = offset(pRP); \
+  bool bRet = ParseCmd; \
+  if(!bRet) \
+  { \
+    uOffset = offset(pRP) - uOffset; \
+    if(uOffset > payload_size << 3) \
+      return false; \
+    skip(pRP, (payload_size << 3) - uOffset); \
+    break; \
+  }
+
 /*****************************************************************************/
 bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
 {
@@ -943,34 +957,27 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
     switch(payload_type)
     {
     case PIC_TIMING: // picture_timing parsing
-
+    {
       if(aup->pActiveSPS)
       {
-        bool bRet = sei_pic_timing(pRP, aup->pActiveSPS, &sei.picture_timing);
-
-        if(!bRet)
-          skip(pRP, payload_size << 3);
+        PARSE_OR_SKIP(sei_pic_timing(pRP, aup->pActiveSPS, &sei.picture_timing));
         sei.present_flags |= SEI_PT;
-
         aup->ePicStruct = sei.picture_timing.pic_struct;
       }
       else
-        return false;
-      break;
+        skip(pRP, payload_size << 3);
+    } break;
 
     case RECOVERY_POINT: // picture_timing parsing
     {
-      bool bRet = sei_recovery_point(pRP, &sei.recovery_point);
-
-      if(!bRet)
-        skip(pRP, payload_size << 3);
-
-      aup->iRecoveryCnt = sei.recovery_point.recovery_cnt;
+      PARSE_OR_SKIP(sei_recovery_point(pRP, &sei.recovery_point));
+      aup->iRecoveryCnt = sei.recovery_point.recovery_cnt + 1; // +1 for non-zero value when SEI_RP is present
     } break;
 
     case ACTIVE_PARAMETER_SETS:
     {
-      uint8_t uSpsId = sei_active_parameter_sets(pRP, aup);
+      uint8_t uSpsId;
+      PARSE_OR_SKIP(sei_active_parameter_sets(pRP, aup, &uSpsId));
 
       if(!aup->pSPS[uSpsId].bConceal)
         aup->pActiveSPS = &aup->pSPS[uSpsId];

@@ -631,6 +631,18 @@ static bool sei_recovery_point(AL_TRbspParser* pRP, AL_TRecoveryPoint* pRecovery
 #define USER_DATA_UNREGISTERED 5
 #define RECOVERY_POINT 6
 
+#define PARSE_OR_SKIP(ParseCmd) \
+  uint32_t uOffset = offset(pRP); \
+  bool bRet = ParseCmd; \
+  if(!bRet) \
+  { \
+    uOffset = offset(pRP) - uOffset; \
+    if(uOffset > payload_size << 3) \
+      return false; \
+    skip(pRP, (payload_size << 3) - uOffset); \
+    break; \
+  }
+
 /*****************************************************************************/
 bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
 {
@@ -677,31 +689,21 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
     {
     case BUFFERING_PERIOD: // buffering_period parsing
     {
-      uint32_t uOffset = offset(pRP);
-      bool bRet = sei_buffering_period(pRP, aup->pSPS, &sei.buffering_period, &aup->pActiveSPS);
-
-      if(!bRet)
-      {
-        uOffset = offset(pRP) - uOffset;
-        skip(pRP, (payload_size << 3) - uOffset);
-      }
+      PARSE_OR_SKIP(sei_buffering_period(pRP, aup->pSPS, &sei.buffering_period, &aup->pActiveSPS));
       sei.present_flags |= SEI_BP;
-      break;
-    }
+    } break;
 
     case PIC_TIMING: // picture_timing parsing
-
+    {
       if(aup->pActiveSPS)
       {
-        bool bRet = sei_pic_timing(pRP, aup->pActiveSPS, &sei.picture_timing);
-
-        if(!bRet)
-          skip(pRP, payload_size << 3);
+        PARSE_OR_SKIP(sei_pic_timing(pRP, aup->pActiveSPS, &sei.picture_timing));
         sei.present_flags |= SEI_PT;
       }
       else
-        return false;
-      break;
+        skip(pRP, payload_size << 3); // skip data
+
+    } break;
 
     case USER_DATA_UNREGISTERED: // user_data_unregistered parsing
     {
@@ -710,12 +712,8 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
 
     case RECOVERY_POINT: // picture_timing parsing
     {
-      bool bRet = sei_recovery_point(pRP, &sei.recovery_point);
-
-      if(!bRet)
-        skip(pRP, payload_size << 3);
-
-      aup->iRecoveryCnt = sei.recovery_point.recovery_cnt;
+      PARSE_OR_SKIP(sei_recovery_point(pRP, &sei.recovery_point));
+      aup->iRecoveryCnt = sei.recovery_point.recovery_cnt + 1; // +1 for non-zero value when SEI_RP is present
     } break;
 
     default: // payload not supported
