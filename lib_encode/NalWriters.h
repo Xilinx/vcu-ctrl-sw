@@ -74,12 +74,13 @@ typedef struct t_SeiPrefixCtx
 
 AL_NalUnit AL_CreateSeiPrefix(SeiPrefixCtx* ctx, int nut);
 
-typedef struct t_SeiSuffixCtx
+typedef struct t_SeiPrefixUDUCtx
 {
   uint8_t uuid[16];
-}SeiSuffixCtx;
+  int8_t numSlices;
+}SeiPrefixUDUCtx;
 
-AL_NalUnit AL_CreateSeiSuffix(SeiSuffixCtx* ctx, int nut);
+AL_NalUnit AL_CreateSeiPrefixUDU(SeiPrefixUDUCtx* ctx, int nut);
 
 typedef struct t_SeiExternalCtx
 {

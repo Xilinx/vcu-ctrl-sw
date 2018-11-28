@@ -133,7 +133,7 @@ void FlushNAL(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, uint8_
 }
 
 /****************************************************************************/
-void WriteFillerData(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, int bytesCount, int iSpaceForSEISuffix)
+void WriteFillerData(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, int bytesCount)
 {
   int bookmark = AL_BitStreamLite_GetBitsCount(pStream);
   writeStartCode(pStream, uNUT);
@@ -144,7 +144,6 @@ void WriteFillerData(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header,
   int headerInBytes = (AL_BitStreamLite_GetBitsCount(pStream) - bookmark) / 8;
   int bytesToWrite = bytesCount - headerInBytes;
   int spaceRemainingInBytes = (pStream->iMaxBits / 8) - (AL_BitStreamLite_GetBitsCount(pStream) / 8);
-  spaceRemainingInBytes -= iSpaceForSEISuffix;
 
   bytesToWrite = Min(spaceRemainingInBytes, bytesToWrite);
   bytesToWrite -= 1; // -1 for the final 0x80

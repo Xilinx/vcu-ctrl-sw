@@ -448,6 +448,15 @@ typedef struct
   int32_t iHeight;
 }AL_TDimension;
 
+/*************************************************************************//*!
+   \brief Struct for offsets
+*****************************************************************************/
+typedef struct
+{
+  int32_t iX;
+  int32_t iY;
+}AL_TOffset;
+
 /****************************************************************************/
 typedef enum e_SeiFlag
 {
@@ -456,8 +465,8 @@ typedef enum e_SeiFlag
   SEI_BP = 0x00000001, // Buffering period
   SEI_PT = 0x00000002, // Picture Timing
   SEI_RP = 0x00000004, // Recovery Point
+  SEI_UDU = 0x00000008, // User Data Unregistered
   // suffix
-  SEI_EOF = 0x00001000, // End of frame
   SEI_ALL = 0x00FFFFFF, // All supported SEI
 }AL_SeiFlag;
 

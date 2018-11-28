@@ -807,7 +807,10 @@ NalsData AL_ExtractNalsData(AL_TEncCtx* pCtx, int iLayerID)
 
 
   if(pSettings->tChParam[0].bSubframeLatency)
-    data.seiFlags |= SEI_EOF;
+  {
+    data.seiFlags |= SEI_UDU;
+    data.shouldWriteFillerData = true;
+  }
 
   if(isSeiEnable(data.seiFlags))
     data.seiData = &pCtx->seiData;
@@ -969,14 +972,16 @@ bool CreateNuts(Nuts* nuts, AL_EProfile eProfile)
   if(AL_IS_AVC(eProfile))
   {
     *nuts = CreateAvcNuts();
-    /* sei suffix do not really exist in AVC. use a prefix nut */
-    nuts->seiSuffixNut = nuts->seiPrefixNut;
+    return true;
   }
-  else if(AL_IS_HEVC(eProfile))
+
+  if(AL_IS_HEVC(eProfile))
+  {
     *nuts = CreateHevcNuts();
-  else
-    return false;
-  return true;
+    return true;
+  }
+
+  return false;
 }
 
 #include "lib_encode/Sections.h"

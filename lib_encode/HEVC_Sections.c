@@ -57,6 +57,6 @@ void HEVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStat
 {
   Nuts nuts = CreateHevcNuts();
   NalsData nalsData = AL_ExtractNalsData(pCtx, iLayerID);
-  GenerateSections(AL_GetHevcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, pCtx->Settings.NumLayer);
+  GenerateSections(AL_GetHevcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, pCtx->Settings.NumLayer, pCtx->Settings.tChParam[0].uNumSlices);
 }
 

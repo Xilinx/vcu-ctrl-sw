@@ -142,15 +142,15 @@ AL_NalUnit AL_CreateSeiPrefix(SeiPrefixCtx* ctx, int nut)
   return nal;
 }
 
-static void seiSuffixWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param)
+static void seiPrefixUDUWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param)
 {
-  SeiSuffixCtx* pCtx = (SeiSuffixCtx*)param;
-  writer->WriteSEI_UserDataUnregistered(bitstream, pCtx->uuid);
+  SeiPrefixUDUCtx* pCtx = (SeiPrefixUDUCtx*)param;
+  writer->WriteSEI_UserDataUnregistered(bitstream, pCtx->uuid, pCtx->numSlices);
 }
 
-AL_NalUnit AL_CreateSeiSuffix(SeiSuffixCtx* ctx, int nut)
+AL_NalUnit AL_CreateSeiPrefixUDU(SeiPrefixUDUCtx* ctx, int nut)
 {
-  AL_NalUnit nal = AL_CreateNalUnit(&seiSuffixWrite, ctx, nut, 0);
+  AL_NalUnit nal = AL_CreateNalUnit(&seiPrefixUDUWrite, ctx, nut, 0);
   return nal;
 }
 

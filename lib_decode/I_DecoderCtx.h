@@ -170,6 +170,7 @@ typedef struct t_Dec_Ctx
   AL_TBuffer* eosBuffer;
 
   TCircBuffer circularBuf;
+  int iNumSlicesRemaining;
 }AL_TDecCtx;
 
 /****************************************************************************/

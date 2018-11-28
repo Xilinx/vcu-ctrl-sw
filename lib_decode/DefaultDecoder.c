@@ -406,34 +406,54 @@ static bool isAud(AL_ECodec codec, int nut)
 }
 
 /*****************************************************************************/
-static bool isSuffixSei(AL_ECodec codec, int nut)
+static bool isFd(AL_ECodec codec, int nut)
 {
   if(isAVC(codec))
-    return nut == AL_AVC_NUT_SUFFIX_SEI;
+    return nut == AL_AVC_NUT_FD;
 
   if(isHEVC(codec))
-    return nut == AL_HEVC_NUT_SUFFIX_SEI;
+    return nut == AL_HEVC_NUT_FD;
+  return false;
+}
+
+/*****************************************************************************/
+static bool isPrefixSei(AL_ECodec codec, int nut)
+{
+  if(isAVC(codec))
+    return nut == AL_AVC_NUT_PREFIX_SEI;
+
+  if(isHEVC(codec))
+    return nut == AL_HEVC_NUT_PREFIX_SEI;
   return false;
 }
 
 /*****************************************************************************/
 static bool checkSeiUUID(uint8_t* pBufs, AL_TNal* pNal, AL_ECodec codec)
 {
-  uint32_t const uTotalUUIDSize = isAVC(codec) ? 23 : 24;
+  int const iTotalUUIDSize = isAVC(codec) ? 25 : 26;
 
-  if(pNal->uSize != uTotalUUIDSize)
+  if((int)pNal->uSize != iTotalUUIDSize)
     return false;
 
   int const iStart = isAVC(codec) ? 6 : 7;
-  int const iSize = sizeof(SEI_SUFFIX_USER_DATA_UNREGISTERED_UUID) / sizeof(*SEI_SUFFIX_USER_DATA_UNREGISTERED_UUID);
+  int const iSize = sizeof(SEI_PREFIX_USER_DATA_UNREGISTERED_UUID) / sizeof(*SEI_PREFIX_USER_DATA_UNREGISTERED_UUID);
 
   for(int i = 0; i < iSize; i++)
   {
-    if(SEI_SUFFIX_USER_DATA_UNREGISTERED_UUID[i] != pBufs[pNal->tStartCode.uPosition + iStart + i])
+    if(SEI_PREFIX_USER_DATA_UNREGISTERED_UUID[i] != pBufs[pNal->tStartCode.uPosition + iStart + i])
       return false;
   }
 
   return true;
+}
+
+/*****************************************************************************/
+static int getNumSliceInSei(uint8_t* pBufs, AL_TNal* pNal, AL_ECodec eCodec)
+{
+  assert(checkSeiUUID(pBufs, pNal, eCodec));
+  int const iStart = isAVC(eCodec) ? 6 : 7;
+  int const iSize = sizeof(SEI_PREFIX_USER_DATA_UNREGISTERED_UUID) / sizeof(*SEI_PREFIX_USER_DATA_UNREGISTERED_UUID);
+  return pBufs[pNal->tStartCode.uPosition + iStart + iSize];
 }
 
 /*****************************************************************************/
@@ -485,6 +505,12 @@ static bool isFirstSliceStatusAvailable(int iSize, int iNalHdrSize)
 }
 
 /*****************************************************************************/
+static bool isSubframeUnit(AL_EDecUnit eDecUnit)
+{
+  return eDecUnit == AL_VCL_NAL_UNIT;
+}
+
+/*****************************************************************************/
 static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* pLastStartCodeInDecodingUnit, int* iLastVclNalInDecodingUnit)
 {
   if(!enoughStartCode(pCtx->uNumSC))
@@ -520,11 +546,20 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
         }
       }
 
-      if(isSuffixSei(eCodec, eNUT) && checkSeiUUID(pBuf, pNal, eCodec))
+      if(isPrefixSei(eCodec, eNUT) && checkSeiUUID(pBuf, pNal, eCodec))
       {
-        if(bVCLNalSeen)
+        pCtx->iNumSlicesRemaining = getNumSliceInSei(pBuf, pNal, eCodec);
+        assert(pCtx->iNumSlicesRemaining > 0);
+      }
+
+      if(isFd(eCodec, eNUT) && isSubframeUnit(pCtx->chanParam.eDecUnit))
+      {
+        bool bIsLastSlice = pCtx->iNumSlicesRemaining == 1;
+
+        if(bIsLastSlice && bVCLNalSeen)
         {
           *pLastStartCodeInDecodingUnit = iNalFound;
+          pCtx->iNumSlicesRemaining = 0;
           return true;
         }
       }
@@ -549,10 +584,11 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
         }
       }
 
-      if(pCtx->chanParam.eDecUnit == AL_VCL_NAL_UNIT)
+      if(isSubframeUnit(pCtx->chanParam.eDecUnit))
       {
         if(bVCLNalSeen)
         {
+          pCtx->iNumSlicesRemaining--;
           iNalFound--;
           *pLastStartCodeInDecodingUnit = iNalFound;
           *iLastVclNalInDecodingUnit = iIsNotLastSlice;
@@ -1060,12 +1096,6 @@ static bool CheckDecodeUnit(AL_EDecUnit eDecUnit)
 }
 
 /*****************************************************************************/
-static bool isSubframe(AL_EDecUnit eDecUnit)
-{
-  return eDecUnit == AL_VCL_NAL_UNIT;
-}
-
-/*****************************************************************************/
 static bool CheckAVCSettings(AL_TDecSettings const* pSettings)
 {
   assert(isAVC(pSettings->eCodec));
@@ -1099,7 +1129,7 @@ static bool CheckSettings(AL_TDecSettings const* pSettings)
   if(!CheckDecodeUnit(pSettings->eDecUnit))
     return false;
 
-  if(isSubframe(pSettings->eDecUnit) && (pSettings->bParallelWPP || (pSettings->eDpbMode != AL_DPB_NO_REORDERING)))
+  if(isSubframeUnit(pSettings->eDecUnit) && (pSettings->bParallelWPP || (pSettings->eDpbMode != AL_DPB_NO_REORDERING)))
     return false;
 
   if(isAVC(pSettings->eCodec))
@@ -1299,6 +1329,7 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel,
   pCtx->bIsFirstSPSChecked = false;
   pCtx->bIsBuffersAllocated = false;
   pCtx->uNumSC = 0;
+  pCtx->iNumSlicesRemaining = 0;
 
   AL_Conceal_Init(&pCtx->tConceal);
 
