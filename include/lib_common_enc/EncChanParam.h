@@ -64,9 +64,9 @@ typedef enum e_LdaCtrlMode
 {
   DEFAULT_LDA = 0x00, /*!< default behaviour */
   CUSTOM_LDA = 0x01, /*!< used for test purpose */
-  AUTO_LDA = 0x02, /*!< used for test purpose */
-  TEST_LDA = 0x03, /*!< used for test purpose */
-  DYNAMIC_LDA = 0x04, /*!< used for test purpose */
+  DYNAMIC_LDA = 0x02, /*!< select lambda values according to the GOP pattern */
+  AUTO_LDA = 0x03, /*!< automatically select betxeen DEFAULT_LDA and DYNAMIC_LDA */
+
   LOAD_LDA = 0x80, /*!< used for test purpose */
 }AL_ELdaCtrlMode;
 

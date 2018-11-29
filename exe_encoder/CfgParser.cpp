@@ -362,7 +362,6 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   ldamodes["DEFAULT_LDA"] = DEFAULT_LDA;
   ldamodes["CUSTOM_LDA"] = CUSTOM_LDA;
   ldamodes["AUTO_LDA"] = AUTO_LDA;
-  ldamodes["TEST_LDA"] = TEST_LDA;
   ldamodes["DYNAMIC_LDA"] = DYNAMIC_LDA;
   ldamodes["LOAD_LDA"] = LOAD_LDA;
   parser.addEnum(curSection, "LambdaCtrlMode", cfg.Settings.tChParam[0].eLdaCtrlMode, ldamodes, "Specifies the lambda values used for rate-distortion optimization");
