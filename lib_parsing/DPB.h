@@ -133,12 +133,12 @@ typedef struct t_DpbNode
   uint32_t slice_pic_order_cnt_lsb;
   AL_EMarkingRef eMarking_flag; /*!< status of this reference node */
 
-  int16_t iFrame_num;
-  int16_t iSlice_frame_num;
-  int16_t iFrame_num_wrap;
-  int16_t iLong_term_frame_idx;
-  int16_t iLong_term_pic_num;
-  int16_t iPic_num;
+  int32_t iFrame_num;
+  int32_t iSlice_frame_num;
+  int32_t iFrame_num_wrap;
+  int32_t iLong_term_frame_idx;
+  int32_t iLong_term_pic_num;
+  int32_t iPic_num;
 
   uint8_t pic_output_flag; /*!< whether picture must be displayed or not */
   bool bIsReset; /*!< Node has been reseted or not */
@@ -199,7 +199,7 @@ typedef struct t_DPB
   uint8_t uCurRef;
   uint8_t uCountRef;            /*!< Number of used node in the reference list */
   uint8_t uCountPic;            /*!< Number of used node in the reference list */
-  int16_t MaxLongTermFrameIdx; // used in picture marking process
+  int32_t MaxLongTermFrameIdx; // used in picture marking process
   bool bLastHasMMCO5;
   AL_EDpbMode eMode; /*!< Possible DPB mode */
 
