@@ -55,18 +55,6 @@
 *****************************************************************************/
 
 /****************************************************************************/
-static uint8_t getMax10BitConstraintFlag(int iBitDepth, AL_EChromaMode eChromaMode)
-{
-  return (iBitDepth == 8) || (eChromaMode != CHROMA_MONO); // MONO12 can be 10 or 12 bits
-}
-
-/****************************************************************************/
-static uint8_t getMax8BitConstraintFlag(int iBitDepth, AL_EChromaMode eChromaMode)
-{
-  return (iBitDepth == 8) && (eChromaMode != CHROMA_4_2_2); // Main 422 10 and Main 422 10 Intra can be 8 bits
-}
-
-/****************************************************************************/
 static void AL_sUpdateProfileTierLevel(AL_TProfilevel* pPTL, AL_TEncChanParam const* pChParam, bool profilePresentFlag, int iLayerId)
 {
   (void)iLayerId;
@@ -93,12 +81,12 @@ static void AL_sUpdateProfileTierLevel(AL_TProfilevel* pPTL, AL_TEncChanParam co
     if(pPTL->general_profile_idc >= AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_RExt))
     {
       AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
-      pPTL->general_max_12bit_constraint_flag = 1;
-      pPTL->general_max_10bit_constraint_flag = getMax10BitConstraintFlag(iBitDepth, eChromaMode);
-      pPTL->general_max_8bit_constraint_flag = getMax8BitConstraintFlag(iBitDepth, eChromaMode);
-      pPTL->general_max_422chroma_constraint_flag = 1;
-      pPTL->general_max_420chroma_constraint_flag = eChromaMode <= CHROMA_4_2_0;
-      pPTL->general_max_monochrome_constraint_flag = eChromaMode == CHROMA_MONO;
+      pPTL->general_max_12bit_constraint_flag = (iBitDepth <= 12) ? 1 : 0;
+      pPTL->general_max_10bit_constraint_flag = (iBitDepth <= 10) ? 1 : 0;
+      pPTL->general_max_8bit_constraint_flag = (iBitDepth <= 8) ? 8 : 0;
+      pPTL->general_max_422chroma_constraint_flag = (eChromaMode <= CHROMA_4_2_2) ? 1 : 0;
+      pPTL->general_max_420chroma_constraint_flag = (eChromaMode <= CHROMA_4_2_0) ? 1 : 0;
+      pPTL->general_max_monochrome_constraint_flag = (eChromaMode == CHROMA_MONO) ? 1 : 0;
       pPTL->general_intra_constraint_flag = AL_IS_INTRA_PROFILE(pChParam->eProfile);
       pPTL->general_one_picture_only_constraint_flag = 0;
       pPTL->general_lower_bit_rate_constraint_flag = 1;
