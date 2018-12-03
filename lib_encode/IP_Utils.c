@@ -78,18 +78,18 @@ static void AL_sUpdateProfileTierLevel(AL_TProfilevel* pPTL, AL_TEncChanParam co
       pPTL->general_frame_only_constraint_flag = 0;
     }
 
-    if(pPTL->general_profile_idc >= AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_RExt))
+    if(pPTL->general_profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_RExt))
     {
-      AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
-      pPTL->general_max_12bit_constraint_flag = (iBitDepth <= 12) ? 1 : 0;
-      pPTL->general_max_10bit_constraint_flag = (iBitDepth <= 10) ? 1 : 0;
-      pPTL->general_max_8bit_constraint_flag = (iBitDepth <= 8) ? 1 : 0;
-      pPTL->general_max_422chroma_constraint_flag = (eChromaMode <= CHROMA_4_2_2) ? 1 : 0;
-      pPTL->general_max_420chroma_constraint_flag = (eChromaMode <= CHROMA_4_2_0) ? 1 : 0;
-      pPTL->general_max_monochrome_constraint_flag = (eChromaMode == CHROMA_MONO) ? 1 : 0;
+      int16_t iExtFlags = (int16_t)AL_GET_RExt_FLAGS(pChParam->eProfile);
+      pPTL->general_max_12bit_constraint_flag = (iExtFlags & 0x8000) ? 1 : 0;
+      pPTL->general_max_10bit_constraint_flag = (iExtFlags & 0x4000) ? 1 : 0;
+      pPTL->general_max_8bit_constraint_flag = (iExtFlags & 0x2000) ? 1 : 0;
+      pPTL->general_max_422chroma_constraint_flag = (iExtFlags & 0x1000) ? 1 : 0;
+      pPTL->general_max_420chroma_constraint_flag = (iExtFlags & 0x0800) ? 1 : 0;
+      pPTL->general_max_monochrome_constraint_flag = (iExtFlags & 0x0400) ? 1 : 0;
       pPTL->general_intra_constraint_flag = AL_IS_INTRA_PROFILE(pChParam->eProfile);
-      pPTL->general_one_picture_only_constraint_flag = 0;
-      pPTL->general_lower_bit_rate_constraint_flag = 1;
+      pPTL->general_one_picture_only_constraint_flag = AL_IS_STILL_PROFILE(pChParam->eProfile);
+      pPTL->general_lower_bit_rate_constraint_flag = AL_IS_LOW_BITRATE_PROFILE(pChParam->eProfile);
     }
   }
 
