@@ -83,7 +83,7 @@ static void AL_sUpdateProfileTierLevel(AL_TProfilevel* pPTL, AL_TEncChanParam co
       AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
       pPTL->general_max_12bit_constraint_flag = (iBitDepth <= 12) ? 1 : 0;
       pPTL->general_max_10bit_constraint_flag = (iBitDepth <= 10) ? 1 : 0;
-      pPTL->general_max_8bit_constraint_flag = (iBitDepth <= 8) ? 8 : 0;
+      pPTL->general_max_8bit_constraint_flag = (iBitDepth <= 8) ? 1 : 0;
       pPTL->general_max_422chroma_constraint_flag = (eChromaMode <= CHROMA_4_2_2) ? 1 : 0;
       pPTL->general_max_420chroma_constraint_flag = (eChromaMode <= CHROMA_4_2_0) ? 1 : 0;
       pPTL->general_max_monochrome_constraint_flag = (eChromaMode == CHROMA_MONO) ? 1 : 0;
