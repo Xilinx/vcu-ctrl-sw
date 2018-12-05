@@ -258,15 +258,10 @@ static int32_t AL_sCalculatePOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 }
 
 /*****************************************************************************/
-bool AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
+void AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 {
   int32_t iCurPoc = AL_sCalculatePOC(pCtx, pSlice);
-
-  if(!(pSlice->slice_type == SLICE_I || AL_Dpb_SearchPOC(&pCtx->DPB, iCurPoc) == 0xFF))
-    return false;
-
   pCtx->iCurFramePOC = iCurPoc;
-  return true;
 }
 
 /*****************************************************************************/

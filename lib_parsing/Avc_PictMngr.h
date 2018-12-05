@@ -54,7 +54,7 @@
    \param[in] pCtx   Pointer to a Picture manager context object
    \param[in] pSlice slice header of the current decoded slice
 *****************************************************************************/
-bool AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice);
+void AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice);
 
 /*************************************************************************//*!
    \brief This function updates the reconstructed resolution information

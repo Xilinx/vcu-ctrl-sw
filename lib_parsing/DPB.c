@@ -1395,10 +1395,10 @@ void AL_Dpb_MarkingProcess(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice)
   {
     AL_Dpb_PictNumberProcess(pDpb, pSlice);
 
-    if(!pSlice->adaptive_ref_pic_marking_mode_flag)
-      AL_Dpb_sSlidingWindowMarking(pDpb, pSlice);
-    else
+    if(pSlice->adaptive_ref_pic_marking_mode_flag)
       AL_Dpb_sAdaptiveMemoryControlMarking(pDpb, pSlice);
+
+    AL_Dpb_sSlidingWindowMarking(pDpb, pSlice);
 
     for(int op_idc = 0; op_idc < 32; ++op_idc)
     {
