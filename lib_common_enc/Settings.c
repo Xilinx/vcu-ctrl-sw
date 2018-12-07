@@ -773,6 +773,12 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     }
   }
 
+  if(pChParam->bSubframeLatency && (pChParam->tGopParam.uNumB > 0))
+  {
+    ++err;
+    MSG("B Picture not allowed in subframe latency");
+  }
+
   if(pChParam->tGopParam.eMode == AL_GOP_MODE_DEFAULT)
   {
     if(pChParam->tGopParam.uGopLength > 1000)
