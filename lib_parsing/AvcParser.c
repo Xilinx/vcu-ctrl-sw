@@ -296,23 +296,28 @@ static bool isProfileSupported(uint8_t profile_idc)
 {
   switch(profile_idc)
   {
-  case 88:
-  case 44:
-  case 244:
-  case 86:
-    return false;
+  case AVC_PROFILE_IDC_BASELINE:
+  case AVC_PROFILE_IDC_MAIN:
+  case AVC_PROFILE_IDC_HIGH:
+    return true;
+  case AVC_PROFILE_IDC_HIGH_422:
+  case AVC_PROFILE_IDC_HIGH10:
+    return HW_IP_BIT_DEPTH >= 10;
   default:
-    break;
+    return false;
   }
+}
 
-  return true;
+static int fieldToFrameHeight(int iFieldHeight)
+{
+  return ((iFieldHeight + 1) * 2) - 1;
 }
 
 AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 {
   AL_TAvcSps tempSPS;
 
-  memset(&tempSPS, 0, sizeof(AL_TAvcSps));
+  Rtos_Memset(&tempSPS, 0, sizeof(AL_TAvcSps));
 
   // Parse bitstream
   while(u(pRP, 8) == 0x00)
@@ -447,10 +452,12 @@ AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   if(!tempSPS.frame_mbs_only_flag)
   {
     tempSPS.mb_adaptive_frame_field_flag = u(pRP, 1);
-  }
 
-  if(!tempSPS.frame_mbs_only_flag)
-    return AL_UNSUPPORTED;
+    if(tempSPS.mb_adaptive_frame_field_flag)
+      return AL_UNSUPPORTED;
+
+    tempSPS.pic_height_in_map_units_minus1 = fieldToFrameHeight(tempSPS.pic_height_in_map_units_minus1);
+  }
 
   // check if NAL isn't empty
   COMPLY(more_rbsp_data(pRP));

@@ -345,7 +345,11 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
     pSlice->field_pic_flag = u(pRP, 1);
 
     if(pSlice->field_pic_flag)
+    {
       pSlice->bottom_field_flag = u(pRP, 1);
+      /* We do not support field (alternate) pictures */
+      return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
+    }
   }
 
   if(pSlice->nal_unit_type == AL_AVC_NUT_VCL_IDR)
