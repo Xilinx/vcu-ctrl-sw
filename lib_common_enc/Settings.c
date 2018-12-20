@@ -45,6 +45,7 @@
 
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common_enc/Settings.h"
@@ -829,10 +830,31 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   }
 
 
-  if(pChParam->uWidth % 2 != 0 || pChParam->uHeight % 2 != 0)
+  if((pChParam->eVideoMode == AL_VM_PROGRESSIVE) && (pChParam->uWidth % 8 != 0))
   {
     ++err;
-    MSG("Width and Height shall be multiple of 2 ! ");
+    MSG("Width shall be multiple of 8 in video progressive!");
+  }
+
+  if((pChParam->eVideoMode == AL_VM_PROGRESSIVE) && (pChParam->uHeight % 8 != 0))
+  {
+    ++err;
+    MSG("Height shall be multiple of 8 in video progressive!");
+  }
+
+
+  if(((pChParam->eVideoMode == AL_VM_INTERLACED_TOP) || (pChParam->eVideoMode == AL_VM_INTERLACED_BOTTOM)) && (pChParam->uWidth % 2 != 0))
+  {
+    ++err;
+    MSG("Width shall be multiple of 2 in video interlace top/bottom!");
+  }
+
+  AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
+
+  if(((pChParam->eVideoMode == AL_VM_INTERLACED_TOP) || (pChParam->eVideoMode == AL_VM_INTERLACED_BOTTOM)) && (pChParam->uHeight % 2 != 0) && (eChromaMode != CHROMA_4_2_2))
+  {
+    ++err;
+    MSG("Height shall be multiple of 2 in video interlace top/bottom (with chroma mode != CHROMA 4_2_2)! ");
   }
 
   int iNumB = pChParam->tGopParam.uNumB;
@@ -966,27 +988,21 @@ static uint32_t GetHevcMaxTileRow(uint8_t uLevel)
   case 20:
   case 21:
     return 1;
-    break;
   case 30:
     return 2;
-    break;
   case 31:
     return 3;
-    break;
   case 40:
   case 41:
     return 5;
-    break;
   case 50:
   case 51:
   case 52:
     return 11;
-    break;
   case 60:
   case 61:
   case 62:
     return 22;
-    break;
   default:
     printf("level:%d\n", uLevel);
     assert(0);
