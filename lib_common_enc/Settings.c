@@ -829,32 +829,18 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     }
   }
 
-
-  if((pChParam->eVideoMode == AL_VM_PROGRESSIVE) && (pChParam->uWidth % 8 != 0))
-  {
-    ++err;
-    MSG("Width shall be multiple of 8 in video progressive!");
-  }
-
-  if((pChParam->eVideoMode == AL_VM_PROGRESSIVE) && (pChParam->uHeight % 8 != 0))
-  {
-    ++err;
-    MSG("Height shall be multiple of 8 in video progressive!");
-  }
-
-
-  if(((pChParam->eVideoMode == AL_VM_INTERLACED_TOP) || (pChParam->eVideoMode == AL_VM_INTERLACED_BOTTOM)) && (pChParam->uWidth % 2 != 0))
-  {
-    ++err;
-    MSG("Width shall be multiple of 2 in video interlace top/bottom!");
-  }
-
   AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
 
-  if(((pChParam->eVideoMode == AL_VM_INTERLACED_TOP) || (pChParam->eVideoMode == AL_VM_INTERLACED_BOTTOM)) && (pChParam->uHeight % 2 != 0) && (eChromaMode != CHROMA_4_2_2))
+  if((pChParam->uWidth % 2 != 0) && ((eChromaMode == CHROMA_4_2_0) || (eChromaMode == CHROMA_4_2_2)))
   {
     ++err;
-    MSG("Height shall be multiple of 2 in video interlace top/bottom (with chroma mode != CHROMA 4_2_2)! ");
+    MSG("Width shall be multiple of 2 on 420 or 422 chroma mode!");
+  }
+
+  if((pChParam->uHeight % 2 != 0) && (eChromaMode == CHROMA_4_2_0))
+  {
+    ++err;
+    MSG("Height shall be multiple of 2 on 420 chroma mode!");
   }
 
   int iNumB = pChParam->tGopParam.uNumB;
