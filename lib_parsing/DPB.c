@@ -197,7 +197,7 @@ static void AL_Dpb_sSlidingWindowMarking(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice)
     uPic = pNodes[uPic].uNextDecOrder;
   }
 
-  if((uNumShortTerm + uNumLongTerm) > pSlice->pSPS->max_num_ref_frames)
+  if((uNumShortTerm + uNumLongTerm) > UnsignedMin(pDpb->uNumRef, pSlice->pSPS->max_num_ref_frames))
   {
     pNodes[uPosMin].eMarking_flag = UNUSED_FOR_REF;
     --pDpb->uCountRef;
