@@ -58,7 +58,7 @@ endif
 -include ref.mk
 
 ifneq ($(ENABLE_DECODER),0)
-  # AL_Decoder
+  # ctrlsw_decoder
   -include lib_parsing/project.mk
   -include lib_scheduler_dec/project.mk
   -include lib_decode/project.mk
@@ -66,7 +66,7 @@ ifneq ($(ENABLE_DECODER),0)
 endif
 
 ifneq ($(ENABLE_ENCODER),0)
-  # AL_Encoder
+  # ctrlsw_encoder
   -include exe_encoder/project.mk
 endif
 
