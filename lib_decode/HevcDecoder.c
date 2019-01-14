@@ -677,6 +677,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     if(!*bFirstIsValid)
     {
       pCtx->bIsFirstPicture = false;
+      UpdateContextAtEndOfFrame(pCtx);
       return;
     }
     AL_HEVC_PictMngr_RemoveHeadFrame(&pCtx->PictMngr);

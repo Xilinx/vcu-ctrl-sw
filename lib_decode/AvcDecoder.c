@@ -562,7 +562,10 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     pCtx->uCurPocLsb = pSlice->pic_order_cnt_lsb;
 
     if(!initSlice(pCtx, pSlice))
+    {
+      UpdateContextAtEndOfFrame(pCtx);
       return;
+    }
   }
 
   pCtx->uCurID = (pCtx->uCurID + 1) & 1;

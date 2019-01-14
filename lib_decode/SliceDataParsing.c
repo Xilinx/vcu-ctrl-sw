@@ -280,6 +280,7 @@ void AL_CancelFrameBuffers(AL_TDecCtx* pCtx)
 
   int iOffset = pCtx->iNumFrmBlk1 % MAX_STACK_SIZE;
   AL_PictMngr_UnlockRefID(&pCtx->PictMngr, pCtx->uNumRef[iOffset], pCtx->uFrameIDRefList[iOffset], pCtx->uMvIDRefList[iOffset]);
+  UpdateContextAtEndOfFrame(pCtx);
   Rtos_ReleaseSemaphore(pCtx->Sem);
 }
 
