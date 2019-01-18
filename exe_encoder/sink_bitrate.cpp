@@ -35,62 +35,92 @@
 *
 ******************************************************************************/
 
-#include "sink_bitstream_writer.h"
-#include "lib_app/utils.h" // OpenOutput
-#include "lib_app/InputFiles.h"
-#include "CodecUtils.h" // WriteStream
+#include "sink_bitrate.h"
+#include "CodecUtils.h" // for GetImageStreamSize
+#include <deque>
+#include <string>
 #include <fstream>
+#include "lib_app/utils.h" // for OpenOutput
 
-extern "C"
+#include <iostream>
+
+struct BitrateWriter : IFrameSink
 {
-#include "lib_encode/lib_encoder.h"
-}
-using namespace std;
-
-void WriteContainerHeader(ofstream& fp, AL_TEncSettings const& Settings, TYUVFileInfo const& FileInfo, int numFrames);
-
-struct BitstreamWriter : IFrameSink
-{
-  BitstreamWriter(string path, ConfigFile const& cfg_) : cfg(cfg_)
+  BitrateWriter(std::string path, float framerate_) : framerate(framerate_)
   {
     OpenOutput(m_file, path);
+    imageSizes.push_back(ImageSize { 0, false });
+    m_file << "#header: window size:" << windowSize << ", size in bytes, bitrate in Kbps" << std::endl;
+  }
 
-    WriteContainerHeader(m_file, cfg.Settings, cfg.MainInput.FileInfo, -1);
+  float calculateBitrate(int numBits, int numFrame)
+  {
+    auto const durationInSeconds = numFrame / framerate * 1000;
+    /* bitrate in Kbps */
+    return numBits / durationInSeconds;
+  }
+
+  float calculateWindowBitrate()
+  {
+    int totalBits = 0;
+
+    for(auto& numBits : window)
+    {
+      totalBits += numBits;
+    }
+
+    return calculateBitrate(totalBits, window.size());
   }
 
   void ProcessFrame(AL_TBuffer* pStream)
   {
     if(pStream == EndOfStream)
     {
-      printBitrate();
-      // update container header
-      WriteContainerHeader(m_file, cfg.Settings, cfg.MainInput.FileInfo, m_frameCount);
       return;
     }
 
-    m_frameCount += WriteStream(m_file, pStream, &cfg.Settings.tChParam[0]);
+    GetImageStreamSize(pStream, imageSizes);
+    auto it = imageSizes.begin();
+
+    while(it != imageSizes.end())
+    {
+      if(it->finished)
+      {
+        ++numFrame;
+        int numBits = it->size * 8;
+
+        window.push_back(numBits);
+
+        if(window.size() > windowSize)
+          window.pop_front();
+
+        totalBits += numBits;
+
+        auto windowBitrate = calculateWindowBitrate();
+
+        m_file << "frame:" << numFrame << ",size:" << it->size << ",window bitrate:" << windowBitrate << ",bitrate alone:" << calculateBitrate(numBits, 1) << ",total bitrate:" << calculateBitrate(totalBits, numFrame) << std::endl;
+
+        it = imageSizes.erase(it);
+      }
+      else
+      {
+        ++it;
+      }
+    }
   }
 
-  void printBitrate()
-  {
-    auto const outputSizeInBits = m_file.tellp() * 8;
-    auto const frameRate = (float)cfg.Settings.tChParam[0].tRCParam.uFrameRate / cfg.Settings.tChParam[0].tRCParam.uClkRatio;
-    auto const durationInSeconds = m_frameCount / frameRate;
-    auto bitrate = outputSizeInBits / durationInSeconds;
-    Message(CC_DEFAULT, "\nAchieved bitrate = %.4f Kbps\n", (float)bitrate);
-  }
-
-  int m_frameCount = 0;
-  ofstream m_file;
-  ConfigFile const cfg;
+  size_t windowSize = 30;
+  std::deque<int> window {};
+  std::deque<ImageSize> imageSizes {};
+  int numFrame = 0;
+  float framerate;
+  int totalBits = 0;
+  std::ofstream m_file;
 };
 
-unique_ptr<IFrameSink> createBitstreamWriter(string path, ConfigFile const& cfg)
+std::unique_ptr<IFrameSink> createBitrateWriter(std::string path, ConfigFile const& cfg)
 {
-
-  if(cfg.Settings.TwoPass == 1)
-    return unique_ptr<IFrameSink>(new NullFrameSink);
-
-  return unique_ptr<IFrameSink>(new BitstreamWriter(path, cfg));
+  auto const frameRate = (float)cfg.Settings.tChParam[0].tRCParam.uFrameRate / cfg.Settings.tChParam[0].tRCParam.uClkRatio * 1000;
+  return std::unique_ptr<IFrameSink>(new BitrateWriter(path, frameRate));
 }
 

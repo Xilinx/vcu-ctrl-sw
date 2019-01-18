@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -200,13 +200,15 @@ public:
       return;
     }
 
-    auto& tChParam = m_cfg.Settings.tChParam[m_iLayerID];
+    AL_TSrcMetaData* pMetaRec = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
+    AL_TSrcMetaData* pMetaYUV = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(m_Yuv, AL_META_TYPE_SOURCE);
+    pMetaYUV->tDim = pMetaRec->tDim;
+
     {
       RecToYuv(pBuf, m_Yuv, m_cfg.RecFourCC);
-      WriteOneFrame(m_RecFile, m_Yuv, tChParam.uWidth, tChParam.uHeight);
+      WriteOneFrame(m_RecFile, m_Yuv);
     }
   }
-
 
 private:
   ofstream m_RecFile;

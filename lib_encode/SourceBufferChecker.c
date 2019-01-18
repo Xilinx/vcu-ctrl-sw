@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -43,18 +43,30 @@
 
 static uint32_t getExpectedSourceBufferSize(AL_TSrcBufferChecker* pCtx, int pitch, int strideHeight)
 {
-  AL_TDimension tDim = { pCtx->width, pCtx->height };
-  return AL_GetAllocSizeSrc(tDim, pCtx->picFmt.uBitDepth, pCtx->picFmt.eChromaMode, pCtx->srcMode, pitch, strideHeight);
+  return AL_GetAllocSizeSrc(pCtx->currentDim, pCtx->picFmt.uBitDepth, pCtx->picFmt.eChromaMode, pCtx->srcMode, pitch, strideHeight);
 }
 
 void AL_SrcBuffersChecker_Init(AL_TSrcBufferChecker* pCtx, AL_TEncChanParam const* pChParam)
 {
-  pCtx->width = AL_GetSrcWidth(*pChParam);
-  pCtx->height = AL_GetSrcHeight(*pChParam);
+  pCtx->maxDim.iWidth = AL_GetSrcWidth(*pChParam);
+  pCtx->maxDim.iHeight = AL_GetSrcHeight(*pChParam);
+
+  pCtx->currentDim = pCtx->maxDim;
 
   pCtx->picFmt = AL_EncGetSrcPicFormat(AL_GET_CHROMA_MODE(pChParam->ePicFormat), pChParam->uSrcBitDepth, AL_GetSrcStorageMode(pChParam->eSrcMode), AL_IsSrcCompressed(pChParam->eSrcMode));
   pCtx->fourCC = AL_GetFourCC(pCtx->picFmt);
   pCtx->srcMode = pChParam->eSrcMode;
+}
+
+bool AL_SrcBuffersChecker_UpdateResolution(AL_TSrcBufferChecker* pCtx, AL_TDimension tNewDim)
+{
+  if(pCtx->maxDim.iWidth >= tNewDim.iWidth && pCtx->maxDim.iHeight >= tNewDim.iHeight)
+  {
+    pCtx->currentDim = tNewDim;
+    return true;
+  }
+
+  return false;
 }
 
 static int GetPitchYValue(int iWidth)
@@ -70,10 +82,10 @@ static bool CheckMetaData(AL_TSrcBufferChecker* pCtx, AL_TSrcMetaData* pMetaData
   if(pMetaDataBuf->tDim.iWidth > pMetaDataBuf->tPlanes[AL_PLANE_Y].iPitch)
     return false;
 
-  if(pMetaDataBuf->tDim.iWidth != pCtx->width)
+  if(pMetaDataBuf->tDim.iWidth != pCtx->currentDim.iWidth)
     return false;
 
-  if(pMetaDataBuf->tDim.iHeight != pCtx->height)
+  if(pMetaDataBuf->tDim.iHeight != pCtx->currentDim.iHeight)
     return false;
 
   if(pMetaDataBuf->tFourCC != pCtx->fourCC)
@@ -85,9 +97,9 @@ static bool CheckMetaData(AL_TSrcBufferChecker* pCtx, AL_TSrcMetaData* pMetaData
      (pMetaDataBuf->tFourCC == FOURCC(XV20)) ||
      (pMetaDataBuf->tFourCC == FOURCC(XV10))
      )
-    iMinPitch = GetPitchYValue((pCtx->width + 2) / 3 * 4);
+    iMinPitch = GetPitchYValue((pCtx->currentDim.iWidth + 2) / 3 * 4);
   else
-  iMinPitch = GetPitchYValue(pCtx->width);
+  iMinPitch = GetPitchYValue(pCtx->currentDim.iWidth);
 
   if(pMetaDataBuf->tPlanes[AL_PLANE_Y].iPitch < iMinPitch)
     return false;

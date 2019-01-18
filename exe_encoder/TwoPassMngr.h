@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -53,11 +53,6 @@ extern "C"
 bool AL_TwoPassMngr_HasLookAhead(AL_TEncSettings settings);
 void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings);
 AL_TLookAheadMetaData* AL_TwoPassMngr_CreateAndAttachTwoPassMetaData(AL_TBuffer* Src);
-void AL_TwoPassMngr_CropSettings(AL_TEncSettings& settings, AL_TDimension tDimCrop);
-void AL_TwoPassMngr_CropBufferSrc(AL_TBuffer* Src);
-void AL_TwoPassMngr_UncropBufferSrc(AL_TBuffer* Src);
-bool AL_TwoPassMngr_GetCropResolution(AL_TDimension tDim, AL_TDimension& tDimCrop);
-void AL_TwoPassMngr_GetCropOffsets(AL_TDimension tDim, AL_TDimension tDimCrop, AL_TDimension tOffsets[5]);
 
 /***************************************************************************/
 /*Offline TwoPass structures and methods*/
@@ -85,7 +80,7 @@ private:
   void CloseLog();
   void EmptyLog();
   void FillLog();
-  void AddNewFrame(int iPictureSize, int iPercentIntra, int iPercentSkip);
+  void AddNewFrame(int iPictureSize, int iPercentIntra);
   void ComputeTwoPass();
   void ComputeComplexity();
   bool HasPatternTwoFrames();
@@ -113,21 +108,27 @@ private:
 */
 struct LookAheadMngr
 {
-  LookAheadMngr(int p_iLookAhead);
+  LookAheadMngr(int p_iLookAhead, bool p_bEnableFirstPassCrop);
   ~LookAheadMngr();
 
   uint16_t uLookAheadSize;
   bool bUseComplexity;
+  bool bEnableFirstPassCrop;
   std::deque<AL_TBuffer*> m_fifo;
 
 
   void ProcessLookAheadParams();
   void ComputeComplexity();
   bool HasPatternTwoFrames();
+  bool ComputeSceneChange(AL_TBuffer* pPrevSrc, AL_TBuffer* pCurrentSrc);
+  bool ComputeSceneChange_LA1(AL_TBuffer* pCurrentSrc);
+  int32_t ComputeIPRatio(AL_TBuffer* pCurrentSrc, AL_TBuffer* pNextSrc);
+  int GetNextSceneChange();
 
 private:
   int iComplexity;
   int iFrameCount;
   int iComplexityDiff;
+  AL_TLookAheadMetaData tPrevMetaData;
 };
 

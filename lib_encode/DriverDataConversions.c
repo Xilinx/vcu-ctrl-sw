@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -74,7 +74,16 @@ static void setPicParam(struct al5_params* msg, AL_TEncInfo* encInfo, AL_TEncReq
 
 
   if(reqInfo->eReqOptions & AL_OPT_UPDATE_PARAMS)
-    write(msg, &reqInfo->smartParams, sizeof(reqInfo->smartParams));
+  {
+    write(msg, &reqInfo->smartParams.rc, sizeof(reqInfo->smartParams.rc));
+    write(msg, &reqInfo->smartParams.gop, sizeof(reqInfo->smartParams.gop));
+  }
+
+  if(reqInfo->eReqOptions & AL_OPT_SET_QP)
+    write(msg, &reqInfo->smartParams.iQPSet, sizeof(reqInfo->smartParams.iQPSet));
+
+  if(reqInfo->eReqOptions & AL_OPT_SET_INPUT_RESOLUTION)
+    write(msg, &reqInfo->dynResParams, sizeof(reqInfo->dynResParams));
 }
 
 static void setBuffersAddrs(struct al5_params* msg, AL_TEncPicBufAddrs* pBuffersAddrs)

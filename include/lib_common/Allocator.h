@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -122,7 +122,7 @@ AL_HANDLE AL_Allocator_AllocNamed(AL_TAllocator* pAllocator, size_t zSize, char 
 }
 
 /**************************************************************************//*!
-   /brief Frees an existing memory buffer
+   /brief Frees an existing memory buffer, if the HANDLE is NULL, this does nothing
    \param[in] pAllocator the Allocator interface object used to allocate the
    memory buffer
    \param[in] hBuf Handle to the memory buffer to be freed.
@@ -165,7 +165,7 @@ AL_PADDR AL_Allocator_GetPhysicalAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
    This allocator doesn't support dma (GetPhysicalAddr is not supported)
    and uses Rtos_Free and Rtos_Malloc to allocate and free.
 ******************************************************************************/
-AL_TAllocator* AL_GetDefaultAllocator();
+AL_TAllocator* AL_GetDefaultAllocator(void);
 
 /**************************************************************************//*!
    \brief Get wrapper implementation of the allocator
@@ -175,7 +175,7 @@ AL_TAllocator* AL_GetDefaultAllocator();
    The allocation will have a little overhead as there is the additional destructor
    function pointer to store.
 ******************************************************************************/
-AL_TAllocator* AL_GetWrapperAllocator();
+AL_TAllocator* AL_GetWrapperAllocator(void);
 
 typedef void (* PFN_WrapDestructor)(void* pUserData, uint8_t* pData);
 /**************************************************************************//*!

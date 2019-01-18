@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -347,6 +347,13 @@ void skip(AL_TRbspParser* pRP, uint32_t iNumBits)
     pRP->iTotalBitIndex = pRP->iTrailingBitOneIndex;
 
   pRP->pByte = &(pRP->pBuffer[pRP->iTotalBitIndex >> 3]);
+}
+
+/*************************************************************************/
+void skipAllZerosAndTheNextByte(AL_TRbspParser* pRP)
+{
+  while(u(pRP, 8) == 0x00)
+    ;
 }
 
 /*************************************************************************/

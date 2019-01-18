@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -43,7 +43,10 @@
 class CommandsSender : public ICommandsSender
 {
 public:
-  explicit CommandsSender(AL_HEncoder hEnc) : hEnc(hEnc) {};
+  explicit CommandsSender(AL_HEncoder hEnc) : hEnc(hEnc)
+  {
+    Reset();
+  };
   ~CommandsSender() {};
   void notifySceneChange(int lookAhead) override;
   void notifyIsLongTerm() override;
@@ -54,8 +57,14 @@ public:
   void setFrameRate(int frameRate, int clockRatio) override;
   void setBitRate(int bitRate) override;
   void setQP(int qp) override;
+  void setDynamicInput(int iInputIdx) override;
+
+  void Reset();
+  bool HasInputChanged(int& iInputIdx);
 
 private:
   AL_HEncoder hEnc;
+  bool bInputChanged;
+  int iInputIdx;
 };
 

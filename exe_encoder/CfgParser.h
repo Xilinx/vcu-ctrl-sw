@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -73,17 +73,41 @@ typedef AL_INTROSPECT (category = "debug") struct tCfgRunInfo
   std::string logsFile = "";
   bool trackDma = false;
   bool printPictureType = false;
+  std::string bitrateFile = "";
   AL_64U uInputSleepInMilliseconds;
 }TCfgRunInfo;
 
+
+/*************************************************************************//*!
+   \brief Mimics structure for a configuration of an YUV Input
+*****************************************************************************/
+typedef AL_INTROSPECT (category = "debug") struct tConfigYUVInput
+{
+  // \brief YUV input file name(s)
+  std::string YUVFileName;
+
+  // \brief Information relative to the YUV input file
+  TYUVFileInfo FileInfo;
+
+  // \brief Folder where qp tables files are located, if load qp enabled.
+  std::string sQPTablesFolder;
+
+  // \brief Name of the file specifying the region of interest per frame is specified
+  // happen
+  std::string sRoiFileName;
+}TConfigYUVInput;
 
 /*************************************************************************//*!
    \brief Whole configuration file
 *****************************************************************************/
 AL_INTROSPECT(category = "debug") struct ConfigFile
 {
-  // \brief YUV input file name(s)
-  std::string YUVFileName;
+  // \brief Main YUV input
+  TConfigYUVInput MainInput;
+
+  // \brief List of inputs for resolution change
+  std::vector<TConfigYUVInput> DynamicInputs;
+
 
   // \brief Output bitstream file name
   std::string BitstreamFileName;
@@ -95,20 +119,10 @@ AL_INTROSPECT(category = "debug") struct ConfigFile
   // happen
   std::string sCmdFileName;
 
-  // \brief Name of the file specifying the region of interest per frame is specified
-  // happen
-  std::string sRoiFileName;
-
-  // \brief Folder where qp tables files are located, if load qp enabled.
-  std::string sQPTablesFolder;
-
 
 
   // \brief Name of the file that reads/writes video statistics for TwoPassMode
   std::string sTwoPassFileName;
-
-  // \brief Information relative to YUV input file (from section INPUT)
-  TYUVFileInfo FileInfo;
 
   // \brief FOURCC Code of the reconstructed picture output file
   TFourCC RecFourCC;

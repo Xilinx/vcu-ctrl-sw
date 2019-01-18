@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -35,4 +35,19 @@
 *
 ******************************************************************************/
 
+#pragma once
+
+#define BAD_CHAN_ID 0xFF
+#define DESTROY_WHEN_IDLE 0xFE
+
+#define AL_SCHEDULER_MAX_CHANNEL 32
+#define AL_MAX_SC_REQUEST 16
+#define NUM_PARSER 2
+
+#define DECODER_CORE_FREQUENCY 666666666
+#define DECODER_CORE_FREQUENCY_MARGIN 10
+#define DECODER_CYCLES_FOR_BLK_32x32 2450
+
+#define AL_CORE_HEVC_MIN_WIDTH 128
+#define AL_CORE_AVC_MIN_WIDTH 32
 

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -82,6 +82,7 @@ extern "C"
 #include "sink_encoder.h"
 #include "sink_lookahead.h"
 #include "sink_bitstream_writer.h"
+#include "sink_bitrate.h"
 #include "sink_frame_writer.h"
 #include "sink_md5.h"
 #include "sink_repeater.h"
@@ -128,10 +129,10 @@ void SetDefaults(ConfigFile& cfg)
   cfg.BitstreamFileName = "Stream.bin";
   cfg.RecFourCC = FOURCC(NULL);
   AL_Settings_SetDefaults(&cfg.Settings);
-  cfg.FileInfo.FourCC = FOURCC(I420);
-  cfg.FileInfo.FrameRate = 0;
-  cfg.FileInfo.PictHeight = 0;
-  cfg.FileInfo.PictWidth = 0;
+  cfg.MainInput.FileInfo.FourCC = FOURCC(I420);
+  cfg.MainInput.FileInfo.FrameRate = 0;
+  cfg.MainInput.FileInfo.PictHeight = 0;
+  cfg.MainInput.FileInfo.PictWidth = 0;
   cfg.RunInfo.bUseBoard = true;
   cfg.RunInfo.iSchedulerType = SCHEDULER_TYPE_MCU;
   cfg.RunInfo.bLoop = false;
@@ -194,7 +195,7 @@ function<T(string const &)> createCmdlineParsingFunc(char const* name_, function
 
 function<TFourCC(string const &)> createParseInputFourCC()
 {
-  return createCmdlineParsingFunc<TFourCC>("[INPUT]\nFormat", [](ConfigFile& cfg) { return cfg.FileInfo.FourCC; });
+  return createCmdlineParsingFunc<TFourCC>("[INPUT]\nFormat", [](ConfigFile& cfg) { return cfg.MainInput.FileInfo.FourCC; });
 }
 
 function<TFourCC(string const &)> createParseRecFourCC()
@@ -225,6 +226,23 @@ void introspect(ConfigFile& cfg)
   throw runtime_error("introspection is not compiled in");
 }
 
+void SetChannelMaxResolution(ConfigFile& cfg)
+{
+  int iMaxSrcWidth = cfg.MainInput.FileInfo.PictWidth;
+  int iMaxSrcHeight = cfg.MainInput.FileInfo.PictHeight;
+
+
+  for(auto input = cfg.DynamicInputs.begin(); input != cfg.DynamicInputs.end(); input++)
+  {
+    iMaxSrcWidth = std::max(input->FileInfo.PictWidth, iMaxSrcWidth);
+    iMaxSrcHeight = std::max(input->FileInfo.PictHeight, iMaxSrcHeight);
+  }
+
+
+  AL_SetSrcWidth(&cfg.Settings.tChParam[0], iMaxSrcWidth);
+  AL_SetSrcHeight(&cfg.Settings.tChParam[0], iMaxSrcHeight);
+}
+
 /*****************************************************************************/
 void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
 {
@@ -232,7 +250,6 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   bool help = false;
   bool help_cfg = false;
   bool version = false;
-  bool dumpCfg = false;
   stringstream warning;
   auto opt = CommandLineParser([&](string word)
   {
@@ -261,7 +278,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addFlag("--help-cfg", &help_cfg, "Show cfg help");
   opt.addFlag("--help,-h", &help, "Show this help");
   opt.addFlag("--version", &version, "Show version");
-  opt.addString("--input,-i", &cfg.YUVFileName, "YUV input file");
+  opt.addString("--input,-i", &cfg.MainInput.YUVFileName, "YUV input file");
 
   opt.addString("--output,-o", &cfg.BitstreamFileName, "Compressed output file");
   opt.addString("--md5", &cfg.RunInfo.sMd5Path, "Path to the output MD5 textfile");
@@ -273,8 +290,8 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
 
   opt.addFlag("--quiet,-q", &g_Verbosity, "Do not print anything", 0);
 
-  opt.addInt("--input-width", &cfg.FileInfo.PictWidth, "Specifies YUV input width");
-  opt.addInt("--input-height", &cfg.FileInfo.PictHeight, "Specifies YUV input height");
+  opt.addInt("--input-width", &cfg.MainInput.FileInfo.PictWidth, "Specifies YUV input width");
+  opt.addInt("--input-height", &cfg.MainInput.FileInfo.PictHeight, "Specifies YUV input height");
   opt.addOption("--chroma-mode", [&]()
   {
     auto chromaMode = stringToChromaMode(opt.popWord());
@@ -285,7 +302,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addInt("--level", &cfg.Settings.tChParam[0].uLevel, "Specifies the level we want to encode with (10 to 62)");
   opt.addCustom("--profile", &cfg.Settings.tChParam[0].eProfile, createParseProfile(), "Specifies the profile we want to encode with (example: HEVC_MAIN, AVC_MAIN, ...)");
   opt.addInt("--ip-bitdepth", &ipbitdepth, "Specifies bitdepth of ip input (8 : 10)");
-  opt.addCustom("--input-format", &cfg.FileInfo.FourCC, createParseInputFourCC(), "Specifies YUV input format (I420, IYUV, YV12, NV12, Y800, Y010, P010, I0AL ...)");
+  opt.addCustom("--input-format", &cfg.MainInput.FileInfo.FourCC, createParseInputFourCC(), "Specifies YUV input format (I420, IYUV, YV12, NV12, Y800, Y010, P010, I0AL ...)");
   opt.addCustom("--rec-format", &cfg.RecFourCC, createParseRecFourCC(), "Specifies output format");
   opt.addCustom("--ratectrl-mode", &cfg.Settings.tChParam[0].tRCParam.eRCMode, createParseRCMode(),
                 "Specifies rate control mode (CONST_QP, CBR, VBR"
@@ -356,14 +373,13 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   if(g_Verbosity)
     cerr << warning.str();
 
-  if(cfg.FileInfo.PictWidth > UINT16_MAX)
+  SetChannelMaxResolution(cfg);
+
+  if(AL_GetSrcWidth(cfg.Settings.tChParam[0]) > UINT16_MAX)
     throw runtime_error("Unsupported picture width value");
 
-  if(cfg.FileInfo.PictHeight > UINT16_MAX)
+  if(AL_GetSrcHeight(cfg.Settings.tChParam[0]) > UINT16_MAX)
     throw runtime_error("Unsupported picture height value");
-
-  AL_SetSrcWidth(&cfg.Settings.tChParam[0], cfg.FileInfo.PictWidth);
-  AL_SetSrcHeight(&cfg.Settings.tChParam[0], cfg.FileInfo.PictHeight);
 
   if(ipbitdepth != -1)
   {
@@ -381,10 +397,10 @@ void ValidateConfig(ConfigFile& cfg)
 {
   string invalid_settings("Invalid settings, check the [SETTINGS] section of your configuration file or check your commandline (use -h to get help)");
 
-  if(cfg.YUVFileName.empty())
+  if(cfg.MainInput.YUVFileName.empty())
     throw runtime_error("No YUV input was given, specify it in the [INPUT] section of your configuration file or in your commandline (use -h to get help)");
 
-  if(!cfg.sQPTablesFolder.empty() && cfg.Settings.eQpCtrlMode != LOAD_QP)
+  if(!cfg.MainInput.sQPTablesFolder.empty() && cfg.Settings.eQpCtrlMode != LOAD_QP)
     throw runtime_error("QPTablesFolder can only be specified with Load QP control mode");
 
   SetConsoleColor(CC_RED);
@@ -393,6 +409,7 @@ void ValidateConfig(ConfigFile& cfg)
 
   if(!g_Verbosity)
     out = NULL;
+
 
   for(int i = 0; i < cfg.Settings.NumLayer; ++i)
   {
@@ -405,7 +422,7 @@ void ValidateConfig(ConfigFile& cfg)
       throw runtime_error(ss.str());
     }
 
-    auto const incoherencies = AL_Settings_CheckCoherency(&cfg.Settings, &cfg.Settings.tChParam[i], cfg.FileInfo.FourCC, out);
+    auto const incoherencies = AL_Settings_CheckCoherency(&cfg.Settings, &cfg.Settings.tChParam[i], cfg.MainInput.FileInfo.FourCC, out);
 
     if(incoherencies == -1)
       throw runtime_error("Fatal coherency error in settings");
@@ -415,12 +432,13 @@ void ValidateConfig(ConfigFile& cfg)
   if(cfg.Settings.TwoPass == 1)
     AL_TwoPassMngr_SetPass1Settings(cfg.Settings);
 
+
   SetConsoleColor(CC_DEFAULT);
 }
 
 void SetMoreDefaults(ConfigFile& cfg)
 {
-  auto& FileInfo = cfg.FileInfo;
+  auto& FileInfo = cfg.MainInput.FileInfo;
   auto& Settings = cfg.Settings;
   auto& RecFourCC = cfg.RecFourCC;
 
@@ -506,16 +524,36 @@ shared_ptr<AL_TBuffer> AllocateConversionBuffer(vector<uint8_t>& YuvBuffer, int 
   return shared_ptr<AL_TBuffer>(Yuv, &AL_Buffer_Destroy);
 }
 
+void UpdateBufferMetadata(AL_TBuffer* pBuf, AL_TDimension& tUpdatedDim)
+{
+  AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
+  pSrcMeta->tDim = tUpdatedDim;
+}
+
 shared_ptr<AL_TBuffer> ReadSourceFrame(BufPool* pBufPool, AL_TBuffer* conversionBuffer, ifstream& YuvFile, AL_TEncChanParam const& tChParam, ConfigFile const& cfg, IConvSrc* hConv)
 {
   shared_ptr<AL_TBuffer> sourceBuffer(pBufPool->GetBuffer(), &AL_Buffer_Unref);
   assert(sourceBuffer);
 
-  if(!ReadOneFrameYuv(YuvFile, hConv ? conversionBuffer : sourceBuffer.get(), cfg.RunInfo.bLoop))
-    return nullptr;
+  AL_TDimension tUpdatedDim = AL_TDimension {
+    AL_GetSrcWidth(tChParam), AL_GetSrcHeight(tChParam)
+  };
+
+  UpdateBufferMetadata(sourceBuffer.get(), tUpdatedDim);
 
   if(hConv)
+  {
+    UpdateBufferMetadata(conversionBuffer, tUpdatedDim);
+
+    if(!ReadOneFrameYuv(YuvFile, conversionBuffer, cfg.RunInfo.bLoop))
+      return nullptr;
     hConv->ConvertSrcBuf(tChParam.uSrcBitDepth, conversionBuffer, sourceBuffer.get());
+  }
+  else
+  {
+    if(!ReadOneFrameYuv(YuvFile, sourceBuffer.get(), cfg.RunInfo.bLoop))
+      return nullptr;
+  }
 
   return sourceBuffer;
 }
@@ -527,7 +565,7 @@ bool ConvertSrcBuffer(AL_TEncChanParam& tChParam, TYUVFileInfo& FileInfo, vector
   bool shouldConvert = IsConversionNeeded(FileInfo.FourCC, picFmt);
 
   if(shouldConvert)
-    SrcYuv = AllocateConversionBuffer(YuvBuffer, FileInfo.PictWidth, FileInfo.PictHeight, FileInfo.FourCC);
+    SrcYuv = AllocateConversionBuffer(YuvBuffer, AL_GetSrcWidth(tChParam), AL_GetSrcHeight(tChParam), FileInfo.FourCC);
   return shouldConvert;
 }
 
@@ -548,17 +586,18 @@ static bool isLastPict(int iPictCount, int iMaxPict)
   return (iPictCount >= iMaxPict) && (iMaxPict != -1);
 }
 
-static void PrepareInput(ifstream& YuvFile, string& YUVFileName, TYUVFileInfo& FileInfo, ConfigFile const& cfg)
+static void PrepareInput(ifstream& YuvFile, string& YUVFileName, TYUVFileInfo& FileInfo, int iFirstPict)
 {
+  YuvFile.close();
   OpenInput(YuvFile, YUVFileName);
-  GotoFirstPicture(FileInfo, YuvFile, cfg.RunInfo.iFirstPict);
+  GotoFirstPicture(FileInfo, YuvFile, iFirstPict);
 }
 
 static void GetSrcFrame(shared_ptr<AL_TBuffer>& frame, int& iReadCount, int iPictCount, ifstream& YuvFile, const TYUVFileInfo& FileInfo, BufPool& SrcBufPool, AL_TBuffer* Yuv, AL_TEncChanParam const& tChParam, ConfigFile const& cfg, IConvSrc* pSrcConv)
 {
   if(!isLastPict(iPictCount, cfg.RunInfo.iMaxPict))
   {
-    if(cfg.FileInfo.FrameRate != tChParam.tRCParam.uFrameRate)
+    if(cfg.MainInput.FileInfo.FrameRate != tChParam.tRCParam.uFrameRate)
       iReadCount += GotoNextPicture(FileInfo, YuvFile, tChParam.tRCParam.uFrameRate, iPictCount, iReadCount);
 
     frame = ReadSourceFrame(&SrcBufPool, Yuv, YuvFile, tChParam, cfg, pSrcConv);
@@ -566,10 +605,10 @@ static void GetSrcFrame(shared_ptr<AL_TBuffer>& frame, int& iReadCount, int iPic
   }
 }
 
-static bool sendInputFileTo(ifstream& YuvFile, BufPool& SrcBufPool, AL_TBuffer* Yuv, ConfigFile const& cfg, IConvSrc* pSrcConv, IFrameSink* sink, int& iPictCount, int& iReadCount)
+static bool sendInputFileTo(ifstream& YuvFile, BufPool& SrcBufPool, AL_TBuffer* Yuv, ConfigFile const& cfg, TYUVFileInfo& FileInfo, IConvSrc* pSrcConv, IFrameSink* sink, int& iPictCount, int& iReadCount)
 {
   shared_ptr<AL_TBuffer> frame;
-  GetSrcFrame(frame, iReadCount, iPictCount, YuvFile, cfg.FileInfo, SrcBufPool, Yuv, cfg.Settings.tChParam[0], cfg, pSrcConv);
+  GetSrcFrame(frame, iReadCount, iPictCount, YuvFile, FileInfo, SrcBufPool, Yuv, cfg.Settings.tChParam[0], cfg, pSrcConv);
   sink->ProcessFrame(frame.get());
 
   if(!frame)
@@ -658,10 +697,10 @@ static AL_TBufPoolConfig GetSrcBufPoolConfig(unique_ptr<IConvSrc>& pSrcConv, TFr
 }
 
 /*****************************************************************************/
-static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, TYUVFileInfo& FileInfo)
+static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, int iLayerID)
 {
   auto numStreams = 2 + 2 + Settings.tChParam[0].tGopParam.uNumB;
-  AL_TDimension dim = { FileInfo.PictWidth, FileInfo.PictHeight };
+  AL_TDimension dim = { Settings.tChParam[iLayerID].uWidth, Settings.tChParam[iLayerID].uHeight };
   auto streamSize = AL_GetMitigatedMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat));
 
 
@@ -691,12 +730,12 @@ static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, TYUVF
 
 
 /*****************************************************************************/
-static TFrameInfo GetFrameInfo(TYUVFileInfo& tFileInfo, AL_TEncChanParam& tChParam)
+static TFrameInfo GetFrameInfo(AL_TEncChanParam& tChParam)
 {
   TFrameInfo tFrameInfo;
 
-  tFrameInfo.iWidth = tFileInfo.PictWidth;
-  tFrameInfo.iHeight = tFileInfo.PictHeight;
+  tFrameInfo.iWidth = tChParam.uWidth;
+  tFrameInfo.iHeight = tChParam.uHeight;
   tFrameInfo.iBitDepth = tChParam.uSrcBitDepth;
   tFrameInfo.eCMode = AL_GET_CHROMA_MODE(tChParam.ePicFormat);
 
@@ -715,12 +754,205 @@ static void InitSrcBufPool(AL_TAllocator* pAllocator, bool shouldConvert, unique
 }
 
 /*****************************************************************************/
+struct LayerRessources
+{
+  ~LayerRessources()
+  {
+    Rtos_DeleteEvent(hFinished);
+  }
+
+  void Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffersCount, int iLayerID, AL_TAllocator* pAllocator);
+
+  void PushRessources(ConfigFile& cfg, EncoderSink* enc
+                      , EncoderLookAheadSink* encFirstPassLA
+                      );
+
+  void OpenInput(ConfigFile& cfg, AL_HEncoder hEnc);
+
+  bool SendInput(ConfigFile& cfg, IFrameSink* firstSink);
+
+  void ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hEnc);
+
+  void WaitFinished()
+  {
+    Rtos_WaitEvent(hFinished, AL_WAIT_FOREVER);
+  }
+
+  AL_TBufPoolConfig StreamBufPoolConfig;
+  BufPool StreamBufPool;
+
+  BufPool QpBufPool;
+
+  BufPool SrcBufPool;
+
+
+  // Input/Output Format conversion
+  shared_ptr<AL_TBuffer> SrcYuv;
+  vector<uint8_t> YuvBuffer;
+
+  shared_ptr<AL_TBuffer> RecYuv;
+  vector<uint8_t> RecYuvBuffer;
+
+  unique_ptr<IFrameSink> frameWriter;
+
+  ifstream YuvFile;
+  unique_ptr<IConvSrc> pSrcConv;
+
+  int iPictCount = 0;
+  int iReadCount = 0;
+
+  int iLayerID = 0;
+  int iInputIdx = 0;
+  std::vector<TConfigYUVInput> layerInputs;
+
+  AL_EVENT hFinished = NULL;
+};
+
+void LayerRessources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffersCount, int iLayerID, AL_TAllocator* pAllocator)
+{
+  AL_TEncSettings& Settings = cfg.Settings;
+
+  this->iLayerID = iLayerID;
+
+  layerInputs.push_back(cfg.MainInput);
+  layerInputs.insert(layerInputs.end(), cfg.DynamicInputs.begin(), cfg.DynamicInputs.end());
+
+  hFinished = Rtos_CreateEvent(false);
+
+  StreamBufPoolConfig = GetStreamBufPoolConfig(Settings, iLayerID);
+  StreamBufPool.Init(pAllocator, StreamBufPoolConfig);
+
+  for(int i = 0; i < (int)StreamBufPoolConfig.uNumBuf; ++i)
+  {
+    AL_TBuffer* pStream = StreamBufPool.GetBuffer(AL_BUF_MODE_NONBLOCK);
+    assert(pStream);
+
+    if(iLayerID == 0)
+    {
+      if(cfg.RunInfo.printPictureType)
+      {
+        AL_TMetaData* pMeta = (AL_TMetaData*)AL_PictureMetaData_Create();
+        assert(pMeta);
+        auto const attached = AL_Buffer_AddMetaData(pStream, pMeta);
+        assert(attached);
+      }
+    }
+
+    AL_Buffer_Unref(pStream);
+  }
+
+  AL_TBufPoolConfig poolConfig = GetQpBufPoolConfig(Settings, Settings.tChParam[iLayerID], frameBuffersCount);
+  QpBufPool.Init(pAllocator, poolConfig);
+
+
+  // Input/Output Format conversion
+  bool shouldConvert = ConvertSrcBuffer(Settings.tChParam[iLayerID], layerInputs[iInputIdx].FileInfo, YuvBuffer, SrcYuv);
+
+  string LayerRecFileName = cfg.RecFileName;
+
+  if(!LayerRecFileName.empty())
+  {
+    RecYuv = AllocateConversionBuffer(RecYuvBuffer, Settings.tChParam[iLayerID].uWidth, Settings.tChParam[iLayerID].uHeight, cfg.RecFourCC);
+    frameWriter = createFrameWriter(LayerRecFileName, cfg, RecYuv.get(), iLayerID);
+  }
+
+  TFrameInfo FrameInfo = GetFrameInfo(Settings.tChParam[iLayerID]);
+  auto const eSrcMode = Settings.tChParam[0].eSrcMode;
+
+  /* source compression case */
+  pSrcConv = CreateSrcConverter(FrameInfo, eSrcMode, Settings.tChParam[iLayerID]);
+
+  InitSrcBufPool(pAllocator, shouldConvert, pSrcConv, FrameInfo, eSrcMode, srcBuffersCount, SrcBufPool);
+
+  iPictCount = 0;
+  iReadCount = 0;
+}
+
+void LayerRessources::PushRessources(ConfigFile& cfg, EncoderSink* enc
+                                     , EncoderLookAheadSink* encFirstPassLA
+                                     )
+{
+  (void)cfg;
+  QPBuffers::QPLayerInfo qpInf
+  {
+    &QpBufPool,
+    layerInputs[iInputIdx].sQPTablesFolder,
+    layerInputs[iInputIdx].sRoiFileName
+  };
+
+  enc->AddQpBufPool(qpInf, iLayerID);
+
+
+  if(AL_TwoPassMngr_HasLookAhead(cfg.Settings))
+    encFirstPassLA->AddQpBufPool(qpInf, iLayerID);
+
+  if(frameWriter)
+    enc->LayerRecOutput[iLayerID] = std::move(frameWriter);
+
+  for(int i = 0; i < (int)StreamBufPoolConfig.uNumBuf; ++i)
+  {
+    AL_TBuffer* pStream = StreamBufPool.GetBuffer(AL_BUF_MODE_NONBLOCK);
+    assert(pStream);
+
+    AL_HEncoder hEnc = enc->hEnc;
+
+    bool bRet = true;
+
+    if(iLayerID == 0)
+    {
+      int iStreamNum = 1;
+
+      // the look ahead needs one more stream buffer to work AVC due to (potential) multi-core
+      if(AL_IS_AVC(cfg.Settings.tChParam[0].eProfile))
+        iStreamNum += 1;
+
+      if(AL_TwoPassMngr_HasLookAhead(cfg.Settings) && i < iStreamNum)
+        hEnc = encFirstPassLA->hEnc;
+
+      bRet = AL_Encoder_PutStreamBuffer(hEnc, pStream);
+    }
+    assert(bRet);
+    AL_Buffer_Unref(pStream);
+  }
+}
+
+void LayerRessources::OpenInput(ConfigFile& cfg, AL_HEncoder hEnc)
+{
+  ChangeInput(cfg, iInputIdx, hEnc);
+}
+
+bool LayerRessources::SendInput(ConfigFile& cfg, IFrameSink* firstSink)
+{
+  firstSink->PreprocessFrame();
+  return sendInputFileTo(YuvFile, SrcBufPool, SrcYuv.get(), cfg, layerInputs[iInputIdx].FileInfo, pSrcConv.get(), firstSink, iPictCount, iReadCount);
+}
+
+void LayerRessources::ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hEnc)
+{
+  (void)hEnc;
+
+  if(iInputIdx < static_cast<int>(layerInputs.size()))
+  {
+    this->iInputIdx = iInputIdx;
+    AL_TDimension inputDim = { layerInputs[iInputIdx].FileInfo.PictWidth, layerInputs[iInputIdx].FileInfo.PictHeight };
+    bool bResChange = (inputDim.iWidth != cfg.Settings.tChParam[iLayerID].uWidth) || (inputDim.iHeight != cfg.Settings.tChParam[iLayerID].uHeight);
+
+    if(bResChange)
+    {
+      cfg.Settings.tChParam[iLayerID].uWidth = inputDim.iWidth;
+      cfg.Settings.tChParam[iLayerID].uHeight = inputDim.iHeight;
+      AL_Encoder_SetInputResolution(hEnc, inputDim);
+    }
+    PrepareInput(YuvFile, layerInputs[iInputIdx].YUVFileName, layerInputs[iInputIdx].FileInfo, cfg.RunInfo.iFirstPict + iReadCount);
+  }
+}
+
+/*****************************************************************************/
 void SafeMain(int argc, char** argv)
 {
   ConfigFile cfg;
   SetDefaults(cfg);
 
-  auto& FileInfo = cfg.FileInfo;
   auto& Settings = cfg.Settings;
   auto& StreamFileName = cfg.BitstreamFileName;
   auto& RecFileName = cfg.RecFileName;
@@ -750,103 +982,73 @@ void SafeMain(int argc, char** argv)
     throw runtime_error("Can't create IpDevice");
 
 
-  auto hFinished = Rtos_CreateEvent(false);
-  auto scopeMutex = scopeExit([&]() {
-    Rtos_DeleteEvent(hFinished);
-  });
+  std::vector<LayerRessources> layerRessources(cfg.Settings.NumLayer);
 
-  // --------------------------------------------------------------------------------
-  // Create Encoder
+  unique_ptr<EncoderSink> enc;
+  unique_ptr<EncoderLookAheadSink> encFirstPassLA;
+
   auto pAllocator = pIpDevice->m_pAllocator.get();
   auto pScheduler = pIpDevice->m_pScheduler;
 
-  AL_TBufPoolConfig StreamBufPoolConfig = GetStreamBufPoolConfig(Settings, FileInfo);
-  BufPool StreamBufPool(pAllocator, StreamBufPoolConfig);
-  /* instantiation has to be before the Encoder instantiation to get the destroying order right */
-  BufPool SrcBufPool;
-
+  // --------------------------------------------------------------------------------
+  // Allocate Layers Ressources
   int frameBuffersCount = 2 + Settings.tChParam[0].tGopParam.uNumB;
 
   // the LookAhead needs LookAheadSize source buffers to work
-  if(AL_TwoPassMngr_HasLookAhead(cfg.Settings))
-    frameBuffersCount += cfg.Settings.LookAhead;
-  auto QpBufPoolConfig = GetQpBufPoolConfig(Settings, Settings.tChParam[0], frameBuffersCount);
-  BufPool QpBufPool(pAllocator, QpBufPoolConfig);
+  if(AL_TwoPassMngr_HasLookAhead(Settings))
+    frameBuffersCount += Settings.LookAhead;
 
+  int srcBuffersCount = g_numFrameToRepeat == 0 ? frameBuffersCount : max(frameBuffersCount, g_numFrameToRepeat);
 
-  unique_ptr<EncoderSink> enc;
-  enc.reset(new EncoderSink(cfg, pScheduler, pAllocator, QpBufPool
+  for(size_t i = 0; i < layerRessources.size(); i++)
+    layerRessources[i].Init(cfg, frameBuffersCount, srcBuffersCount, i, pAllocator);
+
+  // --------------------------------------------------------------------------------
+  // Create Encoder
+  enc.reset(new EncoderSink(cfg, pScheduler, pAllocator
                             ));
-
-
-  enc->BitstreamOutput = createBitstreamWriter(StreamFileName, cfg);
-  enc->m_done = ([&]() {
-    Rtos_SetEvent(hFinished);
-  });
 
   IFrameSink* firstSink = enc.get();
 
-  unique_ptr<EncoderLookAheadSink> encFirstPassLA;
 
   if(AL_TwoPassMngr_HasLookAhead(cfg.Settings))
   {
-    encFirstPassLA.reset(new EncoderLookAheadSink(cfg, pScheduler, pAllocator, QpBufPool
+    encFirstPassLA.reset(new EncoderLookAheadSink(cfg, pScheduler, pAllocator
                                                   ));
     encFirstPassLA->next = firstSink;
     firstSink = encFirstPassLA.get();
   }
 
-  // Input/Output Format conversion
-  shared_ptr<AL_TBuffer> SrcYuv;
-  vector<uint8_t> YuvBuffer;
-  bool shouldConvert = ConvertSrcBuffer(Settings.tChParam[0], FileInfo, YuvBuffer, SrcYuv);
-
-
-  shared_ptr<AL_TBuffer> RecYuv;
-  vector<uint8_t> RecYuvBuffer;
-
-  if(!RecFileName.empty())
+  // --------------------------------------------------------------------------------
+  // Push created layer ressources
+  for(size_t i = 0; i < layerRessources.size(); i++)
   {
-    RecYuv = AllocateConversionBuffer(RecYuvBuffer, Settings.tChParam[0].uWidth, Settings.tChParam[0].uHeight, cfg.RecFourCC);
-    enc->RecOutput = createFrameWriter(RecFileName, cfg, RecYuv.get(), 0);
+    layerRessources[i].PushRessources(cfg, enc.get()
+                                      , encFirstPassLA.get()
+                                      );
   }
 
+  enc->BitstreamOutput = createBitstreamWriter(StreamFileName, cfg);
+
+  if(!cfg.RunInfo.bitrateFile.empty())
+    enc->BitrateOutput = createBitrateWriter(cfg.RunInfo.bitrateFile, cfg);
+
+  // --------------------------------------------------------------------------------
+  // Set Callbacks
+  enc->m_InputChanged = ([&](int iInputIdx, int iLayerID) {
+    layerRessources[iLayerID].ChangeInput(cfg, iInputIdx, enc->hEnc);
+  });
+
+  enc->m_done = ([&]() {
+    Rtos_SetEvent(layerRessources[0].hFinished);
+  });
 
   if(!cfg.RunInfo.sMd5Path.empty())
   {
     auto multisink = unique_ptr<MultiSink>(new MultiSink);
-    multisink->sinks.push_back(move(enc->RecOutput));
-    multisink->sinks.push_back(createMd5Calculator(cfg.RunInfo.sMd5Path, cfg, RecYuv.get()));
-    enc->RecOutput = move(multisink);
-  }
-
-
-  for(int i = 0; i < (int)StreamBufPoolConfig.uNumBuf; ++i)
-  {
-    AL_TBuffer* pStream = StreamBufPool.GetBuffer(AL_BUF_MODE_NONBLOCK);
-    assert(pStream);
-
-    if(cfg.RunInfo.printPictureType)
-    {
-      AL_TMetaData* pMeta = (AL_TMetaData*)AL_PictureMetaData_Create();
-      assert(pMeta);
-      auto const attached = AL_Buffer_AddMetaData(pStream, pMeta);
-      assert(attached);
-    }
-
-    AL_HEncoder hEnc = enc->hEnc;
-
-    int iStreamNum = 1;
-
-    // the look ahead needs one more stream buffer to work AVC due to (potential) multi-core
-    if(AL_IS_AVC(Settings.tChParam[0].eProfile))
-      iStreamNum += 1;
-
-    if(AL_TwoPassMngr_HasLookAhead(cfg.Settings) && i < iStreamNum)
-      hEnc = encFirstPassLA->hEnc;
-    bool bRet = AL_Encoder_PutStreamBuffer(hEnc, pStream);
-    assert(bRet);
-    AL_Buffer_Unref(pStream);
+    multisink->sinks.push_back(move(enc->LayerRecOutput[0]));
+    multisink->sinks.push_back(createMd5Calculator(cfg.RunInfo.sMd5Path, cfg, layerRessources[0].RecYuv.get()));
+    enc->LayerRecOutput[0] = move(multisink);
   }
 
 
@@ -861,24 +1063,17 @@ void SafeMain(int argc, char** argv)
     frameBuffersCount = max(frameBuffersCount, g_numFrameToRepeat);
   }
 
-  TFrameInfo FrameInfo = GetFrameInfo(cfg.FileInfo, Settings.tChParam[0]);
-  auto const eSrcMode = Settings.tChParam[0].eSrcMode;
+  bool hasInput = true;
 
-  /* source compression case */
-  auto pSrcConv = CreateSrcConverter(FrameInfo, eSrcMode, Settings.tChParam[0]);
+  for(int i = 0; i < Settings.NumLayer; ++i)
+    layerRessources[i].OpenInput(cfg, enc->hEnc);
 
-  InitSrcBufPool(pAllocator, shouldConvert, pSrcConv, FrameInfo, eSrcMode, frameBuffersCount, SrcBufPool);
-  ifstream YuvFile;
-  PrepareInput(YuvFile, cfg.YUVFileName, cfg.FileInfo, cfg);
-
-  int iPictCount = 0;
-  int iReadCount = 0;
-  bool bRet = true;
-
-  while(bRet)
+  while(hasInput)
   {
     AL_64U uBeforeTime = Rtos_GetTime();
-    bRet = sendInputFileTo(YuvFile, SrcBufPool, SrcYuv.get(), cfg, pSrcConv.get(), firstSink, iPictCount, iReadCount);
+
+    for(int i = 0; i < Settings.NumLayer; ++i)
+      hasInput = layerRessources[i].SendInput(cfg, firstSink) && hasInput;
 
     AL_64U uAfterTime = Rtos_GetTime();
 
@@ -886,7 +1081,8 @@ void SafeMain(int argc, char** argv)
       Rtos_Sleep(cfg.RunInfo.uInputSleepInMilliseconds - (uAfterTime - uBeforeTime));
   }
 
-  Rtos_WaitEvent(hFinished, AL_WAIT_FOREVER);
+  for(int i = 0; i < Settings.NumLayer; ++i)
+    layerRessources[i].WaitFinished();
 
   if(auto err = GetEncoderLastError())
     throw codec_error(EncoderErrorToString(err), err);

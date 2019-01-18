@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -35,4 +35,12 @@
 *
 ******************************************************************************/
 
+#pragma once
+
+#include <string>
+#include <memory>
+#include "sink.h"
+#include "CfgParser.h"
+
+std::unique_ptr<IFrameSink> createBitrateWriter(std::string path, ConfigFile const& cfg);
 

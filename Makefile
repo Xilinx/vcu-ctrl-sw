@@ -35,9 +35,6 @@ include lib_app/project.mk
 -include lib_scheduler/project.mk
 -include lib_perfs/project.mk
 
-ifneq ($(ENABLE_TRACES),0)
--include lib_trace/project.mk
-endif
 ifneq ($(ENABLE_ENCODER),0)
 -include lib_common_enc/project.mk
 -include lib_buf_mngt/project.mk
@@ -45,9 +42,6 @@ ifneq ($(ENABLE_ENCODER),0)
 -include lib_bitstream/project.mk
 -include lib_scheduler_enc/project.mk
 -include lib_encode/project.mk
-ifneq ($(ENABLE_TILE_SRC),0)
-  -include lib_fbc_standalone/project.mk
-endif
 -include lib_conv_yuv/project.mk
 endif
 
@@ -70,21 +64,8 @@ ifneq ($(ENABLE_ENCODER),0)
   -include exe_encoder/project.mk
 endif
 
-ifneq ($(ENABLE_COMP),0)
-  # AL_Compress
-  -include lib_fbc_standalone/project.mk
-  -include exe_compress/project.mk
-endif
 
-ifneq ($(ENABLE_COMP),0)
-  # AL_Decompress
-  -include exe_decompress/project.mk
-endif
 
-ifneq ($(ENABLE_RESIZE),0)
-  # AL_Resize
-  -include exe_resize/project.mk
-endif
 
 ifneq ($(ENABLE_PERF),0)
   # AL_PerfMonitor
@@ -95,13 +76,9 @@ ifeq ($(findstring linux,$(TARGET)),linux)
   -include exe_sync_ip/project.mk
 endif
 
-ifneq ($(ENABLE_ENCODER_IP),0)
-  # AL_Encoder_IP
-  -include exe_encoder_ip/project.mk
-endif
 
 # Unit tests
--include test/test.mk
+-include test/project.mk
 
 # Environment tests
 -include exe_test_env/project.mk

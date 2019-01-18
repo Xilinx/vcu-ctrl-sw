@@ -324,3 +324,20 @@
     -- Handle out of order interrupts in avc low latency case
     -- Improve offline two pass algorithm quality
     -- Memory leak in the decoder destroy channel call
+
+2019-01-18 (v1.0.43)
+--------------------
+  Added Features :
+    -- Encoder dynamic resolution change (DRC)
+    -- Decoder dynamic resolution change
+
+  API:
+    -- Version of the API is now 0.11.0
+    -- Decoder resolution found callback is now called on every valid configuration found and not anymore on the first valid configuration
+    -- Add a new encoder API (AL_Encoder_SetInputResolution) to signal the CtrlSW of the new input resolution
+
+  Fixes :
+    -- Improve rate control on specific sequences
+    -- Sync IP
+    -- Several minors bugs
+

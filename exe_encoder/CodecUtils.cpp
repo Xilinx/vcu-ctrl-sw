@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -318,9 +318,10 @@ static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
 /*****************************************************************************/
 static void ReadFile(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSize, uint32_t uFileNumRow)
 {
-  uint32_t uOffset = ReadFileLumaPlanar(File, pBuf, uFileRowSize, uFileNumRow);
+  ReadFileLumaPlanar(File, pBuf, uFileRowSize, uFileNumRow);
 
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
+  uint32_t uOffset = pSrcMeta->tPlanes[AL_PLANE_UV].iOffset;
 
   if(AL_IsSemiPlanar(pSrcMeta->tFourCC))
   {
@@ -368,17 +369,18 @@ bool ReadOneFrameYuv(std::ifstream& File, AL_TBuffer* pBuf, bool bLoop)
 }
 
 /*****************************************************************************/
-bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf, int iWidth, int iHeight)
+bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf)
 {
   AL_TSrcMetaData* pBufMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
 
-  assert(iWidth <= pBufMeta->tDim.iWidth);
-  assert(iHeight <= pBufMeta->tDim.iHeight);
+  int iWidth = pBufMeta->tDim.iWidth;
+  int iHeight = pBufMeta->tDim.iHeight;
 
   if(!File.is_open())
     return false;
 
-  char* pTmp = reinterpret_cast<char*>(AL_Buffer_GetData(pBuf));
+  char* pBufData = reinterpret_cast<char*>(AL_Buffer_GetData(pBuf));
+  char* pTmp = pBufData;
   int uRowSizeLuma = GetIOLumaRowSize(pBufMeta->tFourCC, iWidth);
 
   if(pBufMeta->tPlanes[AL_PLANE_Y].iPitch == uRowSizeLuma)
@@ -395,6 +397,8 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf, int iWidth, int 
       pTmp += pBufMeta->tPlanes[AL_PLANE_Y].iPitch;
     }
   }
+
+  pTmp = pBufData + pBufMeta->tPlanes[AL_PLANE_UV].iOffset;
 
   // 1 Interleaved Chroma plane
   if(AL_IsSemiPlanar(pBufMeta->tFourCC))
@@ -537,5 +541,26 @@ int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream, const AL_TEncChanP
   }
 
   return iNumFrame;
+}
+
+void GetImageStreamSize(AL_TBuffer* pStream, std::deque<ImageSize>& imageSizes)
+{
+  AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
+
+  if(imageSizes.empty())
+    throw std::runtime_error("You need at least one empty image size structure to begin the first frame");
+
+  for(int curSection = 0; curSection < pStreamMeta->uNumSection; ++curSection)
+  {
+    AL_TStreamSection& section = pStreamMeta->pSections[curSection];
+
+    if(section.uFlags & SECTION_END_FRAME_FLAG)
+    {
+      imageSizes.back().finished = true;
+      imageSizes.push_back(ImageSize { 0, false });
+    }
+
+    imageSizes.back().size += section.uLength;
+  }
 }
 

@@ -8,8 +8,4 @@ ifeq ($(findstring linux,$(TARGET)),linux)
   LDFLAGS+=-lpthread
 endif
 
-ifneq ($(ENABLE_UNITTESTS),0)
-UNITTEST+=$(shell find lib_rtos/unittests -name "*.cpp")
-UNITTEST+=$(LIB_RTOS_SRC)
-endif
 

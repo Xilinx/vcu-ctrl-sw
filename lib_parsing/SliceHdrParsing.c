@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -41,6 +41,7 @@
 
 #include "lib_common/SliceConsts.h"
 #include "lib_common/Utils.h"
+#include "lib_common_dec/RbspParser.h"
 
 #include "SliceHdrParsing.h"
 #include "HevcParser.h"
@@ -49,12 +50,6 @@ static const int AVC_SLICE_TYPE[5] =
 {
   1, 0, 2, 3, 4
 };
-
-static void skipAllZerosAndTheNextByte(AL_TRbspParser* pRP)
-{
-  while(u(pRP, 8) == 0x00)
-    ;
-}
 
 /***************************************************************************/
 /*   A V C   S L I C E   H E A D E R   P A R S I N G   f u n c t i o n s   */
@@ -739,12 +734,6 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
 
     int syntax_size = ceil_log2(uMaxLcu);
     pSlice->slice_segment_address = Clip3(u(pRP, syntax_size), 1, uMaxLcu - 1);
-
-    if(!pSlice->slice_segment_address)
-    {
-      ++pSlice->slice_segment_address;
-      return false;
-    }
   }
 
   if(pSlice->slice_segment_address <= pConceal->iFirstLCU && !pPps->tiles_enabled_flag && !pPps->entropy_coding_sync_enabled_flag)

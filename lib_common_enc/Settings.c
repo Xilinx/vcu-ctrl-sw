@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -566,6 +566,19 @@ static uint8_t AL_sSettings_GetMinLevel(AL_TEncChanParam const* pChParam)
 static void AL_sSettings_SetDefaultAVCParam(AL_TEncSettings* pSettings)
 {
   pSettings->tChParam[0].uMaxCuSize = 4; // 16x16
+
+  if(pSettings->eScalingList == AL_SCL_MAX_ENUM)
+    pSettings->eScalingList = AL_SCL_FLAT;
+}
+
+/***************************************************************************/
+static void AL_sSettings_SetDefaultHEVCParam(AL_TEncSettings* pSettings)
+{
+  if(pSettings->eScalingList == AL_SCL_MAX_ENUM)
+    pSettings->eScalingList = AL_SCL_DEFAULT;
+
+  if(pSettings->tChParam[0].uCabacInitIdc > 1)
+    pSettings->tChParam[0].uCabacInitIdc = 1;
 }
 
 /***************************************************************************/
@@ -639,7 +652,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pSettings->eQpCtrlMode = UNIFORM_QP;// ADAPTIVE_AUTO_QP;
   pSettings->tChParam[0].eLdaCtrlMode = AUTO_LDA;
 
-  pSettings->eScalingList = AL_SCL_DEFAULT;
+  pSettings->eScalingList = AL_SCL_MAX_ENUM;
 
   pSettings->bForceLoad = true;
   pSettings->tChParam[0].pMeRange[SLICE_P][0] = -1; // Horz
@@ -688,14 +701,13 @@ static void AL_sCheckRange(int16_t* pRange, const int16_t iMaxRange, FILE* pOut)
 void AL_Settings_SetDefaultParam(AL_TEncSettings* pSettings)
 {
 
+
   if(AL_IS_AVC(pSettings->tChParam[0].eProfile))
     AL_sSettings_SetDefaultAVCParam(pSettings);
 
 
-  if(AL_IS_HEVC(pSettings->tChParam[0].eProfile) && pSettings->tChParam[0].uCabacInitIdc > 1)
-  {
-    pSettings->tChParam[0].uCabacInitIdc = 1;
-  }
+  if(AL_IS_HEVC(pSettings->tChParam[0].eProfile))
+    AL_sSettings_SetDefaultHEVCParam(pSettings);
 }
 
 
@@ -829,6 +841,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     }
   }
 
+
   AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
 
   if((pChParam->uWidth % 2 != 0) && ((eChromaMode == CHROMA_4_2_0) || (eChromaMode == CHROMA_4_2_2)))
@@ -929,10 +942,10 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   }
 
 
-  if(pSettings->LookAhead < 2 && pSettings->LookAhead != 0)
+  if(pSettings->LookAhead < 0)
   {
     ++err;
-    MSG("!! Invalid parameter : LookAheadMode should be 0 or above 2 !!");
+    MSG("!! Invalid parameter : LookAheadMode should be 0 or above !!");
   }
 
   if(pSettings->TwoPass < 0 || pSettings->TwoPass > 2)
@@ -953,10 +966,16 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     MSG("!! Shouldn't have SliceLat and TwoPass/LookAhead at the same time !!");
   }
 
-  if(pSettings->bEnableFirstPassCrop && (pChParam->uHeight % 8 != 0 || pChParam->uWidth % 4 != 0))
+  if((pSettings->TwoPass != 0 || pSettings->LookAhead != 0) && pChParam->tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL)
   {
     ++err;
-    MSG("!! In CropFirstPass mode, Height must be multiple of 8 and Width of 4 !!");
+    MSG("!! Shouldn't have Pyramidal GOP and TwoPass/LookAhead at the same time !!");
+  }
+
+  if(pSettings->LookAhead == 0 && pSettings->bEnableFirstPassCrop)
+  {
+    ++err;
+    MSG("!! Shouldn't have FirstPassCrop enabled without LookAhead !!");
   }
 
 
@@ -1420,6 +1439,22 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     assert(AL_IS_HEVC(pChParam->eProfile));
     pSettings->uEnableSEI |= SEI_PT;
   }
+
+  if(pSettings->bEnableFirstPassCrop)
+  {
+    uint32_t uRatio = pChParam->uWidth * 1000 / pChParam->uHeight;
+    uint32_t uVal = pChParam->uWidth * pChParam->uHeight / 50;
+
+    if(uRatio > 2500 || uRatio < 400 || uVal < 18000 || uVal > 170000)
+    {
+      MSG("!! CropFirstPass mode is not supported with the current resolution, it is disabled !!");
+      pSettings->bEnableFirstPassCrop = false;
+      ++numIncoherency;
+    }
+  }
+
+
+
   return numIncoherency;
 }
 

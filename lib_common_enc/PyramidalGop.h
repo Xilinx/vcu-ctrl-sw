@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -104,6 +104,71 @@ static AL_TGopFrm PYRAMIDAL_GOP_7[] =
   }
 };
 
+static AL_TGopFrm PYRAMIDAL_GOP_3_AVC[] =
+{
+  {
+    SLICE_P, 0, 1, 0, 4, -4, 0, 0, { -4, 0, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 1, 1, 2, -2, 2, 0, { -2, 2, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 1, -1, 1, 0, { -1, 1, 3, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 3, -3, 1, 0, { -3, 1, 0, 0, 0 }
+  }
+};
+
+static AL_TGopFrm PYRAMIDAL_GOP_5_AVC[] =
+{
+  {
+    SLICE_P, 0, 1, 0, 6, -6, 0, 0, { -6, 0, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 1, 1, 3, -3, 3, 0, { -3, 3, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 1, -1, 2, 0, { -1, 2, 5, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 2, -2, 1, 0, { -2, 1, 4, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 4, -4, 2, 0, { -4, 2, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 5, -5, 1, 0, { -5, 1, 0, 0, 0 }
+  }
+};
+static AL_TGopFrm PYRAMIDAL_GOP_7_AVC[] =
+{
+  {
+    SLICE_P, 0, 1, 0, 8, -8, 0, 0, { -8, 0, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 1, 1, 4, -4, 4, 0, { -4, 4, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 1, 1, 2, -2, 2, 0, { -2, 2, 6, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 1, -1, 1, 0, { -1, 1, 3, 7, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 3, -3, 1, 0, { -3, 1, 5, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 1, 1, 6, -6, 2, 0, { -6, 2, 0, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 5, -5, 1, 0, { -5, 1, 3, 0, 0 }
+  },
+  {
+    SLICE_B, 0, 0, 2, 7, -7, 1, 0, { -7, 1, 0, 0, 0 }
+  }
+};
+
 static inline AL_TGopFrm* getPyramidalFrames(int numB)
 {
   switch(numB)
@@ -117,6 +182,22 @@ static inline AL_TGopFrm* getPyramidalFrames(int numB)
   default:
     assert(false);
     return PYRAMIDAL_GOP_3;
+  }
+}
+
+static inline AL_TGopFrm* getPyramidalFrames_AVC(int numB)
+{
+  switch(numB)
+  {
+  case 7:
+    return PYRAMIDAL_GOP_7_AVC;
+  case 5:
+    return PYRAMIDAL_GOP_5_AVC;
+  case 3:
+    return PYRAMIDAL_GOP_3_AVC;
+  default:
+    assert(false);
+    return PYRAMIDAL_GOP_3_AVC;
   }
 }
 

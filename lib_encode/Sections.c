@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,8 @@
 #include "Sections.h"
 #include "NalWriters.h"
 
-#include <lib_common/SEI.h>
+#include "lib_common/SEI.h"
+#include "lib_common/StreamBuffer.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -59,7 +60,7 @@ static int writeNalInBuffer(IRbspWriter* writer, uint8_t* buffer, int bufSize, A
   AL_TBitStreamLite bitstream;
   AL_BitStreamLite_Init(&bitstream, buffer, bufSize);
 
-  nal->Write(writer, &bitstream, nal->param);
+  nal->Write(writer, &bitstream, nal->param, nal->iLayerId);
 
   if(bitstream.isOverflow)
     return -1;
@@ -67,11 +68,11 @@ static int writeNalInBuffer(IRbspWriter* writer, uint8_t* buffer, int bufSize, A
   return AL_BitStreamLite_GetBitsCount(&bitstream);
 }
 
-int WriteNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, AL_NalUnit* nal)
+static int WriteNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, int bitstreamSize, AL_NalUnit* nal)
 {
   uint8_t tmpBuffer[ENC_MAX_HEADER_SIZE];
 
-  int sizeInBits = writeNalInBuffer(writer, tmpBuffer, ENC_MAX_HEADER_SIZE, nal);
+  int sizeInBits = writeNalInBuffer(writer, tmpBuffer, bitstreamSize, nal);
 
   if(sizeInBits < 0)
     return -1;
@@ -85,10 +86,10 @@ int WriteNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, AL_NalUnit* nal)
   return end - start;
 }
 
-static void GenerateNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, AL_NalUnit* nal, AL_TStreamMetaData* pMeta, uint32_t uFlags)
+static void GenerateNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, int bitstreamSize, AL_NalUnit* nal, AL_TStreamMetaData* pMeta, uint32_t uFlags)
 {
   int start = getBytesOffset(bitstream);
-  int size = WriteNal(writer, bitstream, nal);
+  int size = WriteNal(writer, bitstream, bitstreamSize, nal);
   /* we should always be able to write the configuration nals as we reserved
    * enough space for them */
   assert(size >= 0);
@@ -98,11 +99,12 @@ static void GenerateNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, AL_Na
 static void GenerateConfigNalUnits(IRbspWriter* writer, AL_NalUnit* nals, int nalsCount, AL_TBuffer* pStream)
 {
   AL_TBitStreamLite bitstream;
-  AL_BitStreamLite_Init(&bitstream, AL_Buffer_GetData(pStream), ENC_MAX_HEADER_SIZE);
+  int bitstreamSize = ENC_MAX_CONFIG_HEADER_SIZE;
+  AL_BitStreamLite_Init(&bitstream, AL_Buffer_GetData(pStream), bitstreamSize);
   AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
 
   for(int i = 0; i < nalsCount; i++)
-    GenerateNal(writer, &bitstream, &nals[i], pMetaData, SECTION_CONFIG_FLAG);
+    GenerateNal(writer, &bitstream, bitstreamSize, &nals[i], pMetaData, SECTION_CONFIG_FLAG);
 }
 
 static SeiPrefixAPSCtx createSeiPrefixAPSCtx(AL_TSps* sps, AL_THevcVps* vps)
@@ -269,8 +271,20 @@ static int createExternalSei(Nuts nuts, AL_TBuffer* pStream, uint32_t uOffset, b
   nal.header = nuts.GetNalHeader(nal.nut, nal.idc);
 
   AL_TBitStreamLite bitstream;
-  AL_BitStreamLite_Init(&bitstream, AL_Buffer_GetData(pStream) + uOffset, Min(ENC_MAX_HEADER_SIZE, pStream->zSize));
-  return WriteNal(NULL, &bitstream, &nal);
+  int bitstreamSize = Min(ENC_MAX_SEI_SIZE, pStream->zSize);
+  AL_BitStreamLite_Init(&bitstream, AL_Buffer_GetData(pStream) + uOffset, bitstreamSize);
+  return WriteNal(NULL, &bitstream, bitstreamSize, &nal);
+}
+
+uint32_t getUserSeiPrefixOffset(AL_TStreamMetaData* pStreamMeta)
+{
+  int iSEIPrefixSectionID = AL_StreamMetaData_GetLastSectionOfFlag(pStreamMeta, SECTION_SEI_PREFIX_FLAG);
+
+  if(iSEIPrefixSectionID == -1)
+    return ENC_MAX_HEADER_SIZE - ENC_MAX_SEI_SIZE;
+
+  AL_TStreamSection lastSeiPrefixSection = pStreamMeta->pSections[iSEIPrefixSectionID];
+  return lastSeiPrefixSection.uOffset + lastSeiPrefixSection.uLength;
 }
 
 int AL_WriteSeiSection(Nuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize)
@@ -279,7 +293,7 @@ int AL_WriteSeiSection(Nuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPaylo
   assert(pMetaData);
   assert(iPayloadType >= 0);
 
-  uint32_t uOffset = AL_StreamMetaData_GetUnusedStreamPart(pMetaData);
+  uint32_t uOffset = isPrefix ? getUserSeiPrefixOffset(pMetaData) : AL_StreamMetaData_GetUnusedStreamPart(pMetaData);
 
   int iTotalSize = createExternalSei(nuts, pStream, uOffset, isPrefix, iPayloadType, pPayload, iPayloadSize);
 

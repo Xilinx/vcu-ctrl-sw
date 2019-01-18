@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -146,6 +146,12 @@ uint32_t get_cache_24(AL_TRbspParser* pRP);
    \param[in] iNumBits Number of bits to skip
 *****************************************************************************/
 void skip(AL_TRbspParser* pRP, uint32_t iNumBits);
+
+/*************************************************************************//*!
+   \brief The skip function skips all firsts zeros and the next byte from the bitstream buffer
+   \param[in] pRP      Pointer to NAL parser
+*****************************************************************************/
+void skipAllZerosAndTheNextByte(AL_TRbspParser* pRP);
 
 /*************************************************************************//*!
    \brief The offset function retrieves the current bit offset in the bitstream buffer

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -142,7 +142,7 @@ void Generate_RandomQP_VP9(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, int iMin
     pSeg[iSeg] = random_int(iSeed, iMinQP, iMaxQP);
 
   for(int iLCU = 0; iLCU < iNumLCUs; iLCU++)
-    pQPs[iLCU] = random_int(iSeed, -7, 7);
+    pQPs[iLCU] = random_int(iSeed, 0, 7);
 }
 
 /****************************************************************************/

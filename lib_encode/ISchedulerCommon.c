@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -36,59 +36,43 @@
 ******************************************************************************/
 
 #include "ISchedulerCommon.h"
-#include "lib_common_enc/IpEncFourCC.h"
 #include "lib_common_enc/EncBuffersInternal.h"
+#include "lib_common/BufferSrcMeta.h"
+
+static AL_TSrcMetaData* RecMetaData_Create(AL_TDimension tDim, TFourCC tFourCC, bool bIsAvc)
+{
+  AL_TSrcMetaData* pRecMeta = AL_SrcMetaData_CreateEmpty(tFourCC);
+
+  if(pRecMeta == NULL)
+    return NULL;
+
+  pRecMeta->tDim = tDim;
+
+  AL_RecMetaData_FillPlanes(pRecMeta->tPlanes, tDim, AL_GetChromaMode(tFourCC), AL_GetBitDepth(tFourCC), AL_IsCompressed(tFourCC), bIsAvc);
+
+  return pRecMeta;
+}
 
 void SetChannelInfo(AL_TCommonChannelInfo* pChanInfo, AL_TEncChanParam* pChParam)
 {
   uint32_t uBitDepth = AL_GET_BITDEPTH(pChParam->ePicFormat);
   uint32_t eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
-  pChanInfo->uWidth = pChParam->uWidth;
-  pChanInfo->uHeight = pChParam->uHeight;
   AL_TDimension tDim = { pChParam->uWidth, pChParam->uHeight };
-  pChanInfo->uRecSizeY = AL_GetAllocSize_EncReference(tDim, uBitDepth, CHROMA_MONO, 0);
+
+  pChanInfo->bIsAvc = AL_IS_AVC(pChParam->eProfile);
   bool bComp = false;
 
   pChanInfo->uRecSize = AL_GetAllocSize_EncReference(tDim, uBitDepth, eChromaMode, bComp);
   AL_TPicFormat picRecFormat = AL_EncGetRecPicFormat(eChromaMode, uBitDepth, bComp);
 
   pChanInfo->RecFourCC = AL_GetFourCC(picRecFormat);
-  pChanInfo->uRecPitchY = AL_GetRecPitch(uBitDepth, pChParam->uWidth);
-  pChanInfo->uRecPitchC = pChanInfo->uRecPitchY;
-}
-
-static void setRecChannelWideInfo(TRecPic* pRecPic, AL_TCommonChannelInfo* pChanInfo)
-{
-  pRecPic->tBuf.tDim.iWidth = pChanInfo->uWidth;
-  pRecPic->tBuf.tDim.iHeight = pChanInfo->uHeight;
-  pRecPic->tBuf.tFourCC = pChanInfo->RecFourCC;
-  pRecPic->tBuf.tPlanes[AL_PLANE_Y] = (AL_TPlane) {
-    0, pChanInfo->uRecPitchY
-  };
-  pRecPic->tBuf.tPlanes[AL_PLANE_UV] = (AL_TPlane) {
-    pChanInfo->uRecSizeY, pChanInfo->uRecPitchC
-  };
-  pRecPic->tBuf.tMD.uSize = pChanInfo->uRecSize;
-}
-
-static void setRecSpecificInfo(TRecPic* pRecPic, AL_TReconstructedInfo* pRecInfo)
-{
-  pRecPic->ePicStruct = pRecInfo->ePicStruct;
-  pRecPic->iPOC = pRecInfo->iPOC;
-  pRecPic->tBuf.tMD.pAllocator = (AL_TAllocator*)(uintptr_t)pRecInfo->uID;
-}
-
-static void setRecMemoryRegion(TRecPic* pRecPic, AL_TAllocator* pAllocator, AL_HANDLE hRecBuf)
-{
-  pRecPic->tBuf.tMD.pVirtualAddr = AL_Allocator_GetVirtualAddr(pAllocator, hRecBuf);
-  pRecPic->tBuf.tMD.uPhysicalAddr = AL_Allocator_GetPhysicalAddr(pAllocator, hRecBuf);
-  pRecPic->tBuf.tMD.hAllocBuf = hRecBuf;
 }
 
 void SetRecPic(TRecPic* pRecPic, AL_TAllocator* pAllocator, AL_HANDLE hRecBuf, AL_TCommonChannelInfo* pChanInfo, AL_TReconstructedInfo* pRecInfo)
 {
-  setRecChannelWideInfo(pRecPic, pChanInfo);
-  setRecSpecificInfo(pRecPic, pRecInfo);
-  setRecMemoryRegion(pRecPic, pAllocator, hRecBuf);
+  pRecPic->pBuf = AL_Buffer_Create(pAllocator, hRecBuf, pChanInfo->uRecSize, NULL);
+  AL_TSrcMetaData* pBufMeta = RecMetaData_Create(pRecInfo->tPicDim, pChanInfo->RecFourCC, pChanInfo->bIsAvc);
+  AL_Buffer_AddMetaData(pRecPic->pBuf, (AL_TMetaData*)pBufMeta);
+  pRecPic->tInfo = *pRecInfo;
 }
 

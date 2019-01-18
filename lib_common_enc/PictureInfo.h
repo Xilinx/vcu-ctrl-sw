@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -94,6 +94,8 @@ typedef struct AL_t_PictureInfo
   uint8_t uRefPicSetIdx;
   int8_t iQpOffset;
   int iRecoveryCnt;
+
+  bool bResolutionChange;
 
   bool bForceQp;
   int8_t iQpSet;

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -228,6 +228,9 @@ static bool getRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPic* p
   recInfo.ePicStruct = msg.pic_struct;
   recInfo.iPOC = msg.poc;
 
+  recInfo.tPicDim.iWidth = msg.width;
+  recInfo.tPicDim.iHeight = msg.height;
+
   SetRecPic(pRecPic, pAllocator, hRecBuf, &chan->info, &recInfo);
 
   return true;
@@ -237,11 +240,11 @@ static bool releaseRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPi
 {
   AL_TSchedulerMcu* schedulerMcu = (AL_TSchedulerMcu*)pScheduler;
   Channel* chan = hChannel;
-  AL_HANDLE hRecBuf = pRecPic->tBuf.tMD.hAllocBuf;
 
-  if(!hRecBuf || !chan->outputRec)
+  if(!pRecPic->pBuf || !chan->outputRec)
     return false;
 
+  AL_HANDLE hRecBuf = pRecPic->pBuf->hBuf;
   AL_TAllocator* pAllocator = schedulerMcu->allocator;
   __u32 fd = AL_LinuxDmaAllocator_GetFd((AL_TLinuxDmaAllocator*)pAllocator, hRecBuf);
 

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -85,9 +85,9 @@ public:
 
   }
 
-  void SetBufPool(QPLayerInfo& qpLayerInfo)
+  void AddBufPool(QPLayerInfo& qpLayerInfo, int iLayerID)
   {
-    initLayer(qpLayerInfo, 0);
+    initLayer(qpLayerInfo, iLayerID);
   }
 
   AL_TBuffer* getBuffer(int frameNum)
@@ -217,23 +217,14 @@ struct safe_ifstream
 
 struct EncoderSink : IFrameSink
 {
-  EncoderSink(ConfigFile const& cfg, TScheduler* pScheduler, AL_TAllocator* pAllocator, BufPool & qpBufPool
+  EncoderSink(ConfigFile const& cfg, TScheduler* pScheduler, AL_TAllocator* pAllocator
               ) :
     CmdFile(cfg.sCmdFileName, false),
     EncCmd(CmdFile.fp, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
     twoPassMngr(cfg.sTwoPassFileName, cfg.Settings.TwoPass, cfg.Settings.bEnableFirstPassCrop, cfg.Settings.tChParam[0].tGopParam.uGopLength,
-                cfg.Settings.tChParam[0].tRCParam.uCPBSize / 90, cfg.Settings.tChParam[0].tRCParam.uInitialRemDelay / 90, cfg.FileInfo.FrameRate),
+                cfg.Settings.tChParam[0].tRCParam.uCPBSize / 90, cfg.Settings.tChParam[0].tRCParam.uInitialRemDelay / 90, cfg.MainInput.FileInfo.FrameRate),
     qpBuffers(cfg.Settings)
   {
-    QPBuffers::QPLayerInfo qpInf
-    {
-      &qpBufPool,
-      cfg.sQPTablesFolder,
-      cfg.sRoiFileName
-    };
-
-    qpBuffers.SetBufPool(qpInf);
-
     AL_CB_EndEncoding onEndEncoding = { &EncoderSink::EndEncoding, this };
 
     AL_ERR errorCode = AL_Encoder_Create(&hEnc, pScheduler, pAllocator, &cfg.Settings, onEndEncoding);
@@ -244,7 +235,11 @@ struct EncoderSink : IFrameSink
 
     commandsSender.reset(new CommandsSender(hEnc));
     BitstreamOutput.reset(new NullFrameSink);
-    RecOutput.reset(new NullFrameSink);
+    BitrateOutput.reset(new NullFrameSink);
+
+    for(int i = 0; i < cfg.Settings.NumLayer; ++i)
+      LayerRecOutput[i].reset(new NullFrameSink);
+
     m_pictureType = cfg.RunInfo.printPictureType ? SLICE_MAX_ENUM : -1;
   }
 
@@ -256,8 +251,24 @@ struct EncoderSink : IFrameSink
     AL_Encoder_Destroy(hEnc);
   }
 
+  void AddQpBufPool(QPBuffers::QPLayerInfo qpInf, int iLayerID)
+  {
+    qpBuffers.AddBufPool(qpInf, iLayerID);
+  }
+
+  std::function<void(int, int)> m_InputChanged;
 
   std::function<void(void)> m_done;
+
+  void PreprocessFrame() override
+  {
+    int iInputIdx;
+    commandsSender->Reset();
+    EncCmd.Process(commandsSender.get(), m_picCount);
+
+    if(commandsSender->HasInputChanged(iInputIdx))
+      m_InputChanged(iInputIdx, 0);
+  }
 
   void ProcessFrame(AL_TBuffer* Src) override
   {
@@ -273,7 +284,6 @@ struct EncoderSink : IFrameSink
 
     if(Src)
     {
-      EncCmd.Process(commandsSender.get(), m_picCount);
 
 
 
@@ -283,9 +293,6 @@ struct EncoderSink : IFrameSink
 
         if(twoPassMngr.iPass == 2)
           twoPassMngr.GetFrame(pPictureMetaTP);
-
-        if(twoPassMngr.iPass == 1 && twoPassMngr.bEnableFirstPassCrop)
-          AL_TwoPassMngr_CropBufferSrc(Src);
       }
 
       QpBuf = qpBuffers.getBuffer(m_picCount);
@@ -301,8 +308,9 @@ struct EncoderSink : IFrameSink
   }
 
 
-  std::unique_ptr<IFrameSink> RecOutput;
+  std::unique_ptr<IFrameSink> LayerRecOutput[MAX_NUM_LAYER];
   std::unique_ptr<IFrameSink> BitstreamOutput;
+  std::unique_ptr<IFrameSink> BitrateOutput;
   AL_HEncoder hEnc;
   bool shouldAddDummySei = false;
 
@@ -342,15 +350,6 @@ private:
       else
       {
         auto pPictureMetaTP = (AL_TLookAheadMetaData*)AL_Buffer_GetMetaData(pSrc, AL_META_TYPE_LOOKAHEAD);
-
-        if(pThis->twoPassMngr.bEnableFirstPassCrop)
-        {
-          AL_TwoPassMngr_UncropBufferSrc((AL_TBuffer*)pSrc);
-
-          if(pPictureMetaTP)
-            pPictureMetaTP->iPictureSize = (int32_t)(((uint64_t)pPictureMetaTP->iPictureSize * 3500) / 1000);
-        }
-
         pThis->twoPassMngr.AddFrame(pPictureMetaTP);
       }
     }
@@ -391,6 +390,7 @@ private:
     }
 
     BitstreamOutput->ProcessFrame(pStream);
+    BitrateOutput->ProcessFrame(pStream);
     return AL_SUCCESS;
   }
 
@@ -411,28 +411,18 @@ private:
 
     while(AL_Encoder_GetRecPicture(hEnc, &RecPic))
     {
-      auto buf = WrapBufferYuv(&RecPic.tBuf);
-      RecOutput->ProcessFrame(buf);
-      AL_Buffer_Destroy(buf);
-
+      auto buf = RecPic.pBuf;
+      LayerRecOutput[0]->ProcessFrame(buf);
       AL_Encoder_ReleaseRecPicture(hEnc, &RecPic);
     }
 
     if(!pStream)
     {
-      RecOutput->ProcessFrame(EndOfStream);
+      LayerRecOutput[0]->ProcessFrame(EndOfStream);
       m_EndTime = GetPerfTime();
       m_done();
     }
   }
 
-
-  static AL_TBuffer* WrapBufferYuv(TBufferYuv* frame)
-  {
-    AL_TBuffer* pBuf = AL_Buffer_WrapData(frame->tMD.pVirtualAddr, frame->tMD.uSize, NULL);
-    AL_TSrcMetaData* pBufMeta = AL_SrcMetaData_Create(frame->tDim, frame->tPlanes[AL_PLANE_Y], frame->tPlanes[AL_PLANE_UV], frame->tFourCC);
-    AL_Buffer_AddMetaData(pBuf, (AL_TMetaData*)pBufMeta);
-    return pBuf;
-  }
 };
 

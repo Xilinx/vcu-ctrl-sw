@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -41,6 +41,10 @@
    \file
  **************************************************************************/
 #pragma once
+
+#define ENC_MAX_SEI_SIZE (2 * 1024)
+#define ENC_MAX_CONFIG_HEADER_SIZE (2 * 1024)
+#define ENC_MAX_HEADER_SIZE (ENC_MAX_CONFIG_HEADER_SIZE + ENC_MAX_SEI_SIZE)
 
 #include "lib_common/SliceConsts.h"
 

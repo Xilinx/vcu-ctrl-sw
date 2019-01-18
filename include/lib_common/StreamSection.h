@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -57,6 +57,7 @@ typedef struct
 
 typedef enum
 {
+  SECTION_SEI_PREFIX_FLAG = 0x80000000, /*< this section data is from a SEI prefix */
   SECTION_SYNC_FLAG = 0x40000000, /*< this section data is from an IDR */
   SECTION_END_FRAME_FLAG = 0x20000000, /*< this section denotes the end of a frame */
   SECTION_CONFIG_FLAG = 0x10000000 /*< section data is an sps, pps, vps, aud */

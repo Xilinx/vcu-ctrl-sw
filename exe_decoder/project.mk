@@ -6,16 +6,11 @@ EXE_DECODER_SRC:=\
   exe_decoder/Conversion.cpp\
   $(LIB_APP_SRC)\
 
-ifneq ($(ENABLE_BYPASS),0)
-endif
 
 -include exe_decoder/site.mk
 
 EXE_DECODER_OBJ:=$(EXE_DECODER_SRC:%=$(BIN)/%.o)
 
-ifneq ($(ENABLE_UNITTESTS),0)
-UNITTEST+=$(shell find exe_decoder/unittests -name "*.cpp")
-endif
 
 $(BIN)/AL_Decoder.exe: $(EXE_DECODER_OBJ) $(LIB_REFDEC_A) $(LIB_DECODER_A)
 

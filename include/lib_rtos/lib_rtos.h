@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -75,13 +75,13 @@ int Rtos_Memcmp(void const* pBuf1, void const* pBuf2, size_t zSize);
 /****************************************************************************/
 /*  Clock */
 /****************************************************************************/
-AL_64U Rtos_GetTime();
+AL_64U Rtos_GetTime(void);
 void Rtos_Sleep(uint32_t uMillisecond);
 
 /****************************************************************************/
 /*  Mutex */
 /****************************************************************************/
-AL_MUTEX Rtos_CreateMutex();
+AL_MUTEX Rtos_CreateMutex(void);
 void Rtos_DeleteMutex(AL_MUTEX Mutex);
 bool Rtos_GetMutex(AL_MUTEX Mutex);
 bool Rtos_ReleaseMutex(AL_MUTEX Mutex);

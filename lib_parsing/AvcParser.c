@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -38,6 +38,7 @@
 #include "AvcParser.h"
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/Utils.h"
+#include "lib_common_dec/RbspParser.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -55,8 +56,7 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* p
   uint16_t pps_id, QpBdOffset;
   AL_TAvcPps tempPPS;
 
-  while(u(pRP, 8) == 0x00)
-    ; // Skip all 0x00s and one 0x01
+  skipAllZerosAndTheNextByte(pRP);
 
   u(pRP, 8); // Skip NUT
 
@@ -300,9 +300,11 @@ static bool isProfileSupported(uint8_t profile_idc)
   case AVC_PROFILE_IDC_MAIN:
   case AVC_PROFILE_IDC_HIGH:
     return true;
+
   case AVC_PROFILE_IDC_HIGH_422:
   case AVC_PROFILE_IDC_HIGH10:
     return HW_IP_BIT_DEPTH >= 10;
+
   default:
     return false;
   }
@@ -319,9 +321,7 @@ AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 
   Rtos_Memset(&tempSPS, 0, sizeof(AL_TAvcSps));
 
-  // Parse bitstream
-  while(u(pRP, 8) == 0x00)
-    ; // Skip all 0x00s and one 0x01
+  skipAllZerosAndTheNextByte(pRP);
 
   u(pRP, 8); // Skip NUT
 
@@ -657,8 +657,7 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
   AL_TAvcAup* aup = &pIAup->avcAup;
   sei.present_flags = 0;
 
-  while(u(pRP, 8) == 0x00)
-    ; // Skip all 0x00s and one 0x01
+  skipAllZerosAndTheNextByte(pRP);
 
   u(pRP, 8); // Skip NUT
 
@@ -696,36 +695,32 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
     {
     case BUFFERING_PERIOD: // buffering_period parsing
     {
-      PARSE_OR_SKIP(sei_buffering_period(pRP, aup->pSPS, &sei.buffering_period, &aup->pActiveSPS));
+      PARSE_OR_SKIP(sei_buffering_period(pRP, aup->pSPS, &sei.buffering_period, &aup->pActiveSPS))
       sei.present_flags |= SEI_BP;
-    } break;
-
+      break;
+    }
     case PIC_TIMING: // picture_timing parsing
     {
-      if(aup->pActiveSPS)
-      {
-        PARSE_OR_SKIP(sei_pic_timing(pRP, aup->pActiveSPS, &sei.picture_timing));
-        sei.present_flags |= SEI_PT;
-      }
-      else
-        skip(pRP, payload_size << 3); // skip data
-
-    } break;
-
+      PARSE_OR_SKIP(sei_pic_timing(pRP, aup->pActiveSPS, &sei.picture_timing))
+      sei.present_flags |= SEI_PT;
+      break;
+    }
     case USER_DATA_UNREGISTERED: // user_data_unregistered parsing
     {
       skip(pRP, payload_size << 3); // skip data
-    } break;
-
+      break;
+    }
     case RECOVERY_POINT: // picture_timing parsing
     {
       PARSE_OR_SKIP(sei_recovery_point(pRP, &sei.recovery_point));
       aup->iRecoveryCnt = sei.recovery_point.recovery_cnt + 1; // +1 for non-zero value when SEI_RP is present
-    } break;
-
+      break;
+    }
     default: // payload not supported
+    {
       skip(pRP, payload_size << 3); // skip data
       break;
+    }
     }
 
     if(cb->func)

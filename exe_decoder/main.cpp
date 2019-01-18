@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -84,7 +84,6 @@ const char* ToString(AL_ERR eErrCode)
   case AL_ERR_CHAN_CREATION_RESOURCE_UNAVAILABLE: return "Channel not created, processing power of the available cores insufficient";
   case AL_ERR_CHAN_CREATION_NOT_ENOUGH_CORES: return "Channel not created, couldn't spread the load on enough cores";
   case AL_ERR_REQUEST_MALFORMED: return "Channel not created: request was malformed";
-  case AL_ERR_RESOLUTION_CHANGE: return "Resolution Change is not supported";
   case AL_ERR_NO_MEMORY: return "Memory shortage detected (dma, embedded memory or virtual memory shortage)";
   case AL_SUCCESS: return "Success";
   default: return "Unknown error";
@@ -627,9 +626,8 @@ static void ConvertFrameBuffer(AL_TBuffer& input, int iBdIn, AL_TBuffer& output,
   pYuvMeta->tDim.iHeight = pRecMeta->tDim.iHeight;
   pYuvMeta->tPlanes[AL_PLANE_Y].iPitch = iSizePix * pRecMeta->tDim.iWidth;
   pYuvMeta->tPlanes[AL_PLANE_UV].iPitch = iSizePix * ((tPicFormat.eChromaMode == CHROMA_4_4_4) ? pRecMeta->tDim.iWidth : pRecMeta->tDim.iWidth >> 1);
-  /* unused */
   pYuvMeta->tPlanes[AL_PLANE_Y].iOffset = 0;
-  pYuvMeta->tPlanes[AL_PLANE_UV].iOffset = 0;
+  pYuvMeta->tPlanes[AL_PLANE_UV].iOffset = pYuvMeta->tPlanes[AL_PLANE_Y].iPitch * pYuvMeta->tDim.iHeight;
 
   auto AllegroConvert = GetConversionFunction(pRecMeta->tFourCC, iBdOut);
   AllegroConvert(&input, &output);
@@ -983,16 +981,15 @@ void printHexdump(ostream* logger, uint8_t* data, int size)
 
 static void sParsedSei(int iPayloadType, uint8_t* pPayload, int iPayloadSize, void* pUserParam)
 {
-  ostream* seiOutput = (ostream*)pUserParam;
+  auto seiOutput = static_cast<ostream*>(pUserParam);
 
-  if(seiOutput)
-  {
-    *seiOutput << "sei_payload_type: " << iPayloadType << endl
-               << "sei_payload_size: " << iPayloadSize << endl
-               << "raw:" << endl;
-    printHexdump(seiOutput, pPayload, iPayloadSize);
-    *seiOutput << endl << endl;
-  }
+  if(!seiOutput)
+    return;
+  *seiOutput << "sei_payload_type: " << iPayloadType << endl
+             << "sei_payload_size: " << iPayloadSize << endl
+             << "raw:" << endl;
+  printHexdump(seiOutput, pPayload, iPayloadSize);
+  *seiOutput << endl << endl;
 }
 
 static AL_ERR sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSettings const* pSettings, AL_TCropInfo const* pCropInfo, void* pUserParam)
@@ -1017,9 +1014,9 @@ static AL_ERR sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSe
 
   showStreamInfo(BufferNumber, BufferSize, pSettings, pCropInfo, tFourCC);
 
-  /* We do not support in stream resolution change */
+  /* stream resolution change */
   if(p->bPoolIsInit)
-    return AL_ERR_RESOLUTION_CHANGE;
+    return AL_SUCCESS;
 
   AL_TBufPoolConfig BufPoolConfig;
   BufPoolConfig.zBufSize = BufferSize;
@@ -1038,6 +1035,7 @@ static AL_ERR sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSe
   {
     auto pDecPict = p->bufPool.GetBuffer(AL_BUF_MODE_NONBLOCK);
     assert(pDecPict);
+    Rtos_Memset(AL_Buffer_GetData(pDecPict), 0xDE, pDecPict->zSize);
     AL_Decoder_PutDisplayPicture(p->hDec, pDecPict);
     AL_Buffer_Unref(pDecPict);
   }

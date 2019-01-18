@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -109,7 +109,7 @@ static AL_TDriver hardwareDriver =
   &hardwareDriverVtable
 };
 
-AL_TDriver* AL_GetHardwareDriver()
+AL_TDriver* AL_GetHardwareDriver(void)
 {
   return &hardwareDriver;
 }

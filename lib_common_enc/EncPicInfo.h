@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -81,9 +81,16 @@ typedef enum
   AL_OPT_RESTART_GOP = 0x0008,
   AL_OPT_UPDATE_PARAMS = 0x0010,
   AL_OPT_SET_QP = 0x0100,
+  AL_OPT_SET_INPUT_RESOLUTION = 0x200,
 }AL_ERequestEncOption;
 
 
+
+typedef struct
+{
+  AL_TDimension tInputResolution;
+  uint8_t uNewNalsId;
+}AL_TDynResParams;
 
 typedef struct
 {
@@ -97,6 +104,7 @@ typedef struct AL_t_EncRequestInfo
   AL_ERequestEncOption eReqOptions;
   uint32_t uSceneChangeDelay;
   AL_TEncSmartParams smartParams;
+  AL_TDynResParams dynResParams;
 }AL_TEncRequestInfo;
 
 /*************************************************************************//*!
@@ -151,8 +159,8 @@ typedef struct AL_t_EncPicStatus
   uint8_t uCuQpDeltaDepth;
 
   int32_t iPictureSize;
-  int8_t iPercentIntra;
-  int8_t iPercentSkip;
+  int8_t iPercentIntra[5];
+
 }AL_TEncPicStatus;
 
 #define AL_ERR_SRC_BUF_NOT_READY AL_DEF_ERROR(20)

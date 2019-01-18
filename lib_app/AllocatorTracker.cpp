@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -66,7 +66,7 @@ static bool destroy(AL_TAllocator* handle)
 {
   auto self = (AllocatorTracker*)handle;
   bool success = AL_Allocator_Destroy(self->realAllocator);
-  cout << "total dma used : " << bytes_to_megabytes(self->size) << "MB" << endl;
+  cout << "total dma used : " << self->size << " bytes, " << bytes_to_megabytes(self->size) << "MB" << endl;
 
   if(self->mode == detailedMode)
   {

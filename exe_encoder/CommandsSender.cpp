@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -89,4 +89,21 @@ void CommandsSender::setQP(int qp)
   CHECK(AL_Encoder_SetQP(hEnc, qp));
 }
 
+void CommandsSender::setDynamicInput(int iInputIdx)
+{
+  bInputChanged = true;
+  this->iInputIdx = iInputIdx;
+}
+
+
+void CommandsSender::Reset()
+{
+  bInputChanged = false;
+}
+
+bool CommandsSender::HasInputChanged(int& iInputIdx)
+{
+  iInputIdx = this->iInputIdx;
+  return bInputChanged;
+}
 

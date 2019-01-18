@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -40,6 +40,7 @@
 #include <list>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "ICommandsSender.h"
 
@@ -69,6 +70,8 @@ private:
     int iClkRatio = 0;
     bool bChangeQP = false;
     int iQP = 0;
+    bool bChangeResolution = false;
+    int iInputIdx;
   };
 
   void Refill(int iCurFrame);

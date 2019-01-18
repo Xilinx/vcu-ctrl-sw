@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -64,7 +64,6 @@ static void AL_sUpdateProfileTierLevel(AL_TProfilevel* pPTL, AL_TEncChanParam co
   {
     pPTL->general_profile_idc = AL_GET_PROFILE_IDC(pChParam->eProfile);
     pPTL->general_tier_flag = pChParam->uTier;
-    int iBitDepth = AL_GET_BITDEPTH(pChParam->ePicFormat);
 
     if(pChParam->eVideoMode == AL_VM_PROGRESSIVE)
     {
@@ -91,6 +90,7 @@ static void AL_sUpdateProfileTierLevel(AL_TProfilevel* pPTL, AL_TEncChanParam co
       pPTL->general_one_picture_only_constraint_flag = AL_IS_STILL_PROFILE(pChParam->eProfile);
       pPTL->general_lower_bit_rate_constraint_flag = AL_IS_LOW_BITRATE_PROFILE(pChParam->eProfile);
     }
+
   }
 
   if(pChParam->uLevel == (uint8_t)-1)
@@ -566,19 +566,42 @@ static bool isGdrEnabled(AL_TEncSettings const* pSettings)
 
 
 /****************************************************************************/
-void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize)
+static void AL_AVC_GenerateSPS_Resolution(AL_TAvcSps* pSPS, uint16_t uWidth, uint16_t uHeight, uint8_t uMaxCuSize, AL_EPicFormat ePicFormat, AL_EAspectRatio eAspectRatio)
 {
-  AL_TAvcSps* pSPS = (AL_TAvcSps*)pISPS;
-  int iMBWidth = (pSettings->tChParam[0].uWidth + ((1 << pSettings->tChParam[0].uMaxCuSize) - 1)) >> pSettings->tChParam[0].uMaxCuSize;
-  int iMBHeight = (pSettings->tChParam[0].uHeight + ((1 << pSettings->tChParam[0].uMaxCuSize) - 1)) >> pSettings->tChParam[0].uMaxCuSize;
+  int iMBWidth = ROUND_UP_POWER_OF_TWO(uWidth, uMaxCuSize);
+  int iMBHeight = ROUND_UP_POWER_OF_TWO(uHeight, uMaxCuSize);
 
-  int iWidthDiff = (iMBWidth << pSettings->tChParam[0].uMaxCuSize) - pSettings->tChParam[0].uWidth;
-  int iHeightDiff = (iMBHeight << pSettings->tChParam[0].uMaxCuSize) - pSettings->tChParam[0].uHeight;
+  int iWidthDiff = (iMBWidth << uMaxCuSize) - uWidth;
+  int iHeightDiff = (iMBHeight << uMaxCuSize) - uHeight;
 
-  AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pSettings->tChParam[0].ePicFormat);
+  AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(ePicFormat);
 
   int iCropUnitX = eChromaMode == CHROMA_4_2_0 || eChromaMode == CHROMA_4_2_2 ? 2 : 1;
   int iCropUnitY = eChromaMode == CHROMA_4_2_0 ? 2 : 1;
+
+  pSPS->pic_width_in_mbs_minus1 = iMBWidth - 1;
+
+  // When frame_mbs_only_flag == 0, height in MB is always counted for a *field* picture,
+  // even if we are encoding frame pictures
+  // (see spec sec.7.4.2.1 and eq.7-15)
+  pSPS->pic_height_in_map_units_minus1 = iMBHeight - 1;
+
+  pSPS->frame_crop_left_offset = 0;
+  pSPS->frame_crop_right_offset = iWidthDiff / iCropUnitX;
+  pSPS->frame_crop_top_offset = 0;
+  pSPS->frame_crop_bottom_offset = iHeightDiff / iCropUnitY;
+  pSPS->frame_cropping_flag = ((pSPS->frame_crop_right_offset > 0)
+                               || (pSPS->frame_crop_bottom_offset > 0)) ? 1 : 0;
+
+  AL_UpdateAspectRatio(&pSPS->vui_param, uWidth, uHeight, eAspectRatio);
+}
+
+/****************************************************************************/
+void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize)
+{
+  AL_TAvcSps* pSPS = (AL_TAvcSps*)pISPS;
+
+  AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pSettings->tChParam[0].ePicFormat);
 
   uint32_t uCSFlags = AL_GET_CS_FLAGS(pSettings->tChParam[0].eProfile);
 
@@ -625,20 +648,6 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
 
   pSPS->mb_adaptive_frame_field_flag = 0;
 
-  pSPS->pic_width_in_mbs_minus1 = iMBWidth - 1;
-
-  // When frame_mbs_only_flag == 0, height in MB is always counted for a *field* picture,
-  // even if we are encoding frame pictures
-  // (see spec sec.7.4.2.1 and eq.7-15)
-  pSPS->pic_height_in_map_units_minus1 = iMBHeight - 1;
-
-  pSPS->frame_crop_left_offset = 0;
-  pSPS->frame_crop_right_offset = iWidthDiff / iCropUnitX;
-  pSPS->frame_crop_top_offset = 0;
-  pSPS->frame_crop_bottom_offset = iHeightDiff / iCropUnitY;
-  pSPS->frame_cropping_flag = ((pSPS->frame_crop_right_offset > 0)
-                               || (pSPS->frame_crop_bottom_offset > 0)) ? 1 : 0;
-
   pSPS->vui_parameters_present_flag = 1;
 #if __ANDROID_API__
   pSPS->vui_parameters_present_flag = 0;
@@ -648,7 +657,7 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   pSPS->vui_param.chroma_sample_loc_type_top_field = 0;
   pSPS->vui_param.chroma_sample_loc_type_bottom_field = 0;
 
-  AL_UpdateAspectRatio(&pSPS->vui_param, pSettings->tChParam[0].uWidth, pSettings->tChParam[0].uHeight, pSettings->eAspectRatio);
+  AL_AVC_GenerateSPS_Resolution(pSPS, pSettings->tChParam[0].uWidth, pSettings->tChParam[0].uHeight, pSettings->tChParam[0].uMaxCuSize, pSettings->tChParam[0].ePicFormat, pSettings->eAspectRatio);
 
   pSPS->vui_param.overscan_info_present_flag = 0;
 
@@ -706,6 +715,49 @@ static void InitHEVC_Sps(AL_THevcSps* pSPS)
 }
 
 /****************************************************************************/
+void AL_HEVC_GenerateSPS_Format(AL_THevcSps* pSPS, AL_EChromaMode eChromaMode, uint8_t uBdLuma, uint8_t uBdChroma, uint16_t uWidth, uint16_t uHeight, bool bMultiLayerExtSpsFlag)
+{
+  if(bMultiLayerExtSpsFlag)
+  {
+    pSPS->update_rep_format_flag = 0;
+
+    if(pSPS->update_rep_format_flag)
+      pSPS->sps_rep_format_idx = 0;
+  }
+  else
+  {
+    pSPS->chroma_format_idc = eChromaMode;
+    pSPS->separate_colour_plane_flag = 0;
+    pSPS->pic_width_in_luma_samples = RoundUp(uWidth, 8);
+    pSPS->pic_height_in_luma_samples = RoundUp(uHeight, 8);
+    pSPS->conformance_window_flag = (pSPS->pic_width_in_luma_samples != uWidth) || (pSPS->pic_height_in_luma_samples != uHeight) ? 1 : 0;
+
+    if(pSPS->conformance_window_flag)
+    {
+      int iWidthDiff = pSPS->pic_width_in_luma_samples - uWidth;
+      int iHeightDiff = pSPS->pic_height_in_luma_samples - uHeight;
+
+      int iCropUnitX = eChromaMode == CHROMA_4_2_0 || eChromaMode == CHROMA_4_2_2 ? 2 : 1;
+      int iCropUnitY = eChromaMode == CHROMA_4_2_0 ? 2 : 1;
+
+      pSPS->conf_win_left_offset = 0;
+      pSPS->conf_win_right_offset = iWidthDiff / iCropUnitX;
+      pSPS->conf_win_top_offset = 0;
+      pSPS->conf_win_bottom_offset = iHeightDiff / iCropUnitY;
+    }
+
+    pSPS->bit_depth_luma_minus8 = uBdLuma - 8;
+    pSPS->bit_depth_chroma_minus8 = uBdChroma - 8;
+  }
+}
+
+/****************************************************************************/
+bool AL_HEVC_MultiLayerExtSpsFlag(AL_THevcSps* pSPS, int iLayerId)
+{
+  return iLayerId != 0 && pSPS->sps_ext_or_max_sub_layers_minus1 == 7;
+}
+
+/****************************************************************************/
 void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncChanParam const* pChParam, int iMaxRef, int iCpbSize, int iLayerId)
 {
   AL_THevcSps* pSPS = (AL_THevcSps*)pISPS;
@@ -718,7 +770,7 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   else
     pSPS->sps_ext_or_max_sub_layers_minus1 = 7;
 
-  int MultiLayerExtSpsFlag = (iLayerId != 0 && pSPS->sps_ext_or_max_sub_layers_minus1 == 7);
+  int MultiLayerExtSpsFlag = AL_HEVC_MultiLayerExtSpsFlag(pSPS, iLayerId);
 
   if(!MultiLayerExtSpsFlag)
   {
@@ -727,40 +779,9 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   }
   pSPS->sps_seq_parameter_set_id = iLayerId;
 
-  if(MultiLayerExtSpsFlag)
-  {
-    pSPS->update_rep_format_flag = 0;
+  AL_HEVC_GenerateSPS_Format(pSPS, AL_GET_CHROMA_MODE(pChParam->ePicFormat), AL_GET_BITDEPTH_LUMA(pChParam->ePicFormat),
+                             AL_GET_BITDEPTH_CHROMA(pChParam->ePicFormat), pChParam->uWidth, pChParam->uHeight, MultiLayerExtSpsFlag);
 
-    if(pSPS->update_rep_format_flag)
-      pSPS->sps_rep_format_idx = 0;
-  }
-  else
-  {
-    pSPS->chroma_format_idc = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
-    pSPS->separate_colour_plane_flag = 0;
-    pSPS->pic_width_in_luma_samples = RoundUp(pChParam->uWidth, 8);
-    pSPS->pic_height_in_luma_samples = RoundUp(pChParam->uHeight, 8);
-    pSPS->conformance_window_flag = (pSPS->pic_width_in_luma_samples != pChParam->uWidth) || (pSPS->pic_height_in_luma_samples != pChParam->uHeight) ? 1 : 0;
-
-    if(pSPS->conformance_window_flag)
-    {
-      int iWidthDiff = pSPS->pic_width_in_luma_samples - pChParam->uWidth;
-      int iHeightDiff = pSPS->pic_height_in_luma_samples - pChParam->uHeight;
-
-      AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
-
-      int iCropUnitX = eChromaMode == CHROMA_4_2_0 || eChromaMode == CHROMA_4_2_2 ? 2 : 1;
-      int iCropUnitY = eChromaMode == CHROMA_4_2_0 ? 2 : 1;
-
-      pSPS->conf_win_left_offset = 0;
-      pSPS->conf_win_right_offset = iWidthDiff / iCropUnitX;
-      pSPS->conf_win_top_offset = 0;
-      pSPS->conf_win_bottom_offset = iHeightDiff / iCropUnitY;
-    }
-
-    pSPS->bit_depth_luma_minus8 = AL_GET_BITDEPTH_LUMA(pChParam->ePicFormat) - 8;
-    pSPS->bit_depth_chroma_minus8 = AL_GET_BITDEPTH_CHROMA(pChParam->ePicFormat) - 8;
-  }
   pSPS->log2_max_slice_pic_order_cnt_lsb_minus4 = 6;
 
   if(!MultiLayerExtSpsFlag)
@@ -807,13 +828,11 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
       int iOldPOC = 0;
 
       for(int iPic = 0; iPic < (long)sizeof(pFrm->pDPB); ++iPic)
-        if(pFrm->pDPB[iPic] != 0)
-          if(pFrm->pDPB[iPic] < 0)
-            ++iNumNegPics;
-          else
-            ++iNumPosPics;
-        else
+      {
+        if(pFrm->pDPB[iPic] == 0)
           break;
+        (pFrm->pDPB[iPic] < 0) ? ++iNumNegPics : ++iNumPosPics;
+      }
 
       pSPS->short_term_ref_pic_set[i].inter_ref_pic_set_prediction_flag = 0;
       pSPS->short_term_ref_pic_set[i].num_negative_pics = iNumNegPics;
@@ -1055,7 +1074,39 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
   }
 }
 
-void AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus)
+/***************************************************************************/
+static AL_TSrcMetaData* AL_GetSrcMetaFromStatus(AL_TEncPicStatus const* pPicStatus)
+{
+  AL_TBuffer* pSrc = (AL_TBuffer*)(uintptr_t)pPicStatus->SrcHandle;
+  AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pSrc, AL_META_TYPE_SOURCE);
+  return pSrcMeta;
+}
+
+/***************************************************************************/
+void AL_HEVC_UpdateSPS(AL_TSps* pISPS, AL_TEncPicStatus const* pPicStatus, uint8_t uNalID, int iLayerId)
+{
+  AL_THevcSps* pSPS = (AL_THevcSps*)pISPS;
+  AL_TSrcMetaData* pSrcMeta = AL_GetSrcMetaFromStatus(pPicStatus);
+  uint8_t uBitDepth = AL_GetBitDepth(pSrcMeta->tFourCC);
+
+  int MultiLayerExtSpsFlag = AL_HEVC_MultiLayerExtSpsFlag(pSPS, iLayerId);
+  AL_HEVC_GenerateSPS_Format(pSPS, AL_GetChromaMode(pSrcMeta->tFourCC), uBitDepth, uBitDepth, pSrcMeta->tDim.iWidth, pSrcMeta->tDim.iHeight, MultiLayerExtSpsFlag);
+  pSPS->sps_seq_parameter_set_id = uNalID;
+}
+
+/***************************************************************************/
+void AL_AVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, uint8_t uNalID)
+{
+  AL_TAvcSps* pSPS = (AL_TAvcSps*)pISPS;
+  AL_TSrcMetaData* pSrcMeta = AL_GetSrcMetaFromStatus(pPicStatus);
+
+  AL_AVC_GenerateSPS_Resolution(pSPS, pSrcMeta->tDim.iWidth, pSrcMeta->tDim.iHeight, pSettings->tChParam[0].uMaxCuSize, pSettings->tChParam[0].ePicFormat, pSettings->eAspectRatio);
+
+  pSPS->seq_parameter_set_id = uNalID;
+}
+
+/***************************************************************************/
+void AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, bool bResChanged, uint8_t uNalID)
 {
   AL_THevcPps* pPPS = (AL_THevcPps*)pIPPS;
 
@@ -1068,10 +1119,12 @@ void AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus)
   pPPS->num_tile_columns_minus1 = iNumClmn - 1;
   pPPS->num_tile_rows_minus1 = iNumRow - 1;
 
-  if(!pPPS->num_tile_columns_minus1 && !pPPS->num_tile_rows_minus1)
+  if(pPPS->num_tile_columns_minus1 == 0)
     pPPS->tiles_enabled_flag = 0;
   else
   {
+    pPPS->tiles_enabled_flag = 1;
+
     for(int iClmn = 0; iClmn < iNumClmn - 1; ++iClmn)
       pPPS->column_width[iClmn] = pTileWidth[iClmn];
 
@@ -1079,11 +1132,24 @@ void AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus)
       pPPS->row_height[iRow] = pTileHeight[iRow];
   }
   pPPS->diff_cu_qp_delta_depth = pPicStatus->uCuQpDeltaDepth;
+
+  if(bResChanged)
+  {
+    pPPS->pps_pic_parameter_set_id = uNalID;
+    pPPS->pps_seq_parameter_set_id = uNalID;
+  }
 }
 
-void AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus)
+/***************************************************************************/
+void AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, bool bResChanged, uint8_t uNalID)
 {
   AL_TAvcPps* pPPS = (AL_TAvcPps*)pIPPS;
   pPPS->pic_init_qp_minus26 = pPicStatus->iPpsQP - 26;
+
+  if(bResChanged)
+  {
+    pPPS->pic_parameter_set_id = uNalID;
+    pPPS->seq_parameter_set_id = uNalID;
+  }
 }
 

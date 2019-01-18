@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -36,19 +36,8 @@
 ******************************************************************************/
 
 #include "lib_common_enc/EncRecBuffer.h"
-/****************************************************************************/
-void ResetBufferRec(TBufferRec* pBufRec)
-{
-  MemDesc_Init(&pBufRec->tMD);
-  pBufRec->tDim = (AL_TDimension) {
-    0, 0
-  };
-
-  for(int i = 0; i < AL_PLANE_MAX_ENUM; ++i)
-    pBufRec->tPlanes[i] = (AL_TPlane) {
-      0, 0
-    };
-}
+#include "lib_common_enc/EncBuffers.h"
+#include "lib_common_enc/EncBuffersInternal.h"
 
 /****************************************************************************/
 uint32_t AL_GetRecPitch(uint32_t uBitDepth, uint32_t uWidth)
@@ -57,5 +46,15 @@ uint32_t AL_GetRecPitch(uint32_t uBitDepth, uint32_t uWidth)
     return ((uWidth + 63) >> 6) * 320;
 
   return ((uWidth + 63) >> 6) * 256;
+}
+
+void AL_RecMetaData_FillPlanes(AL_TPlane* pRecPlanes, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bComp, bool bIsAvc)
+{
+  pRecPlanes[AL_PLANE_Y].iOffset = 0;
+  pRecPlanes[AL_PLANE_Y].iPitch = AL_GetRecPitch(uBitDepth, tDim.iWidth);
+
+  pRecPlanes[AL_PLANE_UV].iOffset = AL_GetAllocSize_EncReference(tDim, uBitDepth, CHROMA_MONO, false);
+  pRecPlanes[AL_PLANE_UV].iPitch = pRecPlanes[AL_PLANE_Y].iPitch;
+
 }
 

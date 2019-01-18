@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -209,6 +209,13 @@ bool AL_Encoder_SetQP(AL_HEncoder hEnc, int16_t iQP)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
   return AL_Common_Encoder_SetQP(pEnc, iQP);
+}
+
+/****************************************************************************/
+bool AL_Encoder_SetInputResolution(AL_HEncoder hEnc, AL_TDimension tDim)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  return AL_Common_Encoder_SetInputResolution(pEnc, tDim);
 }
 
 

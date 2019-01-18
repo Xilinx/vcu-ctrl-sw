@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -40,6 +40,7 @@
 #include <fstream>
 #include <string>
 #include <stdexcept>
+#include <deque>
 #include "lib_app/console.h"
 #include "lib_app/InputFiles.h"
 
@@ -63,7 +64,7 @@ int GotoNextPicture(TYUVFileInfo const& FI, std::ifstream& File, int iEncFrameRa
 bool ReadOneFrameYuv(std::ifstream& File, AL_TBuffer* pBuf, bool bLoop);
 
 /*****************************************************************************/
-bool WriteOneFrame(std::ofstream& File, AL_TBuffer const* pBuf, int iWidth, int iHeight);
+bool WriteOneFrame(std::ofstream& File, AL_TBuffer const* pBuf);
 
 /*****************************************************************************/
 unsigned int ReadNextFrame(std::ifstream& File);
@@ -76,6 +77,14 @@ void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection, con
 
 /*****************************************************************************/
 int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream, const AL_TEncChanParam* pChannelParam);
+
+struct ImageSize
+{
+  int size; // in bytes
+  bool finished;
+};
+
+void GetImageStreamSize(AL_TBuffer* pStream, std::deque<ImageSize>& imageSizes);
 
 /*****************************************************************************/
 void DisplayFrameStatus(int iFrameNum);

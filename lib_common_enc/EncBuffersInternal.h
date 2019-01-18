@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -81,19 +81,19 @@ static const AL_TBufInfo EP3_BUF_RC_LVL =
    \brief  Retrieves the size of a QP parameters buffer 1 (Lda + SclMtx)
    \return maximum size (in bytes) needed to store
 *****************************************************************************/
-uint32_t AL_GetAllocSizeEP1();
+uint32_t AL_GetAllocSizeEP1(void);
 
 /*************************************************************************//*!
    \brief  Retrieves the size of a Encoder parameters buffer 3 (HW RateCtrl) for one core
    \return maximum size (in bytes) needed to store
 *****************************************************************************/
-uint32_t AL_GetAllocSizeEP3PerCore();
+uint32_t AL_GetAllocSizeEP3PerCore(void);
 
 /*************************************************************************//*!
    \brief  Retrieves the size of a Encoder parameters buffer 3 (HW RateCtrl)
    \return maximum size (in bytes) needed to store
 *****************************************************************************/
-uint32_t AL_GetAllocSizeEP3();
+uint32_t AL_GetAllocSizeEP3(void);
 
 static const size_t MVBUFF_PL_OFFSET[2] =
 {

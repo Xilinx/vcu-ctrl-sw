@@ -17,11 +17,5 @@ LIB_COMMON_SRC:=\
 	lib_common/FourCC.c\
 	lib_common/HardwareDriver.c\
 
-ifneq ($(ENABLE_FBC),0)
-endif
 
-ifneq ($(ENABLE_UNITTESTS),0)
-  UNITTEST+=$(shell find lib_common/unittests -name "*.cpp")
-  UNITTEST+=$(LIB_COMMON_SRC)
-endif
 

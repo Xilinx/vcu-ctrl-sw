@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -38,6 +38,7 @@
 #include "HevcParser.h"
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/Utils.h"
+#include "lib_common_dec/RbspParser.h"
 
 #define CONCEAL_LEVEL_IDC 60 * 3
 
@@ -77,9 +78,7 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
   uint16_t uLCUWidth, uLCUHeight;
   AL_THevcPps* pPPS;
 
-  // Parse bitstream
-  while(u(pRP, 8) == 0x00)
-    ; // Skip all 0x00s and one 0x01
+  skipAllZerosAndTheNextByte(pRP);
 
   u(pRP, 16); // Skip NUT + temporal_id
 
@@ -428,9 +427,7 @@ AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 {
   AL_THevcSps tempSPS;
 
-  // Parse bitstream
-  while(u(pRP, 8) == 0x00)
-    ; // Skip all 0x00s and one 0x01
+  skipAllZerosAndTheNextByte(pRP);
 
   u(pRP, 16); // Skip NUT + temporal_id
 
@@ -722,9 +719,7 @@ void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 {
   AL_THevcVps* pVPS;
 
-  // Parse bitstream
-  while(u(pRP, 8) == 0x00)
-    ; // Skip all 0x00s and one 0x01
+  skipAllZerosAndTheNextByte(pRP);
 
   u(pRP, 16); // Skip NUT + temporal_id
 
@@ -821,7 +816,7 @@ static bool sei_active_parameter_sets(AL_TRbspParser* pRP, AL_THevcAup* aup, uin
     /*layer_sps_idx[i] =*/ ue(pRP);
 
   *pSpsId = active_seq_parameter_set_id[0];
-  
+
   return true;
 }
 
@@ -903,7 +898,7 @@ static bool sei_recovery_point(AL_TRbspParser* pRP, AL_TRecoveryPoint* pRecovery
   if(!bRet) \
   { \
     uOffset = offset(pRP) - uOffset; \
-    if(uOffset > payload_size << 3) \
+    if(uOffset > (uint32_t)payload_size << 3) \
       return false; \
     skip(pRP, (payload_size << 3) - uOffset); \
     break; \
@@ -916,9 +911,7 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
   AL_THevcAup* aup = &pIAup->hevcAup;
   sei.present_flags = 0;
 
-  // Parse bitstream
-  while(u(pRP, 8) == 0x00)
-    ; // Skip all 0x00s and one 0x01
+  skipAllZerosAndTheNextByte(pRP);
 
   u(pRP, 16); // Skip NUT + temporal_id
 
@@ -966,14 +959,14 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
       }
       else
         skip(pRP, payload_size << 3);
-    } break;
-
+      break;
+    }
     case RECOVERY_POINT: // picture_timing parsing
     {
       PARSE_OR_SKIP(sei_recovery_point(pRP, &sei.recovery_point));
       aup->iRecoveryCnt = sei.recovery_point.recovery_cnt + 1; // +1 for non-zero value when SEI_RP is present
-    } break;
-
+      break;
+    }
     case ACTIVE_PARAMETER_SETS:
     {
       uint8_t uSpsId;
@@ -981,11 +974,13 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
 
       if(!aup->pSPS[uSpsId].bConceal)
         aup->pActiveSPS = &aup->pSPS[uSpsId];
-    } break;
-
+      break;
+    }
     default: // payload not supported
+    {
       skip(pRP, payload_size << 3); // skip data
       break;
+    }
     }
 
     if(cb->func)

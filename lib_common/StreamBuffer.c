@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -101,7 +101,7 @@ int AL_GetMaxNalSize(AL_ECodec eCodec, AL_TDimension tDim, AL_EChromaMode eMode,
 
   if(eCodec == AL_CODEC_AVC)
     iNumSlices = Avc_GetMaxNumberOfSlices(iProfileIdc, iLevel, 1, 60, INT32_MAX);
-  iMaxPCM += 2048 + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
+  iMaxPCM += ENC_MAX_HEADER_SIZE + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
 
   return RoundUp(iMaxPCM, 32);
 }
@@ -112,7 +112,7 @@ int AL_GetMitigatedMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBit
   /* Mitigated worst case: PCM + one slice per row. */
   int iMaxPCM = GetPcmVclNalSize(tDim, eMode, iBitDepth);
   int iNumSlices = ((tDim.iHeight + 15) / 16);
-  iMaxPCM += 2048 + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
+  iMaxPCM += ENC_MAX_HEADER_SIZE + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
 
   return RoundUp(iMaxPCM, 32);
 }

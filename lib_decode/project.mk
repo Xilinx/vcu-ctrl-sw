@@ -18,15 +18,11 @@ LIB_DECODE_SRC+=\
 		lib_decode/Patchworker.c\
 		lib_decode/DecoderFeeder.c\
 
-ifneq ($(ENABLE_BYPASS),0)
-endif
 
 ifneq ($(ENABLE_MCU),0)
   LIB_DECODE_SRC+=lib_decode/DecChannelMcu.c
 endif
 
-ifneq ($(ENABLE_JPEG),0)
-endif
 
 LIB_DECODER_SRC:=\
   $(LIB_RTOS_SRC)\
@@ -39,10 +35,6 @@ LIB_DECODER_SRC:=\
   $(LIB_SCHEDULER_SRC)\
   $(LIB_PERFS_SRC)\
 
-ifneq ($(ENABLE_TRACES),0)
-  LIB_DECODER_SRC+=\
-    $(LIB_TRACE_SRC_DEC)
-endif
 
 LIB_DECODER_OBJ:=$(LIB_DECODER_SRC:%=$(BIN)/%.o)
 
@@ -61,11 +53,6 @@ TARGETS+=$(LIB_DECODER_DLL)
 liballegro_decode_src: $(LIB_DECODER_SRC)
 	@echo $(LIB_DECODER_SRC)
 
-ifneq ($(ENABLE_UNITTESTS),0)
-UNITTEST+=$(shell find lib_decode/unittests -name "*.cpp")
-UNITTEST+=$(LIB_DECODE_SRC)
-UNITTEST+=$(LIB_TRACE_SRC_DEC)
-endif
 
 .PHONY: liballegro_decode liballegro_decode_dll liballegro_decode_a liballegro_decode_src
 

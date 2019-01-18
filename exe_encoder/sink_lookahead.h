@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -52,28 +52,19 @@
 */
 struct EncoderLookAheadSink : IFrameSink
 {
-  EncoderLookAheadSink(ConfigFile const& cfg, TScheduler* pScheduler, AL_TAllocator* pAllocator, BufPool & qpBufPool
+  EncoderLookAheadSink(ConfigFile const& cfg, TScheduler* pScheduler, AL_TAllocator* pAllocator
                        ) :
     CmdFile(cfg.sCmdFileName),
     EncCmd(CmdFile, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
     qpBuffers(cfg.Settings),
-    lookAheadMngr(cfg.Settings.LookAhead)
+    lookAheadMngr(cfg.Settings.LookAhead, cfg.Settings.bEnableFirstPassCrop)
   {
-    QPBuffers::QPLayerInfo qpInf
-    {
-      &qpBufPool,
-      cfg.sQPTablesFolder,
-      cfg.sRoiFileName
-    };
-
-    qpBuffers.SetBufPool(qpInf);
-
     AL_CB_EndEncoding onEndEncoding = { &EncoderLookAheadSink::EndEncoding, this };
 
     ConfigFile cfgLA = cfg;
 
     AL_TwoPassMngr_SetPass1Settings(cfgLA.Settings);
-    AL_Settings_CheckCoherency(&cfgLA.Settings, &cfgLA.Settings.tChParam[0], cfgLA.FileInfo.FourCC, NULL);
+    AL_Settings_CheckCoherency(&cfgLA.Settings, &cfgLA.Settings.tChParam[0], cfgLA.MainInput.FileInfo.FourCC, NULL);
 
     AL_ERR errorCode = AL_Encoder_Create(&hEnc, pScheduler, pAllocator, &cfgLA.Settings, onEndEncoding);
 
@@ -94,17 +85,23 @@ struct EncoderLookAheadSink : IFrameSink
     Rtos_DeleteEvent(EOSFinished);
   }
 
+  void AddQpBufPool(QPBuffers::QPLayerInfo qpInf, int iLayerID)
+  {
+    qpBuffers.AddBufPool(qpInf, iLayerID);
+  }
+
+  void PreprocessFrame() override
+  {
+    EncCmd.Process(commandsSender.get(), m_picCount);
+  }
+
   void ProcessFrame(AL_TBuffer* Src) override
   {
     AL_TBuffer* QpBuf = nullptr;
 
     if(Src)
     {
-      EncCmd.Process(commandsSender.get(), m_picCount);
 
-
-      if(bEnableFirstPassCrop)
-        AL_TwoPassMngr_CropBufferSrc(Src);
 
       auto pPictureMetaLA = (AL_TLookAheadMetaData*)AL_Buffer_GetMetaData(Src, AL_META_TYPE_LOOKAHEAD);
 
@@ -197,15 +194,6 @@ private:
 
     if(pSrc)
     {
-      if(bEnableFirstPassCrop)
-      {
-        AL_TwoPassMngr_UncropBufferSrc(pSrc);
-        auto pPictureMetaLA = (AL_TLookAheadMetaData*)AL_Buffer_GetMetaData(pSrc, AL_META_TYPE_LOOKAHEAD);
-
-        if(pPictureMetaLA)
-          pPictureMetaLA->iPictureSize = (int32_t)(((uint64_t)pPictureMetaLA->iPictureSize * 3500) / 1000);
-      }
-
       AL_Buffer_Ref(pSrc);
       lookAheadMngr.m_fifo.push_back(pSrc);
       ProcessFifo(false);
@@ -220,6 +208,7 @@ private:
     // Fifo is empty, we propagate the EndOfStream
     if(isEOS && lookAheadMngr.m_fifo.size() == 0)
     {
+      next->PreprocessFrame();
       next->ProcessFrame(NULL);
     }
     // Fifo is full, or fifo must be emptied at EOS
@@ -229,6 +218,7 @@ private:
       AL_TBuffer* pSrc = lookAheadMngr.m_fifo.front();
       lookAheadMngr.m_fifo.pop_front();
 
+      next->PreprocessFrame();
       next->ProcessFrame(pSrc);
       AL_Buffer_Unref(pSrc);
 

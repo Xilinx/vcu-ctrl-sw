@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -45,7 +45,12 @@ static bool SrcMeta_Destroy(AL_TMetaData* pMeta)
   return true;
 }
 
-AL_TSrcMetaData* AL_SrcMetaData_Create(AL_TDimension tDim, AL_TPlane tYPlane, AL_TPlane tUVPlane, TFourCC tFourCC)
+void AL_SrcMetaData_AddPlane(AL_TSrcMetaData* pMeta, AL_TPlane tPlane, AL_EPlaneId ePlaneId)
+{
+  pMeta->tPlanes[ePlaneId] = tPlane;
+}
+
+AL_TSrcMetaData* AL_SrcMetaData_CreateEmpty(TFourCC tFourCC)
 {
   AL_TSrcMetaData* pMeta = Rtos_Malloc(sizeof(*pMeta));
 
@@ -55,24 +60,32 @@ AL_TSrcMetaData* AL_SrcMetaData_Create(AL_TDimension tDim, AL_TPlane tYPlane, AL
   pMeta->tMeta.eType = AL_META_TYPE_SOURCE;
   pMeta->tMeta.MetaDestroy = SrcMeta_Destroy;
 
-  pMeta->tDim = tDim;
-
-  pMeta->tPlanes[AL_PLANE_Y] = tYPlane;
-  pMeta->tPlanes[AL_PLANE_UV] = tUVPlane;
+  pMeta->tDim.iWidth = 0;
+  pMeta->tDim.iHeight = 0;
 
   AL_TPlane tEmptyPlane = { 0, 0 };
 
-  for(int iId = AL_PLANE_MAP_Y; iId < AL_PLANE_MAX_ENUM; ++iId)
-    pMeta->tPlanes[iId] = tEmptyPlane;
+  for(int iId = AL_PLANE_Y; iId < AL_PLANE_MAX_ENUM; ++iId)
+    AL_SrcMetaData_AddPlane(pMeta, tEmptyPlane, iId);
 
   pMeta->tFourCC = tFourCC;
 
   return pMeta;
 }
 
-void AL_SrcMetaData_AddPlane(AL_TSrcMetaData* pMeta, AL_TPlane tPlane, AL_EPlaneId ePlaneId)
+AL_TSrcMetaData* AL_SrcMetaData_Create(AL_TDimension tDim, AL_TPlane tYPlane, AL_TPlane tUVPlane, TFourCC tFourCC)
 {
-  pMeta->tPlanes[ePlaneId] = tPlane;
+  AL_TSrcMetaData* pMeta = AL_SrcMetaData_CreateEmpty(tFourCC);
+
+  if(!pMeta)
+    return NULL;
+
+  pMeta->tDim = tDim;
+
+  AL_SrcMetaData_AddPlane(pMeta, tYPlane, AL_PLANE_Y);
+  AL_SrcMetaData_AddPlane(pMeta, tUVPlane, AL_PLANE_UV);
+
+  return pMeta;
 }
 
 AL_TSrcMetaData* AL_SrcMetaData_Clone(AL_TSrcMetaData* pMeta)

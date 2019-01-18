@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -110,8 +110,7 @@ void AL_Common_Encoder_ReleaseRecPicture(AL_TEncoder* pEnc, TRecPic* pRecPic, in
    \param[in] pFrame Pointer to the frame buffer to encode
    \param[in] pQPTable Pointer to an optional qp table used if the external qp table mode is enabled
    \param[in] iLayerID Current layer identifier
-   \warning The tMD member of each TBufferYuv struct pointed to by pFrame
-   shall not be altered.
+   \warning The AL_TBuffer struct pointed to by pFrame shall not be altered.
    \return If the function succeeds the return value is nonzero (true)
    If the function fails the return value is zero (false)
    \see AL_Encoder_PutStreamBuffer
@@ -202,6 +201,16 @@ bool AL_Common_Encoder_SetFrameRate(AL_TEncoder* pEnc, uint16_t uFrameRate, uint
    to retrieve the error code
 *****************************************************************************/
 bool AL_Common_Encoder_SetQP(AL_TEncoder* pEnc, int16_t iQP);
+
+/*************************************************************************//*!
+   \brief Changes the resolution of the input frames to encode from the next
+   pushed frame
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] tDim The new dimension of pushed frames
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Common_Encoder_SetInputResolution(AL_TEncoder* pEnc, AL_TDimension tDim);
 
 
 

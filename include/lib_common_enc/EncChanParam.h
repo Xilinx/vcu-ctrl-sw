@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -66,9 +66,23 @@ typedef enum e_LdaCtrlMode
   CUSTOM_LDA = 0x01, /*!< used for test purpose */
   DYNAMIC_LDA = 0x02, /*!< select lambda values according to the GOP pattern */
   AUTO_LDA = 0x03, /*!< automatically select betxeen DEFAULT_LDA and DYNAMIC_LDA */
-
   LOAD_LDA = 0x80, /*!< used for test purpose */
 }AL_ELdaCtrlMode;
+
+static inline bool AL_LdaIsSane(AL_ELdaCtrlMode lda)
+{
+  switch(lda)
+  {
+  case DEFAULT_LDA: // fallthrough
+  case CUSTOM_LDA: // fallthrough
+  case DYNAMIC_LDA: // fallthrough
+  case AUTO_LDA: // fallthrough
+  case LOAD_LDA: // fallthrough
+    return true;
+  default:
+    return false;
+  }
+}
 
 /*************************************************************************//*!
    \brief GDR Mode
@@ -239,6 +253,7 @@ typedef enum __AL_ALIGNED__ (4) AL_e_ChEncOptions
   AL_OPT_LOWLAT_INT = 0x00080000,
   AL_OPT_RDO_COST_MODE = 0x00100000,
   AL_OPT_HIGH_FREQ = 0x08000000,
+  AL_OPT_CROP = 0x40000000,
 } AL_EChEncOption;
 
 /*************************************************************************//*!

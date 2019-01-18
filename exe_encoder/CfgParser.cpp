@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -68,6 +68,10 @@ struct Temporary
 
   string sScalingListFile {};
   string sZapperFile {};
+  TConfigYUVInput TempInput;
+  bool bWidthIsParsed = false;
+  bool bHeightIsParsed = false;
+  bool bNameIsParsed = false;
 };
 
 static TFourCC GetFourCCValue(const string& sVal)
@@ -106,30 +110,30 @@ static TFourCC GetFourCCValue(const string& sVal)
 static void populateInputSection(ConfigParser& parser, ConfigFile& cfg)
 {
   auto curSection = Section::Input;
-  parser.addPath(curSection, "YUVFile", cfg.YUVFileName, "YUV input file");
+  parser.addPath(curSection, "YUVFile", cfg.MainInput.YUVFileName, "YUV input file");
   parser.addCustom(curSection, "Width", [&](std::deque<Token>& tokens)
   {
-    cfg.FileInfo.PictWidth = parseArithmetic<int>(tokens);
-    AL_SetSrcWidth(&cfg.Settings.tChParam[0], cfg.FileInfo.PictWidth);
+    cfg.MainInput.FileInfo.PictWidth = parseArithmetic<int>(tokens);
+    AL_SetSrcWidth(&cfg.Settings.tChParam[0], cfg.MainInput.FileInfo.PictWidth);
   }, "Specifies the YUV input width");
 
   parser.addCustom(curSection, "Height", [&](std::deque<Token>& tokens)
   {
-    cfg.FileInfo.PictHeight = parseArithmetic<int>(tokens);
-    AL_SetSrcHeight(&cfg.Settings.tChParam[0], cfg.FileInfo.PictHeight);
+    cfg.MainInput.FileInfo.PictHeight = parseArithmetic<int>(tokens);
+    AL_SetSrcHeight(&cfg.Settings.tChParam[0], cfg.MainInput.FileInfo.PictHeight);
   }, "Specifies the YUV input height");
   parser.addCustom(curSection, "Format", [&](std::deque<Token>& tokens)
   {
     /* we might want to be able to show users which format are available */
     if(!hasOnlyOneIdentifier(tokens))
       throw std::runtime_error("Failed to parse FOURCC value");
-    cfg.FileInfo.FourCC = GetFourCCValue(tokens[0].text);
+    cfg.MainInput.FileInfo.FourCC = GetFourCCValue(tokens[0].text);
   }, "Specifies the YUV input format");
   parser.addPath(curSection, "CmdFile", cfg.sCmdFileName, "File containing the dynamic commands to send to the encoder");
-  parser.addPath(curSection, "ROIFile", cfg.sRoiFileName, "File containing the Regions of Interest used to encode");
-  parser.addPath(curSection, "QpTablesFolder", cfg.sQPTablesFolder, "Specifies the location of the files containing the QP tables to use for each frame");
+  parser.addPath(curSection, "ROIFile", cfg.MainInput.sRoiFileName, "File containing the Regions of Interest used to encode");
+  parser.addPath(curSection, "QpTablesFolder", cfg.MainInput.sQPTablesFolder, "Specifies the location of the files containing the QP tables to use for each frame");
   parser.addPath(curSection, "TwoPassFile", cfg.sTwoPassFileName, "File containing the first pass statistics");
-  parser.addArith(curSection, "FrameRate", cfg.FileInfo.FrameRate, "Specifies the number of frames per second of the source, if it isn't set, we take the RATE_CONTROL FrameRate value. If this parameter is greater than the frame rate specified in the rate control section, the encoder will drop some frames; when this parameter is lower than the frame rate specified in the rate control section, the encoder will repeat some frames");
+  parser.addArith(curSection, "FrameRate", cfg.MainInput.FileInfo.FrameRate, "Specifies the number of frames per second of the source, if it isn't set, we take the RATE_CONTROL FrameRate value. If this parameter is greater than the frame rate specified in the rate control section, the encoder will drop some frames; when this parameter is lower than the frame rate specified in the rate control section, the encoder will repeat some frames");
 }
 
 static void populateOutputSection(ConfigParser& parser, ConfigFile& cfg)
@@ -428,9 +432,71 @@ static void populateRunSection(ConfigParser& parser, ConfigFile& cfg)
   parser.addArith(curSection, "FirstPicture", cfg.RunInfo.iFirstPict, "Specifies the first frame to encode");
   parser.addArith(curSection, "ScnChgLookAhead", cfg.RunInfo.iScnChgLookAhead);
   parser.addArith(curSection, "InputSleep", cfg.RunInfo.uInputSleepInMilliseconds, "Time period in milliseconds. The encoder is given frames each time period (at a minimum)");
+  parser.addPath(curSection, "BitrateFile", cfg.RunInfo.bitrateFile, "The generated stream size for each picture and bitrate informations will be written to this file");
 }
 
 
+static void try_to_push_secondary_input(ConfigFile& cfg, Temporary& temp, std::vector<TConfigYUVInput>& inputList)
+{
+  if(temp.bWidthIsParsed && temp.bHeightIsParsed && temp.bNameIsParsed)
+  {
+    temp.TempInput.FileInfo.FourCC = cfg.MainInput.FileInfo.FourCC;
+    temp.TempInput.FileInfo.FrameRate = cfg.MainInput.FileInfo.FrameRate;
+    inputList.push_back(temp.TempInput);
+
+    temp.bWidthIsParsed = false;
+    temp.bHeightIsParsed = false;
+    temp.bNameIsParsed = false;
+  }
+}
+
+static void populateSecondaryInputParam(ConfigParser& parser, Temporary& temp, Section eCurSection, bool bQPControl)
+{
+  parser.addCustom(eCurSection, "YUVFile", [&](std::deque<Token>& tokens)
+  {
+    temp.TempInput.YUVFileName = parseString(tokens);
+    temp.bNameIsParsed = true;
+  }, "The YUV source in a different resolution than main input");
+
+  parser.addCustom(eCurSection, "Width", [&](std::deque<Token>& tokens)
+  {
+    temp.TempInput.FileInfo.PictWidth = parseArithmetic<int>(tokens);
+    temp.bWidthIsParsed = true;
+  }, "The width of the current source");
+  parser.addCustom(eCurSection, "Height", [&](std::deque<Token>& tokens)
+  {
+    temp.TempInput.FileInfo.PictHeight = parseArithmetic<int>(tokens);
+    temp.bHeightIsParsed = true;
+  }, "The height of the current source");
+
+  if(bQPControl)
+  {
+    parser.addPath(eCurSection, "ROIFile", temp.TempInput.sRoiFileName, "File containing the Regions of Interest associated to the current yuv input");
+    parser.addPath(eCurSection, "QpTablesFolder", temp.TempInput.sQPTablesFolder, "Tthe location of the files containing the QP tables associated to the current yuv input");
+  }
+}
+
+
+static void populateDynamicInputSection(ConfigParser& parser, Temporary& temp)
+{
+  return populateSecondaryInputParam(parser, temp, Section::DynamicInput, false);
+}
+
+
+
+static void try_finalize_section(ConfigParser& parser, ConfigFile& cfg, Temporary& temp)
+{
+  (void)cfg;
+  (void)temp;
+  switch(parser.curSection)
+  {
+  case Section::DynamicInput:
+    try_to_push_secondary_input(cfg, temp, cfg.DynamicInputs);
+    break;
+  default:
+    break;
+  }
+}
 
 static void populateIdentifiers(ConfigParser& parser, ConfigFile& cfg, Temporary& temporaries, std::ostream& warnStream)
 {
@@ -440,6 +506,7 @@ static void populateIdentifiers(ConfigParser& parser, ConfigFile& cfg, Temporary
   populateGopSection(parser, cfg);
   populateSettingsSection(parser, cfg, temporaries, warnStream);
   populateRunSection(parser, cfg);
+  populateDynamicInputSection(parser, temporaries);
 }
 
 static void parseSection(ConfigParser& parser, Tokenizer& tokenizer, ConfigFile& cfg, Temporary& temp)
@@ -454,6 +521,8 @@ static void parseSection(ConfigParser& parser, Tokenizer& tokenizer, ConfigFile&
 
   if(section.type != TokenType::Identifier)
     throw TokenError(section, "expected section name while parsing section");
+
+  try_finalize_section(parser, cfg, temp);
 
   parser.updateSection(section.text);
 }
@@ -812,6 +881,7 @@ static void ParseConfig(string const& toParse, ConfigFile& cfg, Temporary& tempo
     }
   }
 
+  try_finalize_section(parser, cfg, temporaries);
 }
 
 static void createDescriptionChunks(std::deque<string>& chunks, string& desc)

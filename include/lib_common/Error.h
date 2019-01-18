@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -66,8 +66,6 @@ enum
   AL_SUCCESS = ((AL_ERR)0x00000000),
   /*! Unknown error */
   AL_ERROR = AL_DEF_ERROR(0),
-  /*! Resolution change is not supported */
-  AL_ERR_RESOLUTION_CHANGE = AL_DEF_ERROR(5),
   /*! Couldn't allocate a resource because no memory was left
    * This can be dma memory, mcu specific memory if available or
    * simply virtual memory shortage */

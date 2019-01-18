@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2018 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -82,23 +82,25 @@ void AL_LookAheadMetaData_Copy(AL_TLookAheadMetaData* pMetaSrc, AL_TLookAheadMet
     return;
 
   pMetaDest->iPictureSize = pMetaSrc->iPictureSize;
-  pMetaDest->iPercentIntra = pMetaSrc->iPercentIntra;
-  pMetaDest->bNextSceneChange = pMetaSrc->bNextSceneChange;
+  pMetaDest->eSceneChange = pMetaSrc->eSceneChange;
   pMetaDest->iIPRatio = pMetaSrc->iIPRatio;
-  pMetaDest->iPercentSkip = pMetaSrc->iPercentSkip;
   pMetaDest->iComplexity = pMetaSrc->iComplexity;
   pMetaDest->iTargetLevel = pMetaSrc->iTargetLevel;
+
+  for(int i = 0; i < 5; i++)
+    pMetaDest->iPercentIntra[i] = pMetaSrc->iPercentIntra[i];
 }
 
 void AL_LookAheadMetaData_Reset(AL_TLookAheadMetaData* pMeta)
 {
   pMeta->iPictureSize = -1;
-  pMeta->iPercentIntra = -1;
-  pMeta->bNextSceneChange = false;
+  pMeta->eSceneChange = AL_SC_NONE;
   pMeta->iIPRatio = 1000;
-  pMeta->iPercentSkip = -1;
   pMeta->iComplexity = 1000;
   pMeta->iTargetLevel = -1;
+
+  for(int8_t i = 0; i < 5; i++)
+    pMeta->iPercentIntra[i] = -1;
 }
 
 
