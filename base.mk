@@ -40,7 +40,7 @@ $(BIN)/%.a:
 	$(Q)$(AR) cr $@ $^
 	@echo "AR $@"
 
-$(BIN)/%:
+$(BIN)/ctrlsw%:
 	@mkdir -p $(dir $@)
 	$(Q)$(CXX) -o $@ $^ $(LINK_COMPAT) $(LDFLAGS)
 	@echo "CXX $@"
