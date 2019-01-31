@@ -12,7 +12,7 @@ EXE_DECODER_SRC:=\
 EXE_DECODER_OBJ:=$(EXE_DECODER_SRC:%=$(BIN)/%.o)
 
 
-$(BIN)/AL_Decoder.exe: $(EXE_DECODER_OBJ) $(LIB_REFDEC_A) $(LIB_DECODER_A)
+$(BIN)/ctrlsw_decoder: $(EXE_DECODER_OBJ) $(LIB_REFDEC_A) $(LIB_DECODER_A)
 
 $(BIN)/exe_decoder/%.o: CFLAGS+=$(SVNDEV)
 
@@ -20,7 +20,7 @@ $(BIN)/exe_decoder/%.o: INTROSPECT_FLAGS=-DAL_COMPIL_FLAGS='"$(CFLAGS)"'
 
 $(BIN)/exe_decoder/%.o: INTROSPECT_FLAGS+=-DHAS_COMPIL_FLAGS=1
 
-TARGETS+=$(BIN)/AL_Decoder.exe
+TARGETS+=$(BIN)/ctrlsw_decoder
 
 exe_decoder_src: $(EXE_DECODER_SRC)
 	@echo $(EXE_DECODER_SRC)
