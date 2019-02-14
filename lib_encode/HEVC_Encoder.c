@@ -94,7 +94,7 @@ static void initHls(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
   if(pCtx->Settings.bDependentSlice)
     pChParam->uPpsParam |= AL_PPS_SLICE_SEG_EN_FLAG;
 
-  if(pChParam->tGopParam.uFreqLT || pChParam->tGopParam.bEnableLT)
+  if(pChParam->tGopParam.bEnableLT)
     pChParam->uSpsParam |= AL_SPS_LOG2_NUM_LONG_TERM_RPS_MASK;
 
 

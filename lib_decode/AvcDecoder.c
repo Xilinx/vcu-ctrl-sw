@@ -208,9 +208,16 @@ static AL_TStreamSettings extractStreamSettings(AL_TAvcSps const* pSPS)
 }
 
 /******************************************************************************/
-static AL_ERR resolutionFound(AL_TDecCtx* pCtx, AL_TStreamSettings const* pSpsSettings, AL_TCropInfo const* pCropInfo)
+static int getConcealedMaxDPBSize(int iLevel, int iWidth, int iHeight, int iSPSMaxRefFrames)
 {
-  int iDpbMaxBuf = AL_AVC_GetMaxDPBSize(pSpsSettings->iLevel, pSpsSettings->tDim.iWidth, pSpsSettings->tDim.iHeight);
+  int iDpbMaxBuf = AL_AVC_GetMaxDPBSize(iLevel, iWidth, iHeight);
+  return Max(iDpbMaxBuf, iSPSMaxRefFrames);
+}
+
+/******************************************************************************/
+static AL_ERR resolutionFound(AL_TDecCtx* pCtx, AL_TStreamSettings const* pSpsSettings, AL_TCropInfo const* pCropInfo, int iSPSMaxRefFrames)
+{
+  int iDpbMaxBuf = getConcealedMaxDPBSize(pSpsSettings->iLevel, pSpsSettings->tDim.iWidth, pSpsSettings->tDim.iHeight, iSPSMaxRefFrames);
   int iMaxBuf = AVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, pCtx->iStackSize);
   bool bEnableDisplayCompression;
   AL_EFbStorageMode eDisplayStorageMode = AL_Default_Decoder_GetDisplayStorageMode(pCtx, &bEnableDisplayCompression);
@@ -235,7 +242,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
   if(!AL_Default_Decoder_AllocPool(pCtx, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap))
     goto fail_alloc;
 
-  int iDpbMaxBuf = AL_AVC_GetMaxDPBSize(pCtx->tStreamSettings.iLevel, pCtx->tStreamSettings.tDim.iWidth, pCtx->tStreamSettings.tDim.iHeight);
+  int iDpbMaxBuf = getConcealedMaxDPBSize(pCtx->tStreamSettings.iLevel, pCtx->tStreamSettings.tDim.iWidth, pCtx->tStreamSettings.tDim.iHeight, pSPS->max_num_ref_frames);
   int iMaxBuf = AVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, pCtx->iStackSize);
   int iSizeMV = AL_GetAllocSize_AvcMV(pCtx->tStreamSettings.tDim);
   int iSizePOC = POCBUFF_PL_SIZE;
@@ -251,7 +258,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
 
 
   AL_TCropInfo tCropInfo = extractCropInfo(pSPS);
-  error = resolutionFound(pCtx, &pCtx->tStreamSettings, &tCropInfo);
+  error = resolutionFound(pCtx, &pCtx->tStreamSettings, &tCropInfo, pSPS->max_num_ref_frames);
 
   if(error != AL_SUCCESS)
     goto fail_alloc;
@@ -614,7 +621,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     else if(bCheckDynResChange && (spsSettings.tDim.iWidth != tLastDim.iWidth || spsSettings.tDim.iHeight != tLastDim.iHeight))
     {
       AL_TCropInfo tCropInfo = extractCropInfo(pSPS);
-      resolutionFound(pCtx, &spsSettings, &tCropInfo);
+      resolutionFound(pCtx, &spsSettings, &tCropInfo, pSPS->max_num_ref_frames);
     }
   }
 

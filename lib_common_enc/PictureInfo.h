@@ -95,8 +95,6 @@ typedef struct AL_t_PictureInfo
   int8_t iQpOffset;
   int iRecoveryCnt;
 
-  bool bResolutionChange;
-
   bool bForceQp;
   int8_t iQpSet;
 

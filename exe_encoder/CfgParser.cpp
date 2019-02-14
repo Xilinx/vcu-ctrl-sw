@@ -232,7 +232,11 @@ static void populateGopSection(ConfigParser& parser, ConfigFile& cfg)
   freqIdrEnums["SC_ONLY"] = 0x7FFFFFFF;
   parser.addArithOrEnum(curSection, "Gop.FreqIDR", GopParam.uFreqIDR, freqIdrEnums, "Specifies the minimum number of frames between two IDR pictures (AVC, HEVC). IDR insertion depends on the position of the GOP boundary. -1 to disable IDR insertion");
   parser.addBool(curSection, "Gop.EnableLT", GopParam.bEnableLT);
-  parser.addArith(curSection, "Gop.FreqLT", GopParam.uFreqLT, "Specifies the Long Term reference picture refresh frequency in number of frames");
+  parser.addCustom(curSection, "Gop.FreqLT", [&](std::deque<Token>& tokens)
+  {
+    GopParam.uFreqLT = parseArithmetic<uint32_t>(tokens);
+    GopParam.bEnableLT = GopParam.bEnableLT || (GopParam.uFreqLT != 0);
+  }, "Specifies the Long Term reference picture refresh frequency in number of frames");
   parser.addArith(curSection, "Gop.NumB", GopParam.uNumB, "Maximum number of consecutive B frames in a GOP");
   std::map<string, int> gdrModes {};
   gdrModes["GDR_HORIZONTAL"] = AL_GDR_HORIZONTAL;

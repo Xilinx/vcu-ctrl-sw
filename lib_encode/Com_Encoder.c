@@ -183,15 +183,21 @@ void AL_Common_Encoder_NotifySceneChange(AL_TEncoder* pEnc, int iAhead)
 /***************************************************************************/
 void AL_Common_Encoder_NotifyIsLongTerm(AL_TEncoder* pEnc)
 {
-  AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pEnc->pCtx->tLayerCtx[0]);
-  pReqInfo->eReqOptions |= AL_OPT_IS_LONG_TERM;
+  if(pEnc->pCtx->Settings.tChParam[0].tGopParam.bEnableLT)
+  {
+    AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pEnc->pCtx->tLayerCtx[0]);
+    pReqInfo->eReqOptions |= AL_OPT_IS_LONG_TERM;
+  }
 }
 
 /***************************************************************************/
 void AL_Common_Encoder_NotifyUseLongTerm(AL_TEncoder* pEnc)
 {
-  AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pEnc->pCtx->tLayerCtx[0]);
-  pReqInfo->eReqOptions |= AL_OPT_USE_LONG_TERM;
+  if(pEnc->pCtx->Settings.tChParam[0].tGopParam.bEnableLT)
+  {
+    AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pEnc->pCtx->tLayerCtx[0]);
+    pReqInfo->eReqOptions |= AL_OPT_USE_LONG_TERM;
+  }
 }
 
 
