@@ -35,6 +35,7 @@
 *
 ******************************************************************************/
 
+
 #include <assert.h>
 
 #include "lib_rtos/lib_rtos.h"
@@ -117,8 +118,9 @@ static void AL_AVC_spred_weight_table(AL_TRbspParser* pRP, AL_TAvcSliceHdr* pSli
    \param[in]  pRP             Pointer to NAL buffer
    \param[out] pSlice          Pointer to the slice header structure that will be filled
    \param[in]  NumPocTotalCurr Number of pictures available as reference for the current picture
+   \return return true if no error was detected in reordering syntax
 *****************************************************************************/
-static void AL_AVC_sref_pic_list_reordering(AL_TRbspParser* pRP, AL_TAvcSliceHdr* pSlice)
+static bool AL_AVC_sref_pic_list_reordering(AL_TRbspParser* pRP, AL_TAvcSliceHdr* pSlice)
 {
   if(pSlice->slice_type != SLICE_I)
   {
@@ -129,6 +131,7 @@ static void AL_AVC_sref_pic_list_reordering(AL_TRbspParser* pRP, AL_TAvcSliceHdr
     pSlice->ref_pic_list_reordering_flag_l0 = u(pRP, 1);
 
     if(pSlice->ref_pic_list_reordering_flag_l0)
+    {
       do
       {
         ++idx1;
@@ -147,6 +150,10 @@ static void AL_AVC_sref_pic_list_reordering(AL_TRbspParser* pRP, AL_TAvcSliceHdr
         }
       }
       while(idx1 < AL_MAX_REFERENCE_PICTURE_REORDER && pSlice->reordering_of_pic_nums_idc_l0[idx1] != 3);
+
+      if(pSlice->reordering_of_pic_nums_idc_l0[idx1] != 3)
+        return false;
+    }
   }
 
   if(pSlice->slice_type == SLICE_B)
@@ -158,6 +165,7 @@ static void AL_AVC_sref_pic_list_reordering(AL_TRbspParser* pRP, AL_TAvcSliceHdr
     pSlice->ref_pic_list_reordering_flag_l1 = u(pRP, 1);
 
     if(pSlice->ref_pic_list_reordering_flag_l1)
+    {
       do
       {
         ++idx1;
@@ -176,7 +184,13 @@ static void AL_AVC_sref_pic_list_reordering(AL_TRbspParser* pRP, AL_TAvcSliceHdr
         }
       }
       while(idx1 < AL_MAX_REFERENCE_PICTURE_REORDER && pSlice->reordering_of_pic_nums_idc_l1[idx1] != 3);
+
+      if(pSlice->reordering_of_pic_nums_idc_l1[idx1] != 3)
+        return false;
+    }
   }
+
+  return true;
 }
 
 /*****************************************************************************/
@@ -396,7 +410,8 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
   if(!more_rbsp_data(pRP))
     return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
 
-  AL_AVC_sref_pic_list_reordering(pRP, pSlice);
+  if(!AL_AVC_sref_pic_list_reordering(pRP, pSlice))
+    return false;
 
   if(
     (pPps->weighted_pred_flag && pSlice->slice_type == SLICE_P) ||
