@@ -69,25 +69,16 @@ void DisplayFrameStatus(int iFrameNum)
 /*****************************************************************************/
 static int PictureSize(TYUVFileInfo FI)
 {
-  std::ifstream::pos_type iSize;
-  switch(AL_GetChromaMode(FI.FourCC))
+  int iPictSize = GetIOLumaRowSize(FI.FourCC, FI.PictWidth) * FI.PictHeight;
+
+  if(AL_GetChromaMode(FI.FourCC) != CHROMA_MONO)
   {
-  case CHROMA_MONO:
-    iSize = FI.PictWidth * FI.PictHeight;
-    break;
-  case CHROMA_4_2_0:
-    iSize = (FI.PictWidth * FI.PictHeight * 3) / 2;
-    break;
-  case CHROMA_4_2_2:
-    iSize = FI.PictWidth * FI.PictHeight * 2;
-    break;
-  default:
-    iSize = 0;
+    int iRx, iRy;
+    AL_GetSubsampling(FI.FourCC, &iRx, &iRy);
+    iPictSize += 2 * (iPictSize / (iRx * iRy));
   }
 
-  auto iPixSize = AL_GetPixelSize(FI.FourCC);
-
-  return iSize * iPixSize;
+  return iPictSize;
 }
 
 /*****************************************************************************/
@@ -116,16 +107,8 @@ int GotoNextPicture(TYUVFileInfo const& FI, std::ifstream& File, int iEncFrameRa
 
   if(iMove != 0)
   {
-    int iRowSize = GetIOLumaRowSize(FI.FourCC, FI.PictWidth) * FI.PictHeight;
-
-    if(AL_GetChromaMode(FI.FourCC) != CHROMA_MONO)
-    {
-      int iRx, iRy;
-      AL_GetSubsampling(FI.FourCC, &iRx, &iRy);
-      iRowSize += 2 * (iRowSize / (iRx * iRy));
-    }
-
-    File.seekg(iRowSize * iMove, std::ios_base::cur);
+    int iPictSize = PictureSize(FI);
+    File.seekg(iPictSize * iMove, std::ios_base::cur);
   }
   return iMove;
 }
