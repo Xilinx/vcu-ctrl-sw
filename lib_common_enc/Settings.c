@@ -676,7 +676,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 
   pSettings->LookAhead = 0;
   pSettings->TwoPass = 0;
-  pSettings->bEnableFirstPassCrop = false;
+  pSettings->bEnableFirstPassSceneChangeDetection = false;
 
 
   pChan->eVideoMode = AL_VM_PROGRESSIVE;
@@ -713,14 +713,6 @@ void AL_Settings_SetDefaultParam(AL_TEncSettings* pSettings)
 int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChParam, FILE* pOut)
 {
   int err = 0;
-  int iNumCore = pChParam->uNumCore;
-
-  if(iNumCore == NUMCORE_AUTO)
-  {
-    AL_CoreConstraint constraint;
-    AL_CoreConstraint_Init(&constraint, ENCODER_CORE_FREQUENCY, ENCODER_CORE_FREQUENCY_MARGIN, ENCODER_CYCLES_FOR_BLK_32X32, 0, AL_ENC_CORE_MAX_WIDTH);
-    iNumCore = AL_CoreConstraint_GetExpectedNumberOfCores(&constraint, pChParam->uWidth, pChParam->uHeight, pChParam->tRCParam.uFrameRate * 1000, pChParam->tRCParam.uClkRatio);
-  }
 
   if(!AL_sSettings_CheckProfile(pChParam->eProfile))
   {
@@ -814,15 +806,6 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     MSG("Invalid parameter : NumSlices");
   }
 
-  if(pChParam->eEncTools & AL_OPT_WPP)
-  {
-    if(pChParam->uNumSlices * iNumCore * iRound > pChParam->uHeight)
-    {
-      ++err;
-      MSG("Invalid parameter : NumSlices (Too many slices for multi-core Wavefront encoding)");
-    }
-  }
-
 
   if(pChParam->eEncOptions & AL_OPT_FORCE_MV_CLIP)
   {
@@ -907,18 +890,6 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
       }
     }
 
-    if(iNumCore > 1 && pChParam->uSliceSize > 0)
-    {
-      ++err;
-      MSG("Fixed-Size slices are not allowed in multi-core AVC encoding");
-    }
-
-    if((pChParam->uNumSlices > 1) && pChParam->bSubframeLatency && ((pChParam->uNumSlices % iNumCore) != 0))
-    {
-      ++err;
-      MSG("NumSlices must be a multiple of cores in subframe AVC encoding");
-    }
-
     if((pChParam->tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL) && (AL_GET_PROFILE_IDC(pChParam->eProfile) == AL_GET_PROFILE_IDC(AL_PROFILE_AVC_BASELINE)))
     {
       ++err;
@@ -976,10 +947,10 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     MSG("!! Shouldn't have Pyramidal GOP and TwoPass/LookAhead at the same time !!");
   }
 
-  if(pSettings->LookAhead == 0 && pSettings->bEnableFirstPassCrop)
+  if(pSettings->LookAhead == 0 && pSettings->bEnableFirstPassSceneChangeDetection)
   {
     ++err;
-    MSG("!! Shouldn't have FirstPassCrop enabled without LookAhead !!");
+    MSG("!! Shouldn't have FirstPassSceneChangeDetection enabled without LookAhead !!");
   }
 
 
@@ -1456,35 +1427,20 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     pSettings->uEnableSEI |= SEI_PT;
   }
 
-  if(pSettings->bEnableFirstPassCrop)
+  if(pSettings->bEnableFirstPassSceneChangeDetection)
   {
     uint32_t uRatio = pChParam->uWidth * 1000 / pChParam->uHeight;
     uint32_t uVal = pChParam->uWidth * pChParam->uHeight / 50;
 
     if(uRatio > 2500 || uRatio < 400 || uVal < 18000 || uVal > 170000)
     {
-      MSG("!! CropFirstPass mode is not supported with the current resolution, it is disabled !!");
-      pSettings->bEnableFirstPassCrop = false;
+      MSG("!! SCDFirstPass mode is not supported with the current resolution, it'll be disabled !!");
+      pSettings->bEnableFirstPassSceneChangeDetection = false;
       ++numIncoherency;
     }
   }
 
 
-
-  AL_TEncChanParam* pChan = &pSettings->tChParam[0];
-
-  if(pChan->eLdaCtrlMode != DEFAULT_LDA && pChan->eLdaCtrlMode != DYNAMIC_LDA && pChan->eLdaCtrlMode != AUTO_LDA)
-  {
-    for(int i = 0; i < (int)(sizeof(LAMBDA_FACTORS) / sizeof(LAMBDA_FACTORS[0])); ++i)
-    {
-      if(pChan->LdaFactors[i] != LAMBDA_FACTORS[i])
-      {
-        MSG("Specifing LambdaFactors with this lambda control mode has no effect !");
-        ++numIncoherency;
-        break;
-      }
-    }
-  }
 
   if(pChParam->tRCParam.eRCMode == AL_RC_CONST_QP && pChParam->tRCParam.iInitialQP < 0)
     pChParam->tRCParam.iInitialQP = 30;

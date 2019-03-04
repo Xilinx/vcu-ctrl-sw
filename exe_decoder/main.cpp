@@ -57,7 +57,6 @@ extern "C"
 #include "lib_common_dec/DecBuffers.h"
 #include "lib_common_dec/IpDecFourCC.h"
 #include "lib_common/StreamBuffer.h"
-#include "lib_common/Utils.h"
 }
 
 #include "lib_app/BufPool.h"
@@ -99,10 +98,15 @@ struct codec_error : public runtime_error
   const AL_ERR Code;
 };
 
-/******************************************************************************/
+/* duplicated from Utils.h as we can't take these from inside the libraries */
+static inline int RoundUp(int iVal, int iRnd)
+{
+  return (iVal + iRnd - 1) / iRnd * iRnd;
+}
 
-static const uint32_t uDefaultNumBuffersHeldByNextComponent = 1; /* We need at least 1 buffer to copy the output on a file */
+static uint32_t constexpr uDefaultNumBuffersHeldByNextComponent = 1; /* We need at least 1 buffer to copy the output on a file */
 static bool bCertCRC = false;
+static uint8_t constexpr NUMCORE_AUTO = 0;
 
 AL_TDecSettings getDefaultDecSettings()
 {
@@ -856,7 +860,7 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
   unique_lock<mutex> lock(hMutex);
 
   AL_ERR err = AL_Decoder_GetFrameError(hDec, pFrame);
-  bool bExitError = (err != AL_SUCCESS) && (err != AL_WARN_CONCEAL_DETECT);
+  bool bExitError = AL_IS_ERROR_CODE(err);
 
   if(bExitError || isEOS(pFrame, pInfo))
   {
@@ -1218,7 +1222,7 @@ void SafeMain(int argc, char** argv)
   AL_HDecoder hDec;
   auto error = AL_Decoder_Create(&hDec, (AL_TIDecChannel*)pDecChannel, pAllocator, &Settings, &CB);
 
-  if(error != AL_SUCCESS)
+  if(AL_IS_ERROR_CODE(error))
     throw codec_error(error);
 
   assert(hDec);
@@ -1267,7 +1271,7 @@ void SafeMain(int argc, char** argv)
   unique_lock<mutex> lock(display.hMutex);
   auto eErr = AL_Decoder_GetLastError(hDec);
 
-  if((eErr != AL_SUCCESS) && (eErr != AL_WARN_CONCEAL_DETECT))
+  if(AL_IS_ERROR_CODE(eErr))
     throw codec_error(eErr);
 
   if(!tDecodeParam.decodedFrames)

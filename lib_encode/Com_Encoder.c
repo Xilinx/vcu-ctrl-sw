@@ -686,15 +686,21 @@ static int GetNalID(AL_TEncCtx* pCtx, uint16_t uWidth, uint16_t uHeight)
 #define AL_RETURN_ERROR(e) { AL_Common_SetError(pCtx, e); return false; }
 
 /****************************************************************************/
+static bool IsGopRestartForbidden(AL_TEncChanParam* pChParam)
+{
+  bool isAdaptive = (pChParam->tGopParam.eMode == AL_GOP_MODE_ADAPTIVE);
+  bool isBypass = (pChParam->tGopParam.eMode == AL_GOP_MODE_BYPASS);
+  return isAdaptive || isBypass;
+}
+
+/****************************************************************************/
 bool AL_Common_Encoder_RestartGop(AL_TEncoder* pEnc)
 {
   AL_TEncCtx* pCtx = pEnc->pCtx;
 
   for(int i = 0; i < pCtx->Settings.NumLayer; ++i)
   {
-    if(pCtx->Settings.tChParam[i].tGopParam.eMode != AL_GOP_MODE_DEFAULT &&
-       pCtx->Settings.tChParam[i].tGopParam.eMode != AL_GOP_MODE_LOW_DELAY_P &&
-       pCtx->Settings.tChParam[i].tGopParam.eMode != AL_GOP_MODE_LOW_DELAY_B)
+    if(IsGopRestartForbidden(&pCtx->Settings.tChParam[i]))
       AL_RETURN_ERROR(AL_ERR_CMD_NOT_ALLOWED);
 
     AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[i]);
@@ -830,18 +836,19 @@ bool AL_Common_Encoder_SetInputResolution(AL_TEncoder* pEnc, AL_TDimension tDim)
     AL_TEncChanParam* pChanParam = &pCtx->Settings.tChParam[i];
     AL_TLayerCtx* pLayerCtx = &pCtx->tLayerCtx[i];
 
-    if(!AL_Common_Encoder_SetChannelResolution(pLayerCtx, pChanParam, tDim))
-      return false;
+    if((IsGopRestartForbidden(&pCtx->Settings.tChParam[i])) || (!AL_Common_Encoder_SetChannelResolution(pLayerCtx, pChanParam, tDim)))
+      AL_RETURN_ERROR(AL_ERR_CMD_NOT_ALLOWED);
 
     AL_TEncRequestInfo* pReqInfo = getCurrentCommands(pLayerCtx);
     pReqInfo->eReqOptions |= AL_OPT_SET_INPUT_RESOLUTION;
+    pReqInfo->eReqOptions |= AL_OPT_RESTART_GOP;
     pReqInfo->dynResParams.tInputResolution = tDim;
     pReqInfo->dynResParams.uNewNalsId = GetNalID(pCtx, tDim.iWidth, tDim.iHeight);
   }
 
   AL_Common_Encoder_InitNumLCU(pCtx, &pCtx->Settings.tChParam[0]);
 
-  return AL_Common_Encoder_RestartGop(pEnc);
+  return true;
 }
 
 
@@ -913,7 +920,7 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
   bResolutionChanged = pFI->bResolutionChanged;
   uNewNalsId = pFI->uNewNalsId;
 
-  if(!(pPicStatus->eErrorCode & AL_ERROR))
+  if(!AL_IS_ERROR_CODE(pPicStatus->eErrorCode))
     pCtx->encoder.updateHlsAndWriteSections(pCtx, pPicStatus, bResolutionChanged, uNewNalsId, pStream, iLayerID);
 
   AL_TPictureMetaData* pPictureMeta = (AL_TPictureMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_PICTURE);
@@ -1001,13 +1008,10 @@ AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncCtx* pCtx, TScheduler* pScheduler,
   if(!PreprocessEncoderParam(pCtx, &pCtx->tLayerCtx[0].tBufEP1, 0))
     goto fail;
 
-  AL_ERR chanError = AL_ISchedulerEnc_CreateChannel(&pCtx->tLayerCtx[0].hChannel, pCtx->pScheduler, pChParam, &pCtx->tLayerCtx[0].tBufEP1.tMD, &CBs);
+  errorCode = AL_ISchedulerEnc_CreateChannel(&pCtx->tLayerCtx[0].hChannel, pCtx->pScheduler, pChParam, &pCtx->tLayerCtx[0].tBufEP1.tMD, &CBs);
 
-  if(chanError != AL_SUCCESS)
-  {
-    errorCode = chanError;
+  if(AL_IS_ERROR_CODE(errorCode))
     goto fail;
-  }
 
 
   pCtx->PendingEncodings = Rtos_CreateSemaphore(ENC_MAX_CMD - 1);
@@ -1018,7 +1022,7 @@ AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncCtx* pCtx, TScheduler* pScheduler,
   pCtx->iInitialNumB = pChParam->tGopParam.uNumB;
   pCtx->uInitialFrameRate = pChParam->tRCParam.uFrameRate;
 
-  return AL_SUCCESS;
+  return errorCode;
 
   fail:
   destroy(pCtx);

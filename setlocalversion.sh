@@ -13,7 +13,11 @@ has ()
 if has svnversion ; then
   svnversion="$(svnversion -n $scriptDir)"
   if !(echo $svnversion | grep "Unversioned" > /dev/null 2>&1) ; then
-    res="+$svnversion"
+    if !(echo $svnversion | grep "exported" > /dev/null 2>&1) ; then
+      if !(echo $svnversion | grep "Uncommited" > /dev/null 2>&1) ; then
+        res="+$svnversion"
+      fi
+    fi
   fi
 fi
 

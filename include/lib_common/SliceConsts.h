@@ -63,8 +63,6 @@
 #define HEVC_PROFILE_IDC_RExt 4
 
 
-#define AL_CROP_NUM_ZONES 5
-
 /****************************************************************************/
 typedef enum AL_e_Codec
 {

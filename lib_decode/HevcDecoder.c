@@ -337,7 +337,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
   AL_TCropInfo tCropInfo = extractCropInfo(pSPS);
   error = resolutionFound(pCtx, &pCtx->tStreamSettings, &tCropInfo);
 
-  if(error != AL_SUCCESS)
+  if(AL_IS_ERROR_CODE(error))
     goto fail_alloc;
 
   return true;
@@ -366,7 +366,7 @@ static bool initChannel(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
   AL_CB_EndFrameDecoding endFrameDecodingCallback = { AL_Default_Decoder_EndDecoding, pCtx };
   AL_ERR eError = AL_IDecChannel_Configure(pCtx->pDecChannel, &pCtx->chanParam, endFrameDecodingCallback);
 
-  if(eError != AL_SUCCESS)
+  if(AL_IS_ERROR_CODE(eError))
   {
     AL_Default_Decoder_SetError(pCtx, eError, -1);
     pCtx->eChanState = CHAN_INVALID;

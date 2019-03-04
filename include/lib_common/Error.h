@@ -57,7 +57,9 @@ enum
   /*! The decoder had to conceal some errors in the stream */
   AL_WARN_CONCEAL_DETECT = AL_DEF_WARNING(1),
   /*! Some LCU exceed the maximum allowed bits in the stream */
-  AL_WARN_LCU_OVERFLOW = AL_DEF_WARNING(2)
+  AL_WARN_LCU_OVERFLOW = AL_DEF_WARNING(2),
+  /*! Number of slices have been adjusted to be hardware compatible */
+  AL_WARN_NUM_SLICES_ADJUSTED = AL_DEF_WARNING(3),
 };
 
 enum
@@ -90,6 +92,21 @@ enum
   /*! The value associated with the command is invalid (in the current configuration) */
   AL_ERR_INVALID_CMD_VALUE = AL_DEF_ERROR(18),
 };
+
+static AL_INLINE bool AL_IS_ERROR_CODE(AL_ERR eErrorCode)
+{
+  return eErrorCode >= AL_ERROR;
+}
+
+static AL_INLINE bool AL_IS_WARNING_CODE(AL_ERR eErrorCode)
+{
+  return (eErrorCode != AL_SUCCESS) && (eErrorCode < AL_ERROR);
+}
+
+static AL_INLINE bool AL_IS_SUCCESS_CODE(AL_ERR eErrorCode)
+{
+  return eErrorCode == AL_SUCCESS;
+}
 
 /*@}*/
 

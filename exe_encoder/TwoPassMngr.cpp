@@ -123,9 +123,9 @@ void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings)
   channel.bSubframeLatency = false;
   channel.eLdaCtrlMode = DEFAULT_LDA;
 
-  if(settings.bEnableFirstPassCrop)
+  if(settings.bEnableFirstPassSceneChangeDetection)
   {
-    channel.eEncOptions = (AL_EChEncOption)(channel.eEncOptions | AL_OPT_CROP);
+    channel.eEncOptions = (AL_EChEncOption)(channel.eEncOptions | AL_OPT_SCENE_CHANGE_DETECTION);
     channel.uNumSlices = 1;
   }
 }
@@ -156,8 +156,8 @@ static bool DetectPatternTwoFrames(vector<int> v)
 /***************************************************************************/
 /*Offline TwoPass methods*/
 /***************************************************************************/
-TwoPassMngr::TwoPassMngr(std::string p_FileName, int p_iPass, bool p_bEnabledFirstPassCrop, int p_iGopSize, int p_iCpbLevel, int p_iInitialLevel, int p_iFrameRate) :
-  iPass(p_iPass), bEnableFirstPassCrop(p_bEnabledFirstPassCrop), iGopSize(p_iGopSize),
+TwoPassMngr::TwoPassMngr(std::string p_FileName, int p_iPass, bool p_bEnabledFirstPassSceneChangeDetection, int p_iGopSize, int p_iCpbLevel, int p_iInitialLevel, int p_iFrameRate) :
+  iPass(p_iPass), bEnableFirstPassSceneChangeDetection(p_bEnabledFirstPassSceneChangeDetection), iGopSize(p_iGopSize),
   iCpbLevel(p_iCpbLevel), iInitialLevel(p_iInitialLevel), iFrameRate(p_iFrameRate)
 {
   FileName = { p_FileName };
@@ -415,12 +415,12 @@ bool TwoPassMngr::HasPatternTwoFrames()
 /***************************************************************************/
 /*LookAhead structures and methods*/
 /***************************************************************************/
-LookAheadMngr::LookAheadMngr(int p_iLookAhead, bool p_bEnableFirstPassCrop) : uLookAheadSize(p_iLookAhead), bEnableFirstPassCrop(p_bEnableFirstPassCrop)
+LookAheadMngr::LookAheadMngr(int p_iLookAhead, bool p_bEnableFirstPassSceneChangeDetection) : uLookAheadSize(p_iLookAhead), bEnableFirstPassSceneChangeDetection(p_bEnableFirstPassSceneChangeDetection)
 {
   iComplexity = 1000;
   iFrameCount = 0;
   iComplexityDiff = 0;
-  bUseComplexity = (uLookAheadSize >= 10 && !bEnableFirstPassCrop);
+  bUseComplexity = (uLookAheadSize >= 10 && !bEnableFirstPassSceneChangeDetection);
   m_fifo.clear();
 
   for(int8_t i = 0; i < 5; i++)
@@ -444,7 +444,7 @@ bool LookAheadMngr::ComputeSceneChange(AL_TBuffer* pPrevSrc, AL_TBuffer* pCurren
   auto pPreviousMeta = reinterpret_cast<AL_TLookAheadMetaData*>(AL_Buffer_GetMetaData(pPrevSrc, AL_META_TYPE_LOOKAHEAD));
   auto pCurrentMeta = reinterpret_cast<AL_TLookAheadMetaData*>(AL_Buffer_GetMetaData(pCurrentSrc, AL_META_TYPE_LOOKAHEAD));
 
-  if(bEnableFirstPassCrop)
+  if(bEnableFirstPassSceneChangeDetection)
     return SceneChangeDetected_Crop(pPreviousMeta, pCurrentMeta);
 
   return SceneChangeDetected(pPreviousMeta, pCurrentMeta);
@@ -459,7 +459,7 @@ bool LookAheadMngr::ComputeSceneChange_LA1(AL_TBuffer* pCurrentSrc)
   auto pCurrentMeta = reinterpret_cast<AL_TLookAheadMetaData*>(AL_Buffer_GetMetaData(pCurrentSrc, AL_META_TYPE_LOOKAHEAD));
   bool bDetected = false;
 
-  if(bEnableFirstPassCrop)
+  if(bEnableFirstPassSceneChangeDetection)
     bDetected = SceneChangeDetected_Crop(&tPrevMetaData, pCurrentMeta);
   else
     bDetected = SceneChangeDetected(&tPrevMetaData, pCurrentMeta);
@@ -520,7 +520,7 @@ void LookAheadMngr::ProcessLookAheadParams()
 
   pPictureMetaLA->eSceneChange = ComputeSceneChange(m_fifo[0], m_fifo[1]) ? AL_SC_NEXT : AL_SC_NONE;
 
-  if(bEnableFirstPassCrop)
+  if(bEnableFirstPassSceneChangeDetection)
   {
     pPictureMetaLA->iPictureSize = 0;
     return;

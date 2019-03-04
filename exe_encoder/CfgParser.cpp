@@ -72,6 +72,7 @@ struct Temporary
   bool bWidthIsParsed = false;
   bool bHeightIsParsed = false;
   bool bNameIsParsed = false;
+  bool bParseLambdaFactors = false;
 };
 
 static TFourCC GetFourCCValue(const string& sVal)
@@ -174,7 +175,7 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
   parser.addArithMultipliedByConstant(curSection, "MaxBitRate", RCParam.uMaxBitRate, 1000);
   parser.addCustom(curSection, "FrameRate", [&](std::deque<Token>& tokens)
   {
-    auto tmp = parseArithmetic<int>(tokens) * 1000;
+    auto tmp = parseArithmetic<double>(tokens) * 1000;
     SetFpsAndClkRatio(tmp, RCParam.uFrameRate, RCParam.uClkRatio);
   }, "Number of frames per second");
   std::map<string, int> autoEnum {};
@@ -394,6 +395,8 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
 
     for(auto i = 0; i < (int)NumFactors; ++i)
       pChan->LdaFactors[i] = ldaFactors[i] * rescale;
+
+    temp.bParseLambdaFactors = true;
   }, "Specifies a lambda factor for each pictures: I, P and B by increasing temporal id");
   parser.addBool(curSection, "CabacInit", cfg.Settings.tChParam[0].uCabacInitIdc, "Specifies the CABAC initialization table index (AVC) or flag (HEVC)");
   parser.addArith(curSection, "PicCbQpOffset", cfg.Settings.tChParam[0].iCbPicQpOffset, "Specifies the QP offset for the first chroma channel (Cb) at picture level (HEVC)");
@@ -443,7 +446,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   twoPassEnums["DISABLE"] = 0;
   parser.addArithOrEnum(curSection, "TwoPass", cfg.Settings.TwoPass, twoPassEnums, "Index of the pass currently encoded (in Twopass mode)");
   parser.addArithOrEnum(curSection, "LookAhead", cfg.Settings.LookAhead, twoPassEnums, "Size of the LookAhead");
-  parser.addBool(curSection, "CropFirstPass", cfg.Settings.bEnableFirstPassCrop, "Crop the video during first pass, to encode faster");
+  parser.addBool(curSection, "SCDFirstPass", cfg.Settings.bEnableFirstPassSceneChangeDetection, "During first pass, to encode faster, enable only the scene change detection");
 
 }
 
@@ -852,9 +855,23 @@ static void SetDefaultValue(ConfigFile& cfg)
   (void)cfg;
 }
 
+static void DefaultLambdaFactors(AL_TEncSettings& Settings, bool bParseLambdaFactors)
+{
+  if(bParseLambdaFactors || Settings.tChParam[0].eLdaCtrlMode != LOAD_LDA)
+    return;
+
+  auto pChan = &Settings.tChParam[0];
+  auto const NumFactors = sizeof(pChan->LdaFactors) / sizeof(*pChan->LdaFactors);
+  auto const identity = 256;
+
+  for(auto i = 0; i < (int)NumFactors; ++i)
+    pChan->LdaFactors[i] = identity;
+}
+
 static void PostParsingInit(ConfigFile& cfg, Temporary const& temporaries, std::ostream& warnStream)
 {
   GetScalingList(cfg.Settings, temporaries.sScalingListFile, warnStream);
+  DefaultLambdaFactors(cfg.Settings, temporaries.bParseLambdaFactors);
 }
 
 static void ParseConfig(string const& toParse, ConfigFile& cfg, Temporary& temporaries, std::ostream& warnStream = cerr, bool debug = false)

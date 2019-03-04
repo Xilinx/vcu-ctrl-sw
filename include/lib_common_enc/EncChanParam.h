@@ -243,7 +243,7 @@ typedef enum __AL_ALIGNED__ (4) AL_e_ChEncOptions
   AL_OPT_LOWLAT_SYNC = 0x00000100,
   AL_OPT_LOWLAT_INT = 0x00000200,
   AL_OPT_HIGH_FREQ = 0x00002000,
-  AL_OPT_CROP = 0x00004000,
+  AL_OPT_SCENE_CHANGE_DETECTION = 0x00004000,
   AL_OPT_FORCE_MV_CLIP = 0x00020000,
   AL_OPT_RDO_COST_MODE = 0x00040000,
 } AL_EChEncOption;
@@ -498,6 +498,9 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
 
 } AL_TEncChanParam;
 
+/***************************************************************************/
+#define ROUND_POWER_OF_TWO(value, n) (((value) + (1 << ((n) - 1))) >> (n))
+#define ROUND_UP_POWER_OF_TWO(value, n) (((value) + (1 << (n)) - 1) >> (n))
 #define AL_GetWidthInLCU(tChParam) (ROUND_UP_POWER_OF_TWO((tChParam).uWidth, (tChParam).uMaxCuSize))
 #define AL_GetHeightInLCU(tChParam) (ROUND_UP_POWER_OF_TWO((tChParam).uHeight, (tChParam).uMaxCuSize))
 

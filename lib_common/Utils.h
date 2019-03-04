@@ -96,13 +96,25 @@ static AL_INLINE int Sign(int iVal)
 /***************************************************************************/
 static AL_INLINE int RoundUp(int iVal, int iRnd)
 {
-  return (iVal + iRnd - 1) / iRnd * iRnd;
+  return iVal >= 0 ? ((iVal + iRnd - 1) / iRnd) * iRnd : (iVal / iRnd) * iRnd;
 }
 
 /***************************************************************************/
 static AL_INLINE int RoundDown(int iVal, int iRnd)
 {
-  return iVal & ~(iRnd - 1);
+  return iVal >= 0 ? (iVal / iRnd) * iRnd : ((iVal - iRnd + 1) / iRnd) * iRnd;
+}
+
+/***************************************************************************/
+static AL_INLINE size_t UnsignedRoundUp(size_t zVal, size_t zRnd)
+{
+  return ((zVal + zRnd - 1) / zRnd) * zRnd;
+}
+
+/***************************************************************************/
+static AL_INLINE size_t UnsignedRoundDown(size_t zVal, size_t zRnd)
+{
+  return (zVal / zRnd) * zRnd;
 }
 
 AL_INLINE static AL_ECodec AL_GetCodec(AL_EProfile eProf)
@@ -194,12 +206,6 @@ bool AL_HEVC_IsVcl(AL_ENut eNUT);
 /***************************************************************************/
 int ceil_log2(uint16_t n);
 int floor_log2(uint16_t n);
-
-/***************************************************************************/
-#define ROUND_POWER_OF_TWO(value, n) (((value) + (1 << ((n) - 1))) >> (n))
-
-/***************************************************************************/
-#define ROUND_UP_POWER_OF_TWO(value, n) (((value) + (1 << (n)) - 1) >> (n))
 
 /***************************************************************************/
 /*@}*/

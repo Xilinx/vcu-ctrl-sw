@@ -65,7 +65,7 @@ AL_TLookAheadMetaData* AL_TwoPassMngr_CreateAndAttachTwoPassMetaData(AL_TBuffer*
 */
 struct TwoPassMngr
 {
-  TwoPassMngr(std::string p_FileName, int p_iPass, bool p_bEnabledFirstPassCrop, int p_iGopSize, int p_iCpbLevel, int p_iInitialLevel, int p_iFrameRate);
+  TwoPassMngr(std::string p_FileName, int p_iPass, bool p_bEnabledFirstPassSceneChangeDetection, int p_iGopSize, int p_iCpbLevel, int p_iInitialLevel, int p_iFrameRate);
   ~TwoPassMngr();
 
   void AddFrame(AL_TLookAheadMetaData* pMetaData);
@@ -73,7 +73,7 @@ struct TwoPassMngr
   void Flush();
 
   int iPass;
-  bool bEnableFirstPassCrop;
+  bool bEnableFirstPassSceneChangeDetection;
 
 private:
   void OpenLog();
@@ -108,12 +108,12 @@ private:
 */
 struct LookAheadMngr
 {
-  LookAheadMngr(int p_iLookAhead, bool p_bEnableFirstPassCrop);
+  LookAheadMngr(int p_iLookAhead, bool p_bEnableFirstPassSceneChangeDetection);
   ~LookAheadMngr();
 
   uint16_t uLookAheadSize;
   bool bUseComplexity;
-  bool bEnableFirstPassCrop;
+  bool bEnableFirstPassSceneChangeDetection;
   std::deque<AL_TBuffer*> m_fifo;
 
 

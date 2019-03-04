@@ -149,7 +149,7 @@ typedef AL_INTROSPECT (category = "debug") struct t_EncSettings
   bool bEnableWatchdog;
   int LookAhead;
   int TwoPass;
-  bool bEnableFirstPassCrop;
+  bool bEnableFirstPassSceneChangeDetection;
 }AL_TEncSettings;
 
 /*************************************************************************//*!

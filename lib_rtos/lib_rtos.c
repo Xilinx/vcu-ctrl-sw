@@ -37,12 +37,8 @@
 
 #include "lib_rtos/lib_rtos.h"
 
-#ifndef ENABLE_RTOS_SYNC
-#define ENABLE_RTOS_SYNC 1
-#endif
-
 /****************************************************************************/
-/*** W i n 3 2  &  L i n u x c o m m o n ***/
+/*** W i n 3 2  &  L i n u x  c o m m o n ***/
 /****************************************************************************/
 #if defined _WIN32 || defined __linux__
 
@@ -108,8 +104,6 @@ void* Rtos_Memset(void* pDst, int iVal, size_t zSize)
 }
 
 #endif
-
-#if ENABLE_RTOS_SYNC
 
 /****************************************************************************/
 /*** W i n 3 2 ***/
@@ -633,78 +627,6 @@ bool Rtos_GetSemaphore(AL_SEMAPHORE Semaphore, uint32_t Wait)
 bool Rtos_ReleaseSemaphore(AL_SEMAPHORE Semaphore)
 {
   (void)Semaphore;
-  return true;
-}
-
-#endif
-
-#else
-
-/* big lock instead of mutexes */
-
-typedef struct
-{
-  int iCount;
-  int iMaxBeforeWait;
-}SyncCtx;
-
-/****************************************************************************/
-AL_MUTEX Rtos_CreateMutex()
-{
-  /* do not fail the creation: return a non NULL handle */
-  return (AL_MUTEX)1;
-}
-
-/****************************************************************************/
-void Rtos_DeleteMutex(AL_MUTEX Mutex)
-{
-}
-
-/****************************************************************************/
-bool Rtos_GetMutex(AL_MUTEX Mutex)
-{
-  return true;
-}
-
-/****************************************************************************/
-bool Rtos_ReleaseMutex(AL_MUTEX Mutex)
-{
-  return true;
-}
-
-/****************************************************************************/
-AL_SEMAPHORE Rtos_CreateSemaphore(int iInitialCount)
-{
-  SyncCtx* pCtx = Rtos_Malloc(sizeof(SyncCtx));
-  pCtx->iCount = iInitialCount;
-  pCtx->iMaxBeforeWait = iMaxCount;
-  return (AL_SEMAPHORE)pCtx;
-}
-
-/****************************************************************************/
-void Rtos_DeleteSemaphore(AL_SEMAPHORE Semaphore)
-{
-  Rtos_Free(Semaphore);
-}
-
-/****************************************************************************/
-bool Rtos_GetSemaphore(AL_SEMAPHORE Semaphore, uint32_t Wait)
-{
-  SyncCtx* pCtx = (SyncCtx*)Semaphore;
-
-  while(pCtx->iCount >= pCtx->iMaxBeforeWait)
-  {
-  }
-
-  ++pCtx->iCount;
-  return true;
-}
-
-/****************************************************************************/
-bool Rtos_ReleaseSemaphore(AL_SEMAPHORE Semaphore)
-{
-  SyncCtx* pCtx = (SyncCtx*)Semaphore;
-  --pCtx->iCount;
   return true;
 }
 

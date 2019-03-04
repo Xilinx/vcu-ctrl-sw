@@ -82,7 +82,7 @@ AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, TScheduler* pScheduler, AL_TAllocato
 
   errorCode = AL_Common_Encoder_CreateChannel(pCtx, pScheduler, pAlloc, pSettings);
 
-  if(errorCode != AL_SUCCESS)
+  if(AL_IS_ERROR_CODE(errorCode))
     goto fail;
 
   if(callback.func)
@@ -90,7 +90,7 @@ AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, TScheduler* pScheduler, AL_TAllocato
 
   pEncoder->pCtx = pCtx;
 
-  return AL_SUCCESS;
+  return errorCode;
 
   fail:
   Rtos_Free(pCtx);

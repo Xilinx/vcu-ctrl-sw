@@ -176,6 +176,7 @@ const char* EncoderErrorToString(AL_ERR eErr)
   case AL_ERR_REQUEST_MALFORMED: return "Channel creation failed, request was malformed";
   case AL_ERR_NO_MEMORY: return "Memory shortage detected (DMA, embedded memory or virtual memory)";
   case AL_WARN_LCU_OVERFLOW: return "Warning some LCU exceed the maximum allowed bits";
+  case AL_WARN_NUM_SLICES_ADJUSTED: return "Warning num slices have been adjusted";
   case AL_SUCCESS: return "Success";
   default: return "Unknown error";
   }
@@ -185,7 +186,6 @@ static
 void ThrowEncoderError(AL_ERR eErr)
 {
   auto const msg = EncoderErrorToString(eErr);
-
   Message(CC_RED, "%s\n", msg);
   switch(eErr)
   {
@@ -199,7 +199,7 @@ void ThrowEncoderError(AL_ERR eErr)
     throw codec_error(msg, eErr);
   }
 
-  if(eErr != AL_SUCCESS && (eErr != AL_WARN_LCU_OVERFLOW || g_EncoderLastError == AL_SUCCESS))
+  if(!AL_IS_SUCCESS_CODE(eErr) && (!AL_IS_WARNING_CODE(eErr) || AL_IS_SUCCESS_CODE(g_EncoderLastError)))
     g_EncoderLastError = eErr;
 }
 
@@ -221,7 +221,7 @@ struct EncoderSink : IFrameSink
               ) :
     CmdFile(cfg.sCmdFileName, false),
     EncCmd(CmdFile.fp, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
-    twoPassMngr(cfg.sTwoPassFileName, cfg.Settings.TwoPass, cfg.Settings.bEnableFirstPassCrop, cfg.Settings.tChParam[0].tGopParam.uGopLength,
+    twoPassMngr(cfg.sTwoPassFileName, cfg.Settings.TwoPass, cfg.Settings.bEnableFirstPassSceneChangeDetection, cfg.Settings.tChParam[0].tGopParam.uGopLength,
                 cfg.Settings.tChParam[0].tRCParam.uCPBSize / 90, cfg.Settings.tChParam[0].tRCParam.uInitialRemDelay / 90, cfg.MainInput.FileInfo.FrameRate),
     qpBuffers(cfg.Settings)
   {
@@ -229,9 +229,11 @@ struct EncoderSink : IFrameSink
 
     AL_ERR errorCode = AL_Encoder_Create(&hEnc, pScheduler, pAllocator, &cfg.Settings, onEndEncoding);
 
-    if(errorCode)
+    if(AL_IS_ERROR_CODE(errorCode))
       ThrowEncoderError(errorCode);
 
+    if(AL_IS_WARNING_CODE(errorCode))
+      Message(CC_YELLOW, "%s\n", EncoderErrorToString(errorCode));
 
     commandsSender.reset(new CommandsSender(hEnc));
     BitstreamOutput.reset(new NullFrameSink);
@@ -367,8 +369,13 @@ private:
 
   AL_ERR PreprocessOutput(AL_TBuffer* pStream)
   {
-    if(AL_ERR eErr = AL_Encoder_GetLastError(hEnc))
+    AL_ERR eErr = AL_Encoder_GetLastError(hEnc);
+
+    if(AL_IS_ERROR_CODE(eErr))
       ThrowEncoderError(eErr);
+
+    if(AL_IS_WARNING_CODE(eErr))
+      Message(CC_YELLOW, "%s\n", EncoderErrorToString(eErr));
 
     if(pStream && shouldAddDummySei)
     {
@@ -399,8 +406,11 @@ private:
   {
     auto eErr = PreprocessOutput(pStream);
 
-    if(eErr != AL_SUCCESS)
+    if(AL_IS_ERROR_CODE(eErr))
       ThrowEncoderError(eErr);
+
+    if(AL_IS_WARNING_CODE(eErr))
+      Message(CC_YELLOW, "%s\n", EncoderErrorToString(eErr));
 
     if(pStream)
     {

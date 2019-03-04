@@ -57,7 +57,7 @@ struct EncoderLookAheadSink : IFrameSink
     CmdFile(cfg.sCmdFileName),
     EncCmd(CmdFile, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
     qpBuffers(cfg.Settings),
-    lookAheadMngr(cfg.Settings.LookAhead, cfg.Settings.bEnableFirstPassCrop)
+    lookAheadMngr(cfg.Settings.LookAhead, cfg.Settings.bEnableFirstPassSceneChangeDetection)
   {
     AL_CB_EndEncoding onEndEncoding = { &EncoderLookAheadSink::EndEncoding, this };
 
@@ -74,7 +74,7 @@ struct EncoderLookAheadSink : IFrameSink
     commandsSender.reset(new CommandsSender(hEnc));
     m_pictureType = cfg.RunInfo.printPictureType ? SLICE_MAX_ENUM : -1;
 
-    bEnableFirstPassCrop = cfg.Settings.bEnableFirstPassCrop;
+    bEnableFirstPassSceneChangeDetection = cfg.Settings.bEnableFirstPassSceneChangeDetection;
     EOSFinished = Rtos_CreateEvent(false);
     iNumLayer = cfg.Settings.NumLayer;
   }
@@ -143,7 +143,7 @@ private:
   QPBuffers qpBuffers;
   std::unique_ptr<CommandsSender> commandsSender;
   LookAheadMngr lookAheadMngr;
-  bool bEnableFirstPassCrop;
+  bool bEnableFirstPassSceneChangeDetection;
   AL_EVENT EOSFinished;
   int iNumLayer;
 
@@ -173,8 +173,11 @@ private:
   {
     AL_ERR eErr = AL_Encoder_GetLastError(hEnc);
 
-    if(eErr != AL_SUCCESS)
+    if(AL_IS_ERROR_CODE(eErr))
       ThrowEncoderError(eErr);
+
+    if(AL_IS_WARNING_CODE(eErr))
+      Message(CC_YELLOW, "%s\n", EncoderErrorToString(eErr));
 
     if(pStream)
     {

@@ -1039,7 +1039,7 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
 
   error = pCtx->resolutionFoundCB.func(iMaxBuf, iSizeYuv, &tStreamSettings, &tCropInfo, pCtx->resolutionFoundCB.userParam);
 
-  if(error != AL_SUCCESS)
+  if(!AL_IS_SUCCESS_CODE(error))
     goto fail_alloc;
 
   pCtx->bIsBuffersAllocated = true;

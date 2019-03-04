@@ -71,7 +71,6 @@ extern "C"
 #include "lib_common/BufferPictureMeta.h"
 #include "lib_common/BufferLookAheadMeta.h"
 #include "lib_common/StreamBuffer.h"
-#include "lib_common/Utils.h"
 #include "lib_common/versions.h"
 #include "lib_encode/lib_encoder.h"
 #include "lib_rtos/lib_rtos.h"
@@ -94,6 +93,13 @@ static int g_StrideHeight = -1;
 static int g_Stride = -1;
 
 using namespace std;
+
+/*****************************************************************************/
+/* duplicated from Utils.h as we can't take these from inside the libraries */
+static inline int RoundUp(int iVal, int iRnd)
+{
+  return (iVal + iRnd - 1) / iRnd * iRnd;
+}
 
 /*****************************************************************************/
 
@@ -140,6 +146,7 @@ void SetDefaults(ConfigFile& cfg)
   cfg.RunInfo.iFirstPict = 0;
   cfg.RunInfo.iScnChgLookAhead = 3;
   cfg.RunInfo.ipCtrlMode = IPCTRL_MODE_STANDARD;
+  cfg.RunInfo.eVQDescr = 0;
   cfg.RunInfo.uInputSleepInMilliseconds = 0;
   cfg.strict_mode = false;
 }
@@ -342,7 +349,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addInt("--lookahead", &cfg.Settings.LookAhead, "Set the twopass LookAhead size");
   opt.addInt("--pass", &cfg.Settings.TwoPass, "Specify which pass we are encoding");
   opt.addString("--pass-logfile", &cfg.sTwoPassFileName, "LogFile to transmit dual pass statistics");
-  opt.addFlag("--first-pass-cropped", &cfg.Settings.bEnableFirstPassCrop, "Crop the video during first pass, to encode faster");
+  opt.addFlag("--first-pass-scd", &cfg.Settings.bEnableFirstPassSceneChangeDetection, "During first pass, the encoder encode faster by only enabling scene change detection");
 
   opt.addOption("--set", [&]()
   {
@@ -680,7 +687,7 @@ static AL_TBufPoolConfig GetSrcBufPoolConfig(unique_ptr<IConvSrc>& pSrcConv, TFr
   auto const tPictFormat = AL_EncGetSrcPicFormat(FrameInfo.eCMode, FrameInfo.iBitDepth, AL_GetSrcStorageMode(eSrcMode), AL_IsSrcCompressed(eSrcMode));
   TFourCC FourCC = AL_GetFourCC(tPictFormat);
   AL_TPlane tYPlane = { 0, ComputeYPitch(FrameInfo.iWidth, FourCC) };
-  int iStrideHeight = (FrameInfo.iHeight + 7) & ~7;
+  int iStrideHeight = RoundUp(FrameInfo.iHeight, 8);
 
   if(g_StrideHeight != -1)
     iStrideHeight = g_StrideHeight;
@@ -721,7 +728,7 @@ static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, int i
     /* we need space for the headers on each slice */
     streamSize += 4096 * 2;
     /* stream size is required to be 32bytes aligned */
-    streamSize = (streamSize + 31) & ~31;
+    streamSize = RoundUp(streamSize, 32);
   }
 
   AL_TMetaData* pMetaData = (AL_TMetaData*)AL_StreamMetaData_Create(AL_MAX_SECTION);
@@ -950,7 +957,7 @@ void LayerRessources::ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hE
 /*****************************************************************************/
 void SafeMain(int argc, char** argv)
 {
-  ConfigFile cfg;
+  ConfigFile cfg {};
   SetDefaults(cfg);
 
   auto& Settings = cfg.Settings;
