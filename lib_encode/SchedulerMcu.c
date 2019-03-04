@@ -39,6 +39,7 @@
 #include "lib_encode/SchedulerMcu.h"
 #include "lib_encode/ISchedulerCommon.h"
 #include "lib_common/IDriver.h"
+#include "lib_common/Error.h"
 
 #include "lib_rtos/lib_rtos.h"
 #include "lib_fpga/DmaAlloc.h"
@@ -134,7 +135,7 @@ static AL_ERR createChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEnc
     goto fail;
   }
 
-  assert(msg.status.error_code == 0);
+  assert(!AL_IS_ERROR_CODE(msg.status.error_code));
 
   setChannelFeedback(pChParam, &msg.status);
   setCallbacks(chan, pCBs);
