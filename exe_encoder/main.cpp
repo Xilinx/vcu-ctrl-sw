@@ -983,7 +983,7 @@ void SafeMain(int argc, char** argv)
 
   function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl = GetIpCtrlWrapper(RunInfo);
 
-  auto pIpDevice = CreateIpDevice(!RunInfo.bUseBoard, RunInfo.iSchedulerType, Settings, wrapIpCtrl, RunInfo.trackDma, RunInfo.eVQDescr);
+  auto pIpDevice = CreateIpDevice(!RunInfo.bUseBoard, RunInfo.iSchedulerType, cfg, wrapIpCtrl, RunInfo.trackDma, RunInfo.eVQDescr);
 
   if(!pIpDevice)
     throw runtime_error("Can't create IpDevice");

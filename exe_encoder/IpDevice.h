@@ -40,6 +40,7 @@
 #include <functional>
 #include "lib_app/InputFiles.h"
 #include "lib_app/utils.h"
+#include "exe_encoder/CfgParser.h"
 
 extern "C"
 {
@@ -59,5 +60,5 @@ struct CIpDevice
   AL_Timer* m_pTimer;
 };
 
-std::shared_ptr<CIpDevice> CreateIpDevice(bool bUseRefSoftware, int iSchedulerType, AL_TEncSettings& Settings, std::function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl, bool trackDma = false, int iVqDescr = 0);
+std::shared_ptr<CIpDevice> CreateIpDevice(bool bUseRefSoftware, int iSchedulerType, ConfigFile& cfg, std::function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl, bool trackDma = false, int iVqDescr = 0);
 

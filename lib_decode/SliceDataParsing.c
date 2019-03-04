@@ -56,6 +56,7 @@
 #include "lib_parsing/Hevc_PictMngr.h"
 
 #include "lib_decode/I_DecChannel.h"
+#include "SliceDataParsing.h"
 #include "I_DecoderCtx.h"
 #include "FrameParam.h"
 

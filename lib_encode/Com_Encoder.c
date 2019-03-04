@@ -298,6 +298,7 @@ static void AddSourceSent(AL_TEncCtx* pCtx, AL_TBuffer* pSrc, AL_TFrameInfo* pFI
 /****************************************************************************/
 void AL_Common_Encoder_SetEncodingOptions(AL_TEncCtx* pCtx, AL_TFrameInfo* pFI, int iLayerID)
 {
+  (void)iLayerID;
   AL_TEncInfo* pEncInfo = &pFI->tEncInfo;
 
   if(pCtx->Settings.bForceLoad)

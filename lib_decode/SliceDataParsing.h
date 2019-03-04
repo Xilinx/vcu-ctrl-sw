@@ -48,8 +48,9 @@
 #include "lib_common/SPS.h"
 #include "lib_common/PPS.h"
 #include "lib_common/SliceHeader.h"
-
 #include "lib_parsing/I_PictMngr.h"
+
+typedef struct t_Dec_Ctx AL_TDecCtx;
 
 /*************************************************************************//*!
    \brief The AL_LaunchDecoding function launch a frame decoding request to the Hardware IP

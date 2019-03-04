@@ -135,6 +135,7 @@ AL_INTROSPECT(category = "debug") struct ConfigFile
 
   // \brief control the strictness when parsing the configuration file
   bool strict_mode;
+
 };
 
 /*************************************************************************//*!

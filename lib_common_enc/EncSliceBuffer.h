@@ -44,7 +44,7 @@
 #include "EncEPBuffer.h"
 
 /*************************************************************************//*!
-   \brief Slice Buffers : Set of buffers needed to encode a slice
+   \brief Slice Buffers: Set of buffers needed to encode a slice
 *****************************************************************************/
 typedef struct t_Span
 {

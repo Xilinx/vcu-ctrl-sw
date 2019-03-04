@@ -57,6 +57,11 @@
 #include "lib_common_enc/DPBConstraints.h"
 #include "lib_common/SEI.h"
 
+static int const MIN_CTB_PER_CORE = 4;
+static int const HEVC_MAX_CU_SIZE = 5; // 32x32
+static int const AVC_MAX_CU_SIZE = 4; // 16x16
+static int const MIN_CU_SIZE = 3; // 8x8
+
 int LAMBDA_FACTORS[] = { 51, 90, 151, 151, 151, 151 }; // I, P, B(temporal id low to high)
 /***************************************************************************/
 static bool AL_sSettings_CheckProfile(AL_EProfile eProfile)
@@ -560,7 +565,7 @@ static uint8_t AL_sSettings_GetMinLevel(AL_TEncChanParam const* pChParam)
 /***************************************************************************/
 static void AL_sSettings_SetDefaultAVCParam(AL_TEncSettings* pSettings)
 {
-  pSettings->tChParam[0].uMaxCuSize = 4; // 16x16
+  pSettings->tChParam[0].uMaxCuSize = AVC_MAX_CU_SIZE;
 
   if(pSettings->eScalingList == AL_SCL_MAX_ENUM)
     pSettings->eScalingList = AL_SCL_FLAT;
@@ -657,8 +662,8 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pChan->pMeRange[SLICE_P][1] = -1; // Vert
   pChan->pMeRange[SLICE_B][0] = -1; // Horz
   pChan->pMeRange[SLICE_B][1] = -1; // Vert
-  pChan->uMaxCuSize = 5; // 32x32
-  pChan->uMinCuSize = 3; // 8x8
+  pChan->uMaxCuSize = HEVC_MAX_CU_SIZE;
+  pChan->uMinCuSize = MIN_CU_SIZE;
   pChan->uMaxTuSize = 5; // 32x32
   pChan->uMinTuSize = 2; // 4x4
   pChan->uMaxTransfoDepthIntra = 1;
@@ -717,7 +722,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   if(!AL_sSettings_CheckProfile(pChParam->eProfile))
   {
     ++err;
-    MSG("Invalid parameter : Profile");
+    MSG("Invalid parameter: Profile");
   }
 
   if((pChParam->eProfile == AL_PROFILE_HEVC_MAIN10) && (AL_GET_BITDEPTH(pChParam->ePicFormat) > 8) && (HW_IP_BIT_DEPTH < 10))
@@ -735,7 +740,40 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   if(!AL_sSettings_CheckLevel(pChParam->eProfile, pChParam->uLevel))
   {
     ++err;
-    MSG("Invalid parameter : Level");
+    MSG("Invalid parameter: Level");
+  }
+
+  if(pChParam->uMinCuSize != MIN_CU_SIZE)
+  {
+    ++err;
+    MSG("Invalid parameter: MinCuSize");
+  }
+
+  if(AL_IS_HEVC(pChParam->eProfile) && (pChParam->uMaxCuSize != HEVC_MAX_CU_SIZE))
+  {
+    ++err;
+    MSG("Invalid parameter: MaxCuSize");
+  }
+
+
+  if(AL_IS_AVC(pChParam->eProfile) && (pChParam->uMaxCuSize != AVC_MAX_CU_SIZE))
+  {
+    ++err;
+    MSG("Invalid parameter: MaxCuSize");
+  }
+
+
+
+
+  int const iRound = (1 << pChParam->uMaxCuSize);
+
+  if(pChParam->uNumCore != NUMCORE_AUTO)
+  {
+    if((pChParam->uWidth / (pChParam->uNumCore * iRound)) < MIN_CTB_PER_CORE)
+    {
+      ++err;
+      MSG("Invalid parameter: uNumCore");
+    }
   }
 
   int iMaxQP = 51;
@@ -743,19 +781,19 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   if(pChParam->tRCParam.iInitialQP > iMaxQP)
   {
     ++err;
-    MSG("Invalid parameter : SliceQP");
+    MSG("Invalid parameter: SliceQP");
   }
 
   if(-12 > pChParam->iCrPicQpOffset || pChParam->iCrPicQpOffset > 12)
   {
     ++err;
-    MSG("Invalid parameter : CrQpOffset");
+    MSG("Invalid parameter: CrQpOffset");
   }
 
   if(-12 > pChParam->iCbPicQpOffset || pChParam->iCbPicQpOffset > 12)
   {
     ++err;
-    MSG("Invalid parameter : CbQpOffset");
+    MSG("Invalid parameter: CbQpOffset");
   }
 
   if(pChParam->tRCParam.uTargetBitRate < 10)
@@ -763,7 +801,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     if((pChParam->tRCParam.eRCMode == AL_RC_CBR) || (pChParam->tRCParam.eRCMode == AL_RC_VBR))
     {
       ++err;
-      MSG("Invalid parameter : BitRate");
+      MSG("Invalid parameter: BitRate");
     }
   }
 
@@ -787,23 +825,22 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     if(pChParam->tGopParam.uGopLength > 1000)
     {
       ++err;
-      MSG("Invalid parameter : Gop.Length");
+      MSG("Invalid parameter: Gop.Length");
     }
 
     if(pChParam->tGopParam.uNumB > 4)
     {
       ++err;
-      MSG("Invalid parameter : Gop.NumB");
+      MSG("Invalid parameter: Gop.NumB");
     }
   }
 
-  int iRound = AL_IS_HEVC(pChParam->eProfile) ? 32 : 16;
   int iMaxSlices = (pChParam->uHeight + (iRound / 2)) / iRound;
 
   if((pChParam->uNumSlices < 1) || (pChParam->uNumSlices > iMaxSlices) || (pChParam->uNumSlices > AL_MAX_ENC_SLICE) || ((pChParam->bSubframeLatency) && (pChParam->uNumSlices > AL_MAX_SLICES_SUBFRAME)))
   {
     ++err;
-    MSG("Invalid parameter : NumSlices");
+    MSG("Invalid parameter: NumSlices");
   }
 
 
@@ -852,7 +889,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     if(-12 > iOffset || iOffset > 12)
     {
       ++err;
-      MSG("Invalid parameter : CrQpOffset");
+      MSG("Invalid parameter: CrQpOffset");
     }
 
     iOffset = pChParam->iCbPicQpOffset + pChParam->iCbSliceQpOffset;
@@ -860,14 +897,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     if(-12 > iOffset || iOffset > 12)
     {
       ++err;
-      MSG("Invalid parameter : CbQpOffset");
-    }
-
-
-    if(pChParam->uMaxCuSize != 5)
-    {
-      ++err;
-      MSG("!! MaxCUSize Not allowed !!");
+      MSG("Invalid parameter: CbQpOffset");
     }
   }
   else if(AL_IS_AVC(pChParam->eProfile))
@@ -879,14 +909,14 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
       if(pSettings->eQpCtrlMode == UNIFORM_QP && (0 > iQP || iQP > 51))
       {
         ++err;
-        MSG("Invalid parameter : SliceQP, CrQpOffset");
+        MSG("Invalid parameter: SliceQP, CrQpOffset");
       }
       iQP = pChParam->tRCParam.iInitialQP + pChParam->iCbSliceQpOffset;
 
       if(pSettings->eQpCtrlMode == UNIFORM_QP && (0 > iQP || iQP > 51))
       {
         ++err;
-        MSG("Invalid parameter : SliceQP, CbQpOffset");
+        MSG("Invalid parameter: SliceQP, CbQpOffset");
       }
     }
 
@@ -906,7 +936,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   if(pChParam->eVideoMode >= AL_VM_MAX_ENUM)
   {
     ++err;
-    MSG("!! Invalid parameter : VideoMode");
+    MSG("!! Invalid parameter: VideoMode");
   }
 
 
@@ -920,13 +950,13 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   if(pSettings->LookAhead < 0)
   {
     ++err;
-    MSG("!! Invalid parameter : LookAheadMode should be 0 or above !!");
+    MSG("!! Invalid parameter: LookAheadMode should be 0 or above !!");
   }
 
   if(pSettings->TwoPass < 0 || pSettings->TwoPass > 2)
   {
     ++err;
-    MSG("!! Invalid parameter : TwoPass should be 0, 1 or 2 !!");
+    MSG("!! Invalid parameter: TwoPass should be 0, 1 or 2 !!");
   }
 
   if(pSettings->TwoPass != 0 && pSettings->LookAhead != 0)
@@ -1206,14 +1236,6 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
     if(pChParam->eEncTools & AL_OPT_WPP)
       pChParam->eEncTools &= ~AL_OPT_WPP;
-
-    if(pChParam->uMaxCuSize != 4 || pChParam->uMinCuSize != 3)
-    {
-      pChParam->uMaxCuSize = 4;
-      pChParam->uMinCuSize = 3;
-      MSG("!! The Specified MaxCUSize and MinCUSize are not allowed; they will be adjusted!!");
-      ++numIncoherency;
-    }
 
     if(AL_GET_PROFILE_IDC(pChParam->eProfile) < AL_GET_PROFILE_IDC(AL_PROFILE_AVC_HIGH))
     {
