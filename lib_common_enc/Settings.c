@@ -1219,10 +1219,10 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     ++numIncoherency;
   }
 
-  if(AL_IS_INTRA_PROFILE(pChParam->eProfile) && pChParam->tGopParam.uGopLength != 0)
+  if(AL_IS_INTRA_PROFILE(pChParam->eProfile) && pChParam->tGopParam.uGopLength > 1)
   {
     pChParam->tGopParam.uGopLength = 0;
-    MSG("!! Gop.Length shall be set to 0 for Intra only profile; it will be adjusted!!");
+    MSG("!! Gop.Length shall be set to 0 or 1 for Intra only profile; it will be adjusted!!");
     ++numIncoherency;
 
     if(AL_IS_AVC(pChParam->eProfile))
