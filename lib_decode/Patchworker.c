@@ -139,7 +139,7 @@ size_t AL_Patchworker_CopyBuffer(AL_TPatchworker* this, AL_TBuffer* pBuf, size_t
       this->endOfOutput = true;
     AL_TMetaData* m = (AL_TMetaData*)pMeta;
     AL_Buffer_RemoveMetaData(pBuf, m);
-    m->MetaDestroy(m);
+    AL_MetaData_Destroy(m);
   }
 
   *pCopiedSize = zCopiedSize;

@@ -55,9 +55,6 @@ typedef struct t_NalHeader
   int size;
 }NalHeader;
 
-NalHeader GetNalHeaderAvc(uint8_t uNUT, uint8_t uNalIdc);
-NalHeader GetNalHeaderHevc(uint8_t uNUT, uint8_t uNalIdc);
-
 void WriteFillerData(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, int bytesCount);
 void FlushNAL(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, uint8_t* pDataInNAL, int iBitsInNAL);
 

@@ -44,7 +44,7 @@
 
 typedef struct t_nuts
 {
-  NalHeader (* GetNalHeader)(uint8_t uNUT, uint8_t uNalIdc);
+  NalHeader (* GetNalHeader)(uint8_t uNUT, uint8_t uNalIdc, uint8_t uTempID);
   int spsNut;
   int ppsNut;
   int audNut;
@@ -71,5 +71,5 @@ typedef struct
 }NalsData;
 
 void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayersCount, int iNumSlices);
-int AL_WriteSeiSection(Nuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize);
+int AL_WriteSeiSection(Nuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId);
 

@@ -50,25 +50,13 @@ static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicSt
   if(pPicStatus->eType == SLICE_I)
     pCtx->seiData.cpbRemovalDelay = 0;
 
-  pCtx->seiData.cpbRemovalDelay += PictureDisplayToFieldNumber[pPicStatus->ePicStruct];
+  pCtx->seiData.cpbRemovalDelay += PicStructToFieldNumber[pPicStatus->ePicStruct];
 }
 
 static bool shouldReleaseSource(AL_TEncPicStatus* p)
 {
   (void)p;
   return true;
-}
-
-/***************************************************************************/
-static void GenerateSkippedPictureData(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TSkippedPicture* pSkipPicture)
-{
-  AL_Common_Encoder_InitSkippedPicture(pSkipPicture);
-  AL_HEVC_GenerateSkippedPicture(pSkipPicture,
-                                 pChParam->uWidth,
-                                 pChParam->uHeight,
-                                 pChParam->uMaxCuSize,
-                                 pChParam->uMinCuSize,
-                                 pCtx->iNumLCU);
 }
 
 static void initHls(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
@@ -101,7 +89,7 @@ static void initHls(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
   if(pChParam->tGopParam.eGdrMode != AL_GDR_OFF)
     pChParam->uPpsParam |= AL_PPS_OVERRIDE_LF;
 
-  if(!(pChParam->eOptions & AL_OPT_LF))
+  if(!(pChParam->eEncTools & AL_OPT_LF))
     pChParam->uPpsParam |= AL_PPS_DISABLE_LF;
 }
 
@@ -176,7 +164,7 @@ static void ConfigureChannel(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TE
   ComputeQPInfo(pCtx, pChParam);
 
   if(pSettings->eScalingList != AL_SCL_FLAT)
-    pChParam->eOptions |= AL_OPT_SCL_LST;
+    pChParam->eEncTools |= AL_OPT_SCL_LST;
 }
 
 static void preprocessEp1(AL_TEncCtx* pCtx, TBufferEP* pEp1)
@@ -190,7 +178,6 @@ void AL_CreateHevcEncoder(HighLevelEncoder* pCtx)
   pCtx->shouldReleaseSource = &shouldReleaseSource;
   pCtx->preprocessEp1 = &preprocessEp1;
   pCtx->configureChannel = &ConfigureChannel;
-  pCtx->generateSkippedPictureData = &GenerateSkippedPictureData;
   pCtx->generateNals = &generateNals;
   pCtx->updateHlsAndWriteSections = &updateHlsAndWriteSections;
 }

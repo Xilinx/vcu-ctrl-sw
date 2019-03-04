@@ -197,9 +197,10 @@ bool AL_Encoder_Process(AL_HEncoder hEnc, AL_TBuffer* pFrame, AL_TBuffer* pQpTab
    \param[in] iPayloadType SEI payload type. See Annex D.3 of ITU-T
    \param[in] pPayload Raw data of the SEI payload
    \param[in] iPayloadSize Size of the raw data payload
+   \param[in] iTempId Temporal id of the raw data payload
    \return returns the section id
 *****************************************************************************/
-int AL_Encoder_AddSei(AL_HEncoder hEnc, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize);
+int AL_Encoder_AddSei(AL_HEncoder hEnc, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId);
 
 
 /*************************************************************************//*!

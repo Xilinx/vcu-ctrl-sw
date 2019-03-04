@@ -55,6 +55,14 @@
 *****************************************************************************/
 
 /****************************************************************************/
+static int DeduceNumTemporalLayer(AL_TGopParam const* pGop)
+{
+  if(pGop->eMode != AL_GOP_MODE_PYRAMIDAL)
+    return 1;
+  return pGop->uNumB == 7 ? 4 : 3;
+}
+
+/****************************************************************************/
 static void AL_sUpdateProfileTierLevel(AL_TProfilevel* pPTL, AL_TEncChanParam const* pChParam, bool profilePresentFlag, int iLayerId)
 {
   (void)iLayerId;
@@ -482,14 +490,21 @@ void AL_HEVC_GenerateVPS(AL_THevcVps* pVPS, AL_TEncSettings const* pSettings, in
   pVPS->vps_base_layer_internal_flag = 1;
   pVPS->vps_base_layer_available_flag = 1;
   pVPS->vps_max_layers_minus1 = 0;
-  pVPS->vps_max_sub_layers_minus1 = 0;
+  int const iNumTemporalLayer = DeduceNumTemporalLayer(&pSettings->tChParam[0].tGopParam);
+  pVPS->vps_max_sub_layers_minus1 = iNumTemporalLayer - 1;
   pVPS->vps_temporal_id_nesting_flag = 1;
 
   AL_sUpdateProfileTierLevel(&pVPS->profile_and_level[0], &pSettings->tChParam[0], true, 0);
 
-  pVPS->vps_sub_layer_ordering_info_present_flag = 0;
-  pVPS->vps_max_dec_pic_buffering_minus1[0] = iMaxRef;
-  pVPS->vps_max_num_reorder_pics[0] = iMaxRef;
+  pVPS->vps_sub_layer_ordering_info_present_flag = iNumTemporalLayer > 1;
+
+  for(int i = 0; i < iNumTemporalLayer; ++i)
+  {
+    int iNumRef = iMaxRef - (iNumTemporalLayer - 1 - i);
+    pVPS->vps_max_dec_pic_buffering_minus1[i] = iNumRef;
+    pVPS->vps_max_num_reorder_pics[i] = iNumRef;
+  }
+
   pVPS->vps_max_latency_increase_plus1[0] = 0;
 
   pVPS->vps_max_layer_id = 0;
@@ -552,9 +567,15 @@ static void AL_HEVC_UpdateHrdParameters(AL_THevcSps* pSPS, AL_TSubHrdParam* pSub
   pSPS->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 = 31; // AKH don't change this
   pSPS->vui_param.hrd_param.dpb_output_delay_length_minus1 = 31; // AKH don't change this
 
-  pSPS->vui_param.hrd_param.fixed_pic_rate_general_flag[0] = 0;
-  pSPS->vui_param.hrd_param.fixed_pic_rate_within_cvs_flag[0] = 0;
-  pSPS->vui_param.hrd_param.elemental_duration_in_tc_minus1[0] = 0;
+  for(int i = 0; i < DeduceNumTemporalLayer(&pSettings->tChParam[0].tGopParam); ++i)
+  {
+    pSPS->vui_param.hrd_param.fixed_pic_rate_general_flag[i] = 0;
+    pSPS->vui_param.hrd_param.fixed_pic_rate_within_cvs_flag[i] = 0;
+    pSPS->vui_param.hrd_param.elemental_duration_in_tc_minus1[i] = 0;
+    // low Delay
+    pSPS->vui_param.hrd_param.low_delay_hrd_flag[i] = 0;
+    pSPS->vui_param.hrd_param.cpb_cnt_minus1[i] = 0;
+  }
 }
 
 /****************************************************************************/
@@ -649,7 +670,7 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   pSPS->mb_adaptive_frame_field_flag = 0;
 
   pSPS->vui_parameters_present_flag = 1;
-#if __ANDROID_API__
+#if defined(ANDROID) || defined(__ANDROID_API__)
   pSPS->vui_parameters_present_flag = 0;
 #endif
 
@@ -668,9 +689,10 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
 
   // Colour parameter information
   pSPS->vui_param.colour_description_present_flag = 1;
-  pSPS->vui_param.colour_primaries = pSettings->eColourDescription;
-  pSPS->vui_param.transfer_characteristics = pSettings->eColourDescription;
-  pSPS->vui_param.matrix_coefficients = pSettings->eColourDescription;
+  int iColorDescId = AL_H273_ColourDescToId(pSettings->eColourDescription);
+  pSPS->vui_param.colour_primaries = iColorDescId;
+  pSPS->vui_param.transfer_characteristics = iColorDescId;
+  pSPS->vui_param.matrix_coefficients = iColorDescId;
 
   // Timing information
   // When fixed_frame_rate_flag = 1, num_units_in_tick/time_scale should be equal to
@@ -765,8 +787,10 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
 
   pSPS->sps_video_parameter_set_id = 0;
 
+  int const iNumTemporalLayer = DeduceNumTemporalLayer(&pChParam->tGopParam);
+
   if(iLayerId == 0)
-    pSPS->sps_max_sub_layers_minus1 = 0;
+    pSPS->sps_max_sub_layers_minus1 = iNumTemporalLayer - 1;
   else
     pSPS->sps_ext_or_max_sub_layers_minus1 = 7;
 
@@ -787,8 +811,14 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   if(!MultiLayerExtSpsFlag)
   {
     pSPS->sps_sub_layer_ordering_info_present_flag = 1;
-    pSPS->sps_max_dec_pic_buffering_minus1[0] = iMaxRef;
-    pSPS->sps_num_reorder_pics[0] = iMaxRef;
+
+    for(int i = 0; i < iNumTemporalLayer; ++i)
+    {
+      int iNumRef = iMaxRef - (iNumTemporalLayer - 1 - i);
+      pSPS->sps_max_dec_pic_buffering_minus1[i] = iNumRef;
+      pSPS->sps_num_reorder_pics[i] = iNumRef;
+    }
+
     pSPS->sps_max_latency_increase_plus1[0] = 0;
   }
 
@@ -809,7 +839,7 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
     pSPS->pcm_sample_bit_depth_chroma_minus1 = AL_GET_BITDEPTH_CHROMA(pChParam->ePicFormat) - 1;
     pSPS->log2_min_pcm_luma_coding_block_size_minus3 = pChParam->uMaxCuSize - 3;
     pSPS->log2_diff_max_min_pcm_luma_coding_block_size = 0;
-    pSPS->pcm_loop_filter_disabled_flag = (pChParam->eOptions & AL_OPT_LF) ? 0 : 1;
+    pSPS->pcm_loop_filter_disabled_flag = (pChParam->eEncTools & AL_OPT_LF) ? 0 : 1;
   }
 
   pSPS->num_short_term_ref_pic_sets = 0;
@@ -902,14 +932,16 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
 
   // Colour parameter information
   pSPS->vui_param.colour_description_present_flag = 1;
-  pSPS->vui_param.colour_primaries = pSettings->eColourDescription;
-  pSPS->vui_param.transfer_characteristics = pSettings->eColourDescription;
-  pSPS->vui_param.matrix_coefficients = pSettings->eColourDescription;
+  int iColorDescId = AL_H273_ColourDescToId(pSettings->eColourDescription);
+  pSPS->vui_param.colour_primaries = iColorDescId;
+  pSPS->vui_param.transfer_characteristics = iColorDescId;
+  pSPS->vui_param.matrix_coefficients = iColorDescId;
 
   // Timing information
   // When fixed_frame_rate_flag = 1, num_units_in_tick/time_scale should be equal to
   // a duration of one field both for progressive and interlaced sequences.
-  pSPS->vui_param.vui_timing_info_present_flag = iLayerId ? 0 : 1;
+  bool bWriteTimingInfo = (iLayerId == 0);
+  pSPS->vui_param.vui_timing_info_present_flag = bWriteTimingInfo ? 1 : 0;
   pSPS->vui_param.vui_num_units_in_tick = pChParam->tRCParam.uClkRatio;
   pSPS->vui_param.vui_time_scale = pChParam->tRCParam.uFrameRate * 1000;
 
@@ -932,11 +964,6 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
     AL_HEVC_UpdateHrdParameters(pSPS, &(pSPS->vui_param.hrd_param.vcl_sub_hrd_param), iCpbSize, pSettings);
 
   pSPS->vui_param.vui_hrd_parameters_present_flag = pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag + pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag;
-
-  // low Delay
-  pSPS->vui_param.hrd_param.low_delay_hrd_flag[0] = 0;
-
-  pSPS->vui_param.hrd_param.cpb_cnt_minus1[0] = 0;
 
   pSPS->vui_param.bitstream_restriction_flag = 1;
 
@@ -988,7 +1015,7 @@ void AL_AVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, int iM
 
   pPPS->deblocking_filter_control_present_flag = 1; // TDMB = 0;
 
-  pPPS->constrained_intra_pred_flag = pSettings->tChParam[0].eOptions & AL_OPT_CONST_INTRA_PRED ? 1 : 0;
+  pPPS->constrained_intra_pred_flag = pSettings->tChParam[0].eEncTools & AL_OPT_CONST_INTRA_PRED ? 1 : 0;
   pPPS->redundant_pic_cnt_present_flag = 0;
   pPPS->transform_8x8_mode_flag = pSettings->tChParam[0].uMaxTuSize > 2 ? 1 : 0;
   pPPS->pic_scaling_matrix_present_flag = 0;
@@ -1009,8 +1036,8 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
   pPPS->num_ref_idx_l0_default_active_minus1 = iMaxRef - 1;
   pPPS->num_ref_idx_l1_default_active_minus1 = iMaxRef - 1;
   pPPS->init_qp_minus26 = 0;
-  pPPS->constrained_intra_pred_flag = (pChParam->eOptions & AL_OPT_CONST_INTRA_PRED) ? 1 : 0;
-  pPPS->transform_skip_enabled_flag = (pChParam->eOptions & AL_OPT_TRANSFO_SKIP) ? 1 : 0;
+  pPPS->constrained_intra_pred_flag = (pChParam->eEncTools & AL_OPT_CONST_INTRA_PRED) ? 1 : 0;
+  pPPS->transform_skip_enabled_flag = (pChParam->eEncTools & AL_OPT_TRANSFO_SKIP) ? 1 : 0;
   pPPS->cu_qp_delta_enabled_flag = pSettings->eQpCtrlMode ||
                                    (pChParam->tRCParam.eRCMode == AL_RC_LOW_LATENCY) ||
                                    (pChParam->tRCParam.uMaxPictureSize > 0) ||
@@ -1027,15 +1054,15 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
   pPPS->weighted_pred_flag = 0; // not supported yet
   pPPS->weighted_bipred_flag = 0; // not supported yet
   pPPS->transquant_bypass_enabled_flag = 0; // not supported yet
-  pPPS->tiles_enabled_flag = (pChParam->eOptions & AL_OPT_TILE) ? 1 : 0;
-  pPPS->entropy_coding_sync_enabled_flag = (pChParam->eOptions & AL_OPT_WPP) ? 1 : 0;
+  pPPS->tiles_enabled_flag = (pChParam->eEncTools & AL_OPT_TILE) ? 1 : 0;
+  pPPS->entropy_coding_sync_enabled_flag = (pChParam->eEncTools & AL_OPT_WPP) ? 1 : 0;
 
   pPPS->uniform_spacing_flag = 1;
-  pPPS->loop_filter_across_tiles_enabled_flag = (pChParam->eOptions & AL_OPT_LF_X_TILE) ? 1 : 0;
+  pPPS->loop_filter_across_tiles_enabled_flag = (pChParam->eEncTools & AL_OPT_LF_X_TILE) ? 1 : 0;
 
-  pPPS->loop_filter_across_slices_enabled_flag = (pChParam->eOptions & AL_OPT_LF_X_SLICE) ? 1 : 0;
+  pPPS->loop_filter_across_slices_enabled_flag = (pChParam->eEncTools & AL_OPT_LF_X_SLICE) ? 1 : 0;
 
-  pPPS->deblocking_filter_control_present_flag = (!(pChParam->eOptions & AL_OPT_LF) || (pChParam->iBetaOffset || pChParam->iTcOffset)) ? 1 : 0;
+  pPPS->deblocking_filter_control_present_flag = (!(pChParam->eEncTools & AL_OPT_LF) || (pChParam->iBetaOffset || pChParam->iTcOffset)) ? 1 : 0;
 
 
   if(isGdrEnabled(pSettings))
@@ -1151,5 +1178,28 @@ void AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, bool b
     pPPS->pic_parameter_set_id = uNalID;
     pPPS->seq_parameter_set_id = uNalID;
   }
+}
+
+/***************************************************************************/
+int AL_H273_ColourDescToId(AL_EColourDescription colourDesc)
+{
+  switch(colourDesc)
+  {
+  case COLOUR_DESC_RESERVED_0: return 0;
+  case COLOUR_DESC_BT_709: return 1;
+  case COLOUR_DESC_SRGB: return 1;
+  case COLOUR_DESC_UNSPECIFIED: return 2;
+  case COLOUR_DESC_RESERVED_3: return 3;
+  case COLOUR_DESC_BT_470_NTSC: return 4;
+  case COLOUR_DESC_BT_470_PAL: return 5;
+  case COLOUR_DESC_BT_601: return 6;
+  case COLOUR_DESC_SMPTE_170M: return 6;
+  case COLOUR_DESC_SMPTE_240M: return 7;
+  case COLOUR_DESC_GENERIC_FILM: return 8;
+  case COLOUR_DESC_BT_2020: return 9;
+  case COLOUR_DESC_MAX_ENUM: assert(0);
+  }
+
+  return 2;
 }
 

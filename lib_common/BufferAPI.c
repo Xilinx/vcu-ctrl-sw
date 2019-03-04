@@ -150,7 +150,7 @@ void AL_Buffer_Destroy(AL_TBuffer* hBuf)
   assert(pBuf->iRefCount == 0);
 
   for(int i = 0; i < pBuf->iMetaCount; ++i)
-    pBuf->pMeta[i]->MetaDestroy(pBuf->pMeta[i]);
+    AL_MetaData_Destroy(pBuf->pMeta[i]);
 
   Rtos_Free(pBuf->pMeta);
   AL_Allocator_Free(hBuf->pAllocator, hBuf->hBuf);

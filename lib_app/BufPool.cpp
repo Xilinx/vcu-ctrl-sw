@@ -40,7 +40,6 @@ extern "C"
 {
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/Allocator.h"
-#include "BufferMetaFactory.h"
 }
 
 #include "BufPool.h"
@@ -81,7 +80,7 @@ static AL_TBuffer* CreateBuffer(AL_TBufPoolConfig& config, AL_TAllocator* pAlloc
   return pBuf;
 
   fail_buffer_add_meta:
-  pMeta->MetaDestroy(pMeta);
+  AL_MetaData_Destroy(pMeta);
   fail_meta_clone:
   AL_Buffer_Destroy(pBuf);
   fail_buffer_init:
@@ -151,7 +150,7 @@ void AL_BufPool_Deinit(AL_TBufPool* pBufPool)
   }
 
   if(pBufPool->config.pMetaData)
-    pBufPool->config.pMetaData->MetaDestroy(pBufPool->config.pMetaData);
+    AL_MetaData_Destroy(pBufPool->config.pMetaData);
   Fifo_Deinit(&pBufPool->fifo);
   Rtos_Free(pBufPool->pPool);
   Rtos_Memset(pBufPool, 0, sizeof(*pBufPool));

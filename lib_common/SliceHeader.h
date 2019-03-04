@@ -121,6 +121,19 @@ typedef struct t_AvcSliceHeader
   const AL_TAvcSps* pSPS;
 }AL_TAvcSliceHdr;
 
+typedef struct t_AvcHdrSvcExt // nal_unit_header_svc_extension
+{
+  uint8_t idr_flag;
+  uint8_t priority_id;
+  uint8_t no_inter_layer_pred_flag;
+  uint8_t dependency_id;
+  uint8_t quality_id;
+  uint8_t temporal_id;
+  uint8_t use_ref_base_pic_flag;
+  uint8_t discardable_flag;
+  uint8_t output_flag;
+}AL_TAvcHdrSvcExt;
+
 /*************************************************************************//*!
    \brief Mimics structure described in spec sec. 7.3.3
 *****************************************************************************/

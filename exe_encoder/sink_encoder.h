@@ -141,7 +141,7 @@ private:
     if(!bRet)
     {
       releaseBuffer(pQpBuf);
-      return nullptr;
+      throw std::runtime_error("Error loading external QP tables.");
     }
 
     return pQpBuf;
@@ -357,9 +357,9 @@ private:
     pThis->processOutput(pStream);
   }
 
-  void AddSei(AL_TBuffer* pStream, bool isPrefix, int payloadType, uint8_t* payload, int payloadSize)
+  void AddSei(AL_TBuffer* pStream, bool isPrefix, int payloadType, uint8_t* payload, int payloadSize, int tempId)
   {
-    int seiSection = AL_Encoder_AddSei(hEnc, pStream, isPrefix, payloadType, payload, payloadSize);
+    int seiSection = AL_Encoder_AddSei(hEnc, pStream, isPrefix, payloadType, payload, payloadSize, tempId);
 
     if(seiSection < 0)
       Message(CC_DEFAULT, "Failed to add dummy SEI (id:%d) \n", seiSection);
@@ -378,8 +378,9 @@ private:
       for(int i = 0; i < payloadSize; ++i)
         payload[i] = i;
 
-      AddSei(pStream, false, 15, payload, payloadSize);
-      AddSei(pStream, true, 18, payload, payloadSize);
+      AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
+      AddSei(pStream, false, 15, payload, payloadSize, pStreamMeta->uTemporalID);
+      AddSei(pStream, true, 18, payload, payloadSize, pStreamMeta->uTemporalID);
     }
 
     if(pStream && m_pictureType != -1)

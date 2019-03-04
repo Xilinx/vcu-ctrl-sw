@@ -155,6 +155,7 @@ typedef struct AL_t_EncPicStatus
   bool bIsLastSlice;
   int16_t iPpsQP;
   int iRecoveryCnt;
+  uint8_t uTempId;
 
   uint8_t uCuQpDeltaDepth;
 

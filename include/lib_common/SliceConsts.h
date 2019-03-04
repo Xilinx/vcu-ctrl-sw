@@ -276,6 +276,15 @@ typedef enum e_PicStruct
   PS_FRM_MAX_ENUM, /* sentinel */
 }AL_EPicStruct;
 
+/*****************************************************************************/
+static const uint8_t PicStructToFieldNumber[] =
+{
+  2,
+  1, 1, 2, 2, 3, 3,
+  4, 6,
+  1, 1, 1, 1,
+};
+
 /*************************************************************************//*!
    \brief chroma_format_idc
 *****************************************************************************/
@@ -335,6 +344,7 @@ typedef enum e_NalUnitType
   AL_AVC_NUT_EOB = 11,
   AL_AVC_NUT_FD = 12,
   AL_AVC_NUT_SPS_EXT = 13,
+  AL_AVC_NUT_PREFIX = 14,
   AL_AVC_NUT_SUB_SPS = 15,
   AL_AVC_NUT_SUFFIX_SEI = 24, /* nal_unit_type : [24..31] -> Content Unspecified */
   AL_AVC_NUT_ERR = 32,
@@ -381,21 +391,6 @@ typedef enum e_NalUnitType
   AL_HEVC_NUT_SUFFIX_SEI = 40,
   AL_HEVC_NUT_ERR = 64,
 }AL_ENut;
-
-/*************************************************************************//*!
-   \brief Color Space
-*****************************************************************************/
-typedef enum e_ColorSpace
-{
-  UNKNOWN = 0,
-  BT_601 = 1,  // YUV
-  BT_709 = 2,  // YUV
-  SMPTE_170 = 3,  // YUV
-  SMPTE_240 = 4,  // YUV
-  RESERVED_1 = 5,
-  RESERVED_2 = 6,
-  SRGB = 7 // RGB
-}AL_EColorSpace;
 
 /*************************************************************************//*!
    \brief VP9 interpolation filter

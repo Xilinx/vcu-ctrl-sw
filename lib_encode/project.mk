@@ -66,9 +66,11 @@ LIB_ENCODER_SRC:=\
 
 
 
-ifneq ($(ENABLE_STATIC),0)
-  $(warning the lib_ischeduler will be compiled in instead of being compiled as a library)
-  ENABLE_LIB_ISCHEDULER:=0
+ifneq ($(ENABLE_LIB_ISCHEDULER),0)
+  ifneq ($(ENABLE_STATIC),0)
+    $(warning the lib_ischeduler will be compiled in instead of being compiled as a library)
+    ENABLE_LIB_ISCHEDULER:=0
+  endif
 endif
 
 ifneq ($(ENABLE_LIB_ISCHEDULER),0)

@@ -38,22 +38,25 @@
 #pragma once
 
 #include "lib_bitstream/IRbspWriter.h"
+#include "lib_bitstream/SkippedPicture.h"
 #include "IP_Stream.h"
 
 typedef struct nalunit
 {
   void (* Write)(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param, int iLayerId);
-  void* param;
+  void const* param;
   int nut;
   int idc;
   int iLayerId;
+  int tempId;
   NalHeader header;
 }AL_NalUnit;
 
-AL_NalUnit AL_CreateAud(int nut, AL_ESliceType type);
-AL_NalUnit AL_CreateSps(int nut, AL_TSps* sps, int iLayerId);
-AL_NalUnit AL_CreatePps(int nut, AL_TPps* pps, int iLayerId);
-AL_NalUnit AL_CreateVps(AL_THevcVps* vps);
+AL_NalUnit AL_CreateAud(int nut, AL_ESliceType type, int tempId);
+AL_NalUnit AL_CreateSps(int nut, AL_TSps* sps, int iLayerId, int tempId);
+AL_NalUnit AL_CreatePps(int nut, AL_TPps* pps, int iLayerId, int tempId);
+AL_NalUnit AL_CreateVps(AL_THevcVps* vps, int tempId);
+AL_NalUnit AL_CreateSkip(int nut, AL_TSkippedPicture const* skip);
 
 #include "lib_common_enc/EncPicInfo.h"
 typedef struct t_SeiPrefixAPSCtx
@@ -62,7 +65,7 @@ typedef struct t_SeiPrefixAPSCtx
   AL_THevcVps* vps;
 }SeiPrefixAPSCtx;
 
-AL_NalUnit AL_CreateSeiPrefixAPS(SeiPrefixAPSCtx* ctx, int nut);
+AL_NalUnit AL_CreateSeiPrefixAPS(SeiPrefixAPSCtx* ctx, int nut, int tempId);
 
 typedef struct t_SeiPrefixCtx
 {
@@ -73,7 +76,7 @@ typedef struct t_SeiPrefixCtx
   AL_TEncPicStatus const* pPicStatus;
 }SeiPrefixCtx;
 
-AL_NalUnit AL_CreateSeiPrefix(SeiPrefixCtx* ctx, int nut);
+AL_NalUnit AL_CreateSeiPrefix(SeiPrefixCtx* ctx, int nut, int tempId);
 
 typedef struct t_SeiPrefixUDUCtx
 {
@@ -81,7 +84,7 @@ typedef struct t_SeiPrefixUDUCtx
   int8_t numSlices;
 }SeiPrefixUDUCtx;
 
-AL_NalUnit AL_CreateSeiPrefixUDU(SeiPrefixUDUCtx* ctx, int nut);
+AL_NalUnit AL_CreateSeiPrefixUDU(SeiPrefixUDUCtx* ctx, int nut, int tempId);
 
 typedef struct t_SeiExternalCtx
 {
@@ -90,5 +93,5 @@ typedef struct t_SeiExternalCtx
   int iPayloadSize;
 }SeiExternalCtx;
 
-AL_NalUnit AL_CreateExternalSei(SeiExternalCtx* ctx, int nut);
+AL_NalUnit AL_CreateExternalSei(SeiExternalCtx* ctx, int nut, int tempId);
 

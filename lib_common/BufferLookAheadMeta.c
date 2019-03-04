@@ -46,23 +46,6 @@ static bool LookAheadMeta_Destroy(AL_TMetaData* pMeta)
   return true;
 }
 
-AL_TLookAheadMetaData* AL_LookAheadMetaData_Create()
-{
-  AL_TLookAheadMetaData* pMeta;
-
-  pMeta = Rtos_Malloc(sizeof(*pMeta));
-
-  if(!pMeta)
-    return NULL;
-
-  pMeta->tMeta.eType = AL_META_TYPE_LOOKAHEAD;
-  pMeta->tMeta.MetaDestroy = LookAheadMeta_Destroy;
-
-  AL_LookAheadMetaData_Reset(pMeta);
-
-  return pMeta;
-}
-
 AL_TLookAheadMetaData* AL_LookAheadMetaData_Clone(AL_TLookAheadMetaData* pMeta)
 {
   if(!pMeta)
@@ -74,6 +57,29 @@ AL_TLookAheadMetaData* AL_LookAheadMetaData_Clone(AL_TLookAheadMetaData* pMeta)
     return NULL;
   AL_LookAheadMetaData_Copy(pMeta, pLookAheadMeta);
   return pLookAheadMeta;
+}
+
+static AL_TMetaData* clone(AL_TMetaData* pMeta)
+{
+  return (AL_TMetaData*)AL_LookAheadMetaData_Clone((AL_TLookAheadMetaData*)pMeta);
+}
+
+AL_TLookAheadMetaData* AL_LookAheadMetaData_Create()
+{
+  AL_TLookAheadMetaData* pMeta;
+
+  pMeta = Rtos_Malloc(sizeof(*pMeta));
+
+  if(!pMeta)
+    return NULL;
+
+  pMeta->tMeta.eType = AL_META_TYPE_LOOKAHEAD;
+  pMeta->tMeta.MetaDestroy = LookAheadMeta_Destroy;
+  pMeta->tMeta.MetaClone = clone;
+
+  AL_LookAheadMetaData_Reset(pMeta);
+
+  return pMeta;
 }
 
 void AL_LookAheadMetaData_Copy(AL_TLookAheadMetaData* pMetaSrc, AL_TLookAheadMetaData* pMetaDest)

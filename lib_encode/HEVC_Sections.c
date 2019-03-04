@@ -38,6 +38,15 @@
 #include "HEVC_Sections.h"
 #include "lib_bitstream/HEVC_RbspEncod.h"
 
+static NalHeader GetNalHeaderHevc(uint8_t uNUT, uint8_t uNalIdc, uint8_t uTempID)
+{
+  NalHeader nh;
+  nh.size = 2;
+  nh.bytes[0] = ((uNalIdc & 0x20) >> 5) | ((uNUT & 0x3F) << 1);
+  nh.bytes[1] = (uTempID + 1) | ((uNalIdc & 0x1F) << 3);
+  return nh;
+}
+
 Nuts CreateHevcNuts(void)
 {
   Nuts nuts =

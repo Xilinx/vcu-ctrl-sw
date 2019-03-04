@@ -233,6 +233,26 @@ static inline uint32_t AL_GetNumberOfRef(uint32_t HlsParam)
 *****************************************************************************/
 typedef enum __AL_ALIGNED__ (4) AL_e_ChEncOptions
 {
+  AL_OPT_QP_TAB_RELATIVE = 0x00000001,
+  AL_OPT_FIX_PREDICTOR = 0x00000002,
+  AL_OPT_CUSTOM_LDA = 0x00000004,
+  AL_OPT_ENABLE_AUTO_QP = 0x00000008,
+  AL_OPT_ADAPT_AUTO_QP = 0x00000010,
+  AL_OPT_FORCE_REC = 0x00000040,
+  AL_OPT_FORCE_MV_OUT = 0x00000080,
+  AL_OPT_LOWLAT_SYNC = 0x00000100,
+  AL_OPT_LOWLAT_INT = 0x00000200,
+  AL_OPT_HIGH_FREQ = 0x00002000,
+  AL_OPT_CROP = 0x00004000,
+  AL_OPT_FORCE_MV_CLIP = 0x00020000,
+  AL_OPT_RDO_COST_MODE = 0x00040000,
+} AL_EChEncOption;
+
+/*************************************************************************//*!
+   \brief Encoding tools enum
+*****************************************************************************/
+typedef enum __AL_ALIGNED__ (4) AL_e_ChEncTools
+{
   AL_OPT_WPP = 0x00000001,
   AL_OPT_TILE = 0x00000002,
   AL_OPT_LF = 0x00000004,
@@ -240,21 +260,8 @@ typedef enum __AL_ALIGNED__ (4) AL_e_ChEncOptions
   AL_OPT_LF_X_TILE = 0x00000010,
   AL_OPT_SCL_LST = 0x00000020,
   AL_OPT_CONST_INTRA_PRED = 0x00000040,
-  AL_OPT_QP_TAB_RELATIVE = 0x00000080,
-  AL_OPT_FIX_PREDICTOR = 0x00000100,
-  AL_OPT_CUSTOM_LDA = 0x00000200,
-  AL_OPT_ENABLE_AUTO_QP = 0x00000400,
-  AL_OPT_ADAPT_AUTO_QP = 0x00000800,
-  AL_OPT_TRANSFO_SKIP = 0x00002000,
-  AL_OPT_FORCE_REC = 0x00008000,
-  AL_OPT_FORCE_MV_OUT = 0x00010000,
-  AL_OPT_FORCE_MV_CLIP = 0x00020000,
-  AL_OPT_LOWLAT_SYNC = 0x00040000,
-  AL_OPT_LOWLAT_INT = 0x00080000,
-  AL_OPT_RDO_COST_MODE = 0x00100000,
-  AL_OPT_HIGH_FREQ = 0x08000000,
-  AL_OPT_CROP = 0x40000000,
-} AL_EChEncOption;
+  AL_OPT_TRANSFO_SKIP = 0x00000080,
+} AL_EChEncTool;
 
 /*************************************************************************//*!
    \brief Rate Control Mode
@@ -281,6 +288,7 @@ typedef enum __AL_ALIGNED__ (4) AL_e_RateCtrlOption
   AL_RC_OPT_SCN_CHG_RES = 0x00000001,
   AL_RC_OPT_DELAYED = 0x00000002,
   AL_RC_OPT_STATIC_SCENE = 0x00000004,
+  AL_RC_OPT_ENABLE_SKIP = 0x00000008,
   AL_RC_OPT_MAX_ENUM,
 } AL_ERateCtrlOption;
 
@@ -340,7 +348,6 @@ typedef struct AL_t_GopFrm
   uint8_t uType;
   uint8_t uTempId;
   uint8_t uIsRef;
-  int8_t iQpOffset;
   int16_t iPOC;
   int16_t iRefA;
   int16_t iRefB;
@@ -361,6 +368,7 @@ typedef AL_INTROSPECT (category = "debug") struct AL_t_GopParam
   bool bEnableLT;
   uint32_t uFreqLT;
   AL_EGdrMode eGdrMode;
+  int8_t tempDQP[4];
 }AL_TGopParam;
 
 /*************************************************************************//*!
@@ -424,7 +432,6 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   AL_EVideoMode eVideoMode;
   /* Encoding picture format */
   AL_EPicFormat ePicFormat;
-  AL_EColorSpace eColorSpace;
   AL_ESrcMode eSrcMode;
   /* Input picture bitdepth */
   uint8_t uSrcBitDepth;
@@ -438,7 +445,8 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   uint32_t uPpsParam;
 
   /* Encoding tools parameters */
-  AL_EChEncOption eOptions;
+  AL_EChEncOption eEncOptions;
+  AL_EChEncTool eEncTools;
   int8_t iBetaOffset;
   int8_t iTcOffset;
 
@@ -486,6 +494,7 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   AL_TGopParam tGopParam;
   bool bSubframeLatency;
   AL_ELdaCtrlMode eLdaCtrlMode;
+  int LdaFactors[6];
 
 } AL_TEncChanParam;
 

@@ -60,6 +60,7 @@ typedef enum
 
 typedef struct al_t_MetaData AL_TMetaData;
 typedef bool (* AL_FCN_MetaDestroy) (AL_TMetaData* pMeta);
+typedef AL_TMetaData* (* AL_FCN_MetaClone) (AL_TMetaData* pMeta);
 
 /*************************************************************************//*!
    \brief Metadatas are used to add useful informations to a buffer. The user
@@ -69,7 +70,18 @@ struct al_t_MetaData
 {
   AL_EMetaType eType; /*< tag of the metadata */
   AL_FCN_MetaDestroy MetaDestroy; /*< custom deleter */
+  AL_FCN_MetaClone MetaClone; /*< copy constructor */
 };
+
+static AL_INLINE AL_TMetaData* AL_MetaData_Clone(AL_TMetaData* pMeta)
+{
+  return pMeta->MetaClone(pMeta);
+}
+
+static AL_INLINE bool AL_MetaData_Destroy(AL_TMetaData* pMeta)
+{
+  return pMeta->MetaDestroy(pMeta);
+}
 
 /*@}*/
 

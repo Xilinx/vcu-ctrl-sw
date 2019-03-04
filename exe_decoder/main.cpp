@@ -323,7 +323,7 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addString("-crc_ip", &Config.sCrc, "Output crc file");
   opt.addFlag("-wpp", &Config.tDecSettings.bParallelWPP, "Wavefront parallelization processing activation");
   opt.addFlag("-lowlat", &Config.tDecSettings.bLowLat, "Low latency decoding activation");
-  opt.addFlag("--use-early-callback", &Config.tDecSettings.bUseEarlyCallback, "Low latency phase 2. Call end decoding at decoding launch. This only makes sense with special support for harware synchronization");
+  opt.addFlag("--use-early-callback", &Config.tDecSettings.bUseEarlyCallback, "Low latency phase 2. Call end decoding at decoding launch. This only makes sense with special support for hardware synchronization");
   opt.addInt("-ddrwidth", &Config.tDecSettings.uDDRWidth, "Width of DDR requests (16, 32, 64) (default: 32)");
   opt.addFlag("-nocache", &Config.tDecSettings.bDisableCache, "Inactivate the cache");
   opt.addOption("--raster", [&]()
@@ -856,7 +856,7 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
   unique_lock<mutex> lock(hMutex);
 
   AL_ERR err = AL_Decoder_GetFrameError(hDec, pFrame);
-  bool bExitError = err != AL_SUCCESS && err != AL_WARN_CONCEAL_DETECT;
+  bool bExitError = (err != AL_SUCCESS) && (err != AL_WARN_CONCEAL_DETECT);
 
   if(bExitError || isEOS(pFrame, pInfo))
   {
@@ -1265,8 +1265,9 @@ void SafeMain(int argc, char** argv)
   auto const uEnd = GetPerfTime();
 
   unique_lock<mutex> lock(display.hMutex);
+  auto eErr = AL_Decoder_GetLastError(hDec);
 
-  if(auto eErr = AL_Decoder_GetLastError(hDec))
+  if((eErr != AL_SUCCESS) && (eErr != AL_WARN_CONCEAL_DETECT))
     throw codec_error(eErr);
 
   if(!tDecodeParam.decodedFrames)

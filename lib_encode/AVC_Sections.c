@@ -38,6 +38,15 @@
 #include "AVC_Sections.h"
 #include "lib_bitstream/AVC_RbspEncod.h"
 
+NalHeader GetNalHeaderAvc(uint8_t uNUT, uint8_t uNalIdc, uint8_t uTempID)
+{
+  (void)uTempID;
+  NalHeader nh;
+  nh.size = 1;
+  nh.bytes[0] = ((uNalIdc & 0x03) << 5) | (uNUT & 0x1F);
+  return nh;
+}
+
 Nuts CreateAvcNuts(void)
 {
   Nuts nuts =

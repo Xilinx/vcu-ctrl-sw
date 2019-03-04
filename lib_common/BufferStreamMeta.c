@@ -47,21 +47,39 @@ static bool StreamMeta_Destroy(AL_TMetaData* pMeta)
   return true;
 }
 
+AL_TStreamMetaData* AL_StreamMetaData_Clone(AL_TStreamMetaData* pMeta)
+{
+  AL_TStreamMetaData* pNewMeta = AL_StreamMetaData_Create(pMeta->uMaxNumSection);
+  pNewMeta->uTemporalID = pMeta->uTemporalID;
+  pNewMeta->uMaxNumSection = pMeta->uMaxNumSection;
+  pNewMeta->uNumSection = pMeta->uNumSection;
+
+  for(uint16_t i = 0; i < pMeta->uNumSection; ++i)
+    pNewMeta->pSections[i] = pMeta->pSections[i];
+
+  return pNewMeta;
+}
+
+AL_TMetaData* StreamMeta_Clone(AL_TMetaData* pMeta)
+{
+  return (AL_TMetaData*)AL_StreamMetaData_Clone((AL_TStreamMetaData*)pMeta);
+}
+
 AL_TStreamMetaData* AL_StreamMetaData_Create(uint16_t uMaxNumSection)
 {
-  AL_TStreamMetaData* pMeta;
-
   if(uMaxNumSection == 0)
     return NULL;
 
-  pMeta = Rtos_Malloc(sizeof(*pMeta));
+  AL_TStreamMetaData* pMeta = Rtos_Malloc(sizeof(*pMeta));
 
   if(!pMeta)
     return NULL;
 
   pMeta->tMeta.eType = AL_META_TYPE_STREAM;
   pMeta->tMeta.MetaDestroy = StreamMeta_Destroy;
+  pMeta->tMeta.MetaClone = StreamMeta_Clone;
 
+  pMeta->uTemporalID = 0;
   pMeta->uMaxNumSection = uMaxNumSection;
   pMeta->uNumSection = 0;
 
@@ -75,11 +93,6 @@ AL_TStreamMetaData* AL_StreamMetaData_Create(uint16_t uMaxNumSection)
   fail_alloc_section:
   Rtos_Free(pMeta);
   return NULL;
-}
-
-AL_TStreamMetaData* AL_StreamMetaData_Clone(AL_TStreamMetaData* pMeta)
-{
-  return AL_StreamMetaData_Create(pMeta->uMaxNumSection);
 }
 
 static void SetSection(AL_TStreamSection* pSections, uint16_t uSectionID, uint32_t uOffset, uint32_t uLength, uint32_t uFlags)

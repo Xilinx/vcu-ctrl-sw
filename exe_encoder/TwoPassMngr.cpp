@@ -125,7 +125,7 @@ void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings)
 
   if(settings.bEnableFirstPassCrop)
   {
-    channel.eOptions = (AL_EChEncOption)(channel.eOptions | AL_OPT_CROP);
+    channel.eEncOptions = (AL_EChEncOption)(channel.eEncOptions | AL_OPT_CROP);
     channel.uNumSlices = 1;
   }
 }

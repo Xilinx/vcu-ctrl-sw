@@ -341,3 +341,20 @@
     -- Sync IP
     -- Several minors bugs
 
+2019-02-15 (v1.0.44)
+--------------------
+  Added Features :
+    -- Temporal layer ID insertion
+    -- Frame delta QP based on temporal ID
+    -- Lambda factor based on temporal ID
+    -- Colorimetry
+    -- Frame skipping support (rate control)
+
+  API:
+    -- Version of the API is now 0.12.0
+    -- Add a new encoder configuration parameter named tempDQP in the GopParam (in cfg: Gop.TempDQP [GOP])
+    -- Add a new encoder configuration parameter named LdaFactors in ChanParam (in cfg: LambdaFactors [SETTINGS])
+
+  Fixes :
+    -- Improve rate control on specific sequences
+    -- Several minors bugs

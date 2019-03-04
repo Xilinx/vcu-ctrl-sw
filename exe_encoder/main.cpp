@@ -966,7 +966,7 @@ void SafeMain(int argc, char** argv)
   SetMoreDefaults(cfg);
 
   if(!RecFileName.empty() || !cfg.RunInfo.sMd5Path.empty())
-    Settings.tChParam[0].eOptions = (AL_EChEncOption)(Settings.tChParam[0].eOptions | AL_OPT_FORCE_REC);
+    Settings.tChParam[0].eEncOptions = (AL_EChEncOption)(Settings.tChParam[0].eEncOptions | AL_OPT_FORCE_REC);
 
 
 

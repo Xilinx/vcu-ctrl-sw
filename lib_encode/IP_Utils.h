@@ -51,7 +51,6 @@
 
 #include "lib_common/PPS.h"
 
-typedef AL_TEncSliceStatus TStreamInfo;
 typedef struct AL_t_EncPicStatus AL_TEncPicStatus;
 
 /****************************************************************************/
@@ -89,6 +88,9 @@ static const int AL_BitPerPixelQP[36][2] = /* x1000 */
   { 504, 13 }, // {1300, 13}, //{2095, 13},
   { 551, 12 }, // {1447, 12}, //{2343, 12},
 };
+
+/****************************************************************************/
+int AL_H273_ColourDescToId(AL_EColourDescription colourDesc);
 
 /****************************************************************************/
 void AL_HEVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufEP);

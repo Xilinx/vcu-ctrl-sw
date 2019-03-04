@@ -85,7 +85,6 @@ typedef struct
   bool (* shouldReleaseSource)(AL_TEncPicStatus* pPicStatus);
   void (* preprocessEp1)(AL_TEncCtx* pCtx, TBufferEP* pEP1);
   void (* configureChannel)(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TEncSettings const* pSettings);
-  void (* generateSkippedPictureData)(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TSkippedPicture* pSkipPicture);
   void (* generateNals)(AL_TEncCtx* pCtx, int iLayerID, bool bWriteVps);
   void (* updateHlsAndWriteSections)(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, bool bResolutionChanged, uint8_t uNalID, AL_TBuffer* pStream, int iLayerID);
 }HighLevelEncoder;
@@ -104,7 +103,6 @@ typedef struct
   AL_TPps pps;
 
   AL_TSrcBufferChecker srcBufferChecker;
-  AL_TSkippedPicture pSkippedPicture;
   AL_TEncRequestInfo currentRequestInfo;
   TBufferEP tBufEP1;
 

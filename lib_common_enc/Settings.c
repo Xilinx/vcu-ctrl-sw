@@ -57,6 +57,7 @@
 #include "lib_common_enc/DPBConstraints.h"
 #include "lib_common/SEI.h"
 
+int LAMBDA_FACTORS[] = { 51, 90, 151, 151, 151, 151 }; // I, P, B(temporal id low to high)
 /***************************************************************************/
 static bool AL_sSettings_CheckProfile(AL_EProfile eProfile)
 {
@@ -583,7 +584,7 @@ void AL_Settings_SetDefaultRCParam(AL_TRCParam* pRCParam)
   pRCParam->eRCMode = AL_RC_CONST_QP;
   pRCParam->uTargetBitRate = 4000000;
   pRCParam->uMaxBitRate = 4000000;
-  pRCParam->iInitialQP = 30;
+  pRCParam->iInitialQP = -1;
   pRCParam->iMinQP = 0;
   pRCParam->iMaxQP = 51;
   pRCParam->uFrameRate = 30;
@@ -609,63 +610,66 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   assert(pSettings);
   Rtos_Memset(pSettings, 0, sizeof(*pSettings));
 
-  pSettings->tChParam[0].uWidth = 0;
-  pSettings->tChParam[0].uHeight = 0;
+  AL_TEncChanParam* pChan = &pSettings->tChParam[0];
+  pChan->uWidth = 0;
+  pChan->uHeight = 0;
 
-  pSettings->tChParam[0].eProfile = AL_PROFILE_HEVC_MAIN;
-  pSettings->tChParam[0].uLevel = 51;
-  pSettings->tChParam[0].uTier = 0; // MAIN_TIER
-  pSettings->tChParam[0].eOptions = AL_OPT_LF | AL_OPT_LF_X_SLICE | AL_OPT_LF_X_TILE;
-  pSettings->tChParam[0].eOptions |= AL_OPT_RDO_COST_MODE;
+  pChan->eProfile = AL_PROFILE_HEVC_MAIN;
+  pChan->uLevel = 51;
+  pChan->uTier = 0; // MAIN_TIER
+  pChan->eEncTools = AL_OPT_LF | AL_OPT_LF_X_SLICE | AL_OPT_LF_X_TILE;
+  pChan->eEncOptions |= AL_OPT_RDO_COST_MODE;
 
-  pSettings->tChParam[0].ePicFormat = AL_420_8BITS;
-  pSettings->tChParam[0].uSrcBitDepth = 8;
+  pChan->ePicFormat = AL_420_8BITS;
+  pChan->uSrcBitDepth = 8;
 
-  pSettings->tChParam[0].tGopParam.eMode = AL_GOP_MODE_DEFAULT;
-  pSettings->tChParam[0].tGopParam.uFreqIDR = 0x7FFFFFFF;
+  AL_TGopParam* pGop = &pChan->tGopParam;
+  pGop->eMode = AL_GOP_MODE_DEFAULT;
+  pGop->uFreqIDR = 0x7FFFFFFF;
+  pGop->uGopLength = 30;
+  Rtos_Memset(pGop->tempDQP, 0, sizeof(pGop->tempDQP));
 
-  pSettings->tChParam[0].tGopParam.uGopLength = 30;
-  pSettings->tChParam[0].tGopParam.eGdrMode = AL_GDR_OFF;
+  pGop->eGdrMode = AL_GDR_OFF;
 
-  AL_Settings_SetDefaultRCParam(&pSettings->tChParam[0].tRCParam);
+  AL_Settings_SetDefaultRCParam(&pChan->tRCParam);
 
-  pSettings->tChParam[0].iTcOffset = -1;
-  pSettings->tChParam[0].iBetaOffset = -1;
+  pChan->iTcOffset = -1;
+  pChan->iBetaOffset = -1;
 
-  pSettings->tChParam[0].eColorSpace = UNKNOWN;
-
-  pSettings->tChParam[0].uNumCore = NUMCORE_AUTO;
-  pSettings->tChParam[0].uNumSlices = 1;
+  pChan->uNumCore = NUMCORE_AUTO;
+  pChan->uNumSlices = 1;
 
   pSettings->uEnableSEI = SEI_NONE;
   pSettings->bEnableAUD = true;
   pSettings->bEnableFillerData = true;
   pSettings->eAspectRatio = AL_ASPECT_RATIO_AUTO;
-  pSettings->eColourDescription = COLOUR_DESC_BT_470_PAL;
+  pSettings->eColourDescription = COLOUR_DESC_BT_709;
 
   pSettings->eQpCtrlMode = UNIFORM_QP;// ADAPTIVE_AUTO_QP;
-  pSettings->tChParam[0].eLdaCtrlMode = AUTO_LDA;
+  pChan->eLdaCtrlMode = AUTO_LDA;
+  assert(sizeof(pChan->LdaFactors) == sizeof(LAMBDA_FACTORS));
+  Rtos_Memcpy(pChan->LdaFactors, LAMBDA_FACTORS, sizeof(LAMBDA_FACTORS));
 
   pSettings->eScalingList = AL_SCL_MAX_ENUM;
 
   pSettings->bForceLoad = true;
-  pSettings->tChParam[0].pMeRange[SLICE_P][0] = -1; // Horz
-  pSettings->tChParam[0].pMeRange[SLICE_P][1] = -1; // Vert
-  pSettings->tChParam[0].pMeRange[SLICE_B][0] = -1; // Horz
-  pSettings->tChParam[0].pMeRange[SLICE_B][1] = -1; // Vert
-  pSettings->tChParam[0].uMaxCuSize = 5; // 32x32
-  pSettings->tChParam[0].uMinCuSize = 3; // 8x8
-  pSettings->tChParam[0].uMaxTuSize = 5; // 32x32
-  pSettings->tChParam[0].uMinTuSize = 2; // 4x4
-  pSettings->tChParam[0].uMaxTransfoDepthIntra = 1;
-  pSettings->tChParam[0].uMaxTransfoDepthInter = 1;
+  pChan->pMeRange[SLICE_P][0] = -1; // Horz
+  pChan->pMeRange[SLICE_P][1] = -1; // Vert
+  pChan->pMeRange[SLICE_B][0] = -1; // Horz
+  pChan->pMeRange[SLICE_B][1] = -1; // Vert
+  pChan->uMaxCuSize = 5; // 32x32
+  pChan->uMinCuSize = 3; // 8x8
+  pChan->uMaxTuSize = 5; // 32x32
+  pChan->uMinTuSize = 2; // 4x4
+  pChan->uMaxTransfoDepthIntra = 1;
+  pChan->uMaxTransfoDepthInter = 1;
 
   pSettings->NumLayer = 1;
   pSettings->NumView = 1;
-  pSettings->tChParam[0].eEntropyMode = AL_MODE_CABAC;
-  pSettings->tChParam[0].eWPMode = AL_WP_DEFAULT;
+  pChan->eEntropyMode = AL_MODE_CABAC;
+  pChan->eWPMode = AL_WP_DEFAULT;
 
-  pSettings->tChParam[0].eSrcMode = AL_SRC_NVX;
+  pChan->eSrcMode = AL_SRC_NVX;
 
 
 
@@ -675,7 +679,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pSettings->bEnableFirstPassCrop = false;
 
 
-  pSettings->tChParam[0].eVideoMode = AL_VM_PROGRESSIVE;
+  pChan->eVideoMode = AL_VM_PROGRESSIVE;
 }
 
 /***************************************************************************/
@@ -810,7 +814,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     MSG("Invalid parameter : NumSlices");
   }
 
-  if(pChParam->eOptions & AL_OPT_WPP)
+  if(pChParam->eEncTools & AL_OPT_WPP)
   {
     if(pChParam->uNumSlices * iNumCore * iRound > pChParam->uHeight)
     {
@@ -820,7 +824,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   }
 
 
-  if(pChParam->eOptions & AL_OPT_FORCE_MV_CLIP)
+  if(pChParam->eEncOptions & AL_OPT_FORCE_MV_CLIP)
   {
     if(pSettings->uClipHrzRange < 64 || pSettings->uClipHrzRange > pChParam->uWidth)
     {
@@ -913,6 +917,12 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     {
       ++err;
       MSG("NumSlices must be a multiple of cores in subframe AVC encoding");
+    }
+
+    if((pChParam->tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL) && (AL_GET_PROFILE_IDC(pChParam->eProfile) == AL_GET_PROFILE_IDC(AL_PROFILE_AVC_BASELINE)))
+    {
+      ++err;
+      MSG("!! PYRAMIDAL GOP pattern doesn't allows baseline profile !!");
     }
   }
 
@@ -1114,6 +1124,7 @@ AL_EProfile getAvcMinimumProfile(int iBitDepth, AL_EChromaMode eChroma)
   return AL_PROFILE_AVC;
 }
 
+
 /***************************************************************************/
 int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pChParam, TFourCC tFourCC, FILE* pOut)
 {
@@ -1200,9 +1211,9 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
   AL_sCheckRange(&pChParam->pMeRange[SLICE_B][0], iMaxBRange, pOut);
   AL_sCheckRange(&pChParam->pMeRange[SLICE_B][1], iMaxBRange, pOut);
 
-  if((pChParam->uSliceSize > 0) && (pChParam->eOptions & AL_OPT_WPP))
+  if((pChParam->uSliceSize > 0) && (pChParam->eEncTools & AL_OPT_WPP))
   {
-    pChParam->eOptions &= ~AL_OPT_WPP;
+    pChParam->eEncTools &= ~AL_OPT_WPP;
     MSG("!! Wavefront Parallel Processing is not allowed with SliceSize; it will be adjusted!!");
     ++numIncoherency;
   }
@@ -1222,8 +1233,8 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     pChParam->uMaxTuSize = 3;
     pChParam->iCbSliceQpOffset = pChParam->iCrSliceQpOffset = 0;
 
-    if(pChParam->eOptions & AL_OPT_WPP)
-      pChParam->eOptions &= ~AL_OPT_WPP;
+    if(pChParam->eEncTools & AL_OPT_WPP)
+      pChParam->eEncTools &= ~AL_OPT_WPP;
 
     if(pChParam->uMaxCuSize != 4 || pChParam->uMinCuSize != 3)
     {
@@ -1437,7 +1448,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
 
   if(pChParam->tGopParam.eGdrMode == AL_GDR_VERTICAL)
-    pChParam->eOptions |= AL_OPT_CONST_INTRA_PRED;
+    pChParam->eEncTools |= AL_OPT_CONST_INTRA_PRED;
 
   if(pChParam->eVideoMode != AL_VM_PROGRESSIVE)
   {
@@ -1460,6 +1471,23 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
 
 
+  AL_TEncChanParam* pChan = &pSettings->tChParam[0];
+
+  if(pChan->eLdaCtrlMode != DEFAULT_LDA && pChan->eLdaCtrlMode != DYNAMIC_LDA && pChan->eLdaCtrlMode != AUTO_LDA)
+  {
+    for(int i = 0; i < (int)(sizeof(LAMBDA_FACTORS) / sizeof(LAMBDA_FACTORS[0])); ++i)
+    {
+      if(pChan->LdaFactors[i] != LAMBDA_FACTORS[i])
+      {
+        MSG("Specifing LambdaFactors with this lambda control mode has no effect !");
+        ++numIncoherency;
+        break;
+      }
+    }
+  }
+
+  if(pChParam->tRCParam.eRCMode == AL_RC_CONST_QP && pChParam->tRCParam.iInitialQP < 0)
+    pChParam->tRCParam.iInitialQP = 30;
   return numIncoherency;
 }
 

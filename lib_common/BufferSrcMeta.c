@@ -45,6 +45,21 @@ static bool SrcMeta_Destroy(AL_TMetaData* pMeta)
   return true;
 }
 
+AL_TSrcMetaData* AL_SrcMetaData_Clone(AL_TSrcMetaData* pMeta)
+{
+  AL_TSrcMetaData* pClone = AL_SrcMetaData_Create(pMeta->tDim, pMeta->tPlanes[AL_PLANE_Y], pMeta->tPlanes[AL_PLANE_UV], pMeta->tFourCC);
+
+  for(int iId = AL_PLANE_MAP_Y; iId < AL_PLANE_MAX_ENUM; ++iId)
+    AL_SrcMetaData_AddPlane(pClone, pMeta->tPlanes[iId], iId);
+
+  return pClone;
+}
+
+static AL_TMetaData* SrcMeta_Clone(AL_TMetaData* pMeta)
+{
+  return (AL_TMetaData*)AL_SrcMetaData_Clone((AL_TSrcMetaData*)pMeta);
+}
+
 void AL_SrcMetaData_AddPlane(AL_TSrcMetaData* pMeta, AL_TPlane tPlane, AL_EPlaneId ePlaneId)
 {
   pMeta->tPlanes[ePlaneId] = tPlane;
@@ -59,6 +74,7 @@ AL_TSrcMetaData* AL_SrcMetaData_CreateEmpty(TFourCC tFourCC)
 
   pMeta->tMeta.eType = AL_META_TYPE_SOURCE;
   pMeta->tMeta.MetaDestroy = SrcMeta_Destroy;
+  pMeta->tMeta.MetaClone = SrcMeta_Clone;
 
   pMeta->tDim.iWidth = 0;
   pMeta->tDim.iHeight = 0;
@@ -86,16 +102,6 @@ AL_TSrcMetaData* AL_SrcMetaData_Create(AL_TDimension tDim, AL_TPlane tYPlane, AL
   AL_SrcMetaData_AddPlane(pMeta, tUVPlane, AL_PLANE_UV);
 
   return pMeta;
-}
-
-AL_TSrcMetaData* AL_SrcMetaData_Clone(AL_TSrcMetaData* pMeta)
-{
-  AL_TSrcMetaData* pClone = AL_SrcMetaData_Create(pMeta->tDim, pMeta->tPlanes[AL_PLANE_Y], pMeta->tPlanes[AL_PLANE_UV], pMeta->tFourCC);
-
-  for(int iId = AL_PLANE_MAP_Y; iId < AL_PLANE_MAX_ENUM; ++iId)
-    AL_SrcMetaData_AddPlane(pClone, pMeta->tPlanes[iId], iId);
-
-  return pClone;
 }
 
 int AL_SrcMetaData_GetOffsetY(AL_TSrcMetaData* pMeta)

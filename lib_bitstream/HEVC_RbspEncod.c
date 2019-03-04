@@ -50,9 +50,9 @@
 #include "lib_common/ScalingList.h"
 
 /******************************************************************************/
-static void writeSublayer(AL_TBitStreamLite* pBS, AL_THrdParam const* pHrd, AL_TSubHrdParam const* pSubHrd, uint8_t uLayer)
+static void writeSublayer(AL_TBitStreamLite* pBS, AL_THrdParam const* pHrd, AL_TSubHrdParam const* pSubHrd, int CpbCnt)
 {
-  for(int iIdx = 0; iIdx <= uLayer; ++iIdx)
+  for(int iIdx = 0; iIdx <= CpbCnt; ++iIdx)
   {
     AL_BitStreamLite_PutUE(pBS, pSubHrd->bit_rate_value_minus1[iIdx]);
     AL_BitStreamLite_PutUE(pBS, pSubHrd->cpb_size_value_minus1[iIdx]);
@@ -67,7 +67,7 @@ static void writeSublayer(AL_TBitStreamLite* pBS, AL_THrdParam const* pHrd, AL_T
 }
 
 /******************************************************************************/
-static void writeHrdParam(AL_TBitStreamLite* pBS, AL_THrdParam const* pHrd, uint8_t uCommonInfoFlag, uint8_t uMaxLayersMinus1)
+static void writeHrdParam(AL_TBitStreamLite* pBS, AL_THrdParam const* pHrd, uint8_t uCommonInfoFlag, uint8_t uMaxSubLayersMinus1)
 {
   if(uCommonInfoFlag)
   {
@@ -96,26 +96,26 @@ static void writeHrdParam(AL_TBitStreamLite* pBS, AL_THrdParam const* pHrd, uint
     }
   }
 
-  for(int iLayer = 0; iLayer <= uMaxLayersMinus1; ++iLayer)
+  for(int iSubLayer = 0; iSubLayer <= uMaxSubLayersMinus1; ++iSubLayer)
   {
-    AL_BitStreamLite_PutBit(pBS, pHrd->fixed_pic_rate_general_flag[iLayer]);
+    AL_BitStreamLite_PutBit(pBS, pHrd->fixed_pic_rate_general_flag[iSubLayer]);
 
-    if(!pHrd->fixed_pic_rate_general_flag[iLayer])
-      AL_BitStreamLite_PutBit(pBS, pHrd->fixed_pic_rate_within_cvs_flag[iLayer]);
+    if(!pHrd->fixed_pic_rate_general_flag[iSubLayer])
+      AL_BitStreamLite_PutBit(pBS, pHrd->fixed_pic_rate_within_cvs_flag[iSubLayer]);
 
-    if(pHrd->fixed_pic_rate_within_cvs_flag[iLayer])
-      AL_BitStreamLite_PutUE(pBS, pHrd->elemental_duration_in_tc_minus1[iLayer]);
+    if(pHrd->fixed_pic_rate_within_cvs_flag[iSubLayer])
+      AL_BitStreamLite_PutUE(pBS, pHrd->elemental_duration_in_tc_minus1[iSubLayer]);
     else
-      AL_BitStreamLite_PutBit(pBS, pHrd->low_delay_hrd_flag[iLayer]);
+      AL_BitStreamLite_PutBit(pBS, pHrd->low_delay_hrd_flag[iSubLayer]);
 
-    if(!pHrd->low_delay_hrd_flag[iLayer])
-      AL_BitStreamLite_PutUE(pBS, pHrd->cpb_cnt_minus1[iLayer]);
+    if(!pHrd->low_delay_hrd_flag[iSubLayer])
+      AL_BitStreamLite_PutUE(pBS, pHrd->cpb_cnt_minus1[iSubLayer]);
 
     if(pHrd->nal_hrd_parameters_present_flag)
-      writeSublayer(pBS, pHrd, &pHrd->nal_sub_hrd_param, iLayer);
+      writeSublayer(pBS, pHrd, &pHrd->nal_sub_hrd_param, pHrd->cpb_cnt_minus1[iSubLayer]);
 
     if(pHrd->vcl_hrd_parameters_present_flag)
-      writeSublayer(pBS, pHrd, &pHrd->vcl_sub_hrd_param, iLayer);
+      writeSublayer(pBS, pHrd, &pHrd->vcl_sub_hrd_param, pHrd->cpb_cnt_minus1[iSubLayer]);
   }
 }
 
@@ -720,18 +720,21 @@ static void writeSeiBufferingPeriod(AL_TBitStreamLite* pBS, AL_TSps const* pISps
   if(!pSps->vui_param.hrd_param.sub_pic_hrd_params_present_flag)
     AL_BitStreamLite_PutU(pBS, 1, uIRAPCpbParamsPresentFLag);
 
+  int const inferred_au_cpb_removal_delay_length_minus1 = 23;
+  int au_cpb_removal_delay_length_minus1 = pSps->vui_param.vui_hrd_parameters_present_flag ? pSps->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 : inferred_au_cpb_removal_delay_length_minus1;
+
   if(uIRAPCpbParamsPresentFLag)
   {
     uint32_t uCpbDelayOffset = 0;
-    AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 + 1, uCpbDelayOffset);
+    AL_BitStreamLite_PutU(pBS, au_cpb_removal_delay_length_minus1 + 1, uCpbDelayOffset);
     uint32_t uDpbDelayOffset = 0;
-    AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 + 1, uDpbDelayOffset);
+    AL_BitStreamLite_PutU(pBS, au_cpb_removal_delay_length_minus1 + 1, uDpbDelayOffset);
   }
 
   uint8_t uConcatenationFlag = 0;
   AL_BitStreamLite_PutU(pBS, 1, uConcatenationFlag);
   uint32_t uAuCpbRemovalDelayDelta = 1;
-  AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 + 1, uAuCpbRemovalDelayDelta - 1);
+  AL_BitStreamLite_PutU(pBS, au_cpb_removal_delay_length_minus1 + 1, uAuCpbRemovalDelayDelta - 1);
 
   uint32_t iInitialAltCpbRemovalDelay = 0;
   uint32_t iInitialAltCpbRemovalOffset = 0;

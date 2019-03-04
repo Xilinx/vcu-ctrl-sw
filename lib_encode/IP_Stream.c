@@ -46,25 +46,6 @@
 #include "lib_rtos/lib_rtos.h"
 
 /****************************************************************************/
-NalHeader GetNalHeaderHevc(uint8_t uNUT, uint8_t uNalIdc)
-{
-  NalHeader nh;
-  nh.size = 2;
-  nh.bytes[0] = ((uNalIdc & 0x20) >> 5) | ((uNUT & 0x3F) << 1);
-  nh.bytes[1] = 1 | ((uNalIdc & 0x1F) << 3);
-  return nh;
-}
-
-/****************************************************************************/
-NalHeader GetNalHeaderAvc(uint8_t uNUT, uint8_t uNalIdc)
-{
-  NalHeader nh;
-  nh.size = 1;
-  nh.bytes[0] = ((uNalIdc & 0x03) << 5) | (uNUT & 0x1F);
-  return nh;
-}
-
-/****************************************************************************/
 static void writeByte(AL_TBitStreamLite* pStream, uint8_t uByte)
 {
   AL_BitStreamLite_PutBits(pStream, 8, uByte);
@@ -102,7 +83,7 @@ static void AntiEmul(AL_TBitStreamLite* pStream, uint8_t const* pData, int iNumB
 
 static void writeStartCode(AL_TBitStreamLite* pStream, int nut)
 {
-#if !__ANDROID_API__
+#if !(defined(ANDROID) || defined(__ANDROID_API__))
 
   // If this is a SPS, a PPS, an Access Unit or a SEI, add an extra zero_byte (spec. B.1.2).
   if((nut >= AL_AVC_NUT_PREFIX_SEI && nut <= AL_AVC_NUT_SUB_SPS) ||

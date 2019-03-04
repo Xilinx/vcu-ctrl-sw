@@ -51,21 +51,13 @@ static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicSt
   if(pPicStatus->eType == SLICE_I)
     pCtx->seiData.cpbRemovalDelay = 0;
 
-  pCtx->seiData.cpbRemovalDelay += PictureDisplayToFieldNumber[pPicStatus->ePicStruct];
+  pCtx->seiData.cpbRemovalDelay += PicStructToFieldNumber[pPicStatus->ePicStruct];
 }
 
 static bool shouldReleaseSource(AL_TEncPicStatus* p)
 {
   (void)p;
   return true;
-}
-
-/***************************************************************************/
-static void GenerateSkippedPictureData(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TSkippedPicture* pSkipPicture)
-{
-  (void)pChParam;
-  AL_Common_Encoder_InitSkippedPicture(pSkipPicture);
-  AL_AVC_GenerateSkippedPicture(pSkipPicture, pCtx->iNumLCU, true, 0);
 }
 
 /****************************************************************************/
@@ -158,7 +150,7 @@ static void ConfigureChannel(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TE
   ComputeQPInfo(pCtx, pChParam);
 
   if(pSettings->eScalingList != AL_SCL_FLAT)
-    pChParam->eOptions |= AL_OPT_SCL_LST;
+    pChParam->eEncTools |= AL_OPT_SCL_LST;
 
 }
 
@@ -173,7 +165,6 @@ void AL_CreateAvcEncoder(HighLevelEncoder* pCtx)
   pCtx->shouldReleaseSource = &shouldReleaseSource;
   pCtx->preprocessEp1 = &preprocessEp1;
   pCtx->configureChannel = &ConfigureChannel;
-  pCtx->generateSkippedPictureData = &GenerateSkippedPictureData;
   pCtx->generateNals = &generateNals;
   pCtx->updateHlsAndWriteSections = &updateHlsAndWriteSections;
 }

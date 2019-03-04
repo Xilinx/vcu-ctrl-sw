@@ -258,6 +258,31 @@ static T parseArithmetic(std::deque<Token>& tokens)
 }
 
 template<typename T>
+std::vector<T> parseArray(std::deque<Token>& tokens, size_t expectedSize)
+{
+  std::vector<T> array;
+  int sign = 1;
+
+  for(auto& token : tokens)
+  {
+    if(token.type == TokenType::Minus)
+      sign = -1;
+
+    else if(isNumber(token))
+    {
+      array.push_back(sign * get<T>(createArithToken(token, T {}, false)));
+      sign = 1;
+    }
+    else
+      throw TokenError(token, "Array doesn't support special character " + toString(token.type));
+  }
+
+  if(array.size() != expectedSize)
+    throw std::runtime_error("Array doesn't fit expected size, require " + std::to_string(expectedSize) + " elements");
+  return array;
+}
+
+template<typename T>
 static void resetFlag(T* bitfield, uint32_t uFlag)
 {
   *bitfield = (T)((uint32_t)*bitfield & ~uFlag);
@@ -461,6 +486,21 @@ struct ConfigParser
       [&](std::deque<Token>& tokens)
       {
         t = parsePath(tokens);
+      }, name, desc
+    };
+  }
+
+  template<typename T, size_t arraySize>
+  void addArray(Section section, char const* name, T(&t)[arraySize], std::string desc = "no description")
+  {
+    identifiers[section][tolowerStr(name)] =
+    {
+      [&](std::deque<Token>& tokens)
+      {
+        auto array = parseArray<T>(tokens, arraySize);
+
+        for(auto i = 0; i < (int)arraySize; ++i)
+          t[i] = array[i];
       }, name, desc
     };
   }

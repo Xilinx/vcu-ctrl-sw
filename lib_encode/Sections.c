@@ -166,21 +166,21 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
     int nalsCount = 0;
 
     if(nalsData->shouldWriteAud)
-      nals[nalsCount++] = AL_CreateAud(nuts.audNut, pPicStatus->eType);
+      nals[nalsCount++] = AL_CreateAud(nuts.audNut, pPicStatus->eType, pPicStatus->uTempId);
 
     if(pPicStatus->bIsIDR || pPicStatus->iRecoveryCnt)
     {
       if(writer->WriteVPS)
-        nals[nalsCount++] = AL_CreateVps(nalsData->vps);
+        nals[nalsCount++] = AL_CreateVps(nalsData->vps, pPicStatus->uTempId);
 
       for(int i = 0; i < iLayersCount; i++)
-        nals[nalsCount++] = AL_CreateSps(nuts.spsNut, nalsData->sps[i], i);
+        nals[nalsCount++] = AL_CreateSps(nuts.spsNut, nalsData->sps[i], i, pPicStatus->uTempId);
     }
 
     if(pPicStatus->eType == SLICE_I || pPicStatus->iRecoveryCnt)
     {
       for(int i = 0; i < iLayersCount; i++)
-        nals[nalsCount++] = AL_CreatePps(nuts.ppsNut, nalsData->pps[i], i);
+        nals[nalsCount++] = AL_CreatePps(nuts.ppsNut, nalsData->pps[i], i, pPicStatus->uTempId);
     }
 
     SeiPrefixAPSCtx seiPrefixAPSCtx;
@@ -197,25 +197,25 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
       if(uFlags & (SEI_BP | SEI_PT) && writer->WriteSEI_ActiveParameterSets)
       {
         seiPrefixAPSCtx = createSeiPrefixAPSCtx(nalsData->sps[0], nalsData->vps);
-        nals[nalsCount++] = AL_CreateSeiPrefixAPS(&seiPrefixAPSCtx, nuts.seiPrefixNut);
+        nals[nalsCount++] = AL_CreateSeiPrefixAPS(&seiPrefixAPSCtx, nuts.seiPrefixNut, pPicStatus->uTempId);
       }
 
       if(uFlags)
       {
         seiPrefixCtx = createSeiPrefixCtx(nalsData->sps[0], nalsData->seiData->initialCpbRemovalDelay, nalsData->seiData->cpbRemovalDelay, pPicStatus, uFlags);
-        nals[nalsCount++] = AL_CreateSeiPrefix(&seiPrefixCtx, nuts.seiPrefixNut);
+        nals[nalsCount++] = AL_CreateSeiPrefix(&seiPrefixCtx, nuts.seiPrefixNut, pPicStatus->uTempId);
       }
 
 
       if(nalsData->seiFlags & SEI_UDU)
       {
         seiPrefixUDUCtx = createSeiPrefixUDUCtx(iNumSlices);
-        nals[nalsCount++] = AL_CreateSeiPrefixUDU(&seiPrefixUDUCtx, nuts.seiPrefixNut);
+        nals[nalsCount++] = AL_CreateSeiPrefixUDU(&seiPrefixUDUCtx, nuts.seiPrefixNut, pPicStatus->uTempId);
       }
     }
 
     for(int i = 0; i < nalsCount; i++)
-      nals[i].header = nuts.GetNalHeader(nals[i].nut, nals[i].idc);
+      nals[i].header = nuts.GetNalHeader(nals[i].nut, nals[i].idc, nals[i].tempId);
 
     GenerateConfigNalUnits(writer, nals, nalsCount, pStream);
   }
@@ -238,7 +238,7 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
   if(shouldWriteFiller)
   {
     int iBookmark = AL_BitStreamLite_GetBitsCount(&bs);
-    WriteFillerData(&bs, nuts.fdNut, nuts.GetNalHeader(nuts.fdNut, 0), pPicStatus->iFiller);
+    WriteFillerData(&bs, nuts.fdNut, nuts.GetNalHeader(nuts.fdNut, 0, pPicStatus->uTempId), pPicStatus->iFiller);
     int iWritten = (AL_BitStreamLite_GetBitsCount(&bs) - iBookmark) / 8;
 
     if(iWritten < pPicStatus->iFiller)
@@ -264,11 +264,11 @@ static SeiExternalCtx createExternalSeiCtx(uint8_t* pPayload, int iPayloadType, 
 
 #include "lib_common/Utils.h" // For Min
 
-static int createExternalSei(Nuts nuts, AL_TBuffer* pStream, uint32_t uOffset, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize)
+static int createExternalSei(Nuts nuts, AL_TBuffer* pStream, uint32_t uOffset, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId)
 {
   SeiExternalCtx ctx = createExternalSeiCtx(pPayload, iPayloadType, iPayloadSize);
-  AL_NalUnit nal = AL_CreateExternalSei(&ctx, isPrefix ? nuts.seiPrefixNut : nuts.seiSuffixNut);
-  nal.header = nuts.GetNalHeader(nal.nut, nal.idc);
+  AL_NalUnit nal = AL_CreateExternalSei(&ctx, isPrefix ? nuts.seiPrefixNut : nuts.seiSuffixNut, iTempId);
+  nal.header = nuts.GetNalHeader(nal.nut, nal.idc, nal.tempId);
 
   AL_TBitStreamLite bitstream;
   int bitstreamSize = Min(ENC_MAX_SEI_SIZE, pStream->zSize);
@@ -287,7 +287,7 @@ uint32_t getUserSeiPrefixOffset(AL_TStreamMetaData* pStreamMeta)
   return lastSeiPrefixSection.uOffset + lastSeiPrefixSection.uLength;
 }
 
-int AL_WriteSeiSection(Nuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize)
+int AL_WriteSeiSection(Nuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId)
 {
   AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
   assert(pMetaData);
@@ -295,7 +295,7 @@ int AL_WriteSeiSection(Nuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPaylo
 
   uint32_t uOffset = isPrefix ? getUserSeiPrefixOffset(pMetaData) : AL_StreamMetaData_GetUnusedStreamPart(pMetaData);
 
-  int iTotalSize = createExternalSei(nuts, pStream, uOffset, isPrefix, iPayloadType, pPayload, iPayloadSize);
+  int iTotalSize = createExternalSei(nuts, pStream, uOffset, isPrefix, iPayloadType, pPayload, iPayloadSize, iTempId);
 
   if(iTotalSize < 0)
     return -1;

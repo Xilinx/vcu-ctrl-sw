@@ -87,6 +87,7 @@ typedef struct AL_t_PictureInfo
   AL_ESliceType eType;
   AL_EPicStruct ePicStruct;
   AL_EMarkingRef eMarking;
+  uint8_t uTempId;
 
   bool bForceLT[2]; /*!< Specifies if a following reference picture need to be markes as long-term */
 

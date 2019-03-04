@@ -108,16 +108,6 @@ static void releaseSource(AL_TEncCtx* pCtx, AL_TBuffer* pSrc, AL_TFrameInfo* pFI
 
 }
 
-/***************************************************************************/
-static void AL_sEncoder_DestroySkippedPictureData(AL_TSkippedPicture* pSkipPicture)
-{
-  Rtos_Free(pSkipPicture->pBuffer);
-  pSkipPicture->pBuffer = NULL;
-  pSkipPicture->iBufSize = 0;
-  pSkipPicture->iNumBits = 0;
-  pSkipPicture->iNumBins = 0;
-}
-
 /****************************************************************************/
 static bool AL_Common_Encoder_InitBuffers(AL_TEncCtx* pCtx, AL_TAllocator* pAllocator, TBufferEP* pBufEP1)
 {
@@ -536,8 +526,8 @@ static void SetGoldenRefFrequency(AL_TEncChanParam* pChParam)
 static AL_TEncChanParam* TransferChannelParameters(AL_TEncSettings const* pSettings, AL_TEncChanParam* pChParamOut)
 {
 
-  pChParamOut->uClipHrzRange = (pChParamOut->eOptions & AL_OPT_FORCE_MV_CLIP) ? pSettings->uClipHrzRange : 0;
-  pChParamOut->uClipVrtRange = (pChParamOut->eOptions & AL_OPT_FORCE_MV_CLIP) ? pSettings->uClipVrtRange : 0;
+  pChParamOut->uClipHrzRange = (pChParamOut->eEncOptions & AL_OPT_FORCE_MV_CLIP) ? pSettings->uClipHrzRange : 0;
+  pChParamOut->uClipVrtRange = (pChParamOut->eEncOptions & AL_OPT_FORCE_MV_CLIP) ? pSettings->uClipVrtRange : 0;
 
   pChParamOut->uL2PrefetchMemSize = pSettings->iPrefetchLevel2;
   pChParamOut->uL2PrefetchMemOffset = 0;
@@ -545,18 +535,18 @@ static AL_TEncChanParam* TransferChannelParameters(AL_TEncSettings const* pSetti
   // Update Auto QP param -------------------------------------------
   if(pSettings->eQpCtrlMode & MASK_AUTO_QP)
   {
-    pChParamOut->eOptions |= AL_OPT_ENABLE_AUTO_QP;
+    pChParamOut->eEncOptions |= AL_OPT_ENABLE_AUTO_QP;
 
     if(pSettings->eQpCtrlMode & ADAPTIVE_AUTO_QP)
-      pChParamOut->eOptions |= AL_OPT_ADAPT_AUTO_QP;
+      pChParamOut->eEncOptions |= AL_OPT_ADAPT_AUTO_QP;
   }
 
   // Update QP table param -------------------------------------------
   if(pSettings->eQpCtrlMode & RELATIVE_QP)
-    pChParamOut->eOptions |= AL_OPT_QP_TAB_RELATIVE;
+    pChParamOut->eEncOptions |= AL_OPT_QP_TAB_RELATIVE;
 
   pChParamOut->eLdaCtrlMode = GetFinalLdaMode(pChParamOut);
-  pChParamOut->eOptions |= AL_OPT_CUSTOM_LDA;
+  pChParamOut->eEncOptions |= AL_OPT_CUSTOM_LDA;
 
   SetGoldenRefFrequency(pChParamOut);
   return pChParamOut;
@@ -662,10 +652,7 @@ static void destroy(AL_TEncCtx* pCtx)
   Rtos_DeleteSemaphore(pCtx->PendingEncodings);
 
   for(int i = 0; i < pCtx->Settings.NumLayer; ++i)
-  {
-    AL_sEncoder_DestroySkippedPictureData(&pCtx->tLayerCtx[i].pSkippedPicture);
     AL_Common_Encoder_DeinitBuffers(&pCtx->tLayerCtx[i]);
-  }
 
   DeinitPoolIds(pCtx);
 }
@@ -895,18 +882,6 @@ NalsData AL_ExtractNalsData(AL_TEncCtx* pCtx, int iLayerID)
 }
 
 /****************************************************************************/
-void AL_Common_Encoder_InitSkippedPicture(AL_TSkippedPicture* pSkipPicture)
-{
-  pSkipPicture->pBuffer = (uint8_t*)Rtos_Malloc(2 * 1024);
-
-  assert(pSkipPicture->pBuffer);
-
-  pSkipPicture->iBufSize = 2 * 1024;
-  pSkipPicture->iNumBits = 0;
-  pSkipPicture->iNumBins = 0;
-}
-
-/****************************************************************************/
 static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U streamUserPtr)
 {
   AL_TCbUserParam* pCbUserParam = (AL_TCbUserParam*)pUserParam;
@@ -938,13 +913,17 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
   bResolutionChanged = pFI->bResolutionChanged;
   uNewNalsId = pFI->uNewNalsId;
 
-  if(!(pPicStatus->eErrorCode & AL_ERROR || pPicStatus->bSkip))
+  if(!(pPicStatus->eErrorCode & AL_ERROR))
     pCtx->encoder.updateHlsAndWriteSections(pCtx, pPicStatus, bResolutionChanged, uNewNalsId, pStream, iLayerID);
 
   AL_TPictureMetaData* pPictureMeta = (AL_TPictureMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_PICTURE);
 
   if(pPictureMeta)
     pPictureMeta->eType = pPicStatus->eType;
+
+  AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
+  assert(pStreamMeta);
+  pStreamMeta->uTemporalID = pPicStatus->uTempId;
 
   AL_TBuffer* pSrc = (AL_TBuffer*)(uintptr_t)pPicStatus->SrcHandle;
 
@@ -1031,7 +1010,6 @@ AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncCtx* pCtx, TScheduler* pScheduler,
   }
 
 
-  pCtx->encoder.generateSkippedPictureData(pCtx, pChParam, &pCtx->tLayerCtx[0].pSkippedPicture);
   pCtx->PendingEncodings = Rtos_CreateSemaphore(ENC_MAX_CMD - 1);
 
   setMaxNumRef(pCtx, pChParam);
@@ -1069,7 +1047,7 @@ bool CreateNuts(Nuts* nuts, AL_EProfile eProfile)
 
 #include "lib_encode/Sections.h"
 
-int AL_Encoder_AddSei(AL_HEncoder hEnc, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize)
+int AL_Encoder_AddSei(AL_HEncoder hEnc, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
   AL_TEncCtx* pCtx = pEnc->pCtx;
@@ -1079,6 +1057,6 @@ int AL_Encoder_AddSei(AL_HEncoder hEnc, AL_TBuffer* pStream, bool isPrefix, int 
 
   if(!exists)
     return -1;
-  return AL_WriteSeiSection(nuts, pStream, isPrefix, iPayloadType, pPayload, iPayloadSize);
+  return AL_WriteSeiSection(nuts, pStream, isPrefix, iPayloadType, pPayload, iPayloadSize, iTempId);
 }
 

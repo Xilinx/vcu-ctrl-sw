@@ -79,7 +79,8 @@ static void* WaitForStatus(void* p);
 
 static void setChannelFeedback(AL_TEncChanParam* pChParam, struct al5_channel_status* msg)
 {
-  pChParam->eOptions = msg->options;
+  pChParam->eEncOptions = msg->options;
+  pChParam->eEncTools = msg->tools;
   pChParam->uNumCore = msg->num_core;
   pChParam->uPpsParam = msg->pps_param;
 }
@@ -116,7 +117,7 @@ static AL_ERR createChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEnc
 
   struct al5_channel_config msg = { 0 };
   setChannelParam(&msg.param, pChParam, pEP1);
-  chan->outputRec = pChParam->eOptions & AL_OPT_FORCE_REC;
+  chan->outputRec = pChParam->eEncOptions & AL_OPT_FORCE_REC;
 
   AL_EDriverError errdrv = AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_CONFIG_CHANNEL, &msg);
 

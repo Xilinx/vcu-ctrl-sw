@@ -208,6 +208,7 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
   });
 #endif
   parser.addArithMultipliedByConstant(curSection, "MaxPictureSize", RCParam.uMaxPictureSize, 1000);
+  parser.addFlag(curSection, "EnableSkip", RCParam.eOptions, AL_RC_OPT_ENABLE_SKIP);
 }
 
 static void populateRateControlSection(ConfigParser& parser, ConfigFile& cfg)
@@ -238,6 +239,7 @@ static void populateGopSection(ConfigParser& parser, ConfigFile& cfg)
     GopParam.bEnableLT = GopParam.bEnableLT || (GopParam.uFreqLT != 0);
   }, "Specifies the Long Term reference picture refresh frequency in number of frames");
   parser.addArith(curSection, "Gop.NumB", GopParam.uNumB, "Maximum number of consecutive B frames in a GOP");
+  parser.addArray(curSection, "Gop.TempDQP", GopParam.tempDQP, "Specifies a deltaQP for pictures with temporal id 1 to 4");
   std::map<string, int> gdrModes {};
   gdrModes["GDR_HORIZONTAL"] = AL_GDR_HORIZONTAL;
   gdrModes["GDR_VERTICAL"] = AL_GDR_VERTICAL;
@@ -306,8 +308,18 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   aspectRatios["ASPECT_RATIO_NONE"] = AL_ASPECT_RATIO_NONE;
   parser.addEnum(curSection, "AspectRatio", cfg.Settings.eAspectRatio, aspectRatios, "Selects the display aspect ratio of the video sequence to be written in SPS/VUI");
   std::map<string, int> colourDescriptions;
+  colourDescriptions["COLOUR_DESC_RESERVED_0"] = COLOUR_DESC_RESERVED_0;
   colourDescriptions["COLOUR_DESC_BT_709"] = COLOUR_DESC_BT_709;
+  colourDescriptions["COLOUR_DESC_SRGB"] = COLOUR_DESC_SRGB;
+  colourDescriptions["COLOUR_DESC_UNSPECIFIED"] = COLOUR_DESC_UNSPECIFIED;
+  colourDescriptions["COLOUR_DESC_RESERVED_3"] = COLOUR_DESC_RESERVED_3;
+  colourDescriptions["COLOUR_DESC_BT_470_NTSC"] = COLOUR_DESC_BT_470_NTSC;
   colourDescriptions["COLOUR_DESC_BT_470_PAL"] = COLOUR_DESC_BT_470_PAL;
+  colourDescriptions["COLOUR_DESC_BT_601"] = COLOUR_DESC_BT_601;
+  colourDescriptions["COLOUR_DESC_SMPTE_170M"] = COLOUR_DESC_SMPTE_170M;
+  colourDescriptions["COLOUR_DESC_SMPTE_240M"] = COLOUR_DESC_SMPTE_240M;
+  colourDescriptions["COLOUR_DESC_GENERIC_FILM"] = COLOUR_DESC_GENERIC_FILM;
+  colourDescriptions["COLOUR_DESC_BT_2020"] = COLOUR_DESC_BT_2020;
   parser.addEnum(curSection, "ColourDescription", cfg.Settings.eColourDescription, colourDescriptions);
   parser.addCustom(curSection, "ChromaMode", [&](std::deque<Token>& tokens)
   {
@@ -373,6 +385,16 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   ldamodes["DYNAMIC_LDA"] = DYNAMIC_LDA;
   ldamodes["LOAD_LDA"] = LOAD_LDA;
   parser.addEnum(curSection, "LambdaCtrlMode", cfg.Settings.tChParam[0].eLdaCtrlMode, ldamodes, "Specifies the lambda values used for rate-distortion optimization");
+  parser.addCustom(curSection, "LambdaFactors", [&](std::deque<Token> tokens)
+  {
+    auto pChan = &cfg.Settings.tChParam[0];
+    auto const NumFactors = sizeof(pChan->LdaFactors) / sizeof(*pChan->LdaFactors);
+    auto ldaFactors = parseArray<double>(tokens, NumFactors);
+    auto const rescale = 256;
+
+    for(auto i = 0; i < (int)NumFactors; ++i)
+      pChan->LdaFactors[i] = ldaFactors[i] * rescale;
+  }, "Specifies a lambda factor for each pictures: I, P and B by increasing temporal id");
   parser.addBool(curSection, "CabacInit", cfg.Settings.tChParam[0].uCabacInitIdc, "Specifies the CABAC initialization table index (AVC) or flag (HEVC)");
   parser.addArith(curSection, "PicCbQpOffset", cfg.Settings.tChParam[0].iCbPicQpOffset, "Specifies the QP offset for the first chroma channel (Cb) at picture level (HEVC)");
   parser.addArith(curSection, "PicCrQpOffset", cfg.Settings.tChParam[0].iCrPicQpOffset, "Specifies the QP offset for the second chroma channel (Cr) at picture level (HEVC)");
@@ -381,20 +403,20 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   parser.addArith(curSection, "CuQpDeltaDepth", cfg.Settings.tChParam[0].uCuQPDeltaDepth, "Specifies the QP per CU granularity, Used only when QPCtrlMode is set to AUTO_QP or ADAPTIVE_AUTO_QP");
   parser.addArith(curSection, "LoopFilter.BetaOffset", cfg.Settings.tChParam[0].iBetaOffset, "Specifies the beta offset (AVC/HEVC) or the Filter level (VP9) for the deblocking filter");
   parser.addArith(curSection, "LoopFilter.TcOffset", cfg.Settings.tChParam[0].iTcOffset, "Specifies the Alpha_c0 offset (AVC), Tc offset (HEVC) or sharpness level (VP9) for the deblocking filter");
-  parser.addFlag(curSection, "LoopFilter.CrossSlice", cfg.Settings.tChParam[0].eOptions, AL_OPT_LF_X_SLICE, "In-loop filtering across the left and upper boundaries of each tile of the fame (HEVC, AVC)");
-  parser.addFlag(curSection, "LoopFilter.CrossTile", cfg.Settings.tChParam[0].eOptions, AL_OPT_LF_X_TILE, "In-loop filtering across the left and upper boundaries of each tile of the frame (HEVC)");
-  parser.addFlag(curSection, "LoopFilter", cfg.Settings.tChParam[0].eOptions, AL_OPT_LF, "Specifies if the deblocking filter should be used or not");
-  parser.addFlag(curSection, "ConstrainedIntraPred", cfg.Settings.tChParam[0].eOptions, AL_OPT_CONST_INTRA_PRED, "Specifies the value of constrained_intra_pred_flag syntax element (AVC/HEVC)");
-  parser.addFlag(curSection, "WaveFront", cfg.Settings.tChParam[0].eOptions, AL_OPT_WPP);
+  parser.addFlag(curSection, "LoopFilter.CrossSlice", cfg.Settings.tChParam[0].eEncTools, AL_OPT_LF_X_SLICE, "In-loop filtering across the left and upper boundaries of each tile of the fame (HEVC, AVC)");
+  parser.addFlag(curSection, "LoopFilter.CrossTile", cfg.Settings.tChParam[0].eEncTools, AL_OPT_LF_X_TILE, "In-loop filtering across the left and upper boundaries of each tile of the frame (HEVC)");
+  parser.addFlag(curSection, "LoopFilter", cfg.Settings.tChParam[0].eEncTools, AL_OPT_LF, "Specifies if the deblocking filter should be used or not");
+  parser.addFlag(curSection, "ConstrainedIntraPred", cfg.Settings.tChParam[0].eEncTools, AL_OPT_CONST_INTRA_PRED, "Specifies the value of constrained_intra_pred_flag syntax element (AVC/HEVC)");
+  parser.addFlag(curSection, "WaveFront", cfg.Settings.tChParam[0].eEncTools, AL_OPT_WPP);
   parser.addBool(curSection, "ForceLoad", cfg.Settings.bForceLoad, "When DEFAULT or CUSTOM scaling list, CUSTOM lambda parameters and/or QP tables are used, this parameter specifies whether the corresponding buffer must be reloaded for each frame or only for the first one");
-  parser.addFlag(curSection, "ForceMvOut", cfg.Settings.tChParam[0].eOptions, AL_OPT_FORCE_MV_OUT, "Force the encoder to output the Motion Vector buffer");
-  parser.addFlag(curSection, "ForceMvClip", cfg.Settings.tChParam[0].eOptions, AL_OPT_FORCE_MV_CLIP);
+  parser.addFlag(curSection, "ForceMvOut", cfg.Settings.tChParam[0].eEncOptions, AL_OPT_FORCE_MV_OUT, "Force the encoder to output the Motion Vector buffer");
+  parser.addFlag(curSection, "ForceMvClip", cfg.Settings.tChParam[0].eEncOptions, AL_OPT_FORCE_MV_CLIP);
   string l2cacheDesc = "";
   l2cacheDesc = "Specifies if the L2 cache is used of not";
   parser.addBool(curSection, "CacheLevel2", cfg.Settings.iPrefetchLevel2, l2cacheDesc);
   parser.addArith(curSection, "ClipHrzRange", cfg.Settings.uClipHrzRange);
   parser.addArith(curSection, "ClipVrtRange", cfg.Settings.uClipVrtRange);
-  parser.addFlag(curSection, "FixPredictor", cfg.Settings.tChParam[0].eOptions, AL_OPT_FIX_PREDICTOR, "When set to ENABLE, the motion estimation window is always centered on the current LCU position. This generates a fixed bandwidth for accessing the reference picture buffers. It is recommended to use the DISABLE value for maximum quality");
+  parser.addFlag(curSection, "FixPredictor", cfg.Settings.tChParam[0].eEncOptions, AL_OPT_FIX_PREDICTOR, "When set to ENABLE, the motion estimation window is always centered on the current LCU position. This generates a fixed bandwidth for accessing the reference picture buffers. It is recommended to use the DISABLE value for maximum quality");
   parser.addArith(curSection, "VrtRange_P", cfg.Settings.tChParam[0].pMeRange[SLICE_P][1], "Specifies the vertical search range used for P frames motion estimation");
 
   std::map<string, int> srcmodes {};
@@ -405,13 +427,13 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   srcmodes["COMP_32x4"] = AL_SRC_COMP_32x4;
   parser.addEnum(curSection, "SrcFormat", cfg.Settings.tChParam[0].eSrcMode, srcmodes);
   parser.addBool(curSection, "DisableIntra", cfg.Settings.bDisIntra);
-  parser.addFlag(curSection, "AvcLowLat", cfg.Settings.tChParam[0].eOptions, AL_OPT_LOWLAT_SYNC, "Enables a special synchronization mode for AVC low latency encoding (Validation only)");
+  parser.addFlag(curSection, "AvcLowLat", cfg.Settings.tChParam[0].eEncOptions, AL_OPT_LOWLAT_SYNC, "Enables a special synchronization mode for AVC low latency encoding (Validation only)");
   parser.addBool(curSection, "SliceLat", cfg.Settings.tChParam[0].bSubframeLatency, "Enables slice latency mode");
   parser.addBool(curSection, "LowLatInterrupt", cfg.Settings.tChParam[0].bSubframeLatency, "deprecated, same behaviour as SliceLat");
   std::map<string, int> numCoreEnums;
   numCoreEnums["AUTO"] = 0;
   parser.addArithOrEnum(curSection, "NumCore", cfg.Settings.tChParam[0].uNumCore, numCoreEnums, "Number of core to use for this encoding");
-  parser.addFlag(curSection, "CostMode", cfg.Settings.tChParam[0].eOptions, AL_OPT_RDO_COST_MODE);
+  parser.addFlag(curSection, "CostMode", cfg.Settings.tChParam[0].eEncOptions, AL_OPT_RDO_COST_MODE);
   std::map<string, int> videoModes;
   videoModes["PROGRESSIVE"] = AL_VM_PROGRESSIVE;
   videoModes["INTERLACED_TOP"] = AL_VM_INTERLACED_TOP;
