@@ -489,6 +489,7 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
 
 
 
+
   /* Gop & Rate control parameters */
   AL_TRCParam tRCParam;
   AL_TGopParam tGopParam;

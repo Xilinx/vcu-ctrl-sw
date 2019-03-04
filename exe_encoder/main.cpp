@@ -741,8 +741,8 @@ static TFrameInfo GetFrameInfo(AL_TEncChanParam& tChParam)
 {
   TFrameInfo tFrameInfo;
 
-  tFrameInfo.iWidth = tChParam.uWidth;
-  tFrameInfo.iHeight = tChParam.uHeight;
+  tFrameInfo.iWidth = AL_GetSrcWidth(tChParam);
+  tFrameInfo.iHeight = AL_GetSrcHeight(tChParam);
   tFrameInfo.iBitDepth = tChParam.uSrcBitDepth;
   tFrameInfo.eCMode = AL_GET_CHROMA_MODE(tChParam.ePicFormat);
 
@@ -942,7 +942,7 @@ void LayerRessources::ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hE
   {
     this->iInputIdx = iInputIdx;
     AL_TDimension inputDim = { layerInputs[iInputIdx].FileInfo.PictWidth, layerInputs[iInputIdx].FileInfo.PictHeight };
-    bool bResChange = (inputDim.iWidth != cfg.Settings.tChParam[iLayerID].uWidth) || (inputDim.iHeight != cfg.Settings.tChParam[iLayerID].uHeight);
+    bool bResChange = (inputDim.iWidth != AL_GetSrcWidth(cfg.Settings.tChParam[iLayerID])) || (inputDim.iHeight != AL_GetSrcHeight(cfg.Settings.tChParam[iLayerID]));
 
     if(bResChange)
     {

@@ -679,6 +679,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 
 
 
+
   pSettings->LookAhead = 0;
   pSettings->TwoPass = 0;
   pSettings->bEnableFirstPassSceneChangeDetection = false;
@@ -1466,6 +1467,8 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
   if(pChParam->tRCParam.eRCMode == AL_RC_CONST_QP && pChParam->tRCParam.iInitialQP < 0)
     pChParam->tRCParam.iInitialQP = 30;
+
+
   return numIncoherency;
 }
 
