@@ -107,7 +107,7 @@ typedef struct
 *****************************************************************************/
 typedef struct
 {
-  void (* func)(int iPayloadType, uint8_t* pPayload, int iPayloadSize, void* pUserParam);
+  void (* func)(bool bIsPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, void* pUserParam);
   void* userParam;
 }AL_CB_ParsedSei;
 

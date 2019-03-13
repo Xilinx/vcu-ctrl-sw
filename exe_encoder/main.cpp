@@ -676,7 +676,7 @@ static AL_TBufPoolConfig GetQpBufPoolConfig(AL_TEncSettings& Settings, AL_TEncCh
   if(Settings.eQpCtrlMode & (MASK_QP_TABLE_EXT))
   {
     AL_TDimension tDim = { tChParam.uWidth, tChParam.uHeight };
-    poolConfig = GetBufPoolConfig("qp-ext", NULL, AL_GetAllocSizeEP2(tDim, tChParam.uMaxCuSize), frameBuffersCount);
+    poolConfig = GetBufPoolConfig("qp-ext", NULL, AL_GetAllocSizeEP2(tDim, static_cast<AL_ECodec>(AL_GET_PROFILE_CODEC(tChParam.eProfile))), frameBuffersCount);
   }
   return poolConfig;
 }

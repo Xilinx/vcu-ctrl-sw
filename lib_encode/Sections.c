@@ -187,7 +187,7 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
     SeiPrefixCtx seiPrefixCtx;
     SeiPrefixUDUCtx seiPrefixUDUCtx;
 
-    if(isPrefix(nalsData->seiFlags))
+    if(AL_IS_SEI_PREFIX(nalsData->seiFlags))
     {
       assert(nalsData != NULL);
       assert(nalsData->seiFlags != SEI_NONE);

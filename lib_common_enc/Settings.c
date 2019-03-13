@@ -583,6 +583,8 @@ static void AL_sSettings_SetDefaultHEVCParam(AL_TEncSettings* pSettings)
 
 /***************************************************************************/
 
+
+
 /***************************************************************************/
 void AL_Settings_SetDefaultRCParam(AL_TRCParam* pRCParam)
 {
@@ -630,7 +632,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 
   AL_TGopParam* pGop = &pChan->tGopParam;
   pGop->eMode = AL_GOP_MODE_DEFAULT;
-  pGop->uFreqIDR = 0x7FFFFFFF;
+  pGop->uFreqIDR = INT32_MAX;
   pGop->uGopLength = 30;
   Rtos_Memset(pGop->tempDQP, 0, sizeof(pGop->tempDQP));
 
@@ -686,6 +688,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 
 
   pChan->eVideoMode = AL_VM_PROGRESSIVE;
+
 }
 
 /***************************************************************************/
@@ -877,10 +880,10 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
 
   int iNumB = pChParam->tGopParam.uNumB;
 
-  if(pChParam->tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL && iNumB != 3 && iNumB != 5 && iNumB != 7)
+  if(pChParam->tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL && iNumB != 3 && iNumB != 5 && iNumB != 7 && iNumB != 15)
   {
     ++err;
-    MSG("!! PYRAMIDAL GOP pattern only allows 3, 5, 7 B Frames !!");
+    MSG("!! PYRAMIDAL GOP pattern only allows 3, 5, 7, 15 B Frames !!");
   }
 
   if(AL_IS_HEVC(pChParam->eProfile))

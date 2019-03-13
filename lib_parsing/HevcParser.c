@@ -905,7 +905,7 @@ static bool sei_recovery_point(AL_TRbspParser* pRP, AL_TRecoveryPoint* pRecovery
   }
 
 /*****************************************************************************/
-bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
+bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB_ParsedSei* cb)
 {
   AL_THevcSei sei;
   AL_THevcAup* aup = &pIAup->hevcAup;
@@ -984,7 +984,7 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
     }
 
     if(cb->func)
-      cb->func(payload_type, payload_data, payload_size, cb->userParam);
+      cb->func(bIsPrefix, payload_type, payload_data, payload_size, cb->userParam);
 
     uint32_t offsetAfter = offset(pRP);
     // Skip payload extension data if any

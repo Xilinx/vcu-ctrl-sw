@@ -60,6 +60,8 @@ enum
   AL_WARN_LCU_OVERFLOW = AL_DEF_WARNING(2),
   /*! Number of slices have been adjusted to be hardware compatible */
   AL_WARN_NUM_SLICES_ADJUSTED = AL_DEF_WARNING(3),
+  /*! Sps not compatible with channel settings, decoder discards it */
+  AL_WARN_SPS_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS = AL_DEF_WARNING(4),
 };
 
 enum

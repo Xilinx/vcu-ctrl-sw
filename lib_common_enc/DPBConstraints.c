@@ -41,35 +41,18 @@
 /****************************************************************************/
 uint8_t AL_DPBConstraint_GetMaxRef_DefaultGopMngr(const AL_TGopParam* pGopParam, AL_ECodec eCodec)
 {
-  /*
-   * AVC worst case for the reference number in low_delay b
-   * example with gop_length = 3
-   *
-   *   - - -
-   * ,     | `
-   * v     v |
-   * I B B B B B B
-   * g     g     g
-   *
-   * g: golden
-   *
-   * thus max_ref = gop_length + 1
-   *
-   * In AVC, because of the dpb algorithm, we keep the non-ref that are
-   * between refs in the dpb as if they were refs.
-   *
-   */
   int iNumRef = 0;
 
   if(pGopParam->eMode == AL_GOP_MODE_LOW_DELAY_B)
   {
-    if(eCodec == AL_CODEC_AVC)
-      iNumRef = Max(2, pGopParam->uGopLength + 1);
-    else
-    {
-      /* 2 refs in hevc (the refs of a B picture) */
-      iNumRef = 2;
-    }
+    iNumRef = 2; /* the refs of a B picture */
+
+    /*
+     * Add 1 in AVC for the current frame. If GOP length is 1, the current frame ref can be spared as
+     * the ref to remove is always the oldest ref
+     */
+    if(eCodec == AL_CODEC_AVC && pGopParam->uGopLength > 1)
+      iNumRef++;
   }
   /*
    * The structure of the default gop makes it that:
@@ -106,12 +89,33 @@ uint8_t AL_DPBConstraint_GetMaxRef_DefaultGopMngr(const AL_TGopParam* pGopParam,
   return iNumRef;
 }
 
+#define NEXT_PYR_LEVEL_NUMB(uNumBForPyrLevel) (((uNumBForPyrLevel) << 1) + 1)
 /****************************************************************************/
-uint8_t AL_DPBConstraint_GetMaxRef_GopMngrCustom(const AL_TGopParam* pGopParam)
+uint8_t AL_DPBConstraint_GetMaxRef_GopMngrCustom(const AL_TGopParam* pGopParam, AL_ECodec eCodec)
 {
+  uint8_t uNumRef;
+
+  uint8_t uPyrLevel = 0;
+  uint8_t uNumBForPyrLevel = 1;
+  uint8_t uNumBForNextPyrLevel = NEXT_PYR_LEVEL_NUMB(uNumBForPyrLevel);
+
+  while(pGopParam->uNumB >= uNumBForNextPyrLevel)
+  {
+    uNumBForPyrLevel = uNumBForNextPyrLevel;
+    uNumBForNextPyrLevel = NEXT_PYR_LEVEL_NUMB(uNumBForPyrLevel);
+    uPyrLevel++;
+  }
+
+  uNumRef = uPyrLevel + 2; // Right B frames + 2 P frames
+
+  /* Add 1 in AVC for the current frame */
+  if(eCodec == AL_CODEC_AVC)
+    uNumRef++;
+
   if(pGopParam->bEnableLT)
-    return 6;
-  return 5;
+    uNumRef++;
+
+  return uNumRef;
 }
 
 
@@ -129,7 +133,7 @@ uint8_t AL_DPBConstraint_GetMaxDPBSize(const AL_TEncChanParam* pChParam)
     uDPBSize = AL_DPBConstraint_GetMaxRef_DefaultGopMngr(&pChParam->tGopParam, eCodec);
     break;
   case AL_GOP_MNGR_CUSTOM:
-    uDPBSize = AL_DPBConstraint_GetMaxRef_GopMngrCustom(&pChParam->tGopParam);
+    uDPBSize = AL_DPBConstraint_GetMaxRef_GopMngrCustom(&pChParam->tGopParam, eCodec);
     break;
   case AL_GOP_MNGR_MAX_ENUM:
     break;

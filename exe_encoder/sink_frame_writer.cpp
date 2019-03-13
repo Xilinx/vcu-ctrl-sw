@@ -187,7 +187,7 @@ using namespace std;
 class FrameWriter : public IFrameSink
 {
 public:
-  FrameWriter(string RecFileName, ConfigFile& cfg_, AL_TBuffer* Yuv_, int iLayerID) : m_cfg(cfg_), m_Yuv(Yuv_), m_iLayerID(iLayerID)
+  FrameWriter(string RecFileName, ConfigFile& cfg_, AL_TBuffer* Yuv_, int iLayerID) : m_cfg(cfg_), m_Yuv(Yuv_)
   {
     OpenOutput(m_RecFile, RecFileName);
   }
@@ -214,7 +214,6 @@ private:
   ofstream m_RecFile;
   ConfigFile& m_cfg;
   AL_TBuffer* const m_Yuv;
-  int m_iLayerID;
 };
 
 unique_ptr<IFrameSink> createFrameWriter(string path, ConfigFile& cfg_, AL_TBuffer* Yuv_, int iLayerID_)

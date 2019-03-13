@@ -85,7 +85,7 @@ typedef void* AL_HANDLE;
 #define AL_MAX_NUM_CPB 32
 #define AL_MAX_NUM_VIEW 1
 #define AL_MAX_NUM_REF 16
-#define AL_MAX_NUM_B_PICT 7
+#define AL_MAX_NUM_B_PICT 15
 
 /*@}*/
 

@@ -75,7 +75,10 @@ static void initHlsSps(AL_TEncChanParam* pChParam, uint32_t* pSpsParam)
   AL_SET_SPS_LOG2_MAX_POC(pSpsParam, 10);
   int log2_max_frame_num_minus4 = 0; // This value SHOULD be equals to IP_Utils SPS
 
-  if(isGdrEnabled(pChParam))
+  if(pChParam->tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL && pChParam->tGopParam.uNumB == 15)
+    log2_max_frame_num_minus4 = 1;
+
+  else if(isGdrEnabled(pChParam))
     log2_max_frame_num_minus4 = 6; // 6 is to support AVC 8K GDR.
 
   AL_SET_SPS_LOG2_MAX_FRAME_NUM(pSpsParam, log2_max_frame_num_minus4 + 4);

@@ -90,9 +90,6 @@ static const int AL_BitPerPixelQP[36][2] = /* x1000 */
 };
 
 /****************************************************************************/
-int AL_H273_ColourDescToId(AL_EColourDescription colourDesc);
-
-/****************************************************************************/
 void AL_HEVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufEP);
 void AL_AVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufEP);
 

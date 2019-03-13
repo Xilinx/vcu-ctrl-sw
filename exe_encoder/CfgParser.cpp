@@ -172,7 +172,7 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
 
   parser.addEnum(curSection, "RateCtrlMode", RCParam.eRCMode, rateCtrlModes, "Selects the way the bit rate is controlled");
   parser.addArithMultipliedByConstant(curSection, "BitRate", RCParam.uTargetBitRate, 1000, "Target bit rate in Kbits/s. Unused if RateCtrlMode=CONST_QP");
-  parser.addArithMultipliedByConstant(curSection, "MaxBitRate", RCParam.uMaxBitRate, 1000);
+  parser.addArithMultipliedByConstant(curSection, "MaxBitRate", RCParam.uMaxBitRate, 1000, "Maximum bit rate in Kbits/s. This is used in VBR. This should be the maximum transmission bandwidth available. (The encoder shouldn't exceed this value on average on a moving window of CpbSize seconds). This option is automatically set to BitRate in CBR.");
   parser.addCustom(curSection, "FrameRate", [&](std::deque<Token>& tokens)
   {
     auto tmp = parseArithmetic<double>(tokens) * 1000;
@@ -231,7 +231,7 @@ static void populateGopSection(ConfigParser& parser, ConfigFile& cfg)
   parser.addEnum(curSection, "GopCtrlMode", GopParam.eMode, gopCtrlModes, "Specifies the Group Of Pictures configuration mode");
   parser.addArith(curSection, "Gop.Length", GopParam.uGopLength, "GOP length in frames including the I picture. 0 for Intra only.");
   std::map<string, int> freqIdrEnums {};
-  freqIdrEnums["SC_ONLY"] = 0x7FFFFFFF;
+  freqIdrEnums["SC_ONLY"] = INT32_MAX;
   parser.addArithOrEnum(curSection, "Gop.FreqIDR", GopParam.uFreqIDR, freqIdrEnums, "Specifies the minimum number of frames between two IDR pictures (AVC, HEVC). IDR insertion depends on the position of the GOP boundary. -1 to disable IDR insertion");
   parser.addBool(curSection, "Gop.EnableLT", GopParam.bEnableLT);
   parser.addCustom(curSection, "Gop.FreqLT", [&](std::deque<Token>& tokens)
@@ -406,7 +406,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   parser.addArith(curSection, "CuQpDeltaDepth", cfg.Settings.tChParam[0].uCuQPDeltaDepth, "Specifies the QP per CU granularity, Used only when QPCtrlMode is set to AUTO_QP or ADAPTIVE_AUTO_QP");
   parser.addArith(curSection, "LoopFilter.BetaOffset", cfg.Settings.tChParam[0].iBetaOffset, "Specifies the beta offset (AVC/HEVC) or the Filter level (VP9) for the deblocking filter");
   parser.addArith(curSection, "LoopFilter.TcOffset", cfg.Settings.tChParam[0].iTcOffset, "Specifies the Alpha_c0 offset (AVC), Tc offset (HEVC) or sharpness level (VP9) for the deblocking filter");
-  parser.addFlag(curSection, "LoopFilter.CrossSlice", cfg.Settings.tChParam[0].eEncTools, AL_OPT_LF_X_SLICE, "In-loop filtering across the left and upper boundaries of each tile of the fame (HEVC, AVC)");
+  parser.addFlag(curSection, "LoopFilter.CrossSlice", cfg.Settings.tChParam[0].eEncTools, AL_OPT_LF_X_SLICE, "In-loop filtering across the left and upper boundaries of each tile of the frame (HEVC, AVC)");
   parser.addFlag(curSection, "LoopFilter.CrossTile", cfg.Settings.tChParam[0].eEncTools, AL_OPT_LF_X_TILE, "In-loop filtering across the left and upper boundaries of each tile of the frame (HEVC)");
   parser.addFlag(curSection, "LoopFilter", cfg.Settings.tChParam[0].eEncTools, AL_OPT_LF, "Specifies if the deblocking filter should be used or not");
   parser.addFlag(curSection, "ConstrainedIntraPred", cfg.Settings.tChParam[0].eEncTools, AL_OPT_CONST_INTRA_PRED, "Specifies the value of constrained_intra_pred_flag syntax element (AVC/HEVC)");

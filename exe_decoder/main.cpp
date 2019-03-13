@@ -864,6 +864,9 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
 
   if(bExitError || isEOS(pFrame, pInfo))
   {
+    if(err == AL_WARN_SPS_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS)
+      Message(CC_GREY, "\nDecoder has discarded some SPS not compatible with the channel settings\n");
+
     if(bExitError)
       Message(CC_RED, "Error: %d", err);
     else
@@ -983,13 +986,14 @@ void printHexdump(ostream* logger, uint8_t* data, int size)
   *logger << std::dec;
 }
 
-static void sParsedSei(int iPayloadType, uint8_t* pPayload, int iPayloadSize, void* pUserParam)
+static void sParsedSei(bool bIsPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, void* pUserParam)
 {
   auto seiOutput = static_cast<ostream*>(pUserParam);
 
   if(!seiOutput)
     return;
-  *seiOutput << "sei_payload_type: " << iPayloadType << endl
+  *seiOutput << "is_prefix: " << boolalpha << bIsPrefix << endl
+             << "sei_payload_type: " << iPayloadType << endl
              << "sei_payload_size: " << iPayloadSize << endl
              << "raw:" << endl;
   printHexdump(seiOutput, pPayload, iPayloadSize);

@@ -40,7 +40,6 @@
 #include "lib_common/Utils.h"
 #include "lib_common_dec/RbspParser.h"
 #include <string.h>
-#include <stdio.h>
 
 static void initPps(AL_TAvcPps* pPPS)
 {
@@ -651,7 +650,7 @@ static bool sei_recovery_point(AL_TRbspParser* pRP, AL_TRecoveryPoint* pRecovery
   }
 
 /*****************************************************************************/
-bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
+bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB_ParsedSei* cb)
 {
   AL_TAvcSei sei;
   AL_TAvcAup* aup = &pIAup->avcAup;
@@ -724,7 +723,7 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb)
     }
 
     if(cb->func)
-      cb->func(payload_type, payload_data, payload_size, cb->userParam);
+      cb->func(bIsPrefix, payload_type, payload_data, payload_size, cb->userParam);
   }
 
   return true;

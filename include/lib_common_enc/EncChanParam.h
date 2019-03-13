@@ -417,6 +417,7 @@ typedef enum e_SrcConvMode // [0] : CompMode | [3:1] : SourceFormat
 
 #define AL_IS_L2P_DISABLED(iPrefetchLevel2) (iPrefetchLevel2 == 0)
 
+
 /*************************************************************************//*!
    \brief Channel parameters structure
 *****************************************************************************/

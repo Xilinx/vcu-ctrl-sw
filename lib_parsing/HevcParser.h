@@ -51,7 +51,7 @@ void AL_HEVC_InitAUP(AL_THevcAup* pAUP);
 void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId);
 AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP);
 void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP);
-bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_CB_ParsedSei* cb);
+bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB_ParsedSei* cb);
 
 /*************************************************************************//*!
    \brief the short term reference picture computation

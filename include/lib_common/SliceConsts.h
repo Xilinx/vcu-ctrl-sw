@@ -465,15 +465,35 @@ typedef enum e_SeiFlag
   SEI_ALL = 0x00FFFFFF, // All supported SEI
 }AL_SeiFlag;
 
-inline static bool isSuffix(AL_SeiFlag seiFlag)
+inline static bool AL_IS_SEI_SUFFIX(AL_SeiFlag seiFlag)
 {
   return seiFlag & 0xFFF000;
 }
 
-inline static bool isPrefix(AL_SeiFlag seiFlag)
+inline static bool AL_IS_SEI_PREFIX(AL_SeiFlag seiFlag)
 {
   return seiFlag & 0x000FFF;
 }
+
+/*************************************************************************//*!
+   \brief Colour Description identifer (See ISO/IEC 23091-4 or ITU-T H.273)
+*****************************************************************************/
+typedef enum e_ColourDescription
+{
+  COLOUR_DESC_RESERVED_0,
+  COLOUR_DESC_BT_709,
+  COLOUR_DESC_SRGB,
+  COLOUR_DESC_UNSPECIFIED,
+  COLOUR_DESC_RESERVED_3,
+  COLOUR_DESC_BT_470_NTSC,
+  COLOUR_DESC_BT_470_PAL,
+  COLOUR_DESC_BT_601,
+  COLOUR_DESC_SMPTE_170M,
+  COLOUR_DESC_SMPTE_240M,
+  COLOUR_DESC_GENERIC_FILM,
+  COLOUR_DESC_BT_2020,
+  COLOUR_DESC_MAX_ENUM,
+}AL_EColourDescription;
 
 /*@}*/
 
