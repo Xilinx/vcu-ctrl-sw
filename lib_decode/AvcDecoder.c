@@ -475,6 +475,12 @@ static void endFrameConceal(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_TDecPicParam* pPP
 }
 
 /*****************************************************************************/
+static bool hasOngoingFrame(AL_TDecCtx* pCtx)
+{
+  return pCtx->bFirstIsValid && pCtx->bFirstSliceInFrameIsValid;
+}
+
+/*****************************************************************************/
 static void finishPreviousFrame(AL_TDecCtx* pCtx)
 {
   AL_TAvcSliceHdr* pSlice = &pCtx->AvcSliceHdr[pCtx->uCurID];
@@ -490,6 +496,9 @@ static void finishPreviousFrame(AL_TDecCtx* pCtx)
   /* The slice is its own previous slice as we changed it in the last slice
    * This means we don't want to send a previous slice at all. */
   endFrameConceal(pCtx, pSlice->nal_unit_type, pPP, pSlice);
+
+  pCtx->bFirstSliceInFrameIsValid = false;
+  pCtx->bBeginFrameIsValid = false;
 }
 
 /******************************************************************************/
@@ -567,24 +576,17 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   if(isValid)
     bSliceBelongsToSameFrame = (!pSlice->first_mb_in_slice || (pSlice->pic_order_cnt_lsb == pCtx->uCurPocLsb));
 
-  AL_TDecPicBuffers* pBufs = &pCtx->PoolPB[pCtx->uToggle];
-  AL_TDecPicParam* pPP = &pCtx->PoolPP[pCtx->uToggle];
-
   bool* bFirstSliceInFrameIsValid = &pCtx->bFirstSliceInFrameIsValid;
   bool* bFirstIsValid = &pCtx->bFirstIsValid;
   bool* bBeginFrameIsValid = &pCtx->bBeginFrameIsValid;
   bool bCheckDynResChange = pCtx->bIsBuffersAllocated;
   AL_TDimension tLastDim = !pCtx->bIsFirstSPSChecked ? pCtx->tStreamSettings.tDim : extractDimension(pAUP->pActiveSPS);
 
-  if(!bSliceBelongsToSameFrame && *bFirstIsValid && *bFirstSliceInFrameIsValid)
-  {
+  if(!bSliceBelongsToSameFrame && hasOngoingFrame(pCtx))
     finishPreviousFrame(pCtx);
 
-    pBufs = &pCtx->PoolPB[pCtx->uToggle];
-    pPP = &pCtx->PoolPP[pCtx->uToggle];
-    *bFirstSliceInFrameIsValid = false;
-    *bBeginFrameIsValid = false;
-  }
+  AL_TDecPicBuffers* pBufs = &pCtx->PoolPB[pCtx->uToggle];
+  AL_TDecPicParam* pPP = &pCtx->PoolPP[pCtx->uToggle];
 
   if(isValid)
   {
@@ -737,7 +739,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   }
 
   if(pCtx->chanParam.eDecUnit == AL_VCL_NAL_UNIT)
-    AL_LaunchSliceDecoding(pCtx, bIsLastAUNal, true);
+    AL_LaunchSliceDecoding(pCtx, false, true);
 }
 
 /*****************************************************************************/
@@ -773,6 +775,37 @@ static AL_PARSE_RESULT parsePPSandUpdateConcealment(AL_TAup* IAup, AL_TRbspParse
 }
 
 /*****************************************************************************/
+static bool isActiveSPSChanging(AL_TAvcSps* pNewSPS, AL_TAvcSps* pActiveSPS)
+{
+  // Only check resolution change - but any change is forgiven, according to the specification
+  return pActiveSPS != NULL &&
+         pNewSPS->seq_parameter_set_id == pActiveSPS->seq_parameter_set_id &&
+         (pNewSPS->pic_width_in_mbs_minus1 != pActiveSPS->pic_width_in_mbs_minus1 ||
+          pNewSPS->pic_height_in_map_units_minus1 != pActiveSPS->pic_height_in_map_units_minus1);
+}
+
+/*****************************************************************************/
+static AL_PARSE_RESULT parseAndApplySPS(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_TDecCtx* pCtx)
+{
+  AL_TAvcSps tNewSPS;
+  AL_PARSE_RESULT eParseResult = AL_AVC_ParseSPS(pRP, &tNewSPS);
+
+  if(eParseResult == AL_OK)
+  {
+    if(hasOngoingFrame(pCtx) && isActiveSPSChanging(&tNewSPS, pIAup->avcAup.pActiveSPS))
+    {
+      // An active SPS should not be modified unless it is the end of the CVS (spec I.7.4.1.2).
+      // So we consider we received the full frame.
+      finishPreviousFrame(pCtx);
+    }
+
+    pIAup->avcAup.pSPS[tNewSPS.seq_parameter_set_id] = tNewSPS;
+  }
+
+  return eParseResult;
+}
+
+/*****************************************************************************/
 void AL_AVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIsLastAUNal, int* iNumSlice)
 {
   AL_NonVclNuts nuts =
@@ -787,7 +820,7 @@ void AL_AVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIs
 
   AL_NalParser parser =
   {
-    AL_AVC_ParseSPS,
+    parseAndApplySPS,
     parsePPSandUpdateConcealment,
     NULL,
     AL_AVC_ParseSEI,

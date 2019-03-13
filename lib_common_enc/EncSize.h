@@ -48,7 +48,7 @@ int AL_GetCompLcuSize(uint8_t uLcuSize, uint8_t uBitDepth, AL_EChromaMode eChrom
 
 
 #define AL_MAX_SUPPORTED_LCU_SIZE 6
-#define AL_MIN_SUPPORTED_LCU_SIZE 4
+#define AL_MIN_SUPPORTED_LCU_SIZE 3
 
 #define AL_MAX_FIXED_SLICE_HEADER_SIZE 32
 #define QP_CTRL_TABLE_SIZE 48

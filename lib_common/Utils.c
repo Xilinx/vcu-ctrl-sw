@@ -187,18 +187,19 @@ int AL_H273_ColourDescToColourPrimaries(AL_EColourDescription colourDesc)
 {
   switch(colourDesc)
   {
-  case COLOUR_DESC_RESERVED_0: return 0;
+  case COLOUR_DESC_RESERVED: return 0;
   case COLOUR_DESC_BT_709: return 1;
-  case COLOUR_DESC_SRGB: return 1;
   case COLOUR_DESC_UNSPECIFIED: return 2;
-  case COLOUR_DESC_RESERVED_3: return 3;
   case COLOUR_DESC_BT_470_NTSC: return 4;
-  case COLOUR_DESC_BT_470_PAL: return 5;
-  case COLOUR_DESC_BT_601: return 6;
-  case COLOUR_DESC_SMPTE_170M: return 6;
+  case COLOUR_DESC_BT_601_PAL: return 5;
+  case COLOUR_DESC_BT_601_NTSC: return 6;
   case COLOUR_DESC_SMPTE_240M: return 7;
   case COLOUR_DESC_GENERIC_FILM: return 8;
   case COLOUR_DESC_BT_2020: return 9;
+  case COLOUR_DESC_SMPTE_ST_428: return 10;
+  case COLOUR_DESC_SMPTE_RP_431: return 11;
+  case COLOUR_DESC_SMPTE_EG_432: return 12;
+  case COLOUR_DESC_EBU_3213: return 22;
   case COLOUR_DESC_MAX_ENUM: assert(0);
   }
 

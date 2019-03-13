@@ -750,9 +750,6 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
     pSlice->slice_segment_address = Clip3(u(pRP, syntax_size), 1, uMaxLcu - 1);
   }
 
-  if(pSlice->slice_segment_address <= pConceal->iFirstLCU && !pPps->tiles_enabled_flag && !pPps->entropy_coding_sync_enabled_flag)
-    return false;
-
   if(!pConceal->bValidFrame && pSlice->slice_segment_address)
   {
     if(pSlice->dependent_slice_segment_flag)
@@ -990,7 +987,6 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
   if(!more_rbsp_data(pRP))
     return false;
 
-  pConceal->iFirstLCU = pSlice->slice_segment_address;
   return true;
 }
 

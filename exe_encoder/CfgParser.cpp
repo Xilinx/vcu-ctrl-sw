@@ -309,18 +309,19 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   aspectRatios["ASPECT_RATIO_NONE"] = AL_ASPECT_RATIO_NONE;
   parser.addEnum(curSection, "AspectRatio", cfg.Settings.eAspectRatio, aspectRatios, "Selects the display aspect ratio of the video sequence to be written in SPS/VUI");
   std::map<string, int> colourDescriptions;
-  colourDescriptions["COLOUR_DESC_RESERVED_0"] = COLOUR_DESC_RESERVED_0;
+  colourDescriptions["COLOUR_DESC_RESERVED"] = COLOUR_DESC_RESERVED;
   colourDescriptions["COLOUR_DESC_BT_709"] = COLOUR_DESC_BT_709;
-  colourDescriptions["COLOUR_DESC_SRGB"] = COLOUR_DESC_SRGB;
   colourDescriptions["COLOUR_DESC_UNSPECIFIED"] = COLOUR_DESC_UNSPECIFIED;
-  colourDescriptions["COLOUR_DESC_RESERVED_3"] = COLOUR_DESC_RESERVED_3;
   colourDescriptions["COLOUR_DESC_BT_470_NTSC"] = COLOUR_DESC_BT_470_NTSC;
-  colourDescriptions["COLOUR_DESC_BT_470_PAL"] = COLOUR_DESC_BT_470_PAL;
-  colourDescriptions["COLOUR_DESC_BT_601"] = COLOUR_DESC_BT_601;
-  colourDescriptions["COLOUR_DESC_SMPTE_170M"] = COLOUR_DESC_SMPTE_170M;
+  colourDescriptions["COLOUR_DESC_BT_601_PAL"] = COLOUR_DESC_BT_601_PAL;
+  colourDescriptions["COLOUR_DESC_BT_601_NTSC"] = COLOUR_DESC_BT_601_NTSC;
   colourDescriptions["COLOUR_DESC_SMPTE_240M"] = COLOUR_DESC_SMPTE_240M;
   colourDescriptions["COLOUR_DESC_GENERIC_FILM"] = COLOUR_DESC_GENERIC_FILM;
   colourDescriptions["COLOUR_DESC_BT_2020"] = COLOUR_DESC_BT_2020;
+  colourDescriptions["COLOUR_DESC_SMPTE_ST_428"] = COLOUR_DESC_SMPTE_ST_428;
+  colourDescriptions["COLOUR_DESC_SMPTE_RP_431"] = COLOUR_DESC_SMPTE_RP_431;
+  colourDescriptions["COLOUR_DESC_SMPTE_EG_432"] = COLOUR_DESC_SMPTE_EG_432;
+  colourDescriptions["COLOUR_DESC_EBU_3213"] = COLOUR_DESC_EBU_3213;
   parser.addEnum(curSection, "ColourDescription", cfg.Settings.eColourDescription, colourDescriptions);
   parser.addCustom(curSection, "ChromaMode", [&](std::deque<Token>& tokens)
   {

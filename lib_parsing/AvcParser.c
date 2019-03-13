@@ -314,11 +314,9 @@ static int fieldToFrameHeight(int iFieldHeight)
   return ((iFieldHeight + 1) * 2) - 1;
 }
 
-AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
+AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TRbspParser* pRP, AL_TAvcSps* pSPS)
 {
-  AL_TAvcSps tempSPS;
-
-  Rtos_Memset(&tempSPS, 0, sizeof(AL_TAvcSps));
+  Rtos_Memset(pSPS, 0, sizeof(AL_TAvcSps));
 
   skipAllZerosAndTheNextByte(pRP);
 
@@ -340,61 +338,61 @@ AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 
   COMPLY(sps_id < AL_AVC_MAX_SPS);
 
-  initSps(&tempSPS);
+  initSps(pSPS);
 
-  tempSPS.profile_idc = profile_idc;
-  tempSPS.constraint_set3_flag = constr_set3_flag;
-  tempSPS.level_idc = level_idc;
-  tempSPS.seq_parameter_set_id = sps_id;
+  pSPS->profile_idc = profile_idc;
+  pSPS->constraint_set3_flag = constr_set3_flag;
+  pSPS->level_idc = level_idc;
+  pSPS->seq_parameter_set_id = sps_id;
 
-  if(tempSPS.profile_idc == 44 || tempSPS.profile_idc == 83 ||
-     tempSPS.profile_idc == 86 || tempSPS.profile_idc == 100 ||
-     tempSPS.profile_idc == 110 || tempSPS.profile_idc == 118 ||
-     tempSPS.profile_idc == 122 || tempSPS.profile_idc == 128 ||
-     tempSPS.profile_idc == 244)
+  if(pSPS->profile_idc == 44 || pSPS->profile_idc == 83 ||
+     pSPS->profile_idc == 86 || pSPS->profile_idc == 100 ||
+     pSPS->profile_idc == 110 || pSPS->profile_idc == 118 ||
+     pSPS->profile_idc == 122 || pSPS->profile_idc == 128 ||
+     pSPS->profile_idc == 244)
   {
     // check if NAL isn't empty
     COMPLY(more_rbsp_data(pRP));
 
-    tempSPS.chroma_format_idc = ue(pRP);
+    pSPS->chroma_format_idc = ue(pRP);
 
-    if(tempSPS.chroma_format_idc == 3)
-      tempSPS.separate_colour_plane_flag = u(pRP, 1);
-    tempSPS.bit_depth_luma_minus8 = Clip3(ue(pRP), 0, MAX_BIT_DEPTH);
-    tempSPS.bit_depth_chroma_minus8 = Clip3(ue(pRP), 0, MAX_BIT_DEPTH);
+    if(pSPS->chroma_format_idc == 3)
+      pSPS->separate_colour_plane_flag = u(pRP, 1);
+    pSPS->bit_depth_luma_minus8 = Clip3(ue(pRP), 0, MAX_BIT_DEPTH);
+    pSPS->bit_depth_chroma_minus8 = Clip3(ue(pRP), 0, MAX_BIT_DEPTH);
 
-    tempSPS.qpprime_y_zero_transform_bypass_flag = u(pRP, 1);
-    tempSPS.seq_scaling_matrix_present_flag = u(pRP, 1);
+    pSPS->qpprime_y_zero_transform_bypass_flag = u(pRP, 1);
+    pSPS->seq_scaling_matrix_present_flag = u(pRP, 1);
 
-    if(tempSPS.seq_scaling_matrix_present_flag)
+    if(pSPS->seq_scaling_matrix_present_flag)
     {
       for(int i = 0; i < 8; ++i)
       {
-        tempSPS.seq_scaling_list_present_flag[i] = u(pRP, 1);
+        pSPS->seq_scaling_list_present_flag[i] = u(pRP, 1);
 
-        if(tempSPS.seq_scaling_list_present_flag[i])
+        if(pSPS->seq_scaling_list_present_flag[i])
         {
           if(i < 6)
-            avc_scaling_list_data(tempSPS.ScalingList4x4[i], pRP, 16, &tempSPS.UseDefaultScalingMatrix4x4Flag[i]);
+            avc_scaling_list_data(pSPS->ScalingList4x4[i], pRP, 16, &pSPS->UseDefaultScalingMatrix4x4Flag[i]);
           else
-            avc_scaling_list_data(tempSPS.ScalingList8x8[i - 6], pRP, 64, &tempSPS.UseDefaultScalingMatrix8x8Flag[i - 6]);
+            avc_scaling_list_data(pSPS->ScalingList8x8[i - 6], pRP, 64, &pSPS->UseDefaultScalingMatrix8x8Flag[i - 6]);
         }
         else
         {
           if(i < 6)
           {
             if(i == 0 || i == 3)
-              tempSPS.UseDefaultScalingMatrix4x4Flag[i] = 1;
+              pSPS->UseDefaultScalingMatrix4x4Flag[i] = 1;
             else
             {
-              if(tempSPS.UseDefaultScalingMatrix4x4Flag[i - 1])
-                tempSPS.UseDefaultScalingMatrix4x4Flag[i] = 1;
+              if(pSPS->UseDefaultScalingMatrix4x4Flag[i - 1])
+                pSPS->UseDefaultScalingMatrix4x4Flag[i] = 1;
               else
-                Rtos_Memcpy(tempSPS.ScalingList4x4[i], tempSPS.ScalingList4x4[i - 1], 16);
+                Rtos_Memcpy(pSPS->ScalingList4x4[i], pSPS->ScalingList4x4[i - 1], 16);
             }
           }
           else
-            tempSPS.UseDefaultScalingMatrix8x8Flag[i - 6] = 1;
+            pSPS->UseDefaultScalingMatrix8x8Flag[i - 6] = 1;
         }
       }
     }
@@ -403,88 +401,87 @@ AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
       for(int i = 0; i < 8; ++i)
       {
         if(i < 6)
-          Rtos_Memset(tempSPS.ScalingList4x4[i], 16, 16);
+          Rtos_Memset(pSPS->ScalingList4x4[i], 16, 16);
         else
-          Rtos_Memset(tempSPS.ScalingList8x8[i - 6], 16, 64);
+          Rtos_Memset(pSPS->ScalingList8x8[i - 6], 16, 64);
       }
     }
   }
 
-  tempSPS.log2_max_frame_num_minus4 = ue(pRP);
+  pSPS->log2_max_frame_num_minus4 = ue(pRP);
 
-  COMPLY(tempSPS.log2_max_frame_num_minus4 <= MAX_FRAME_NUM);
+  COMPLY(pSPS->log2_max_frame_num_minus4 <= MAX_FRAME_NUM);
 
-  tempSPS.pic_order_cnt_type = ue(pRP);
+  pSPS->pic_order_cnt_type = ue(pRP);
 
-  COMPLY(tempSPS.pic_order_cnt_type <= MAX_POC_TYPE);
+  COMPLY(pSPS->pic_order_cnt_type <= MAX_POC_TYPE);
 
-  if(tempSPS.pic_order_cnt_type == 0)
+  if(pSPS->pic_order_cnt_type == 0)
   {
-    tempSPS.log2_max_pic_order_cnt_lsb_minus4 = ue(pRP);
+    pSPS->log2_max_pic_order_cnt_lsb_minus4 = ue(pRP);
 
-    COMPLY(tempSPS.log2_max_pic_order_cnt_lsb_minus4 <= MAX_POC_LSB);
+    COMPLY(pSPS->log2_max_pic_order_cnt_lsb_minus4 <= MAX_POC_LSB);
 
-    tempSPS.delta_pic_order_always_zero_flag = 1;
+    pSPS->delta_pic_order_always_zero_flag = 1;
   }
-  else if(tempSPS.pic_order_cnt_type == 1)
+  else if(pSPS->pic_order_cnt_type == 1)
   {
-    tempSPS.delta_pic_order_always_zero_flag = u(pRP, 1);
-    tempSPS.offset_for_non_ref_pic = se(pRP);
-    tempSPS.offset_for_top_to_bottom_field = se(pRP);
-    tempSPS.num_ref_frames_in_pic_order_cnt_cycle = ue(pRP);
+    pSPS->delta_pic_order_always_zero_flag = u(pRP, 1);
+    pSPS->offset_for_non_ref_pic = se(pRP);
+    pSPS->offset_for_top_to_bottom_field = se(pRP);
+    pSPS->num_ref_frames_in_pic_order_cnt_cycle = ue(pRP);
 
-    for(int i = 0; i < tempSPS.num_ref_frames_in_pic_order_cnt_cycle; i++)
-      tempSPS.offset_for_ref_frame[i] = se(pRP);
+    for(int i = 0; i < pSPS->num_ref_frames_in_pic_order_cnt_cycle; i++)
+      pSPS->offset_for_ref_frame[i] = se(pRP);
   }
 
-  tempSPS.max_num_ref_frames = ue(pRP);
-  tempSPS.gaps_in_frame_num_value_allowed_flag = u(pRP, 1);
+  pSPS->max_num_ref_frames = ue(pRP);
+  pSPS->gaps_in_frame_num_value_allowed_flag = u(pRP, 1);
 
-  tempSPS.pic_width_in_mbs_minus1 = ue(pRP);
-  tempSPS.pic_height_in_map_units_minus1 = ue(pRP);
+  pSPS->pic_width_in_mbs_minus1 = ue(pRP);
+  pSPS->pic_height_in_map_units_minus1 = ue(pRP);
 
-  COMPLY(tempSPS.pic_width_in_mbs_minus1 >= 1);
-  COMPLY(tempSPS.pic_height_in_map_units_minus1 >= 1);
+  COMPLY(pSPS->pic_width_in_mbs_minus1 >= 1);
+  COMPLY(pSPS->pic_height_in_map_units_minus1 >= 1);
 
-  tempSPS.frame_mbs_only_flag = u(pRP, 1);
+  pSPS->frame_mbs_only_flag = u(pRP, 1);
 
-  if(!tempSPS.frame_mbs_only_flag)
+  if(!pSPS->frame_mbs_only_flag)
   {
-    tempSPS.mb_adaptive_frame_field_flag = u(pRP, 1);
+    pSPS->mb_adaptive_frame_field_flag = u(pRP, 1);
 
-    if(tempSPS.mb_adaptive_frame_field_flag)
+    if(pSPS->mb_adaptive_frame_field_flag)
       return AL_UNSUPPORTED;
 
-    tempSPS.pic_height_in_map_units_minus1 = fieldToFrameHeight(tempSPS.pic_height_in_map_units_minus1);
+    pSPS->pic_height_in_map_units_minus1 = fieldToFrameHeight(pSPS->pic_height_in_map_units_minus1);
   }
 
   // check if NAL isn't empty
   COMPLY(more_rbsp_data(pRP));
 
-  tempSPS.direct_8x8_inference_flag = u(pRP, 1);
-  tempSPS.frame_cropping_flag = u(pRP, 1);
+  pSPS->direct_8x8_inference_flag = u(pRP, 1);
+  pSPS->frame_cropping_flag = u(pRP, 1);
 
-  if(tempSPS.frame_cropping_flag)
+  if(pSPS->frame_cropping_flag)
   {
-    tempSPS.frame_crop_left_offset = ue(pRP);
-    tempSPS.frame_crop_right_offset = ue(pRP);
-    tempSPS.frame_crop_top_offset = ue(pRP);
-    tempSPS.frame_crop_bottom_offset = ue(pRP);
+    pSPS->frame_crop_left_offset = ue(pRP);
+    pSPS->frame_crop_right_offset = ue(pRP);
+    pSPS->frame_crop_top_offset = ue(pRP);
+    pSPS->frame_crop_bottom_offset = ue(pRP);
   }
 
-  tempSPS.vui_parameters_present_flag = u(pRP, 1);
+  pSPS->vui_parameters_present_flag = u(pRP, 1);
 
-  if(tempSPS.vui_parameters_present_flag)
+  if(pSPS->vui_parameters_present_flag)
   {
     // check if NAL isn't empty
     COMPLY(more_rbsp_data(pRP));
-    COMPLY(avc_vui_parameters(&tempSPS.vui_param, pRP));
+    COMPLY(avc_vui_parameters(&pSPS->vui_param, pRP));
   }
 
   // validate current SPS
-  tempSPS.bConceal = false;
+  pSPS->bConceal = false;
 
-  pIAup->avcAup.pSPS[sps_id] = tempSPS;
   return AL_OK;
 }
 

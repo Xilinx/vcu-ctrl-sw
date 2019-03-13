@@ -62,7 +62,7 @@ static int const HEVC_MAX_CU_SIZE = 5; // 32x32
 static int const AVC_MAX_CU_SIZE = 4; // 16x16
 static int const MIN_CU_SIZE = 3; // 8x8
 
-int LAMBDA_FACTORS[] = { 51, 90, 151, 151, 151, 151 }; // I, P, B(temporal id low to high)
+static int LAMBDA_FACTORS[] = { 51, 90, 151, 151, 151, 151 }; // I, P, B(temporal id low to high)
 /***************************************************************************/
 static bool AL_sSettings_CheckProfile(AL_EProfile eProfile)
 {

@@ -136,6 +136,10 @@ int AL_SrcMetaData_GetChromaSize(AL_TSrcMetaData* pMeta)
 
   if(AL_IsTiled(pMeta->tFourCC))
     return pMeta->tPlanes[AL_PLANE_UV].iPitch * iHeightC / 4;
+
+  if(AL_IsSemiPlanar(pMeta->tFourCC))
+    return pMeta->tPlanes[AL_PLANE_UV].iPitch * iHeightC;
+
   return pMeta->tPlanes[AL_PLANE_UV].iPitch * iHeightC * 2;
 }
 

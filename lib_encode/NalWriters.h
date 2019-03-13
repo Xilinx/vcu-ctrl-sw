@@ -56,7 +56,6 @@ AL_NalUnit AL_CreateAud(int nut, AL_ESliceType type, int tempId);
 AL_NalUnit AL_CreateSps(int nut, AL_TSps* sps, int iLayerId, int tempId);
 AL_NalUnit AL_CreatePps(int nut, AL_TPps* pps, int iLayerId, int tempId);
 AL_NalUnit AL_CreateVps(AL_THevcVps* vps, int tempId);
-AL_NalUnit AL_CreateSkip(int nut, AL_TSkippedPicture const* skip);
 
 #include "lib_common_enc/EncPicInfo.h"
 typedef struct t_SeiPrefixAPSCtx

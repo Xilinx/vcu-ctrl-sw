@@ -50,6 +50,6 @@
 void AL_AVC_InitAUP(AL_TAvcAup* pAUP);
 
 AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId);
-AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TAup* pIAup, AL_TRbspParser* pRP);
+AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TRbspParser* pRP, AL_TAvcSps* pSPS);
 bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB_ParsedSei* cb);
 

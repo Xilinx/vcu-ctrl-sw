@@ -56,7 +56,7 @@ void AL_DecodeOneNal(AL_NonVclNuts nuts, AL_NalParser parser, AL_TAup* pAUP, AL_
   if(nut == nuts.sps)
   {
     AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
-    parser.parseSps(pAUP, &rp);
+    parser.parseSps(pAUP, &rp, pCtx);
   }
 
   if(nut == nuts.pps)

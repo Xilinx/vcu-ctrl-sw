@@ -327,12 +327,12 @@ static bool OpenFile(const string& sQPTablesFolder, int iFrameID, string motif, 
 /****************************************************************************/
 bool Load_QPTable_FromFile_Vp9(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, const string& sQPTablesFolder, int iFrameID, bool bRelative)
 {
+  string sLine;
   ifstream file;
 
   if(!OpenFile(sQPTablesFolder, iFrameID, QPTablesMotif, file))
     return false;
 
-  char sLine[256];
   int16_t* pSeg = (int16_t*)pSegs;
 
   for(int iSeg = 0; iSeg < 8; ++iSeg)
@@ -340,7 +340,8 @@ bool Load_QPTable_FromFile_Vp9(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, cons
     int idx = (iSeg & 0x01) << 2;
 
     if(idx == 0)
-      file.read(sLine, 256);
+      getline(file, sLine);
+
     pSeg[iSeg] = FromHex4(sLine[4 - idx], sLine[5 - idx], sLine[6 - idx], sLine[7 - idx]);
 
     if(!bRelative && (pSeg[iSeg] < 0 || pSeg[iSeg] > 255))

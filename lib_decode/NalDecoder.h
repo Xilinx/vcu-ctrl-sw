@@ -50,7 +50,7 @@ typedef struct
 
 typedef struct
 {
-  AL_PARSE_RESULT (* parseSps)(AL_TAup*, AL_TRbspParser*);
+  AL_PARSE_RESULT (* parseSps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
   AL_PARSE_RESULT (* parsePps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
   void (* parseVps)(AL_TAup*, AL_TRbspParser*);
   bool (* parseSei)(AL_TAup*, AL_TRbspParser*, bool, AL_CB_ParsedSei*);
