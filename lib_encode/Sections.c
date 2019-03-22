@@ -140,17 +140,17 @@ static int getOffsetAfterLastSection(AL_TStreamMetaData* pMeta)
 
 static uint32_t generateSeiFlags(AL_TEncPicStatus const* pPicStatus)
 {
-  uint32_t uFlags = SEI_PT;
+  uint32_t uFlags = AL_SEI_PT;
 
-  if(pPicStatus->eType == SLICE_I)
+  if(pPicStatus->eType == AL_SLICE_I)
   {
-    uFlags |= SEI_BP;
+    uFlags |= AL_SEI_BP;
 
     if(!pPicStatus->bIsIDR)
-      uFlags |= SEI_RP;
+      uFlags |= AL_SEI_RP;
   }
   else if(pPicStatus->iRecoveryCnt)
-    uFlags |= SEI_RP;
+    uFlags |= AL_SEI_RP;
 
   return uFlags;
 }
@@ -177,7 +177,7 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
         nals[nalsCount++] = AL_CreateSps(nuts.spsNut, nalsData->sps[i], i, pPicStatus->uTempId);
     }
 
-    if(pPicStatus->eType == SLICE_I || pPicStatus->iRecoveryCnt)
+    if(pPicStatus->eType == AL_SLICE_I || pPicStatus->iRecoveryCnt)
     {
       for(int i = 0; i < iLayersCount; i++)
         nals[nalsCount++] = AL_CreatePps(nuts.ppsNut, nalsData->pps[i], i, pPicStatus->uTempId);
@@ -190,11 +190,11 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
     if(AL_IS_SEI_PREFIX(nalsData->seiFlags))
     {
       assert(nalsData != NULL);
-      assert(nalsData->seiFlags != SEI_NONE);
+      assert(nalsData->seiFlags != AL_SEI_NONE);
 
       uint32_t const uFlags = generateSeiFlags(pPicStatus) & nalsData->seiFlags;
 
-      if(uFlags & (SEI_BP | SEI_PT) && writer->WriteSEI_ActiveParameterSets)
+      if(uFlags & (AL_SEI_BP | AL_SEI_PT) && writer->WriteSEI_ActiveParameterSets)
       {
         seiPrefixAPSCtx = createSeiPrefixAPSCtx(nalsData->sps[0], nalsData->vps);
         nals[nalsCount++] = AL_CreateSeiPrefixAPS(&seiPrefixAPSCtx, nuts.seiPrefixNut, pPicStatus->uTempId);
@@ -207,7 +207,7 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
       }
 
 
-      if(nalsData->seiFlags & SEI_UDU)
+      if(nalsData->seiFlags & AL_SEI_UDU)
       {
         seiPrefixUDUCtx = createSeiPrefixUDUCtx(iNumSlices);
         nals[nalsCount++] = AL_CreateSeiPrefixUDU(&seiPrefixUDUCtx, nuts.seiPrefixNut, pPicStatus->uTempId);
@@ -232,7 +232,7 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
 
   bool shouldWriteFiller = nalsData->shouldWriteFillerData && pPicStatus->iFiller;
 
-  if(nalsData->seiFlags & SEI_UDU)
+  if(nalsData->seiFlags & AL_SEI_UDU)
     shouldWriteFiller |= pPicStatus->bIsLastSlice;
 
   if(shouldWriteFiller)

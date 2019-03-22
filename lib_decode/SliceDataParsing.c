@@ -186,16 +186,21 @@ void AL_LaunchSliceDecoding(AL_TDecCtx* pCtx, bool bIsLastAUNal, bool hasPreviou
   AL_TDecPicBufferAddrs BufAddrs = AL_SetBufferAddrs(pCtx);
 
   uint16_t uSliceID = pCtx->PictMngr.uNumSlice - 1;
+  AL_TDecSliceParam* pPrevSP = NULL;
 
 
   UpdateStreamOffset(pCtx);
 
   if(hasPreviousSlice && uSliceID)
+  {
+    pPrevSP = &(((AL_TDecSliceParam*)pCtx->PoolSP[pCtx->uToggle].tMD.pVirtualAddr)[uSliceID - 1]);
     decodeOneSlice(pCtx, uSliceID - 1, &BufAddrs);
+  }
 
   if(bIsLastAUNal)
   {
-    decodeOneSlice(pCtx, uSliceID, &BufAddrs);
+    if(pPrevSP == NULL || !pPrevSP->bIsLastSlice)
+      decodeOneSlice(pCtx, uSliceID, &BufAddrs);
     pCtx->uCurTileID = 0;
 
     Rtos_GetMutex(pCtx->DecMutex);
@@ -322,7 +327,7 @@ void AL_TerminatePreviousCommand(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDec
 
   if(!pCtx->tConceal.bValidFrame)
   {
-    pPrevSP->eSliceType = SLICE_CONCEAL;
+    pPrevSP->eSliceType = AL_SLICE_CONCEAL;
     pPrevSP->FirstLCU = 0;
   }
   pushCommandParameters(pCtx, pPrevSP, bIsLastVclNalInAU);
@@ -346,7 +351,7 @@ void AL_AVC_PrepareCommand(AL_TDecCtx* pCtx, AL_TScl* pSCL, AL_TDecPicParam* pPP
   }
 
   // copy collocated info
-  if(pSP->FirstLcuSliceSegment && pSP->eSliceType == SLICE_I)
+  if(pSP->FirstLcuSliceSegment && pSP->eSliceType == AL_SLICE_I)
     pSP->ColocPicID = pPrevSP->ColocPicID;
 
   if(!pSlice->first_mb_in_slice)
@@ -383,7 +388,7 @@ void AL_HEVC_PrepareCommand(AL_TDecCtx* pCtx, AL_TScl* pSCL, AL_TDecPicParam* pP
   }
 
   // copy collocated info
-  if(pSP->FirstLcuSliceSegment && pSP->eSliceType == SLICE_I)
+  if(pSP->FirstLcuSliceSegment && pSP->eSliceType == AL_SLICE_I)
     pSP->ColocPicID = pPrevSP->ColocPicID;
 
   if(pSlice->first_slice_segment_in_pic_flag)

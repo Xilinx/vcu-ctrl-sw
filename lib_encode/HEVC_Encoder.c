@@ -47,7 +47,7 @@ static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicSt
   AL_HEVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, pPicStatus, bResolutionChanged, uNalID);
   HEVC_GenerateSections(pCtx, pStream, pPicStatus, iLayerID);
 
-  if(pPicStatus->eType == SLICE_I)
+  if(pPicStatus->eType == AL_SLICE_I)
     pCtx->seiData.cpbRemovalDelay = 0;
 
   pCtx->seiData.cpbRemovalDelay += PicStructToFieldNumber[pPicStatus->ePicStruct];
@@ -84,6 +84,9 @@ static void initHls(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
 
   if(pChParam->tGopParam.bEnableLT)
     pChParam->uSpsParam |= AL_SPS_LOG2_NUM_LONG_TERM_RPS_MASK;
+
+  if((pChParam->tRCParam.eOptions & AL_RC_OPT_ENABLE_SKIP) && (pChParam->eEncTools & AL_OPT_LF))
+    pChParam->uPpsParam |= AL_PPS_OVERRIDE_LF;
 
 
   if(pChParam->tGopParam.eGdrMode != AL_GDR_OFF)

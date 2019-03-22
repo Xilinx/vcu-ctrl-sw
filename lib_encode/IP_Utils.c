@@ -595,8 +595,8 @@ static void AL_AVC_GenerateSPS_Resolution(AL_TAvcSps* pSPS, uint16_t uWidth, uin
 
   AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(ePicFormat);
 
-  int iCropUnitX = eChromaMode == CHROMA_4_2_0 || eChromaMode == CHROMA_4_2_2 ? 2 : 1;
-  int iCropUnitY = eChromaMode == CHROMA_4_2_0 ? 2 : 1;
+  int iCropUnitX = eChromaMode == AL_CHROMA_4_2_0 || eChromaMode == AL_CHROMA_4_2_2 ? 2 : 1;
+  int iCropUnitY = eChromaMode == AL_CHROMA_4_2_0 ? 2 : 1;
 
   pSPS->pic_width_in_mbs_minus1 = iMBWidth - 1;
 
@@ -675,7 +675,7 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   pSPS->vui_parameters_present_flag = 0;
 #endif
 
-  pSPS->vui_param.chroma_loc_info_present_flag = (eChromaMode == CHROMA_4_2_0) ? 1 : 0;
+  pSPS->vui_param.chroma_loc_info_present_flag = (eChromaMode == AL_CHROMA_4_2_0) ? 1 : 0;
   pSPS->vui_param.chroma_sample_loc_type_top_field = 0;
   pSPS->vui_param.chroma_sample_loc_type_bottom_field = 0;
 
@@ -758,8 +758,8 @@ void AL_HEVC_GenerateSPS_Format(AL_THevcSps* pSPS, AL_EChromaMode eChromaMode, u
     int iWidthDiff = pSPS->pic_width_in_luma_samples - uWidth;
     int iHeightDiff = pSPS->pic_height_in_luma_samples - uHeight;
 
-    int iCropUnitX = eChromaMode == CHROMA_4_2_0 || eChromaMode == CHROMA_4_2_2 ? 2 : 1;
-    int iCropUnitY = eChromaMode == CHROMA_4_2_0 ? 2 : 1;
+    int iCropUnitX = eChromaMode == AL_CHROMA_4_2_0 || eChromaMode == AL_CHROMA_4_2_2 ? 2 : 1;
+    int iCropUnitY = eChromaMode == AL_CHROMA_4_2_0 ? 2 : 1;
 
     pSPS->conf_win_left_offset = 0;
     pSPS->conf_win_right_offset = iWidthDiff / iCropUnitX;
@@ -872,8 +872,8 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
         assert(((iNumNegPics - iPic - 1) >= 0) && ((iNumNegPics - iPic - 1) < 5));
         int iPOC = pFrm->pDPB[iNumNegPics - iPic - 1];
         pSPS->short_term_ref_pic_set[i].delta_poc_s0_minus1[iPic] = iOldPOC - iPOC - 1;
-        pSPS->short_term_ref_pic_set[i].used_by_curr_pic_s0_flag[iPic] = (pFrm->uType != SLICE_I && iPOC == pFrm->iRefA)
-                                                                         || (pFrm->uType == SLICE_B && iPOC == pFrm->iRefB);
+        pSPS->short_term_ref_pic_set[i].used_by_curr_pic_s0_flag[iPic] = (pFrm->uType != AL_SLICE_I && iPOC == pFrm->iRefA)
+                                                                         || (pFrm->uType == AL_SLICE_B && iPOC == pFrm->iRefB);
         iOldPOC = iPOC;
       }
 
@@ -885,8 +885,8 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
         assert(((iNumNegPics + iPic) >= 0) && ((iNumNegPics + iPic) < 5));
         int iPOC = pFrm->pDPB[iNumNegPics + iPic];
         pSPS->short_term_ref_pic_set[i].delta_poc_s1_minus1[iPic] = iPOC - iOldPOC - 1;
-        pSPS->short_term_ref_pic_set[i].used_by_curr_pic_s1_flag[iPic] = (pFrm->uType != SLICE_I && iPOC == pFrm->iRefA)
-                                                                         || (pFrm->uType == SLICE_B && iPOC == pFrm->iRefB);
+        pSPS->short_term_ref_pic_set[i].used_by_curr_pic_s1_flag[iPic] = (pFrm->uType != AL_SLICE_I && iPOC == pFrm->iRefA)
+                                                                         || (pFrm->uType == AL_SLICE_B && iPOC == pFrm->iRefB);
         iOldPOC = iPOC;
       }
     }

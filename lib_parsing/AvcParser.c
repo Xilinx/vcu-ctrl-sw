@@ -692,13 +692,13 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB_
     case BUFFERING_PERIOD: // buffering_period parsing
     {
       PARSE_OR_SKIP(sei_buffering_period(pRP, aup->pSPS, &sei.buffering_period, &aup->pActiveSPS))
-      sei.present_flags |= SEI_BP;
+      sei.present_flags |= AL_SEI_BP;
       break;
     }
     case PIC_TIMING: // picture_timing parsing
     {
       PARSE_OR_SKIP(sei_pic_timing(pRP, aup->pActiveSPS, &sei.picture_timing))
-      sei.present_flags |= SEI_PT;
+      sei.present_flags |= AL_SEI_PT;
       break;
     }
     case USER_DATA_UNREGISTERED: // user_data_unregistered parsing

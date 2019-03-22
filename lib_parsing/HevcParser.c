@@ -951,7 +951,7 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB
       if(aup->pActiveSPS)
       {
         PARSE_OR_SKIP(sei_pic_timing(pRP, aup->pActiveSPS, &sei.picture_timing));
-        sei.present_flags |= SEI_PT;
+        sei.present_flags |= AL_SEI_PT;
         aup->ePicStruct = sei.picture_timing.pic_struct;
       }
       else
@@ -961,7 +961,7 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB
     case RECOVERY_POINT: // picture_timing parsing
     {
       PARSE_OR_SKIP(sei_recovery_point(pRP, &sei.recovery_point));
-      aup->iRecoveryCnt = sei.recovery_point.recovery_cnt + 1; // +1 for non-zero value when SEI_RP is present
+      aup->iRecoveryCnt = sei.recovery_point.recovery_cnt + 1; // +1 for non-zero value when AL_SEI_RP is present
       break;
     }
     case ACTIVE_PARAMETER_SETS:

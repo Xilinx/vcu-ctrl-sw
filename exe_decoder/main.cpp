@@ -122,7 +122,7 @@ AL_TDecSettings getDefaultDecSettings()
   settings.eDpbMode = AL_DPB_NORMAL;
   settings.eFBStorageMode = AL_FB_RASTER;
   settings.tStream.tDim = { -1, -1 };
-  settings.tStream.eChroma = CHROMA_MAX_ENUM;
+  settings.tStream.eChroma = AL_CHROMA_MAX_ENUM;
   settings.tStream.iBitDepth = -1;
   settings.tStream.iProfileIdc = -1;
   settings.tStream.eSequenceMode = AL_SM_MAX_ENUM;
@@ -236,7 +236,7 @@ void getExpectedSeparator(stringstream& ss, char expectedSep)
 bool invalidPreallocSettings(AL_TStreamSettings const& settings)
 {
   return settings.iProfileIdc <= 0 || settings.iLevel <= 0
-         || settings.tDim.iWidth <= 0 || settings.tDim.iHeight <= 0 || settings.eChroma == CHROMA_MAX_ENUM || settings.eSequenceMode == AL_SM_MAX_ENUM;
+         || settings.tDim.iWidth <= 0 || settings.tDim.iHeight <= 0 || settings.eChroma == AL_CHROMA_MAX_ENUM || settings.eSequenceMode == AL_SM_MAX_ENUM;
 }
 
 void parsePreAllocArgs(AL_TStreamSettings* settings, string& toParse)
@@ -273,13 +273,13 @@ void parsePreAllocArgs(AL_TStreamSettings* settings, string& toParse)
   settings->tDim.iHeight = RoundUp(settings->tDim.iHeight, 64);
 
   if(string(chroma) == "400")
-    settings->eChroma = CHROMA_4_0_0;
+    settings->eChroma = AL_CHROMA_4_0_0;
   else if(string(chroma) == "420")
-    settings->eChroma = CHROMA_4_2_0;
+    settings->eChroma = AL_CHROMA_4_2_0;
   else if(string(chroma) == "422")
-    settings->eChroma = CHROMA_4_2_2;
+    settings->eChroma = AL_CHROMA_4_2_2;
   else if(string(chroma) == "444")
-    settings->eChroma = CHROMA_4_4_4;
+    settings->eChroma = AL_CHROMA_4_4_4;
   else
     throw runtime_error("wrong prealloc chroma format");
 
@@ -352,7 +352,11 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addCustom("-clk", &Config.tDecSettings.uClkRatio, &IntWithOffset<1000>, "Set clock ratio");
 
   opt.addFlag("-lowref", &Config.tDecSettings.eDpbMode,
-              "Specify decoder DPB Low ref (stream musn't have B-frame & reference must be at best 1)",
+              "[DEPRECATED] Use --no-reordering instead. Indicates to decoder that the stream doesn't contain B-frame & reference must be at best 1)",
+              AL_DPB_NO_REORDERING);
+
+  opt.addFlag("--no-reordering", &Config.tDecSettings.eDpbMode,
+              "Indicates to decoder that the stream doesn't contain B-frame & reference must be at best 1)",
               AL_DPB_NO_REORDERING);
 
   opt.addOption("-slicelat", [&]()
@@ -473,7 +477,7 @@ static int GetPictureSizeInSamples(AL_TSrcMetaData* meta)
 
   int sampleCount = meta->tDim.iWidth * meta->tDim.iHeight;
 
-  if(AL_GetChromaMode(meta->tFourCC) != CHROMA_MONO)
+  if(AL_GetChromaMode(meta->tFourCC) != AL_CHROMA_MONO)
     sampleCount += ((sampleCount * 2) / (sx * sy));
 
   return sampleCount;
@@ -481,27 +485,27 @@ static int GetPictureSizeInSamples(AL_TSrcMetaData* meta)
 
 AL_TO_IP Get8BitsConversionFunction(int iPicFmt)
 {
-  auto const CHROMA_MONO_8bitTo8bit = 0x00080800;
-  auto const CHROMA_MONO_8bitTo10bit = 0x000A0800;
+  auto const AL_CHROMA_MONO_8bitTo8bit = 0x00080800;
+  auto const AL_CHROMA_MONO_8bitTo10bit = 0x000A0800;
 
-  auto const CHROMA_420_8bitTo8bit = 0x00080801;
-  auto const CHROMA_420_8bitTo10bit = 0x000A0801;
+  auto const AL_CHROMA_420_8bitTo8bit = 0x00080801;
+  auto const AL_CHROMA_420_8bitTo10bit = 0x000A0801;
 
-  auto const CHROMA_422_8bitTo8bit = 0x00080802;
-  auto const CHROMA_422_8bitTo10bit = 0x000A0802;
+  auto const AL_CHROMA_422_8bitTo8bit = 0x00080802;
+  auto const AL_CHROMA_422_8bitTo10bit = 0x000A0802;
   switch(iPicFmt)
   {
-  case CHROMA_420_8bitTo8bit:
+  case AL_CHROMA_420_8bitTo8bit:
     return NV12_To_I420;
-  case CHROMA_420_8bitTo10bit:
+  case AL_CHROMA_420_8bitTo10bit:
     return NV12_To_I0AL;
-  case CHROMA_422_8bitTo8bit:
+  case AL_CHROMA_422_8bitTo8bit:
     return NV16_To_I422;
-  case CHROMA_422_8bitTo10bit:
+  case AL_CHROMA_422_8bitTo10bit:
     return NV16_To_I2AL;
-  case CHROMA_MONO_8bitTo8bit:
+  case AL_CHROMA_MONO_8bitTo8bit:
     return Y800_To_Y800;
-  case CHROMA_MONO_8bitTo10bit:
+  case AL_CHROMA_MONO_8bitTo10bit:
     return Y800_To_Y010;
   default:
     assert(0);
@@ -511,27 +515,27 @@ AL_TO_IP Get8BitsConversionFunction(int iPicFmt)
 
 AL_TO_IP Get10BitsConversionFunction(int iPicFmt)
 {
-  auto const CHROMA_MONO_10bitTo10bit = 0x000A0A00;
-  auto const CHROMA_MONO_10bitTo8bit = 0x00080A00;
+  auto const AL_CHROMA_MONO_10bitTo10bit = 0x000A0A00;
+  auto const AL_CHROMA_MONO_10bitTo8bit = 0x00080A00;
 
-  auto const CHROMA_420_10bitTo10bit = 0x000A0A01;
-  auto const CHROMA_420_10bitTo8bit = 0x00080A01;
+  auto const AL_CHROMA_420_10bitTo10bit = 0x000A0A01;
+  auto const AL_CHROMA_420_10bitTo8bit = 0x00080A01;
 
-  auto const CHROMA_422_10bitTo10bit = 0x000A0A02;
-  auto const CHROMA_422_10bitTo8bit = 0x00080A02;
+  auto const AL_CHROMA_422_10bitTo10bit = 0x000A0A02;
+  auto const AL_CHROMA_422_10bitTo8bit = 0x00080A02;
   switch(iPicFmt)
   {
-  case CHROMA_420_10bitTo10bit:
+  case AL_CHROMA_420_10bitTo10bit:
     return XV15_To_I0AL;
-  case CHROMA_420_10bitTo8bit:
+  case AL_CHROMA_420_10bitTo8bit:
     return XV15_To_I420;
-  case CHROMA_422_10bitTo10bit:
+  case AL_CHROMA_422_10bitTo10bit:
     return XV20_To_I2AL;
-  case CHROMA_422_10bitTo8bit:
+  case AL_CHROMA_422_10bitTo8bit:
     return XV20_To_I422;
-  case CHROMA_MONO_10bitTo10bit:
+  case AL_CHROMA_MONO_10bitTo10bit:
     return XV15_To_Y010;
-  case CHROMA_MONO_10bitTo8bit:
+  case AL_CHROMA_MONO_10bitTo8bit:
     return XV15_To_Y800;
   default:
     assert(0);
@@ -541,49 +545,49 @@ AL_TO_IP Get10BitsConversionFunction(int iPicFmt)
 
 AL_TO_IP GetTileConversionFunction(int iPicFmt)
 {
-  auto const CHROMA_MONO_8bitTo8bit = 0x00080800;
-  auto const CHROMA_MONO_8bitTo10bit = 0x000A0800;
+  auto const AL_CHROMA_MONO_8bitTo8bit = 0x00080800;
+  auto const AL_CHROMA_MONO_8bitTo10bit = 0x000A0800;
 
-  auto const CHROMA_420_8bitTo8bit = 0x00080801;
-  auto const CHROMA_420_8bitTo10bit = 0x000A0801;
+  auto const AL_CHROMA_420_8bitTo8bit = 0x00080801;
+  auto const AL_CHROMA_420_8bitTo10bit = 0x000A0801;
 
-  auto const CHROMA_422_8bitTo8bit = 0x00080802;
-  auto const CHROMA_422_8bitTo10bit = 0x000A0802;
+  auto const AL_CHROMA_422_8bitTo8bit = 0x00080802;
+  auto const AL_CHROMA_422_8bitTo10bit = 0x000A0802;
 
-  auto const CHROMA_MONO_10bitTo10bit = 0x000A0A00;
-  auto const CHROMA_MONO_10bitTo8bit = 0x00080A00;
+  auto const AL_CHROMA_MONO_10bitTo10bit = 0x000A0A00;
+  auto const AL_CHROMA_MONO_10bitTo8bit = 0x00080A00;
 
-  auto const CHROMA_420_10bitTo10bit = 0x000A0A01;
-  auto const CHROMA_420_10bitTo8bit = 0x00080A01;
+  auto const AL_CHROMA_420_10bitTo10bit = 0x000A0A01;
+  auto const AL_CHROMA_420_10bitTo8bit = 0x00080A01;
 
-  auto const CHROMA_422_10bitTo10bit = 0x000A0A02;
-  auto const CHROMA_422_10bitTo8bit = 0x00080A02;
+  auto const AL_CHROMA_422_10bitTo10bit = 0x000A0A02;
+  auto const AL_CHROMA_422_10bitTo8bit = 0x00080A02;
   switch(iPicFmt)
   {
-  case CHROMA_420_8bitTo8bit:
+  case AL_CHROMA_420_8bitTo8bit:
     return T608_To_I420;
-  case CHROMA_420_8bitTo10bit:
+  case AL_CHROMA_420_8bitTo10bit:
     return T608_To_I0AL;
-  case CHROMA_422_8bitTo8bit:
+  case AL_CHROMA_422_8bitTo8bit:
     return T628_To_I422;
-  case CHROMA_422_8bitTo10bit:
+  case AL_CHROMA_422_8bitTo10bit:
     return T628_To_I2AL;
-  case CHROMA_MONO_8bitTo8bit:
+  case AL_CHROMA_MONO_8bitTo8bit:
     return T608_To_Y800;
-  case CHROMA_MONO_8bitTo10bit:
+  case AL_CHROMA_MONO_8bitTo10bit:
     return T608_To_Y010;
 
-  case CHROMA_420_10bitTo10bit:
+  case AL_CHROMA_420_10bitTo10bit:
     return T60A_To_I0AL;
-  case CHROMA_420_10bitTo8bit:
+  case AL_CHROMA_420_10bitTo8bit:
     return T60A_To_I420;
-  case CHROMA_422_10bitTo10bit:
+  case AL_CHROMA_422_10bitTo10bit:
     return T62A_To_I2AL;
-  case CHROMA_422_10bitTo8bit:
+  case AL_CHROMA_422_10bitTo8bit:
     return T62A_To_I422;
-  case CHROMA_MONO_10bitTo10bit:
+  case AL_CHROMA_MONO_10bitTo10bit:
     return T60A_To_Y010;
-  case CHROMA_MONO_10bitTo8bit:
+  case AL_CHROMA_MONO_10bitTo8bit:
     return T60A_To_Y800;
   default:
     assert(0);
@@ -629,7 +633,7 @@ static void ConvertFrameBuffer(AL_TBuffer& input, int iBdIn, AL_TBuffer& output,
   pYuvMeta->tDim.iWidth = pRecMeta->tDim.iWidth;
   pYuvMeta->tDim.iHeight = pRecMeta->tDim.iHeight;
   pYuvMeta->tPlanes[AL_PLANE_Y].iPitch = iSizePix * pRecMeta->tDim.iWidth;
-  pYuvMeta->tPlanes[AL_PLANE_UV].iPitch = iSizePix * ((tPicFormat.eChromaMode == CHROMA_4_4_4) ? pRecMeta->tDim.iWidth : pRecMeta->tDim.iWidth >> 1);
+  pYuvMeta->tPlanes[AL_PLANE_UV].iPitch = iSizePix * ((tPicFormat.eChromaMode == AL_CHROMA_4_4_4) ? pRecMeta->tDim.iWidth : pRecMeta->tDim.iWidth >> 1);
   pYuvMeta->tPlanes[AL_PLANE_Y].iOffset = 0;
   pYuvMeta->tPlanes[AL_PLANE_UV].iOffset = pYuvMeta->tPlanes[AL_PLANE_Y].iPitch * pYuvMeta->tDim.iHeight;
 

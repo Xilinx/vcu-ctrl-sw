@@ -121,12 +121,12 @@ static uint32_t ConsiderChromaForAllocSize(AL_EChromaMode eChromaMode, uint32_t 
 {
   switch(eChromaMode)
   {
-  case CHROMA_MONO: break;
-  case CHROMA_4_2_0: uSize += uSize >> 1;
+  case AL_CHROMA_MONO: break;
+  case AL_CHROMA_4_2_0: uSize += uSize >> 1;
     break;
-  case CHROMA_4_2_2: uSize += uSize;
+  case AL_CHROMA_4_2_2: uSize += uSize;
     break;
-  case CHROMA_4_4_4:
+  case AL_CHROMA_4_4_4:
   default: assert(0);
     break;
   }
@@ -207,13 +207,13 @@ static uint32_t GetAllocSize_Ref(AL_TDimension tRoundedDim, uint8_t uBitDepth, A
   uint32_t uSizeDiv = 1;
   switch(eChromaMode)
   {
-  case CHROMA_MONO:
+  case AL_CHROMA_MONO:
     break;
-  case CHROMA_4_2_0:
+  case AL_CHROMA_4_2_0:
     uSize *= 3;
     uSizeDiv *= 2;
     break;
-  case CHROMA_4_2_2:
+  case AL_CHROMA_4_2_2:
     uSize *= 2;
     break;
   default:

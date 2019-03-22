@@ -829,7 +829,7 @@ static void sFrmBufPool_GetInfoDecode(AL_TFrmBufPool* pPool, int iFrameID, AL_TI
   pInfo->eFbStorageMode = eFbStorageMode;
   pInfo->ePicStruct = pPool->array[iFrameID].ePicStruct;
   AL_EChromaMode eChromaMode = AL_GetChromaMode(pMetaSrc->tFourCC);
-  pInfo->bChroma = (eChromaMode != CHROMA_MONO);
+  pInfo->bChroma = (eChromaMode != AL_CHROMA_MONO);
 }
 
 /***************************************************************************/
@@ -1099,10 +1099,10 @@ static void FillPocAndLongtermLists(AL_TDpb* pDpb, TBufferPOC* pPoc, AL_TDecSlic
 
   AL_ESliceType eType = (AL_ESliceType)pSP->eSliceType;
 
-  if(eType != SLICE_I)
+  if(eType != AL_SLICE_I)
     AL_Dpb_FillList(pDpb, 0, pListRef, pPocList, pLongTermList);
 
-  if(eType == SLICE_B)
+  if(eType == AL_SLICE_B)
     AL_Dpb_FillList(pDpb, 1, pListRef, pPocList, pLongTermList);
 }
 
@@ -1145,7 +1145,7 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam* pSP, TBuff
       uint8_t uNodeID = AL_Dpb_ConvertPicIDToNodeID(&pCtx->DPB, i);
 
       if(uNodeID == UndefID
-         && pSP->eSliceType == SLICE_CONCEAL
+         && pSP->eSliceType == AL_SLICE_CONCEAL
          && pSP->ValidConceal
          && pCtx->DPB.uCountPic)
         uNodeID = AL_Dpb_ConvertPicIDToNodeID(&pCtx->DPB, pSP->ConcealPicID);

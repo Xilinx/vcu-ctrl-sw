@@ -53,7 +53,7 @@
 #include "NalUnitParser.h"
 #include "lib_decode/I_DecChannel.h"
 #include "lib_decode/lib_decode.h"
-#include "BufferFeeder.h"
+#include "I_Feeder.h"
 
 typedef enum AL_e_ChanState
 {
@@ -67,7 +67,8 @@ typedef enum AL_e_ChanState
 *****************************************************************************/
 typedef struct t_Dec_Ctx
 {
-  AL_TBufferFeeder* Feeder;
+  AL_TFeeder* Feeder;
+  bool bDecUnitInput;
 
   TBuffer BufNoAE;            // Deanti-Emulated buffer used for high level syntax parsing
   TCircBuffer Stream;             // Input stream buffer

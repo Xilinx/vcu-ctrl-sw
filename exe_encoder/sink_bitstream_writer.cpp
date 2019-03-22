@@ -68,7 +68,7 @@ struct BitstreamWriter : IFrameSink
       return;
     }
 
-    m_frameCount += WriteStream(m_file, pStream, &cfg.Settings.tChParam[0]);
+    m_frameCount += WriteStream(m_file, pStream, &cfg.Settings);
   }
 
   void printBitrate()

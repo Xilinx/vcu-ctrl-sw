@@ -35,26 +35,51 @@
 *
 ******************************************************************************/
 
-#include "lib_common_dec/IpDecFourCC.h"
-#include <assert.h>
+#pragma once
 
-TFourCC AL_GetDecFourCC(AL_TPicFormat const picFmt)
+#include "lib_common/BufferAPI.h"
+#include "lib_common/BufCommonInternal.h"
+
+typedef struct AL_s_TFeeder AL_TFeeder;
+typedef struct
 {
-  if(AL_FB_RASTER == picFmt.eStorageMode)
-  {
-    assert(picFmt.eChromaMode == AL_CHROMA_MONO || picFmt.eChromaOrder == AL_C_ORDER_SEMIPLANAR);
-    assert(picFmt.uBitDepth == 8 || picFmt.b10bPacked);
-  }
+  void (* pfnFeederDestroy)(AL_TFeeder* pFeeder);
+  bool (* pfnFeederPushBuffer)(AL_TFeeder* pFeeder, AL_TBuffer* pBuf, size_t uSize, bool bLastBuffer);
+  void (* pfnFeederSignal)(AL_TFeeder* pFeeder);
+  void (* pfnFeederFlush)(AL_TFeeder* pFeeder);
+  void (* pfnFeederReset)(AL_TFeeder* pFeeder);
+}AL_TFeederVtable;
 
-  return AL_GetFourCC(picFmt);
+typedef struct AL_s_TFeeder
+{
+  AL_TFeederVtable const* vtable;
+}AL_TFeeder;
+
+static inline void AL_Feeder_Destroy(AL_TFeeder* pFeeder)
+{
+  return pFeeder->vtable->pfnFeederDestroy(pFeeder);
 }
 
-AL_TPicFormat AL_GetDecPicFormat(AL_EChromaMode eChromaMode, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode, bool bIsCompressed)
+/* push a buffer in the queue. it will be fed to the decoder when possible */
+static inline bool AL_Feeder_PushBuffer(AL_TFeeder* pFeeder, AL_TBuffer* pBuf, size_t uSize, bool bLastBuffer)
 {
-  bool b10bPacked = false;
-  b10bPacked = AL_FB_RASTER == eStorageMode && 10 == uBitDepth;
-
-  AL_TPicFormat picFormat = { eChromaMode, uBitDepth, eStorageMode, eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : AL_C_ORDER_SEMIPLANAR, bIsCompressed, b10bPacked };
-  return picFormat;
+  return pFeeder->vtable->pfnFeederPushBuffer(pFeeder, pBuf, uSize, bLastBuffer);
 }
 
+/* tell the buffer queue that the decoder finished decoding a frame */
+static inline void AL_Feeder_Signal(AL_TFeeder* pFeeder)
+{
+  return pFeeder->vtable->pfnFeederSignal(pFeeder);
+}
+
+/* flush decoder */
+static inline void AL_Feeder_Flush(AL_TFeeder* pFeeder)
+{
+  return pFeeder->vtable->pfnFeederFlush(pFeeder);
+}
+
+/* make decoder ready for next sequence */
+static inline void AL_Feeder_Reset(AL_TFeeder* pFeeder)
+{
+  return pFeeder->vtable->pfnFeederReset(pFeeder);
+}

@@ -49,6 +49,7 @@
 
 #include "DefaultDecoder.h"
 #include "NalUnitParser.h"
+#include "UnsplitBufferFeeder.h"
 
 #include "lib_common/Error.h"
 #include "lib_common/StreamBuffer.h"
@@ -92,7 +93,7 @@ static bool IsAllStreamDimSet(AL_TDimension tDim)
 /******************************************************************************/
 static bool IsStreamChromaSet(AL_EChromaMode eChroma)
 {
-  return eChroma != CHROMA_MAX_ENUM;
+  return eChroma != AL_CHROMA_MAX_ENUM;
 }
 
 /******************************************************************************/
@@ -248,7 +249,7 @@ void AL_Default_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus)
 
   Rtos_ReleaseMutex(pCtx->DecMutex);
 
-  AL_BufferFeeder_Signal(pCtx->Feeder);
+  AL_Feeder_Signal(pCtx->Feeder);
   AL_sDecoder_CallBacks(pCtx, iFrameID);
 
   Rtos_GetMutex(pCtx->DecMutex);
@@ -360,7 +361,7 @@ void AL_Default_Decoder_Destroy(AL_TDecoder* pAbsDec)
   AL_PictMngr_DecommitPool(&pCtx->PictMngr);
 
   if(pCtx->Feeder)
-    AL_BufferFeeder_Destroy(pCtx->Feeder);
+    AL_Feeder_Destroy(pCtx->Feeder);
 
   if(pCtx->eosBuffer)
     AL_Buffer_Unref(pCtx->eosBuffer);
@@ -574,24 +575,24 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, TCircBuffer* pStream, int* 
         uPos = skipNalHeader(uPos, eCodec, uSize);
         bool bIsFirstSlice = isFirstSlice(pBuf, uPos);
 
-        if(bVCLNalSeen && bIsFirstSlice)
-        {
-          iNalFound--;
-          *pLastStartCodeInDecodingUnit = iNalFound;
-          return true;
-        }
-      }
-
-      if(isSubframeUnit(pCtx->chanParam.eDecUnit))
-      {
         if(bVCLNalSeen)
         {
-          pCtx->iNumSlicesRemaining--;
-          iNalFound--;
-          *pLastStartCodeInDecodingUnit = iNalFound;
-          int const iIsNotLastSlice = -1;
-          *iLastVclNalInDecodingUnit = iIsNotLastSlice;
-          return true;
+          if(bIsFirstSlice)
+          {
+            iNalFound--;
+            *pLastStartCodeInDecodingUnit = iNalFound;
+            return true;
+          }
+
+          if(isSubframeUnit(pCtx->chanParam.eDecUnit))
+          {
+            pCtx->iNumSlicesRemaining--;
+            iNalFound--;
+            *pLastStartCodeInDecodingUnit = iNalFound;
+            int const iIsNotLastSlice = -1;
+            *iLastVclNalInDecodingUnit = iIsNotLastSlice;
+            return true;
+          }
         }
       }
 
@@ -832,7 +833,7 @@ bool AL_Default_Decoder_PushBuffer(AL_TDecoder* pAbsDec, AL_TBuffer* pBuf, size_
 {
   AL_TDefaultDecoder* pDec = (AL_TDefaultDecoder*)pAbsDec;
   AL_TDecCtx* pCtx = &pDec->ctx;
-  return AL_BufferFeeder_PushBuffer(pCtx->Feeder, pBuf, uSize, false);
+  return AL_Feeder_PushBuffer(pCtx->Feeder, pBuf, uSize, false);
 }
 
 /*****************************************************************************/
@@ -840,7 +841,7 @@ void AL_Default_Decoder_Flush(AL_TDecoder* pAbsDec)
 {
   AL_TDefaultDecoder* pDec = (AL_TDefaultDecoder*)pAbsDec;
   AL_TDecCtx* pCtx = &pDec->ctx;
-  AL_BufferFeeder_Flush(pCtx->Feeder);
+  AL_Feeder_Flush(pCtx->Feeder);
 }
 
 /*****************************************************************************/
@@ -872,7 +873,7 @@ void AL_Default_Decoder_FlushInput(AL_TDecoder* pAbsDec)
   Rtos_GetMutex(pCtx->DecMutex);
   pCtx->iCurOffset = 0;
   Rtos_ReleaseMutex(pCtx->DecMutex);
-  AL_BufferFeeder_Reset(pCtx->Feeder);
+  AL_Feeder_Reset(pCtx->Feeder);
 }
 
 /*****************************************************************************/
@@ -927,7 +928,7 @@ void AL_Default_Decoder_PutDecPict(AL_TDecoder* pAbsDec, AL_TBuffer* pDecPict)
   CheckDisplayBufferCanBeUsed(pCtx, pDecPict);
 
   AL_PictMngr_PutDisplayBuffer(&pCtx->PictMngr, pDecPict);
-  AL_BufferFeeder_Signal(pCtx->Feeder);
+  AL_Feeder_Signal(pCtx->Feeder);
 }
 
 /*****************************************************************************/
@@ -1414,12 +1415,11 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel,
   if(!MemDesc_AllocNamed(&pCtx->circularBuf.tMD, pAllocator, iBufferStreamSize, "circular stream"))
     goto cleanup;
 
-  pCtx->Feeder = AL_BufferFeeder_Create((AL_HDecoder)pDec, &pCtx->circularBuf, iInputFifoSize, &errorCallback);
+  pCtx->Feeder = AL_UnsplitBufferFeeder_Create((AL_HDecoder)pDec, &pCtx->circularBuf, iInputFifoSize, pCtx->eosBuffer, &errorCallback);
 
   if(!pCtx->Feeder)
     goto cleanup;
 
-  pCtx->Feeder->eosBuffer = pCtx->eosBuffer;
   AL_Default_Decoder_SetError(pCtx, AL_SUCCESS, -1);
 
   *hDec = (AL_TDecoder*)pDec;

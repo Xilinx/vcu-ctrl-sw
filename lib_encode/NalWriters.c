@@ -120,22 +120,22 @@ static void seiPrefixWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, vo
 
   while(uFlags)
   {
-    if(uFlags & SEI_BP)
+    if(uFlags & AL_SEI_BP)
     {
       writer->WriteSEI_BufferingPeriod(bitstream, pCtx->sps, pCtx->cpbInitialRemovalDelay, 0);
-      uFlags &= ~SEI_BP;
+      uFlags &= ~AL_SEI_BP;
     }
-    else if(uFlags & SEI_RP)
+    else if(uFlags & AL_SEI_RP)
     {
       writer->WriteSEI_RecoveryPoint(bitstream, pCtx->pPicStatus->iRecoveryCnt);
-      uFlags &= ~SEI_RP;
+      uFlags &= ~AL_SEI_RP;
     }
-    else if(uFlags & SEI_PT)
+    else if(uFlags & AL_SEI_PT)
     {
       writer->WriteSEI_PictureTiming(bitstream, pCtx->sps,
                                      pCtx->cpbRemovalDelay,
                                      pCtx->pPicStatus->uDpbOutputDelay, pCtx->pPicStatus->ePicStruct);
-      uFlags &= ~SEI_PT;
+      uFlags &= ~AL_SEI_PT;
     }
 
     if(!uFlags)

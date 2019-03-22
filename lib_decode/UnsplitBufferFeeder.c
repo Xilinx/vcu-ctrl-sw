@@ -35,15 +35,29 @@
 *
 ******************************************************************************/
 
-#include "BufferFeeder.h"
+#include "UnsplitBufferFeeder.h"
+#include "lib_common/Fifo.h"
 #include "lib_rtos/lib_rtos.h"
 
-static void notifyDecoder(AL_TBufferFeeder* this)
+#include "lib_decode/lib_decode.h"
+#include "Patchworker.h"
+
+typedef struct al_t_UnsplitBufferFeeder
+{
+  AL_TFeederVtable const* vtable;
+  AL_TFifo fifo;
+  AL_TPatchworker patchworker;
+  AL_TDecoderFeeder* decoderFeeder;
+
+  AL_TBuffer* eosBuffer;
+}AL_TUnsplitBufferFeeder;
+
+static void notifyDecoder(AL_TUnsplitBufferFeeder* this)
 {
   AL_DecoderFeeder_Process(this->decoderFeeder);
 }
 
-static bool enqueueBuffer(AL_TBufferFeeder* this, AL_TBuffer* pBuf)
+static bool enqueueBuffer(AL_TUnsplitBufferFeeder* this, AL_TBuffer* pBuf)
 {
   AL_Buffer_Ref(pBuf);
 
@@ -55,8 +69,9 @@ static bool enqueueBuffer(AL_TBufferFeeder* this, AL_TBuffer* pBuf)
   return true;
 }
 
-bool AL_BufferFeeder_PushBuffer(AL_TBufferFeeder* this, AL_TBuffer* pBuf, size_t uSize, bool bLastBuffer)
+static bool pushBuffer(AL_TFeeder* hFeeder, AL_TBuffer* pBuf, size_t uSize, bool bLastBuffer)
 {
+  AL_TUnsplitBufferFeeder* this = (AL_TUnsplitBufferFeeder*)hFeeder;
   AL_TMetaData* pMetaCirc = (AL_TMetaData*)AL_CircMetaData_Create(0, uSize, bLastBuffer);
 
   if(!pMetaCirc)
@@ -77,42 +92,58 @@ bool AL_BufferFeeder_PushBuffer(AL_TBufferFeeder* this, AL_TBuffer* pBuf, size_t
 }
 
 /* called when the decoder has finished to decode a frame */
-void AL_BufferFeeder_Signal(AL_TBufferFeeder* this)
+static void signal(AL_TFeeder* hFeeder)
 {
+  AL_TUnsplitBufferFeeder* this = (AL_TUnsplitBufferFeeder*)hFeeder;
   notifyDecoder(this);
 }
 
-void AL_BufferFeeder_Flush(AL_TBufferFeeder* this)
+static void flush(AL_TFeeder* hFeeder)
 {
+  AL_TUnsplitBufferFeeder* this = (AL_TUnsplitBufferFeeder*)hFeeder;
+
   if(this->eosBuffer)
-    AL_BufferFeeder_PushBuffer(this, this->eosBuffer, this->eosBuffer->zSize, true);
+    pushBuffer(hFeeder, this->eosBuffer, this->eosBuffer->zSize, true);
 
   AL_DecoderFeeder_Flush(this->decoderFeeder);
 }
 
-void AL_BufferFeeder_Reset(AL_TBufferFeeder* this)
+static void reset(AL_TFeeder* hFeeder)
 {
+  AL_TUnsplitBufferFeeder* this = (AL_TUnsplitBufferFeeder*)hFeeder;
   AL_DecoderFeeder_Reset(this->decoderFeeder);
 }
 
-void AL_BufferFeeder_Destroy(AL_TBufferFeeder* this)
+static void destroy(AL_TFeeder* hFeeder)
 {
+  AL_TUnsplitBufferFeeder* this = (AL_TUnsplitBufferFeeder*)hFeeder;
+
   if(this->eosBuffer)
-    AL_BufferFeeder_PushBuffer(this, this->eosBuffer, this->eosBuffer->zSize, false);
+    pushBuffer(hFeeder, this->eosBuffer, this->eosBuffer->zSize, false);
   AL_DecoderFeeder_Destroy(this->decoderFeeder);
   AL_Patchworker_Deinit(&this->patchworker);
   AL_Fifo_Deinit(&this->fifo);
   Rtos_Free(this);
 }
 
-AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, TCircBuffer* circularBuf, int iMaxBufNum, AL_CB_Error* errorCallback)
+static const AL_TFeederVtable UnsplitBufferFeederVtable =
 {
-  AL_TBufferFeeder* this = Rtos_Malloc(sizeof(*this));
+  &destroy,
+  &pushBuffer,
+  &signal,
+  &flush,
+  &reset,
+};
+
+AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, TCircBuffer* circularBuf, int iMaxBufNum, AL_TBuffer* eosBuffer, AL_CB_Error* errorCallback)
+{
+  AL_TUnsplitBufferFeeder* this = Rtos_Malloc(sizeof(*this));
 
   if(!this)
     return NULL;
 
-  this->eosBuffer = NULL;
+  this->vtable = &UnsplitBufferFeederVtable;
+  this->eosBuffer = eosBuffer;
 
   if(iMaxBufNum <= 0 || !AL_Fifo_Init(&this->fifo, iMaxBufNum))
     goto fail_queue_allocation;
@@ -125,7 +156,7 @@ AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, TCircBuffer* circularBu
   if(!this->decoderFeeder)
     goto fail_decoder_feeder_creation;
 
-  return this;
+  return (AL_TFeeder*)this;
 
   fail_decoder_feeder_creation:
   AL_Patchworker_Deinit(&this->patchworker);
@@ -135,4 +166,3 @@ AL_TBufferFeeder* AL_BufferFeeder_Create(AL_HANDLE hDec, TCircBuffer* circularBu
   Rtos_Free(this);
   return NULL;
 }
-

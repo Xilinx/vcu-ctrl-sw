@@ -36,7 +36,6 @@
 ******************************************************************************/
 
 #include "lib_decode/lib_decode.h"
-#include "BufferFeeder.h"
 #include "I_Decoder.h"
 #include "lib_common_dec/DecBuffers.h"
 

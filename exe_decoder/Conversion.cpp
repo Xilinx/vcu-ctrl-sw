@@ -76,17 +76,17 @@ void CropFrame(AL_TBuffer* pYUV, int iSizePix, uint32_t uCropLeft, uint32_t uCro
   }
 
   /*chroma samples*/
-  if(eMode != CHROMA_MONO)
+  if(eMode != AL_CHROMA_MONO)
   {
     iCbOffset = iWidth * iHeight;
-    iWidth /= (eMode == CHROMA_4_4_4) ? 1 : 2;
-    iHeight /= (eMode == CHROMA_4_2_0) ? 2 : 1;
+    iWidth /= (eMode == AL_CHROMA_4_4_4) ? 1 : 2;
+    iHeight /= (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
     iCrOffset = iCbOffset + (iWidth * iHeight);
 
-    iBeginVert /= (eMode == CHROMA_4_2_0) ? 2 : 1;
-    iEndVert /= (eMode == CHROMA_4_2_0) ? 2 : 1;
-    iBeginHrz /= (eMode == CHROMA_4_4_4) ? 1 : 2;
-    iEndHrz /= (eMode == CHROMA_4_4_4) ? 1 : 2;
+    iBeginVert /= (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
+    iEndVert /= (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
+    iBeginHrz /= (eMode == AL_CHROMA_4_4_4) ? 1 : 2;
+    iEndHrz /= (eMode == AL_CHROMA_4_4_4) ? 1 : 2;
 
     for(iUV = 0; iUV < 2; ++iUV)
     {

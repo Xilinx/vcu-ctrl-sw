@@ -38,6 +38,7 @@
 #include "CfgParser.h"
 #include "Parser.h"
 
+
 #include <algorithm>
 #include <cassert>
 #include <climits>
@@ -294,11 +295,11 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   parser.addBool(curSection, "DependentSlice", cfg.Settings.bDependentSlice, "When there are several slices per frames, this parameter specifies whether the additional slices are dependent slice segments or regular slices (HEVC only)");
   parser.addBool(curSection, "SubframeLatency", cfg.Settings.tChParam[0].bSubframeLatency, "Enable the subframe latency mode");
   std::map<string, int> seis {};
-  seis["SEI_NONE"] = SEI_NONE;
-  seis["SEI_BP"] = SEI_BP;
-  seis["SEI_PT"] = SEI_PT;
-  seis["SEI_RP"] = SEI_RP;
-  seis["SEI_ALL"] = SEI_ALL;
+  seis["SEI_NONE"] = AL_SEI_NONE;
+  seis["SEI_BP"] = AL_SEI_BP;
+  seis["SEI_PT"] = AL_SEI_PT;
+  seis["SEI_RP"] = AL_SEI_RP;
+  seis["SEI_ALL"] = AL_SEI_ALL;
   parser.addEnum(curSection, "EnableSEI", cfg.Settings.uEnableSEI, seis, "Determines which Supplemental Enhancement Information are sent with the stream");
   parser.addBool(curSection, "EnableAUD", cfg.Settings.bEnableAUD, "Determines if Access Unit Delimiter are added to the stream or not");
   parser.addBool(curSection, "EnableFillerData", cfg.Settings.bEnableFillerData, "Specifies if filler data can be added to the stream or not");
@@ -309,28 +310,28 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   aspectRatios["ASPECT_RATIO_NONE"] = AL_ASPECT_RATIO_NONE;
   parser.addEnum(curSection, "AspectRatio", cfg.Settings.eAspectRatio, aspectRatios, "Selects the display aspect ratio of the video sequence to be written in SPS/VUI");
   std::map<string, int> colourDescriptions;
-  colourDescriptions["COLOUR_DESC_RESERVED"] = COLOUR_DESC_RESERVED;
-  colourDescriptions["COLOUR_DESC_BT_709"] = COLOUR_DESC_BT_709;
-  colourDescriptions["COLOUR_DESC_UNSPECIFIED"] = COLOUR_DESC_UNSPECIFIED;
-  colourDescriptions["COLOUR_DESC_BT_470_NTSC"] = COLOUR_DESC_BT_470_NTSC;
-  colourDescriptions["COLOUR_DESC_BT_601_PAL"] = COLOUR_DESC_BT_601_PAL;
-  colourDescriptions["COLOUR_DESC_BT_601_NTSC"] = COLOUR_DESC_BT_601_NTSC;
-  colourDescriptions["COLOUR_DESC_SMPTE_240M"] = COLOUR_DESC_SMPTE_240M;
-  colourDescriptions["COLOUR_DESC_GENERIC_FILM"] = COLOUR_DESC_GENERIC_FILM;
-  colourDescriptions["COLOUR_DESC_BT_2020"] = COLOUR_DESC_BT_2020;
-  colourDescriptions["COLOUR_DESC_SMPTE_ST_428"] = COLOUR_DESC_SMPTE_ST_428;
-  colourDescriptions["COLOUR_DESC_SMPTE_RP_431"] = COLOUR_DESC_SMPTE_RP_431;
-  colourDescriptions["COLOUR_DESC_SMPTE_EG_432"] = COLOUR_DESC_SMPTE_EG_432;
-  colourDescriptions["COLOUR_DESC_EBU_3213"] = COLOUR_DESC_EBU_3213;
+  colourDescriptions["COLOUR_DESC_RESERVED"] = AL_COLOUR_DESC_RESERVED;
+  colourDescriptions["COLOUR_DESC_BT_709"] = AL_COLOUR_DESC_BT_709;
+  colourDescriptions["COLOUR_DESC_UNSPECIFIED"] = AL_COLOUR_DESC_UNSPECIFIED;
+  colourDescriptions["COLOUR_DESC_BT_470_NTSC"] = AL_COLOUR_DESC_BT_470_NTSC;
+  colourDescriptions["COLOUR_DESC_BT_601_PAL"] = AL_COLOUR_DESC_BT_601_PAL;
+  colourDescriptions["COLOUR_DESC_BT_601_NTSC"] = AL_COLOUR_DESC_BT_601_NTSC;
+  colourDescriptions["COLOUR_DESC_SMPTE_240M"] = AL_COLOUR_DESC_SMPTE_240M;
+  colourDescriptions["COLOUR_DESC_GENERIC_FILM"] = AL_COLOUR_DESC_GENERIC_FILM;
+  colourDescriptions["COLOUR_DESC_BT_2020"] = AL_COLOUR_DESC_BT_2020;
+  colourDescriptions["COLOUR_DESC_SMPTE_ST_428"] = AL_COLOUR_DESC_SMPTE_ST_428;
+  colourDescriptions["COLOUR_DESC_SMPTE_RP_431"] = AL_COLOUR_DESC_SMPTE_RP_431;
+  colourDescriptions["COLOUR_DESC_SMPTE_EG_432"] = AL_COLOUR_DESC_SMPTE_EG_432;
+  colourDescriptions["COLOUR_DESC_EBU_3213"] = AL_COLOUR_DESC_EBU_3213;
   parser.addEnum(curSection, "ColourDescription", cfg.Settings.eColourDescription, colourDescriptions);
   parser.addCustom(curSection, "ChromaMode", [&](std::deque<Token>& tokens)
   {
     std::map<string, int> chromaModes {};
-    chromaModes["CHROMA_MONO"] = CHROMA_MONO;
-    chromaModes["CHROMA_4_0_0"] = CHROMA_4_0_0;
-    chromaModes["CHROMA_4_2_0"] = CHROMA_4_2_0;
-    chromaModes["CHROMA_4_2_2"] = CHROMA_4_2_2;
-    chromaModes["CHROMA_4_4_4"] = CHROMA_4_4_4;
+    chromaModes["CHROMA_MONO"] = AL_CHROMA_MONO;
+    chromaModes["CHROMA_4_0_0"] = AL_CHROMA_4_0_0;
+    chromaModes["CHROMA_4_2_0"] = AL_CHROMA_4_2_0;
+    chromaModes["CHROMA_4_2_2"] = AL_CHROMA_4_2_2;
+    chromaModes["CHROMA_4_4_4"] = AL_CHROMA_4_4_4;
     AL_EChromaMode mode = (AL_EChromaMode)parseEnum(tokens, chromaModes);
     AL_SET_CHROMA_MODE(cfg.Settings.tChParam[0].ePicFormat, mode);
   }, "Set the expected chroma mode of the encoder. Depending on the input fourcc, this might lead to a conversion. Together with the BitDepth, these options determine the final FourCC the encoder is expecting.");
@@ -421,7 +422,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   parser.addArith(curSection, "ClipHrzRange", cfg.Settings.uClipHrzRange);
   parser.addArith(curSection, "ClipVrtRange", cfg.Settings.uClipVrtRange);
   parser.addFlag(curSection, "FixPredictor", cfg.Settings.tChParam[0].eEncOptions, AL_OPT_FIX_PREDICTOR, "When set to ENABLE, the motion estimation window is always centered on the current LCU position. This generates a fixed bandwidth for accessing the reference picture buffers. It is recommended to use the DISABLE value for maximum quality");
-  parser.addArith(curSection, "VrtRange_P", cfg.Settings.tChParam[0].pMeRange[SLICE_P][1], "Specifies the vertical search range used for P frames motion estimation");
+  parser.addArith(curSection, "VrtRange_P", cfg.Settings.tChParam[0].pMeRange[AL_SLICE_P][1], "Specifies the vertical search range used for P frames motion estimation");
 
   std::map<string, int> srcmodes {};
   srcmodes["NVX"] = AL_SRC_NVX;

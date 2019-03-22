@@ -50,6 +50,19 @@
 #include "lib_common/BufferAPI.h"
 
 /*************************************************************************//*!
+   \brief Segmentation structure
+*****************************************************************************/
+#define MAX_SEGMENTS 8
+typedef struct AL_t_Segmentation
+{
+  bool enable;
+  bool update_map;
+  bool update_data;
+  bool abs_delta;
+  int16_t feature_data[MAX_SEGMENTS];  // only store data for Q
+}AL_TSegmentation;
+
+/*************************************************************************//*!
    \brief Encoding tool enum
 *****************************************************************************/
 typedef enum AL_e_PicEncOption

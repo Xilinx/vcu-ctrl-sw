@@ -71,7 +71,7 @@ static int PictureSize(TYUVFileInfo FI)
 {
   int iPictSize = GetIOLumaRowSize(FI.FourCC, FI.PictWidth) * FI.PictHeight;
 
-  if(AL_GetChromaMode(FI.FourCC) != CHROMA_MONO)
+  if(AL_GetChromaMode(FI.FourCC) != AL_CHROMA_MONO)
   {
     int iRx, iRy;
     AL_GetSubsampling(FI.FourCC, &iRx, &iRy);
@@ -231,7 +231,7 @@ static uint32_t ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
   char* pTmp = reinterpret_cast<char*>(AL_Buffer_GetData(pBuf) + uOffset);
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
 
-  uint32_t uNumRowC = (AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_0) ? uFileNumRow >> 1 : uFileNumRow;
+  uint32_t uNumRowC = (AL_GetChromaMode(pSrcMeta->tFourCC) == AL_CHROMA_4_2_0) ? uFileNumRow >> 1 : uFileNumRow;
   uint32_t uRowSizeC = uFileRowSize >> 1;
 
   TPaddingParams tPadParams = GetColumnPaddingParameters(pSrcMeta, uRowSizeC, false);
@@ -258,7 +258,7 @@ static uint32_t ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
   {
     uint32_t uRowPadding;
 
-    if(AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_0)
+    if(AL_GetChromaMode(pSrcMeta->tFourCC) == AL_CHROMA_4_2_0)
       uRowPadding = (((pSrcMeta->tDim.iHeight >> 1) + 7) & ~7) - (pSrcMeta->tDim.iHeight >> 1);
     else
       uRowPadding = ((pSrcMeta->tDim.iHeight + 15) & ~15) - pSrcMeta->tDim.iHeight;
@@ -277,7 +277,7 @@ static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
 {
   char* pTmp = reinterpret_cast<char*>(AL_Buffer_GetData(pBuf) + uOffset);
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
-  uint32_t uNumRowC = (AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_0) ? uFileNumRow >> 1 : uFileNumRow;
+  uint32_t uNumRowC = (AL_GetChromaMode(pSrcMeta->tFourCC) == AL_CHROMA_4_2_0) ? uFileNumRow >> 1 : uFileNumRow;
 
   TPaddingParams tPadParams = GetColumnPaddingParameters(pSrcMeta, uFileRowSize, false);
 
@@ -310,7 +310,7 @@ static void ReadFile(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSiz
   {
     ReadFileChromaSemiPlanar(File, pBuf, uOffset, uFileRowSize, uFileNumRow);
   }
-  else if(AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_0 || AL_GetChromaMode(pSrcMeta->tFourCC) == CHROMA_4_2_2)
+  else if(AL_GetChromaMode(pSrcMeta->tFourCC) == AL_CHROMA_4_2_0 || AL_GetChromaMode(pSrcMeta->tFourCC) == AL_CHROMA_4_2_2)
   {
     uOffset += ReadFileChromaPlanar(File, pBuf, uOffset, uFileRowSize, uFileNumRow); // Cb
     ReadFileChromaPlanar(File, pBuf, uOffset, uFileRowSize, uFileNumRow); // Cr
@@ -386,7 +386,7 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf)
   // 1 Interleaved Chroma plane
   if(AL_IsSemiPlanar(pBufMeta->tFourCC))
   {
-    int iHeightC = (AL_GetChromaMode(pBufMeta->tFourCC) == CHROMA_4_2_0) ? iHeight >> 1 : iHeight;
+    int iHeightC = (AL_GetChromaMode(pBufMeta->tFourCC) == AL_CHROMA_4_2_0) ? iHeight >> 1 : iHeight;
 
     if(pBufMeta->tPlanes[AL_PLANE_UV].iPitch == uRowSizeLuma)
       File.write(pTmp, iHeightC * uRowSizeLuma);
@@ -400,10 +400,10 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf)
     }
   }
   // 2 Separated chroma plane
-  else if(AL_GetChromaMode(pBufMeta->tFourCC) == CHROMA_4_2_0 || AL_GetChromaMode(pBufMeta->tFourCC) == CHROMA_4_2_2)
+  else if(AL_GetChromaMode(pBufMeta->tFourCC) == AL_CHROMA_4_2_0 || AL_GetChromaMode(pBufMeta->tFourCC) == AL_CHROMA_4_2_2)
   {
     int iWidthC = iWidth >> 1;
-    int iHeightC = (AL_GetChromaMode(pBufMeta->tFourCC) == CHROMA_4_2_0) ? iHeight >> 1 : iHeight;
+    int iHeightC = (AL_GetChromaMode(pBufMeta->tFourCC) == AL_CHROMA_4_2_0) ? iHeight >> 1 : iHeight;
 
     int iSizePix = AL_GetPixelSize(pBufMeta->tFourCC);
 
@@ -511,21 +511,26 @@ void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection, con
 }
 
 /*****************************************************************************/
-int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream, const AL_TEncChanParam* pChannelParam)
+
+/*****************************************************************************/
+int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream, const AL_TEncSettings* pSettings)
 {
   AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
+  auto& tChParam = pSettings->tChParam[0];
+
   int iNumFrame = 0;
 
   for(int curSection = 0; curSection < pStreamMeta->uNumSection; ++curSection)
   {
     if(pStreamMeta->pSections[curSection].uFlags & SECTION_END_FRAME_FLAG)
       ++iNumFrame;
-    WriteOneSection(HEVCFile, pStream, curSection, pChannelParam);
+    WriteOneSection(HEVCFile, pStream, curSection, &tChParam);
   }
 
   return iNumFrame;
 }
 
+/*****************************************************************************/
 void GetImageStreamSize(AL_TBuffer* pStream, std::deque<ImageSize>& imageSizes)
 {
   AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);

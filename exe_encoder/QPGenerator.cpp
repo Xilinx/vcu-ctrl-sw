@@ -443,6 +443,9 @@ static AL_ERoiQuality get_roi_quality(char* sLine, int iPos)
 
 
 
+  if(s == "INTRA_QUALITY")
+    return AL_ROI_QUALITY_INTRA;
+
   return AL_ROI_QUALITY_MAX_ENUM;
 }
 

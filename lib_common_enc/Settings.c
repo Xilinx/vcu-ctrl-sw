@@ -646,11 +646,11 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pChan->uNumCore = NUMCORE_AUTO;
   pChan->uNumSlices = 1;
 
-  pSettings->uEnableSEI = SEI_NONE;
+  pSettings->uEnableSEI = AL_SEI_NONE;
   pSettings->bEnableAUD = true;
   pSettings->bEnableFillerData = true;
   pSettings->eAspectRatio = AL_ASPECT_RATIO_AUTO;
-  pSettings->eColourDescription = COLOUR_DESC_BT_709;
+  pSettings->eColourDescription = AL_COLOUR_DESC_BT_709;
 
   pSettings->eQpCtrlMode = UNIFORM_QP;// ADAPTIVE_AUTO_QP;
   pChan->eLdaCtrlMode = AUTO_LDA;
@@ -660,10 +660,10 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pSettings->eScalingList = AL_SCL_MAX_ENUM;
 
   pSettings->bForceLoad = true;
-  pChan->pMeRange[SLICE_P][0] = -1; // Horz
-  pChan->pMeRange[SLICE_P][1] = -1; // Vert
-  pChan->pMeRange[SLICE_B][0] = -1; // Horz
-  pChan->pMeRange[SLICE_B][1] = -1; // Vert
+  pChan->pMeRange[AL_SLICE_P][0] = -1; // Horz
+  pChan->pMeRange[AL_SLICE_P][1] = -1; // Vert
+  pChan->pMeRange[AL_SLICE_B][0] = -1; // Horz
+  pChan->pMeRange[AL_SLICE_B][1] = -1; // Vert
   pChan->uMaxCuSize = HEVC_MAX_CU_SIZE;
   pChan->uMinCuSize = MIN_CU_SIZE;
   pChan->uMaxTuSize = 5; // 32x32
@@ -735,7 +735,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     MSG("The hardware IP doesn't support 10-bit encoding");
   }
 
-  if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == CHROMA_4_4_4)
+  if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == AL_CHROMA_4_4_4)
   {
     ++err;
     MSG("The specified ChromaMode is not supported by the IP");
@@ -866,13 +866,13 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
 
   AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
 
-  if((pChParam->uWidth % 2 != 0) && ((eChromaMode == CHROMA_4_2_0) || (eChromaMode == CHROMA_4_2_2)))
+  if((pChParam->uWidth % 2 != 0) && ((eChromaMode == AL_CHROMA_4_2_0) || (eChromaMode == AL_CHROMA_4_2_2)))
   {
     ++err;
     MSG("Width shall be multiple of 2 on 420 or 422 chroma mode!");
   }
 
-  if((pChParam->uHeight % 2 != 0) && (eChromaMode == CHROMA_4_2_0))
+  if((pChParam->uHeight % 2 != 0) && (eChromaMode == AL_CHROMA_4_2_0))
   {
     ++err;
     MSG("Height shall be multiple of 2 on 420 chroma mode!");
@@ -1040,19 +1040,19 @@ bool checkProfileCoherency(int iBitDepth, AL_EChromaMode eChroma, AL_EProfile eP
   }
   switch(eChroma)
   {
-  case CHROMA_4_0_0:
+  case AL_CHROMA_4_0_0:
   {
     if(!AL_IS_MONO_PROFILE(eProfile))
       return false;
     break;
   }
-  case CHROMA_4_2_0:
+  case AL_CHROMA_4_2_0:
   {
     if(!AL_IS_420_PROFILE(eProfile))
       return false;
     break;
   }
-  case CHROMA_4_2_2:
+  case AL_CHROMA_4_2_2:
   {
     if(!AL_IS_422_PROFILE(eProfile))
       return false;
@@ -1073,18 +1073,18 @@ AL_EProfile getHevcMinimumProfile(int iBitDepth, AL_EChromaMode eChroma)
   {
     switch(eChroma)
     {
-    case CHROMA_4_0_0: return AL_PROFILE_HEVC_MONO;
-    case CHROMA_4_2_0: return AL_PROFILE_HEVC_MAIN;
-    case CHROMA_4_2_2: return AL_PROFILE_HEVC_MAIN_422;
+    case AL_CHROMA_4_0_0: return AL_PROFILE_HEVC_MONO;
+    case AL_CHROMA_4_2_0: return AL_PROFILE_HEVC_MAIN;
+    case AL_CHROMA_4_2_2: return AL_PROFILE_HEVC_MAIN_422;
     default: assert(0);
     }
   }
   case 10:
     switch(eChroma)
     {
-    case CHROMA_4_0_0: return AL_PROFILE_HEVC_MONO10;
-    case CHROMA_4_2_0: return AL_PROFILE_HEVC_MAIN10;
-    case CHROMA_4_2_2: return AL_PROFILE_HEVC_MAIN_422_10;
+    case AL_CHROMA_4_0_0: return AL_PROFILE_HEVC_MONO10;
+    case AL_CHROMA_4_2_0: return AL_PROFILE_HEVC_MAIN10;
+    case AL_CHROMA_4_2_2: return AL_PROFILE_HEVC_MAIN_422_10;
     default: assert(0);
     }
 
@@ -1104,9 +1104,9 @@ AL_EProfile getAvcMinimumProfile(int iBitDepth, AL_EChromaMode eChroma)
   {
     switch(eChroma)
     {
-    case CHROMA_4_0_0: return AL_PROFILE_AVC_HIGH;
-    case CHROMA_4_2_0: return AL_PROFILE_AVC_C_BASELINE;
-    case CHROMA_4_2_2: return AL_PROFILE_AVC_HIGH_422;
+    case AL_CHROMA_4_0_0: return AL_PROFILE_AVC_HIGH;
+    case AL_CHROMA_4_2_0: return AL_PROFILE_AVC_C_BASELINE;
+    case AL_CHROMA_4_2_2: return AL_PROFILE_AVC_HIGH_422;
     default: assert(0);
     }
   }
@@ -1114,9 +1114,9 @@ AL_EProfile getAvcMinimumProfile(int iBitDepth, AL_EChromaMode eChroma)
   {
     switch(eChroma)
     {
-    case CHROMA_4_0_0: return AL_PROFILE_AVC_HIGH10;
-    case CHROMA_4_2_0: return AL_PROFILE_AVC_HIGH10;
-    case CHROMA_4_2_2: return AL_PROFILE_AVC_HIGH_422;
+    case AL_CHROMA_4_0_0: return AL_PROFILE_AVC_HIGH10;
+    case AL_CHROMA_4_2_0: return AL_PROFILE_AVC_HIGH10;
+    case AL_CHROMA_4_2_2: return AL_PROFILE_AVC_HIGH_422;
     default: assert(0);
     }
   }
@@ -1211,10 +1211,10 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     }
   }
 
-  AL_sCheckRange(&pChParam->pMeRange[SLICE_P][0], iMaxPRange, pOut);
-  AL_sCheckRange(&pChParam->pMeRange[SLICE_P][1], iMaxPRange, pOut);
-  AL_sCheckRange(&pChParam->pMeRange[SLICE_B][0], iMaxBRange, pOut);
-  AL_sCheckRange(&pChParam->pMeRange[SLICE_B][1], iMaxBRange, pOut);
+  AL_sCheckRange(&pChParam->pMeRange[AL_SLICE_P][0], iMaxPRange, pOut);
+  AL_sCheckRange(&pChParam->pMeRange[AL_SLICE_P][1], iMaxPRange, pOut);
+  AL_sCheckRange(&pChParam->pMeRange[AL_SLICE_B][0], iMaxBRange, pOut);
+  AL_sCheckRange(&pChParam->pMeRange[AL_SLICE_B][1], iMaxBRange, pOut);
 
   if((pChParam->uSliceSize > 0) && (pChParam->eEncTools & AL_OPT_WPP))
   {
@@ -1263,9 +1263,9 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
         ++numIncoherency;
       }
 
-      if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) != CHROMA_4_2_0)
+      if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) != AL_CHROMA_4_2_0)
       {
-        AL_SET_CHROMA_MODE(pChParam->ePicFormat, CHROMA_4_2_0);
+        AL_SET_CHROMA_MODE(pChParam->ePicFormat, AL_CHROMA_4_2_0);
         MSG("!! The specified ChromaMode and Profile are not allowed; they will be adjusted!!");
         ++numIncoherency;
       }
@@ -1450,7 +1450,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
   if(pChParam->eVideoMode != AL_VM_PROGRESSIVE)
   {
     assert(AL_IS_HEVC(pChParam->eProfile));
-    pSettings->uEnableSEI |= SEI_PT;
+    pSettings->uEnableSEI |= AL_SEI_PT;
   }
 
   if(pSettings->bEnableFirstPassSceneChangeDetection)

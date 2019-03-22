@@ -90,7 +90,7 @@ void Compute_CRC(int iBdInY, int iBdInC, int iBdOut, int iNumPix, int iNumPixC, 
   for(int iPix = 0; iPix < iNumPix; ++iPix)
     CRC32(iBdOut, iBdInY, crc_luma, pBuf++);
 
-  if(eMode != CHROMA_MONO)
+  if(eMode != AL_CHROMA_MONO)
   {
     for(int iPix = 0; iPix < iNumPixC; ++iPix)
       CRC32(iBdOut, iBdInC, crc_cb, pBuf++);

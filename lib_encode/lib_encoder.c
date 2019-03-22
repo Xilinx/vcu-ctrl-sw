@@ -42,6 +42,7 @@
 #include "lib_encode/lib_encoder.h"
 #include "IP_EncoderCtx.h"
 
+
 void AL_CreateHevcEncoder(HighLevelEncoder* pCtx);
 void AL_CreateAvcEncoder(HighLevelEncoder* pCtx);
 

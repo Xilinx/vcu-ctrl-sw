@@ -14,7 +14,7 @@ LIB_DECODE_SRC+=\
 		lib_decode/SliceDataParsing.c\
 		lib_decode/DefaultDecoder.c\
 		lib_decode/lib_decode.c\
-		lib_decode/BufferFeeder.c\
+		lib_decode/UnsplitBufferFeeder.c\
 		lib_decode/Patchworker.c\
 		lib_decode/DecoderFeeder.c\
 

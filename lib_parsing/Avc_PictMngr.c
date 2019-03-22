@@ -216,12 +216,12 @@ static void AL_sBuildWPCoeff(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice, TBu
   Rtos_Memset(pDataWP, 0, WP_SLICE_SIZE);
 
   // explicit weighted_pred case
-  if((pSlice->slice_type == SLICE_P && pSlice->pPPS->weighted_pred_flag) ||
-     (pSlice->slice_type == SLICE_B && pSlice->pPPS->weighted_bipred_idc == 1))
+  if((pSlice->slice_type == AL_SLICE_P && pSlice->pPPS->weighted_pred_flag) ||
+     (pSlice->slice_type == AL_SLICE_B && pSlice->pPPS->weighted_bipred_idc == 1))
   {
     AL_AVC_sFillWPCoeff(pDataWP, pSlice, 0);
 
-    if(pSlice->slice_type == SLICE_B)
+    if(pSlice->slice_type == AL_SLICE_B)
       AL_AVC_sFillWPCoeff(pDataWP, pSlice, 1);
   }
 }
@@ -391,9 +391,9 @@ void AL_AVC_PictMngr_InitPictList(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice
     (*pListRef)[1][uRef].uNodeID = uEndOfList;
   }
 
-  if(pSlice->slice_type == SLICE_P || pSlice->slice_type == SLICE_SP)
+  if(pSlice->slice_type == AL_SLICE_P || pSlice->slice_type == AL_SLICE_SP)
     AL_Dpb_InitPSlice_RefList(&pCtx->DPB, &(*pListRef)[0][0]);
-  else if(pSlice->slice_type == SLICE_B)
+  else if(pSlice->slice_type == AL_SLICE_B)
     AL_Dpb_InitBSlice_RefList(&pCtx->DPB, pCtx->iCurFramePOC, pListRef);
 }
 
@@ -427,7 +427,7 @@ void AL_AVC_PictMngr_ReorderPictList(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSl
     }
   }
 
-  if(pSlice->ref_pic_list_reordering_flag_l1 && pSlice->slice_type == SLICE_B)
+  if(pSlice->ref_pic_list_reordering_flag_l1 && pSlice->slice_type == AL_SLICE_B)
   {
     uint8_t uParse = 0;
     uint8_t uRefIdxL1 = 0;

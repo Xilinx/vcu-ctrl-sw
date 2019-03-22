@@ -60,6 +60,7 @@
 #include "lib_common/Fifo.h"
 
 
+
 #define MAX_NAL_IDS 15
 
 typedef struct t_Scheduler TScheduler;
@@ -133,7 +134,7 @@ typedef struct AL_t_EncCtx
   AL_THevcVps vps;
 
   TStreamInfo StreamInfo;
-
+  bool bEndOfStreamReceived[MAX_NUM_LAYER];
   int iLastIdrId;
 
   AL_SeiData seiData;

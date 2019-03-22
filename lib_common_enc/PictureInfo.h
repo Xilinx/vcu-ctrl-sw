@@ -45,7 +45,8 @@
 #pragma once
 
 #include "lib_common_enc/EncChanParam.h"
-#include "lib_common/SliceConsts.h"
+#include "lib_common_enc/EncPicInfo.h"
+#include "lib_common/Utils.h"
 
 /****************************************************************************/
 static const int PicStructInfo[3] =
@@ -53,6 +54,15 @@ static const int PicStructInfo[3] =
   2, // 0:frame
   4, // 1:frame doubling
   6  // 2:frame tripling
+};
+
+/*****************************************************************************/
+static const uint8_t PicStructToFieldNumber[] =
+{
+  2,
+  1, 1, 2, 2, 3, 3,
+  4, 6,
+  1, 1, 1, 1,
 };
 
 /****************************************************************************/

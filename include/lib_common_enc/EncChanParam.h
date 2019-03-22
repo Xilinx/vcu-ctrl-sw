@@ -419,6 +419,19 @@ typedef enum e_SrcConvMode // [0] : CompMode | [3:1] : SourceFormat
 
 
 /*************************************************************************//*!
+   \brief AOM interpolation filter
+*****************************************************************************/
+typedef enum e_InterP_Filter
+{
+  AL_INTERP_REGULAR,
+  AL_INTERP_SMOOTH,
+  AL_INTERP_SHARP,
+  AL_INTERP_BILINEAR,
+  AL_INTERP_SWITCHABLE,
+  AL_INTERP_MAX_ENUM, /* sentinel */
+}AL_EInterPFilter;
+
+/*************************************************************************//*!
    \brief Channel parameters structure
 *****************************************************************************/
 typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncChanParam

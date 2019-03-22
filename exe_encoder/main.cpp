@@ -171,17 +171,17 @@ static void Usage(CommandLineParser const& opt, char* ExeName)
 static AL_EChromaMode stringToChromaMode(string s)
 {
   if(s == "CHROMA_MONO")
-    return CHROMA_MONO;
+    return AL_CHROMA_MONO;
 
   if(s == "CHROMA_4_0_0")
-    return CHROMA_4_0_0;
+    return AL_CHROMA_4_0_0;
 
   if(s == "CHROMA_4_2_0")
-    return CHROMA_4_2_0;
+    return AL_CHROMA_4_2_0;
 
   if(s == "CHROMA_4_2_2")
-    return CHROMA_4_2_2;
-  return CHROMA_MAX_ENUM;
+    return AL_CHROMA_4_2_2;
+  return AL_CHROMA_MAX_ENUM;
 }
 
 
@@ -303,7 +303,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   {
     auto chromaMode = stringToChromaMode(opt.popWord());
     AL_SET_CHROMA_MODE(cfg.Settings.tChParam[0].ePicFormat, chromaMode);
-  }, "Specify chroma-mode (CHROMA_MONO, CHROMA_4_0_0, CHROMA_4_2_0, CHROMA_4_2_2)");
+  }, "Specify chroma-mode (CHROMA_MONO, AL_CHROMA_4_0_0, AL_CHROMA_4_2_0, AL_CHROMA_4_2_2)");
 
   int ipbitdepth = -1;
   opt.addInt("--level", &cfg.Settings.tChParam[0].uLevel, "Specifies the level we want to encode with (10 to 62)");
@@ -459,7 +459,7 @@ void SetMoreDefaults(ConfigFile& cfg)
     if(AL_GetPicFormat(FileInfo.FourCC, &tOutPicFormat))
     {
       tOutPicFormat.eChromaMode = AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat);
-      tOutPicFormat.eChromaOrder = tOutPicFormat.eChromaMode == CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : tOutPicFormat.eChromaOrder;
+      tOutPicFormat.eChromaOrder = tOutPicFormat.eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : tOutPicFormat.eChromaOrder;
       tOutPicFormat.uBitDepth = AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat);
       RecFourCC = AL_GetFourCC(tOutPicFormat);
     }
@@ -506,10 +506,10 @@ shared_ptr<AL_TBuffer> AllocateConversionBuffer(vector<uint8_t>& YuvBuffer, int 
   uint32_t uSize = tYPlane.iPitch * iHeight;
   switch(AL_GetChromaMode(tFourCC))
   {
-  case CHROMA_4_2_0:
+  case AL_CHROMA_4_2_0:
     uSize += uSize / 2;
     break;
-  case CHROMA_4_2_2:
+  case AL_CHROMA_4_2_2:
     uSize += uSize;
     break;
   default:

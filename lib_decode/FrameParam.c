@@ -131,7 +131,7 @@ void AL_AVC_FillPictParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx* 
   // Reg 0x13
   pPP->CurrentPOC = pCtx->PictMngr.iCurFramePOC;
 
-  pPP->ePicStruct = PS_FRM;
+  pPP->ePicStruct = AL_PS_FRM;
 
   AL_SET_DEC_OPT(pPP, Tile, 0);
 }
@@ -158,12 +158,14 @@ void AL_AVC_FillSliceParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx*
   // Reg 4
   pSP->tc_offset_div2 = pSlice->slice_alpha_c0_offset_div2;
   pSP->beta_offset_div2 = pSlice->slice_beta_offset_div2;
-  pSP->LoopFilter = (pSlice->disable_deblocking_filter_idc & FILT_DISABLE);
-  pSP->XSliceLoopFilter = !(pSlice->disable_deblocking_filter_idc & FILT_DIS_SLICE);
+  int const DEBLOCKING_FILTER_DISABLE = 0x1;
+  pSP->LoopFilter = (pSlice->disable_deblocking_filter_idc & DEBLOCKING_FILTER_DISABLE);
+  int const DEBLOCKING_FILTER_SLICE = 0x2;
+  pSP->XSliceLoopFilter = !(pSlice->disable_deblocking_filter_idc & DEBLOCKING_FILTER_SLICE);
   pSP->WPTableID = pCtx->PictMngr.uNumSlice;
 
   // Reg 5
-  if(pSP->eSliceType == SLICE_CONCEAL)
+  if(pSP->eSliceType == AL_SLICE_CONCEAL)
   {
     pSP->FirstLCU = pCtx->PictMngr.uNumSlice;
     pSP->FirstLcuSliceSegment = pCtx->PictMngr.uNumSlice;
@@ -184,12 +186,12 @@ void AL_AVC_FillSliceParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx*
   pSP->SliceHeaderLength = pSlice->slice_header_length;
 
   // Reg 0x11
-  if(pSP->eSliceType == SLICE_P)
+  if(pSP->eSliceType == AL_SLICE_P)
   {
     pSP->WeightedPred = pPps->weighted_pred_flag;
     pSP->WeightedBiPred = 0;
   }
-  else if(pSP->eSliceType == SLICE_B)
+  else if(pSP->eSliceType == AL_SLICE_B)
   {
     switch(pSlice->pPPS->weighted_bipred_idc)
     {
@@ -224,7 +226,7 @@ void AL_AVC_FillSlicePicIdRegister(AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP)
   // Reg 0x12
   pSP->ColocPicID = 0;
 
-  if(pSP->eSliceType == SLICE_B)
+  if(pSP->eSliceType == AL_SLICE_B)
     pSP->ColocPicID = AL_Dpb_GetPicID_FromNode(pDpb, (*pListRef)[1][0].uNodeID);
 
   FillConcealValue(pCtx, pSP);
@@ -369,7 +371,7 @@ void AL_HEVC_FillSliceParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCt
   pSP->NumEntryPoint = pSlice->num_entry_point_offsets;
 
   // StandBy
-  if(pSP->eSliceType == SLICE_CONCEAL)
+  if(pSP->eSliceType == AL_SLICE_CONCEAL)
   {
     // search prev slice
     uint16_t uSliceID = pCtx->PictMngr.uNumSlice;
@@ -413,9 +415,9 @@ void AL_HEVC_FillSlicePicIdRegister(const AL_THevcSliceHdr* pSlice, AL_TDecCtx* 
     pPP->ColocPicID = UndefID;
 
   // Reg 0x12
-  if((pSP->eSliceType == SLICE_B && pSlice->collocated_from_l0_flag) || pSP->eSliceType == SLICE_P)
+  if((pSP->eSliceType == AL_SLICE_B && pSlice->collocated_from_l0_flag) || pSP->eSliceType == AL_SLICE_P)
     pPP->ColocPicID = AL_Dpb_GetPicID_FromNode(pDpb, (*pListRef)[0][pSlice->collocated_ref_idx].uNodeID);
-  else if(pSP->eSliceType == SLICE_B)
+  else if(pSP->eSliceType == AL_SLICE_B)
     pPP->ColocPicID = AL_Dpb_GetPicID_FromNode(pDpb, (*pListRef)[1][pSlice->collocated_ref_idx].uNodeID);
 
   FillConcealValue(pCtx, pSP);

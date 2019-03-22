@@ -242,7 +242,7 @@ struct EncoderSink : IFrameSink
     for(int i = 0; i < cfg.Settings.NumLayer; ++i)
       LayerRecOutput[i].reset(new NullFrameSink);
 
-    m_pictureType = cfg.RunInfo.printPictureType ? SLICE_MAX_ENUM : -1;
+    m_pictureType = cfg.RunInfo.printPictureType ? AL_SLICE_MAX_ENUM : -1;
   }
 
   ~EncoderSink()

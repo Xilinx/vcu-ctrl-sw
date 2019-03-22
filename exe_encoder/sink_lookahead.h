@@ -72,7 +72,7 @@ struct EncoderLookAheadSink : IFrameSink
       ThrowEncoderError(errorCode);
 
     commandsSender.reset(new CommandsSender(hEnc));
-    m_pictureType = cfg.RunInfo.printPictureType ? SLICE_MAX_ENUM : -1;
+    m_pictureType = cfg.RunInfo.printPictureType ? AL_SLICE_MAX_ENUM : -1;
 
     bEnableFirstPassSceneChangeDetection = cfg.Settings.bEnableFirstPassSceneChangeDetection;
     EOSFinished = Rtos_CreateEvent(false);

@@ -77,7 +77,7 @@ AL_TPictureMetaData* AL_PictureMetaData_Create()
   pMeta->tMeta.MetaDestroy = PictureMeta_Destroy;
   pMeta->tMeta.MetaClone = PictureMeta_Clone;
 
-  pMeta->eType = SLICE_MAX_ENUM;
+  pMeta->eType = AL_SLICE_MAX_ENUM;
 
   return pMeta;
 }

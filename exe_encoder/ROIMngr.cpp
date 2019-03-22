@@ -109,6 +109,9 @@ static uint8_t GetNewDeltaQP(AL_ERoiQuality eQuality)
 {
 
 
+  if(eQuality == AL_ROI_QUALITY_INTRA)
+    return MASK_FORCE_INTRA;
+
   return ToInt(eQuality) & MASK_QP;
 }
 
@@ -121,6 +124,9 @@ static int8_t GetDQp(uint8_t iDeltaQP)
 /****************************************************************************/
 static bool ShouldInsertAfter(int8_t iCurrentQP, int8_t iQPToInsert)
 {
+
+  if(iQPToInsert & MASK_FORCE_INTRA)
+    return true;
 
   return GetDQp(iCurrentQP) > GetDQp(iQPToInsert);
 }
@@ -196,6 +202,14 @@ static uint32_t GetNodePosInBuf(AL_TRoiMngrCtx* pCtx, uint32_t uLcuX, uint32_t u
 /****************************************************************************/
 static inline void SetLCUQuality(uint8_t* pLCUQP, uint8_t uROIQP)
 {
+
+  if(uROIQP & MASK_FORCE_INTRA)
+    *pLCUQP = (*pLCUQP & MASK_QP) | MASK_FORCE_INTRA;
+  else if((*pLCUQP & MASK_FORCE_INTRA) && !(uROIQP & MASK_FORCE_MV0))
+  {
+    *pLCUQP = uROIQP | MASK_FORCE_INTRA;
+  }
+  else
   {
     *pLCUQP = uROIQP;
   }

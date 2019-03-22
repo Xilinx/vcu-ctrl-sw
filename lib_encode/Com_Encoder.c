@@ -136,6 +136,9 @@ static bool init(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TAllocator* pA
 
   pCtx->iLastIdrId = 0;
 
+  for(int iLayer = 0; iLayer < MAX_NUM_LAYER; iLayer++)
+    pCtx->bEndOfStreamReceived[iLayer] = false;
+
   pCtx->seiData.initialCpbRemovalDelay = pChParam->tRCParam.uInitialRemDelay;
   pCtx->seiData.cpbRemovalDelay = 0;
 
@@ -350,8 +353,14 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
 {
   AL_TEncCtx* pCtx = pEnc->pCtx;
 
+  if(pCtx->bEndOfStreamReceived[iLayerID])
+    return false;
+
   if(!pFrame)
+  {
+    pCtx->bEndOfStreamReceived[iLayerID] = true;
     return EndOfStream(pEnc, iLayerID);
+  }
 
   if(!AL_SrcBuffersChecker_CanBeUsed(&pCtx->tLayerCtx[iLayerID].srcBufferChecker, pFrame))
     return false;
@@ -564,17 +573,17 @@ static AL_TEncChanParam* initChannelParam(AL_TEncCtx* pCtx, AL_TEncSettings cons
 /****************************************************************************/
 void AL_Common_Encoder_SetME(int iHrzRange_P, int iVrtRange_P, int iHrzRange_B, int iVrtRange_B, AL_TEncChanParam* pChParam)
 {
-  if(pChParam->pMeRange[SLICE_P][0] < 0)
-    pChParam->pMeRange[SLICE_P][0] = iHrzRange_P;
+  if(pChParam->pMeRange[AL_SLICE_P][0] < 0)
+    pChParam->pMeRange[AL_SLICE_P][0] = iHrzRange_P;
 
-  if(pChParam->pMeRange[SLICE_P][1] < 0)
-    pChParam->pMeRange[SLICE_P][1] = iVrtRange_P;
+  if(pChParam->pMeRange[AL_SLICE_P][1] < 0)
+    pChParam->pMeRange[AL_SLICE_P][1] = iVrtRange_P;
 
-  if(pChParam->pMeRange[SLICE_B][0] < 0)
-    pChParam->pMeRange[SLICE_B][0] = iHrzRange_B;
+  if(pChParam->pMeRange[AL_SLICE_B][0] < 0)
+    pChParam->pMeRange[AL_SLICE_B][0] = iHrzRange_B;
 
-  if(pChParam->pMeRange[SLICE_B][1] < 0)
-    pChParam->pMeRange[SLICE_B][1] = iVrtRange_B;
+  if(pChParam->pMeRange[AL_SLICE_B][1] < 0)
+    pChParam->pMeRange[AL_SLICE_B][1] = iVrtRange_B;
 }
 
 static void AL_Common_Encoder_DeinitBuffers(AL_TLayerCtx* pCtx)
@@ -855,7 +864,7 @@ bool AL_Common_Encoder_SetInputResolution(AL_TEncoder* pEnc, AL_TDimension tDim)
 
 static bool isSeiEnable(uint32_t uFlags)
 {
-  return uFlags != SEI_NONE;
+  return uFlags != AL_SEI_NONE;
 }
 
 static bool isBaseLayer(int iLayer)
@@ -879,7 +888,7 @@ NalsData AL_ExtractNalsData(AL_TEncCtx* pCtx, int iLayerID)
 
   if(pSettings->tChParam[0].bSubframeLatency)
   {
-    data.seiFlags |= SEI_UDU;
+    data.seiFlags |= AL_SEI_UDU;
     data.shouldWriteFillerData = true;
   }
 

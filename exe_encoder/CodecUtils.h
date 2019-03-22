@@ -49,6 +49,7 @@ extern "C"
 #include "lib_common/SliceConsts.h"
 #include "lib_common/BufferAPI.h"
 #include "lib_common_enc/EncBuffers.h"
+#include "lib_common_enc/Settings.h"
 }
 
 /*****************************************************************************/
@@ -76,7 +77,7 @@ unsigned int ReadNextFrameMV(std::ifstream& File, int& iX, int& iY);
 void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection, const AL_TEncChanParam* pChannelParam);
 
 /*****************************************************************************/
-int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream, const AL_TEncChanParam* pChannelParam);
+int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream, const AL_TEncSettings* pSettings);
 
 struct ImageSize
 {

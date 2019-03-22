@@ -107,7 +107,7 @@ static bool CheckMetaData(AL_TSrcBufferChecker* pCtx, AL_TSrcMetaData* pMetaData
   if(pMetaDataBuf->tPlanes[AL_PLANE_Y].iPitch % 32)
     return false;
 
-  if(AL_GetChromaMode(pMetaDataBuf->tFourCC) != CHROMA_MONO)
+  if(AL_GetChromaMode(pMetaDataBuf->tFourCC) != AL_CHROMA_MONO)
   {
     if(pMetaDataBuf->tDim.iWidth > pMetaDataBuf->tPlanes[AL_PLANE_UV].iPitch)
       return false;

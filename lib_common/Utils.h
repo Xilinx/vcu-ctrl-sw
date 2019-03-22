@@ -212,5 +212,17 @@ int floor_log2(uint16_t n);
 /****************************************************************************/
 int AL_H273_ColourDescToColourPrimaries(AL_EColourDescription colourDesc);
 
+/*************************************************************************//*!
+   \brief Reference picture status
+ ***************************************************************************/
+typedef enum e_MarkingRef
+{
+  SHORT_TERM_REF = 0,
+  LONG_TERM_REF = 1,
+  UNUSED_FOR_REF = 2,
+  NON_EXISTING_REF = 3,
+  AL_MARKING_REF_MAX_ENUM, /* sentinel */
+}AL_EMarkingRef;
+
 /*@}*/
 

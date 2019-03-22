@@ -107,14 +107,14 @@ static AL_TCropInfo extractCropInfo(AL_TAvcSps const* pSPS)
 /*************************************************************************/
 static int getMaxBitDepth(int profile_idc)
 {
-  switch(profile_idc)
-  {
-  case AL_GET_PROFILE_IDC(AL_PROFILE_AVC_BASELINE):
-  case AL_GET_PROFILE_IDC(AL_PROFILE_AVC_MAIN):
-  case AL_GET_PROFILE_IDC(AL_PROFILE_AVC_EXTENDED):
-  case AL_GET_PROFILE_IDC(AL_PROFILE_AVC_HIGH): return 8;
-  default: return 10;
-  }
+  if(
+    (profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_AVC_BASELINE))
+    || (profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_AVC_MAIN))
+    || (profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_AVC_EXTENDED))
+    || (profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_AVC_HIGH))
+    )
+    return 8;
+  return 10;
 }
 
 /*************************************************************************/
@@ -166,7 +166,7 @@ static bool isSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, AL_TStream
 
   AL_EChromaMode eSPSChromaMode = (AL_EChromaMode)pSPS->chroma_format_idc;
 
-  if((pStreamSettings->eChroma != CHROMA_MAX_ENUM) && (pStreamSettings->eChroma < eSPSChromaMode))
+  if((pStreamSettings->eChroma != AL_CHROMA_MAX_ENUM) && (pStreamSettings->eChroma < eSPSChromaMode))
     return false;
 
   AL_TCropInfo tSPSCropInfo = extractCropInfo(pSPS);
@@ -394,7 +394,7 @@ static void concealSlice(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSlicePar
   AL_AVC_FillPictParameters(pSlice, pCtx, pPP);
   AL_AVC_FillSliceParameters(pSlice, pCtx, pSP, pPP, true);
 
-  pSP->eSliceType = SLICE_CONCEAL;
+  pSP->eSliceType = AL_SLICE_CONCEAL;
   AL_Default_Decoder_SetError(pCtx, AL_WARN_CONCEAL_DETECT, pPP->FrmID);
 
   if(eNUT == AL_AVC_NUT_VCL_IDR)
@@ -528,8 +528,8 @@ static bool constructRefPicList(AL_TAvcSliceHdr* pSlice, AL_TDecCtx* pCtx, TBuff
       pNumRef[1]++;
   }
 
-  if((pSlice->slice_type != SLICE_I && pNumRef[0] < pSlice->num_ref_idx_l0_active_minus1 + 1) ||
-     (pSlice->slice_type == SLICE_B && pNumRef[1] < pSlice->num_ref_idx_l1_active_minus1 + 1))
+  if((pSlice->slice_type != AL_SLICE_I && pNumRef[0] < pSlice->num_ref_idx_l0_active_minus1 + 1) ||
+     (pSlice->slice_type == AL_SLICE_B && pNumRef[1] < pSlice->num_ref_idx_l1_active_minus1 + 1))
     return false;
 
   return true;
@@ -550,7 +550,7 @@ static bool isValidSyncPoint(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_ESliceType ePicT
   if(iRecoveryCnt)
     return true;
 
-  if(pCtx->bUseIFramesAsSyncPoint && eNUT == AL_AVC_NUT_VCL_NON_IDR && ePicType == SLICE_I)
+  if(pCtx->bUseIFramesAsSyncPoint && eNUT == AL_AVC_NUT_VCL_NON_IDR && ePicType == AL_SLICE_I)
     return true;
 
   return false;
@@ -634,7 +634,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   if(isValid && !pSlice->first_mb_in_slice)
     *bFirstSliceInFrameIsValid = true;
 
-  if(isValid && pSlice->slice_type != SLICE_I)
+  if(isValid && pSlice->slice_type != AL_SLICE_I)
     AL_SET_DEC_OPT(pPP, IntraOnly, 0);
 
   if(bIsLastAUNal)
@@ -728,13 +728,13 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   ++pCtx->PictMngr.uNumSlice;
   ++(*iNumSlice);
 
-  if(pAUP->ePictureType == SLICE_I || pSlice->slice_type == SLICE_B)
+  if(pAUP->ePictureType == AL_SLICE_I || pSlice->slice_type == AL_SLICE_B)
     pAUP->ePictureType = (AL_ESliceType)pSlice->slice_type;
 
   if(bIsLastAUNal || bLastSlice)
   {
     endFrame(pCtx, eNUT, pPP, pSlice);
-    pAUP->ePictureType = SLICE_I;
+    pAUP->ePictureType = AL_SLICE_I;
     return;
   }
 
@@ -839,7 +839,7 @@ void AL_AVC_InitAUP(AL_TAvcAup* pAUP)
   for(int i = 0; i < AL_AVC_MAX_SPS; ++i)
     pAUP->pSPS[i].bConceal = true;
 
-  pAUP->ePictureType = SLICE_I;
+  pAUP->ePictureType = AL_SLICE_I;
   pAUP->pActiveSPS = NULL;
 }
 

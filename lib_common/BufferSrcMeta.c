@@ -129,10 +129,10 @@ int AL_SrcMetaData_GetChromaSize(AL_TSrcMetaData* pMeta)
 {
   AL_EChromaMode eCMode = AL_GetChromaMode(pMeta->tFourCC);
 
-  if(eCMode == CHROMA_MONO)
+  if(eCMode == AL_CHROMA_MONO)
     return 0;
 
-  int const iHeightC = (eCMode == CHROMA_4_2_0) ? pMeta->tDim.iHeight / 2 : pMeta->tDim.iHeight;
+  int const iHeightC = (eCMode == AL_CHROMA_4_2_0) ? pMeta->tDim.iHeight / 2 : pMeta->tDim.iHeight;
 
   if(AL_IsTiled(pMeta->tFourCC))
     return pMeta->tPlanes[AL_PLANE_UV].iPitch * iHeightC / 4;
