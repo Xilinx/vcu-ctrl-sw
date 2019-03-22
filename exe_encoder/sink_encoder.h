@@ -182,27 +182,6 @@ const char* EncoderErrorToString(AL_ERR eErr)
   }
 }
 
-static
-void ThrowEncoderError(AL_ERR eErr)
-{
-  auto const msg = EncoderErrorToString(eErr);
-  Message(CC_RED, "%s\n", msg);
-  switch(eErr)
-  {
-  case AL_SUCCESS:
-  case AL_ERR_STREAM_OVERFLOW:
-  case AL_WARN_LCU_OVERFLOW:
-    // do nothing
-    break;
-
-  default:
-    throw codec_error(msg, eErr);
-  }
-
-  if(!AL_IS_SUCCESS_CODE(eErr) && (!AL_IS_WARNING_CODE(eErr) || AL_IS_SUCCESS_CODE(g_EncoderLastError)))
-    g_EncoderLastError = eErr;
-}
-
 struct safe_ifstream
 {
   std::ifstream fp {};
@@ -230,7 +209,7 @@ struct EncoderSink : IFrameSink
     AL_ERR errorCode = AL_Encoder_Create(&hEnc, pScheduler, pAllocator, &cfg.Settings, onEndEncoding);
 
     if(AL_IS_ERROR_CODE(errorCode))
-      ThrowEncoderError(errorCode);
+      throw codec_error(EncoderErrorToString(errorCode), errorCode);
 
     if(AL_IS_WARNING_CODE(errorCode))
       Message(CC_YELLOW, "%s\n", EncoderErrorToString(errorCode));
@@ -277,36 +256,36 @@ struct EncoderSink : IFrameSink
     if(m_picCount == 0)
       m_StartTime = GetPerfTime();
 
-    if(Src)
-      DisplayFrameStatus(m_picCount);
-    else
+    if(!Src)
+    {
       Message(CC_DEFAULT, "Flushing...");
 
-    AL_TBuffer* QpBuf = nullptr;
-
-    if(Src)
-    {
-
-
-
-      if(twoPassMngr.iPass)
-      {
-        auto pPictureMetaTP = AL_TwoPassMngr_CreateAndAttachTwoPassMetaData(Src);
-
-        if(twoPassMngr.iPass == 2)
-          twoPassMngr.GetFrame(pPictureMetaTP);
-      }
-
-      QpBuf = qpBuffers.getBuffer(m_picCount);
+      if(!AL_Encoder_Process(hEnc, nullptr, nullptr))
+        throw std::runtime_error("Failed");
+      return;
     }
+
+    DisplayFrameStatus(m_picCount);
+
+
+
+
+    if(twoPassMngr.iPass)
+    {
+      auto pPictureMetaTP = AL_TwoPassMngr_CreateAndAttachTwoPassMetaData(Src);
+
+      if(twoPassMngr.iPass == 2)
+        twoPassMngr.GetFrame(pPictureMetaTP);
+    }
+
+    AL_TBuffer* QpBuf = qpBuffers.getBuffer(m_picCount);
 
     std::shared_ptr<AL_TBuffer> QpBufShared(QpBuf, [&](AL_TBuffer* pBuf) { qpBuffers.releaseBuffer(pBuf); });
 
     if(!AL_Encoder_Process(hEnc, Src, QpBuf))
       throw std::runtime_error("Failed");
 
-    if(Src)
-      m_picCount++;
+    m_picCount++;
   }
 
 
@@ -372,7 +351,10 @@ private:
     AL_ERR eErr = AL_Encoder_GetLastError(hEnc);
 
     if(AL_IS_ERROR_CODE(eErr))
-      ThrowEncoderError(eErr);
+    {
+      Message(CC_RED, "%s\n", EncoderErrorToString(eErr));
+      g_EncoderLastError = eErr;
+    }
 
     if(AL_IS_WARNING_CODE(eErr))
       Message(CC_YELLOW, "%s\n", EncoderErrorToString(eErr));
@@ -407,7 +389,10 @@ private:
     auto eErr = PreprocessOutput(pStream);
 
     if(AL_IS_ERROR_CODE(eErr))
-      ThrowEncoderError(eErr);
+    {
+      Message(CC_RED, "%s\n", EncoderErrorToString(eErr));
+      g_EncoderLastError = eErr;
+    }
 
     if(AL_IS_WARNING_CODE(eErr))
       Message(CC_YELLOW, "%s\n", EncoderErrorToString(eErr));

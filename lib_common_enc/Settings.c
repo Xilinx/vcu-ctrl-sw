@@ -689,6 +689,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 
   pChan->eVideoMode = AL_VM_PROGRESSIVE;
 
+
 }
 
 /***************************************************************************/

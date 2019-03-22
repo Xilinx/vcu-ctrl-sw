@@ -98,14 +98,6 @@ typedef enum e_QPCtrlMode
 }AL_EQpCtrlMode;
 
 
-/*************************************************************************//*!
-   \brief AV1 Output Format
-*****************************************************************************/
-typedef enum e_Av1OutputFormat
-{
-  AV1_ANNEXB_OUTPUT_FORMAT,
-  AV1_IVF_OUTPUT_FORMAT,
-}AL_EAv1OutputFormat;
 
 /*************************************************************************//*!
    \brief Encoder Parameters
@@ -122,7 +114,6 @@ typedef AL_INTROSPECT (category = "debug") struct t_EncSettings
   AL_EColourDescription eColourDescription;
   AL_EScalingList eScalingList;
   bool bDependentSlice;
-  AL_EAv1OutputFormat eAv1Format;
 
   bool bDisIntra;
   bool bForceLoad;

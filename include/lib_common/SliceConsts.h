@@ -278,11 +278,11 @@ typedef enum e_PicStruct
 *****************************************************************************/
 typedef enum e_ChromaMode
 {
-  AL_CHROMA_MONO = 0, /*!< Monochrome */
-  AL_CHROMA_4_0_0 = 0, /*!< 4:0:0 = Monochrome */
-  AL_CHROMA_4_2_0 = 1, /*!< 4:2:0 chroma sampling */
-  AL_CHROMA_4_2_2 = 2, /*!< 4:2:2 chroma sampling */
-  AL_CHROMA_4_4_4 = 3, /*!< 4:4:4 chroma sampling : Not supported */
+  AL_CHROMA_MONO, /*!< Monochrome */
+  AL_CHROMA_4_0_0 = AL_CHROMA_MONO, /*!< 4:0:0 = Monochrome */
+  AL_CHROMA_4_2_0, /*!< 4:2:0 chroma sampling */
+  AL_CHROMA_4_2_2, /*!< 4:2:2 chroma sampling */
+  AL_CHROMA_4_4_4, /*!< 4:4:4 chroma sampling : Not supported */
   AL_CHROMA_MAX_ENUM, /* sentinel */
 }AL_EChromaMode;
 

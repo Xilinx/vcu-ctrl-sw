@@ -118,7 +118,6 @@ typedef struct AL_t_DecPictParam
   uint16_t row_height[AL_MAX_ROWS_TILE];
   uint16_t num_tile_columns;
   uint16_t num_tile_rows;
-  uint16_t num_slice;
 
   int32_t CurrentPOC;
   AL_EPicStruct ePicStruct;

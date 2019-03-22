@@ -68,7 +68,6 @@ typedef enum AL_e_ChanState
 typedef struct t_Dec_Ctx
 {
   AL_TFeeder* Feeder;
-  bool bDecUnitInput;
 
   TBuffer BufNoAE;            // Deanti-Emulated buffer used for high level syntax parsing
   TCircBuffer Stream;             // Input stream buffer

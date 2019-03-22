@@ -61,7 +61,7 @@ void DisplayFrameStatus(int iFrameNum)
 #if VERBOSE_MODE
   Message("\n\n> % 3d", iFrameNum);
 #else
-  Message("\r  Encoding picture #%-6d - ", iFrameNum);
+  Message("\r  Encoding picture #%-6d -\n", iFrameNum);
 #endif
   fflush(stdout);
 }

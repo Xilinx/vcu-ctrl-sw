@@ -72,6 +72,7 @@ extern "C"
 #include "lib_common/BufferLookAheadMeta.h"
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/versions.h"
+#include "lib_common/Error.h"
 #include "lib_encode/lib_encoder.h"
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common_enc/IpEncFourCC.h"
@@ -354,7 +355,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addOption("--set", [&]()
   {
     ParseConfig(opt.popWord(), cfg);
-  }, "Use the same syntax as in the cfg to specify a parameter (experimental)");
+  }, "Use the same syntax as in the cfg to specify a parameter");
   opt.parse(argc, argv);
 
   if(help)
@@ -614,6 +615,12 @@ static void GetSrcFrame(shared_ptr<AL_TBuffer>& frame, int& iReadCount, int iPic
 
 static bool sendInputFileTo(ifstream& YuvFile, BufPool& SrcBufPool, AL_TBuffer* Yuv, ConfigFile const& cfg, TYUVFileInfo& FileInfo, IConvSrc* pSrcConv, IFrameSink* sink, int& iPictCount, int& iReadCount)
 {
+  if(AL_IS_ERROR_CODE(GetEncoderLastError()))
+  {
+    sink->ProcessFrame(nullptr);
+    return false;
+  }
+
   shared_ptr<AL_TBuffer> frame;
   GetSrcFrame(frame, iReadCount, iPictCount, YuvFile, FileInfo, SrcBufPool, Yuv, cfg.Settings.tChParam[0], cfg, pSrcConv);
   sink->ProcessFrame(frame.get());
@@ -1070,17 +1077,17 @@ void SafeMain(int argc, char** argv)
     frameBuffersCount = max(frameBuffersCount, g_numFrameToRepeat);
   }
 
-  bool hasInput = true;
+  bool hasInputAndNoError = true;
 
   for(int i = 0; i < Settings.NumLayer; ++i)
     layerRessources[i].OpenInput(cfg, enc->hEnc);
 
-  while(hasInput)
+  while(hasInputAndNoError)
   {
     AL_64U uBeforeTime = Rtos_GetTime();
 
     for(int i = 0; i < Settings.NumLayer; ++i)
-      hasInput = layerRessources[i].SendInput(cfg, firstSink) && hasInput;
+      hasInputAndNoError = layerRessources[i].SendInput(cfg, firstSink) && hasInputAndNoError;
 
     AL_64U uAfterTime = Rtos_GetTime();
 

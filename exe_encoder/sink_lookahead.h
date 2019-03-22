@@ -69,7 +69,7 @@ struct EncoderLookAheadSink : IFrameSink
     AL_ERR errorCode = AL_Encoder_Create(&hEnc, pScheduler, pAllocator, &cfgLA.Settings, onEndEncoding);
 
     if(errorCode)
-      ThrowEncoderError(errorCode);
+      throw codec_error(EncoderErrorToString(errorCode), errorCode);
 
     commandsSender.reset(new CommandsSender(hEnc));
     m_pictureType = cfg.RunInfo.printPictureType ? AL_SLICE_MAX_ENUM : -1;
@@ -174,7 +174,10 @@ private:
     AL_ERR eErr = AL_Encoder_GetLastError(hEnc);
 
     if(AL_IS_ERROR_CODE(eErr))
-      ThrowEncoderError(eErr);
+    {
+      Message(CC_RED, "%s\n", EncoderErrorToString(eErr));
+      g_EncoderLastError = eErr;
+    }
 
     if(AL_IS_WARNING_CODE(eErr))
       Message(CC_YELLOW, "%s\n", EncoderErrorToString(eErr));

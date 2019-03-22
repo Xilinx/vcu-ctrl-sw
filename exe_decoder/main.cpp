@@ -160,6 +160,7 @@ struct Config
   int iLoop = 1;
   int iTimeoutInSeconds = -1;
   int iMaxFrames = INT_MAX;
+  int iFirstFrame = 0;
   string seiFile = "";
 };
 
@@ -796,6 +797,7 @@ struct Display
   int iBitDepth = 8;
   unsigned int NumFrames = 0;
   unsigned int MaxFrames = UINT_MAX;
+  unsigned int FirstFrame = 0;
   mutex hMutex;
   int iNumFrameConceal = 0;
 };
@@ -912,7 +914,7 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
 /******************************************************************************/
 void Display::ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut)
 {
-  if(writers.find(info.eFbStorageMode) != writers.end())
+  if(writers.find(info.eFbStorageMode) != writers.end() && (NumFrames >= FirstFrame))
     writers[info.eFbStorageMode]->ProcessOutput(tRecBuf, info, iBdOut);
 }
 

@@ -105,7 +105,7 @@ AL_TLookAheadMetaData* AL_TwoPassMngr_CreateAndAttachTwoPassMetaData(AL_TBuffer*
 }
 
 /***************************************************************************/
-bool AL_TwoPassMngr_HasLookAhead(AL_TEncSettings settings)
+bool AL_TwoPassMngr_HasLookAhead(AL_TEncSettings const& settings)
 {
   return settings.LookAhead > 0;
 }

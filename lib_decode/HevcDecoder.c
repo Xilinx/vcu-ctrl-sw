@@ -609,7 +609,6 @@ static void finishPreviousFrame(AL_TDecCtx* pCtx)
   AL_TDecPicParam* pPP = &pCtx->PoolPP[pCtx->uToggle];
   AL_TDecSliceParam* pSP = &(((AL_TDecSliceParam*)pCtx->PoolSP[pCtx->uToggle].tMD.pVirtualAddr)[pCtx->PictMngr.uNumSlice - 1]);
 
-  pPP->num_slice = pCtx->PictMngr.uNumSlice - 1;
   AL_TerminatePreviousCommand(pCtx, pPP, pSP, true, true);
 
   // copy stream offset from previous command
@@ -746,9 +745,6 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   pCtx->uCurID = (pCtx->uCurID + 1) & 1;
 
   AL_TDecSliceParam* pSP = &(((AL_TDecSliceParam*)pCtx->PoolSP[pCtx->uToggle].tMD.pVirtualAddr)[pCtx->PictMngr.uNumSlice]);
-
-  if(bIsLastAUNal)
-    pPP->num_slice = pCtx->PictMngr.uNumSlice;
 
   pBufs->tStream.tMD = pCtx->Stream.tMD;
 
