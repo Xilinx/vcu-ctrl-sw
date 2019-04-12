@@ -1059,8 +1059,7 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
 
   pPPS->loop_filter_across_slices_enabled_flag = (pChParam->eEncTools & AL_OPT_LF_X_SLICE) ? 1 : 0;
 
-  pPPS->deblocking_filter_control_present_flag = (!(pChParam->eEncTools & AL_OPT_LF) || (pChParam->iBetaOffset || pChParam->iTcOffset)) ? 1 : 0;
-
+  pPPS->deblocking_filter_control_present_flag = (!(pChParam->eEncTools & AL_OPT_LF) || AL_GET_PPS_OVERRIDE_LF(pChParam->uPpsParam) || (pChParam->iBetaOffset || pChParam->iTcOffset)) ? 1 : 0;
 
   if(isGdrEnabled(pSettings))
     pPPS->deblocking_filter_control_present_flag = 1;

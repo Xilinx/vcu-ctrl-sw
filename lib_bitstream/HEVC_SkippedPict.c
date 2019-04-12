@@ -57,7 +57,7 @@ static unsigned int AL_sHEVC_WriteSkippedCU(AL_TBitStreamLite* pBS, AL_TCabacCtx
   // split_cu_flag
   if(!iSplit)
   {
-    AL_Cabac_WriteBin(pBS, pCtx, &pState[0], &pValMPS[0], 1);
+    AL_Cabac_WriteBin(pBS, pCtx, &pState[0], &pValMPS[0], 0);
     uBins++;
   }
 
@@ -74,7 +74,7 @@ static unsigned int AL_sHEVC_WriteSkippedCU(AL_TBitStreamLite* pBS, AL_TCabacCtx
   uBins++;
 
   // Merge Idx
-  AL_Cabac_WriteBin(pBS, pCtx, &pState[4], &pValMPS[4], 1);
+  AL_Cabac_WriteBin(pBS, pCtx, &pState[4], &pValMPS[4], 0);
   uBins++;
 
   return uBins;
@@ -90,17 +90,19 @@ static unsigned int AL_sHEVC_WriteSkippedCuRight(AL_TBitStreamLite* pBS, AL_TCab
     uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, iAvailB, 1);
     uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 1);
   }
-  else if(iMod & iMsk)
+  else
   {
-    uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, iAvailB, 0);
-    uBins += AL_sHEVC_WriteSkippedCuRight(pBS, pCtx, pState, pValMPS, iAvailB, iMod, iMsk >> 1);
-    uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 0);
-    uBins += AL_sHEVC_WriteSkippedCuRight(pBS, pCtx, pState, pValMPS, 1, iMod, iMsk >> 1);
-  }
-  else if(iMsk)
-  {
-    uBins += AL_sHEVC_WriteSkippedCuRight(pBS, pCtx, pState, pValMPS, iAvailB, iMod, iMsk >> 1);
-    uBins += AL_sHEVC_WriteSkippedCuRight(pBS, pCtx, pState, pValMPS, 1, iMod, iMsk >> 1);
+    if(iMod & iMsk)
+      uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, iAvailB, 0);
+
+    if(iMod & (iMsk - 1))
+      uBins += AL_sHEVC_WriteSkippedCuRight(pBS, pCtx, pState, pValMPS, iAvailB, iMod, iMsk >> 1);
+
+    if(iMod & iMsk)
+      uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 0);
+
+    if(iMod & (iMsk - 1))
+      uBins += AL_sHEVC_WriteSkippedCuRight(pBS, pCtx, pState, pValMPS, 1, iMod, iMsk >> 1);
   }
   return uBins;
 }
@@ -115,17 +117,19 @@ static unsigned int AL_sHEVC_WriteSkippedCuBottom(AL_TBitStreamLite* pBS, AL_TCa
     uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, iAvailA, 1, 1);
     uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 1);
   }
-  else if(iMod & iMsk)
+  else
   {
-    uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, iAvailA, 1, 0);
-    uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 0);
-    uBins += AL_sHEVC_WriteSkippedCuBottom(pBS, pCtx, pState, pValMPS, iAvailA, iMod, iMsk >> 1);
-    uBins += AL_sHEVC_WriteSkippedCuBottom(pBS, pCtx, pState, pValMPS, 1, iMod, iMsk >> 1);
-  }
-  else if(iMsk)
-  {
-    uBins += AL_sHEVC_WriteSkippedCuBottom(pBS, pCtx, pState, pValMPS, iAvailA, iMod, iMsk >> 1);
-    uBins += AL_sHEVC_WriteSkippedCuBottom(pBS, pCtx, pState, pValMPS, 1, iMod, iMsk >> 1);
+    if(iMod & iMsk)
+    {
+      uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, iAvailA, 1, 0);
+      uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 0);
+    }
+
+    if(iMod & (iMsk - 1))
+    {
+      uBins += AL_sHEVC_WriteSkippedCuBottom(pBS, pCtx, pState, pValMPS, iAvailA, iMod, iMsk >> 1);
+      uBins += AL_sHEVC_WriteSkippedCuBottom(pBS, pCtx, pState, pValMPS, 1, iMod, iMsk >> 1);
+    }
   }
   return uBins;
 }
@@ -139,26 +143,25 @@ static unsigned int AL_sHEVC_WriteSkippedCuBotRight(AL_TBitStreamLite* pBS, AL_T
   {
     uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 1);
   }
-  else if((iModH & iMsk) && (iModW & iMsk))
+  else
   {
-    uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 0);
-    uBins += AL_sHEVC_WriteSkippedCuRight(pBS, pCtx, pState, pValMPS, 1, iModW, iMsk >> 1);
-    uBins += AL_sHEVC_WriteSkippedCuBottom(pBS, pCtx, pState, pValMPS, 1, iModH, iMsk >> 1);
-    uBins += AL_sHEVC_WriteSkippedCuBotRight(pBS, pCtx, pState, pValMPS, iModW, iModH, iMsk >> 1);
-  }
-  else if(iModW & iMsk)
-  {
-    uBins += AL_sHEVC_WriteSkippedCuBottom(pBS, pCtx, pState, pValMPS, 1, iModH, iMsk >> 1);
-    uBins += AL_sHEVC_WriteSkippedCuBotRight(pBS, pCtx, pState, pValMPS, iModW, iModH, iMsk >> 1);
-  }
-  else if(iModH & iMsk)
-  {
-    uBins += AL_sHEVC_WriteSkippedCuRight(pBS, pCtx, pState, pValMPS, 1, iModW, iMsk >> 1);
-    uBins += AL_sHEVC_WriteSkippedCuBotRight(pBS, pCtx, pState, pValMPS, iModW, iModH, iMsk >> 1);
-  }
-  else if(iMsk)
-  {
-    uBins += AL_sHEVC_WriteSkippedCuBotRight(pBS, pCtx, pState, pValMPS, iModW, iModH, iMsk >> 1);
+    if(iModH & iMsk)
+    {
+      if(iModW & iMsk)
+        uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 0);
+
+      if(iModW & (iMsk - 1))
+        uBins += AL_sHEVC_WriteSkippedCuRight(pBS, pCtx, pState, pValMPS, 1, iModW, iMsk >> 1);
+    }
+
+    if(iModH & (iMsk - 1))
+    {
+      if(iModW & iMsk)
+        uBins += AL_sHEVC_WriteSkippedCuBottom(pBS, pCtx, pState, pValMPS, 1, iModH, iMsk >> 1);
+
+      if(iModW & (iMsk - 1))
+        uBins += AL_sHEVC_WriteSkippedCuBotRight(pBS, pCtx, pState, pValMPS, iModW, iModH, iMsk >> 1);
+    }
   }
   return uBins;
 }
@@ -176,7 +179,7 @@ static unsigned int AL_sHEVC_GenerateSkippedTileCabac(AL_TBitStreamLite* pBS, bo
   }; // cabac initialization with QP 26
   uint8_t pValMPS[5] =
   {
-    1, 0, 1, 1, 1
+    0, 0, 1, 1, 0
   };
 
   uint32_t uWidthLCU = (iWidth + (1 << uMaxCuSize) - 1) >> uMaxCuSize;
