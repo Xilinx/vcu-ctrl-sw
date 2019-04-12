@@ -39,6 +39,8 @@
 
 #include "lib_rtos/types.h"
 
+#define AL_MAX_TILE_ROWS 22 // see table A.1 of the HEVC specification
+
 /*************************************************************************//*!
    \brief This structure is designed to store slice data information of
    skipped picture.
@@ -52,6 +54,9 @@ typedef struct AL_t_SkippedPicture
 
   int iNumBits; /*!< Number of bits used by the skipped picture */
   int iNumBins; /*!< Number of bins used by the skipped picture */
+
+  int iNumTiles; /*!< Number of tile in the skipped picture */
+  uint32_t uTileSizes[AL_ENC_NUM_CORES * AL_MAX_TILE_ROWS]; /*!< Tile size in Bytes */
 }AL_TSkippedPicture;
 
 /*****************************************************************************/

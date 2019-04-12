@@ -72,7 +72,10 @@ static void initHlsSps(AL_TEncChanParam* pChParam, uint32_t* pSpsParam)
 {
   (void)pChParam;
   *pSpsParam = AL_SPS_TEMPORAL_MVP_EN_FLAG; // TODO
-  AL_SET_SPS_LOG2_MAX_POC(pSpsParam, 10);
+
+  int log2_max_poc = (pChParam->tRCParam.eOptions & AL_RC_OPT_ENABLE_SKIP) ? 16 : 10;
+  AL_SET_SPS_LOG2_MAX_POC(pSpsParam, log2_max_poc);
+
   int log2_max_frame_num_minus4 = 0; // This value SHOULD be equals to IP_Utils SPS
 
   if(pChParam->tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL && pChParam->tGopParam.uNumB == 15)

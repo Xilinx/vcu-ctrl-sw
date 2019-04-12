@@ -113,6 +113,7 @@ bool AL_AVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iNumMBs, b
 
   pSkipPict->iNumBits = iBitsCount;
   pSkipPict->iNumBins = iBinsCount;
+  pSkipPict->iNumTiles = 0;
 
   AL_BitStreamLite_Deinit(&BS);
 

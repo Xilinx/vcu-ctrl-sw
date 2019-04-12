@@ -45,6 +45,7 @@
 #include "HEVC_SkippedPict.h"
 #include "BitStreamLite.h"
 #include "Cabac.h"
+#include "lib_common/Utils.h"
 
 /****************************************************************************/
 
@@ -163,7 +164,7 @@ static unsigned int AL_sHEVC_WriteSkippedCuBotRight(AL_TBitStreamLite* pBS, AL_T
 }
 
 /****************************************************************************/
-static unsigned int AL_sHEVC_GenerateSkippedPictureCabac(AL_TBitStreamLite* pBS, int iWidth, int iHeight, uint8_t uMaxCuSize, uint8_t uMinCuSize, uint32_t uNumLCU)
+static unsigned int AL_sHEVC_GenerateSkippedTileCabac(AL_TBitStreamLite* pBS, bool bLastTile, int iWidth, int iHeight, uint8_t uMaxCuSize, uint8_t uMinCuSize, uint32_t uNumLCU)
 {
   AL_TCabacCtx Ctx;
 
@@ -201,9 +202,18 @@ static unsigned int AL_sHEVC_GenerateSkippedPictureCabac(AL_TBitStreamLite* pBS,
     else
       uBins += AL_sHEVC_WriteSkippedCU(pBS, &Ctx, pState, pValMPS, (uLCU >= uWidthLCU), (uLCU % uWidthLCU), 0);
 
+    bool bLastLCU = (uLCU == uNumLCU - 1);
+
     // write end_of_slice_segment_flag
-    AL_Cabac_Terminate(pBS, &Ctx, (uLCU == uNumLCU - 1) ? 1 : 0);
+    AL_Cabac_Terminate(pBS, &Ctx, (bLastTile && bLastLCU) ? 1 : 0);
     uBins++;
+
+    if(!bLastTile && bLastLCU)
+    {
+      // write end_of_subset_one_bit
+      AL_Cabac_Terminate(pBS, &Ctx, 1);
+      uBins++;
+    }
   }
 
   AL_Cabac_Finish(pBS, &Ctx);
@@ -214,21 +224,48 @@ static unsigned int AL_sHEVC_GenerateSkippedPictureCabac(AL_TBitStreamLite* pBS,
 }
 
 /******************************************************************************/
-bool AL_HEVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iWidth, int iHeight, uint8_t uMaxCuSize, uint8_t uMinCuSize, uint32_t uNumLCU)
+bool AL_HEVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iWidth, int iHeight, uint8_t uMaxCuSize, uint8_t uMinCuSize, int iTileColumns, int iTileRows, uint16_t* pTileWidths, uint16_t* pTileHeights)
 {
   AL_TBitStreamLite BS;
-  int iBinsCount, iBitsCount;
+  int iBinsCount = 0;
+  int iBitsCount = 0;
+  int iPrevBitsCount = 0;
 
   if(!pSkipPict || !pSkipPict->pData)
     return false;
 
   AL_BitStreamLite_Init(&BS, pSkipPict->pData, pSkipPict->iBufSize);
 
-  iBinsCount = AL_sHEVC_GenerateSkippedPictureCabac(&BS, iWidth, iHeight, uMaxCuSize, uMinCuSize, uNumLCU);
-  iBitsCount = AL_BitStreamLite_GetBitsCount(&BS);
+  int t = 0;
+  int H = iHeight;
+
+  for(int r = 0; r < iTileRows; ++r)
+  {
+    int W = iWidth;
+
+    for(int c = 0; c < iTileColumns; ++c)
+    {
+      bool bLastTile = (c == iTileColumns - 1) && (r == iTileRows - 1);
+      uint32_t uTileNumLCU = pTileWidths[c] * pTileHeights[r];
+      int iTileWidth = Min(pTileWidths[c] << uMaxCuSize, W);
+      int iTileHeight = Min(pTileHeights[r] << uMaxCuSize, H);
+
+      iBinsCount = AL_sHEVC_GenerateSkippedTileCabac(&BS, bLastTile, iTileWidth, iTileHeight, uMaxCuSize, uMinCuSize, uTileNumLCU);
+      iBitsCount = AL_BitStreamLite_GetBitsCount(&BS);
+
+      pSkipPict->uTileSizes[t++] = (iBitsCount - iPrevBitsCount) / 8;
+
+      iPrevBitsCount = iBitsCount;
+
+      W -= pTileWidths[c] << uMaxCuSize;
+    }
+
+    H -= pTileHeights[r] << uMaxCuSize;
+  }
 
   pSkipPict->iNumBits = iBitsCount;
   pSkipPict->iNumBins = iBinsCount;
+  pSkipPict->iNumTiles = iTileColumns * iTileRows;
 
   AL_BitStreamLite_Deinit(&BS);
 

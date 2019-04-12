@@ -647,7 +647,7 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   pSPS->max_num_ref_frames = iMaxRef; // TDMB = 1, PyramidB = 4
   pSPS->gaps_in_frame_num_value_allowed_flag = 0;
 
-  pSPS->log2_max_pic_order_cnt_lsb_minus4 = 6;
+  pSPS->log2_max_pic_order_cnt_lsb_minus4 = AL_GET_SPS_LOG2_MAX_POC(pSettings->tChParam[0].uSpsParam) - 4;
   pSPS->log2_max_frame_num_minus4 = 0;
 
   if(pSettings->tChParam[0].tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL && pSettings->tChParam[0].tGopParam.uNumB == 15)
@@ -804,7 +804,7 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   AL_HEVC_GenerateSPS_Format(pSPS, AL_GET_CHROMA_MODE(pChParam->ePicFormat), AL_GET_BITDEPTH_LUMA(pChParam->ePicFormat),
                              AL_GET_BITDEPTH_CHROMA(pChParam->ePicFormat), pChParam->uWidth, pChParam->uHeight, MultiLayerExtSpsFlag);
 
-  pSPS->log2_max_slice_pic_order_cnt_lsb_minus4 = 6;
+  pSPS->log2_max_slice_pic_order_cnt_lsb_minus4 = AL_GET_SPS_LOG2_MAX_POC(pChParam->uSpsParam) - 4;
 
   if(!MultiLayerExtSpsFlag)
   {

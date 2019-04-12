@@ -145,14 +145,14 @@ typedef enum __AL_ALIGNED__ (4) AL_e_HlsFlag
 
 static inline uint32_t AL_GET_SPS_LOG2_MAX_POC(uint32_t uHlsParam)
 {
-  return uHlsParam & AL_SPS_LOG2_MAX_POC_MASK;
+  return (uHlsParam & AL_SPS_LOG2_MAX_POC_MASK) + 1;
 }
 
 static inline void AL_SET_SPS_LOG2_MAX_POC(uint32_t* pHlsParam, int iLog2MaxPoc)
 {
   assert(pHlsParam);
-  assert(iLog2MaxPoc < 0xF);
-  *pHlsParam = ((*pHlsParam & ~AL_SPS_LOG2_MAX_POC_MASK) | iLog2MaxPoc);
+  assert(iLog2MaxPoc <= 16);
+  *pHlsParam = ((*pHlsParam & ~AL_SPS_LOG2_MAX_POC_MASK) | (iLog2MaxPoc - 1));
 }
 
 static inline uint32_t AL_GET_SPS_LOG2_MAX_FRAME_NUM(uint32_t uHlsParam)
