@@ -55,7 +55,7 @@
 /*****************************************************************************/
 int32_t RndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode)
 {
-  int const iBurstAlignment = eFrameBufferStorageMode == AL_FB_RASTER ? 256 : 32;
+  int const iBurstAlignment = eFrameBufferStorageMode == AL_FB_RASTER ? 256 : HW_IP_BURST_ALIGNMENT;
   int const iRndWidth = RoundUp(iWidth, 64);
   return ComputeRndPitch(iRndWidth, uBitDepth, eFrameBufferStorageMode, iBurstAlignment);
 }

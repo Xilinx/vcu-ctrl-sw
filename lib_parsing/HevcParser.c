@@ -902,7 +902,7 @@ static bool sei_recovery_point(AL_TRbspParser* pRP, AL_TRecoveryPoint* pRecovery
   }
 
 /*****************************************************************************/
-bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB_ParsedSei* cb)
+bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB_ParsedSei* cb, AL_TSeiMetaData* pMeta)
 {
   AL_THevcSei sei;
   AL_THevcAup* aup = &pIAup->hevcAup;
@@ -978,6 +978,12 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB
       skip(pRP, payload_size << 3); // skip data
       break;
     }
+    }
+
+    if(pMeta)
+    {
+      if(!AL_SeiMetaData_AddPayload(pMeta, (AL_TSeiMessage) {bIsPrefix, payload_type, payload_data, payload_size }))
+        return false;
     }
 
     if(cb->func)

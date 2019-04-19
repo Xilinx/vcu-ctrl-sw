@@ -11,6 +11,8 @@ LIB_COMMON_SRC:=\
 	lib_common/BufferStreamMeta.c\
 	lib_common/BufferPictureMeta.c\
 	lib_common/BufferLookAheadMeta.c\
+	lib_common/BufferBufHandleMeta.c\
+	lib_common/BufferSeiMeta.c\
 	lib_common/Fifo.c\
 	lib_common/AvcLevelsLimit.c\
 	lib_common/StreamBuffer.c\

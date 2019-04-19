@@ -55,8 +55,10 @@
 #include "lib_app/BufPool.h"
 #include "lib_app/console.h"
 #include "lib_app/utils.h"
+#include "lib_app/plateform.h"
 
 #include "CodecUtils.h"
+#include "YuvIO.h"
 #include "sink.h"
 #include "IpDevice.h"
 
@@ -159,11 +161,7 @@ static void Usage(CommandLineParser const& opt, char* ExeName)
   cerr << "Usage: " << ExeName << " -cfg <configfile> [options]" << endl;
   cerr << "Options:" << endl;
 
-  for(auto& name : opt.displayOrder)
-  {
-    auto& o = opt.options.at(name);
-    cerr << "  " << o.desc << endl;
-  }
+  opt.usage();
 
   cerr << "Examples:" << endl;
   cerr << "  " << ExeName << " -cfg test/config/encode_simple.cfg -r rec.yuv -o output.hevc -i input.yuv" << endl;
@@ -182,7 +180,8 @@ static AL_EChromaMode stringToChromaMode(string s)
 
   if(s == "CHROMA_4_2_2")
     return AL_CHROMA_4_2_2;
-  return AL_CHROMA_MAX_ENUM;
+
+  throw runtime_error("Unknown chroma mode: \"" + s + "\"");
 }
 
 
@@ -251,12 +250,16 @@ void SetChannelMaxResolution(ConfigFile& cfg)
   AL_SetSrcHeight(&cfg.Settings.tChParam[0], iMaxSrcHeight);
 }
 
+bool g_helpCfg = false;
+bool g_helpCfgJson = false;
+bool g_showCfg = false;
+
 /*****************************************************************************/
 void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
 {
   bool DoNotAcceptCfg = false;
   bool help = false;
-  bool help_cfg = false;
+  bool helpJson = false;
   bool version = false;
   stringstream warning;
   auto opt = CommandLineParser([&](string word)
@@ -270,28 +273,32 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
       DoNotAcceptCfg = true;
   });
 
-  opt.addOption("-cfg", [&]()
+  opt.addOption("-cfg", [&](string)
   {
     auto const cfgPath = opt.popWord();
     cfg.strict_mode = true;
     ParseConfigFile(cfgPath, cfg, warning);
   }, "Specify configuration file");
 
-  opt.addOption("-cfg-permissive", [&]()
+  opt.addOption("-cfg-permissive", [&](string)
   {
     auto const cfgPath = opt.popWord();
     ParseConfigFile(cfgPath, cfg, warning);
   }, "Use it instead of -cfg. Errors in the configuration file will be ignored");
 
-  opt.addFlag("--help-cfg", &help_cfg, "Show cfg help");
+  opt.addFlag("--help-cfg", &g_helpCfg, "Show cfg help. Show the default value for each parameter. If this option is used with a cfg, show the end value of each parameter.");
+  opt.addFlag("--help-cfg-json", &g_helpCfgJson, "Same as --help-cfg but in json format");
   opt.addFlag("--help,-h", &help, "Show this help");
+  opt.addFlag("--help-json", &helpJson, "Show this help (json)");
+  opt.addFlag("--show-cfg", &g_showCfg, "Show the cfg variables value before launching the program");
   opt.addFlag("--version", &version, "Show version");
   opt.addString("--input,-i", &cfg.MainInput.YUVFileName, "YUV input file");
 
   opt.addString("--output,-o", &cfg.BitstreamFileName, "Compressed output file");
   opt.addString("--md5", &cfg.RunInfo.sMd5Path, "Path to the output MD5 textfile");
   opt.addString("--output-rec,-r", &cfg.RecFileName, "Output reconstructed YUV file");
-  opt.addOption("--color", [&]() {
+  opt.addOption("--color", [&](string)
+  {
     SetEnableColor(true);
   }, "Enable color");
   opt.addInt("--input-sleep", &cfg.RunInfo.uInputSleepInMilliseconds, "Minimum waiting time in milliseconds between each process frame (0 by default)");
@@ -300,11 +307,11 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
 
   opt.addInt("--input-width", &cfg.MainInput.FileInfo.PictWidth, "Specifies YUV input width");
   opt.addInt("--input-height", &cfg.MainInput.FileInfo.PictHeight, "Specifies YUV input height");
-  opt.addOption("--chroma-mode", [&]()
+  opt.addOption("--chroma-mode", [&](string)
   {
     auto chromaMode = stringToChromaMode(opt.popWord());
-    AL_SET_CHROMA_MODE(cfg.Settings.tChParam[0].ePicFormat, chromaMode);
-  }, "Specify chroma-mode (CHROMA_MONO, AL_CHROMA_4_0_0, AL_CHROMA_4_2_0, AL_CHROMA_4_2_2)");
+    AL_SET_CHROMA_MODE(&cfg.Settings.tChParam[0].ePicFormat, chromaMode);
+  }, "Specify chroma-mode (CHROMA_MONO, CHROMA_4_0_0, CHROMA_4_2_0, CHROMA_4_2_2)");
 
   int ipbitdepth = -1;
   opt.addInt("--level", &cfg.Settings.tChParam[0].uLevel, "Specifies the level we want to encode with (10 to 62)");
@@ -317,15 +324,15 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
                 ", LOW_LATENCY"
                 ")"
                 );
-  opt.addOption("--bitrate", [&]()
+  opt.addOption("--bitrate", [&](string)
   {
     cfg.Settings.tChParam[0].tRCParam.uTargetBitRate = opt.popInt() * 1000;
   }, "Specifies bitrate in Kbits/s");
-  opt.addOption("--max-bitrate", [&]()
+  opt.addOption("--max-bitrate", [&](string)
   {
     cfg.Settings.tChParam[0].tRCParam.uMaxBitRate = opt.popInt() * 1000;
   }, "Specifies max bitrate in Kbits/s");
-  opt.addOption("--framerate", [&]()
+  opt.addOption("--framerate", [&](string)
   {
     ParseConfig("[RATE_CONTROL]\nFrameRate=" + opt.popWord(), cfg);
   }, "Specifies the frame rate used for encoding");
@@ -352,10 +359,10 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addString("--pass-logfile", &cfg.sTwoPassFileName, "LogFile to transmit dual pass statistics");
   opt.addFlag("--first-pass-scd", &cfg.Settings.bEnableFirstPassSceneChangeDetection, "During first pass, the encoder encode faster by only enabling scene change detection");
 
-  opt.addOption("--set", [&]()
+  opt.addOption("--set", [&](string)
   {
     ParseConfig(opt.popWord(), cfg);
-  }, "Use the same syntax as in the cfg to specify a parameter");
+  }, "Use the same syntax as in the cfg to specify a parameter (Example: --set \"[INPUT] Width = 512\"");
   opt.parse(argc, argv);
 
   if(help)
@@ -364,9 +371,9 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
     exit(0);
   }
 
-  if(help_cfg)
+  if(helpJson)
   {
-    PrintConfigFileUsage();
+    opt.usageJson();
     exit(0);
   }
 
@@ -390,9 +397,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
     throw runtime_error("Unsupported picture height value");
 
   if(ipbitdepth != -1)
-  {
-    AL_SET_BITDEPTH(cfg.Settings.tChParam[0].ePicFormat, ipbitdepth);
-  }
+    AL_SET_BITDEPTH(&cfg.Settings.tChParam[0].ePicFormat, ipbitdepth);
 
   cfg.Settings.tChParam[0].uSrcBitDepth = AL_GET_BITDEPTH(cfg.Settings.tChParam[0].ePicFormat);
 
@@ -408,7 +413,7 @@ void ValidateConfig(ConfigFile& cfg)
   if(cfg.MainInput.YUVFileName.empty())
     throw runtime_error("No YUV input was given, specify it in the [INPUT] section of your configuration file or in your commandline (use -h to get help)");
 
-  if(!cfg.MainInput.sQPTablesFolder.empty() && cfg.Settings.eQpCtrlMode != LOAD_QP)
+  if(!cfg.MainInput.sQPTablesFolder.empty() && ((cfg.Settings.eQpCtrlMode & 0x0F) != LOAD_QP))
     throw runtime_error("QPTablesFolder can only be specified with Load QP control mode");
 
   SetConsoleColor(CC_RED);
@@ -964,6 +969,8 @@ void LayerRessources::ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hE
 /*****************************************************************************/
 void SafeMain(int argc, char** argv)
 {
+  InitializePlateform();
+
   ConfigFile cfg {};
   SetDefaults(cfg);
 
@@ -984,7 +991,24 @@ void SafeMain(int argc, char** argv)
 
 
 
+  if(g_helpCfg)
+  {
+    PrintConfigFileUsage(cfg);
+    exit(0);
+  }
+
+  if(g_helpCfgJson)
+  {
+    PrintConfigFileUsageJson(cfg);
+    exit(0);
+  }
+
   ValidateConfig(cfg);
+
+  if(g_showCfg)
+  {
+    PrintConfig(cfg);
+  }
 
 
 

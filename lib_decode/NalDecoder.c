@@ -38,6 +38,21 @@
 #include "NalDecoder.h"
 #include "NalUnitParserPrivate.h"
 
+AL_TSeiMetaData* GetSeiMetaData(AL_TDecCtx* pCtx)
+{
+  if(!pCtx->pInputBuffer)
+    return NULL;
+
+  return (AL_TSeiMetaData*)AL_Buffer_GetMetaData(pCtx->pInputBuffer, AL_META_TYPE_SEI);
+}
+
+bool CheckAvailSpace(AL_TDecCtx* pCtx, AL_TSeiMetaData* pMeta)
+{
+  uint32_t uLengthNAL = GetNonVclSize(&pCtx->Stream);
+  int Offset = (uintptr_t)AL_SeiMetaData_GetBuffer(pMeta) - (uintptr_t)pMeta->pBuf;
+  return Offset + uLengthNAL <= pMeta->maxBufSize;
+}
+
 void AL_DecodeOneNal(AL_NonVclNuts nuts, AL_NalParser parser, AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut nut, bool bIsLastAUNal, int* iNumSlice)
 {
   if(parser.isSliceData(nut))
@@ -48,26 +63,36 @@ void AL_DecodeOneNal(AL_NonVclNuts nuts, AL_NalParser parser, AL_TAup* pAUP, AL_
 
   if((nut == nuts.seiPrefix || nut == nuts.seiSuffix) && parser.parseSei)
   {
-    AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
     bool bIsPrefix = (nut == nuts.seiPrefix);
-    parser.parseSei(pAUP, &rp, bIsPrefix, &pCtx->parsedSeiCB);
+    AL_TSeiMetaData* pMeta = GetSeiMetaData(pCtx);
+
+    if(pMeta && !CheckAvailSpace(pCtx, pMeta))
+    {
+      AL_Default_Decoder_SetError(pCtx, AL_WARN_SEI_OVERFLOW, pCtx->uCurPocLsb);
+      return;
+    }
+    AL_TRbspParser rp = pMeta ? getParserOnNonVclNal(pCtx, AL_SeiMetaData_GetBuffer(pMeta))
+                        : getParserOnNonVclNalInternalBuf(pCtx);
+
+    if(!parser.parseSei(pAUP, &rp, bIsPrefix, &pCtx->parsedSeiCB, pMeta))
+      AL_Default_Decoder_SetError(pCtx, AL_WARN_SEI_OVERFLOW, pCtx->uCurPocLsb);
   }
 
   if(nut == nuts.sps)
   {
-    AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
+    AL_TRbspParser rp = getParserOnNonVclNalInternalBuf(pCtx);
     parser.parseSps(pAUP, &rp, pCtx);
   }
 
   if(nut == nuts.pps)
   {
-    AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
+    AL_TRbspParser rp = getParserOnNonVclNalInternalBuf(pCtx);
     parser.parsePps(pAUP, &rp, pCtx);
   }
 
   if(nut == nuts.vps && parser.parseVps)
   {
-    AL_TRbspParser rp = getParserOnNonVclNal(pCtx);
+    AL_TRbspParser rp = getParserOnNonVclNalInternalBuf(pCtx);
     parser.parseVps(pAUP, &rp);
   }
 

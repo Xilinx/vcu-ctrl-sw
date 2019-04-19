@@ -1084,7 +1084,7 @@ AL_TBuffer* AL_PictMngr_GetUnusedDisplayBuffer(AL_TPictMngrCtx* pCtx)
 }
 
 /*****************************************************************************/
-static void FillPocAndLongtermLists(AL_TDpb* pDpb, TBufferPOC* pPoc, AL_TDecSliceParam* pSP, TBufferListRef* pListRef)
+static void FillPocAndLongtermLists(AL_TDpb* pDpb, TBufferPOC* pPoc, AL_TDecSliceParam* pSP, TBufferListRef const* pListRef)
 {
   int32_t* pPocList = (int32_t*)(pPoc->tMD.pVirtualAddr);
   uint32_t* pLongTermList = (uint32_t*)(pPoc->tMD.pVirtualAddr + POCBUFF_LONG_TERM_OFFSET);

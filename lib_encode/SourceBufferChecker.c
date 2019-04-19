@@ -71,7 +71,7 @@ bool AL_SrcBuffersChecker_UpdateResolution(AL_TSrcBufferChecker* pCtx, AL_TDimen
 
 static int GetPitchYValue(int iWidth)
 {
-  return (iWidth + 31) & 0xFFFFFFE0; // 32 bytes alignment
+  return RoundUp(iWidth, HW_IP_BURST_ALIGNMENT);
 }
 
 static bool CheckMetaData(AL_TSrcBufferChecker* pCtx, AL_TSrcMetaData* pMetaDataBuf)
@@ -104,7 +104,7 @@ static bool CheckMetaData(AL_TSrcBufferChecker* pCtx, AL_TSrcMetaData* pMetaData
   if(pMetaDataBuf->tPlanes[AL_PLANE_Y].iPitch < iMinPitch)
     return false;
 
-  if(pMetaDataBuf->tPlanes[AL_PLANE_Y].iPitch % 32)
+  if(pMetaDataBuf->tPlanes[AL_PLANE_Y].iPitch % HW_IP_BURST_ALIGNMENT)
     return false;
 
   if(AL_GetChromaMode(pMetaDataBuf->tFourCC) != AL_CHROMA_MONO)

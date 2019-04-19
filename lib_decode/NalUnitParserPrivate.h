@@ -40,5 +40,6 @@
 void UpdateCircBuffer(AL_TRbspParser* pRP, TCircBuffer* pBufStream, int* pSliceHdrLength);
 bool SkipNal(void);
 
-AL_TRbspParser getParserOnNonVclNal(AL_TDecCtx* pCtx);
+AL_TRbspParser getParserOnNonVclNal(AL_TDecCtx* pCtx, uint8_t* pBuf);
+AL_TRbspParser getParserOnNonVclNalInternalBuf(AL_TDecCtx* pCtx);
 

@@ -52,6 +52,12 @@
 #define NUMCORE_AUTO 0
 
 /***************************************************************************/
+static AL_INLINE size_t BitsToBytes(size_t zBits)
+{
+  return (zBits + 7) / 8;
+}
+
+/***************************************************************************/
 static AL_INLINE int Clip3(int iVal, int iMin, int iMax)
 {
   return ((iVal) < (iMin)) ? (iMin) : ((iVal) > (iMax)) ? (iMax) : (iVal);
@@ -217,10 +223,10 @@ int AL_H273_ColourDescToColourPrimaries(AL_EColourDescription colourDesc);
  ***************************************************************************/
 typedef enum e_MarkingRef
 {
-  SHORT_TERM_REF = 0,
-  LONG_TERM_REF = 1,
-  UNUSED_FOR_REF = 2,
-  NON_EXISTING_REF = 3,
+  SHORT_TERM_REF,
+  LONG_TERM_REF,
+  UNUSED_FOR_REF,
+  NON_EXISTING_REF,
   AL_MARKING_REF_MAX_ENUM, /* sentinel */
 }AL_EMarkingRef;
 

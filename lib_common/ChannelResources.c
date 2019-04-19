@@ -37,6 +37,7 @@
 
 #include "ChannelResources.h"
 #include "Utils.h"
+#include "lib_rtos/lib_rtos.h"
 
 static int divideRoundUp(uint64_t dividende, uint64_t divisor)
 {
@@ -94,5 +95,48 @@ int AL_GetResources(int width, int height, int frameRate, int clockRatio)
   uint64_t dividende = lcuCount * (uint64_t)frameRate;
   uint64_t divisor = (uint64_t)clockRatio;
   return divideRoundUp(dividende, divisor);
+}
+
+static int ToCtb(int val, int ctbSize)
+{
+  return divideRoundUp(val, ctbSize);
+}
+
+bool AL_Constraint_NumCoreIsSane(int width, int numCore, int maxCuSize, AL_NumCoreDiagnostic* diagnostic)
+{
+  /*
+   * Hardware limitation, for each core, we need at least:
+   * -> 3 CTB for VP9 / HEVC64
+   * -> 4 CTB for HEVC32
+   * -> 5 MB for AVC
+   * Each core starts on a tile.
+   * Tiles are aligned on 64 bytes.
+   */
+
+  int ctbSize = 1 << maxCuSize;
+  int const MIN_CTB_PER_CORE = 9 - maxCuSize;
+  int widthPerCoreInCtb = ToCtb(width / numCore, ctbSize);
+
+  int offset = 0;
+  int roundedOffset = 0; // A core needs to starts at a 64 bytes aligned offset
+
+  if(diagnostic)
+    Rtos_Memset(diagnostic, 0, sizeof(*diagnostic));
+
+  for(int core = 0; core < numCore; ++core)
+  {
+    offset = roundedOffset;
+    int curCoreMinWidthInCtb = MIN_CTB_PER_CORE * ctbSize;
+    offset += curCoreMinWidthInCtb;
+    roundedOffset = RoundUp(offset, 64);
+  }
+
+  if(diagnostic)
+  {
+    diagnostic->requiredWidthInCtbPerCore = MIN_CTB_PER_CORE;
+    diagnostic->actualWidthInCtbPerCore = widthPerCoreInCtb;
+  }
+
+  return widthPerCoreInCtb >= MIN_CTB_PER_CORE && offset <= RoundUp(width, ctbSize);
 }
 

@@ -228,10 +228,10 @@ static AL_INLINE bool AL_IS_LOW_BITRATE_PROFILE(AL_EProfile eProfile)
 *****************************************************************************/
 typedef enum e_ScalingList
 {
-  AL_SCL_FLAT,
-  AL_SCL_DEFAULT,
-  AL_SCL_CUSTOM,
-  AL_SCL_RANDOM,
+  AL_SCL_FLAT, /*!< All matrices coefficients set to 16 */
+  AL_SCL_DEFAULT, /*!< Use default matrices coefficients as defined in the codec specification */
+  AL_SCL_CUSTOM, /*!< Use custom matrices coefficients */
+  AL_SCL_RANDOM, /* validation and debug pupose only */
   AL_SCL_MAX_ENUM, /* sentinel */
 }AL_EScalingList;
 
@@ -431,6 +431,8 @@ inline static bool AL_IS_SEI_PREFIX(AL_SeiFlag seiFlag)
 {
   return seiFlag & 0x000FFF;
 }
+
+#define AL_MAX_SLICES_SUBFRAME 32
 
 /*************************************************************************//*!
    \brief Colour Description identifer (See ISO/IEC 23091-4 or ITU-T H.273)

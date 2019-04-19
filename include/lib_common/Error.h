@@ -62,6 +62,8 @@ enum
   AL_WARN_NUM_SLICES_ADJUSTED = AL_DEF_WARNING(3),
   /*! Sps not compatible with channel settings, decoder discards it */
   AL_WARN_SPS_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS = AL_DEF_WARNING(4),
+  /*! Sei metadata buffer is too small to contains all sei messages */
+  AL_WARN_SEI_OVERFLOW = AL_DEF_WARNING(5),
 };
 
 enum

@@ -222,6 +222,13 @@ AL_THREAD Rtos_CreateThread(void* (*pFunc)(void* pParam), void* pParam)
 }
 
 /****************************************************************************/
+
+void Rtos_SetCurrentThreadName(const char* pThreadName)
+{
+  (void)pThreadName;
+}
+
+/****************************************************************************/
 bool Rtos_JoinThread(AL_THREAD Thread)
 {
   DWORD uRet = WaitForSingleObject(GetNative(Thread), INFINITE);
@@ -267,6 +274,7 @@ int Rtos_DriverPoll(void* drv, int timeout)
 #elif defined __linux__
 
 #include <sys/time.h>
+#include <sys/prctl.h>
 #include <errno.h>
 #include <unistd.h>
 
@@ -519,6 +527,12 @@ AL_THREAD Rtos_CreateThread(void* (*pFunc)(void* pParam), void* pParam)
   if(thread)
     pthread_create(thread, NULL, pFunc, pParam);
   return (AL_THREAD)thread;
+}
+
+/****************************************************************************/
+void Rtos_SetCurrentThreadName(const char* pThreadName)
+{
+  prctl(PR_SET_NAME, (unsigned long)pThreadName, 0, 0, 0);
 }
 
 /****************************************************************************/

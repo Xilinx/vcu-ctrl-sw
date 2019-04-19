@@ -703,7 +703,7 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
 
   AL_sReduction(&pSPS->vui_param.vui_time_scale, &pSPS->vui_param.vui_num_units_in_tick);
 
-  pSPS->vui_param.fixed_frame_rate_flag = 1; // DVB compliance = 1
+  pSPS->vui_param.fixed_frame_rate_flag = 0;
 
   // NAL HRD
   pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag = 0;
@@ -1038,9 +1038,7 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
   pPPS->cu_qp_delta_enabled_flag = pSettings->eQpCtrlMode ||
                                    (pChParam->tRCParam.eRCMode == AL_RC_LOW_LATENCY) ||
                                    (pChParam->tRCParam.uMaxPictureSize > 0) ||
-#if  AL_VERSION_GEN == AL_GEN_1
                                    (pChParam->tRCParam.eRCMode == AL_RC_CAPPED_VBR) ||
-#endif
                                    pChParam->uSliceSize ? 1 : 0;
   pPPS->diff_cu_qp_delta_depth = pChParam->uCuQPDeltaDepth;
 
@@ -1060,6 +1058,7 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
   pPPS->loop_filter_across_slices_enabled_flag = (pChParam->eEncTools & AL_OPT_LF_X_SLICE) ? 1 : 0;
 
   pPPS->deblocking_filter_control_present_flag = (!(pChParam->eEncTools & AL_OPT_LF) || AL_GET_PPS_OVERRIDE_LF(pChParam->uPpsParam) || (pChParam->iBetaOffset || pChParam->iTcOffset)) ? 1 : 0;
+
 
   if(isGdrEnabled(pSettings))
     pPPS->deblocking_filter_control_present_flag = 1;

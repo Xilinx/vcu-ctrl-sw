@@ -3204,8 +3204,6 @@ static void NV1X_To_PX10(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pSrc, AL_META_TYPE_SOURCE);
   AL_TSrcMetaData* pDstMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pDst, AL_META_TYPE_SOURCE);
 
-  const int iLumaSize = pSrcMeta->tPlanes[AL_PLANE_Y].iPitch * pSrcMeta->tDim.iHeight;
-
   pDstMeta->tDim.iWidth = pSrcMeta->tDim.iWidth;
   pDstMeta->tDim.iHeight = pSrcMeta->tDim.iHeight;
   pDstMeta->tFourCC = FOURCC(P010);
@@ -3216,8 +3214,8 @@ static void NV1X_To_PX10(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   I420_To_Y010(pSrc, pDst);
 
   // Chroma
-  uint8_t* pBufIn = pSrcData + pDstMeta->tPlanes[AL_PLANE_UV].iOffset;
-  uint16_t* pBufOut = ((uint16_t*)(pDstData)) + iLumaSize;
+  uint8_t* pBufIn = pSrcData + pSrcMeta->tPlanes[AL_PLANE_UV].iOffset;
+  uint16_t* pBufOut = (uint16_t*)(pDstData + pDstMeta->tPlanes[AL_PLANE_UV].iOffset);
 
   int iWidth = 2 * pDstMeta->tDim.iWidth / uHrzCScale;
   int iHeight = pDstMeta->tDim.iHeight / uVrtCScale;

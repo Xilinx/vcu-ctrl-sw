@@ -148,6 +148,8 @@ AL_INTROSPECT(category = "debug") struct ConfigFile
 *****************************************************************************/
 void ParseConfigFile(std::string const& sCfgFileName, ConfigFile& cfg, std::ostream& warnStream = std::cerr, bool debug = false);
 void ParseConfig(std::string const& toParse, ConfigFile& cfg, std::ostream& warnStream = std::cerr, bool debug = false);
-void PrintConfigFileUsage();
+void PrintConfigFileUsage(ConfigFile cfg = {});
+void PrintConfigFileUsageJson(ConfigFile cfg = {});
+void PrintConfig(ConfigFile cfg);
 /*@}*/
 

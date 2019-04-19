@@ -47,6 +47,7 @@
 
 #include "lib_common/Utils.h"
 #include "lib_common/HwScalingList.h"
+#include "lib_common/BufferSeiMeta.h"
 
 #include "lib_common_dec/DecSliceParam.h"
 #include "lib_common_dec/DecBuffers.h"
@@ -111,7 +112,7 @@ static uint32_t AL_sCount_AntiEmulBytes(TCircBuffer* pStream, uint32_t uLength)
 }
 
 /*****************************************************************************/
-static uint32_t GetNonVclSize(TCircBuffer* pBufStream)
+uint32_t GetNonVclSize(TCircBuffer* pBufStream)
 {
   int iNumZeros = 0;
   int iNumNALFound = 0;
@@ -148,9 +149,9 @@ static uint32_t GetNonVclSize(TCircBuffer* pBufStream)
 }
 
 /*****************************************************************************/
-static void InitNonVclBuf(AL_TDecCtx* pCtx, TCircBuffer* pBufStream)
+static void InitNonVclBuf(AL_TDecCtx* pCtx)
 {
-  uint32_t uLengthNAL = GetNonVclSize(pBufStream);
+  uint32_t uLengthNAL = GetNonVclSize(&pCtx->Stream);
 
   if(uLengthNAL > pCtx->BufNoAE.tMD.uSize) /* should occurs only on long SEI message */
   {
@@ -210,12 +211,18 @@ bool SkipNal(void)
 }
 
 /*****************************************************************************/
-AL_TRbspParser getParserOnNonVclNal(AL_TDecCtx* pCtx)
+AL_TRbspParser getParserOnNonVclNal(AL_TDecCtx* pCtx, uint8_t* pBufNoAE)
 {
   TCircBuffer* pBufStream = &pCtx->Stream;
-  InitNonVclBuf(pCtx, pBufStream);
   AL_TRbspParser rp;
-  InitRbspParser(pBufStream, pCtx->BufNoAE.tMD.pVirtualAddr, true, &rp);
+  InitRbspParser(pBufStream, pBufNoAE, true, &rp);
   return rp;
+}
+
+/*****************************************************************************/
+AL_TRbspParser getParserOnNonVclNalInternalBuf(AL_TDecCtx* pCtx)
+{
+  InitNonVclBuf(pCtx);
+  return getParserOnNonVclNal(pCtx, pCtx->BufNoAE.tMD.pVirtualAddr);
 }
 

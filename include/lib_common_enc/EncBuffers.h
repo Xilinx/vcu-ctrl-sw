@@ -54,12 +54,10 @@
 #include "lib_common_enc/EncChanParam.h"
 
 // EP2 masks
-#define FLAG_INTRA_ONLY 0x40
-
-#define MASK_QP 0x3F
-#define MASK_FORCE_INTRA 0x40
-#define MASK_FORCE_MV0 0x80
-#define MASK_FORCE 0xC0
+static int8_t const MASK_QP = (int8_t)0x3F;
+static int8_t const MASK_FORCE_INTRA = (int8_t)0x40;
+static int8_t const MASK_FORCE_MV0 = (int8_t)0x80;
+static int8_t const MASK_FORCE = (int8_t)0xC0;
 
 
 // Encoder Parameter Buf 2 Flag,  Size, Offset

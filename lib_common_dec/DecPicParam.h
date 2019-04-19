@@ -174,6 +174,18 @@ typedef struct AL_t_DecPicBufferAddrs
 
 
 /*****************************************************************************/
+typedef uint8_t AL_TDecPicState;
+static const AL_TDecPicState AL_DEC_PIC_STATE_CONCEAL = 0x01;
+static const AL_TDecPicState AL_DEC_PIC_STATE_HANGED = 0x02;
+static const AL_TDecPicState AL_DEC_PIC_STATE_NOT_FINISHED = 0x04; /* LLP2: the frame is not finished yet */
+static const AL_TDecPicState AL_DEC_PIC_STATE_CMD_INVALID = 0x08;
+
+#define AL_DEC_ENABLE_PIC_STATE(picState, picFlag) (picState) |= (picFlag)
+#define AL_DEC_DISABLE_PIC_STATE(picState, picFlag) (picState) &= ~(picFlag)
+#define AL_DEC_SET_PIC_STATE(picState, picFlag, picVal) (picState) = (picVal) ? ((picState) | (picFlag)) : ((picState) & (~(picFlag)))
+#define AL_DEC_IS_PIC_STATE_ENABLED(picState, picFlag) (((picState) & (picFlag)) != 0)
+
+/*****************************************************************************/
 typedef struct AL_t_DecPicStatus
 {
   uint8_t uFrmID;
@@ -183,9 +195,7 @@ typedef struct AL_t_DecPicStatus
   uint32_t uNumBytes;
   uint32_t uNumBins;
   uint32_t uCRC;
-  bool bConceal;
-  bool bHanged;
-  bool bNotFinishedYet; /* LLP2: the frame is not finished yet */
+  AL_TDecPicState tDecPicState;
 }AL_TDecPicStatus;
 
 /*****************************************************************************/

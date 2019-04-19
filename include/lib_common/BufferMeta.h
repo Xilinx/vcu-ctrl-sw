@@ -54,6 +54,8 @@ typedef enum
   AL_META_TYPE_CIRCULAR, /*< circular buffer implementation inside the buffer */
   AL_META_TYPE_PICTURE, /*< useful information about the bitstream choices for the frame */
   AL_META_TYPE_LOOKAHEAD, /*< useful information about the frame for the lookahead*/
+  AL_META_TYPE_BUFHANDLE, /*< pointer to an AL_TBuffer*/
+  AL_META_TYPE_SEI, /*< sei messages*/
   AL_META_TYPE_MAX, /* sentinel */
   AL_META_TYPE_EXTENDED = 0x7F000000 /*< user can define their own metadatas after this value. */
 }AL_EMetaType;

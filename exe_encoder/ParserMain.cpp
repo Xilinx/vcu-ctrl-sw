@@ -53,6 +53,7 @@ struct Config
   bool strict_mode = true;
   bool debug_token = false;
   bool dump_cfg = false;
+  bool show_cfg = false;
 };
 
 static void Usage(CommandLineParser const& opt, char* ExeName)
@@ -60,11 +61,7 @@ static void Usage(CommandLineParser const& opt, char* ExeName)
   cerr << "Usage: " << ExeName << " -cfg <configfile> [options]" << endl;
   cerr << "Options:" << endl;
 
-  for(auto& name : opt.displayOrder)
-  {
-    auto& o = opt.options.at(name);
-    cerr << "  " << o.desc << endl;
-  }
+  opt.usage();
 
   cerr << "Examples:" << endl;
   cerr << "  " << ExeName << " -cfg test/config/encode_simple.cfg" << endl;
@@ -79,6 +76,7 @@ Config parseCommandLine(int argc, char* argv[])
   opt.addFlag("--help,-h", &help, "Show this help");
   opt.addFlag("--help-cfg", &help_cfg, "Show all options available in the cfg");
   opt.addFlag("--dump-cfg", &config.dump_cfg, "Dump the cfg structure");
+  opt.addFlag("--show-cfg", &config.show_cfg, "show the cfg values");
   opt.addString("-cfg", &config.configFile, "configuration file to parse");
   opt.addFlag("--relax", &config.strict_mode, "errors become warnings", false);
   opt.addFlag("--debug", &config.debug_token, "debug token parsing");
@@ -109,6 +107,12 @@ void SafeMain(int argc, char* argv[])
   if(config.dump_cfg)
   {
     throw std::runtime_error("introspection is not compiled in");
+    exit(0);
+  }
+
+  if(config.show_cfg)
+  {
+    PrintConfig(cfg);
     exit(0);
   }
 }

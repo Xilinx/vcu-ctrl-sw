@@ -56,7 +56,7 @@ typedef struct AL_t_StreamMetaData
   uint8_t uTemporalID; /*!< Temporal ID */
   AL_TStreamSection* pSections;  /*!< Array of sections */
   uint16_t uNumSection; /*!< number of sections inside the buffer */
-  uint16_t uMaxNumSection /*!< maximum number of sections available */;
+  uint16_t uMaxNumSection; /*!< maximum number of sections available */
 }AL_TStreamMetaData;
 
 /*************************************************************************//*!

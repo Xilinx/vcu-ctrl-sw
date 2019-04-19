@@ -37,6 +37,7 @@
 
 #include "sink_frame_writer.h"
 #include "CodecUtils.h"
+#include "YuvIO.h"
 #include "lib_app/utils.h"
 #include <cassert>
 

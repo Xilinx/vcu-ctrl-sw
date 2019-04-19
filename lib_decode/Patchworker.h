@@ -49,7 +49,7 @@ typedef struct al_t_Patchworker
   bool endOfOutput;
   AL_MUTEX lock;
   AL_TFifo* inputFifo;
-  TCircBuffer* outputCirc;
+  AL_TBuffer* outputCirc;
   AL_TBuffer* workBuf;
 }AL_TPatchworker;
 
@@ -70,5 +70,5 @@ void AL_Patchworker_Drop(AL_TPatchworker* pPatchworker);
 void AL_Patchworker_Reset(AL_TPatchworker* pPatchworker);
 
 void AL_Patchworker_Deinit(AL_TPatchworker* pPatchworker);
-bool AL_Patchworker_Init(AL_TPatchworker* pPatchworker, TCircBuffer* pCircularBuf, AL_TFifo* pInputFifo);
+bool AL_Patchworker_Init(AL_TPatchworker* pPatchworker, AL_TBuffer* stream, AL_TFifo* pInputFifo);
 

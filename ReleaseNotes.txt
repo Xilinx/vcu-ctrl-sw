@@ -358,3 +358,28 @@
   Fixes :
     -- Improve rate control on specific sequences
     -- Several minors bugs
+
+2019-04-19 (v1.0.46)
+--------------------
+  Added Features :
+    -- Better documentation of the encoder configuration file (using --help-cfg)
+    -- Add --show-cfg which show what each of the variable of the cfg is before encoding.
+    -- --help-cfg now shows the default value of the value.
+    -- Better documentation of the encoder settings
+    -- External rate control plugin
+    -- Synchronous SEI extraction
+    -- Add another input buffers management: decoder metadata transfer from input buffer to output buffer is now possible
+
+  API:
+    -- Version of the API is now 0.13.0
+    -- Add a new decoder parameter settings called 'bSplitInput': it enables the decoder 1-to-1
+    -- Add missing 'AL_' on structs/enums
+    -- Remove unneded functions
+    -- Add new metadatas:
+        - retrieve input buffer when using the new input buffers management
+        - retrieve sync SEI
+
+  Fixes :
+    -- Several minors bugs
+
+

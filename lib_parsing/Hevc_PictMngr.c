@@ -217,6 +217,12 @@ void AL_HEVC_PictMngr_ClearDPB(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, bool bC
 }
 
 /*************************************************************************/
+bool isShortOrLongTermRef(AL_EMarkingRef eMarking)
+{
+  return (eMarking == SHORT_TERM_REF) || (eMarking == LONG_TERM_REF);
+}
+
+/*************************************************************************/
 bool AL_HEVC_PictMngr_HasPictInDPB(AL_TPictMngrCtx* pCtx)
 {
   AL_TDpb* pDpb = &pCtx->DPB;
@@ -224,7 +230,7 @@ bool AL_HEVC_PictMngr_HasPictInDPB(AL_TPictMngrCtx* pCtx)
 
   while(uNode != uEndOfList)
   {
-    if(AL_Dpb_GetMarkingFlag(pDpb, uNode) < UNUSED_FOR_REF)
+    if(isShortOrLongTermRef(AL_Dpb_GetMarkingFlag(pDpb, uNode)))
       return true;
     uNode = AL_Dpb_GetNextPOC(pDpb, uNode);
   }

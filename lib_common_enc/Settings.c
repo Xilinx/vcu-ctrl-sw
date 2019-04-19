@@ -57,10 +57,9 @@
 #include "lib_common_enc/DPBConstraints.h"
 #include "lib_common/SEI.h"
 
-static int const MIN_CTB_PER_CORE = 4;
 static int const HEVC_MAX_CU_SIZE = 5; // 32x32
 static int const AVC_MAX_CU_SIZE = 4; // 16x16
-static int const MIN_CU_SIZE = 3; // 8x8
+static int const MIN_CU_SIZE = AL_MIN_SUPPORTED_LCU_SIZE; // 8x8
 
 static int LAMBDA_FACTORS[] = { 51, 90, 151, 151, 151, 151 }; // I, P, B(temporal id low to high)
 /***************************************************************************/
@@ -693,6 +692,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 }
 
 /***************************************************************************/
+#define MSGF(msg, ...) { if(pOut) fprintf(pOut, msg "\r\n", __VA_ARGS__); }
 #define MSG(msg) { if(pOut) fprintf(pOut, msg "\r\n"); }
 
 /****************************************************************************/
@@ -754,7 +754,9 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     MSG("Invalid parameter: MinCuSize");
   }
 
-  if(AL_IS_HEVC(pChParam->eProfile) && (pChParam->uMaxCuSize != HEVC_MAX_CU_SIZE))
+  bool bHEVCCuSupported = pChParam->uMaxCuSize == HEVC_MAX_CU_SIZE;
+
+  if(AL_IS_HEVC(pChParam->eProfile) && !bHEVCCuSupported)
   {
     ++err;
     MSG("Invalid parameter: MaxCuSize");
@@ -774,10 +776,13 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
 
   if(pChParam->uNumCore != NUMCORE_AUTO)
   {
-    if((pChParam->uWidth / (pChParam->uNumCore * iRound)) < MIN_CTB_PER_CORE)
+    AL_NumCoreDiagnostic diagnostic;
+
+    if(!AL_Constraint_NumCoreIsSane(pChParam->uWidth, pChParam->uNumCore, pChParam->uMaxCuSize, &diagnostic))
     {
       ++err;
-      MSG("Invalid parameter: uNumCore");
+
+      MSGF("Invalid parameter: NumCore. The width should at least be %d CTB per core. With the specified number of core, it is %d CTB per core. (Multi core alignement constraint might be the reason of this error if the CTB are equal)", diagnostic.requiredWidthInCtbPerCore, diagnostic.actualWidthInCtbPerCore);
     }
   }
 
@@ -932,10 +937,19 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     }
   }
 
-  if((pSettings->eQpCtrlMode & MASK_AUTO_QP) && (pSettings->eQpCtrlMode & MASK_QP_TABLE))
+  AL_EQpCtrlMode eMaskAutoQPMode = pSettings->eQpCtrlMode & MASK_AUTO_QP;
+  AL_EQpCtrlMode eQPTableMode = pSettings->eQpCtrlMode & MASK_QP_TABLE;
+
+  if(eMaskAutoQPMode && eQPTableMode)
   {
-    ++err;
-    MSG("!! QP control mode not allowed !!");
+    bool bIsAllowedMode = false;
+
+
+    if(!bIsAllowedMode)
+    {
+      ++err;
+      MSG("!! QP control mode not allowed !!");
+    }
   }
 
   if(pChParam->eVideoMode >= AL_VM_MAX_ENUM)
@@ -1146,6 +1160,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
   if(AL_GetBitDepth(tFourCC) < iBitDepth)
     ++numIncoherency;
 
+
   AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
 
   if(!checkProfileCoherency(iBitDepth, eChromaMode, pSettings->tChParam[0].eProfile))
@@ -1266,7 +1281,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
       if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) != AL_CHROMA_4_2_0)
       {
-        AL_SET_CHROMA_MODE(pChParam->ePicFormat, AL_CHROMA_4_2_0);
+        AL_SET_CHROMA_MODE(&pChParam->ePicFormat, AL_CHROMA_4_2_0);
         MSG("!! The specified ChromaMode and Profile are not allowed; they will be adjusted!!");
         ++numIncoherency;
       }

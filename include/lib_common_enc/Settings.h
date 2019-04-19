@@ -56,11 +56,11 @@
 *****************************************************************************/
 typedef enum e_AspectRatio
 {
-  AL_ASPECT_RATIO_AUTO = 0x00,
-  AL_ASPECT_RATIO_4_3 = 0x01,
-  AL_ASPECT_RATIO_16_9 = 0x02,
-  AL_ASPECT_RATIO_NONE = 0x03,
-  AL_ASPECT_RATIO_MAX_ENUM,
+  AL_ASPECT_RATIO_AUTO,
+  AL_ASPECT_RATIO_4_3,
+  AL_ASPECT_RATIO_16_9,
+  AL_ASPECT_RATIO_NONE,
+  AL_ASPECT_RATIO_MAX_ENUM, /* sentinel */
 }AL_EAspectRatio;
 
 /*************************************************************************//*!
@@ -94,7 +94,7 @@ typedef enum e_QPCtrlMode
 
   // QP table mode
   RELATIVE_QP = 0x8000,
-  QP_MAX_ENUM,
+  QP_MAX_ENUM, /* sentinel */
 }AL_EQpCtrlMode;
 
 
@@ -105,32 +105,32 @@ typedef enum e_QPCtrlMode
 typedef AL_INTROSPECT (category = "debug") struct t_EncSettings
 {
   // Stream
-  AL_TEncChanParam tChParam[MAX_NUM_LAYER];
-  bool bEnableAUD;
-  bool bEnableFillerData;
-  uint32_t uEnableSEI;
+  AL_TEncChanParam tChParam[MAX_NUM_LAYER]; /*!< Specifies the Channel parameters of the correspondong layer. Except for SHVC encoding (when supported) only layer 0 is used.*/
+  bool bEnableAUD; /*!< Enable Access Unit Delimiter nal unit in the stream */
+  bool bEnableFillerData; /*!< Allows Filler Data Nal unit insertion when needed (CBR) */
+  uint32_t uEnableSEI; /*!< Bit-field specifying which SEI message have to be inserted. see AL_SeiFlag for a list of the supported SEI messages */
 
-  AL_EAspectRatio eAspectRatio; /*!< specifies the display aspect ratio */
-  AL_EColourDescription eColourDescription;
-  AL_EScalingList eScalingList;
-  bool bDependentSlice;
+  AL_EAspectRatio eAspectRatio; /*!< Specifies the sample aspect ratio of the luma samples. */
+  AL_EColourDescription eColourDescription; /*!< Indicates the chromaticity coordinates of the source primaries in terms of the CIE 1931 definition. */
+  AL_EScalingList eScalingList; /*!< Specifies which kind of scaling matrices is used for encoding. When set to AL_SCL_CUSTOM, the customized value shall be provided int the ScalingList and DCcoeff parameters below*/
+  bool bDependentSlice; /*!< Enable the dependent slice mode */
 
-  bool bDisIntra;
-  bool bForceLoad;
-  int32_t iPrefetchLevel2;
-  uint16_t uClipHrzRange;
-  uint16_t uClipVrtRange;
-  AL_EQpCtrlMode eQpCtrlMode;
-  int NumView;
-  int NumLayer;
-  uint8_t ScalingList[4][6][64];
-  uint8_t SclFlag[4][6];
-  uint8_t DcCoeff[8];
-  uint8_t DcCoeffFlag[8];
-  bool bEnableWatchdog;
-  int LookAhead;
-  int TwoPass;
-  bool bEnableFirstPassSceneChangeDetection;
+  bool bDisIntra; /*!< Disable Intra preiction Mode in P or B slice (validation purpose only) */
+  bool bForceLoad; /*!< Specifies if the, recommended value : true */
+  int32_t iPrefetchLevel2; /*!< Specifies the size of the L2 prefetch memory */
+  uint16_t uClipHrzRange; /*!< Specifies the Horizontal motion vector range. Note: this range can be further reduce by the encoder accroding to various constraints*/
+  uint16_t uClipVrtRange; /*!< Specifies the Vertical motion vector range. Note: this range can be further reduce by the encoder accroding to various constraints*/
+  AL_EQpCtrlMode eQpCtrlMode; /*!< specifies the QP control mode inside a frame; see AL_EQpCtrlMode for available modes */
+  int NumView; /*!< specifies the number of view when multi-view encoding is supported. */
+  int NumLayer; /*!< specifies the number of layer (1 or 2) when SHVC is supported. */
+  uint8_t ScalingList[4][6][64]; /*!< The scaling matrix coeffecients [S][M][C] where S=0 for 4x4, S=1 for 8x8, S=2 for 16x16 and S=3 for 32x32; M=0 for Intra Y, M=1 for Intra U, M=2 for intra V, M=3 for inter Y, M=4 for inter U and M=5 for interV; and where C is the coeffecient index. Note1 in 4x4 only the 16 first coeffecient are used; Note2 in 32x32 only intra Y inter Y matrices are used */
+  uint8_t SclFlag[4][6]; /*!< Specifies whether the corresponding ScalingList is valid or not */
+  uint8_t DcCoeff[8]; /*!< The DC coeffidients for matrices 16x16 intra Y, 16x16 intra U, 16x16 intra V, 16x16 inter Y, 16x16 inter U, 16x16 inter V, 32x32 intra Y and 32x32 inter Y in that order*/
+  uint8_t DcCoeffFlag[8]; /*!< Specifies whether the corresponding DcCoeff is valid or not */
+  bool bEnableWatchdog; /*!< Enable the watchdog interrupt. This parameter should be set to 'false' until further advise */
+  int LookAhead; /*!< Enables the lookahead encoding mode (not zero) and specifies the number of frame ahead. This option is exclusive with TwoPass and bEnableFirstPassSceneChangeDetection. */
+  int TwoPass; /*! Enables the dual-pass encoding mode (not zero) and specifies the current pass (1 or 2). This option is exclusive with LookAhead and bEnableFirstPassSceneChangeDetection. */
+  bool bEnableFirstPassSceneChangeDetection; /*!< Enables the quick firstpass mode for scene change detection only. This option is exclusive with LookAhead and TwoPass. */
 }AL_TEncSettings;
 
 /*************************************************************************//*!

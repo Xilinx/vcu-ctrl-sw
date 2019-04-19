@@ -62,10 +62,10 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel,
 /*************************************************************************//*!
    \brief This function performs the decoding of one unit
    \param[in] pAbsDec decoder handle
-   \param[in] pBufStream circular buffer containing input bitstream to decode
+   \param[in] pBufStream buffer containing input bitstream to decode
    \return if the function succeeds the return valis is ERR_UNIT_NONE
 *****************************************************************************/
-UNIT_ERROR AL_Default_Decoder_TryDecodeOneUnit(AL_TDecoder* pAbsDec, TCircBuffer* pBufStream);
+UNIT_ERROR AL_Default_Decoder_TryDecodeOneUnit(AL_TDecoder* pAbsDec, AL_TBuffer* pBufStream);
 
 /*************************************************************************//*!
    \brief This function performs DPB operations after frames decoding

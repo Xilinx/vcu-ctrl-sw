@@ -57,6 +57,9 @@ extern "C"
 #include "lib_common_dec/DecBuffers.h"
 #include "lib_common_dec/IpDecFourCC.h"
 #include "lib_common/StreamBuffer.h"
+#include "lib_common/BufferStreamMeta.h"
+#include "lib_common/BufferBufHandleMeta.h"
+#include "lib_common/BufferSeiMeta.h"
 }
 
 #include "lib_app/BufPool.h"
@@ -65,6 +68,7 @@ extern "C"
 #include "lib_app/timing.h"
 #include "lib_app/utils.h"
 #include "lib_app/CommandLineParser.h"
+#include "lib_app/plateform.h"
 
 
 #include "Conversion.h"
@@ -72,6 +76,7 @@ extern "C"
 #include "IpDevice.h"
 #include "CodecUtils.h"
 #include "crc.h"
+#include "InputLoader.h"
 
 using namespace std;
 
@@ -129,6 +134,7 @@ AL_TDecSettings getDefaultDecSettings()
   settings.eCodec = AL_CODEC_HEVC;
   settings.eBufferOutputMode = AL_OUTPUT_INTERNAL;
   settings.bUseIFramesAsSyncPoint = false;
+  settings.bSplitInput = false;
 
   return settings;
 }
@@ -170,11 +176,7 @@ static void Usage(CommandLineParser const& opt, char* ExeName)
   cerr << "Usage: " << ExeName << " -in <bitstream_file> -out <yuv_file> [options]" << endl;
   cerr << "Options:" << endl;
 
-  for(auto& name : opt.displayOrder)
-  {
-    auto& o = opt.options.at(name);
-    cerr << "  " << o.desc << endl;
-  }
+  opt.usage();
 
   cerr << "Examples:" << endl;
   cerr << "  " << ExeName << " -avc  -in bitstream.264 -out decoded.yuv -bd 8 " << endl;
@@ -308,6 +310,7 @@ static Config ParseCommandLine(int argc, char* argv[])
   bool quiet = false;
   int fps = 0;
   bool version = false;
+  bool helpJson = false;
 
   string sOut;
   string sRasterOut;
@@ -315,6 +318,7 @@ static Config ParseCommandLine(int argc, char* argv[])
   auto opt = CommandLineParser();
 
   opt.addFlag("--help,-h", &Config.help, "Shows this help");
+  opt.addFlag("--help-json", &helpJson, "Show this help (json)");
   opt.addFlag("--version", &version, "Show version");
   opt.addString("-in,-i", &Config.sIn, "Input bitstream");
   opt.addString("-out,-o", &sOut, "Output YUV");
@@ -331,12 +335,12 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addFlag("--use-early-callback", &Config.tDecSettings.bUseEarlyCallback, "Low latency phase 2. Call end decoding at decoding launch. This only makes sense with special support for hardware synchronization");
   opt.addInt("-ddrwidth", &Config.tDecSettings.uDDRWidth, "Width of DDR requests (16, 32, 64) (default: 32)");
   opt.addFlag("-nocache", &Config.tDecSettings.bDisableCache, "Inactivate the cache");
-  opt.addOption("--raster", [&]()
+  opt.addOption("--raster", [&](string)
   {
     Config.tDecSettings.eFBStorageMode = AL_FB_RASTER;
     Config.tDecSettings.bFrameBufferCompression = false;
   }, "Store frame buffers in raster format");
-  opt.addOption("--tile", [&]()
+  opt.addOption("--tile", [&](string)
   {
     Config.tDecSettings.eFBStorageMode = AL_FB_TILE_32x4;
     Config.tDecSettings.bFrameBufferCompression = false;
@@ -344,7 +348,7 @@ static Config ParseCommandLine(int argc, char* argv[])
 
 
 
-  opt.addOption("-t", [&]()
+  opt.addOption("-t", [&](string)
   {
     Config.iNumTrace = opt.popInt();
     Config.iNumberTrace = 1;
@@ -353,14 +357,14 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addCustom("-clk", &Config.tDecSettings.uClkRatio, &IntWithOffset<1000>, "Set clock ratio");
 
   opt.addFlag("-lowref", &Config.tDecSettings.eDpbMode,
-              "[DEPRECATED] Use --no-reordering instead. Indicates to decoder that the stream doesn't contain B-frame & reference must be at best 1)",
+              "[DEPRECATED] Use --no-reordering instead. Indicates to decoder that the stream doesn't contain B-frame & reference must be at best 1",
               AL_DPB_NO_REORDERING);
 
   opt.addFlag("--no-reordering", &Config.tDecSettings.eDpbMode,
-              "Indicates to decoder that the stream doesn't contain B-frame & reference must be at best 1)",
+              "Indicates to decoder that the stream doesn't contain B-frame & reference must be at best 1",
               AL_DPB_NO_REORDERING);
 
-  opt.addOption("-slicelat", [&]()
+  opt.addOption("-slicelat", [&](string)
   {
     Config.tDecSettings.eDecUnit = AL_VCL_NAL_UNIT;
     Config.tDecSettings.eDpbMode = AL_DPB_NO_REORDERING;
@@ -384,7 +388,11 @@ static Config ParseCommandLine(int argc, char* argv[])
               false);
 
   opt.addFlag("--sync-i-frames", &Config.tDecSettings.bUseIFramesAsSyncPoint,
-              "Allow decoder to sync on I frames is configurations' nals are presents",
+              "Allow decoder to sync on I frames if configurations' nals are presents",
+              true);
+
+  opt.addFlag("--split-input", &Config.tDecSettings.bSplitInput,
+              "Send stream by decoding unit",
               true);
 
   opt.addInt("-loop", &Config.iLoop, "Number of Decoding loop (optional)");
@@ -404,6 +412,12 @@ static Config ParseCommandLine(int argc, char* argv[])
   {
     Usage(opt, argv[0]);
     return Config;
+  }
+
+  if(helpJson)
+  {
+    opt.usageJson();
+    exit(0);
   }
 
   if(version)
@@ -818,6 +832,7 @@ struct DecodeParam
   AL_HDecoder hDec;
   AL_EVENT hExitMain = NULL;
   atomic<int> decodedFrames;
+  ofstream* seiSyncOutput;
 };
 
 /******************************************************************************/
@@ -831,6 +846,68 @@ void Display::AddOutputWriter(AL_e_FbStorageMode eFbStorageMode, bool bCompressi
 }
 
 /******************************************************************************/
+static void printHexdump(ostream* logger, uint8_t* data, int size)
+{
+  int column = 0;
+  int toPrint = size;
+
+  *logger << std::hex;
+
+  while(toPrint > 0)
+  {
+    *logger << setfill('0') << setw(2) << (int)data[size - toPrint];
+    --toPrint;
+    ++column;
+
+    if(toPrint > 0)
+    {
+      if(column % 8 == 0)
+        *logger << endl;
+      else
+        *logger << " ";
+    }
+  }
+
+  *logger << std::dec;
+}
+
+static void writeSei(bool bIsPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, ostream* seiOut)
+{
+  if(!seiOut)
+    return;
+  *seiOut << "is_prefix: " << boolalpha << bIsPrefix << endl
+          << "sei_payload_type: " << iPayloadType << endl
+          << "sei_payload_size: " << iPayloadSize << endl
+          << "raw:" << endl;
+  printHexdump(seiOut, pPayload, iPayloadSize);
+  *seiOut << endl << endl;
+}
+
+/******************************************************************************/
+static void WriteSyncSei(AL_TBuffer* pDecodedFrame, ofstream* seiOut)
+{
+  auto pInput = (AL_TBufHandleMetaData*)AL_Buffer_GetMetaData(pDecodedFrame, AL_META_TYPE_BUFHANDLE);
+
+  if(!pInput)
+    return;
+
+  auto pBuf = pInput->pHandles;
+
+  for(auto i = 0; i < pInput->numHandles; ++i, ++pBuf)
+  {
+    auto pSei = (AL_TSeiMetaData*)AL_Buffer_GetMetaData(*pBuf, AL_META_TYPE_SEI);
+
+    if(!pSei)
+      continue;
+
+    auto pPayload = pSei->payload;
+
+    for(auto i = 0; i < pSei->numPayload; ++i, ++pPayload)
+      writeSei(pPayload->bPrefix, pPayload->type, pPayload->pData, pPayload->size, seiOut);
+  }
+}
+
+/******************************************************************************/
 static void sFrameDecoded(AL_TBuffer* pDecodedFrame, void* pUserParam)
 {
   auto pParam = reinterpret_cast<DecodeParam*>(pUserParam);
@@ -838,7 +915,12 @@ static void sFrameDecoded(AL_TBuffer* pDecodedFrame, void* pUserParam)
   if(!pDecodedFrame)
   {
     Rtos_SetEvent(pParam->hExitMain);
+    return;
   }
+
+  if(pParam->seiSyncOutput)
+    WriteSyncSei(pDecodedFrame, pParam->seiSyncOutput);
+
   pParam->decodedFrames++;
 };
 
@@ -872,6 +954,9 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
   {
     if(err == AL_WARN_SPS_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS)
       Message(CC_GREY, "\nDecoder has discarded some SPS not compatible with the channel settings\n");
+
+    if(err == AL_WARN_SEI_OVERFLOW)
+      Message(CC_GREY, "\nDecoder has discarded some SEI while the SEI metadata buffer was too small\n");
 
     if(bExitError)
       Message(CC_RED, "Error: %d", err);
@@ -967,43 +1052,10 @@ static void showStreamInfo(int BufferNumber, int BufferSize, AL_TStreamSettings 
   Message(CC_DARK_BLUE, "%s\n", ss.str().c_str());
 }
 
-void printHexdump(ostream* logger, uint8_t* data, int size)
-{
-  int column = 0;
-  int toPrint = size;
-
-  *logger << std::hex;
-
-  while(toPrint > 0)
-  {
-    *logger << setfill('0') << setw(2) << (int)data[size - toPrint];
-    --toPrint;
-    ++column;
-
-    if(toPrint > 0)
-    {
-      if(column % 8 == 0)
-        *logger << endl;
-      else
-        *logger << " ";
-    }
-  }
-
-  *logger << std::dec;
-}
-
 static void sParsedSei(bool bIsPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, void* pUserParam)
 {
   auto seiOutput = static_cast<ostream*>(pUserParam);
-
-  if(!seiOutput)
-    return;
-  *seiOutput << "is_prefix: " << boolalpha << bIsPrefix << endl
-             << "sei_payload_type: " << iPayloadType << endl
-             << "sei_payload_size: " << iPayloadSize << endl
-             << "raw:" << endl;
-  printHexdump(seiOutput, pPayload, iPayloadSize);
-  *seiOutput << endl << endl;
+  writeSei(bIsPrefix, iPayloadType, pPayload, iPayloadSize, seiOutput);
 }
 
 static AL_ERR sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSettings const* pSettings, AL_TCropInfo const* pCropInfo, void* pUserParam)
@@ -1058,15 +1110,6 @@ static AL_ERR sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSe
 }
 
 /******************************************************************************/
-static uint32_t ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream)
-{
-  uint8_t* pBuf = AL_Buffer_GetData(pBufStream);
-
-  ifFileStream.read((char*)pBuf, pBufStream->zSize);
-  return (uint32_t)ifFileStream.gcount();
-}
-
-/******************************************************************************/
 
 
 void ShowStatistics(double durationInSeconds, int iNumFrameConceal, int decodedFrameNumber, bool timeoutOccured)
@@ -1086,11 +1129,17 @@ void ShowStatistics(double durationInSeconds, int iNumFrameConceal, int decodedF
 /******************************************************************************/
 struct AsyncFileInput
 {
-  AsyncFileInput(AL_HDecoder hDec_, string path, BufPool& bufPool_)
+  AsyncFileInput(AL_HDecoder hDec_, string path, BufPool& bufPool_, bool bSplitInput, bool bIsAVC, bool bVclSplit)
     : hDec(hDec_), bufPool(bufPool_)
   {
     exit = false;
     OpenInput(ifFileStream, path);
+
+    if(bSplitInput)
+      m_Loader.reset(new SplitInput(bufPool.m_pool.config.zBufSize, bIsAVC, bVclSplit));
+    else
+      m_Loader.reset(new BasicLoader());
+
     m_thread = thread(&AsyncFileInput::run, this);
   }
 
@@ -1103,6 +1152,8 @@ struct AsyncFileInput
 private:
   void run()
   {
+    Rtos_SetCurrentThreadName("FileInput");
+
     while(!exit)
     {
       shared_ptr<AL_TBuffer> pBufStream;
@@ -1117,7 +1168,7 @@ private:
         continue;
       }
 
-      auto uAvailSize = ReadStream(ifFileStream, pBufStream.get());
+      auto uAvailSize = m_Loader->ReadStream(ifFileStream, pBufStream.get());
 
       if(!uAvailSize)
       {
@@ -1137,12 +1188,15 @@ private:
   ifstream ifFileStream;
   BufPool& bufPool;
   atomic<bool> exit;
+  std::unique_ptr<InputLoader> m_Loader;
   thread m_thread;
 };
 
 /******************************************************************************/
 void SafeMain(int argc, char** argv)
 {
+  InitializePlateform();
+
   auto const Config = ParseCommandLine(argc, argv);
 
   if(Config.help)
@@ -1151,9 +1205,15 @@ void SafeMain(int argc, char** argv)
   DisplayVersionInfo();
 
   ofstream seiOutput;
+  ofstream seiSyncOutput;
 
   if(!Config.seiFile.empty())
+  {
     OpenOutput(seiOutput, Config.seiFile);
+
+    if(Config.tDecSettings.bSplitInput)
+      OpenOutput(seiSyncOutput, Config.seiFile + "_sync.txt");
+  }
 
   // IP Device ------------------------------------------------------------
   auto iUseBoard = Config.iUseBoard;
@@ -1180,13 +1240,20 @@ void SafeMain(int argc, char** argv)
 
   {
     AL_TBufPoolConfig BufPoolConfig {};
-
+    BufPoolConfig.debugName = "stream";
     BufPoolConfig.zBufSize = Config.zInputBufferSize;
     BufPoolConfig.uNumBuf = Config.uInputBufferNum;
-    BufPoolConfig.pMetaData = nullptr;
-    BufPoolConfig.debugName = "stream";
+    AL_TMetaData* meta = nullptr;
+    auto pAllocator = AL_GetDefaultAllocator();
 
-    auto ret = bufPool.Init(AL_GetDefaultAllocator(), BufPoolConfig);
+    if(Config.tDecSettings.bSplitInput)
+    {
+      meta = (AL_TMetaData*)AL_StreamMetaData_Create(1);
+      pAllocator = pIpDevice->m_pAllocator.get();
+    }
+
+    BufPoolConfig.pMetaData = meta;
+    auto ret = bufPool.Init(pAllocator, BufPoolConfig);
 
     if(!ret)
       throw runtime_error("Can't create BufPool");
@@ -1195,10 +1262,10 @@ void SafeMain(int argc, char** argv)
   Display display;
 
   bool bHasOutput = Config.bEnableYUVOutput || bCertCRC || !Config.sCrc.empty();
+  const bool bIsAVC = AL_CODEC_AVC == Config.tDecSettings.eCodec;
 
   if(bHasOutput)
   {
-    const bool bIsAVC = AL_CODEC_AVC == Config.tDecSettings.eCodec;
     const string sCertCrcFile = bCertCRC ? "crc_certif_res.hex" : "";
 
     bool bMainOutputCompression;
@@ -1220,6 +1287,7 @@ void SafeMain(int argc, char** argv)
 
   DecodeParam tDecodeParam {};
   tDecodeParam.hExitMain = display.hExitMain;
+  tDecodeParam.seiSyncOutput = &seiSyncOutput;
 
   AL_TDecCallBacks CB {};
   CB.endDecodingCB = { &sFrameDecoded, &tDecodeParam };
@@ -1266,7 +1334,7 @@ void SafeMain(int argc, char** argv)
     if(iLoop > 0)
       Message(CC_GREY, "  Looping\n");
 
-    AsyncFileInput producer(hDec, Config.sIn, bufPool);
+    AsyncFileInput producer(hDec, Config.sIn, bufPool, Config.tDecSettings.bSplitInput, bIsAVC, Config.tDecSettings.eDecUnit == AL_VCL_NAL_UNIT);
 
     auto const maxWait = Config.iTimeoutInSeconds * 1000;
     auto const timeout = maxWait >= 0 ? maxWait : AL_WAIT_FOREVER;

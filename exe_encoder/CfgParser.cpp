@@ -109,6 +109,18 @@ static TFourCC GetFourCCValue(const string& sVal)
 }
 
 
+static std::string noDefaultValue()
+{
+  return "unknown";
+}
+
+static std::string FourCCToString(TFourCC tFourCC)
+{
+  std::stringstream ss;
+  ss << static_cast<char>(tFourCC & 0xFF) << static_cast<char>((tFourCC & 0xFF00) >> 8) << static_cast<char>((tFourCC & 0xFF0000) >> 16) << static_cast<char>((tFourCC & 0xFF000000) >> 24);
+  return ss.str();
+}
+
 static void populateInputSection(ConfigParser& parser, ConfigFile& cfg)
 {
   auto curSection = Section::Input;
@@ -117,20 +129,24 @@ static void populateInputSection(ConfigParser& parser, ConfigFile& cfg)
   {
     cfg.MainInput.FileInfo.PictWidth = parseArithmetic<int>(tokens);
     AL_SetSrcWidth(&cfg.Settings.tChParam[0], cfg.MainInput.FileInfo.PictWidth);
-  }, "Specifies the YUV input width");
+  },
+                   [&]() { return std::to_string(cfg.MainInput.FileInfo.PictWidth); },
+                   "Specifies the YUV input width");
 
   parser.addCustom(curSection, "Height", [&](std::deque<Token>& tokens)
   {
     cfg.MainInput.FileInfo.PictHeight = parseArithmetic<int>(tokens);
     AL_SetSrcHeight(&cfg.Settings.tChParam[0], cfg.MainInput.FileInfo.PictHeight);
-  }, "Specifies the YUV input height");
+  },
+                   [&]() { return std::to_string(cfg.MainInput.FileInfo.PictHeight); },
+                   "Specifies the YUV input height");
   parser.addCustom(curSection, "Format", [&](std::deque<Token>& tokens)
   {
     /* we might want to be able to show users which format are available */
     if(!hasOnlyOneIdentifier(tokens))
       throw std::runtime_error("Failed to parse FOURCC value");
     cfg.MainInput.FileInfo.FourCC = GetFourCCValue(tokens[0].text);
-  }, "Specifies the YUV input format");
+  }, [&]() { return FourCCToString(cfg.MainInput.FileInfo.FourCC); }, "Specifies the YUV input format");
   parser.addPath(curSection, "CmdFile", cfg.sCmdFileName, "File containing the dynamic commands to send to the encoder");
   parser.addPath(curSection, "ROIFile", cfg.MainInput.sRoiFileName, "File containing the Regions of Interest used to encode");
   parser.addPath(curSection, "QpTablesFolder", cfg.MainInput.sQPTablesFolder, "Specifies the location of the files containing the QP tables to use for each frame");
@@ -149,7 +165,8 @@ static void populateOutputSection(ConfigParser& parser, ConfigFile& cfg)
     if(!hasOnlyOneIdentifier(tokens))
       throw std::runtime_error("Failed to parse FOURCC value");
     cfg.RecFourCC = GetFourCCValue(tokens[0].text);
-  }, "Specifies Reconstructed YUV output format, if not set, the output format is the same than in the INPUT section");
+  }, [&]() { return FourCCToString(cfg.MainInput.FileInfo.FourCC); }, "Specifies Reconstructed YUV output format, if not set, the output format is the same than in the INPUT section");
+
 }
 
 static void SetFpsAndClkRatio(int value, uint16_t& iFps, uint16_t& iClkRatio)
@@ -170,6 +187,7 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
   rateCtrlModes["LOW_LATENCY"] = AL_RC_LOW_LATENCY;
   rateCtrlModes["CAPPED_VBR"] = AL_RC_CAPPED_VBR;
   rateCtrlModes["BYPASS"] = AL_RC_BYPASS;
+  rateCtrlModes["PLUGIN"] = AL_RC_PLUGIN;
 
   parser.addEnum(curSection, "RateCtrlMode", RCParam.eRCMode, rateCtrlModes, "Selects the way the bit rate is controlled");
   parser.addArithMultipliedByConstant(curSection, "BitRate", RCParam.uTargetBitRate, 1000, "Target bit rate in Kbits/s. Unused if RateCtrlMode=CONST_QP");
@@ -178,37 +196,31 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
   {
     auto tmp = parseArithmetic<double>(tokens) * 1000;
     SetFpsAndClkRatio(tmp, RCParam.uFrameRate, RCParam.uClkRatio);
+  }, [&]()
+  {
+    double frameRate = RCParam.uFrameRate * 1000.0 / RCParam.uClkRatio;
+    return std::to_string(frameRate);
   }, "Number of frames per second");
   std::map<string, int> autoEnum {};
   autoEnum["AUTO"] = -1;
   parser.addArithOrEnum(curSection, "SliceQP", RCParam.iInitialQP, autoEnum, "Quantization parameter. When RateCtrlMode = CONST_QP, the specified QP is applied to all slices. In other cases, the specified QP is used as initial QP");
   parser.addArithOrEnum(curSection, "MaxQP", RCParam.iMaxQP, autoEnum, "Maximum QP value allowed");
   parser.addArithOrEnum(curSection, "MinQP", RCParam.iMinQP, autoEnum, "Minimum QP value allowed. This parameter is especially useful when using VBR rate control. In VBR, the value AUTO can be used to let the encoder select the MinQP according to SliceQP");
-  parser.addArithFunc<uint32_t, double>(curSection, "InitialDelay", RCParam.uInitialRemDelay, [&](double value)
+  parser.addArithFunc<uint32_t, double>(curSection, "InitialDelay", RCParam.uInitialRemDelay, [](double value)
   {
     return (uint32_t)(value * 90000);
-  }, "Specifies the initial removal delay as specified in the HRD model, in seconds. (unused in CONST_QP)");
+  }, [](uint32_t value) { return (double)value / 90000; }, "Specifies the initial removal delay as specified in the HRD model, in seconds. (unused in CONST_QP)");
   parser.addArithFunc<uint32_t, double>(curSection, "CPBSize", RCParam.uCPBSize, [&](double value)
   {
     return (uint32_t)(value * 90000);
-  }, "Specifies the size of the Coded Picture Buffer as specified in the HRD model, in seconds. (unused in CONST_QP)");
+  }, [](uint32_t value) { return (double)value / 90000; }, "Specifies the size of the Coded Picture Buffer as specified in the HRD model, in seconds. (unused in CONST_QP)");
   parser.addArithOrEnum(curSection, "IPDelta", RCParam.uIPDelta, autoEnum, "Specifies the QP difference between I and P frames");
   parser.addArithOrEnum(curSection, "PBDelta", RCParam.uPBDelta, autoEnum, "Specifies the QP difference between P and B frames");
   parser.addFlag(curSection, "ScnChgResilience", RCParam.eOptions, AL_RC_OPT_SCN_CHG_RES);
-  parser.addBool(curSection, "UseGoldenRef", RCParam.bUseGoldenRef);
-  parser.addArith(curSection, "GoldenRefFrequency", RCParam.uGoldenRefFrequency);
-  parser.addArith(curSection, "PGoldenDelta", RCParam.uPGoldenDelta);
-#if AL_VERSION_GEN == AL_GEN_1
-  parser.addArithFunc<uint16_t, double>(curSection, "MaxQuality", RCParam.uMaxPSNR, [&](double value)
+  parser.addArithFunc<uint16_t, double>(curSection, "MaxQuality", RCParam.uMaxPSNR, [](double value)
   {
     return std::max(std::min((uint16_t)((value + 28.0) * 100), (uint16_t)4800), (uint16_t)2800);
-  });
-#else
-  parser.addArithFunc<uint16_t, double>(curSection, "MaxPSNR", RCParam.uMaxPSNR, [&](double value)
-  {
-    return (uint16_t)(value * 100);
-  });
-#endif
+  }, [](uint16_t value) { return (double)value / 100 - 28.0; });
   parser.addArithMultipliedByConstant(curSection, "MaxPictureSize", RCParam.uMaxPictureSize, 1000);
   parser.addFlag(curSection, "EnableSkip", RCParam.eOptions, AL_RC_OPT_ENABLE_SKIP);
 }
@@ -239,7 +251,7 @@ static void populateGopSection(ConfigParser& parser, ConfigFile& cfg)
   {
     GopParam.uFreqLT = parseArithmetic<uint32_t>(tokens);
     GopParam.bEnableLT = GopParam.bEnableLT || (GopParam.uFreqLT != 0);
-  }, "Specifies the Long Term reference picture refresh frequency in number of frames");
+  }, [&]() { return std::to_string(GopParam.uFreqLT); }, "Specifies the Long Term reference picture refresh frequency in number of frames");
   parser.addArith(curSection, "Gop.NumB", GopParam.uNumB, "Maximum number of consecutive B frames in a GOP");
   parser.addArray(curSection, "Gop.TempDQP", GopParam.tempDQP, "Specifies a deltaQP for pictures with temporal id 1 to 4");
   std::map<string, int> gdrModes {};
@@ -277,10 +289,10 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   profiles["AVC_C_HIGH"] = AL_PROFILE_AVC_C_HIGH;
   profiles["AVC_PROG_HIGH"] = AL_PROFILE_AVC_PROG_HIGH;
   parser.addEnum(curSection, "Profile", cfg.Settings.tChParam[0].eProfile, profiles, "Specifies the profile to which the bitstream conforms");
-  parser.addArithFunc<uint8_t, double>(curSection, "Level", cfg.Settings.tChParam[0].uLevel, [&](double value)
+  parser.addArithFunc<uint8_t, double>(curSection, "Level", cfg.Settings.tChParam[0].uLevel, [](double value)
   {
     return uint8_t((value + 0.01f) * 10);
-  }, "Specifies the Level to which the bitstream conforms");
+  }, [](uint8_t value) { return (double)value / 10; }, "Specifies the Level to which the bitstream conforms");
   std::map<string, int> tiers {};
   tiers["MAIN_TIER"] = 0;
   tiers["HIGH_TIER"] = 1;
@@ -288,9 +300,12 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   parser.addArith(curSection, "NumSlices", cfg.Settings.tChParam[0].uNumSlices, "Number of slices used for each frame. Each slice contains one or more full LCU row(s) and they are spread over the frame as regularly as possible");
   std::map<string, int> sliceSizeEnums {};
   sliceSizeEnums["DISABLE"] = 0;
-  parser.addArithFuncOrEnum(curSection, "SliceSize", cfg.Settings.tChParam[0].uSliceSize, [&](int sliceSize)
+  parser.addArithFuncOrEnum(curSection, "SliceSize", cfg.Settings.tChParam[0].uSliceSize, [](int sliceSize)
   {
     return sliceSize * 95 / 100;
+  }, [](uint32_t sliceSize)
+  {
+    return sliceSize * 100 / 95;
   }, sliceSizeEnums, "Target Slice Size (AVC, HEVC only, not supported in AVC multicore) If set to 0, slices are defined by the NumSlices parameter, Otherwise it specifies the target slice size, in bytes, that the encoder uses to automatically split the bitstream into approximately equally sized slices, with a granularity of one LCU.");
   parser.addBool(curSection, "DependentSlice", cfg.Settings.bDependentSlice, "When there are several slices per frames, this parameter specifies whether the additional slices are dependent slice segments or regular slices (HEVC only)");
   parser.addBool(curSection, "SubframeLatency", cfg.Settings.tChParam[0].bSubframeLatency, "Enable the subframe latency mode");
@@ -324,17 +339,24 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   colourDescriptions["COLOUR_DESC_SMPTE_EG_432"] = AL_COLOUR_DESC_SMPTE_EG_432;
   colourDescriptions["COLOUR_DESC_EBU_3213"] = AL_COLOUR_DESC_EBU_3213;
   parser.addEnum(curSection, "ColourDescription", cfg.Settings.eColourDescription, colourDescriptions);
-  parser.addCustom(curSection, "ChromaMode", [&](std::deque<Token>& tokens)
+
+  std::map<string, int> chromaModes {};
+  chromaModes["CHROMA_MONO"] = AL_CHROMA_MONO;
+  chromaModes["CHROMA_4_0_0"] = AL_CHROMA_4_0_0;
+  chromaModes["CHROMA_4_2_0"] = AL_CHROMA_4_2_0;
+  chromaModes["CHROMA_4_2_2"] = AL_CHROMA_4_2_2;
+  chromaModes["CHROMA_4_4_4"] = AL_CHROMA_4_4_4;
+
+  parser.addCustom(curSection, "ChromaMode", [chromaModes, &cfg](std::deque<Token>& tokens)
   {
-    std::map<string, int> chromaModes {};
-    chromaModes["CHROMA_MONO"] = AL_CHROMA_MONO;
-    chromaModes["CHROMA_4_0_0"] = AL_CHROMA_4_0_0;
-    chromaModes["CHROMA_4_2_0"] = AL_CHROMA_4_2_0;
-    chromaModes["CHROMA_4_2_2"] = AL_CHROMA_4_2_2;
-    chromaModes["CHROMA_4_4_4"] = AL_CHROMA_4_4_4;
     AL_EChromaMode mode = (AL_EChromaMode)parseEnum(tokens, chromaModes);
-    AL_SET_CHROMA_MODE(cfg.Settings.tChParam[0].ePicFormat, mode);
-  }, "Set the expected chroma mode of the encoder. Depending on the input fourcc, this might lead to a conversion. Together with the BitDepth, these options determine the final FourCC the encoder is expecting.");
+    AL_SET_CHROMA_MODE(&cfg.Settings.tChParam[0].ePicFormat, mode);
+  }, [chromaModes, &cfg]()
+  {
+    AL_EChromaMode mode = AL_GET_CHROMA_MODE(cfg.Settings.tChParam[0].ePicFormat);
+    return getDefaultEnumValue(mode, chromaModes);
+  },
+                   "Set the expected chroma mode of the encoder. Depending on the input fourcc, this might lead to a conversion. Together with the BitDepth, these options determine the final FourCC the encoder is expecting.");
   std::map<string, int> entropymodes {};
   entropymodes["MODE_CAVLC"] = AL_MODE_CAVLC;
   entropymodes["MODE_CABAC"] = AL_MODE_CABAC;
@@ -342,48 +364,42 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   parser.addCustom(curSection, "BitDepth", [&](std::deque<Token>& tokens)
   {
     auto bitdepth = parseArithmetic<int>(tokens);
-    AL_SET_BITDEPTH(cfg.Settings.tChParam[0].ePicFormat, bitdepth);
+    AL_SET_BITDEPTH(&cfg.Settings.tChParam[0].ePicFormat, bitdepth);
+  }, [&]() {
+    return std::to_string(AL_GET_BITDEPTH(cfg.Settings.tChParam[0].ePicFormat));
   }, "Number of bits used to encode one pixel");
 
   parser.addCustom(curSection, "BitDepthChroma", [&](std::deque<Token>& tokens)
   {
     auto bitdepth = parseArithmetic<int>(tokens);
     warnStream << "Warning: using BitDepthChroma instead of BitDepth, this will set the BitDepth variable" << endl;
-    AL_SET_BITDEPTH(cfg.Settings.tChParam[0].ePicFormat, bitdepth);
-  }, "deprecated");
+    AL_SET_BITDEPTH(&cfg.Settings.tChParam[0].ePicFormat, bitdepth);
+  }, noDefaultValue, "deprecated");
 
   parser.addCustom(curSection, "BitDepthLuma", [&](std::deque<Token>& tokens)
   {
     auto bitdepth = parseArithmetic<int>(tokens);
     warnStream << "Warning: using BitDepthLuma instead of BitDepth, this will set the BitDepth variable" << endl;
-    AL_SET_BITDEPTH(cfg.Settings.tChParam[0].ePicFormat, bitdepth);
-  }, "deprecated");
+    AL_SET_BITDEPTH(&cfg.Settings.tChParam[0].ePicFormat, bitdepth);
+  }, noDefaultValue, "deprecated");
 
   std::map<string, int> scalingmodes {};
   scalingmodes["FLAT"] = AL_SCL_FLAT;
   scalingmodes["DEFAULT"] = AL_SCL_DEFAULT;
   scalingmodes["CUSTOM"] = AL_SCL_CUSTOM;
-  scalingmodes["RANDOM"] = AL_SCL_RANDOM;
   parser.addEnum(curSection, "ScalingList", cfg.Settings.eScalingList, scalingmodes, "Specifies the scaling list mode");
   parser.addPath(curSection, "FileScalingList", temp.sScalingListFile, "if ScalingList is CUSTOM, specifies the file containing the quantization matrices");
   std::map<string, int> qpctrls {};
   qpctrls["UNIFORM_QP"] = UNIFORM_QP;
-  qpctrls["CHOOSE_QP"] = CHOOSE_QP;
-  qpctrls["RAMP_QP"] = RAMP_QP;
-  qpctrls["RANDOM_QP"] = RANDOM_QP;
-  qpctrls["BORDER_QP"] = BORDER_QP;
   qpctrls["ROI_QP"] = ROI_QP;
   qpctrls["AUTO_QP"] = AUTO_QP;
   qpctrls["ADAPTIVE_AUTO_QP"] = ADAPTIVE_AUTO_QP;
   qpctrls["RELATIVE_QP"] = RELATIVE_QP;
-  qpctrls["RANDOM_SKIP"] = RANDOM_SKIP;
-  qpctrls["RANDOM_I_ONLY"] = RANDOM_I_ONLY;
   qpctrls["LOAD_QP"] = LOAD_QP;
   parser.addEnum(curSection, "QPCtrlMode", cfg.Settings.eQpCtrlMode, qpctrls, "Specifies how to generate the QP per CU");
 
   std::map<string, int> ldamodes {};
   ldamodes["DEFAULT_LDA"] = DEFAULT_LDA;
-  ldamodes["CUSTOM_LDA"] = CUSTOM_LDA;
   ldamodes["AUTO_LDA"] = AUTO_LDA;
   ldamodes["DYNAMIC_LDA"] = DYNAMIC_LDA;
   ldamodes["LOAD_LDA"] = LOAD_LDA;
@@ -399,6 +415,10 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
       pChan->LdaFactors[i] = ldaFactors[i] * rescale;
 
     temp.bParseLambdaFactors = true;
+  }, [&]() {
+    auto pChan = &cfg.Settings.tChParam[0];
+    auto const NumFactors = sizeof(pChan->LdaFactors) / sizeof(*pChan->LdaFactors);
+    return getDefaultArrayValue(pChan->LdaFactors, NumFactors, 256);
   }, "Specifies a lambda factor for each pictures: I, P and B by increasing temporal id");
   parser.addBool(curSection, "CabacInit", cfg.Settings.tChParam[0].uCabacInitIdc, "Specifies the CABAC initialization table index (AVC) or flag (HEVC)");
   parser.addArith(curSection, "PicCbQpOffset", cfg.Settings.tChParam[0].iCbPicQpOffset, "Specifies the QP offset for the first chroma channel (Cb) at picture level (HEVC)");
@@ -413,16 +433,9 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   parser.addFlag(curSection, "LoopFilter", cfg.Settings.tChParam[0].eEncTools, AL_OPT_LF, "Specifies if the deblocking filter should be used or not");
   parser.addFlag(curSection, "ConstrainedIntraPred", cfg.Settings.tChParam[0].eEncTools, AL_OPT_CONST_INTRA_PRED, "Specifies the value of constrained_intra_pred_flag syntax element (AVC/HEVC)");
   parser.addFlag(curSection, "WaveFront", cfg.Settings.tChParam[0].eEncTools, AL_OPT_WPP);
-  parser.addBool(curSection, "ForceLoad", cfg.Settings.bForceLoad, "When DEFAULT or CUSTOM scaling list, CUSTOM lambda parameters and/or QP tables are used, this parameter specifies whether the corresponding buffer must be reloaded for each frame or only for the first one");
-  parser.addFlag(curSection, "ForceMvOut", cfg.Settings.tChParam[0].eEncOptions, AL_OPT_FORCE_MV_OUT, "Force the encoder to output the Motion Vector buffer");
-  parser.addFlag(curSection, "ForceMvClip", cfg.Settings.tChParam[0].eEncOptions, AL_OPT_FORCE_MV_CLIP);
   string l2cacheDesc = "";
   l2cacheDesc = "Specifies if the L2 cache is used of not";
   parser.addBool(curSection, "CacheLevel2", cfg.Settings.iPrefetchLevel2, l2cacheDesc);
-  parser.addArith(curSection, "ClipHrzRange", cfg.Settings.uClipHrzRange);
-  parser.addArith(curSection, "ClipVrtRange", cfg.Settings.uClipVrtRange);
-  parser.addFlag(curSection, "FixPredictor", cfg.Settings.tChParam[0].eEncOptions, AL_OPT_FIX_PREDICTOR, "When set to ENABLE, the motion estimation window is always centered on the current LCU position. This generates a fixed bandwidth for accessing the reference picture buffers. It is recommended to use the DISABLE value for maximum quality");
-  parser.addArith(curSection, "VrtRange_P", cfg.Settings.tChParam[0].pMeRange[AL_SLICE_P][1], "Specifies the vertical search range used for P frames motion estimation");
 
   std::map<string, int> srcmodes {};
   srcmodes["NVX"] = AL_SRC_NVX;
@@ -431,7 +444,6 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   srcmodes["TILE_32x4"] = AL_SRC_TILE_32x4;
   srcmodes["COMP_32x4"] = AL_SRC_COMP_32x4;
   parser.addEnum(curSection, "SrcFormat", cfg.Settings.tChParam[0].eSrcMode, srcmodes);
-  parser.addBool(curSection, "DisableIntra", cfg.Settings.bDisIntra);
   parser.addFlag(curSection, "AvcLowLat", cfg.Settings.tChParam[0].eEncOptions, AL_OPT_LOWLAT_SYNC, "Enables a special synchronization mode for AVC low latency encoding (Validation only)");
   parser.addBool(curSection, "SliceLat", cfg.Settings.tChParam[0].bSubframeLatency, "Enables slice latency mode");
   parser.addBool(curSection, "LowLatInterrupt", cfg.Settings.tChParam[0].bSubframeLatency, "deprecated, same behaviour as SliceLat");
@@ -487,23 +499,23 @@ static void populateSecondaryInputParam(ConfigParser& parser, Temporary& temp, S
   {
     temp.TempInput.YUVFileName = parseString(tokens);
     temp.bNameIsParsed = true;
-  }, "The YUV source in a different resolution than main input");
+  }, [&]() { return temp.TempInput.YUVFileName; }, "The YUV source in a different resolution than main input");
 
   parser.addCustom(eCurSection, "Width", [&](std::deque<Token>& tokens)
   {
     temp.TempInput.FileInfo.PictWidth = parseArithmetic<int>(tokens);
     temp.bWidthIsParsed = true;
-  }, "The width of the current source");
+  }, [&]() { return std::to_string(temp.TempInput.FileInfo.PictWidth); }, "The width of the current source");
   parser.addCustom(eCurSection, "Height", [&](std::deque<Token>& tokens)
   {
     temp.TempInput.FileInfo.PictHeight = parseArithmetic<int>(tokens);
     temp.bHeightIsParsed = true;
-  }, "The height of the current source");
+  }, [&]() { return std::to_string(temp.TempInput.FileInfo.PictHeight); }, "The height of the current source");
 
   if(bQPControl)
   {
     parser.addPath(eCurSection, "ROIFile", temp.TempInput.sRoiFileName, "File containing the Regions of Interest associated to the current yuv input");
-    parser.addPath(eCurSection, "QpTablesFolder", temp.TempInput.sQPTablesFolder, "Tthe location of the files containing the QP tables associated to the current yuv input");
+    parser.addPath(eCurSection, "QpTablesFolder", temp.TempInput.sQPTablesFolder, "The location of the files containing the QP tables associated to the current yuv input");
   }
 }
 
@@ -958,6 +970,11 @@ static void printSectionBanner(Section section)
   cout << "--------------------------- [" << toString(section) << "] ---------------------------" << endl << endl;
 }
 
+static void printSectionName(Section section)
+{
+  cout << "[" << toString(section) << "]" << endl;
+}
+
 static void printIdentifierDescription(string& identifier, std::deque<string>& chunks)
 {
   string firstChunk = "";
@@ -977,24 +994,152 @@ static void printIdentifierDescription(string& identifier, std::deque<string>& c
   cout << ss.str() << endl;
 }
 
-void PrintConfigFileUsage()
+/* Section can exist multiple time and doesn't really have default parameters */
+static bool isDynamicSection(Section const& sectionName)
 {
-  ConfigFile cfg {};
+  bool notSupported = false;
+
+  notSupported = notSupported || sectionName == Section::DynamicInput;
+
+
+  return notSupported;
+}
+
+void PrintConfigFileUsage(ConfigFile cfg)
+{
   Temporary temporaries {};
   ConfigParser parser {};
   populateIdentifiers(parser, cfg, temporaries, cerr);
 
   for(auto& section_ : parser.identifiers)
   {
-    printSectionBanner(section_.first);
+    auto sectionName = section_.first;
+    printSectionBanner(sectionName);
 
     for(auto identifier_ : section_.second)
     {
       auto identifier = identifier_.second.showName;
       auto desc = identifier_.second.desc;
+
+      if(!isDynamicSection(sectionName))
+        desc += ". Default Value: \"" + identifier_.second.defaultValue() + "\"";
+
       std::deque<string> chunks {};
       createDescriptionChunks(chunks, desc);
       printIdentifierDescription(identifier, chunks);
+    }
+  }
+}
+
+static void printIdentifierDescriptionJson(string& identifier, std::deque<string>& chunks)
+{
+  string firstChunk = "";
+
+  if(!chunks.empty())
+  {
+    firstChunk = chunks.front();
+    chunks.pop_front();
+  }
+
+  std::stringstream ss {};
+  ss << "\"name\": \"" << identifier << "\", " << endl;
+  ss << "\"desc\": \"" << firstChunk;
+
+  for(auto& chunk : chunks)
+    ss << " " << chunk;
+
+  ss << "\", ";
+
+  cout << ss.str() << endl;
+}
+
+void PrintConfigFileUsageJson(ConfigFile cfg)
+{
+  Temporary temporaries {};
+  ConfigParser parser {};
+  populateIdentifiers(parser, cfg, temporaries, cerr);
+
+  cout << "[" << endl;
+
+  bool first = true;
+
+  for(auto& section_ : parser.identifiers)
+  {
+    auto sectionName = section_.first;
+
+    for(auto identifier_ : section_.second)
+    {
+      if(!first)
+        cout << "," << endl;
+
+      cout << "{" << endl;
+      cout << "\"section\": \"" << toString(sectionName) << "\", " << endl;
+
+      first = false;
+
+      auto identifier = identifier_.second.showName;
+      auto desc = identifier_.second.desc;
+
+      std::deque<string> chunks {};
+      createDescriptionChunks(chunks, desc);
+      printIdentifierDescriptionJson(identifier, chunks);
+
+      std::string defaultVal = "unknown";
+
+      if(!isDynamicSection(sectionName))
+        defaultVal = identifier_.second.defaultValue();
+
+      cout << "\"default\":" << "\"" << defaultVal << "\", " << endl;
+      cout << "\"available\":" << "\"" << identifier_.second.available << "\"" << endl;
+
+      cout << "}";
+    }
+  }
+
+  cout << "]" << endl;
+}
+
+void PrintSection(Section sectionName, std::map<std::string, Callback> const& identifiers)
+{
+  printSectionName(sectionName);
+
+  for(auto identifier_ : identifiers)
+  {
+    auto identifier = identifier_.second.showName;
+    auto value = identifier_.second.defaultValue();
+    auto desc = identifier_.second.desc;
+
+    if(desc.find("deprecated") != string::npos)
+      continue;
+
+    if(value.empty())
+      cout << "#";
+    cout << identifier << " = " << value << endl;
+  }
+
+  cout << endl;
+}
+
+void PrintConfig(ConfigFile cfg)
+{
+  Temporary temporaries {};
+  ConfigParser parser {};
+  populateIdentifiers(parser, cfg, temporaries, cerr);
+
+  for(auto& section_ : parser.identifiers)
+  {
+    auto sectionName = section_.first;
+    auto& identifiers = section_.second;
+
+    if(!isDynamicSection(sectionName))
+      PrintSection(sectionName, identifiers);
+    else if(sectionName == Section::DynamicInput)
+    {
+      for(auto& input : cfg.DynamicInputs)
+      {
+        temporaries.TempInput = input;
+        PrintSection(sectionName, identifiers);
+      }
     }
   }
 }

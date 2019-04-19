@@ -126,6 +126,12 @@ static void destroy(AL_TFeeder* hFeeder)
   Rtos_Free(this);
 }
 
+static void freeBuf(AL_TFeeder* hFeeder, AL_TBuffer* pBuf)
+{
+  (void)hFeeder;
+  (void)pBuf;
+}
+
 static const AL_TFeederVtable UnsplitBufferFeederVtable =
 {
   &destroy,
@@ -133,9 +139,10 @@ static const AL_TFeederVtable UnsplitBufferFeederVtable =
   &signal,
   &flush,
   &reset,
+  &freeBuf,
 };
 
-AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, TCircBuffer* circularBuf, int iMaxBufNum, AL_TBuffer* eosBuffer, AL_CB_Error* errorCallback)
+AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TAllocator* pAllocator, int iBufferStreamSize, AL_TBuffer* eosBuffer, AL_CB_Error* errorCallback)
 {
   AL_TUnsplitBufferFeeder* this = Rtos_Malloc(sizeof(*this));
 
@@ -148,10 +155,18 @@ AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, TCircBuffer* circularB
   if(iMaxBufNum <= 0 || !AL_Fifo_Init(&this->fifo, iMaxBufNum))
     goto fail_queue_allocation;
 
-  if(!AL_Patchworker_Init(&this->patchworker, circularBuf, &this->fifo))
+  AL_TBuffer* stream = AL_Buffer_Create_And_AllocateNamed(pAllocator, iBufferStreamSize, NULL, "circular stream");
+
+  if(!stream)
+    goto fail_stream_allocation;
+
+  /* prevent trailing_zero_bits*/
+  Rtos_Memset(AL_Buffer_GetData(stream), 0xFF, stream->zSize);
+
+  if(!AL_Patchworker_Init(&this->patchworker, stream, &this->fifo))
     goto fail_patchworker_allocation;
 
-  this->decoderFeeder = AL_DecoderFeeder_Create(&circularBuf->tMD, hDec, &this->patchworker, errorCallback);
+  this->decoderFeeder = AL_DecoderFeeder_Create(stream, hDec, &this->patchworker, errorCallback);
 
   if(!this->decoderFeeder)
     goto fail_decoder_feeder_creation;
@@ -161,6 +176,8 @@ AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, TCircBuffer* circularB
   fail_decoder_feeder_creation:
   AL_Patchworker_Deinit(&this->patchworker);
   fail_patchworker_allocation:
+  AL_Buffer_Destroy(stream);
+  fail_stream_allocation:
   AL_Fifo_Deinit(&this->fifo);
   fail_queue_allocation:
   Rtos_Free(this);

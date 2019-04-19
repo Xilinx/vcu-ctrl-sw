@@ -53,10 +53,10 @@ typedef struct
   AL_HANDLE (* pfnImportFromFd)(AL_TLinuxDmaAllocator* pAllocator, int fd);
 }AL_DmaAllocLinuxVtable;
 
-typedef struct AL_t_LinuxDmaAllocator
+struct AL_t_LinuxDmaAllocator
 {
   const AL_DmaAllocLinuxVtable* vtable;
-}AL_TLinuxDmaAllocator;
+};
 /*! \endcond *****************************************************************/
 
 /**************************************************************************//*!

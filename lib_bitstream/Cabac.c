@@ -85,20 +85,20 @@ static void PutBit(AL_TBitStreamLite* pBS, AL_TCabacCtx* pCtx, uint8_t b)
   else
     AL_BitStreamLite_PutBit(pBS, b);
 
-  if(pCtx->uOut > 0)
+  if(pCtx->uOut == 0)
+    return;
+
+  unsigned int uValue = (1 - b) * (~0); // b ? 0x00000000 : 0xffffffff;
+  int iNumBits = pCtx->uOut;
+
+  while(iNumBits > 32)
   {
-    unsigned int uValue = (1 - b) * (~0); // b ? 0x00000000 : 0xffffffff;
-    int iNumBits = pCtx->uOut;
-
-    while(iNumBits > 32)
-    {
-      AL_BitStreamLite_PutBits(pBS, 32, uValue);
-      iNumBits -= 32;
-    }
-
-    AL_BitStreamLite_PutBits(pBS, iNumBits, uValue >> (32 - iNumBits));
-    pCtx->uOut = 0;
+    AL_BitStreamLite_PutBits(pBS, 32, uValue);
+    iNumBits -= 32;
   }
+
+  AL_BitStreamLite_PutBits(pBS, iNumBits, uValue >> (32 - iNumBits));
+  pCtx->uOut = 0;
 }
 
 /****************************************************************************/

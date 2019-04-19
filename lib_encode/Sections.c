@@ -104,7 +104,7 @@ static void GenerateConfigNalUnits(IRbspWriter* writer, AL_NalUnit* nals, int na
   AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
 
   for(int i = 0; i < nalsCount; i++)
-    GenerateNal(writer, &bitstream, bitstreamSize, &nals[i], pMetaData, SECTION_CONFIG_FLAG);
+    GenerateNal(writer, &bitstream, bitstreamSize, &nals[i], pMetaData, AL_SECTION_CONFIG_FLAG);
 }
 
 static SeiPrefixAPSCtx createSeiPrefixAPSCtx(AL_TSps* sps, AL_THevcVps* vps)
@@ -243,14 +243,14 @@ void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, 
 
     if(iWritten < pPicStatus->iFiller)
       printf("[WARNING] Filler data (%i) doesn't fit in the current buffer. Clip it to %i !\n", pPicStatus->iFiller, iWritten);
-    AddSection(pMetaData, offset, iWritten, 0);
+    AddSection(pMetaData, offset, iWritten, AL_SECTION_FILLER_FLAG);
   }
 
   if(pPicStatus->bIsLastSlice)
-    AddSection(pMetaData, 0, 0, SECTION_END_FRAME_FLAG);
+    AddSection(pMetaData, 0, 0, AL_SECTION_END_FRAME_FLAG);
 
   if(pPicStatus->bIsIDR)
-    AddFlagsToAllSections(pMetaData, SECTION_SYNC_FLAG);
+    AddFlagsToAllSections(pMetaData, AL_SECTION_SYNC_FLAG);
 }
 
 static SeiExternalCtx createExternalSeiCtx(uint8_t* pPayload, int iPayloadType, int iPayloadSize)
@@ -278,7 +278,7 @@ static int createExternalSei(Nuts nuts, AL_TBuffer* pStream, uint32_t uOffset, b
 
 uint32_t getUserSeiPrefixOffset(AL_TStreamMetaData* pStreamMeta)
 {
-  int iSEIPrefixSectionID = AL_StreamMetaData_GetLastSectionOfFlag(pStreamMeta, SECTION_SEI_PREFIX_FLAG);
+  int iSEIPrefixSectionID = AL_StreamMetaData_GetLastSectionOfFlag(pStreamMeta, AL_SECTION_SEI_PREFIX_FLAG);
 
   if(iSEIPrefixSectionID == -1)
     return ENC_MAX_HEADER_SIZE - ENC_MAX_SEI_SIZE;

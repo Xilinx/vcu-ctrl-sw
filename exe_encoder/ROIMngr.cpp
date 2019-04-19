@@ -91,15 +91,15 @@ static void PushBack(AL_TRoiMngrCtx* pCtx, AL_TRoiNode* pNode)
   {
     assert(pCtx->pLastNode);
     pNode->pPrev = pCtx->pLastNode;
-    pNode->pNext = NULL;
+    pNode->pNext = nullptr;
     pCtx->pLastNode->pNext = pNode;
     pCtx->pLastNode = pNode;
   }
   else
   {
     assert(!pCtx->pLastNode);
-    pNode->pPrev = NULL;
-    pNode->pNext = NULL;
+    pNode->pPrev = nullptr;
+    pNode->pNext = nullptr;
     pCtx->pFirstNode = pCtx->pLastNode = pNode;
   }
 }
@@ -290,7 +290,7 @@ AL_TRoiMngrCtx* AL_RoiMngr_Create(int iPicWidth, int iPicHeight, AL_EProfile ePr
   AL_TRoiMngrCtx* pCtx = (AL_TRoiMngrCtx*)Rtos_Malloc(sizeof(AL_TRoiMngrCtx));
 
   if(!pCtx)
-    return NULL;
+    return nullptr;
   pCtx->iMinQP = AL_IS_AVC(eProf) || AL_IS_HEVC(eProf) ? -32 : -128;
   pCtx->iMaxQP = AL_IS_AVC(eProf) || AL_IS_HEVC(eProf) ? 31 : 127;
   pCtx->iPicWidth = iPicWidth; // TODO convert Pixel to LCU
@@ -299,8 +299,8 @@ AL_TRoiMngrCtx* AL_RoiMngr_Create(int iPicWidth, int iPicHeight, AL_EProfile ePr
 
   pCtx->eBkgQuality = eBkgQuality;
   pCtx->eOrder = eOrder;
-  pCtx->pFirstNode = NULL;
-  pCtx->pLastNode = NULL;
+  pCtx->pFirstNode = nullptr;
+  pCtx->pLastNode = nullptr;
 
   pCtx->iLcuWidth = RoundUp(pCtx->iPicWidth, 1 << pCtx->uLcuSize) >> pCtx->uLcuSize;
   pCtx->iLcuHeight = RoundUp(pCtx->iPicHeight, 1 << pCtx->uLcuSize) >> pCtx->uLcuSize;
@@ -328,8 +328,8 @@ void AL_RoiMngr_Clear(AL_TRoiMngrCtx* pCtx)
     pCur = pNext;
   }
 
-  pCtx->pFirstNode = NULL;
-  pCtx->pLastNode = NULL;
+  pCtx->pFirstNode = nullptr;
+  pCtx->pLastNode = nullptr;
 }
 
 /****************************************************************************/
@@ -354,8 +354,8 @@ bool AL_RoiMngr_AddROI(AL_TRoiMngrCtx* pCtx, int iPosX, int iPosY, int iWidth, i
   pNode->iHeight = ((iPosY + iHeight) > pCtx->iLcuHeight) ? (pCtx->iLcuHeight - iPosY) : iHeight;
 
   pNode->iDeltaQP = GetNewDeltaQP(eQuality);
-  pNode->pNext = NULL;
-  pNode->pPrev = NULL;
+  pNode->pNext = nullptr;
+  pNode->pPrev = nullptr;
 
   if(pCtx->eOrder == AL_ROI_QUALITY_ORDER)
     Insert(pCtx, pNode);

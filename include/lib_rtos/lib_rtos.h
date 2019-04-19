@@ -106,6 +106,7 @@ bool Rtos_SetEvent(AL_EVENT Event);
 /*  Threads */
 /****************************************************************************/
 AL_THREAD Rtos_CreateThread(void* (*pFunc)(void* pParam), void* pParam);
+void Rtos_SetCurrentThreadName(const char* pThreadName);
 bool Rtos_JoinThread(AL_THREAD Thread);
 void Rtos_DeleteThread(AL_THREAD Thread);
 

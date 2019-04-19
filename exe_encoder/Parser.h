@@ -295,19 +295,31 @@ static void setFlag(T* bitfield, uint32_t uFlag)
 }
 
 template<typename T>
+static bool getFlag(T* bitfield, uint32_t uFlag)
+{
+  return (uint32_t)*bitfield & uFlag;
+}
+
+template<typename T>
 static std::string describeEnum(std::map<std::string, T>& availableEnums)
 {
   std::string desc = "";
+  bool first = true;
 
   for(auto it : availableEnums)
-    desc += it.first + ", ";
+  {
+    if(!first)
+      desc += ", ";
+    desc += it.first;
+    first = false;
+  }
 
   return desc;
 }
 
 static inline std::string startValueDesc()
 {
-  return ", available values: ";
+  return ". Available Values: ";
 }
 
 static inline std::string describeArithExpr()
@@ -315,11 +327,41 @@ static inline std::string describeArithExpr()
   return "<Arithmetic expression>";
 }
 
+template<typename T>
+std::string getDefaultEnumValue(T const& t, std::map<std::string, int> availableEnums)
+{
+  for(auto& it : availableEnums)
+  {
+    if(it.second == (int)t)
+      return it.first;
+  }
+
+  return "unknown";
+}
+
+template<typename T>
+std::string getDefaultArrayValue(T* t, int arraySize, int rescale = 1)
+{
+  std::string s = "";
+
+  for(auto i = 0; i < (int)arraySize; ++i)
+  {
+    s += std::to_string(t[i] / rescale);
+
+    if(i != arraySize - 1)
+      s += " ";
+  }
+
+  return s;
+}
+
 struct Callback
 {
   std::function<void(std::deque<Token> &)> func;
   std::string showName;
   std::string desc;
+  std::string available;
+  std::function<std::string()> defaultValue;
 };
 
 static int safeToLower(int c)
@@ -352,12 +394,16 @@ struct ConfigParser
       [&](std::deque<Token>& tokens)
       {
         t = parseArithmetic<U>(tokens);
-      }, name, desc
+      }, name, desc, "",
+      [&t]() -> std::string
+      {
+        return std::to_string(t);
+      }
     };
-  };
+  }
 
-  template<typename T, typename U = long long int, typename Func>
-  void addArithFunc(Section section, char const* name, T& t, Func f, std::string desc = "no description")
+  template<typename T, typename U = long long int, typename Func, typename Func2>
+  void addArithFunc(Section section, char const* name, T& t, Func f, Func2 m, std::string desc = "no description")
   {
     desc += startValueDesc() + describeArithExpr();
     identifiers[section][tolowerStr(name)] =
@@ -365,9 +411,13 @@ struct ConfigParser
       [&](std::deque<Token>& tokens)
       {
         t = f(parseArithmetic<U>(tokens));
-      }, name, desc
+      }, name, desc, "",
+      [&t, m]() -> std::string
+      {
+        return std::to_string(m(t));
+      }
     };
-  };
+  }
 
   /* Here we suppose type T and U are compatible for multiplication */
   template<typename T, typename U, typename V = long long int>
@@ -379,7 +429,11 @@ struct ConfigParser
       [&t, u](std::deque<Token>& tokens)
       {
         t = parseArithmetic<V>(tokens) * u;
-      }, name, desc
+      }, name, desc, "",
+      [&t, u]() -> std::string
+      {
+        return std::to_string(t / u);
+      }
     };
   }
 
@@ -393,9 +447,13 @@ struct ConfigParser
       [&t, availableEnums](std::deque<Token>& tokens)
       {
         t = static_cast<T>(parseEnum(tokens, availableEnums));
-      }, name, desc
+      }, name, desc, describeEnum(availableEnums),
+      [&t, availableEnums]() -> std::string
+      {
+        return getDefaultEnumValue(t, availableEnums);
+      }
     };
-  };
+  }
 
   template<typename T, typename U = long long int>
   void addArithOrEnum(Section section, char const* name, T& t, std::map<std::string, int> availableEnums, std::string desc = "no description")
@@ -412,12 +470,22 @@ struct ConfigParser
         }
 
         t = parseArithmetic<U>(tokens);
-      }, name, desc
+      }, name, desc, describeEnum(availableEnums),
+      [&t, availableEnums]() -> std::string
+      {
+        for(auto& it : availableEnums)
+        {
+          if(it.second == (int)t)
+            return it.first;
+        }
+
+        return std::to_string(t);
+      }
     };
   }
 
-  template<typename T, typename Func, typename U = long long int>
-  void addArithFuncOrEnum(Section section, char const* name, T& t, Func f, std::map<std::string, int> availableEnums, std::string desc = "no description")
+  template<typename T, typename Func, typename Func2, typename U = long long int>
+  void addArithFuncOrEnum(Section section, char const* name, T& t, Func f, Func2 m, std::map<std::string, int> availableEnums, std::string desc = "no description")
   {
     desc += startValueDesc() + describeArithExpr() + " or " + describeEnum(availableEnums);
     identifiers[section][tolowerStr(name)] =
@@ -431,7 +499,17 @@ struct ConfigParser
         }
 
         t = static_cast<T>(f(parseArithmetic<U>(tokens)));
-      }, name, desc
+      }, name, desc, describeEnum(availableEnums),
+      [&t, m, availableEnums]() -> std::string
+      {
+        for(auto& it : availableEnums)
+        {
+          if(it.second == (int)t)
+            return it.first;
+        }
+
+        return std::to_string(m(t));
+      }
     };
   }
 
@@ -445,7 +523,11 @@ struct ConfigParser
       [&t, availableEnums](std::deque<Token>& tokens)
       {
         t = static_cast<T>(parseBoolEnum(tokens, availableEnums));
-      }, name, desc
+      }, name, desc, describeEnum(availableEnums),
+      [&t, availableEnums]() -> std::string
+      {
+        return getDefaultEnumValue(t, availableEnums);
+      }
     };
   }
 
@@ -464,7 +546,16 @@ struct ConfigParser
 
         if(hasFlag)
           setFlag(&t, uFlag);
-      }, name, desc
+      }, name, desc, describeEnum(availableEnums),
+      [&t, uFlag, availableEnums]() -> std::string
+      {
+        bool hasFlag = getFlag(&t, uFlag);
+
+        if(hasFlag)
+          return "TRUE";
+
+        return "FALSE";
+      }
     };
   }
 
@@ -475,7 +566,11 @@ struct ConfigParser
       [&](std::deque<Token>& tokens)
       {
         t = parseString(tokens);
-      }, name, desc
+      }, name, desc, "",
+      [&t]() -> std::string
+      {
+        return t;
+      }
     };
   }
 
@@ -486,7 +581,11 @@ struct ConfigParser
       [&](std::deque<Token>& tokens)
       {
         t = parsePath(tokens);
-      }, name, desc
+      }, name, desc, "",
+      [&]() -> std::string
+      {
+        return t;
+      }
     };
   }
 
@@ -501,14 +600,25 @@ struct ConfigParser
 
         for(auto i = 0; i < (int)arraySize; ++i)
           t[i] = array[i];
-      }, name, desc
+      }, name, desc, "",
+      [&t]() -> std::string
+      {
+        return getDefaultArrayValue(t, arraySize);
+      }
     };
   }
 
-  template<typename Func>
-  void addCustom(Section section, char const* name, Func func, std::string desc = "no description")
+  template<typename Func, typename Func2>
+  void addCustom(Section section, char const* name, Func func, Func2 defaultVal, std::string desc = "no description")
   {
-    identifiers[section][tolowerStr(name)] = { func, name, desc };
+    identifiers[section][tolowerStr(name)] =
+    {
+      func,
+      name,
+      desc,
+      "",
+      defaultVal,
+    };
   }
 
   std::string nearestMatch(std::string const& wrong);

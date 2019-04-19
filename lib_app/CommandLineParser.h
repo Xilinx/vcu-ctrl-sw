@@ -43,7 +43,9 @@
 #include <iomanip>
 #include <queue>
 #include <map>
+#include <cassert>
 #include <stdexcept>
+#include <iostream>
 
 struct CommandLineParser
 {
@@ -52,8 +54,9 @@ struct CommandLineParser
 
   struct Option
   {
-    std::function<void(void)> parser;
-    std::string desc;
+    std::function<void(std::string)> parser;
+    std::string desc; /* full formated description with the name of the option */
+    std::string desc_; /* description provided by the user verbatim */
   };
 
   void parse(int argc, char* argv[])
@@ -65,31 +68,62 @@ struct CommandLineParser
     {
       auto const word = popWord();
 
-      auto i_func = options.find(word);
+      if(isOption(word))
+      {
+        auto i_func = options.find(word);
 
-      onOptionParsed(word);
+        if(i_func == options.end())
+          throw std::runtime_error("Unknown option: '" + word + "', use --help to get help");
 
-      if(i_func == options.end())
-        throw std::runtime_error("Unknown option: '" + word + "', use -h to get help");
-
-      i_func->second.parser();
+        i_func->second.parser(word);
+      }
+      else /* positional argument */
+      {
+        if(positionals.empty())
+          throw std::runtime_error("Too many positional arguments. Can't interpret '" + word + "', use -h to get help");
+        auto& positional = positionals.front();
+        positional.parser(word);
+        positionals.pop_front();
+      }
     }
   }
 
-  int popInt()
+  template<typename T>
+  T readVal(std::string word)
   {
-    auto word = popWord();
     std::stringstream ss(word);
     ss.unsetf(std::ios::dec);
     ss.unsetf(std::ios::hex);
 
-    int value;
+    T value;
     ss >> value;
 
     if(ss.fail() || ss.tellg() != std::streampos(-1))
       throw std::runtime_error("Expected an integer, got '" + word + "'");
 
     return value;
+  }
+
+  int readInt(std::string word)
+  {
+    return readVal<int>(word);
+  }
+
+  double readDouble(std::string word)
+  {
+    return readVal<double>(word);
+  }
+
+  int popInt()
+  {
+    auto word = popWord();
+    return readInt(word);
+  }
+
+  double popDouble()
+  {
+    auto word = popWord();
+    return readDouble(word);
   }
 
   std::string popWord()
@@ -101,10 +135,11 @@ struct CommandLineParser
     return word;
   }
 
-  void addOption(std::string name, std::function<void(void)> func, std::string desc_)
+  void addOption(std::string name, std::function<void(std::string)> func, std::string desc_)
   {
     Option o;
     o.parser = func;
+    o.desc_ = desc_;
     o.desc = makeDescription(name, "", desc_);
     insertOption(name, o);
   }
@@ -113,10 +148,14 @@ struct CommandLineParser
   void setCustom_(std::string name, VariableType* value, Func customParser, std::string desc_)
   {
     Option o;
-    o.parser = [=]()
+    o.parser = [=](std::string word)
                {
-                 * value = (VariableType)customParser(popWord());
+                 if(isOption(word))
+                   *value = (VariableType)customParser(popWord());
+                 else
+                   *value = customParser(word);
                };
+    o.desc_ = desc_;
     o.desc = makeDescription(name, "value", desc_);
     insertOption(name, o);
   }
@@ -138,9 +177,11 @@ struct CommandLineParser
   void addFlag(std::string name, T* flag, std::string desc_, T value = (T) 1)
   {
     Option o;
+    o.desc_ = desc_;
     o.desc = makeDescription(name, "", desc_);
-    o.parser = [=]()
+    o.parser = [=](std::string word)
                {
+                 assert(isOption(word));
                  * flag = value;
                };
     insertOption(name, o);
@@ -150,10 +191,30 @@ struct CommandLineParser
   void addInt(std::string name, T* number, std::string desc_)
   {
     Option o;
+    o.desc_ = desc_;
     o.desc = makeDescription(name, "number", desc_);
-    o.parser = [=]()
+    o.parser = [=](std::string word)
                {
-                 * number = popInt();
+                 if(isOption(word))
+                   *number = popInt();
+                 else
+                   *number = readInt(word);
+               };
+    insertOption(name, o);
+  }
+
+  template<typename T>
+  void addDouble(std::string name, T* number, std::string desc_)
+  {
+    Option o;
+    o.desc_ = desc_;
+    o.desc = makeDescription(name, "number", desc_);
+    o.parser = [=](std::string word)
+               {
+                 if(isOption(word))
+                   *number = popDouble();
+                 else
+                   *number = readDouble(word);
                };
     insertOption(name, o);
   }
@@ -161,16 +222,62 @@ struct CommandLineParser
   void addString(std::string name, std::string* value, std::string desc_)
   {
     Option o;
+    o.desc_ = desc_;
     o.desc = makeDescription(name, "string", desc_);
-    o.parser = [=]()
+    o.parser = [=](std::string word)
                {
-                 * value = popWord();
+                 if(isOption(word))
+                   *value = popWord();
+                 else
+                   *value = word;
                };
     insertOption(name, o);
   }
 
   std::map<std::string, Option> options;
+  std::map<std::string, std::string> descs;
   std::vector<std::string> displayOrder;
+  std::deque<Option> positionals;
+
+  void usage() const
+  {
+    for(auto& command: displayOrder)
+      std::cerr << "  " << descs.at(command) << std::endl;
+  }
+
+  /* not a complete escape function. This just validates our usecases. */
+  std::string jsonEscape(std::string const& desc) const
+  {
+    std::stringstream ss {};
+
+    for(auto& c : desc)
+    {
+      if(c == '"')
+        ss << "\\";
+      ss << c;
+    }
+
+    return ss.str();
+  }
+
+  void usageJson() const
+  {
+    bool first = true;
+    std::cerr << "[";
+
+    for(auto& o_: options)
+    {
+      auto name = o_.first;
+      auto& o = o_.second;
+
+      if(!first)
+        std::cerr << ", " << std::endl;
+      first = false;
+      std::cerr << "{ \"name\":\"" << name << "\", \"desc\":\"" << jsonEscape(o.desc_) << "\" }";
+    }
+
+    std::cerr << "]" << std::endl;
+  }
 
 private:
   void insertOption(std::string name, Option o)
@@ -178,12 +285,15 @@ private:
     std::string item;
     std::stringstream ss(name);
 
-    while(getline(ss, item, ','))
+    if(isOption(name))
     {
-      options[item] = o;
-      options[name] = o;
+      while(getline(ss, item, ','))
+        options[item] = o;
     }
+    else
+      positionals.push_back(o);
 
+    descs[name] = o.desc;
     displayOrder.push_back(name);
   }
 
@@ -199,6 +309,11 @@ private:
     ss << std::setfill(' ') << std::setw(24) << std::left << s << " " << desc;
 
     return ss.str();
+  }
+
+  bool isOption(std::string word)
+  {
+    return word[0] == '-';
   }
 
   std::queue<std::string> words;

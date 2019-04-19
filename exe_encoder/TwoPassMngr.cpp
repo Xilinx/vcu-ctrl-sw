@@ -111,24 +111,37 @@ bool AL_TwoPassMngr_HasLookAhead(AL_TEncSettings const& settings)
 }
 
 /***************************************************************************/
+static void setPass1RateControlSettings(AL_TRCParam& rc)
+{
+  rc.eRCMode = AL_RC_CONST_QP;
+  rc.iInitialQP = 20;
+  rc.eOptions = static_cast<AL_ERateCtrlOption>(rc.eOptions & (~AL_RC_OPT_ENABLE_SKIP));
+}
+
+/***************************************************************************/
+static void setPass1GopSettings(AL_TGopParam& gop)
+{
+  gop.eMode = AL_GOP_MODE_LOW_DELAY_P;
+  gop.uGopLength = 0;
+  gop.uNumB = 0;
+}
+
+/***************************************************************************/
 void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings)
 {
   settings.NumLayer = 1;
   auto& channel = settings.tChParam[0];
-  channel.tRCParam.eRCMode = AL_RC_CONST_QP;
-  channel.tRCParam.iInitialQP = 20;
-  channel.tRCParam.eOptions = (AL_ERateCtrlOption)(channel.tRCParam.eOptions & (~AL_RC_OPT_ENABLE_SKIP));
-  channel.tGopParam.eMode = AL_GOP_MODE_LOW_DELAY_P;
-  channel.tGopParam.uGopLength = 0;
-  channel.tGopParam.uNumB = 0;
   channel.bSubframeLatency = false;
   channel.eLdaCtrlMode = DEFAULT_LDA;
 
   if(settings.bEnableFirstPassSceneChangeDetection)
   {
-    channel.eEncOptions = (AL_EChEncOption)(channel.eEncOptions | AL_OPT_SCENE_CHANGE_DETECTION);
+    channel.eEncOptions = static_cast<AL_EChEncOption>(channel.eEncOptions | AL_OPT_SCENE_CHANGE_DETECTION);
     channel.uNumSlices = 1;
   }
+
+  setPass1RateControlSettings(channel.tRCParam);
+  setPass1GopSettings(channel.tGopParam);
 }
 
 /***************************************************************************/
@@ -216,9 +229,9 @@ void TwoPassMngr::EmptyLog()
     inputFile.getline(sLine, 256);
 
     auto str_PicSize = strtok(sLine, " ");
-    auto str_PercentIntra = strtok(NULL, " ");
+    auto str_PercentIntra = strtok(nullptr, " ");
 
-    bFind = (str_PicSize != NULL && str_PercentIntra != NULL);
+    bFind = ((str_PicSize != nullptr) && (str_PercentIntra != nullptr));
 
     if(!bFind)
       break;

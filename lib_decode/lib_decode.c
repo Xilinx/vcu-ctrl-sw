@@ -85,7 +85,7 @@ void AL_Decoder_SetParam(AL_HDecoder hDec, bool bConceal, bool bUseBoard, int iF
 }
 
 /*****************************************************************************/
-UNIT_ERROR AL_Decoder_TryDecodeOneUnit(AL_HDecoder hDec, TCircBuffer* pBufStream)
+UNIT_ERROR AL_Decoder_TryDecodeOneUnit(AL_HDecoder hDec, AL_TBuffer* pBufStream)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)hDec;
   return pDec->vtable->pfnTryDecodeOneUnit(pDec, pBufStream);

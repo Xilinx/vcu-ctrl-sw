@@ -68,10 +68,12 @@ typedef enum AL_e_ChanState
 typedef struct t_Dec_Ctx
 {
   AL_TFeeder* Feeder;
+  bool bSplitInput;
 
   TBuffer BufNoAE;            // Deanti-Emulated buffer used for high level syntax parsing
   TCircBuffer Stream;             // Input stream buffer
   TCircBuffer NalStream;
+  AL_TBuffer* pInputBuffer;     // keep a refence to input buffer and its meta data
 
   // decoder IP handle
   AL_TIDecChannel* pDecChannel;
@@ -95,6 +97,7 @@ typedef struct t_Dec_Ctx
   uint16_t uNumSC;             //
   AL_TScStatus ScdStatus;
 
+  AL_TDecPicBufferAddrs BufAddrs;
   // decoder pool buffer
   TBuffer PoolSclLst[MAX_STACK_SIZE];      // Scaling List pool buffer
   TBuffer PoolCompData[MAX_STACK_SIZE];    // compressed MVDs + header + residuals pool buffer
@@ -169,7 +172,6 @@ typedef struct t_Dec_Ctx
   AL_TStreamSettings tStreamSettings;
   AL_TBuffer* eosBuffer;
 
-  TCircBuffer circularBuf;
   int iNumSlicesRemaining;
 }AL_TDecCtx;
 

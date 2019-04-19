@@ -46,6 +46,7 @@
 #include "BitStreamLite.h"
 #include "Cabac.h"
 #include "lib_common/Utils.h"
+#include <assert.h>
 
 /****************************************************************************/
 
@@ -89,21 +90,21 @@ static unsigned int AL_sHEVC_WriteSkippedCuRight(AL_TBitStreamLite* pBS, AL_TCab
   {
     uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, iAvailB, 1);
     uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 1);
+    return uBins;
   }
-  else
-  {
-    if(iMod & iMsk)
-      uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, iAvailB, 0);
 
-    if(iMod & (iMsk - 1))
-      uBins += AL_sHEVC_WriteSkippedCuRight(pBS, pCtx, pState, pValMPS, iAvailB, iMod, iMsk >> 1);
+  if(iMod & iMsk)
+    uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, iAvailB, 0);
 
-    if(iMod & iMsk)
-      uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 0);
+  if(iMod & (iMsk - 1))
+    uBins += AL_sHEVC_WriteSkippedCuRight(pBS, pCtx, pState, pValMPS, iAvailB, iMod, iMsk >> 1);
 
-    if(iMod & (iMsk - 1))
-      uBins += AL_sHEVC_WriteSkippedCuRight(pBS, pCtx, pState, pValMPS, 1, iMod, iMsk >> 1);
-  }
+  if(iMod & iMsk)
+    uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 0);
+
+  if(iMod & (iMsk - 1))
+    uBins += AL_sHEVC_WriteSkippedCuRight(pBS, pCtx, pState, pValMPS, 1, iMod, iMsk >> 1);
+
   return uBins;
 }
 
@@ -116,20 +117,19 @@ static unsigned int AL_sHEVC_WriteSkippedCuBottom(AL_TBitStreamLite* pBS, AL_TCa
   {
     uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, iAvailA, 1, 1);
     uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 1);
+    return uBins;
   }
-  else
-  {
-    if(iMod & iMsk)
-    {
-      uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, iAvailA, 1, 0);
-      uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 0);
-    }
 
-    if(iMod & (iMsk - 1))
-    {
-      uBins += AL_sHEVC_WriteSkippedCuBottom(pBS, pCtx, pState, pValMPS, iAvailA, iMod, iMsk >> 1);
-      uBins += AL_sHEVC_WriteSkippedCuBottom(pBS, pCtx, pState, pValMPS, 1, iMod, iMsk >> 1);
-    }
+  if(iMod & iMsk)
+  {
+    uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, iAvailA, 1, 0);
+    uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 0);
+  }
+
+  if(iMod & (iMsk - 1))
+  {
+    uBins += AL_sHEVC_WriteSkippedCuBottom(pBS, pCtx, pState, pValMPS, iAvailA, iMod, iMsk >> 1);
+    uBins += AL_sHEVC_WriteSkippedCuBottom(pBS, pCtx, pState, pValMPS, 1, iMod, iMsk >> 1);
   }
   return uBins;
 }
@@ -137,31 +137,27 @@ static unsigned int AL_sHEVC_WriteSkippedCuBottom(AL_TBitStreamLite* pBS, AL_TCa
 /****************************************************************************/
 static unsigned int AL_sHEVC_WriteSkippedCuBotRight(AL_TBitStreamLite* pBS, AL_TCabacCtx* pCtx, uint8_t* pState, uint8_t* pValMPS, int iModW, int iModH, int iMsk)
 {
+  if(iMsk == 1)
+    return AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 1);
+
   unsigned int uBins = 0;
 
-  if(iMsk == 1)
+  if(iModH & iMsk)
   {
-    uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 1);
+    if(iModW & iMsk)
+      uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 0);
+
+    if(iModW & (iMsk - 1))
+      uBins += AL_sHEVC_WriteSkippedCuRight(pBS, pCtx, pState, pValMPS, 1, iModW, iMsk >> 1);
   }
-  else
+
+  if(iModH & (iMsk - 1))
   {
-    if(iModH & iMsk)
-    {
-      if(iModW & iMsk)
-        uBins += AL_sHEVC_WriteSkippedCU(pBS, pCtx, pState, pValMPS, 1, 1, 0);
+    if(iModW & iMsk)
+      uBins += AL_sHEVC_WriteSkippedCuBottom(pBS, pCtx, pState, pValMPS, 1, iModH, iMsk >> 1);
 
-      if(iModW & (iMsk - 1))
-        uBins += AL_sHEVC_WriteSkippedCuRight(pBS, pCtx, pState, pValMPS, 1, iModW, iMsk >> 1);
-    }
-
-    if(iModH & (iMsk - 1))
-    {
-      if(iModW & iMsk)
-        uBins += AL_sHEVC_WriteSkippedCuBottom(pBS, pCtx, pState, pValMPS, 1, iModH, iMsk >> 1);
-
-      if(iModW & (iMsk - 1))
-        uBins += AL_sHEVC_WriteSkippedCuBotRight(pBS, pCtx, pState, pValMPS, iModW, iModH, iMsk >> 1);
-    }
+    if(iModW & (iMsk - 1))
+      uBins += AL_sHEVC_WriteSkippedCuBotRight(pBS, pCtx, pState, pValMPS, iModW, iModH, iMsk >> 1);
   }
   return uBins;
 }
@@ -193,28 +189,27 @@ static unsigned int AL_sHEVC_GenerateSkippedTileCabac(AL_TBitStreamLite* pBS, bo
 
   for(uint32_t uLCU = 0; uLCU < uNumLCU; uLCU++)
   {
-    int iR = (uLCU % uWidthLCU == uWidthLCU - 1); // Right Column
-    int iB = (uLCU / uWidthLCU == uHeightLCU); // Bottom Row
+    int iRightColumn = ((uLCU % uWidthLCU) == (uWidthLCU - 1));
+    int iBottomRow = ((uLCU / uWidthLCU) == uHeightLCU);
 
-    if(iR && iW && iB && iH)
+    if(iRightColumn && iW && iBottomRow && iH)
       uBins += AL_sHEVC_WriteSkippedCuBotRight(pBS, &Ctx, pState, pValMPS, iW, iH, iT >> 1);
-    else if(iR && iW)
+    else if(iRightColumn && iW)
       uBins += AL_sHEVC_WriteSkippedCuRight(pBS, &Ctx, pState, pValMPS, (uLCU >= uWidthLCU), iW, iT >> 1);
-    else if(iB && iH)
+    else if(iBottomRow && iH)
       uBins += AL_sHEVC_WriteSkippedCuBottom(pBS, &Ctx, pState, pValMPS, (uLCU % uWidthLCU), iH, iT >> 1);
     else
       uBins += AL_sHEVC_WriteSkippedCU(pBS, &Ctx, pState, pValMPS, (uLCU >= uWidthLCU), (uLCU % uWidthLCU), 0);
 
-    bool bLastLCU = (uLCU == uNumLCU - 1);
-
-    // write end_of_slice_segment_flag
-    AL_Cabac_Terminate(pBS, &Ctx, (bLastTile && bLastLCU) ? 1 : 0);
+    bool bLastLCU = (uLCU == (uNumLCU - 1));
+    int end_of_slice_segment_flag = (bLastTile && bLastLCU) ? 1 : 0;
+    AL_Cabac_Terminate(pBS, &Ctx, end_of_slice_segment_flag);
     uBins++;
 
     if(!bLastTile && bLastLCU)
     {
-      // write end_of_subset_one_bit
-      AL_Cabac_Terminate(pBS, &Ctx, 1);
+      int end_of_subset_one_bit = 1;
+      AL_Cabac_Terminate(pBS, &Ctx, end_of_subset_one_bit);
       uBins++;
     }
   }
@@ -222,48 +217,45 @@ static unsigned int AL_sHEVC_GenerateSkippedTileCabac(AL_TBitStreamLite* pBS, bo
   AL_Cabac_Finish(pBS, &Ctx);
 
   return uBins;
-
-// return 0;
 }
 
 /******************************************************************************/
 bool AL_HEVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iWidth, int iHeight, uint8_t uMaxCuSize, uint8_t uMinCuSize, int iTileColumns, int iTileRows, uint16_t* pTileWidths, uint16_t* pTileHeights)
 {
-  AL_TBitStreamLite BS;
-  int iBinsCount = 0;
-  int iBitsCount = 0;
-  int iPrevBitsCount = 0;
-
   if(!pSkipPict || !pSkipPict->pData)
     return false;
 
+  AL_TBitStreamLite BS;
   AL_BitStreamLite_Init(&BS, pSkipPict->pData, pSkipPict->iBufSize);
 
-  int t = 0;
+  int iPrevBitsCount = 0;
+  int iBitsCount = 0;
+  int iBinsCount = 0;
+  int iTile = 0;
   int H = iHeight;
 
-  for(int r = 0; r < iTileRows; ++r)
+  for(int iTileRow = 0; iTileRow < iTileRows; ++iTileRow)
   {
     int W = iWidth;
 
-    for(int c = 0; c < iTileColumns; ++c)
+    for(int iTileColumn = 0; iTileColumn < iTileColumns; ++iTileColumn)
     {
-      bool bLastTile = (c == iTileColumns - 1) && (r == iTileRows - 1);
-      uint32_t uTileNumLCU = pTileWidths[c] * pTileHeights[r];
-      int iTileWidth = Min(pTileWidths[c] << uMaxCuSize, W);
-      int iTileHeight = Min(pTileHeights[r] << uMaxCuSize, H);
-
+      bool bLastTile = (iTileColumn == (iTileColumns - 1)) && (iTileRow == (iTileRows - 1));
+      uint32_t uTileNumLCU = pTileWidths[iTileColumn] * pTileHeights[iTileRow];
+      int iTileWidth = Min(pTileWidths[iTileColumn] << uMaxCuSize, W);
+      int iTileHeight = Min(pTileHeights[iTileRow] << uMaxCuSize, H);
       iBinsCount = AL_sHEVC_GenerateSkippedTileCabac(&BS, bLastTile, iTileWidth, iTileHeight, uMaxCuSize, uMinCuSize, uTileNumLCU);
       iBitsCount = AL_BitStreamLite_GetBitsCount(&BS);
 
-      pSkipPict->uTileSizes[t++] = (iBitsCount - iPrevBitsCount) / 8;
+      assert(((iBitsCount - iPrevBitsCount) % 8) == 0);
+      pSkipPict->uTileSizes[iTile++] = (iBitsCount - iPrevBitsCount) / 8;
 
       iPrevBitsCount = iBitsCount;
 
-      W -= pTileWidths[c] << uMaxCuSize;
+      W -= (pTileWidths[iTileColumn] << uMaxCuSize);
     }
 
-    H -= pTileHeights[r] << uMaxCuSize;
+    H -= (pTileHeights[iTileRow] << uMaxCuSize);
   }
 
   pSkipPict->iNumBits = iBitsCount;

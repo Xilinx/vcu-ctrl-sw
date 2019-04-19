@@ -56,42 +56,13 @@ extern "C"
 bool IsConversionNeeded(TFourCC const& FourCC, AL_TPicFormat const& picFmt);
 
 /*****************************************************************************/
-void GotoFirstPicture(TYUVFileInfo const& FI, std::ifstream& File, unsigned int iFirstPict = 0);
-
-/*****************************************************************************/
-int GotoNextPicture(TYUVFileInfo const& FI, std::ifstream& File, int iEncFrameRate, int iEncPictCount, int iFilePictCount);
-
-/*****************************************************************************/
-bool ReadOneFrameYuv(std::ifstream& File, AL_TBuffer* pBuf, bool bLoop);
-
-/*****************************************************************************/
-bool WriteOneFrame(std::ofstream& File, AL_TBuffer const* pBuf);
-
-/*****************************************************************************/
 unsigned int ReadNextFrame(std::ifstream& File);
 
 /*****************************************************************************/
 unsigned int ReadNextFrameMV(std::ifstream& File, int& iX, int& iY);
 
 /*****************************************************************************/
-void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection, const AL_TEncChanParam* pChannelParam);
-
-/*****************************************************************************/
-int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream, const AL_TEncSettings* pSettings);
-
-struct ImageSize
-{
-  int size; // in bytes
-  bool finished;
-};
-
-void GetImageStreamSize(AL_TBuffer* pStream, std::deque<ImageSize>& imageSizes);
-
-/*****************************************************************************/
 void DisplayFrameStatus(int iFrameNum);
-
-/*****************************************************************************/
-uint32_t GetIOLumaRowSize(TFourCC fourCC, uint32_t uWidth);
 
 /*****************************************************************************/
 
@@ -111,4 +82,18 @@ public:
 protected:
   AL_ERR m_eErrCode;
 };
+
+/*****************************************************************************/
+void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection, const AL_TEncChanParam* pChannelParam);
+
+/*****************************************************************************/
+int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream, const AL_TEncSettings* pSettings);
+
+struct ImageSize
+{
+  int size; // in bytes
+  bool finished;
+};
+
+void GetImageStreamSize(AL_TBuffer* pStream, std::deque<ImageSize>& imageSizes);
 

@@ -46,14 +46,14 @@ static int32_t GetBufferOffset(AL_TCircMetaData* pMeta)
   return pMeta->iOffset;
 }
 
-static size_t GetCopiedAreaSize(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, TCircBuffer* stream)
+static size_t GetCopiedAreaSize(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, AL_TBuffer* stream, AL_TCircMetaData* pStreamMeta)
 {
   /* This is required to be able to write the last NAL EOS, or at least to prevent
    * the offsets / available size to overlap
    * we keep a chunk of memory always free after the used area to be able to write
    * the EOS at any moment.
    */
-  size_t unusedAreaSize = stream->tMD.uSize - stream->iAvailSize;
+  size_t unusedAreaSize = stream->zSize - pStreamMeta->iAvailSize;
 
   /* if no metadata, assume offset = 0 and available size = buffer size */
   if(!pMeta)
@@ -74,35 +74,37 @@ static size_t GetNotCopiedAreaSize(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, si
     return pMeta->iAvailSize - zCopiedSize;
 }
 
-static void CopyAreaToStream(uint8_t* pData, uint32_t uOffset, size_t zCopySize, TCircBuffer* stream)
+static void CopyAreaToStream(uint8_t* pData, uint32_t uOffset, size_t zCopySize, AL_TBuffer* stream, AL_TCircMetaData* pStreamMeta)
 {
-  uint32_t uEndStream = (stream->iOffset + stream->iAvailSize) % stream->tMD.uSize;
+  uint32_t uEndStream = (pStreamMeta->iOffset + pStreamMeta->iAvailSize) % stream->zSize;
+  uint8_t* pStreamData = AL_Buffer_GetData(stream);
 
-  if(uEndStream + zCopySize > stream->tMD.uSize)
+  if(uEndStream + zCopySize > stream->zSize)
   {
-    uint32_t SpaceLeftBeforeWrapping = stream->tMD.uSize - uEndStream;
-    Rtos_Memcpy(stream->tMD.pVirtualAddr + uEndStream, pData + uOffset, SpaceLeftBeforeWrapping);
-    Rtos_Memcpy(stream->tMD.pVirtualAddr, pData + uOffset + SpaceLeftBeforeWrapping, zCopySize - SpaceLeftBeforeWrapping);
+    uint32_t SpaceLeftBeforeWrapping = stream->zSize - uEndStream;
+    Rtos_Memcpy(pStreamData + uEndStream, pData + uOffset, SpaceLeftBeforeWrapping);
+    Rtos_Memcpy(pStreamData, pData + uOffset + SpaceLeftBeforeWrapping, zCopySize - SpaceLeftBeforeWrapping);
   }
   else
   {
-    Rtos_Memcpy(stream->tMD.pVirtualAddr + uEndStream, pData + uOffset, zCopySize);
+    Rtos_Memcpy(pStreamData + uEndStream, pData + uOffset, zCopySize);
   }
 }
 
-static size_t TryCopyBufferToStream(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, TCircBuffer* stream)
+static size_t TryCopyBufferToStream(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, AL_TBuffer* stream)
 {
   uint32_t uBufOffset = GetBufferOffset(pMeta);
-  size_t zCopySize = GetCopiedAreaSize(pBuf, pMeta, stream);
+  AL_TCircMetaData* pStreamMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(stream, AL_META_TYPE_CIRCULAR);
+  size_t zCopySize = GetCopiedAreaSize(pBuf, pMeta, stream, pStreamMeta);
 
   /* nothing to do, and we don't want to call memcpy on a potentially
    * invalid pointer with size 0 (undefined behavior) */
   if(zCopySize == 0)
     return 0;
 
-  CopyAreaToStream(AL_Buffer_GetData(pBuf), uBufOffset, zCopySize, stream);
+  CopyAreaToStream(AL_Buffer_GetData(pBuf), uBufOffset, zCopySize, stream, pStreamMeta);
 
-  stream->iAvailSize += zCopySize;
+  pStreamMeta->iAvailSize += zCopySize;
 
   return zCopySize;
 }
@@ -147,23 +149,34 @@ size_t AL_Patchworker_CopyBuffer(AL_TPatchworker* this, AL_TBuffer* pBuf, size_t
   return zNotCopiedSize;
 }
 
-bool AL_Patchworker_Init(AL_TPatchworker* this, TCircBuffer* pCircularBuf, AL_TFifo* pInputFifo)
+bool AL_Patchworker_Init(AL_TPatchworker* this, AL_TBuffer* stream, AL_TFifo* pInputFifo)
 {
-  if(!pCircularBuf)
-    return false;
-
   this->endOfInput = false;
   this->endOfOutput = false;
-  this->outputCirc = pCircularBuf;
   this->lock = Rtos_CreateMutex();
   this->workBuf = NULL;
   this->inputFifo = pInputFifo;
-  CircBuffer_Init(this->outputCirc);
 
-  /* prevent trailing_zero_bits*/
-  Rtos_Memset(this->outputCirc->tMD.pVirtualAddr, 0xFF, this->outputCirc->tMD.uSize);
+  this->outputCirc = AL_Buffer_WrapData(AL_Buffer_GetData(stream), stream->zSize, NULL);
 
+  if(!this->outputCirc)
+    return false;
+
+  AL_TMetaData* pMeta = (AL_TMetaData*)AL_CircMetaData_Create(0, 0, false);
+
+  if(!pMeta)
+    goto cleanup;
+
+  if(!AL_Buffer_AddMetaData(this->outputCirc, pMeta))
+  {
+    Rtos_Free(pMeta);
+    goto cleanup;
+  }
   return true;
+
+  cleanup:
+  AL_Buffer_Destroy(this->outputCirc);
+  return false;
 }
 
 void AL_Patchworker_Deinit(AL_TPatchworker* this)
@@ -179,6 +192,7 @@ void AL_Patchworker_Deinit(AL_TPatchworker* this)
     this->workBuf = AL_Fifo_Dequeue(this->inputFifo, AL_NO_WAIT);
   }
 
+  AL_Buffer_Destroy(this->outputCirc);
   Rtos_DeleteMutex(this->lock);
 }
 
@@ -251,7 +265,9 @@ void AL_Patchworker_Reset(AL_TPatchworker* this)
   this->endOfOutput = false;
   this->endOfInput = false;
   AL_Patchworker_Drop(this);
-  CircBuffer_Init(this->outputCirc);
+  AL_TCircMetaData* pMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(this->outputCirc, AL_META_TYPE_CIRCULAR);
+  pMeta->iOffset = 0;
+  pMeta->iAvailSize = 0;
   Rtos_ReleaseMutex(this->lock);
 }
 

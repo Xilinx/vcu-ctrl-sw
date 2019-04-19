@@ -7,6 +7,7 @@ PARSER_SRCS:=\
 
 EXE_ENCODER_SRCS:=\
   $(THIS_EXE_ENCODER)/CodecUtils.cpp\
+  $(THIS_EXE_ENCODER)/YuvIO.cpp\
   $(THIS_EXE_ENCODER)/FileUtils.cpp\
   $(THIS_EXE_ENCODER)/IpDevice.cpp\
   $(THIS_EXE_ENCODER)/container.cpp\
@@ -53,7 +54,7 @@ $(BIN)/AL_Encoder.exe: $(EXE_ENCODER_OBJ) $(LIB_REFENC_A) $(LIB_ENCODER_A)
 
 TARGETS+=$(BIN)/AL_Encoder.exe
 
-ifndef ($(ENABLE_LIB_ISCHEDULER),0)
+ifneq ($(ENABLE_LIB_ISCHEDULER),0)
 $(BIN)/AL_Encoder.sh: $(BIN)/AL_Encoder.exe
 	@echo "Generate script $@"
 	$(shell echo 'LD_LIBRARY_PATH=$(BIN) $(BIN)/AL_Encoder.exe "$$@"' > $@ && chmod a+x $@)
@@ -78,5 +79,6 @@ exe_encoder_src: $(EXE_ENCODER_SRCS) $(EXE_CFG_PARSER_SRCS)
 	@echo $(EXE_ENCODER_SRCS) $(EXE_CFG_PARSER_SRCS)
 
 $(BIN)/$(THIS_EXE_ENCODER)/unittests/commandsparser.cpp.o: CFLAGS+=-Wno-missing-field-initializers
+
 
 .PHONY: exe_encoder_src

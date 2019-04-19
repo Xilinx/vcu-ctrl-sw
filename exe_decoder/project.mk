@@ -4,6 +4,7 @@ EXE_DECODER_SRC:=\
   exe_decoder/IpDevice.cpp\
   exe_decoder/CodecUtils.cpp\
   exe_decoder/Conversion.cpp\
+  exe_decoder/InputLoader.cpp\
   $(LIB_APP_SRC)\
 
 

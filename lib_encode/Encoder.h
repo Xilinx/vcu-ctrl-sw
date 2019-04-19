@@ -37,16 +37,14 @@
 
 #pragma once
 
-#include "lib_common_enc/EncBuffers.h"
-#include "lib_common_enc/EncRecBuffer.h"
-#include "lib_common_enc/Settings.h"
+#include "lib_encode/IP_EncoderCtx.h"
 
 typedef struct AL_s_TEncoder AL_TEncoder;
 typedef struct AL_t_EncCtx AL_TEncCtx;
 
 /****************************************************************************/
-typedef struct AL_s_TEncoder
+struct AL_s_TEncoder
 {
   AL_TEncCtx* pCtx;
-}AL_TEncoder;
+};
 

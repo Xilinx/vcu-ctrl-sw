@@ -69,7 +69,7 @@ typedef enum e_LdaCtrlMode
   LOAD_LDA = 0x80, /*!< used for test purpose */
 }AL_ELdaCtrlMode;
 
-static inline bool AL_LdaIsSane(AL_ELdaCtrlMode lda)
+static AL_INLINE bool AL_LdaIsSane(AL_ELdaCtrlMode lda)
 {
   switch(lda)
   {
@@ -112,15 +112,54 @@ typedef enum __AL_ALIGNED__ (4) AL_e_PictFormat
   AL_444_10BITS = 0x03AA,
 } AL_EPicFormat;
 
-#define AL_GET_BITDEPTH_LUMA(PicFmt) (uint8_t)((PicFmt) & 0x000F)
-#define AL_GET_BITDEPTH_CHROMA(PicFmt) (uint8_t)(((PicFmt) >> 4) & 0x000F)
-#define AL_GET_BITDEPTH(PicFmt) (AL_GET_BITDEPTH_LUMA(PicFmt) > AL_GET_BITDEPTH_CHROMA(PicFmt) ? AL_GET_BITDEPTH_LUMA(PicFmt) : AL_GET_BITDEPTH_CHROMA(PicFmt))
-#define AL_GET_CHROMA_MODE(PicFmt) ((AL_EChromaMode)((PicFmt) >> 8))
+static AL_INLINE int AL_GET_BITDEPTH_LUMA(AL_EPicFormat ePicFormat)
+{
+  return ePicFormat & 0x000F;
+}
 
-#define AL_SET_BITDEPTH_LUMA(PicFmt, BitDepth) (PicFmt) = (AL_EPicFormat)(((PicFmt) & 0xFFF0) | (BitDepth))
-#define AL_SET_BITDEPTH_CHROMA(PicFmt, BitDepth) (PicFmt) = (AL_EPicFormat)(((PicFmt) & 0xFF0F) | ((BitDepth) << 4))
-#define AL_SET_BITDEPTH(PicFmt, BitDepth) (PicFmt) = (AL_EPicFormat)(((PicFmt) & 0xFF00) | (BitDepth) | ((BitDepth) << 4))
-#define AL_SET_CHROMA_MODE(PicFmt, Mode) (PicFmt) = (AL_EPicFormat)(((PicFmt) & 0x00FF) | ((int)(Mode) << 8))
+static AL_INLINE int AL_GET_BITDEPTH_CHROMA(AL_EPicFormat ePicFormat)
+{
+  return (ePicFormat & 0x00F0) >> 4;
+}
+
+static AL_INLINE int AL_GET_BITDEPTH(AL_EPicFormat ePicFormat)
+{
+  return AL_GET_BITDEPTH_LUMA(ePicFormat) > AL_GET_BITDEPTH_CHROMA(ePicFormat) ? AL_GET_BITDEPTH_LUMA(ePicFormat) : AL_GET_BITDEPTH_CHROMA(ePicFormat);
+}
+
+static AL_INLINE AL_EChromaMode AL_GET_CHROMA_MODE(AL_EPicFormat ePicFormat)
+{
+  return (AL_EChromaMode)((ePicFormat & 0x0F00) >> 8);
+}
+
+static AL_INLINE void AL_SET_BITDEPTH_LUMA(AL_EPicFormat* pPicFormat, int iLumaBitDepth)
+{
+  assert(pPicFormat);
+  assert(iLumaBitDepth <= 0xF);
+  *pPicFormat = (AL_EPicFormat)((*pPicFormat & 0xFFF0) | (iLumaBitDepth & 0x000F));
+}
+
+static AL_INLINE void AL_SET_BITDEPTH_CHROMA(AL_EPicFormat* pPicFormat, int iChromaBitDepth)
+{
+  assert(pPicFormat);
+  assert(iChromaBitDepth <= 0xF);
+  *pPicFormat = (AL_EPicFormat)((*pPicFormat & 0xFF0F) | ((iChromaBitDepth << 4) & 0x00F0));
+}
+
+static AL_INLINE void AL_SET_BITDEPTH(AL_EPicFormat* pPicFormat, int iBitDepth)
+{
+  assert(pPicFormat);
+  assert(iBitDepth <= 0xF);
+  AL_SET_BITDEPTH_LUMA(pPicFormat, iBitDepth);
+  AL_SET_BITDEPTH_CHROMA(pPicFormat, iBitDepth);
+}
+
+static AL_INLINE void AL_SET_CHROMA_MODE(AL_EPicFormat* pPicFormat, AL_EChromaMode eChromaMode)
+{
+  assert(pPicFormat);
+  assert((int)eChromaMode <= 0xF);
+  *pPicFormat = (AL_EPicFormat)((*pPicFormat & 0xF0FF) | (((int)eChromaMode << 8) & 0x0F00));
+}
 
 /*************************************************************************//*!
    \brief Encoding High level syntax enum
@@ -143,48 +182,48 @@ typedef enum __AL_ALIGNED__ (4) AL_e_HlsFlag
   AL_PPS_DISABLE_LF = 0x00002000,
 } AL_EHlsFlag;
 
-static inline uint32_t AL_GET_SPS_LOG2_MAX_POC(uint32_t uHlsParam)
+static AL_INLINE uint32_t AL_GET_SPS_LOG2_MAX_POC(uint32_t uHlsParam)
 {
   return (uHlsParam & AL_SPS_LOG2_MAX_POC_MASK) + 1;
 }
 
-static inline void AL_SET_SPS_LOG2_MAX_POC(uint32_t* pHlsParam, int iLog2MaxPoc)
+static AL_INLINE void AL_SET_SPS_LOG2_MAX_POC(uint32_t* pHlsParam, int iLog2MaxPoc)
 {
   assert(pHlsParam);
   assert(iLog2MaxPoc <= 16);
   *pHlsParam = ((*pHlsParam & ~AL_SPS_LOG2_MAX_POC_MASK) | (iLog2MaxPoc - 1));
 }
 
-static inline uint32_t AL_GET_SPS_LOG2_MAX_FRAME_NUM(uint32_t uHlsParam)
+static AL_INLINE uint32_t AL_GET_SPS_LOG2_MAX_FRAME_NUM(uint32_t uHlsParam)
 {
   return (uHlsParam & AL_SPS_LOG2_MAX_FRAME_NUM_MASK) >> 4;
 }
 
-static inline void AL_SET_SPS_LOG2_MAX_FRAME_NUM(uint32_t* pHlsParam, int iLog2MaxFrameNum)
+static AL_INLINE void AL_SET_SPS_LOG2_MAX_FRAME_NUM(uint32_t* pHlsParam, int iLog2MaxFrameNum)
 {
   assert(pHlsParam);
   assert(iLog2MaxFrameNum < 0xF);
   *pHlsParam = ((*pHlsParam & ~AL_SPS_LOG2_MAX_FRAME_NUM_MASK) | (iLog2MaxFrameNum << 4));
 }
 
-static inline uint32_t AL_GET_SPS_LOG2_NUM_SHORT_TERM_RPS(uint32_t uHlsParam)
+static AL_INLINE uint32_t AL_GET_SPS_LOG2_NUM_SHORT_TERM_RPS(uint32_t uHlsParam)
 {
   return (uHlsParam & AL_SPS_LOG2_NUM_SHORT_TERM_RPS_MASK) >> 8;
 }
 
-static inline void AL_SET_SPS_LOG2_NUM_SHORT_TERM_RPS(uint32_t* pHlsParam, int iLog2NumShortTermRps)
+static AL_INLINE void AL_SET_SPS_LOG2_NUM_SHORT_TERM_RPS(uint32_t* pHlsParam, int iLog2NumShortTermRps)
 {
   assert(pHlsParam);
   assert(iLog2NumShortTermRps < 0x3F);
   *pHlsParam = ((*pHlsParam & ~AL_SPS_LOG2_NUM_SHORT_TERM_RPS_MASK) | (iLog2NumShortTermRps << 8));
 }
 
-static inline uint32_t AL_GET_SPS_LOG2_NUM_LONG_TERM_RPS(uint32_t uHlsParam)
+static AL_INLINE uint32_t AL_GET_SPS_LOG2_NUM_LONG_TERM_RPS(uint32_t uHlsParam)
 {
   return (uHlsParam & AL_SPS_LOG2_NUM_LONG_TERM_RPS_MASK) >> 14;
 }
 
-static inline void AL_SET_SPS_LOG2_NUM_LONG_TERM_RPS(uint32_t* pHlsParam, int iLog2NumLongTermRps)
+static AL_INLINE void AL_SET_SPS_LOG2_NUM_LONG_TERM_RPS(uint32_t* pHlsParam, int iLog2NumLongTermRps)
 {
   assert(pHlsParam);
   assert(iLog2NumLongTermRps < 0xFC);
@@ -200,7 +239,7 @@ static inline void AL_SET_SPS_LOG2_NUM_LONG_TERM_RPS(uint32_t* pHlsParam, int iL
 #define AL_GET_PPS_OVERRIDE_LF(HlsParam) (((HlsParam) & AL_PPS_OVERRIDE_LF) >> 12)
 #define AL_GET_PPS_DISABLE_LF(HlsParam) (((HlsParam) & AL_PPS_DISABLE_LF) >> 13)
 
-static inline uint32_t AL_GET_PPS_NUM_ACT_REF_L0(uint32_t HlsParam)
+static AL_INLINE uint32_t AL_GET_PPS_NUM_ACT_REF_L0(uint32_t HlsParam)
 {
   uint32_t uNumRefL0Minus1 = (HlsParam & AL_PPS_NUM_ACT_REF_L0) >> 4;
 
@@ -209,7 +248,7 @@ static inline uint32_t AL_GET_PPS_NUM_ACT_REF_L0(uint32_t HlsParam)
   return uNumRefL0Minus1;
 }
 
-static inline uint32_t AL_GET_PPS_NUM_ACT_REF_L1(uint32_t HlsParam)
+static AL_INLINE uint32_t AL_GET_PPS_NUM_ACT_REF_L1(uint32_t HlsParam)
 {
   uint32_t uNumRefL1Minus1 = (HlsParam & AL_PPS_NUM_ACT_REF_L1) >> 8;
 
@@ -218,7 +257,7 @@ static inline uint32_t AL_GET_PPS_NUM_ACT_REF_L1(uint32_t HlsParam)
   return uNumRefL1Minus1;
 }
 
-static inline uint32_t AL_GetNumberOfRef(uint32_t HlsParam)
+static AL_INLINE uint32_t AL_GetNumberOfRef(uint32_t HlsParam)
 {
   /* this takes advantage of the fact that the number of L0 ref is always
    * bigger than the number of L1 refs */

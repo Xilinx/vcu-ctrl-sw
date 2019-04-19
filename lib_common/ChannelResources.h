@@ -52,3 +52,12 @@ int AL_CoreConstraint_GetMinCoresCount(AL_CoreConstraint* constraint, int width)
 
 int AL_GetResources(int width, int height, int frameRate, int clockRatio);
 
+/* Doesn't support NUMCORE_AUTO, only works on actual number of cores. */
+typedef struct
+{
+  int requiredWidthInCtbPerCore;
+  int actualWidthInCtbPerCore; /* calculated without taking the alignement of the cores in consideration */
+}AL_NumCoreDiagnostic;
+
+bool AL_Constraint_NumCoreIsSane(int width, int numCore, int maxCuSize, AL_NumCoreDiagnostic* diagnostic);
+

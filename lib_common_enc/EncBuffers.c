@@ -142,8 +142,7 @@ int AL_CalculatePitchValue(int iWidth, uint8_t uBitDepth, AL_EFbStorageMode eSto
 
 int AL_EncGetMinPitch(int iWidth, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode)
 {
-  int const iBurstAlignment = 32;
-  return ComputeRndPitch(iWidth, uBitDepth, eStorageMode, iBurstAlignment);
+  return ComputeRndPitch(iWidth, uBitDepth, eStorageMode, HW_IP_BURST_ALIGNMENT);
 }
 
 /****************************************************************************/

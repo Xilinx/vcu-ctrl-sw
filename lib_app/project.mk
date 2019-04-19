@@ -6,7 +6,9 @@ LIB_APP_SRC:=lib_app/utils.cpp\
 
 
 ifeq ($(findstring mingw,$(TARGET)),mingw)
+  LIB_APP_SRC+=lib_app/plateform_windows.cpp
 else
   LIB_APP_SRC+=lib_app/console_linux.cpp
+  LIB_APP_SRC+=lib_app/plateform_linux.cpp
 endif
 
