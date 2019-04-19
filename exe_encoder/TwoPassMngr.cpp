@@ -117,6 +117,7 @@ void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings)
   auto& channel = settings.tChParam[0];
   channel.tRCParam.eRCMode = AL_RC_CONST_QP;
   channel.tRCParam.iInitialQP = 20;
+  channel.tRCParam.eOptions = (AL_ERateCtrlOption)(channel.tRCParam.eOptions & (~AL_RC_OPT_ENABLE_SKIP));
   channel.tGopParam.eMode = AL_GOP_MODE_LOW_DELAY_P;
   channel.tGopParam.uGopLength = 0;
   channel.tGopParam.uNumB = 0;
