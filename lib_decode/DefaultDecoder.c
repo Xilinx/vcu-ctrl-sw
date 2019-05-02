@@ -782,7 +782,8 @@ static int FindNextDecodingUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* iLas
 static int FillNalInfo(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* iLastVclNalInAU)
 {
   pCtx->pInputBuffer = pStream;
-  RefillStartCodes(pCtx, pStream);
+  while(RefillStartCodes(pCtx, pStream) != false)
+    ;
   int iNalCount = pCtx->uNumSC;
   AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
   bool bIsEndOfFrame = false;
