@@ -1,0 +1,50 @@
+Creation of the firmware
+=========================
+
+Calling make will compile your plugin (specify the sources in plugin.mk) and
+will wrap the firmware with your plugin.
+
+$ make -f MakefilePlugin
+
+Compilation results are the new firmware bin/plugged_al5e.fw and bin/plugged_al5e_b.fw
+
+Integration
+===========
+
+$ cp bin/plugged_al5e.fw /lib/firmware/al5e.fw
+$ cp bin/plugged_al5e_b.fw /lib/firmware/al5e_b.fw
+$ insmod allegro
+$ insmod al5e
+$ ./bin/AL_Encoder.exe -cfg test/config/encode_simple.cfg --ratectrl-mode PLUGIN
+$ dmesg
+
+you should see traces in dmesg showing that the rate ctrl plugin was
+correctly called
+
+Source Code
+===========
+
+* PluginInterface.h contains the interface your plugin needs to implement.
+* ExampleRCPlugin.c contains a rate ctrl plugin which traces all the call to the
+api.
+
+Misc
+====
+- use a non default soft location:
+
+$ SOFT=path/to/your/vcu-ctrl-sw make # default is ..
+
+- lib/ contains precompiled xilinx microblaze libraries. You can provide your own
+if you want to.
+
+- the firmware compilation requires xilinx microblaze toolchain. (mb-gcc)
+
+FAQ
+===
+
+* I get the warning microblaze-xilinx-elf/bin/ld: warning: cannot find entry symbol _start; defaulting to 80081000 while compiling:
+
+  This is expected, the plugin program doesn't have the main / _start function as it is called from the firmware. This isn't dependant on PL_DDR or DDR_HI address.
+
+* To use the plugin rate control, specify RateCtrlMode = PLUGIN in the configuration file, or add --set "[RATE_CONTROL] RateCtrlMode = PLUGIN" to the commandline. You can also use --ratectrl-mode PLUGIN.
+
