@@ -262,7 +262,7 @@ int Rtos_DriverIoctl(void* drv, unsigned long int req, void* data)
   return -1; // not implemented
 }
 
-int Rtos_DriverPoll(void* drv, int timeout)
+int Rtos_DriverPoll(void* drv, int timeout, unsigned long flags)
 {
   (void)drv, (void)timeout;
   return -1; // not implemented
@@ -574,11 +574,23 @@ int Rtos_DriverIoctl(void* drv, unsigned long int req, void* data)
 }
 
 #include <poll.h>
-int Rtos_DriverPoll(void* drv, int timeout)
+int Rtos_DriverPoll(void* drv, int timeout, unsigned long flags)
 {
   struct pollfd pollData;
+  pollData.events = 0;
+
+  if(flags & AL_POLLPRI)
+    pollData.events |= POLLPRI;
+
+  if(flags & AL_POLLIN)
+    pollData.events |= POLLIN;
+
+  if(flags & AL_POLLOUT)
+    pollData.events |= POLLOUT;
+
+  if(flags & AL_POLLERR)
+    pollData.events |= POLLERR;
   pollData.fd = (int)(intptr_t)drv;
-  pollData.events = POLLPRI | POLLIN;
   return poll(&pollData, 1, timeout);
 }
 

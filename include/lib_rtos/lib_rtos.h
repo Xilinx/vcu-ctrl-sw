@@ -116,7 +116,13 @@ void Rtos_DeleteThread(AL_THREAD Thread);
 void* Rtos_DriverOpen(char const* name);
 void Rtos_DriverClose(void* drv);
 int Rtos_DriverIoctl(void* drv, unsigned long int req, void* data);
-int Rtos_DriverPoll(void* drv, int timeout);
+
+#define AL_POLLPRI 1
+#define AL_POLLIN 2
+#define AL_POLLOUT 4
+#define AL_POLLERR 8
+
+int Rtos_DriverPoll(void* drv, int timeout, unsigned long flags);
 
 /****************************************************************************/
 /*  Atomics */

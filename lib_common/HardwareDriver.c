@@ -78,7 +78,7 @@ static AL_EDriverError PostMessage(AL_TDriver* driver, int fd, long unsigned int
       iRet = Rtos_DriverIoctl((void*)(intptr_t)fd, messageId, data);
     else
     {
-      iRet = Rtos_DriverPoll((void*)(intptr_t)fd, *(int*)data);
+      iRet = Rtos_DriverPoll((void*)(intptr_t)fd, *(int*)data, AL_POLLPRI);
 
       if(iRet == 0)
         return DRIVER_TIMEOUT;
