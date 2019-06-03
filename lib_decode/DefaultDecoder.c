@@ -250,7 +250,8 @@ void AL_Default_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus)
   if(AL_DEC_IS_PIC_STATE_ENABLED(pStatus->tDecPicState, AL_DEC_PIC_STATE_NOT_FINISHED))
   {
     /* we want to notify the user, but we don't want to update the decoder state */
-    AL_sDecoder_CallDecode(pCtx, iFrameID);
+    AL_TBuffer* pDecodedFrame = AL_PictMngr_GetDisplayBufferFromID(&pCtx->PictMngr, iFrameID);
+    pCtx->decodeCB.func(pDecodedFrame, pCtx->decodeCB.userParam);
     AL_TInfoDecode info = { 0 };
     AL_TBuffer* pFrameToDisplay = AL_PictMngr_ForceDisplayBuffer(&pCtx->PictMngr, &info, iFrameID);
     pCtx->displayCB.func(pFrameToDisplay, &info, pCtx->displayCB.userParam);
