@@ -99,7 +99,7 @@ typedef struct AL_t_IDecChannelVtable
    \brief De-initializes the scheduler
    \return return true
 *****************************************************************************/
-static inline
+static AL_INLINE
 void AL_IDecChannel_Destroy(AL_TIDecChannel* pThis)
 {
   pThis->vtable->Destroy(pThis);
@@ -113,7 +113,7 @@ void AL_IDecChannel_Destroy(AL_TIDecChannel* pThis)
    \return return the channel ID if the creation is successfull
               255 otherwise(invalide channel ID)
 *****************************************************************************/
-static inline
+static AL_INLINE
 AL_ERR AL_IDecChannel_Configure(AL_TIDecChannel* pThis, AL_TDecChanParam* pChParam, AL_CB_EndFrameDecoding callback)
 {
   return pThis->vtable->Configure(pThis, pChParam, callback);
@@ -127,7 +127,7 @@ AL_ERR AL_IDecChannel_Configure(AL_TIDecChannel* pThis, AL_TDecChanParam* pChPar
    \param[in] callback Start code callback structure
    \return return true
 *****************************************************************************/
-static inline
+static AL_INLINE
 void AL_IDecChannel_SearchSC(AL_TIDecChannel* pThis, AL_TScParam* pScParam, AL_TScBufferAddrs* pBufferAddrs, AL_CB_EndStartCode callback)
 {
   pThis->vtable->SearchSC(pThis, pScParam, pBufferAddrs, callback);
@@ -141,7 +141,7 @@ void AL_IDecChannel_SearchSC(AL_TIDecChannel* pThis, AL_TScParam* pScParam, AL_T
    \return return true if the decoding launch is successfull
               false otherwise
 *****************************************************************************/
-static inline
+static AL_INLINE
 void AL_IDecChannel_DecodeOneFrame(AL_TIDecChannel* pThis, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* pSliceParams)
 {
   pThis->vtable->DecodeOneFrame(pThis, pPictParam, pPictAddrs, pSliceParams);
@@ -156,7 +156,7 @@ void AL_IDecChannel_DecodeOneFrame(AL_TIDecChannel* pThis, AL_TDecPicParam* pPic
    \return return true if the decoding launch is successfull
               false otherwise
 *****************************************************************************/
-static inline
+static AL_INLINE
 void AL_IDecChannel_DecodeOneSlice(AL_TIDecChannel* pThis, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* pSliceParams)
 {
   pThis->vtable->DecodeOneSlice(pThis, pPictParam, pPictAddrs, pSliceParams);

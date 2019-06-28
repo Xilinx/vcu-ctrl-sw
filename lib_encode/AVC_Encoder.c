@@ -40,13 +40,11 @@
 #include "lib_common/Utils.h"
 #include "lib_common/Error.h"
 
-static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, bool bResolutionChanged, uint8_t uNalID, AL_TBuffer* pStream, int iLayerID)
+static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_HLSInfo const* pHLSInfo, AL_TBuffer* pStream, int iLayerID)
 {
-  if(bResolutionChanged)
-    AL_AVC_UpdateSPS(&pCtx->tLayerCtx[iLayerID].sps, &pCtx->Settings, pPicStatus, uNalID);
-
-  AL_AVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, pPicStatus, bResolutionChanged, uNalID);
-  AVC_GenerateSections(pCtx, pStream, pPicStatus);
+  AL_AVC_UpdateSPS(&pCtx->tLayerCtx[iLayerID].sps, &pCtx->Settings, pPicStatus, pHLSInfo);
+  bool bForceWritePPS = AL_AVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, pPicStatus, pHLSInfo);
+  AVC_GenerateSections(pCtx, pStream, pPicStatus, bForceWritePPS);
 
   if(pPicStatus->eType == AL_SLICE_I)
     pCtx->seiData.cpbRemovalDelay = 0;
@@ -74,10 +72,13 @@ static void initHlsSps(AL_TEncChanParam* pChParam, uint32_t* pSpsParam)
   *pSpsParam = AL_SPS_TEMPORAL_MVP_EN_FLAG; // TODO
 
   int log2_max_poc = (pChParam->tRCParam.eOptions & AL_RC_OPT_ENABLE_SKIP) ? 16 : 10;
+
+  if(AL_IS_XAVC(pChParam->eProfile))
+    log2_max_poc = 4;
   AL_SET_SPS_LOG2_MAX_POC(pSpsParam, log2_max_poc);
   int log2_max_frame_num_minus4 = 0; // This value SHOULD be equals to IP_Utils SPS
 
-  if(pChParam->tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL && pChParam->tGopParam.uNumB == 15)
+  if((pChParam->tGopParam.eMode & AL_GOP_FLAG_PYRAMIDAL) && pChParam->tGopParam.uNumB == 15)
     log2_max_frame_num_minus4 = 1;
 
   else if(isGdrEnabled(pChParam))
@@ -117,9 +118,9 @@ static void ComputeQPInfo(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
   if(pChParam->tRCParam.iMaxQP < pChParam->tRCParam.iMinQP)
     pChParam->tRCParam.iMaxQP = pChParam->tRCParam.iMinQP;
 
-  if(pCtx->Settings.eQpCtrlMode == RANDOM_QP
-     || pCtx->Settings.eQpCtrlMode == BORDER_QP
-     || pCtx->Settings.eQpCtrlMode == RAMP_QP)
+  if(pCtx->Settings.eQpCtrlMode == AL_RANDOM_QP
+     || pCtx->Settings.eQpCtrlMode == AL_BORDER_QP
+     || pCtx->Settings.eQpCtrlMode == AL_RAMP_QP)
   {
     int iCbOffset = pChParam->iCbPicQpOffset;
     int iCrOffset = pChParam->iCrPicQpOffset;
@@ -145,7 +146,7 @@ static void generateNals(AL_TEncCtx* pCtx, int iLayerID, bool bWriteVps)
 
   uint32_t uCpbBitSize = (uint32_t)((uint64_t)pChParam->tRCParam.uCPBSize * (uint64_t)pChParam->tRCParam.uMaxBitRate / 90000LL);
   AL_AVC_GenerateSPS(&pCtx->tLayerCtx[0].sps, &pCtx->Settings, pCtx->iMaxNumRef, uCpbBitSize);
-  AL_AVC_GeneratePPS(&pCtx->tLayerCtx[0].pps, &pCtx->Settings, pCtx->iMaxNumRef);
+  AL_AVC_GeneratePPS(&pCtx->tLayerCtx[0].pps, &pCtx->Settings, pCtx->iMaxNumRef, &pCtx->tLayerCtx[0].sps);
 }
 
 static void ConfigureChannel(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TEncSettings const* pSettings)

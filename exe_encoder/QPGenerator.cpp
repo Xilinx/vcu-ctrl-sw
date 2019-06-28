@@ -282,7 +282,7 @@ static void ReadQPs(ifstream& qpFile, uint8_t* pQPs, int iNumLCUs, int iNumQPPer
 }
 
 #ifdef _MSC_VER
-#include <stdarg.h>
+#include <cstdarg>
 static AL_INLINE
 int LIBSYS_SNPRINTF(char* str, size_t size, const char* format, ...)
 {
@@ -391,8 +391,7 @@ static bool get_motif(char* sLine, string motif, int& iPos)
 /****************************************************************************/
 static int get_id(char* sLine, int iPos)
 {
-  int iID = atoi(sLine + iPos);
-  return iID;
+  return atoi(sLine + iPos);
 }
 
 /****************************************************************************/
@@ -400,14 +399,11 @@ static bool check_frame_id(char* sLine, int iFrameID)
 {
   int iPos;
 
-  if(get_motif(sLine, "frame", iPos))
-  {
-    int iID = get_id(sLine, iPos);
+  if(!get_motif(sLine, "frame", iPos))
+    return false;
+  int iID = get_id(sLine, iPos);
 
-    if(iID == iFrameID)
-      return true;
-  }
-  return false;
+  return iID == iFrameID;
 }
 
 /****************************************************************************/
@@ -506,16 +502,14 @@ static void get_dual_value(char* sLine, char separator, int& iPos, int& iValue1,
   iValue1 = atoi(sLine + iPos);
 
   while(sLine[++iPos] != separator)
-  {
-  }
+    ;
 
   ++iPos;
 
   iValue2 = atoi(sLine + iPos);
 
   while(sLine[++iPos] != ',')
-  {
-  }
+    ;
 
   ++iPos;
 }
@@ -677,14 +671,14 @@ bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, in
     Rtos_Memset(pSegs, 0, 8 * sizeof(int16_t));
 
   int iQPMode = eMode & 0x0F; // exclusive mode
-  bool bRelative = (eMode & RELATIVE_QP) ? true : false;
+  bool bRelative = (eMode & AL_RELATIVE_QP);
 
   if(bRelative)
   {
     int iMinus = bIsAOM ? 128 : 32;
     int iPlus = bIsAOM ? 127 : 31;
 
-    if(iQPMode == RANDOM_QP)
+    if(iQPMode == AL_RANDOM_QP)
     {
       iMinQP = -iMinus;
       iMaxQP = iPlus;
@@ -699,28 +693,28 @@ bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, in
   /////////////////////////////////  QPs  /////////////////////////////////////
   switch(iQPMode)
   {
-  case RAMP_QP:
+  case AL_RAMP_QP:
   {
     bIsAOM ? Generate_RampQP_VP9(pSegs, pQPs, iNumLCUs, iMinQP, iMaxQP) :
     Generate_RampQP(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iMinQP, iMaxQP);
     bRet = true;
   } break;
   // ------------------------------------------------------------------------
-  case RANDOM_QP:
+  case AL_RANDOM_QP:
   {
     bIsAOM ? Generate_RandomQP_VP9(pSegs, pQPs, iNumLCUs, iMinQP, iMaxQP, iSliceQP) :
     Generate_RandomQP(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iMinQP, iMaxQP, iSliceQP);
     bRet = true;
   } break;
   // ------------------------------------------------------------------------
-  case BORDER_QP:
+  case AL_BORDER_QP:
   {
     bIsAOM ? Generate_BorderQP_VP9(pSegs, pQPs, iNumLCUs, iLCUWidth, iLCUHeight, iMaxQP, iSliceQP, bRelative) :
     Generate_BorderQP(pQPs, iNumLCUs, iLCUWidth, iLCUHeight, iNumQPPerLCU, iNumBytesPerLCU, iMaxQP, iSliceQP, bRelative);
     bRet = true;
   } break;
   // ------------------------------------------------------------------------
-  case LOAD_QP:
+  case AL_LOAD_QP:
   {
     bRet = bIsAOM ? Load_QPTable_FromFile_Vp9(pSegs, pQPs, iNumLCUs, sQPTablesFolder, iFrameID, bRelative) :
            Load_QPTable_FromFile(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, sQPTablesFolder, iFrameID);
@@ -728,15 +722,15 @@ bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, in
   }
 
   // ------------------------------------------------------------------------
-  if((eMode != UNIFORM_QP) && (iQPMode == UNIFORM_QP) && !bRelative)
+  if((eMode != AL_UNIFORM_QP) && (iQPMode == AL_UNIFORM_QP) && !bRelative)
   {
-    int s;
-
     if(bIsAOM)
-      for(s = 0; s < 8; ++s)
+    {
+      for(int s = 0; s < 8; ++s)
         pSegs[2 * s] = iSliceQP;
-
+    }
     else
+    {
       for(int iLCU = 0; iLCU < iNumLCUs; iLCU++)
       {
         int iFirst = iLCU * iNumBytesPerLCU;
@@ -744,29 +738,30 @@ bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, in
         for(int iQP = 0; iQP < iNumQPPerLCU; ++iQP)
           pQPs[iFirst + iQP] = iSliceQP;
       }
+    }
   }
   // ------------------------------------------------------------------------
 
-  if(eMode & RANDOM_I_ONLY)
+  if(eMode & AL_RANDOM_I_ONLY)
   {
     Generate_Random_WithFlag(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iSliceQP, iRandFlag++, 20, MASK_FORCE_INTRA); // 20 percent
     bRet = true;
   }
 
   // ------------------------------------------------------------------------
-  if(eMode & RANDOM_SKIP)
+  if(eMode & AL_RANDOM_SKIP)
   {
     Generate_Random_WithFlag(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iSliceQP, iRandFlag++, 30, MASK_FORCE_MV0); // 30 percent
     bRet = true;
   }
 
   // ------------------------------------------------------------------------
-  if(eMode & FULL_SKIP)
+  if(eMode & AL_FULL_SKIP)
   {
     Generate_FullSkip(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU);
     bRet = true;
   }
-  else if(eMode & BORDER_SKIP)
+  else if(eMode & AL_BORDER_SKIP)
   {
     Generate_BorderSkip(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iLCUWidth, iLCUHeight);
     bRet = true;

@@ -55,9 +55,7 @@ namespace
 {
 struct INalParser
 {
-  ~INalParser()
-  {
-  }
+  virtual ~INalParser() = default;
 
   virtual int ReadNut(uint8_t* pBuf, uint32_t iSize, uint32_t& uCurOffset) = 0;
   virtual bool IsAUD(AL_ENut eNut) = 0;

@@ -221,7 +221,44 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
   {
     return std::max(std::min((uint16_t)((value + 28.0) * 100), (uint16_t)4800), (uint16_t)2800);
   }, [](uint16_t value) { return (double)value / 100 - 28.0; });
-  parser.addArithMultipliedByConstant(curSection, "MaxPictureSize", RCParam.uMaxPictureSize, 1000);
+  std::map<string, int> MaxPicSizeEnums;
+  MaxPicSizeEnums["DISABLE"] = 0;
+  parser.addCustom(curSection, "MaxPictureSize", [&](std::deque<Token>& tokens)
+  {
+    int size = 0;
+
+    if(hasOnlyOneIdentifier(tokens))
+      size = parseEnum(tokens, MaxPicSizeEnums);
+    else
+      size = parseArithmetic<int>(tokens) * 1000;
+
+    for(auto& picSize :  RCParam.pMaxPictureSize)
+      picSize = size;
+  }, [&]()
+  {
+    return "";
+  }, "Specifies a coarse picture size in Kbits that shouldn't be exceeded. Available Values: <Arithmetic expression> or DISABLE to not contrain the picture size");
+  parser.addArithFuncOrEnum(curSection, "MaxPictureSize.I", RCParam.pMaxPictureSize[AL_SLICE_I], [](int size)
+  {
+    return size * 1000;
+  }, [](uint32_t size)
+  {
+    return size / 1000;
+  }, MaxPicSizeEnums, "Specifies a coarse size (in Kbits) for I-frame that shouldn't be exceeded");
+  parser.addArithFuncOrEnum(curSection, "MaxPictureSize.P", RCParam.pMaxPictureSize[AL_SLICE_P], [](int size)
+  {
+    return size * 1000;
+  }, [](uint32_t size)
+  {
+    return size / 1000;
+  }, MaxPicSizeEnums, "Specifies a coarse size (in Kbits) for P-frame that shouldn't be exceeded");
+  parser.addArithFuncOrEnum(curSection, "MaxPictureSize.B", RCParam.pMaxPictureSize[AL_SLICE_B], [](int size)
+  {
+    return size * 1000;
+  }, [](uint32_t size)
+  {
+    return size / 1000;
+  }, MaxPicSizeEnums, "Specifies a coarse size (in Kbits) for B-frame that shouldn't be exceeded");
   parser.addFlag(curSection, "EnableSkip", RCParam.eOptions, AL_RC_OPT_ENABLE_SKIP);
 }
 
@@ -237,6 +274,8 @@ static void populateGopSection(ConfigParser& parser, ConfigFile& cfg)
   std::map<string, int> gopCtrlModes {};
   gopCtrlModes["DEFAULT_GOP"] = AL_GOP_MODE_DEFAULT;
   gopCtrlModes["PYRAMIDAL_GOP"] = AL_GOP_MODE_PYRAMIDAL;
+  gopCtrlModes["DEFAULT_GOP_B"] = AL_GOP_MODE_DEFAULT_B;
+  gopCtrlModes["PYRAMIDAL_GOP_B"] = AL_GOP_MODE_PYRAMIDAL_B;
   gopCtrlModes["ADAPTIVE_GOP"] = AL_GOP_MODE_ADAPTIVE;
   gopCtrlModes["BYPASS"] = AL_GOP_MODE_BYPASS;
   gopCtrlModes["LOW_DELAY_P"] = AL_GOP_MODE_LOW_DELAY_P;
@@ -288,6 +327,14 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   profiles["AVC_HIGH"] = AL_PROFILE_AVC_HIGH;
   profiles["AVC_C_HIGH"] = AL_PROFILE_AVC_C_HIGH;
   profiles["AVC_PROG_HIGH"] = AL_PROFILE_AVC_PROG_HIGH;
+  profiles["XAVC_HIGH10_INTRA_CBG"] = AL_PROFILE_XAVC_HIGH10_INTRA_CBG;
+  profiles["XAVC_HIGH10_INTRA_VBR"] = AL_PROFILE_XAVC_HIGH10_INTRA_VBR;
+  profiles["XAVC_HIGH_422_INTRA_CBG"] = AL_PROFILE_XAVC_HIGH_422_INTRA_CBG;
+  profiles["XAVC_HIGH_422_INTRA_VBR"] = AL_PROFILE_XAVC_HIGH_422_INTRA_VBR;
+  profiles["XAVC_LONG_GOP_MAIN_MP4"] = AL_PROFILE_XAVC_LONG_GOP_MAIN_MP4;
+  profiles["XAVC_LONG_GOP_HIGH_MP4"] = AL_PROFILE_XAVC_LONG_GOP_HIGH_MP4;
+  profiles["XAVC_LONG_GOP_HIGH_MXF"] = AL_PROFILE_XAVC_LONG_GOP_HIGH_MXF;
+  profiles["XAVC_LONG_GOP_HIGH_422_MXF"] = AL_PROFILE_XAVC_LONG_GOP_HIGH_422_MXF;
   parser.addEnum(curSection, "Profile", cfg.Settings.tChParam[0].eProfile, profiles, "Specifies the profile to which the bitstream conforms");
   parser.addArithFunc<uint8_t, double>(curSection, "Level", cfg.Settings.tChParam[0].uLevel, [](double value)
   {
@@ -320,6 +367,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   parser.addBool(curSection, "EnableFillerData", cfg.Settings.bEnableFillerData, "Specifies if filler data can be added to the stream or not");
   std::map<string, int> aspectRatios;
   aspectRatios["ASPECT_RATIO_AUTO"] = AL_ASPECT_RATIO_AUTO;
+  aspectRatios["ASPECT_RATIO_1_1"] = AL_ASPECT_RATIO_1_1;
   aspectRatios["ASPECT_RATIO_4_3"] = AL_ASPECT_RATIO_4_3;
   aspectRatios["ASPECT_RATIO_16_9"] = AL_ASPECT_RATIO_16_9;
   aspectRatios["ASPECT_RATIO_NONE"] = AL_ASPECT_RATIO_NONE;
@@ -390,19 +438,19 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   parser.addEnum(curSection, "ScalingList", cfg.Settings.eScalingList, scalingmodes, "Specifies the scaling list mode");
   parser.addPath(curSection, "FileScalingList", temp.sScalingListFile, "if ScalingList is CUSTOM, specifies the file containing the quantization matrices");
   std::map<string, int> qpctrls {};
-  qpctrls["UNIFORM_QP"] = UNIFORM_QP;
-  qpctrls["ROI_QP"] = ROI_QP;
-  qpctrls["AUTO_QP"] = AUTO_QP;
-  qpctrls["ADAPTIVE_AUTO_QP"] = ADAPTIVE_AUTO_QP;
-  qpctrls["RELATIVE_QP"] = RELATIVE_QP;
-  qpctrls["LOAD_QP"] = LOAD_QP;
+  qpctrls["UNIFORM_QP"] = AL_UNIFORM_QP;
+  qpctrls["ROI_QP"] = AL_ROI_QP;
+  qpctrls["AUTO_QP"] = AL_AUTO_QP;
+  qpctrls["ADAPTIVE_AUTO_QP"] = AL_ADAPTIVE_AUTO_QP;
+  qpctrls["RELATIVE_QP"] = AL_RELATIVE_QP;
+  qpctrls["LOAD_QP"] = AL_LOAD_QP;
   parser.addEnum(curSection, "QPCtrlMode", cfg.Settings.eQpCtrlMode, qpctrls, "Specifies how to generate the QP per CU");
 
   std::map<string, int> ldamodes {};
-  ldamodes["DEFAULT_LDA"] = DEFAULT_LDA;
-  ldamodes["AUTO_LDA"] = AUTO_LDA;
-  ldamodes["DYNAMIC_LDA"] = DYNAMIC_LDA;
-  ldamodes["LOAD_LDA"] = LOAD_LDA;
+  ldamodes["DEFAULT_LDA"] = AL_DEFAULT_LDA;
+  ldamodes["AUTO_LDA"] = AL_AUTO_LDA;
+  ldamodes["DYNAMIC_LDA"] = AL_DYNAMIC_LDA;
+  ldamodes["LOAD_LDA"] = AL_LOAD_LDA;
   parser.addEnum(curSection, "LambdaCtrlMode", cfg.Settings.tChParam[0].eLdaCtrlMode, ldamodes, "Specifies the lambda values used for rate-distortion optimization");
   parser.addCustom(curSection, "LambdaFactors", [&](std::deque<Token> tokens)
   {
@@ -851,8 +899,8 @@ static void PostParsingChecks(AL_TEncSettings& Settings)
 {
   auto& GopParam = Settings.tChParam[0].tGopParam;
 
-  if((GopParam.eMode != AL_GOP_MODE_DEFAULT)
-     && (GopParam.eMode != AL_GOP_MODE_PYRAMIDAL)
+  if((GopParam.eMode & AL_GOP_FLAG_DEFAULT)
+     && (GopParam.eMode & AL_GOP_FLAG_PYRAMIDAL)
      && (GopParam.eMode != AL_GOP_MODE_ADAPTIVE)
      && (GopParam.uNumB > 0))
     throw std::runtime_error("Unsupported Gop.NumB value in this gop mode");
@@ -871,7 +919,7 @@ static void SetDefaultValue(ConfigFile& cfg)
 
 static void DefaultLambdaFactors(AL_TEncSettings& Settings, bool bParseLambdaFactors)
 {
-  if(bParseLambdaFactors || Settings.tChParam[0].eLdaCtrlMode != LOAD_LDA)
+  if(bParseLambdaFactors || Settings.tChParam[0].eLdaCtrlMode != AL_LOAD_LDA)
     return;
 
   auto pChan = &Settings.tChParam[0];
@@ -998,6 +1046,7 @@ static void printIdentifierDescription(string& identifier, std::deque<string>& c
 static bool isDynamicSection(Section const& sectionName)
 {
   bool notSupported = false;
+  (void)sectionName;
 
   notSupported = notSupported || sectionName == Section::DynamicInput;
 

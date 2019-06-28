@@ -264,7 +264,7 @@ int Rtos_DriverIoctl(void* drv, unsigned long int req, void* data)
 
 int Rtos_DriverPoll(void* drv, int timeout, unsigned long flags)
 {
-  (void)drv, (void)timeout;
+  (void)drv, (void)timeout, (void)flags;
   return -1; // not implemented
 }
 

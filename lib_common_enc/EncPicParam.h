@@ -35,27 +35,70 @@
 *
 ******************************************************************************/
 
-#include "lib_common_enc/EncRecBuffer.h"
-#include "lib_common_enc/EncBuffers.h"
-#include "lib_common_enc/EncBuffersInternal.h"
+#pragma once
 
-/****************************************************************************/
-uint32_t AL_GetRecPitch(uint32_t uBitDepth, uint32_t uWidth)
+#include "lib_common_enc/EncPicInfo.h"
+#include "PictureInfo.h"
+#include "RefInfo.h"
+
+/*************************************************************************//*!
+   \brief Picture parameters structure
+*****************************************************************************/
+typedef struct AL_t_EncPicParam
 {
-  if(uBitDepth > 8)
-    return ((uWidth + 63) >> 6) * 320;
+  AL_TEncInfo tEncInfo;
+  AL_TPictureInfo tPicInfo;
+  AL_TRefInfo tRefInfo;
 
-  return ((uWidth + 63) >> 6) * 256;
-}
+  uint8_t uNumPicTotalCurr;
+  int32_t iLastIdrId;
+}AL_TEncPicParam;
 
-void AL_RecMetaData_FillPlanes(AL_TPlane* pRecPlanes, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bComp, bool bIsAvc)
+typedef struct
 {
-  (void)eChromaMode, (void)bComp, (void)bIsAvc; // if no fbc support
-  pRecPlanes[AL_PLANE_Y].iOffset = 0;
-  pRecPlanes[AL_PLANE_Y].iPitch = AL_GetRecPitch(uBitDepth, tDim.iWidth);
+  AL_64U pStrmUserPtr;
+  uint8_t* pStream_v;
+  AL_PADDR pStream;
+  int32_t iMaxSize;
+  int32_t iOffset;
+  int32_t iStreamPartOffset;
+}AL_EncStreamInfo;
+/*************************************************************************//*!
+   \brief Picture buffers structure
+*****************************************************************************/
+typedef struct AL_t_RecInfo
+{
+  bool bIs10bits;
+  uint32_t uPitch;
+}AL_TRecInfo;
 
-  pRecPlanes[AL_PLANE_UV].iOffset = AL_GetAllocSize_EncReference(tDim, uBitDepth, AL_CHROMA_MONO, false);
-  pRecPlanes[AL_PLANE_UV].iPitch = pRecPlanes[AL_PLANE_Y].iPitch;
+typedef struct AL_t_EncPicBufAddrsFull
+{
+  AL_TEncPicBufAddrs tBasic;
 
-}
+  AL_PADDR pRefA_Y;
+  AL_PADDR pRefA_UV;
+  AL_PADDR pRefA_MapY;
+  AL_PADDR pRefA_MapUV;
+  AL_PADDR pRefB_Y;
+  AL_PADDR pRefB_UV;
+  AL_PADDR pRefB_MapY;
+  AL_PADDR pRefB_MapUV;
+  AL_PADDR pRec_Y;
+  AL_PADDR pRec_UV;
+  AL_PADDR pRec_MapY;
+  AL_PADDR pRec_MapUV;
+  AL_PADDR pColoc;
+  AL_PADDR pMV;
+  AL_PADDR pWPP;
+  AL_PADDR pEP1;
+  AL_PADDR pEP3;
+  AL_PADDR pIntermMap;
+  AL_PADDR pIntermData;
+  AL_TRecInfo tRecInfo;
+  AL_EncStreamInfo* pStreamInfo;
+  void* pWPP_v;
+  void* pEP3_v;
+  void* pEP1_v;
+}AL_TEncPicBufAddrsFull;
 

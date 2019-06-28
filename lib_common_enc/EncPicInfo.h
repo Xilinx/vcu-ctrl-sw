@@ -94,7 +94,8 @@ typedef enum
   AL_OPT_RESTART_GOP = 0x0008,
   AL_OPT_UPDATE_PARAMS = 0x0010,
   AL_OPT_SET_QP = 0x0100,
-  AL_OPT_SET_INPUT_RESOLUTION = 0x200,
+  AL_OPT_SET_INPUT_RESOLUTION = 0x0200,
+  AL_OPT_SET_LF_OFFSETS = 0x0400,
 }AL_ERequestEncOption;
 
 
@@ -110,6 +111,8 @@ typedef struct
   AL_TRCParam rc;
   AL_TGopParam gop;
   int16_t iQPSet;
+  int8_t iLFBetaOffset;
+  int8_t iLFTcOffset;
 }AL_TEncSmartParams;
 
 typedef struct AL_t_EncRequestInfo

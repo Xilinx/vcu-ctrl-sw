@@ -175,12 +175,12 @@ private:
 
     if(AL_IS_ERROR_CODE(eErr))
     {
-      Message(CC_RED, "%s\n", EncoderErrorToString(eErr));
+      LogError("%s\n", EncoderErrorToString(eErr));
       g_EncoderLastError = eErr;
     }
 
     if(AL_IS_WARNING_CODE(eErr))
-      Message(CC_YELLOW, "%s\n", EncoderErrorToString(eErr));
+      LogWarning("%s\n", EncoderErrorToString(eErr));
 
     if(pStream)
     {

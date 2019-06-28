@@ -42,8 +42,13 @@
 
 extern int g_Verbosity;
 
-void Message(const char* sMsg, ...);
-void Message(EConColor Color, const char* sMsg, ...);
+void LogError(const char* sMsg, ...);
+void LogWarning(const char* sMsg, ...);
+void LogDimmedWarning(const char* sMsg, ...);
+void LogInfo(const char* sMsg, ...);
+void LogInfo(EConColor Color, const char* sMsg, ...);
+void LogVerbose(const char* sMsg, ...);
+void LogVerbose(EConColor Color, const char* sMsg, ...);
 
 void OpenInput(std::ifstream& fp, std::string filename, bool binary = true);
 void OpenOutput(std::ofstream& fp, std::string filename, bool binary = true);

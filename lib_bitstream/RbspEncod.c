@@ -46,11 +46,12 @@
 #include "RbspEncod.h"
 
 /*****************************************************************************/
-void AL_RbspEncoding_WriteAUD(AL_TBitStreamLite* pBS, int primary_pic_type)
+void AL_RbspEncoding_WriteAUD(AL_TBitStreamLite* pBS, AL_ESliceType eSliceType)
 {
   // 1 - Write primary_pic_type.
 
-  AL_BitStreamLite_PutU(pBS, 3, primary_pic_type);
+  static int const SliceTypeToPrimaryPicType[] = { 2, 1, 0, 4, 3, 7, 1, 7, 7 };
+  AL_BitStreamLite_PutU(pBS, 3, SliceTypeToPrimaryPicType[eSliceType]);
 
   // 2 - Write rbsp_trailing_bits.
 

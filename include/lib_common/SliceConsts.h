@@ -66,11 +66,12 @@
 /****************************************************************************/
 typedef enum AL_e_Codec
 {
-  AL_CODEC_AVC,
-  AL_CODEC_HEVC,
-  AL_CODEC_JPEG,
-  AL_CODEC_VP9,
-  AL_CODEC_AV1,
+  /* assign hardware standard value */
+  AL_CODEC_AVC = 0,
+  AL_CODEC_HEVC = 1,
+  AL_CODEC_AV1 = 2,
+  AL_CODEC_VP9 = 3,
+  AL_CODEC_JPEG = 4,
   AL_CODEC_INVALID, /* sentinel */
 }AL_ECodec;
 
@@ -95,6 +96,15 @@ typedef enum __AL_ALIGNED__ (4) AL_e_Profile
   AL_PROFILE_AVC_HIGH10_INTRA = AL_PROFILE_AVC_HIGH10 | AL_CS_FLAGS(0x0008),
   AL_PROFILE_AVC_HIGH_422_INTRA = AL_PROFILE_AVC_HIGH_422 | AL_CS_FLAGS(0x0008),
   AL_PROFILE_AVC_HIGH_444_INTRA = AL_PROFILE_AVC_HIGH_444_PRED | AL_CS_FLAGS(0x0008), // not supported
+
+  AL_PROFILE_XAVC_HIGH10_INTRA_CBG = AL_PROFILE_AVC_HIGH10 | AL_CS_FLAGS(0x1008),
+  AL_PROFILE_XAVC_HIGH10_INTRA_VBR = AL_PROFILE_AVC_HIGH10 | AL_CS_FLAGS(0x3008),
+  AL_PROFILE_XAVC_HIGH_422_INTRA_CBG = AL_PROFILE_AVC_HIGH_422 | AL_CS_FLAGS(0x1008),
+  AL_PROFILE_XAVC_HIGH_422_INTRA_VBR = AL_PROFILE_AVC_HIGH_422 | AL_CS_FLAGS(0x3008),
+  AL_PROFILE_XAVC_LONG_GOP_MAIN_MP4 = AL_PROFILE_AVC_MAIN | AL_CS_FLAGS(0x1000),
+  AL_PROFILE_XAVC_LONG_GOP_HIGH_MP4 = AL_PROFILE_AVC_HIGH | AL_CS_FLAGS(0x1000),
+  AL_PROFILE_XAVC_LONG_GOP_HIGH_MXF = AL_PROFILE_AVC_HIGH | AL_CS_FLAGS(0x5000),
+  AL_PROFILE_XAVC_LONG_GOP_HIGH_422_MXF = AL_PROFILE_AVC_HIGH_422 | AL_CS_FLAGS(0x5000),
 
   AL_PROFILE_HEVC = (AL_CODEC_HEVC << 24),
   AL_PROFILE_HEVC_MAIN = AL_PROFILE_HEVC | HEVC_PROFILE_IDC_MAIN,
@@ -140,22 +150,31 @@ static AL_INLINE int AL_GET_PROFILE_IDC(AL_EProfile eProfile)
   return eProfile & 0x000000FF;
 }
 
-#define AL_GET_PROFILE_CODED_AND_IDC(Prof) (Prof & 0xFF0000FF)
+#define AL_GET_PROFILE_CODEC_AND_IDC(Prof) (Prof & 0xFF0000FF)
 #define AL_GET_RExt_FLAGS(Prof) ((Prof & 0x00FFFF00) >> 8)
 #define AL_GET_CS_FLAGS(Prof) ((Prof & 0x00FFFF00) >> 8)
 
+
 /****************************************************************************/
-#define AL_IS_AVC(Prof) (AL_GET_PROFILE_CODEC(Prof) == AL_CODEC_AVC)
-#define AL_IS_HEVC(Prof) (AL_GET_PROFILE_CODEC(Prof) == AL_CODEC_HEVC)
+static AL_INLINE bool AL_IS_AVC(AL_EProfile eProfile)
+{
+  return AL_GET_PROFILE_CODEC(eProfile) == AL_CODEC_AVC;
+}
+
+/****************************************************************************/
+static AL_INLINE bool AL_IS_HEVC(AL_EProfile eProfile)
+{
+  return AL_GET_PROFILE_CODEC(eProfile) == AL_CODEC_HEVC;
+}
 
 /****************************************************************************/
 static AL_INLINE bool AL_IS_MONO_PROFILE(AL_EProfile eProfile)
 {
   bool bRes = (
-    (AL_GET_PROFILE_CODED_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt)
-    || (AL_GET_PROFILE_CODED_AND_IDC(eProfile) == AL_PROFILE_AVC_HIGH)
-    || (AL_GET_PROFILE_CODED_AND_IDC(eProfile) == AL_PROFILE_AVC_HIGH10)
-    || (AL_GET_PROFILE_CODED_AND_IDC(eProfile) == AL_PROFILE_AVC_HIGH_422)
+    (AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt)
+    || (AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_AVC_HIGH)
+    || (AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_AVC_HIGH10)
+    || (AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_AVC_HIGH_422)
     );
   return bRes;
 }
@@ -164,10 +183,10 @@ static AL_INLINE bool AL_IS_MONO_PROFILE(AL_EProfile eProfile)
 static AL_INLINE bool AL_IS_10BIT_PROFILE(AL_EProfile eProfile)
 {
   bool bRes = (
-    ((AL_GET_PROFILE_CODED_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt) && !(AL_GET_RExt_FLAGS(eProfile) & 0x2000))
-    || (AL_GET_PROFILE_CODED_AND_IDC(eProfile) == AL_PROFILE_HEVC_MAIN10)
-    || (AL_GET_PROFILE_CODED_AND_IDC(eProfile) == AL_PROFILE_AVC_HIGH10)
-    || (AL_GET_PROFILE_CODED_AND_IDC(eProfile) == AL_PROFILE_AVC_HIGH_422)
+    ((AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt) && !(AL_GET_RExt_FLAGS(eProfile) & 0x2000))
+    || (AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_HEVC_MAIN10)
+    || (AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_AVC_HIGH10)
+    || (AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_AVC_HIGH_422)
     );
   return bRes;
 }
@@ -177,7 +196,7 @@ static AL_INLINE bool AL_IS_420_PROFILE(AL_EProfile eProfile)
 {
   /* Only hevc mono doesn't support 420 */
   bool bIsHEVCMono = (
-    ((AL_GET_PROFILE_CODED_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt) && (AL_GET_RExt_FLAGS(eProfile) & 0x0400))
+    ((AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt) && (AL_GET_RExt_FLAGS(eProfile) & 0x0400))
     );
 
   return !bIsHEVCMono;
@@ -187,8 +206,8 @@ static AL_INLINE bool AL_IS_420_PROFILE(AL_EProfile eProfile)
 static AL_INLINE bool AL_IS_422_PROFILE(AL_EProfile eProfile)
 {
   bool bRes = (
-    ((AL_GET_PROFILE_CODED_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt) && !(AL_GET_RExt_FLAGS(eProfile) & 0x0C00))
-    || (AL_GET_PROFILE_CODED_AND_IDC(eProfile) == AL_PROFILE_AVC_HIGH_422)
+    ((AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt) && !(AL_GET_RExt_FLAGS(eProfile) & 0x0C00))
+    || (AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_AVC_HIGH_422)
     );
 
   return bRes;
@@ -198,8 +217,8 @@ static AL_INLINE bool AL_IS_422_PROFILE(AL_EProfile eProfile)
 static AL_INLINE bool AL_IS_STILL_PROFILE(AL_EProfile eProfile)
 {
   bool bRes = (
-    ((AL_GET_PROFILE_CODED_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt) && (AL_GET_RExt_FLAGS(eProfile) & 0x0100))
-    || (AL_GET_PROFILE_CODED_AND_IDC(eProfile) == AL_PROFILE_HEVC_MAIN_STILL)
+    ((AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt) && (AL_GET_RExt_FLAGS(eProfile) & 0x0100))
+    || (AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_HEVC_MAIN_STILL)
     );
   return bRes;
 }
@@ -208,7 +227,7 @@ static AL_INLINE bool AL_IS_STILL_PROFILE(AL_EProfile eProfile)
 static AL_INLINE bool AL_IS_INTRA_PROFILE(AL_EProfile eProfile)
 {
   bool bRes = (
-    ((AL_GET_PROFILE_CODED_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt) && (AL_GET_RExt_FLAGS(eProfile) & 0x0200))
+    ((AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt) && (AL_GET_RExt_FLAGS(eProfile) & 0x0200))
     || (AL_IS_AVC(eProfile) && (AL_GET_CS_FLAGS(eProfile) & 0x0008))
     );
   return bRes;
@@ -218,10 +237,61 @@ static AL_INLINE bool AL_IS_INTRA_PROFILE(AL_EProfile eProfile)
 static AL_INLINE bool AL_IS_LOW_BITRATE_PROFILE(AL_EProfile eProfile)
 {
   bool bRes = (
-    ((AL_GET_PROFILE_CODED_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt) && (AL_GET_RExt_FLAGS(eProfile) & 0x0080))
+    ((AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt) && (AL_GET_RExt_FLAGS(eProfile) & 0x0080))
     );
   return bRes;
 }
+
+/****************************************************************************/
+static AL_INLINE bool AL_IS_XAVC(AL_EProfile eProfile)
+{
+  bool bRes = (
+    (AL_IS_AVC(eProfile))
+    && ((AL_GET_CS_FLAGS(eProfile) & 0x1000) != 0)
+    );
+  return bRes;
+}
+
+/****************************************************************************/
+static AL_INLINE bool AL_IS_XAVC_CBG(AL_EProfile eProfile)
+{
+  bool bRes = (
+    (AL_IS_XAVC(eProfile))
+    && ((AL_GET_CS_FLAGS(eProfile) & 0x2000) == 0)
+    );
+  return bRes;
+}
+
+/****************************************************************************/
+static AL_INLINE bool AL_IS_XAVC_VBR(AL_EProfile eProfile)
+{
+  bool bRes = (
+    (AL_IS_XAVC(eProfile))
+    && ((AL_GET_CS_FLAGS(eProfile) & 0x2000) != 0)
+    );
+  return bRes;
+}
+
+/****************************************************************************/
+static AL_INLINE bool AL_IS_XAVC_MP4(AL_EProfile eProfile)
+{
+  bool bRes = (
+    (AL_IS_XAVC(eProfile))
+    && ((AL_GET_CS_FLAGS(eProfile) & 0x4000) == 0)
+    );
+  return bRes;
+}
+
+/****************************************************************************/
+static AL_INLINE bool AL_IS_XAVC_MXF(AL_EProfile eProfile)
+{
+  bool bRes = (
+    (AL_IS_XAVC(eProfile))
+    && ((AL_GET_CS_FLAGS(eProfile) & 0x4000) != 0)
+    );
+  return bRes;
+}
+
 
 /*************************************************************************//*!
    \brief Scaling List identifier
@@ -422,12 +492,12 @@ typedef enum e_SeiFlag
   AL_SEI_ALL = 0x00FFFFFF, // All supported SEI
 }AL_SeiFlag;
 
-inline static bool AL_IS_SEI_SUFFIX(AL_SeiFlag seiFlag)
+static AL_INLINE bool AL_IS_SEI_SUFFIX(AL_SeiFlag seiFlag)
 {
   return seiFlag & 0xFFF000;
 }
 
-inline static bool AL_IS_SEI_PREFIX(AL_SeiFlag seiFlag)
+static AL_INLINE bool AL_IS_SEI_PREFIX(AL_SeiFlag seiFlag)
 {
   return seiFlag & 0x000FFF;
 }

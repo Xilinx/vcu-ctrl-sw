@@ -37,6 +37,8 @@
 
 #include "AVC_Sections.h"
 #include "lib_bitstream/AVC_RbspEncod.h"
+#include <assert.h>
+#include "lib_common/StreamBuffer.h"
 
 NalHeader GetNalHeaderAvc(uint8_t uNUT, uint8_t uNalIdc, uint8_t uTempID)
 {
@@ -63,10 +65,66 @@ Nuts CreateAvcNuts(void)
   return nuts;
 }
 
-void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus)
+static int getSectionSize(AL_TStreamMetaData* pMetaData, AL_SectionFlags eFlags)
+{
+  int iSize = 0;
+
+  for(int iSection = 0; iSection < pMetaData->uNumSection; iSection++)
+  {
+    AL_TStreamSection* pSection = &pMetaData->pSections[iSection];
+
+    if(pSection->uFlags &= eFlags)
+      iSize += pSection->uLength;
+  }
+
+  return iSize;
+}
+
+void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, bool bForceWritePPS)
 {
   Nuts nuts = CreateAvcNuts();
   NalsData nalsData = AL_ExtractNalsData(pCtx, 0);
-  GenerateSections(AL_GetAvcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, pCtx->Settings.NumLayer, pCtx->Settings.tChParam[0].uNumSlices);
+  nalsData.forceWritePPS = bForceWritePPS;
+  AL_TEncChanParam const* pChannel = &pCtx->Settings.tChParam[0];
+  GenerateSections(AL_GetAvcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, 0, pChannel->uNumSlices);
+
+  if(AL_IS_XAVC_CBG(pChannel->eProfile) && AL_IS_INTRA_PROFILE(pChannel->eProfile))
+  {
+    // AUD + SPS + PPS shall be a total of 512 bytes
+    int const iChunk = 512;
+    AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
+    int iConfigSize = getSectionSize(pMetaData, AL_SECTION_CONFIG_FLAG);
+    int iLastConfigSection = AL_StreamMetaData_GetLastSectionOfFlag(pMetaData, AL_SECTION_CONFIG_FLAG);
+    AL_TStreamSection* pLastConfigSection = &pMetaData->pSections[iLastConfigSection];
+
+    if(iConfigSize < iChunk)
+    {
+      int iPaddingSize = iChunk - iConfigSize;
+      Rtos_Memset(AL_Buffer_GetData(pStream) + pLastConfigSection->uOffset + pLastConfigSection->uLength, 0x00, iPaddingSize);
+      pLastConfigSection->uLength += iPaddingSize;
+    }
+
+    // SEI messages (present or not) shall be 512*18 bytes  for the 1080p and 512*10 bytes for the 720p
+    int const iSeiMandatorySize = (pChannel->uHeight == 1080) ? iChunk * 18 : iChunk * 10;
+    assert(iSeiMandatorySize < AL_ENC_MAX_SEI_SIZE);
+    int iSeiSize = getSectionSize(pMetaData, AL_SECTION_SEI_PREFIX_FLAG);
+
+    if(iSeiSize < iSeiMandatorySize)
+    {
+      int iPaddingSize = iSeiMandatorySize - iSeiSize;
+      int iLastSeiSection = AL_StreamMetaData_GetLastSectionOfFlag(pMetaData, AL_SECTION_SEI_PREFIX_FLAG);
+
+      if(iLastSeiSection == -1)
+      {
+        Rtos_Memset(AL_Buffer_GetData(pStream) + pLastConfigSection->uOffset + pLastConfigSection->uLength, 0x00, iPaddingSize);
+        pLastConfigSection->uLength += iPaddingSize;
+        return;
+      }
+
+      AL_TStreamSection* pSection = &pMetaData->pSections[iLastSeiSection];
+      Rtos_Memset(AL_Buffer_GetData(pStream) + pSection->uOffset + pSection->uLength, 0, iPaddingSize);
+      pSection->uLength += iPaddingSize;
+    }
+  }
 }
 

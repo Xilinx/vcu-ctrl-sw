@@ -132,7 +132,7 @@ void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings)
   settings.NumLayer = 1;
   auto& channel = settings.tChParam[0];
   channel.bSubframeLatency = false;
-  channel.eLdaCtrlMode = DEFAULT_LDA;
+  channel.eLdaCtrlMode = AL_DEFAULT_LDA;
 
   if(settings.bEnableFirstPassSceneChangeDetection)
   {

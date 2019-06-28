@@ -43,7 +43,7 @@
 
 static uint32_t getExpectedSourceBufferSize(AL_TSrcBufferChecker* pCtx, int pitch, int strideHeight)
 {
-  return AL_GetAllocSizeSrc(pCtx->currentDim, pCtx->picFmt.uBitDepth, pCtx->picFmt.eChromaMode, pCtx->srcMode, pitch, strideHeight);
+  return AL_GetAllocSizeSrc(pCtx->currentDim, pCtx->picFmt.eChromaMode, pCtx->srcMode, pitch, strideHeight);
 }
 
 void AL_SrcBuffersChecker_Init(AL_TSrcBufferChecker* pCtx, AL_TEncChanParam const* pChParam)
@@ -60,13 +60,10 @@ void AL_SrcBuffersChecker_Init(AL_TSrcBufferChecker* pCtx, AL_TEncChanParam cons
 
 bool AL_SrcBuffersChecker_UpdateResolution(AL_TSrcBufferChecker* pCtx, AL_TDimension tNewDim)
 {
-  if(pCtx->maxDim.iWidth >= tNewDim.iWidth && pCtx->maxDim.iHeight >= tNewDim.iHeight)
-  {
-    pCtx->currentDim = tNewDim;
-    return true;
-  }
-
-  return false;
+  if((pCtx->maxDim.iWidth < tNewDim.iWidth) || (pCtx->maxDim.iHeight < tNewDim.iHeight))
+    return false;
+  pCtx->currentDim = tNewDim;
+  return true;
 }
 
 static int GetPitchYValue(int iWidth)

@@ -35,27 +35,34 @@
 *
 ******************************************************************************/
 
-#include "lib_common_enc/EncRecBuffer.h"
-#include "lib_common_enc/EncBuffers.h"
-#include "lib_common_enc/EncBuffersInternal.h"
+/****************************************************************************
+   -----------------------------------------------------------------------------
+ **************************************************************************//*!
+   \addtogroup lib_base
+   @{
+   \file
+ *****************************************************************************/
+#pragma once
+
+#include "lib_rtos/types.h"
+
+/*************************************************************************//*!
+   \brief reference list reordering parameters
+*****************************************************************************/
+typedef struct AL_t_ReorderInfo
+{
+  uint16_t uModifIdc;
+  uint16_t uAbsDiff;
+}AL_TReorderInfo;
+
+typedef AL_TReorderInfo AL_TReorderInfoList[AL_MAX_NUM_REF];
+
+typedef struct AL_t_Reorder
+{
+  bool bRefPicListModif;
+  AL_TReorderInfoList tReorderList;
+}AL_TReorder[2];
 
 /****************************************************************************/
-uint32_t AL_GetRecPitch(uint32_t uBitDepth, uint32_t uWidth)
-{
-  if(uBitDepth > 8)
-    return ((uWidth + 63) >> 6) * 320;
-
-  return ((uWidth + 63) >> 6) * 256;
-}
-
-void AL_RecMetaData_FillPlanes(AL_TPlane* pRecPlanes, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bComp, bool bIsAvc)
-{
-  (void)eChromaMode, (void)bComp, (void)bIsAvc; // if no fbc support
-  pRecPlanes[AL_PLANE_Y].iOffset = 0;
-  pRecPlanes[AL_PLANE_Y].iPitch = AL_GetRecPitch(uBitDepth, tDim.iWidth);
-
-  pRecPlanes[AL_PLANE_UV].iOffset = AL_GetAllocSize_EncReference(tDim, uBitDepth, AL_CHROMA_MONO, false);
-  pRecPlanes[AL_PLANE_UV].iPitch = pRecPlanes[AL_PLANE_Y].iPitch;
-
-}
+/*@}*/
 

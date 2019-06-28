@@ -62,14 +62,15 @@ typedef struct
 typedef struct
 {
   AL_THevcVps* vps;
-  AL_TSps* sps[MAX_NUM_LAYER];
-  AL_TPps* pps[MAX_NUM_LAYER];
+  AL_TSps* sps;
+  AL_TPps* pps;
   bool shouldWriteAud;
   bool shouldWriteFillerData;
+  bool forceWritePPS;
   AL_SeiData* seiData;
   uint32_t seiFlags;
 }NalsData;
 
-void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayersCount, int iNumSlices);
+void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayerID, int iNumSlices);
 int AL_WriteSeiSection(Nuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId);
 

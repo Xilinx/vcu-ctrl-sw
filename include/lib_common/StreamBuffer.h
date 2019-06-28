@@ -42,9 +42,9 @@
  **************************************************************************/
 #pragma once
 
-#define ENC_MAX_SEI_SIZE (2 * 1024)
-#define ENC_MAX_CONFIG_HEADER_SIZE (2 * 1024)
-#define ENC_MAX_HEADER_SIZE (ENC_MAX_CONFIG_HEADER_SIZE + ENC_MAX_SEI_SIZE)
+#define AL_ENC_MAX_SEI_SIZE (2 * 1024)
+#define AL_ENC_MAX_CONFIG_HEADER_SIZE (2 * 1024)
+#define AL_ENC_MAX_HEADER_SIZE (AL_ENC_MAX_CONFIG_HEADER_SIZE + AL_ENC_MAX_SEI_SIZE)
 
 #include "lib_common/SliceConsts.h"
 

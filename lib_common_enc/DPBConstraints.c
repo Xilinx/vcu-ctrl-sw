@@ -75,7 +75,7 @@ uint8_t AL_DPBConstraint_GetMaxRef_DefaultGopMngr(const AL_TGopParam* pGopParam,
   {
     iNumRef = 1;
 
-    if(pGopParam->uNumB > 0)
+    if(pGopParam->uNumB > 0 || (pGopParam->eMode & AL_GOP_FLAG_B_ONLY))
       ++iNumRef;
   }
 
@@ -150,16 +150,16 @@ uint8_t AL_DPBConstraint_GetMaxDPBSize(const AL_TEncChanParam* pChParam)
 AL_EGopMngrType AL_GetGopMngrType(AL_EGopCtrlMode eMode, bool bIsAom)
 {
   (void)bIsAom;
-  switch(eMode)
+
+  if(eMode == AL_GOP_MODE_ADAPTIVE || (eMode & AL_GOP_FLAG_LOW_DELAY))
+    return AL_GOP_MNGR_DEFAULT;
+  else if(eMode & AL_GOP_FLAG_PYRAMIDAL)
+    return AL_GOP_MNGR_CUSTOM;
+  else if(eMode & AL_GOP_FLAG_DEFAULT)
   {
-  case AL_GOP_MODE_ADAPTIVE: return AL_GOP_MNGR_DEFAULT;
-  case AL_GOP_MODE_LOW_DELAY_P: return AL_GOP_MNGR_DEFAULT;
-  case AL_GOP_MODE_LOW_DELAY_B: return AL_GOP_MNGR_DEFAULT;
-  case AL_GOP_MODE_PYRAMIDAL: return AL_GOP_MNGR_CUSTOM;
-  case AL_GOP_MODE_DEFAULT: return AL_GOP_MNGR_DEFAULT;
-  default: return AL_GOP_MNGR_MAX_ENUM;
+    return AL_GOP_MNGR_DEFAULT;
   }
 
-  return false;
+  return AL_GOP_MNGR_MAX_ENUM;
 }
 

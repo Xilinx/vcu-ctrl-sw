@@ -77,7 +77,7 @@ struct BitstreamWriter : IFrameSink
     auto const frameRate = (float)cfg.Settings.tChParam[0].tRCParam.uFrameRate / cfg.Settings.tChParam[0].tRCParam.uClkRatio;
     auto const durationInSeconds = m_frameCount / frameRate;
     auto bitrate = outputSizeInBits / durationInSeconds;
-    Message(CC_DEFAULT, "\nAchieved bitrate = %.4f Kbps\n", (float)bitrate);
+    LogInfo("Achieved bitrate = %.4f Kbps\n", (float)bitrate);
   }
 
   int m_frameCount = 0;

@@ -251,9 +251,11 @@ void AL_Default_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus)
   {
     /* we want to notify the user, but we don't want to update the decoder state */
     AL_TBuffer* pDecodedFrame = AL_PictMngr_GetDisplayBufferFromID(&pCtx->PictMngr, iFrameID);
+    assert(pDecodedFrame);
     pCtx->decodeCB.func(pDecodedFrame, pCtx->decodeCB.userParam);
     AL_TInfoDecode info = { 0 };
     AL_TBuffer* pFrameToDisplay = AL_PictMngr_ForceDisplayBuffer(&pCtx->PictMngr, &info, iFrameID);
+    assert(pFrameToDisplay);
     pCtx->displayCB.func(pFrameToDisplay, &info, pCtx->displayCB.userParam);
     AL_PictMngr_SignalCallbackDisplayIsDone(&pCtx->PictMngr);
     return;
@@ -783,8 +785,10 @@ static int FindNextDecodingUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* iLas
 static int FillNalInfo(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* iLastVclNalInAU)
 {
   pCtx->pInputBuffer = pStream;
+
   while(RefillStartCodes(pCtx, pStream) != false)
     ;
+
   int iNalCount = pCtx->uNumSC;
   AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
   bool bIsEndOfFrame = false;

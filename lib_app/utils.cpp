@@ -45,31 +45,89 @@ using namespace std;
 
 int g_Verbosity = 10;
 
-void log_vprintf(const char* sMsg, va_list args)
-{
-  if(g_Verbosity == 0)
-    return;
-
-  vprintf(sMsg, args);
-  fflush(stdout);
-}
-
-void Message(const char* sMsg, ...)
-{
-  va_list args;
-  va_start(args, sMsg);
-  log_vprintf(sMsg, args);
-  va_end(args);
-}
-
-void Message(EConColor Color, const char* sMsg, ...)
+void Message(EConColor Color, const char* sMsg, va_list args)
 {
   SetConsoleColor(Color);
+  vprintf(sMsg, args);
+  fflush(stdout);
+  SetConsoleColor(CC_DEFAULT);
+}
+
+void LogError(const char* sMsg, ...)
+{
+  if(g_Verbosity < 1)
+    return;
+
   va_list args;
   va_start(args, sMsg);
-  log_vprintf(sMsg, args);
+  Message(CC_RED, sMsg, args);
   va_end(args);
-  SetConsoleColor(CC_DEFAULT);
+}
+
+void LogWarning(const char* sMsg, ...)
+{
+  if(g_Verbosity < 3)
+    return;
+
+  va_list args;
+  va_start(args, sMsg);
+  Message(CC_YELLOW, sMsg, args);
+  va_end(args);
+}
+
+void LogDimmedWarning(const char* sMsg, ...)
+{
+  if(g_Verbosity < 4)
+    return;
+
+  va_list args;
+  va_start(args, sMsg);
+  Message(CC_GREY, sMsg, args);
+  va_end(args);
+}
+
+void LogInfo(const char* sMsg, ...)
+{
+  if(g_Verbosity < 5)
+    return;
+
+  va_list args;
+  va_start(args, sMsg);
+  Message(CC_DEFAULT, sMsg, args);
+  va_end(args);
+}
+
+void LogInfo(EConColor Color, const char* sMsg, ...)
+{
+  if(g_Verbosity < 5)
+    return;
+
+  va_list args;
+  va_start(args, sMsg);
+  Message(Color, sMsg, args);
+  va_end(args);
+}
+
+void LogVerbose(const char* sMsg, ...)
+{
+  if(g_Verbosity < 7)
+    return;
+
+  va_list args;
+  va_start(args, sMsg);
+  Message(CC_DEFAULT, sMsg, args);
+  va_end(args);
+}
+
+void LogVerbose(EConColor Color, const char* sMsg, ...)
+{
+  if(g_Verbosity < 7)
+    return;
+
+  va_list args;
+  va_start(args, sMsg);
+  Message(Color, sMsg, args);
+  va_end(args);
 }
 
 void OpenInput(std::ifstream& fp, std::string filename, bool binary)

@@ -113,6 +113,7 @@ static const size_t MVBUFF_MV_OFFSET = 256; // Motion Vectors
 *****************************************************************************/
 uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bComp);
 
+
 /*************************************************************************//*!
    \brief Retrieves the size of a compressed buffer(LCU header + MVDs + Residuals)
    \param[in] tDim Frame dimensions

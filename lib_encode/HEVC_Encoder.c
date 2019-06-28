@@ -40,12 +40,11 @@
 #include "lib_common/Utils.h"
 #include "lib_common/Error.h"
 
-static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, bool bResolutionChanged, uint8_t uNalID, AL_TBuffer* pStream, int iLayerID)
+static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_HLSInfo const* pHLSInfo, AL_TBuffer* pStream, int iLayerID)
 {
-  if(bResolutionChanged)
-    AL_HEVC_UpdateSPS(&pCtx->tLayerCtx[iLayerID].sps, pPicStatus, uNalID, iLayerID);
-  AL_HEVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, pPicStatus, bResolutionChanged, uNalID);
-  HEVC_GenerateSections(pCtx, pStream, pPicStatus, iLayerID);
+  AL_HEVC_UpdateSPS(&pCtx->tLayerCtx[iLayerID].sps, pPicStatus, pHLSInfo, iLayerID);
+  bool bForceWritePPS = AL_HEVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, &pCtx->Settings, pPicStatus, pHLSInfo, iLayerID);
+  HEVC_GenerateSections(pCtx, pStream, pPicStatus, iLayerID, bForceWritePPS);
 
   if(pPicStatus->eType == AL_SLICE_I)
     pCtx->seiData.cpbRemovalDelay = 0;
@@ -69,12 +68,6 @@ static void initHls(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
   AL_SET_SPS_LOG2_MAX_POC(pSpsParam, log2_max_poc);
 
   int num_short_term_ref_pic_sets_log2 = 0;
-
-  if(pChParam->tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL)
-  {
-    num_short_term_ref_pic_sets_log2 = ceil_log2(pChParam->tGopParam.uNumB + 1);
-    assert(num_short_term_ref_pic_sets_log2 != 0);
-  }
 
   AL_SET_SPS_LOG2_NUM_SHORT_TERM_RPS(pSpsParam, num_short_term_ref_pic_sets_log2);
   pChParam->uPpsParam |= AL_PPS_ENABLE_REORDERING;
@@ -129,9 +122,9 @@ static void ComputeQPInfo(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
   if(pChParam->tRCParam.iMaxQP < pChParam->tRCParam.iMinQP)
     pChParam->tRCParam.iMaxQP = pChParam->tRCParam.iMinQP;
 
-  if(pCtx->Settings.eQpCtrlMode == RANDOM_QP
-     || pCtx->Settings.eQpCtrlMode == BORDER_QP
-     || pCtx->Settings.eQpCtrlMode == RAMP_QP)
+  if(pCtx->Settings.eQpCtrlMode == AL_RANDOM_QP
+     || pCtx->Settings.eQpCtrlMode == AL_BORDER_QP
+     || pCtx->Settings.eQpCtrlMode == AL_RAMP_QP)
   {
     int iCbOffset = pChParam->iCbPicQpOffset + pChParam->iCbSliceQpOffset;
     int iCrOffset = pChParam->iCrPicQpOffset + pChParam->iCrSliceQpOffset;

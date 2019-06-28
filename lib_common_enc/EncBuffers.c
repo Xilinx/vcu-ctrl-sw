@@ -154,7 +154,6 @@ uint32_t AL_GetAllocSizeSrcNoFbc(AL_TDimension tDim, AL_EChromaMode eChromaMode,
   return ConsiderChromaForAllocSize(eChromaMode, iChromaOffset);
 }
 
-
 /****************************************************************************/
 AL_EFbStorageMode AL_GetSrcStorageMode(AL_ESrcMode eSrcMode)
 {
@@ -185,13 +184,11 @@ uint32_t AL_GetAllocSize_Src(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMo
 {
   AL_EFbStorageMode const eSrcStorageMode = AL_GetSrcStorageMode(eSrcFmt);
   int const iPitch = AL_EncGetMinPitch(tDim.iWidth, uBitDepth, eSrcStorageMode);
-  return AL_GetAllocSizeSrc(tDim, uBitDepth, eChromaMode, eSrcFmt, iPitch, tDim.iHeight);
+  return AL_GetAllocSizeSrc(tDim, eChromaMode, eSrcFmt, iPitch, tDim.iHeight);
 }
 
-uint32_t AL_GetAllocSizeSrc(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight)
+uint32_t AL_GetAllocSizeSrc(AL_TDimension tDim, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight)
 {
-  (void)uBitDepth;
-
   AL_EFbStorageMode const eSrcStorageMode = AL_GetSrcStorageMode(eSrcFmt);
   uint32_t uSize = AL_GetAllocSizeSrcNoFbc(tDim, eChromaMode, eSrcStorageMode, iPitch, iStrideHeight * iPitch / AL_GetNumLinesInPitch(eSrcStorageMode));
 
@@ -199,10 +196,9 @@ uint32_t AL_GetAllocSizeSrc(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMod
 }
 
 /****************************************************************************/
-static uint32_t GetAllocSize_Ref(AL_TDimension tRoundedDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bFbc)
+static uint32_t GetRasterFrameSize(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode)
 {
-  (void)bFbc;
-  uint32_t uSize = tRoundedDim.iWidth * tRoundedDim.iHeight;
+  uint32_t uSize = tDim.iWidth * tDim.iHeight;
   uint32_t uSizeDiv = 1;
   switch(eChromaMode)
   {
@@ -225,11 +221,18 @@ static uint32_t GetAllocSize_Ref(AL_TDimension tRoundedDim, uint8_t uBitDepth, A
     uSizeDiv *= 8;
   }
 
-  uSize /= uSizeDiv;
+  return uSize / uSizeDiv;
+}
 
+/****************************************************************************/
+static uint32_t GetAllocSize_Ref(AL_TDimension tRoundedDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bFbc)
+{
+  (void)bFbc;
+  uint32_t uSize = GetRasterFrameSize(tRoundedDim, uBitDepth, eChromaMode);
 
   return uSize;
 }
+
 
 #if USE_POWER_TWO_REF_PITCH
 /****************************************************************************/

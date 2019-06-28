@@ -48,8 +48,6 @@
 #include "common_syntax.h"
 #include <string.h>
 
-#define Min(a, b) (a < b) ? a : b
-
 /*****************************************************************************/
 void profile_tier_level(AL_TProfilevel* pPrfLvl, int iMaxSubLayers, AL_TRbspParser* pRP)
 {

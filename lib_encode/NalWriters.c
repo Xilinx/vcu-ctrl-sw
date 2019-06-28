@@ -41,7 +41,7 @@
 static void audWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param, int iLayerId)
 {
   (void)iLayerId;
-  writer->WriteAUD(bitstream, (int)(uintptr_t)param);
+  writer->WriteAUD(bitstream, (AL_ESliceType)(uintptr_t)param);
 }
 
 AL_NalUnit AL_CreateNalUnit(void (* Write)(IRbspWriter*, AL_TBitStreamLite*, void const*, int), void const* param, int nut, int idc, int iLayerId, int iTempId)

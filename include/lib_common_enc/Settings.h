@@ -44,7 +44,7 @@
 ******************************************************************************/
 #pragma once
 
-#include "stdio.h"
+#include <stdio.h>
 #include "lib_rtos/types.h"
 #include "lib_common/SliceConsts.h"
 #include "lib_common/FourCC.h"
@@ -57,6 +57,7 @@
 typedef enum e_AspectRatio
 {
   AL_ASPECT_RATIO_AUTO,
+  AL_ASPECT_RATIO_1_1,
   AL_ASPECT_RATIO_4_3,
   AL_ASPECT_RATIO_16_9,
   AL_ASPECT_RATIO_NONE,
@@ -69,32 +70,31 @@ typedef enum e_AspectRatio
 typedef enum e_QPCtrlMode
 {
   // exclusive modes
-  UNIFORM_QP = 0x00, /*!< default behaviour */
-  CHOOSE_QP = 0x01, /*!< used for test purpose, need preprocessing */
-  RAMP_QP = 0x02, /*!< used for test purpose */
-  RANDOM_QP = 0x03, /*!< used for test purpose */
-  LOAD_QP = 0x04, /*!< used for test purpose */
-  BORDER_QP = 0x05, /*!< used for test purpose */
-  ROI_QP = 0x06,
-  MASK_QP_TABLE = 0x07,
+  AL_UNIFORM_QP = 0x00, /*!< default behaviour */
+  AL_RAMP_QP = 0x02, /*!< used for test purpose */
+  AL_RANDOM_QP = 0x03, /*!< used for test purpose */
+  AL_LOAD_QP = 0x04, /*!< used for test purpose */
+  AL_BORDER_QP = 0x05, /*!< used for test purpose */
+  AL_ROI_QP = 0x06,
+  AL_MASK_QP_TABLE = 0x07,
 
   // additional modes
-  RANDOM_SKIP = 0x20, /*!< used for test purpose */
-  RANDOM_I_ONLY = 0x40, /*!< used for test purpose */
+  AL_RANDOM_SKIP = 0x20, /*!< used for test purpose */
+  AL_RANDOM_I_ONLY = 0x40, /*!< used for test purpose */
 
-  BORDER_SKIP = 0x100,
-  FULL_SKIP = 0x200,
+  AL_BORDER_SKIP = 0x100,
+  AL_FULL_SKIP = 0x200,
 
-  MASK_QP_TABLE_EXT = 0x367,
+  AL_MASK_QP_TABLE_EXT = 0x367,
 
   // Auto QP
-  AUTO_QP = 0x400, /*!< compute Qp by MB on the fly */
-  ADAPTIVE_AUTO_QP = 0x800, /*!< Dynamically compute Qp by MB on the fly */
-  MASK_AUTO_QP = 0xC00,
+  AL_AUTO_QP = 0x400, /*!< compute Qp by MB on the fly */
+  AL_ADAPTIVE_AUTO_QP = 0x800, /*!< Dynamically compute Qp by MB on the fly */
+  AL_MASK_AUTO_QP = 0xC00,
 
   // QP table mode
-  RELATIVE_QP = 0x8000,
-  QP_MAX_ENUM, /* sentinel */
+  AL_RELATIVE_QP = 0x8000,
+  AL_QP_MAX_ENUM, /* sentinel */
 }AL_EQpCtrlMode;
 
 

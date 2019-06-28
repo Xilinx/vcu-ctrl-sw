@@ -62,22 +62,22 @@ typedef struct t_BufInfo
 *****************************************************************************/
 typedef enum e_LdaCtrlMode
 {
-  DEFAULT_LDA = 0x00, /*!< default behaviour */
-  CUSTOM_LDA = 0x01, /*!< used for test purpose */
-  DYNAMIC_LDA = 0x02, /*!< select lambda values according to the GOP pattern */
-  AUTO_LDA = 0x03, /*!< automatically select betxeen DEFAULT_LDA and DYNAMIC_LDA */
-  LOAD_LDA = 0x80, /*!< used for test purpose */
+  AL_DEFAULT_LDA = 0x00, /*!< default behaviour */
+  AL_CUSTOM_LDA = 0x01, /*!< used for test purpose */
+  AL_DYNAMIC_LDA = 0x02, /*!< select lambda values according to the GOP pattern */
+  AL_AUTO_LDA = 0x03, /*!< automatically select betxeen DEFAULT_LDA and DYNAMIC_LDA */
+  AL_LOAD_LDA = 0x80, /*!< used for test purpose */
 }AL_ELdaCtrlMode;
 
 static AL_INLINE bool AL_LdaIsSane(AL_ELdaCtrlMode lda)
 {
   switch(lda)
   {
-  case DEFAULT_LDA: // fallthrough
-  case CUSTOM_LDA: // fallthrough
-  case DYNAMIC_LDA: // fallthrough
-  case AUTO_LDA: // fallthrough
-  case LOAD_LDA: // fallthrough
+  case AL_DEFAULT_LDA: // fallthrough
+  case AL_CUSTOM_LDA: // fallthrough
+  case AL_DYNAMIC_LDA: // fallthrough
+  case AL_AUTO_LDA: // fallthrough
+  case AL_LOAD_LDA: // fallthrough
     return true;
   default:
     return false;
@@ -355,44 +355,42 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_RCPara
   uint32_t uNumPel;
   uint16_t uMaxPSNR;
   uint16_t uMaxPelVal;
-  uint32_t uMaxPictureSize;
+  uint32_t pMaxPictureSize[3];
 } AL_TRCParam;
 
-#define AL_IS_HWRC_ENABLED(tRCParam) (((tRCParam).eRCMode == AL_RC_LOW_LATENCY) || (tRCParam).uMaxPictureSize)
+static AL_INLINE bool AL_IS_HWRC_ENABLED(AL_TRCParam const* pRCParam)
+{
+  return (pRCParam->eRCMode == AL_RC_LOW_LATENCY)
+         || (pRCParam->pMaxPictureSize[AL_SLICE_I] > 0)
+         || (pRCParam->pMaxPictureSize[AL_SLICE_P] > 0)
+         || (pRCParam->pMaxPictureSize[AL_SLICE_B] > 0);
+}
 
-#define MAX_LOW_DELAY_B_GOP_LENGTH 4
-#define MIN_LOW_DELAY_B_GOP_LENGTH 1
+
 /*************************************************************************//*!
    \brief GOP Control Mode
 *****************************************************************************/
+#define AL_GOP_FLAG_B_ONLY 0x01
+#define AL_GOP_FLAG_DEFAULT 0x02
+#define AL_GOP_FLAG_PYRAMIDAL 0x04
+#define AL_GOP_FLAG_LOW_DELAY 0x08
 typedef enum __AL_ALIGNED__ (4) AL_e_GopCtrlMode
 {
-  AL_GOP_MODE_DEFAULT = 0x00,
-  AL_GOP_MODE_PYRAMIDAL = 0x01,
-  AL_GOP_MODE_ADAPTIVE = 0x02,
+  AL_GOP_MODE_DEFAULT = AL_GOP_FLAG_DEFAULT,
+  AL_GOP_MODE_PYRAMIDAL = AL_GOP_FLAG_PYRAMIDAL,
 
-  AL_GOP_MODE_BYPASS = 0x7F,
+  AL_GOP_MODE_DEFAULT_B = AL_GOP_FLAG_DEFAULT | AL_GOP_FLAG_B_ONLY,
+  AL_GOP_MODE_PYRAMIDAL_B = AL_GOP_FLAG_PYRAMIDAL | AL_GOP_FLAG_B_ONLY,
 
-  AL_GOP_FLAG_LOW_DELAY = 0x80,
-  AL_GOP_MODE_LOW_DELAY_P = AL_GOP_FLAG_LOW_DELAY | 0x00,
-  AL_GOP_MODE_LOW_DELAY_B = AL_GOP_FLAG_LOW_DELAY | 0x01,
+  AL_GOP_MODE_LOW_DELAY_P = AL_GOP_FLAG_LOW_DELAY,
+  AL_GOP_MODE_LOW_DELAY_B = AL_GOP_FLAG_LOW_DELAY | AL_GOP_FLAG_B_ONLY,
+
+  AL_GOP_MODE_ADAPTIVE = 0x10,
+
+  AL_GOP_MODE_BYPASS = 0x20,
+
   AL_GOP_MODE_MAX_ENUM,
 } AL_EGopCtrlMode;
-
-/*************************************************************************//*!
-   \brief Gop parameters structure
-*****************************************************************************/
-typedef struct AL_t_GopFrm
-{
-  uint8_t uType;
-  uint8_t uTempId;
-  uint8_t uIsRef;
-  int16_t iPOC;
-  int16_t iRefA;
-  int16_t iRefB;
-  uint8_t uSrcOrder; // filled by Gop Manager
-  int8_t pDPB[5];
-}AL_TGopFrm;
 
 /*************************************************************************//*!
    \brief Gop parameters structure
@@ -453,8 +451,6 @@ typedef enum e_SrcConvMode // [0] : CompMode | [3:1] : SourceFormat
 
 #define AL_SET_COMP_MODE(SrcConvFmt, CompMode) (SrcConvFmt) = ((SrcConvFmt) & ~MASK_SRC_COMP) | ((CompMode) & MASK_SRC_COMP)
 #define AL_SET_SRC_FMT(SrcConvFmt, SrcFmt) (SrcConvFmt) = ((SrcConvFmt) & ~MASK_SRC_FMT) | (((SrcFmt) << 1) & MASK_SRC_FMT)
-
-#define AL_IS_L2P_DISABLED(iPrefetchLevel2) (iPrefetchLevel2 == 0)
 
 
 /*************************************************************************//*!
@@ -550,6 +546,9 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   AL_ELdaCtrlMode eLdaCtrlMode;
   int LdaFactors[6];
 
+
+
+  int8_t MaxNumMergeCand;
 } AL_TEncChanParam;
 
 /***************************************************************************/

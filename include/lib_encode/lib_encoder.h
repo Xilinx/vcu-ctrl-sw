@@ -281,6 +281,24 @@ bool AL_Encoder_SetQP(AL_HEncoder hEnc, int16_t iQP);
 *****************************************************************************/
 bool AL_Encoder_SetInputResolution(AL_HEncoder hEnc, AL_TDimension tDim);
 
+/*************************************************************************//*!
+   \brief Changes the loop filter beta offset
+   \param[in] hEnc Handle to an encoder object
+   \param[in] iBetaOffset The new loop filter beta offset
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_SetLoopFilterBetaOffset(AL_HEncoder hEnc, int8_t iBetaOffset);
+
+/*************************************************************************//*!
+   \brief Changes the loop filter TC offset
+   \param[in] hEnc Handle to an encoder object
+   \param[in] iTcOffset The new loop filter TC offset
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_SetLoopFilterTcOffset(AL_HEncoder hEnc, int8_t iTcOffset);
+
 
 
 #ifdef __cplusplus

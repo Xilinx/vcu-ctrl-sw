@@ -96,7 +96,7 @@ void AL_ISchedulerEnc_Destroy(TScheduler* pScheduler);
    \param[in] pCBs Pointer to the callbacks (See Scheduler callbacks)
    \return errorcode explaining why the channel creation failed
 *****************************************************************************/
-static inline
+static AL_INLINE
 AL_ERR AL_ISchedulerEnc_CreateChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEncChanParam* pChParam, TMemDesc* pEP1, AL_TISchedulerCallBacks* pCBs)
 {
   return pScheduler->vtable->createChannel(hChannel, pScheduler, pChParam, pEP1, pCBs);
@@ -107,7 +107,7 @@ AL_ERR AL_ISchedulerEnc_CreateChannel(AL_HANDLE* hChannel, TScheduler* pSchedule
    \param[in] hChannel Channel Identifier
    \return return true
 *****************************************************************************/
-static inline
+static AL_INLINE
 bool AL_ISchedulerEnc_DestroyChannel(TScheduler* pScheduler, AL_HANDLE hChannel)
 {
   return pScheduler->vtable->destroyChannel(pScheduler, hChannel);
@@ -121,7 +121,7 @@ bool AL_ISchedulerEnc_DestroyChannel(TScheduler* pScheduler, AL_HANDLE hChannel)
    \return return true if the decoding launch is successfull
    false otherwise
 *****************************************************************************/
-static inline
+static AL_INLINE
 bool AL_ISchedulerEnc_EncodeOneFrame(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TEncInfo* pEncInfo, AL_TEncRequestInfo* pReqInfo, AL_TEncPicBufAddrs* pBufferAddrs)
 {
   return pScheduler->vtable->encodeOneFrame(pScheduler, hChannel, pEncInfo, pReqInfo, pBufferAddrs);
@@ -136,7 +136,7 @@ bool AL_ISchedulerEnc_EncodeOneFrame(TScheduler* pScheduler, AL_HANDLE hChannel,
    \return return true if the buffer could be pushed in the scheduler
    false otherwise
 *****************************************************************************/
-static inline
+static AL_INLINE
 void AL_ISchedulerEnc_PutStreamBuffer(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuffer* pStream, AL_64U streamUserPtr, uint32_t uOffset)
 {
   pScheduler->vtable->putStreamBuffer(pScheduler, hChannel, pStream, streamUserPtr, uOffset);
@@ -149,7 +149,7 @@ void AL_ISchedulerEnc_PutStreamBuffer(TScheduler* pScheduler, AL_HANDLE hChannel
    \return return true if a reconstructed buffer was available
    false otherwise
 *****************************************************************************/
-static inline
+static AL_INLINE
 bool AL_ISchedulerEnc_GetRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPic* pRecPic)
 {
   return pScheduler->vtable->getRecPicture(pScheduler, hChannel, pRecPic);
@@ -162,7 +162,7 @@ bool AL_ISchedulerEnc_GetRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, 
    \return return true if the reconstructed buffer could be released
    false if the buffer is not known in the scheduler
 *****************************************************************************/
-static inline
+static AL_INLINE
 bool AL_ISchedulerEnc_ReleaseRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPic* pRecPic)
 {
   return pScheduler->vtable->releaseRecPicture(pScheduler, hChannel, pRecPic);

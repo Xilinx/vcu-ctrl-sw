@@ -35,27 +35,20 @@
 *
 ******************************************************************************/
 
-#include "lib_common_enc/EncRecBuffer.h"
-#include "lib_common_enc/EncBuffers.h"
-#include "lib_common_enc/EncBuffersInternal.h"
+#pragma once
 
-/****************************************************************************/
-uint32_t AL_GetRecPitch(uint32_t uBitDepth, uint32_t uWidth)
+#include "lib_common_enc/EncPicParam.h"
+
+typedef enum AL_e_CheckResolutionError
 {
-  if(uBitDepth > 8)
-    return ((uWidth + 63) >> 6) * 320;
+  CRERROR_OK,
+  CRERROR_WIDTHCHROMA,
+  CRERROR_HEIGHTCHROMA
+}ECheckResolutionError;
 
-  return ((uWidth + 63) >> 6) * 256;
-}
+ECheckResolutionError AL_ParamConstraints_CheckResolution(AL_EProfile eProfile, AL_EChromaMode eChromaMode, uint16_t uWidth, uint16_t uHeight);
 
-void AL_RecMetaData_FillPlanes(AL_TPlane* pRecPlanes, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bComp, bool bIsAvc)
-{
-  (void)eChromaMode, (void)bComp, (void)bIsAvc; // if no fbc support
-  pRecPlanes[AL_PLANE_Y].iOffset = 0;
-  pRecPlanes[AL_PLANE_Y].iPitch = AL_GetRecPitch(uBitDepth, tDim.iWidth);
+bool AL_ParamConstraints_CheckLFBetaOffset(AL_EProfile eProfile, int8_t iBetaOffset);
 
-  pRecPlanes[AL_PLANE_UV].iOffset = AL_GetAllocSize_EncReference(tDim, uBitDepth, AL_CHROMA_MONO, false);
-  pRecPlanes[AL_PLANE_UV].iPitch = pRecPlanes[AL_PLANE_Y].iPitch;
-
-}
+bool AL_ParamConstraints_CheckLFTcOffset(AL_EProfile eProfile, int8_t iTcOffset);
 

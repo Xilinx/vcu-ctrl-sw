@@ -212,6 +212,24 @@ bool AL_Common_Encoder_SetQP(AL_TEncoder* pEnc, int16_t iQP);
 *****************************************************************************/
 bool AL_Common_Encoder_SetInputResolution(AL_TEncoder* pEnc, AL_TDimension tDim);
 
+/*************************************************************************//*!
+   \brief Changes the loop filter beta offset
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] iBetaOffset The new loop filter beta offset
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Common_Encoder_SetLoopFilterBetaOffset(AL_TEncoder* pEnc, int8_t iBetaOffset);
+
+/*************************************************************************//*!
+   \brief Changes the loop filter TC offset
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] iTcOffset The new loop filter TC offset
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Common_Encoder_SetLoopFilterTcOffset(AL_TEncoder* pEnc, int8_t iTcOffset);
+
 
 
 /*************************************************************************//*!

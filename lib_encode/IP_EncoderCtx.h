@@ -66,14 +66,26 @@
 typedef struct t_Scheduler TScheduler;
 
 /*************************************************************************//*!
+   \brief Structure containing infos for non-vcl nals generation
+*****************************************************************************/
+typedef struct AL_t_HLSInfo
+{
+  bool bResolutionChanged;
+  uint8_t uNalID;
+
+  bool bLFOffsetChanged;
+  int8_t iLFBetaOffset;
+  int8_t iLFTcOffset;
+}AL_HLSInfo;
+
+/*************************************************************************//*!
    \brief Frame encoding info structure
 *****************************************************************************/
 typedef struct AL_t_FrameInfo
 {
   AL_TEncInfo tEncInfo;
   AL_TBuffer* pQpTable;
-  bool bResolutionChanged;
-  uint8_t uNewNalsId;
+  AL_HLSInfo tHLSUpdateInfo;
 }AL_TFrameInfo;
 
 
@@ -87,7 +99,7 @@ typedef struct
   void (* preprocessEp1)(AL_TEncCtx* pCtx, TBufferEP* pEP1);
   void (* configureChannel)(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TEncSettings const* pSettings);
   void (* generateNals)(AL_TEncCtx* pCtx, int iLayerID, bool bWriteVps);
-  void (* updateHlsAndWriteSections)(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, bool bResolutionChanged, uint8_t uNalID, AL_TBuffer* pStream, int iLayerID);
+  void (* updateHlsAndWriteSections)(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_HLSInfo const* pHLSInfo, AL_TBuffer* pStream, int iLayerID);
 }HighLevelEncoder;
 
 typedef struct

@@ -52,6 +52,7 @@
 #include "lib_common/PPS.h"
 
 typedef struct AL_t_EncPicStatus AL_TEncPicStatus;
+typedef struct AL_t_HLSInfo AL_HLSInfo;
 
 /****************************************************************************/
 static const int MAX_IDX_BIT_PER_PEL = 35;
@@ -99,12 +100,12 @@ void AL_HEVC_GenerateVPS(AL_THevcVps* pVPS, AL_TEncSettings const* pSettings, in
 void AL_HEVC_GenerateSPS(AL_TSps* pSPS, AL_TEncSettings const* pSettings, AL_TEncChanParam const* pChanParam, int iMaxRef, int iCpbSize, int iLayerId);
 void AL_AVC_GenerateSPS(AL_TSps* pSPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize);
 
-void AL_HEVC_UpdateSPS(AL_TSps* pISPS, AL_TEncPicStatus const* pPicStatus, uint8_t uNalID, int iLayerId);
-void AL_AVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, uint8_t uNalID);
+void AL_HEVC_UpdateSPS(AL_TSps* pISPS, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, int iLayerId);
+void AL_AVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo);
 
 void AL_HEVC_GeneratePPS(AL_TPps* pPPS, AL_TEncSettings const* pSettings, AL_TEncChanParam const* pChanParam, int iMaxRef, int iLayerId);
-void AL_AVC_GeneratePPS(AL_TPps* pPPS, AL_TEncSettings const* pSettings, int iMaxRef);
+void AL_AVC_GeneratePPS(AL_TPps* pPPS, AL_TEncSettings const* pSettings, int iMaxRef, AL_TSps const* pSPS);
 
-void AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, bool bResChanged, uint8_t uNalID);
-void AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, bool bResChanged, uint8_t uNalID);
+bool AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, int iLayerId);
+bool AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo);
 

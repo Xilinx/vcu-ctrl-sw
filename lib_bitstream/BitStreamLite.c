@@ -105,7 +105,7 @@ void AL_BitStreamLite_EndOfSEIPayload(AL_TBitStreamLite* pBS)
   }
 }
 
-static inline void writeData(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32_t uValue)
+static AL_INLINE void writeData(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32_t uValue)
 {
   uint32_t byteNum = pBS->iBitCount >> 3;
   uint8_t byteOffset = pBS->iBitCount & 7;

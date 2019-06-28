@@ -73,7 +73,6 @@ extern "C"
 #include "lib_common/BufferPictureMeta.h"
 #include "lib_common/BufferLookAheadMeta.h"
 #include "lib_common/StreamBuffer.h"
-#include "lib_common/versions.h"
 #include "lib_common/Error.h"
 #include "lib_encode/lib_encoder.h"
 #include "lib_rtos/lib_rtos.h"
@@ -115,7 +114,7 @@ static inline int RoundUp(int iVal, int iRnd)
 void DisplayBuildInfo()
 {
   BuildInfoDisplay displayBuildInfo {
-    SVN_REV, AL_CONFIGURE_COMMANDLINE, AL_COMPIL_FLAGS
+    SCM_REV, SCM_BRANCH, AL_CONFIGURE_COMMANDLINE, AL_COMPIL_FLAGS, DELIVERY_BUILD_NUMBER, DELIVERY_SCM_REV, DELIVERY_DATE
   };
   displayBuildInfo.displayFeatures = [=]()
                                      {
@@ -304,6 +303,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addInt("--input-sleep", &cfg.RunInfo.uInputSleepInMilliseconds, "Minimum waiting time in milliseconds between each process frame (0 by default)");
 
   opt.addFlag("--quiet,-q", &g_Verbosity, "Do not print anything", 0);
+  opt.addInt("--verbosity", &g_Verbosity, "Choose the verbosity level (-q is equivalent to --verbosity 0)");
 
   opt.addInt("--input-width", &cfg.MainInput.FileInfo.PictWidth, "Specifies YUV input width");
   opt.addInt("--input-height", &cfg.MainInput.FileInfo.PictHeight, "Specifies YUV input height");
@@ -413,7 +413,7 @@ void ValidateConfig(ConfigFile& cfg)
   if(cfg.MainInput.YUVFileName.empty())
     throw runtime_error("No YUV input was given, specify it in the [INPUT] section of your configuration file or in your commandline (use -h to get help)");
 
-  if(!cfg.MainInput.sQPTablesFolder.empty() && ((cfg.Settings.eQpCtrlMode & 0x0F) != LOAD_QP))
+  if(!cfg.MainInput.sQPTablesFolder.empty() && ((cfg.Settings.eQpCtrlMode & 0x0F) != AL_LOAD_QP))
     throw runtime_error("QPTablesFolder can only be specified with Load QP control mode");
 
   SetConsoleColor(CC_RED);
@@ -487,6 +487,7 @@ static AL_TPlane GetCPlane(int iPitchY, int iHeight, TFourCC fourCC)
 
 static AL_TPlane GetYMapPlane(int iSizeY, int iWidth, TFourCC fourCC)
 {
+  (void)iSizeY, (void)iWidth, (void)fourCC;
   return {
            0, 0
   };
@@ -494,6 +495,7 @@ static AL_TPlane GetYMapPlane(int iSizeY, int iWidth, TFourCC fourCC)
 
 static AL_TPlane GetCMapPlane(AL_TDimension tDim, AL_TPlane tYMapPlane, TFourCC fourCC)
 {
+  (void)tDim, (void)tYMapPlane, (void)fourCC;
   return {
            0, 0
   };
@@ -685,7 +687,7 @@ static AL_TBufPoolConfig GetQpBufPoolConfig(AL_TEncSettings& Settings, AL_TEncCh
 {
   AL_TBufPoolConfig poolConfig = {};
 
-  if(Settings.eQpCtrlMode & (MASK_QP_TABLE_EXT))
+  if(Settings.eQpCtrlMode & (AL_MASK_QP_TABLE_EXT))
   {
     AL_TDimension tDim = { tChParam.uWidth, tChParam.uHeight };
     poolConfig = GetBufPoolConfig("qp-ext", NULL, AL_GetAllocSizeEP2(tDim, static_cast<AL_ECodec>(AL_GET_PROFILE_CODEC(tChParam.eProfile))), frameBuffersCount);
@@ -738,7 +740,7 @@ static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, int i
     numStreams *= Settings.tChParam[0].uNumSlices;
     streamSize /= Settings.tChParam[0].uNumSlices;
     /* we need space for the headers on each slice */
-    streamSize += 4096 * 2;
+    streamSize += AL_ENC_MAX_HEADER_SIZE;
     /* stream size is required to be 32bytes aligned */
     streamSize = RoundUp(streamSize, 32);
   }

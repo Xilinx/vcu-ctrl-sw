@@ -58,6 +58,8 @@ public:
   void setBitRate(int bitRate) override;
   void setQP(int qp) override;
   void setDynamicInput(int iInputIdx) override;
+  void setLFBetaOffset(int iBetaOffset) override;
+  void setLFTcOffset(int iTcOffset) override;
 
   void Reset();
   bool HasInputChanged(int& iInputIdx);

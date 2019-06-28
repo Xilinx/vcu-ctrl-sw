@@ -43,7 +43,7 @@
 
 typedef struct rbspWriter
 {
-  void (* WriteAUD)(AL_TBitStreamLite* writer, int primary_pic_type);
+  void (* WriteAUD)(AL_TBitStreamLite* writer, AL_ESliceType eSliceType);
   void (* WriteVPS)(AL_TBitStreamLite* writer, AL_THevcVps const* pVps);
   void (* WriteSPS)(AL_TBitStreamLite* writer, AL_TSps const* pSps, int iLayerId);
   void (* WritePPS)(AL_TBitStreamLite* writer, AL_TPps const* pPps);

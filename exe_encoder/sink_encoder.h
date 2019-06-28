@@ -53,6 +53,22 @@
 #include <stdexcept>
 #include <map>
 
+static std::string PictTypeToString(AL_ESliceType type)
+{
+  std::map<AL_ESliceType, std::string> m =
+  {
+    { AL_SLICE_B, "B" },
+    { AL_SLICE_P, "P" },
+    { AL_SLICE_I, "I" },
+    { AL_SLICE_GOLDEN, "Golden" },
+    { AL_SLICE_CONCEAL, "Conceal" },
+    { AL_SLICE_SKIP, "Skip" },
+    { AL_SLICE_REPEAT, "Repeat" },
+  };
+
+  return m.at(type);
+}
+
 static bool PreprocessQP(uint8_t* pQPs, const AL_TEncSettings& Settings, const AL_TEncChanParam& tChParam, const std::string& sQPTablesFolder, int iFrameCountSent)
 {
   uint8_t* pSegs = NULL;
@@ -73,7 +89,7 @@ public:
   };
 
   QPBuffers(const AL_TEncSettings& settings) :
-    isExternQpTable(settings.eQpCtrlMode & (MASK_QP_TABLE_EXT)), settings(settings)
+    isExternQpTable(settings.eQpCtrlMode & (AL_MASK_QP_TABLE_EXT)), settings(settings)
   {
   }
 
@@ -212,7 +228,7 @@ struct EncoderSink : IFrameSink
       throw codec_error(EncoderErrorToString(errorCode), errorCode);
 
     if(AL_IS_WARNING_CODE(errorCode))
-      Message(CC_YELLOW, "%s\n", EncoderErrorToString(errorCode));
+      LogWarning("%s\n", EncoderErrorToString(errorCode));
 
     commandsSender.reset(new CommandsSender(hEnc));
     BitstreamOutput.reset(new NullFrameSink);
@@ -226,7 +242,7 @@ struct EncoderSink : IFrameSink
 
   ~EncoderSink()
   {
-    Message(CC_DEFAULT, "\n\n%d pictures encoded. Average FrameRate = %.4f Fps\n",
+    LogInfo("%d pictures encoded. Average FrameRate = %.4f Fps\n",
             m_picCount, (m_picCount * 1000.0) / (m_EndTime - m_StartTime));
 
     AL_Encoder_Destroy(hEnc);
@@ -258,7 +274,7 @@ struct EncoderSink : IFrameSink
 
     if(!Src)
     {
-      Message(CC_DEFAULT, "Flushing...");
+      LogVerbose("Flushing...\n\n");
 
       if(!AL_Encoder_Process(hEnc, nullptr, nullptr))
         throw std::runtime_error("Failed");
@@ -343,7 +359,7 @@ private:
     int seiSection = AL_Encoder_AddSei(hEnc, pStream, isPrefix, payloadType, payload, payloadSize, tempId);
 
     if(seiSection < 0)
-      Message(CC_DEFAULT, "Failed to add dummy SEI (id:%d) \n", seiSection);
+      LogWarning("Failed to add dummy SEI (id:%d) \n", seiSection);
   }
 
   AL_ERR PreprocessOutput(AL_TBuffer* pStream)
@@ -352,12 +368,12 @@ private:
 
     if(AL_IS_ERROR_CODE(eErr))
     {
-      Message(CC_RED, "%s\n", EncoderErrorToString(eErr));
+      LogError("%s\n", EncoderErrorToString(eErr));
       g_EncoderLastError = eErr;
     }
 
     if(AL_IS_WARNING_CODE(eErr))
-      Message(CC_YELLOW, "%s\n", EncoderErrorToString(eErr));
+      LogWarning("%s\n", EncoderErrorToString(eErr));
 
     if(pStream && shouldAddDummySei)
     {
@@ -376,7 +392,7 @@ private:
     {
       auto const pMeta = (AL_TPictureMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_PICTURE);
       m_pictureType = pMeta->eType;
-      Message(CC_DEFAULT, "Picture Type %i\n", m_pictureType);
+      LogInfo("Picture Type %s (%i)\n", PictTypeToString(pMeta->eType).c_str(), m_pictureType);
     }
 
     BitstreamOutput->ProcessFrame(pStream);
@@ -390,12 +406,12 @@ private:
 
     if(AL_IS_ERROR_CODE(eErr))
     {
-      Message(CC_RED, "%s\n", EncoderErrorToString(eErr));
+      LogError("%s\n", EncoderErrorToString(eErr));
       g_EncoderLastError = eErr;
     }
 
     if(AL_IS_WARNING_CODE(eErr))
-      Message(CC_YELLOW, "%s\n", EncoderErrorToString(eErr));
+      LogWarning("%s\n", EncoderErrorToString(eErr));
 
     if(pStream)
     {

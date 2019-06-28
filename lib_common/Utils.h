@@ -128,7 +128,10 @@ AL_INLINE static AL_ECodec AL_GetCodec(AL_EProfile eProf)
 
   if(AL_IS_AVC(eProf))
     return AL_CODEC_AVC;
-  return AL_CODEC_HEVC;
+
+  if(AL_IS_HEVC(eProf))
+    return AL_CODEC_HEVC;
+  return AL_CODEC_INVALID;
 }
 
 /*************************************************************************//*!

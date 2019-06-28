@@ -42,10 +42,11 @@
    @{
    \file
  *****************************************************************************/
-#ifndef _INCLUDE_RBSP_ENCODING_H_DA01A86F_11CD_46D0_AAF6_EF08C957E05A
-#define _INCLUDE_RBSP_ENCODING_H_DA01A86F_11CD_46D0_AAF6_EF08C957E05A
+
+#pragma once
 
 #include "BitStreamLite.h"
+#include <lib_common/SliceConsts.h>
 
 /*************************************************************************//*!
    \brief This class implements helpful functions to encode Raw Byte Sequence
@@ -55,9 +56,9 @@
 /*********************************************************************//*!
    \brief Writes Access Unit delimiter to the managed CBitstreamLite
    \param[in] pRE Pointer to TRbspEncoding Object
-   \param[in] primary_pic_type
+   \param[in] eSliceType Slice type
 *************************************************************************/
-void AL_RbspEncoding_WriteAUD(AL_TBitStreamLite* pRE, int primary_pic_type);
+void AL_RbspEncoding_WriteAUD(AL_TBitStreamLite* pRE, AL_ESliceType eSliceType);
 
 int AL_RbspEncoding_BeginSEI(AL_TBitStreamLite* pRE, uint8_t payloadType);
 void AL_RbspEncoding_BeginSEI2(AL_TBitStreamLite* pBS, int iPayloadType, int iPayloadSize);
@@ -66,6 +67,5 @@ void AL_RbspEncoding_CloseSEI(AL_TBitStreamLite* pRE);
 void AL_RbspEncoding_WriteUserDataUnregistered(AL_TBitStreamLite* pRE, uint8_t uuid[16], int8_t numSlices);
 /****************************************************************************/
 
-#endif
 /*@}*/
 

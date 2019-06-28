@@ -47,7 +47,6 @@
 #include "lib_rtos/lib_rtos.h"
 #include "lib_rtos/types.h"
 
-#include "lib_common/versions.h"
 #include "lib_common/SliceConsts.h"
 #include "lib_common/BufCommon.h"
 
@@ -89,14 +88,13 @@ uint32_t AL_GetAllocSize_Src(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMo
 /*************************************************************************//*!
    \brief Retrieves the size of a Source YUV frame buffer
    \param[in] tDim Frame size in pixels
-   \param[in] uBitDepth YUV bit-depth
    \param[in] eChromaMode Chroma Mode
    \param[in] eSrcFmt Source format used by the HW IP
    \param[in] iPitch pitch / stride of the source frame buffer
    \param[in] iStrideHeight the offset to the chroma in line of pixels
    \return maximum size (in bytes) needed for the YUV frame buffer
 *****************************************************************************/
-uint32_t AL_GetAllocSizeSrc(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight);
+uint32_t AL_GetAllocSizeSrc(AL_TDimension tDim, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight);
 
 /*************************************************************************//*!
    \brief Retrieves the minimal pitch value supported by the ip depending

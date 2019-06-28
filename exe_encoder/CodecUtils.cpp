@@ -59,9 +59,9 @@ extern "C"
 void DisplayFrameStatus(int iFrameNum)
 {
 #if VERBOSE_MODE
-  Message("\n\n> % 3d", iFrameNum);
+  LogVerbose("\n\n> % 3d", iFrameNum);
 #else
-  Message("\r  Encoding picture #%-6d - ", iFrameNum);
+  LogVerbose("\r  Encoding picture #%-6d - ", iFrameNum);
 #endif
   fflush(stdout);
 }

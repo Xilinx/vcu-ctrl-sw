@@ -240,6 +240,16 @@ bool CEncCmdMngr::ParseCmd(std::string sLine, TFrmCmd& Cmd, bool bSameFrame)
       Cmd.bChangeResolution = true;
       Cmd.iInputIdx = int(Tok.GetValue());
     }
+    else if(Tok == "LF.BetaOffset")
+    {
+      Cmd.bSetLFBetaOffset = true;
+      Cmd.iLFBetaOffset = int(Tok.GetValue());
+    }
+    else if(Tok == "LF.TcOffset")
+    {
+      Cmd.bSetLFTcOffset = true;
+      Cmd.iLFTcOffset = int(Tok.GetValue());
+    }
   }
 
   return true;
@@ -296,6 +306,12 @@ void CEncCmdMngr::Process(ICommandsSender* sender, int iFrame)
 
       if(m_Cmds.front().bChangeResolution)
         sender->setDynamicInput(m_Cmds.front().iInputIdx);
+
+      if(m_Cmds.front().bSetLFBetaOffset)
+        sender->setLFBetaOffset(m_Cmds.front().iLFBetaOffset);
+
+      if(m_Cmds.front().bSetLFTcOffset)
+        sender->setLFTcOffset(m_Cmds.front().iLFTcOffset);
     }
 
     if(bRefill)

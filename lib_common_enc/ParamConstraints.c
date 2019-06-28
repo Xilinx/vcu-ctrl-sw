@@ -35,11 +35,32 @@
 *
 ******************************************************************************/
 
-#pragma once
+#include "lib_common_enc/ParamConstraints.h"
 
-#define HW_IP_VER_0_1 0x00000001
 
-#ifndef HW_IP_VERSION
-#define HW_IP_VERSION HW_IP_VER_0_1
-#endif
+ECheckResolutionError AL_ParamConstraints_CheckResolution(AL_EProfile eProfile, AL_EChromaMode eChromaMode, uint16_t uWidth, uint16_t uHeight)
+{
+  (void)eProfile;
+
+  if((uWidth % 2 != 0) && ((eChromaMode == AL_CHROMA_4_2_0) || (eChromaMode == AL_CHROMA_4_2_2)))
+    return CRERROR_WIDTHCHROMA;
+
+  if((uHeight % 2 != 0) && (eChromaMode == AL_CHROMA_4_2_0))
+    return CRERROR_HEIGHTCHROMA;
+
+
+  return CRERROR_OK;
+}
+
+bool AL_ParamConstraints_CheckLFBetaOffset(AL_EProfile eProfile, int8_t iBetaOffset)
+{
+  (void)eProfile, (void)iBetaOffset;
+  return true;
+}
+
+bool AL_ParamConstraints_CheckLFTcOffset(AL_EProfile eProfile, int8_t iTcOffset)
+{
+  (void)eProfile, (void)iTcOffset;
+  return true;
+}
 

@@ -190,6 +190,7 @@ class FrameWriter : public IFrameSink
 public:
   FrameWriter(string RecFileName, ConfigFile& cfg_, AL_TBuffer* Yuv_, int iLayerID) : m_cfg(cfg_), m_Yuv(Yuv_)
   {
+    (void)iLayerID; // if no fbc support
     OpenOutput(m_RecFile, RecFileName);
   }
 

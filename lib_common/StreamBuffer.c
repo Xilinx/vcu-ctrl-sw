@@ -101,7 +101,7 @@ int AL_GetMaxNalSize(AL_ECodec eCodec, AL_TDimension tDim, AL_EChromaMode eMode,
 
   if(eCodec == AL_CODEC_AVC)
     iNumSlices = Avc_GetMaxNumberOfSlices(iProfileIdc, iLevel, 1, 60, INT32_MAX);
-  iMaxPCM += ENC_MAX_HEADER_SIZE + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
+  iMaxPCM += AL_ENC_MAX_HEADER_SIZE + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
 
   return RoundUp(iMaxPCM, 32);
 }
@@ -112,7 +112,7 @@ int AL_GetMitigatedMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBit
   /* Mitigated worst case: PCM + one slice per row. */
   int iMaxPCM = GetPcmVclNalSize(tDim, eMode, iBitDepth);
   int iNumSlices = ((tDim.iHeight + 15) / 16);
-  iMaxPCM += ENC_MAX_HEADER_SIZE + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
+  iMaxPCM += AL_ENC_MAX_HEADER_SIZE + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
 
   return RoundUp(iMaxPCM, 32);
 }

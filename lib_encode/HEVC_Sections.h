@@ -39,5 +39,5 @@
 #include "Sections.h"
 #include "IP_EncoderCtx.h"
 
-void HEVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayerID);
+void HEVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayerID, bool bForceWritePPS);
 

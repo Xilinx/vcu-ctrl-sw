@@ -382,4 +382,22 @@
   Fixes :
     -- Several minors bugs
 
+2019-06-28 (v1.0.47)
+--------------------
+  Added Features :
+    -- xAVC support implementation (LongGOP & Intra only)
+    -- 2 new GOP mode: AL_DEFAULT_GOP_B, AL_PYRAMIDALE_B
+    -- Adaptive Deblocking filter / control at frame level
+    -- MaxPicturesize control based on picture type , i.e Set I frame and Pframes sizes separately to avoid flickering effect at Intra/IDR pictures
+    -- Relative QP on top of AUTO_QP mode
+
+  API:
+    -- Version of the API is now 0.14.0
+    -- Add missing 'AL_' on structs/enums
+    -- Add AL_Encoder_SetLoopFilterTcOffset and AL_Encoder_SetLoopFilterBetaOffset for the Adaptive DBF feature
+
+  Fixes :
+    -- Improve rate control on specific sequences
+    -- Several minors bugs
+
 

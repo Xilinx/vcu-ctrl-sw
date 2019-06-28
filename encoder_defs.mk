@@ -32,6 +32,16 @@ else
 endif
 endif
 
+ifneq ($(ENABLE_ELASTIC),0)
+  LDFLAGS+=-lcurl
+  LDFLAGS+=-lcpr
+  INCLUDES+=-I./extra/cpr/include
+  INCLUDES+=-I./extra/date/include
+  LDFLAGS+=-L./extra/cpr/build
+  LIB_CPR_A=./extra/cpr/build/libcpr.a
+endif
+
+
 # to be fixed
 $(BIN)/lib_encode/unittests/encode.cpp.o: CFLAGS+=-Wno-deprecated-declarations
 $(BIN)/test/integration/dmabuf/test_dmabuf_encode.cpp.o: CFLAGS+=-Wno-deprecated-declarations

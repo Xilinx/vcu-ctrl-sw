@@ -307,7 +307,6 @@ static Config ParseCommandLine(int argc, char* argv[])
 {
   Config Config;
 
-  bool quiet = false;
   int fps = 0;
   bool version = false;
   bool helpJson = false;
@@ -325,7 +324,8 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addInt("-nbuf", &Config.uInputBufferNum, "Specify the number of input feeder buffer");
   opt.addInt("-nsize", &Config.zInputBufferSize, "Specify the size (in bytes) of input feeder buffer");
   opt.addInt("-num", &Config.iNumberTrace, "Number of frames to trace");
-  opt.addFlag("--quiet,-q", &quiet, "quiet mode");
+  opt.addFlag("--quiet,-q", &g_Verbosity, "Do not print anything", 0);
+  opt.addInt("--verbosity", &g_Verbosity, "Choose the verbosity level (-q is equivalent to --verbosity 0)");
   opt.addInt("-core", &Config.tDecSettings.uNumCore, "number of hevc_decoder cores");
   opt.addInt("-fps", &fps, "force framerate");
   opt.addInt("-bd", &Config.tDecSettings.iBitDepth, "Output YUV bitdepth (0:auto, 8, 10)");
@@ -438,9 +438,6 @@ static Config ParseCommandLine(int argc, char* argv[])
       throw runtime_error("Certification CRC unavaible with fbc");
     bCertCRC = false;
   }
-
-  if(quiet)
-    g_Verbosity = 0;
 
   if(fps > 0)
   {
@@ -953,15 +950,15 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
   if(bExitError || isEOS(pFrame, pInfo))
   {
     if(err == AL_WARN_SPS_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS)
-      Message(CC_GREY, "\nDecoder has discarded some SPS not compatible with the channel settings\n");
+      LogDimmedWarning("\nDecoder has discarded some SPS not compatible with the channel settings\n");
 
     if(err == AL_WARN_SEI_OVERFLOW)
-      Message(CC_GREY, "\nDecoder has discarded some SEI while the SEI metadata buffer was too small\n");
+      LogDimmedWarning("\nDecoder has discarded some SEI while the SEI metadata buffer was too small\n");
 
     if(bExitError)
-      Message(CC_RED, "Error: %d", err);
+      LogError("Error: %d", err);
     else
-      Message(CC_GREY, "Complete");
+      LogVerbose(CC_GREY, "Complete\n\n");
     Rtos_SetEvent(hExitMain);
     return;
   }
@@ -1049,7 +1046,7 @@ static void showStreamInfo(int BufferNumber, int BufferSize, AL_TStreamSettings 
   ss << "Sequence picture: " << SequencePictureToString(pSettings->eSequenceMode) << endl;
   ss << "Buffers needed: " << BufferNumber << " of size " << BufferSize << endl;
 
-  Message(CC_DARK_BLUE, "%s\n", ss.str().c_str());
+  LogInfo(CC_DARK_BLUE, "%s\n", ss.str().c_str());
 }
 
 static void sParsedSei(bool bIsPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, void* pUserParam)
@@ -1119,8 +1116,8 @@ void ShowStatistics(double durationInSeconds, int iNumFrameConceal, int decodedF
   if(timeoutOccured)
     guard = "TIMEOUT = ";
 
-  auto msg = "\n\n" + guard + "%.4f s;  Decoding FrameRate ~ %.4f Fps; Frame(s) conceal = %d\n";
-  Message(CC_DEFAULT, msg.c_str(),
+  auto msg = guard + "%.4f s;  Decoding FrameRate ~ %.4f Fps; Frame(s) conceal = %d\n";
+  LogInfo(msg.c_str(),
           durationInSeconds,
           decodedFrameNumber / durationInSeconds,
           iNumFrameConceal);
@@ -1332,7 +1329,7 @@ void SafeMain(int argc, char** argv)
   for(int iLoop = 0; iLoop < Config.iLoop; ++iLoop)
   {
     if(iLoop > 0)
-      Message(CC_GREY, "  Looping\n");
+      LogVerbose(CC_GREY, "  Looping\n");
 
     AsyncFileInput producer(hDec, Config.sIn, bufPool, Config.tDecSettings.bSplitInput, bIsAVC, Config.tDecSettings.eDecUnit == AL_VCL_NAL_UNIT);
 

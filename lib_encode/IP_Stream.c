@@ -107,7 +107,7 @@ void FlushNAL(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, uint8_
   for(int i = 0; i < header.size; i++)
     writeByte(pStream, header.bytes[i]);
 
-  const int iBytesInNAL = (iBitsInNAL + 7) >> 3;
+  int iBytesInNAL = BitsToBytes(iBitsInNAL);
 
   if(pDataInNAL && iBytesInNAL)
     AntiEmul(pStream, pDataInNAL, iBytesInNAL);

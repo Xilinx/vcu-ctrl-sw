@@ -50,5 +50,7 @@ struct ICommandsSender
   virtual void setBitRate(int bitRate) = 0;
   virtual void setQP(int qp) = 0;
   virtual void setDynamicInput(int iInputIdx) = 0;
+  virtual void setLFBetaOffset(int iBetaOffset) = 0;
+  virtual void setLFTcOffset(int iTcOffset) = 0;
 };
 

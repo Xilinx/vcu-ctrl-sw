@@ -44,14 +44,19 @@
 
 #include "ICommandsSender.h"
 
-class CEncCmdMngr
+struct CEncCmdMngr
 {
-public:
   CEncCmdMngr(std::istream& CmdInput, int iLookAhead, int iFreqLT);
 
   void Process(ICommandsSender* sender, int iFrame);
 
 private:
+  std::istream& m_CmdInput;
+  int const m_iLookAhead;
+  int const m_iFreqLT;
+  bool m_bHasLT;
+  std::string m_sBufferedLine;
+
   struct TFrmCmd
   {
     int iFrame = 0;
@@ -72,19 +77,17 @@ private:
     int iQP = 0;
     bool bChangeResolution = false;
     int iInputIdx;
+    bool bSetLFBetaOffset = false;
+    int iLFBetaOffset;
+    bool bSetLFTcOffset = false;
+    int iLFTcOffset;
   };
+
+  std::list<TFrmCmd> m_Cmds;
 
   void Refill(int iCurFrame);
   bool ReadNextCmd(TFrmCmd& Cmd);
   bool ParseCmd(std::string sLine, TFrmCmd& Cmd, bool bSameFrame);
   bool GetNextLine(std::string& sNextLine);
-
-private:
-  std::istream& m_CmdInput;
-  int const m_iLookAhead;
-  int const m_iFreqLT;
-  bool m_bHasLT;
-  std::list<TFrmCmd> m_Cmds;
-  std::string m_sBufferedLine;
 };
 

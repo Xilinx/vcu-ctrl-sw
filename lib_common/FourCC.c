@@ -115,7 +115,7 @@ bool AL_GetPicFormat(TFourCC tFourCC, AL_TPicFormat* tPicFormat)
     }
   }
 
-  assert(0);
+  assert(0 && "Unknown fourCC");
 
   return false;
 }
@@ -137,7 +137,7 @@ TFourCC AL_GetFourCC(AL_TPicFormat tPictFormat)
       return pMapping->tfourCC;
   }
 
-  assert(0);
+  assert(0 && "Unknown picture format");
 
   return 0;
 }

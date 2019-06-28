@@ -219,4 +219,18 @@ bool AL_Encoder_SetInputResolution(AL_HEncoder hEnc, AL_TDimension tDim)
   return AL_Common_Encoder_SetInputResolution(pEnc, tDim);
 }
 
+/****************************************************************************/
+bool AL_Encoder_SetLoopFilterBetaOffset(AL_HEncoder hEnc, int8_t iBetaOffset)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  return AL_Common_Encoder_SetLoopFilterBetaOffset(pEnc, iBetaOffset);
+}
+
+/****************************************************************************/
+bool AL_Encoder_SetLoopFilterTcOffset(AL_HEncoder hEnc, int8_t iTcOffset)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  return AL_Common_Encoder_SetLoopFilterTcOffset(pEnc, iTcOffset);
+}
+
 

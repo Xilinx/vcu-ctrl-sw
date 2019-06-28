@@ -38,12 +38,15 @@ endif
 
 EXE_ENCODER_OBJ:=$(EXE_ENCODER_SRCS:%=$(BIN)/%.o)
 
-##############################################################
-# get svn revision for debug message
-##############################################################
-SVNDEV:=-D'SVN_REV="$(shell svnversion -n . | grep -v Unversioned || echo 0)"'
+$(BIN)/$(THIS_EXE_ENCODER)/main.cpp.o: CFLAGS+=$(SCM_REV)
 
-$(BIN)/$(THIS_EXE_ENCODER)/main.cpp.o: CFLAGS+=$(SVNDEV)
+$(BIN)/$(THIS_EXE_ENCODER)/main.cpp.o: CFLAGS+=$(SCM_BRANCH)
+
+$(BIN)/$(THIS_EXE_ENCODER)/main.cpp.o: CFLAGS+=$(DELIVERY_BUILD_NUMBER)
+
+$(BIN)/$(THIS_EXE_ENCODER)/main.cpp.o: CFLAGS+=$(DELIVERY_SCM_REV)
+
+$(BIN)/$(THIS_EXE_ENCODER)/main.cpp.o: CFLAGS+=$(DELIVERY_DATE)
 
 $(BIN)/$(THIS_EXE_ENCODER)/main.cpp.o: INTROSPECT_FLAGS=-DAL_COMPIL_FLAGS='"$(CFLAGS)"'
 

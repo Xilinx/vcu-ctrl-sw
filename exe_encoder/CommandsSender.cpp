@@ -95,6 +95,16 @@ void CommandsSender::setDynamicInput(int iInputIdx)
   this->iInputIdx = iInputIdx;
 }
 
+void CommandsSender::setLFBetaOffset(int iBetaOffset)
+{
+  CHECK(AL_Encoder_SetLoopFilterBetaOffset(hEnc, iBetaOffset));
+}
+
+void CommandsSender::setLFTcOffset(int iTcOffset)
+{
+  CHECK(AL_Encoder_SetLoopFilterTcOffset(hEnc, iTcOffset));
+}
+
 
 void CommandsSender::Reset()
 {

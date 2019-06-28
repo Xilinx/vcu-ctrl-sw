@@ -59,7 +59,7 @@ int AL_GetNumLinesInPitch(AL_EFbStorageMode eFrameBufferStorageMode)
 }
 
 /******************************************************************************/
-static inline int GetWidthRound(AL_EFbStorageMode eStorageMode)
+static AL_INLINE int GetWidthRound(AL_EFbStorageMode eStorageMode)
 {
   switch(eStorageMode)
   {

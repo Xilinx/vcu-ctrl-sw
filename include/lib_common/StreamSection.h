@@ -44,17 +44,6 @@
 
 #include "lib_rtos/types.h"
 
-/*************************************************************************//*!
-   \brief Stream section. Act as a kind of scatter gather list containing the
-   stream parts inside a buffer.
-*****************************************************************************/
-typedef struct
-{
-  uint32_t uOffset; /*!< Start offset of the section (in bytes from the begining of the buffer) */
-  uint32_t uLength; /*!< Length in bytes of the section */
-  uint32_t uFlags; /*!< flags associated with the section; see macro SECTION_xxxxx_FLAG */
-}AL_TStreamSection;
-
 typedef enum
 {
   AL_SECTION_SEI_PREFIX_FLAG = 0x80000000, /*< this section data is from a SEI prefix */
@@ -63,6 +52,17 @@ typedef enum
   AL_SECTION_CONFIG_FLAG = 0x10000000, /*< section data is an sps, pps, vps, aud */
   AL_SECTION_FILLER_FLAG = 0x08000000, /*< section data contains filler data */
 }AL_SectionFlags;
+
+/*************************************************************************//*!
+   \brief Stream section. Act as a kind of scatter gather list containing the
+   stream parts inside a buffer.
+*****************************************************************************/
+typedef struct
+{
+  uint32_t uOffset; /*!< Start offset of the section (in bytes from the beginning of the buffer) */
+  uint32_t uLength; /*!< Length in bytes of the section */
+  AL_SectionFlags uFlags; /*!< Flags associated with the section; see macro AL_SECTION_xxxxx_FLAG */
+}AL_TStreamSection;
 
 /*@}*/
 

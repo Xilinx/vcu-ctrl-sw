@@ -153,40 +153,43 @@ static void Insert(AL_TRoiMngrCtx* pCtx, AL_TRoiNode* pNode)
 }
 
 /****************************************************************************/
-static void MeanQuality(AL_TRoiMngrCtx* pCtx, uint8_t* pTargetQP, uint8_t iDQp1, uint8_t iDQp2)
+static void MeanQuality(AL_TRoiMngrCtx* pCtx, uint8_t* pTargetQP, uint8_t iDQp1, uint8_t iDQp2, int iNumQPPerLCU)
 {
   auto eMask = (*pTargetQP & MASK_FORCE);
 
   int8_t iQP = Clip3((GetDQp(iDQp1) + GetDQp(iDQp2)) / 2, pCtx->iMinQP, pCtx->iMaxQP) & MASK_QP;
-  *pTargetQP = iQP | eMask;
+  pTargetQP[0] = iQP | eMask;
+
+  for(int i = 1; i < iNumQPPerLCU; ++i)
+    pTargetQP[i] = pTargetQP[0];
 }
 
 /****************************************************************************/
-static void UpdateTransitionHorz(AL_TRoiMngrCtx* pCtx, uint8_t* pLcu1, uint8_t* pLcu2, int iNumBytesPerLCU, int iLcuWidth, int iPosX, int iWidth, int8_t iQP)
+static void UpdateTransitionHorz(AL_TRoiMngrCtx* pCtx, uint8_t* pLcu1, uint8_t* pLcu2, int iNumQPPerLCU, int iNumBytesPerLCU, int iLcuWidth, int iPosX, int iWidth, int8_t iQP)
 {
   // left corner
   if(iPosX > 1)
-    MeanQuality(pCtx, &pLcu1[-iNumBytesPerLCU], pLcu2[-2 * iNumBytesPerLCU], iQP);
+    MeanQuality(pCtx, &pLcu1[-iNumBytesPerLCU], pLcu2[-2 * iNumBytesPerLCU], iQP, iNumQPPerLCU);
   else if(iPosX > 0)
-    MeanQuality(pCtx, &pLcu1[-iNumBytesPerLCU], pLcu2[-iNumBytesPerLCU], iQP);
+    MeanQuality(pCtx, &pLcu1[-iNumBytesPerLCU], pLcu2[-iNumBytesPerLCU], iQP, iNumQPPerLCU);
 
   // width
   for(int w = 0; w < iWidth; ++w)
-    MeanQuality(pCtx, &pLcu1[w * iNumBytesPerLCU], pLcu2[w * iNumBytesPerLCU], iQP);
+    MeanQuality(pCtx, &pLcu1[w * iNumBytesPerLCU], pLcu2[w * iNumBytesPerLCU], iQP, iNumQPPerLCU);
 
   // right corner
   if(iPosX + iWidth + 2 < iLcuWidth)
-    MeanQuality(pCtx, &pLcu1[iWidth * iNumBytesPerLCU], pLcu2[(iWidth + 1) * iNumBytesPerLCU], iQP);
+    MeanQuality(pCtx, &pLcu1[iWidth * iNumBytesPerLCU], pLcu2[(iWidth + 1) * iNumBytesPerLCU], iQP, iNumQPPerLCU);
   else if(iPosX + iWidth + 1 < iLcuWidth)
-    MeanQuality(pCtx, &pLcu1[iWidth * iNumBytesPerLCU], pLcu2[iWidth * iNumBytesPerLCU], iQP);
+    MeanQuality(pCtx, &pLcu1[iWidth * iNumBytesPerLCU], pLcu2[iWidth * iNumBytesPerLCU], iQP, iNumQPPerLCU);
 }
 
 /****************************************************************************/
-static void UpdateTransitionVert(AL_TRoiMngrCtx* pCtx, uint8_t* pLcu1, uint8_t* pLcu2, int iNumBytesPerLCU, int iLcuWidth, int iHeight, int8_t iQP)
+static void UpdateTransitionVert(AL_TRoiMngrCtx* pCtx, uint8_t* pLcu1, uint8_t* pLcu2, int iNumQPPerLCU, int iNumBytesPerLCU, int iLcuWidth, int iHeight, int8_t iQP)
 {
   for(int h = 0; h < iHeight; ++h)
   {
-    MeanQuality(pCtx, pLcu1, *pLcu2, iQP);
+    MeanQuality(pCtx, pLcu1, *pLcu2, iQP, iNumQPPerLCU);
     pLcu1 += (iLcuWidth * iNumBytesPerLCU);
     pLcu2 += (iLcuWidth * iNumBytesPerLCU);
   }
@@ -243,7 +246,7 @@ static void ComputeROI(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerL
       if(pNode->iPosY > 1)
         pLcuTop2 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY - 2, iNumBytesPerLCU);
 
-      UpdateTransitionHorz(pCtx, pLcuTop1, pLcuTop2, iNumBytesPerLCU, pCtx->iLcuWidth, pNode->iPosX, pNode->iWidth, pNode->iDeltaQP);
+      UpdateTransitionHorz(pCtx, pLcuTop1, pLcuTop2, iNumQPPerLCU, iNumBytesPerLCU, pCtx->iLcuWidth, pNode->iPosX, pNode->iWidth, pNode->iDeltaQP);
     }
 
     // update below transition
@@ -255,7 +258,7 @@ static void ComputeROI(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerL
       if(pNode->iPosY + pNode->iHeight + 2 < pCtx->iLcuHeight)
         pLcuBot2 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY + pNode->iHeight + 1, iNumBytesPerLCU);
 
-      UpdateTransitionHorz(pCtx, pLcuBot1, pLcuBot2, iNumBytesPerLCU, pCtx->iLcuWidth, pNode->iPosX, pNode->iWidth, pNode->iDeltaQP);
+      UpdateTransitionHorz(pCtx, pLcuBot1, pLcuBot2, iNumQPPerLCU, iNumBytesPerLCU, pCtx->iLcuWidth, pNode->iPosX, pNode->iWidth, pNode->iDeltaQP);
     }
 
     // update left transition
@@ -267,7 +270,7 @@ static void ComputeROI(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerL
       if(pNode->iPosX > 1)
         pLcuLeft2 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX - 2, pNode->iPosY, iNumBytesPerLCU);
 
-      UpdateTransitionVert(pCtx, pLcuLeft1, pLcuLeft2, iNumBytesPerLCU, pCtx->iLcuWidth, pNode->iHeight, pNode->iDeltaQP);
+      UpdateTransitionVert(pCtx, pLcuLeft1, pLcuLeft2, iNumQPPerLCU, iNumBytesPerLCU, pCtx->iLcuWidth, pNode->iHeight, pNode->iDeltaQP);
     }
 
     // update right transition
@@ -279,7 +282,7 @@ static void ComputeROI(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerL
       if(pNode->iPosX + pNode->iWidth + 2 < pCtx->iLcuWidth)
         pLcuRight2 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX + pNode->iWidth + 1, pNode->iPosY, iNumBytesPerLCU);
 
-      UpdateTransitionVert(pCtx, pLcuRight1, pLcuRight2, iNumBytesPerLCU, pCtx->iLcuWidth, pNode->iHeight, pNode->iDeltaQP);
+      UpdateTransitionVert(pCtx, pLcuRight1, pLcuRight2, iNumQPPerLCU, iNumBytesPerLCU, pCtx->iLcuWidth, pNode->iHeight, pNode->iDeltaQP);
     }
   }
 }

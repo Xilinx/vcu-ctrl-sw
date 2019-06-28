@@ -48,7 +48,6 @@
 
 #include "lib_common_enc/EncHwScalingList.h"
 #include "lib_common_enc/EncChanParam.h"
-#include "lib_common_enc/PyramidalGop.h"
 
 enum
 {
@@ -70,9 +69,27 @@ static int const VUI_MATRIX_COEFFICIENTS_UNSPECIFIED = 2;
 /****************************************************************************/
 static int DeduceNumTemporalLayer(AL_TGopParam const* pGop)
 {
-  if(pGop->eMode != AL_GOP_MODE_PYRAMIDAL)
+  if((pGop->eMode & AL_GOP_FLAG_PYRAMIDAL) == 0)
     return 1;
-  return pGop->uNumB == 7 ? 4 : 3;
+
+  int iNumTemporalLayers;
+  switch(pGop->uNumB)
+  {
+  case 15:
+    iNumTemporalLayers = 5;
+    break;
+  case 7:
+    iNumTemporalLayers = 4;
+    break;
+  default:
+    iNumTemporalLayers = 3;
+    break;
+  }
+
+  if(pGop->eMode & AL_GOP_FLAG_B_ONLY)
+    iNumTemporalLayers--;
+
+  return iNumTemporalLayers;
 }
 
 /****************************************************************************/
@@ -164,20 +181,18 @@ static void AL_sReduction(uint32_t* pN, uint32_t* pD)
 /****************************************************************************/
 static void fillScalingList(AL_TEncSettings const* pSettings, uint8_t* pSL, int iSizeId, int iMatrixId, int iDir, uint8_t* uSLpresentFlag)
 {
-  if(pSettings->SclFlag[iSizeId][iMatrixId])
+  if(pSettings->SclFlag[iSizeId][iMatrixId] != 0)
   {
     *uSLpresentFlag = 1; // scaling list present in file
     Rtos_Memcpy(pSL, pSettings->ScalingList[iSizeId][iMatrixId], iSizeId == 0 ? 16 : 64);
+    return;
   }
-  else
-  {
-    *uSLpresentFlag = 0;
+  *uSLpresentFlag = 0;
 
-    if(iSizeId == 0)
-      Rtos_Memcpy(pSL, AL_AVC_DefaultScalingLists4x4[iDir], 16);
-    else
-      Rtos_Memcpy(pSL, AL_AVC_DefaultScalingLists8x8[iDir], 64);
-  }
+  if(iSizeId == 0)
+    Rtos_Memcpy(pSL, AL_AVC_DefaultScalingLists4x4[iDir], 16);
+  else
+    Rtos_Memcpy(pSL, AL_AVC_DefaultScalingLists8x8[iDir], 64);
 }
 
 /****************************************************************************/
@@ -186,10 +201,32 @@ void AL_AVC_SelectScalingList(AL_TSps* pISPS, AL_TEncSettings const* pSettings)
   AL_TAvcSps* pSPS = (AL_TAvcSps*)pISPS;
   AL_EScalingList eScalingList = pSettings->eScalingList;
 
+  assert(eScalingList != AL_SCL_RANDOM);
+  assert(eScalingList != AL_SCL_MAX_ENUM);
+
+  if(eScalingList == AL_SCL_FLAT)
+  {
+    pSPS->seq_scaling_matrix_present_flag = 0;
+
+    for(int i = 0; i < 8; i++)
+      pSPS->seq_scaling_list_present_flag[i] = 0;
+
+    return;
+  }
+
+  pSPS->seq_scaling_matrix_present_flag = 1;
+
+  AL_TEncChanParam const* pChannel = &pSettings->tChParam[0];
+
+  if(AL_IS_XAVC_VBR(pChannel->eProfile) && AL_IS_INTRA_PROFILE(pChannel->eProfile))
+  {
+    // Scaling matrix shall be in PPS.
+    // PPS scaling matrix we use the SPS's one
+    pSPS->seq_scaling_matrix_present_flag = 0;
+  }
+
   if(eScalingList == AL_SCL_CUSTOM)
   {
-    pSPS->seq_scaling_matrix_present_flag = 1;
-
     for(int iDir = 0; iDir < 2; ++iDir)
     {
       fillScalingList(pSettings, pSPS->scaling_list_param.ScalingList[1][3 * iDir], 1, iDir * 3, iDir, &pSPS->seq_scaling_list_present_flag[iDir + 6]);
@@ -200,8 +237,6 @@ void AL_AVC_SelectScalingList(AL_TSps* pISPS, AL_TEncSettings const* pSettings)
   }
   else if(eScalingList == AL_SCL_DEFAULT)
   {
-    pSPS->seq_scaling_matrix_present_flag = 1;
-
     for(int i = 0; i < 8; i++)
       pSPS->seq_scaling_list_present_flag[i] = 0;
 
@@ -212,13 +247,6 @@ void AL_AVC_SelectScalingList(AL_TSps* pISPS, AL_TEncSettings const* pSettings)
       Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[0][(3 * iDir) + 1], AL_AVC_DefaultScalingLists4x4[iDir], 16);
       Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[0][(3 * iDir) + 2], AL_AVC_DefaultScalingLists4x4[iDir], 16);
     }
-  }
-  else // if (eScalingList == FLAT)
-  {
-    pSPS->seq_scaling_matrix_present_flag = 0;
-
-    for(int i = 0; i < 8; i++)
-      pSPS->seq_scaling_list_present_flag[i] = 0;
   }
 }
 
@@ -448,8 +476,10 @@ static void AL_UpdateAspectRatio(AL_TVuiParam* pVuiParam, uint32_t uWidth, uint3
         pVuiParam->aspect_ratio_idc = 1;
     }
   }
+  else if(eAspectRatio == AL_ASPECT_RATIO_1_1)
+    pVuiParam->aspect_ratio_idc = 1;
 
-  if(!pVuiParam->aspect_ratio_idc && !bAuto)
+  if((pVuiParam->aspect_ratio_idc == 0) && !bAuto)
   {
     uint32_t uW = uWidth;
     uint32_t uH = uHeight;
@@ -619,13 +649,14 @@ static void AL_AVC_GenerateSPS_Resolution(AL_TAvcSps* pSPS, uint16_t uWidth, uin
 void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize)
 {
   AL_TAvcSps* pSPS = (AL_TAvcSps*)pISPS;
+  AL_TEncChanParam const* pChannel = &pSettings->tChParam[0];
 
-  AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pSettings->tChParam[0].ePicFormat);
+  AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChannel->ePicFormat);
 
-  uint32_t uCSFlags = AL_GET_CS_FLAGS(pSettings->tChParam[0].eProfile);
+  uint32_t uCSFlags = AL_GET_CS_FLAGS(pChannel->eProfile);
 
   // --------------------------------------------------------------------------
-  pSPS->profile_idc = AL_GET_PROFILE_IDC(pSettings->tChParam[0].eProfile);
+  pSPS->profile_idc = AL_GET_PROFILE_IDC(pChannel->eProfile);
 
   pSPS->constraint_set0_flag = (uCSFlags) & 1;
   pSPS->constraint_set1_flag = (uCSFlags >> 1) & 1;
@@ -634,23 +665,32 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   pSPS->constraint_set4_flag = (uCSFlags >> 4) & 1;
   pSPS->constraint_set5_flag = (uCSFlags >> 5) & 1;
   pSPS->chroma_format_idc = eChromaMode;
-  pSPS->bit_depth_luma_minus8 = AL_GET_BITDEPTH_LUMA(pSettings->tChParam[0].ePicFormat) - 8;
-  pSPS->bit_depth_chroma_minus8 = AL_GET_BITDEPTH_CHROMA(pSettings->tChParam[0].ePicFormat) - 8;
+  pSPS->bit_depth_luma_minus8 = AL_GET_BITDEPTH_LUMA(pChannel->ePicFormat) - 8;
+  pSPS->bit_depth_chroma_minus8 = AL_GET_BITDEPTH_CHROMA(pChannel->ePicFormat) - 8;
   pSPS->qpprime_y_zero_transform_bypass_flag = 0;
 
   AL_AVC_SelectScalingList(pISPS, pSettings);
 
-  pSPS->level_idc = pSettings->tChParam[0].uLevel;
+  pSPS->level_idc = pChannel->uLevel;
   pSPS->seq_parameter_set_id = 0;
   pSPS->pic_order_cnt_type = 0; // TDMB = 2;
 
   pSPS->max_num_ref_frames = iMaxRef; // TDMB = 1, PyramidB = 4
-  pSPS->gaps_in_frame_num_value_allowed_flag = 0;
 
-  pSPS->log2_max_pic_order_cnt_lsb_minus4 = AL_GET_SPS_LOG2_MAX_POC(pSettings->tChParam[0].uSpsParam) - 4;
+
+  if(AL_IS_XAVC(pChannel->eProfile))
+    pSPS->max_num_ref_frames = 0;
+
+  pSPS->gaps_in_frame_num_value_allowed_flag = 0;
+  pSPS->log2_max_pic_order_cnt_lsb_minus4 = AL_GET_SPS_LOG2_MAX_POC(pChannel->uSpsParam) - 4;
+
+
+  if(AL_IS_XAVC(pChannel->eProfile))
+    pSPS->log2_max_pic_order_cnt_lsb_minus4 = 0;
+
   pSPS->log2_max_frame_num_minus4 = 0;
 
-  if(pSettings->tChParam[0].tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL && pSettings->tChParam[0].tGopParam.uNumB == 15)
+  if((pChannel->tGopParam.eMode & AL_GOP_FLAG_PYRAMIDAL) && pChannel->tGopParam.uNumB == 15)
     pSPS->log2_max_frame_num_minus4 = 1;
 
   else if(isGdrEnabled(pSettings))
@@ -676,16 +716,30 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
 #endif
 
   pSPS->vui_param.chroma_loc_info_present_flag = (eChromaMode == AL_CHROMA_4_2_0) ? 1 : 0;
+
+  if(AL_IS_XAVC(pChannel->eProfile))
+    pSPS->vui_param.chroma_loc_info_present_flag = 0;
   pSPS->vui_param.chroma_sample_loc_type_top_field = 0;
   pSPS->vui_param.chroma_sample_loc_type_bottom_field = 0;
 
-  AL_AVC_GenerateSPS_Resolution(pSPS, pSettings->tChParam[0].uWidth, pSettings->tChParam[0].uHeight, pSettings->tChParam[0].uMaxCuSize, pSettings->tChParam[0].ePicFormat, pSettings->eAspectRatio);
+  AL_AVC_GenerateSPS_Resolution(pSPS, pChannel->uWidth, pChannel->uHeight, pChannel->uMaxCuSize, pChannel->ePicFormat, pSettings->eAspectRatio);
 
   pSPS->vui_param.overscan_info_present_flag = 0;
+
+  if(AL_IS_XAVC_CBG(pChannel->eProfile) && AL_IS_INTRA_PROFILE(pChannel->eProfile) && (pSPS->pic_width_in_mbs_minus1 <= 119) && (pSPS->pic_height_in_map_units_minus1 <= 67))
+  {
+    pSPS->vui_param.overscan_info_present_flag = 1;
+    pSPS->vui_param.overscan_appropriate_flag = 1;
+  }
+
 
   pSPS->vui_param.video_signal_type_present_flag = 1;
 
   pSPS->vui_param.video_format = VIDEO_FORMAT_UNSPECIFIED;
+
+  if(AL_IS_XAVC_CBG(pChannel->eProfile) && AL_IS_INTRA_PROFILE(pChannel->eProfile))
+    pSPS->vui_param.video_format = VIDEO_FORMAT_COMPONENT;
+
   pSPS->vui_param.video_full_range_flag = 0;
 
   // Colour parameter information
@@ -698,21 +752,33 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   // When fixed_frame_rate_flag = 1, num_units_in_tick/time_scale should be equal to
   // a duration of one field both for progressive and interlaced sequences.
   pSPS->vui_param.vui_timing_info_present_flag = 1;
-  pSPS->vui_param.vui_num_units_in_tick = pSettings->tChParam[0].tRCParam.uClkRatio;
-  pSPS->vui_param.vui_time_scale = pSettings->tChParam[0].tRCParam.uFrameRate * 1000 * 2;
+  pSPS->vui_param.vui_num_units_in_tick = pChannel->tRCParam.uClkRatio;
+  pSPS->vui_param.vui_time_scale = pChannel->tRCParam.uFrameRate * 1000 * 2;
 
   AL_sReduction(&pSPS->vui_param.vui_time_scale, &pSPS->vui_param.vui_num_units_in_tick);
 
   pSPS->vui_param.fixed_frame_rate_flag = 0;
 
+  if(AL_IS_XAVC(pChannel->eProfile))
+    pSPS->vui_param.fixed_frame_rate_flag = 1;
+
+
   // NAL HRD
   pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag = 0;
+
+
+  if(AL_IS_XAVC(pChannel->eProfile) && !(AL_IS_INTRA_PROFILE(pChannel->eProfile)))
+    pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag = 1;
 
   if(pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag)
     AL_AVC_UpdateHrdParameters(pSPS, &(pSPS->vui_param.hrd_param.nal_sub_hrd_param), iCpbSize, pSettings);
 
   // VCL HRD
   pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag = 1;
+
+  if(AL_IS_XAVC_CBG(pChannel->eProfile) && AL_IS_INTRA_PROFILE(pChannel->eProfile))
+    pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag = 0;
+
 
   if(pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag)
     AL_AVC_UpdateHrdParameters(pSPS, &(pSPS->vui_param.hrd_param.vcl_sub_hrd_param), iCpbSize, pSettings);
@@ -722,6 +788,10 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
 
   // Picture structure information
   pSPS->vui_param.pic_struct_present_flag = 1;
+
+  if(AL_IS_XAVC_CBG(pChannel->eProfile) && AL_IS_INTRA_PROFILE(pChannel->eProfile))
+    pSPS->vui_param.pic_struct_present_flag = 0;
+
 
   pSPS->vui_param.bitstream_restriction_flag = 0;
 
@@ -842,56 +912,6 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
 
   pSPS->num_short_term_ref_pic_sets = 0;
 
-  if(pChParam->tGopParam.eMode == AL_GOP_MODE_PYRAMIDAL)
-  {
-    int const NumB = pChParam->tGopParam.uNumB;
-    pSPS->num_short_term_ref_pic_sets = NumB + 1;
-    AL_TGopFrm* pGopFrms = getPyramidalFrames(NumB);
-
-    for(int i = 0; i < pSPS->num_short_term_ref_pic_sets; ++i)
-    {
-      AL_TGopFrm* pFrm = pGopFrms + i;
-      int iNumNegPics = 0;
-      int iNumPosPics = 0;
-      int iOldPOC = 0;
-
-      for(int iPic = 0; iPic < (long)sizeof(pFrm->pDPB); ++iPic)
-      {
-        if(pFrm->pDPB[iPic] == 0)
-          break;
-        (pFrm->pDPB[iPic] < 0) ? ++iNumNegPics : ++iNumPosPics;
-      }
-
-      pSPS->short_term_ref_pic_set[i].inter_ref_pic_set_prediction_flag = 0;
-      pSPS->short_term_ref_pic_set[i].num_negative_pics = iNumNegPics;
-      pSPS->short_term_ref_pic_set[i].num_positive_pics = iNumPosPics;
-
-      // process negative pictures
-      for(int iPic = 0; iPic < pSPS->short_term_ref_pic_set[i].num_negative_pics; ++iPic)
-      {
-        assert(((iNumNegPics - iPic - 1) >= 0) && ((iNumNegPics - iPic - 1) < 5));
-        int iPOC = pFrm->pDPB[iNumNegPics - iPic - 1];
-        pSPS->short_term_ref_pic_set[i].delta_poc_s0_minus1[iPic] = iOldPOC - iPOC - 1;
-        pSPS->short_term_ref_pic_set[i].used_by_curr_pic_s0_flag[iPic] = (pFrm->uType != AL_SLICE_I && iPOC == pFrm->iRefA)
-                                                                         || (pFrm->uType == AL_SLICE_B && iPOC == pFrm->iRefB);
-        iOldPOC = iPOC;
-      }
-
-      // process positive pictures
-      iOldPOC = 0;
-
-      for(int iPic = 0; iPic < pSPS->short_term_ref_pic_set[i].num_positive_pics; ++iPic)
-      {
-        assert(((iNumNegPics + iPic) >= 0) && ((iNumNegPics + iPic) < 5));
-        int iPOC = pFrm->pDPB[iNumNegPics + iPic];
-        pSPS->short_term_ref_pic_set[i].delta_poc_s1_minus1[iPic] = iPOC - iOldPOC - 1;
-        pSPS->short_term_ref_pic_set[i].used_by_curr_pic_s1_flag[iPic] = (pFrm->uType != AL_SLICE_I && iPOC == pFrm->iRefA)
-                                                                         || (pFrm->uType == AL_SLICE_B && iPOC == pFrm->iRefB);
-        iOldPOC = iPOC;
-      }
-    }
-  }
-
   pSPS->long_term_ref_pics_present_flag = AL_GET_SPS_LOG2_NUM_LONG_TERM_RPS(pChParam->uSpsParam) ? 1 : 0;
   pSPS->num_long_term_ref_pics_sps = 0;
   pSPS->sps_temporal_mvp_enabled_flag = 1;
@@ -989,33 +1009,70 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
 }
 
 /****************************************************************************/
-void AL_AVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, int iMaxRef)
+void AL_AVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, int iMaxRef, AL_TSps const* pSPS)
 {
   AL_TAvcPps* pPPS = (AL_TAvcPps*)pIPPS;
+  AL_TEncChanParam const* pChannel = &pSettings->tChParam[0];
+
   pPPS->pic_parameter_set_id = 0;
   pPPS->seq_parameter_set_id = 0;
 
-  pPPS->entropy_coding_mode_flag = (pSettings->tChParam[0].eEntropyMode == AL_MODE_CABAC) ? 1 : 0;
+  pPPS->entropy_coding_mode_flag = (pChannel->eEntropyMode == AL_MODE_CABAC) ? 1 : 0;
   pPPS->bottom_field_pic_order_in_frame_present_flag = 0;
 
   pPPS->num_slice_groups_minus1 = 0;
   pPPS->num_ref_idx_l0_active_minus1 = iMaxRef - 1;
   pPPS->num_ref_idx_l1_active_minus1 = iMaxRef - 1;
 
-  pPPS->weighted_pred_flag = (pSettings->tChParam[0].eWPMode == AL_WP_EXPLICIT) ? 1 : 0;
-  pPPS->weighted_bipred_idc = pSettings->tChParam[0].eWPMode;
+  pPPS->weighted_pred_flag = (pChannel->eWPMode == AL_WP_EXPLICIT) ? 1 : 0;
+  pPPS->weighted_bipred_idc = pChannel->eWPMode;
 
   pPPS->pic_init_qp_minus26 = 0;
   pPPS->pic_init_qs_minus26 = 0;
-  pPPS->chroma_qp_index_offset = Clip3(pSettings->tChParam[0].iCbPicQpOffset, -12, 12);
-  pPPS->second_chroma_qp_index_offset = Clip3(pSettings->tChParam[0].iCrPicQpOffset, -12, 12);
+  pPPS->chroma_qp_index_offset = Clip3(pChannel->iCbPicQpOffset, -12, 12);
+  pPPS->second_chroma_qp_index_offset = Clip3(pChannel->iCrPicQpOffset, -12, 12);
 
   pPPS->deblocking_filter_control_present_flag = 1; // TDMB = 0;
 
-  pPPS->constrained_intra_pred_flag = pSettings->tChParam[0].eEncTools & AL_OPT_CONST_INTRA_PRED ? 1 : 0;
+  pPPS->constrained_intra_pred_flag = pChannel->eEncTools & AL_OPT_CONST_INTRA_PRED ? 1 : 0;
   pPPS->redundant_pic_cnt_present_flag = 0;
-  pPPS->transform_8x8_mode_flag = pSettings->tChParam[0].uMaxTuSize > 2 ? 1 : 0;
+  pPPS->transform_8x8_mode_flag = pChannel->uMaxTuSize > 2 ? 1 : 0;
+
+  if(AL_IS_XAVC(pChannel->eProfile))
+    pPPS->transform_8x8_mode_flag = 1;
+
   pPPS->pic_scaling_matrix_present_flag = 0;
+
+  if(AL_IS_XAVC_VBR(pChannel->eProfile) && AL_IS_INTRA_PROFILE(pChannel->eProfile))
+  {
+    // Scaling matrix are disabled in SPS but enabled in PPS.
+    // PPS scaling matrix use SPS's one
+    pPPS->pic_scaling_matrix_present_flag = 1;
+  }
+  pPPS->pSPS = (AL_TAvcSps*)pSPS;
+}
+
+/****************************************************************************/
+static void AL_HEVC_GenerateFilterParam(AL_THevcPps* pPPS, bool bIsGDR, AL_EChEncTool eEncTools, uint32_t uPPSParam, int8_t iBetaOffset, int8_t iTcOffset)
+{
+  (void)bIsGDR;
+  pPPS->deblocking_filter_control_present_flag = (!(eEncTools & AL_OPT_LF) || AL_GET_PPS_OVERRIDE_LF(uPPSParam) || (iBetaOffset || iTcOffset)) ? 1 : 0;
+
+
+  if(bIsGDR)
+    pPPS->deblocking_filter_control_present_flag = 1;
+
+  if(pPPS->deblocking_filter_control_present_flag)
+  {
+    pPPS->deblocking_filter_override_enabled_flag = AL_GET_PPS_OVERRIDE_LF(uPPSParam);
+    pPPS->pps_deblocking_filter_disabled_flag = AL_GET_PPS_DISABLE_LF(uPPSParam);
+
+    if(!pPPS->pps_deblocking_filter_disabled_flag)
+    {
+      pPPS->pps_beta_offset_div2 = iBetaOffset;
+      pPPS->pps_tc_offset_div2 = iTcOffset;
+    }
+  }
 }
 
 /****************************************************************************/
@@ -1037,7 +1094,9 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
   pPPS->transform_skip_enabled_flag = (pChParam->eEncTools & AL_OPT_TRANSFO_SKIP) ? 1 : 0;
   pPPS->cu_qp_delta_enabled_flag = pSettings->eQpCtrlMode ||
                                    (pChParam->tRCParam.eRCMode == AL_RC_LOW_LATENCY) ||
-                                   (pChParam->tRCParam.uMaxPictureSize > 0) ||
+                                   (pChParam->tRCParam.pMaxPictureSize[AL_SLICE_I] > 0) ||
+                                   (pChParam->tRCParam.pMaxPictureSize[AL_SLICE_P] > 0) ||
+                                   (pChParam->tRCParam.pMaxPictureSize[AL_SLICE_B] > 0) ||
                                    (pChParam->tRCParam.eRCMode == AL_RC_CAPPED_VBR) ||
                                    pChParam->uSliceSize ? 1 : 0;
   pPPS->diff_cu_qp_delta_depth = pChParam->uCuQPDeltaDepth;
@@ -1057,20 +1116,10 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
 
   pPPS->loop_filter_across_slices_enabled_flag = (pChParam->eEncTools & AL_OPT_LF_X_SLICE) ? 1 : 0;
 
-  pPPS->deblocking_filter_control_present_flag = (!(pChParam->eEncTools & AL_OPT_LF) || AL_GET_PPS_OVERRIDE_LF(pChParam->uPpsParam) || (pChParam->iBetaOffset || pChParam->iTcOffset)) ? 1 : 0;
+  bool bIsGdr = false;
+  bIsGdr |= isGdrEnabled(pSettings);
 
-
-  if(isGdrEnabled(pSettings))
-    pPPS->deblocking_filter_control_present_flag = 1;
-
-  pPPS->deblocking_filter_override_enabled_flag = AL_GET_PPS_OVERRIDE_LF(pChParam->uPpsParam);
-  pPPS->pps_deblocking_filter_disabled_flag = AL_GET_PPS_DISABLE_LF(pChParam->uPpsParam);
-
-  if(!pPPS->pps_deblocking_filter_disabled_flag)
-  {
-    pPPS->pps_beta_offset_div2 = pChParam->iBetaOffset;
-    pPPS->pps_tc_offset_div2 = pChParam->iTcOffset;
-  }
+  AL_HEVC_GenerateFilterParam(pPPS, bIsGdr, pChParam->eEncTools, pChParam->uPpsParam, pChParam->iBetaOffset, pChParam->iTcOffset);
 
   pPPS->pps_scaling_list_data_present_flag = 0;
   pPPS->lists_modification_present_flag = AL_GET_PPS_ENABLE_REORDERING(pChParam->uPpsParam);
@@ -1105,32 +1154,41 @@ static AL_TSrcMetaData* AL_GetSrcMetaFromStatus(AL_TEncPicStatus const* pPicStat
 }
 
 /***************************************************************************/
-void AL_HEVC_UpdateSPS(AL_TSps* pISPS, AL_TEncPicStatus const* pPicStatus, uint8_t uNalID, int iLayerId)
+void AL_HEVC_UpdateSPS(AL_TSps* pISPS, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, int iLayerId)
 {
+  if(!pHLSInfo->bResolutionChanged)
+    return;
+
   AL_THevcSps* pSPS = (AL_THevcSps*)pISPS;
   AL_TSrcMetaData* pSrcMeta = AL_GetSrcMetaFromStatus(pPicStatus);
   uint8_t uBitDepth = AL_GetBitDepth(pSrcMeta->tFourCC);
 
   int MultiLayerExtSpsFlag = AL_HEVC_MultiLayerExtSpsFlag(pSPS, iLayerId);
   AL_HEVC_GenerateSPS_Format(pSPS, AL_GetChromaMode(pSrcMeta->tFourCC), uBitDepth, uBitDepth, pSrcMeta->tDim.iWidth, pSrcMeta->tDim.iHeight, MultiLayerExtSpsFlag);
-  pSPS->sps_seq_parameter_set_id = uNalID;
+  pSPS->sps_seq_parameter_set_id = pHLSInfo->uNalID;
 }
 
 /***************************************************************************/
-void AL_AVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, uint8_t uNalID)
+void AL_AVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo)
 {
+  if(!pHLSInfo->bResolutionChanged)
+    return;
+
   AL_TAvcSps* pSPS = (AL_TAvcSps*)pISPS;
   AL_TSrcMetaData* pSrcMeta = AL_GetSrcMetaFromStatus(pPicStatus);
 
   AL_AVC_GenerateSPS_Resolution(pSPS, pSrcMeta->tDim.iWidth, pSrcMeta->tDim.iHeight, pSettings->tChParam[0].uMaxCuSize, pSettings->tChParam[0].ePicFormat, pSettings->eAspectRatio);
 
-  pSPS->seq_parameter_set_id = uNalID;
+  pSPS->seq_parameter_set_id = pHLSInfo->uNalID;
 }
 
 /***************************************************************************/
-void AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, bool bResChanged, uint8_t uNalID)
+bool AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, int iLayerId)
 {
   AL_THevcPps* pPPS = (AL_THevcPps*)pIPPS;
+  AL_TEncChanParam const* pChParam = &pSettings->tChParam[iLayerId];
+
+  bool bForceWritePPS = false;
 
   pPPS->init_qp_minus26 = pPicStatus->iPpsQP - 26;
   int32_t const iNumClmn = pPicStatus->uNumClmn;
@@ -1155,23 +1213,39 @@ void AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, bool 
   }
   pPPS->diff_cu_qp_delta_depth = pPicStatus->uCuQpDeltaDepth;
 
-  if(bResChanged)
+  if(pHLSInfo->bResolutionChanged)
   {
-    pPPS->pps_pic_parameter_set_id = uNalID;
-    pPPS->pps_seq_parameter_set_id = uNalID;
+    pPPS->pps_pic_parameter_set_id = pHLSInfo->uNalID;
+    pPPS->pps_seq_parameter_set_id = pHLSInfo->uNalID;
+    bForceWritePPS = true;
   }
+
+  if(pHLSInfo->bLFOffsetChanged)
+  {
+    bool bIsGdr = false;
+    bIsGdr |= isGdrEnabled(pSettings);
+    AL_HEVC_GenerateFilterParam(pPPS, bIsGdr, pChParam->eEncTools, pChParam->uPpsParam, pHLSInfo->iLFBetaOffset, pHLSInfo->iLFTcOffset);
+    bForceWritePPS = true;
+  }
+
+  return bForceWritePPS;
 }
 
 /***************************************************************************/
-void AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, bool bResChanged, uint8_t uNalID)
+bool AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo)
 {
   AL_TAvcPps* pPPS = (AL_TAvcPps*)pIPPS;
+  bool bForceWritePPS = false;
+
   pPPS->pic_init_qp_minus26 = pPicStatus->iPpsQP - 26;
 
-  if(bResChanged)
+  if(pHLSInfo->bResolutionChanged)
   {
-    pPPS->pic_parameter_set_id = uNalID;
-    pPPS->seq_parameter_set_id = uNalID;
+    pPPS->pic_parameter_set_id = pHLSInfo->uNalID;
+    pPPS->seq_parameter_set_id = pHLSInfo->uNalID;
+    bForceWritePPS = true;
   }
+
+  return bForceWritePPS;
 }
 
