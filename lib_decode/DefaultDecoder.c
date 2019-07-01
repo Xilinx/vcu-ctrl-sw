@@ -453,7 +453,7 @@ static bool isPrefixSei(AL_ECodec codec, int nut)
 }
 
 /*****************************************************************************/
-static bool checkSeiUUID(uint8_t* pBufs, AL_TNal* pNal, AL_ECodec codec)
+static bool checkSeiUUID(uint8_t* pBufs, AL_TNal* pNal, AL_ECodec codec, int iTotalSize)
 {
   int const iTotalUUIDSize = isAVC(codec) ? 25 : 26;
 
@@ -465,7 +465,9 @@ static bool checkSeiUUID(uint8_t* pBufs, AL_TNal* pNal, AL_ECodec codec)
 
   for(int i = 0; i < iSize; i++)
   {
-    if(SEI_PREFIX_USER_DATA_UNREGISTERED_UUID[i] != pBufs[pNal->tStartCode.uPosition + iStart + i])
+    int iPosition = (pNal->tStartCode.uPosition + iStart + i) % iTotalSize;
+
+    if(SEI_PREFIX_USER_DATA_UNREGISTERED_UUID[i] != pBufs[iPosition])
       return false;
   }
 
@@ -473,12 +475,13 @@ static bool checkSeiUUID(uint8_t* pBufs, AL_TNal* pNal, AL_ECodec codec)
 }
 
 /*****************************************************************************/
-static int getNumSliceInSei(uint8_t* pBufs, AL_TNal* pNal, AL_ECodec eCodec)
+static int getNumSliceInSei(uint8_t* pBufs, AL_TNal* pNal, AL_ECodec eCodec, int iTotalSize)
 {
-  assert(checkSeiUUID(pBufs, pNal, eCodec));
+  assert(checkSeiUUID(pBufs, pNal, eCodec, iTotalSize));
   int const iStart = isAVC(eCodec) ? 6 : 7;
   int const iSize = sizeof(SEI_PREFIX_USER_DATA_UNREGISTERED_UUID) / sizeof(*SEI_PREFIX_USER_DATA_UNREGISTERED_UUID);
-  return pBufs[pNal->tStartCode.uPosition + iStart + iSize];
+  int iPosition = (pNal->tStartCode.uPosition + iStart + iSize) % iTotalSize;
+  return pBufs[iPosition];
 }
 
 /*****************************************************************************/
@@ -568,9 +571,9 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* p
         }
       }
 
-      if(isPrefixSei(eCodec, eNUT) && checkSeiUUID(pBuf, pNal, eCodec))
+      if(isPrefixSei(eCodec, eNUT) && checkSeiUUID(pBuf, pNal, eCodec, pStream->zSize))
       {
-        pCtx->iNumSlicesRemaining = getNumSliceInSei(pBuf, pNal, eCodec);
+        pCtx->iNumSlicesRemaining = getNumSliceInSei(pBuf, pNal, eCodec, pStream->zSize);
         assert(pCtx->iNumSlicesRemaining > 0);
       }
 
