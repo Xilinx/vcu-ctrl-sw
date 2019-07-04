@@ -1131,23 +1131,35 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
 }
 
 /*****************************************************************************/
-static AL_TBuffer* AllocEosBufferHEVC(void)
+static AL_TBuffer* AllocEosBufferHEVC(bool bSplitInput, AL_TAllocator* pAllocator)
 {
   static const uint8_t EOSNal[] =
   {
     0, 0, 1, 0x28, 0, 0x80
   }; // simulate a new frame
-  return AL_Buffer_WrapData((uint8_t*)EOSNal, sizeof EOSNal, &AL_Buffer_Destroy);
+  int iSize = sizeof EOSNal;
+
+  if(!bSplitInput)
+    return AL_Buffer_WrapData((uint8_t*)EOSNal, iSize, &AL_Buffer_Destroy);
+  AL_TBuffer* pEOS = AL_Buffer_Create_And_AllocateNamed(pAllocator, iSize, &AL_Buffer_Destroy, "eos-buffer");
+  Rtos_Memcpy(AL_Buffer_GetData(pEOS), EOSNal, iSize);
+  return pEOS;
 }
 
 /*****************************************************************************/
-static AL_TBuffer* AllocEosBufferAVC(void)
+static AL_TBuffer* AllocEosBufferAVC(bool bSplitInput, AL_TAllocator* pAllocator)
 {
   static const uint8_t EOSNal[] =
   {
     0, 0, 1, 0x01, 0x80
   }; // simulate a new AU
-  return AL_Buffer_WrapData((uint8_t*)EOSNal, sizeof EOSNal, &AL_Buffer_Destroy);
+  int iSize = sizeof EOSNal;
+
+  if(!bSplitInput)
+    return AL_Buffer_WrapData((uint8_t*)EOSNal, iSize, &AL_Buffer_Destroy);
+  AL_TBuffer* pEOS = AL_Buffer_Create_And_AllocateNamed(pAllocator, iSize, &AL_Buffer_Destroy, "eos-buffer");
+  Rtos_Memcpy(AL_Buffer_GetData(pEOS), EOSNal, iSize);
+  return pEOS;
 }
 
 
@@ -1471,10 +1483,10 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel,
   pCtx->BufNoAE.tMD.uSize = NON_VCL_NAL_SIZE;
 
   if(isAVC(pCtx->chanParam.eCodec))
-    pCtx->eosBuffer = AllocEosBufferAVC();
+    pCtx->eosBuffer = AllocEosBufferAVC(pCtx->bSplitInput, pAllocator);
 
   if(isHEVC(pCtx->chanParam.eCodec))
-    pCtx->eosBuffer = AllocEosBufferHEVC();
+    pCtx->eosBuffer = AllocEosBufferHEVC(pCtx->bSplitInput, pAllocator);
 
 
   assert(pCtx->eosBuffer);
@@ -1488,7 +1500,7 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel,
   int const iInputFifoSize = 256;
 
   if(pCtx->bSplitInput)
-    pCtx->Feeder = AL_SplitBufferFeeder_Create((AL_HDecoder)pDec, iInputFifoSize);
+    pCtx->Feeder = AL_SplitBufferFeeder_Create((AL_HDecoder)pDec, iInputFifoSize, pCtx->eosBuffer);
   else
   {
     AL_CB_Error errorCallback =

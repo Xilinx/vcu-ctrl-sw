@@ -1568,12 +1568,16 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     ++numIncoherency;
   }
 
-  if((pChParam->tGopParam.eMode & AL_GOP_FLAG_PYRAMIDAL) && pChParam->tGopParam.bEnableLT)
+  if(pChParam->tGopParam.eMode & AL_GOP_FLAG_PYRAMIDAL)
   {
-    pChParam->tGopParam.bEnableLT = false;
-    pChParam->tGopParam.uFreqLT = 0;
-    MSG("!! Long Term reference are not allowed with PYRAMIDAL GOP, it will be adjusted !!");
-    ++numIncoherency;
+    if(pChParam->tGopParam.bEnableLT)
+    {
+      pChParam->tGopParam.bEnableLT = false;
+      pChParam->tGopParam.uFreqLT = 0;
+      MSG("!! Long Term reference are not allowed with PYRAMIDAL GOP, it will be adjusted !!");
+      ++numIncoherency;
+    }
+
   }
 
   if(AL_IS_HEVC(pChParam->eProfile) || AL_IS_AVC(pChParam->eProfile))

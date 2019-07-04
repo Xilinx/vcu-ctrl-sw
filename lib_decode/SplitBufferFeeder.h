@@ -39,5 +39,5 @@
 
 #include "lib_decode/I_Feeder.h"
 
-AL_TFeeder* AL_SplitBufferFeeder_Create(AL_HANDLE hDec, int uMaxBufNum);
+AL_TFeeder* AL_SplitBufferFeeder_Create(AL_HANDLE hDec, int uMaxBufNum, AL_TBuffer* pEOSBuffer);
 

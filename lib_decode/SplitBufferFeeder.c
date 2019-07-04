@@ -41,6 +41,8 @@
 #include "lib_decode/lib_decode.h"
 #include "lib_common/Fifo.h"
 #include "lib_common/BufferSeiMeta.h"
+#include "lib_common/StreamSection.h"
+#include "lib_common/BufferStreamMeta.h"
 
 UNIT_ERROR AL_Decoder_TryDecodeOneUnit(AL_HDecoder hDec, AL_TBuffer* pBuf);
 void AL_Decoder_InternalFlush(AL_HDecoder hDec);
@@ -57,6 +59,7 @@ typedef struct al_t_SplitBufferFeeder
   int32_t keepGoing;
   AL_MUTEX lock;
   bool eos;
+  AL_TBuffer* pEOSBuffer;
 }AL_TSplitBufferFeeder;
 
 static bool enqueueBuffer(AL_TSplitBufferFeeder* this, AL_TBuffer* pBuf)
@@ -130,6 +133,11 @@ static void Process_EntryPoint(AL_TSplitBufferFeeder* this)
 
     if(!shouldKeepGoing(this) && IsEndOfStream(this))
     {
+      if(this->pEOSBuffer)
+      {
+        /* Ensure in subframe latency that even if the user doesn't send a full frame at the end of the stream, we can finish sent slices */
+        AL_Decoder_TryDecodeOneUnit(this->hDec, this->pEOSBuffer);
+      }
       AL_Decoder_InternalFlush(this->hDec);
       break;
     }
@@ -261,8 +269,54 @@ static const AL_TFeederVtable SplitBufferFeederVtable =
   &freeBuf,
 };
 
-AL_TFeeder* AL_SplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum)
+static bool addEOSMeta(AL_TBuffer* pEOSBuffer)
 {
+  assert(pEOSBuffer);
+  AL_TStreamMetaData* pStreamMeta = NULL;
+
+  if(NULL == AL_Buffer_GetMetaData(pEOSBuffer, AL_META_TYPE_STREAM))
+  {
+    AL_TStreamMetaData* pStreamMeta = AL_StreamMetaData_Create(1);
+
+    if(!AL_Buffer_AddMetaData(pEOSBuffer, (AL_TMetaData*)pStreamMeta))
+    {
+      AL_MetaData_Destroy((AL_TMetaData*)pStreamMeta);
+      return false;
+    }
+    AL_StreamMetaData_ClearAllSections(pStreamMeta);
+    AL_StreamMetaData_AddSection(pStreamMeta, 0, 0, AL_SECTION_END_FRAME_FLAG);
+  }
+
+  if(NULL == AL_Buffer_GetMetaData(pEOSBuffer, AL_META_TYPE_CIRCULAR))
+  {
+    AL_TCircMetaData* pCircMeta = AL_CircMetaData_Create(0, pEOSBuffer->zSize, true);
+
+    if(!pCircMeta)
+    {
+      AL_Buffer_RemoveMetaData(pEOSBuffer, (AL_TMetaData*)pStreamMeta);
+      AL_MetaData_Destroy((AL_TMetaData*)pStreamMeta);
+      return false;
+    }
+
+    if(!AL_Buffer_AddMetaData(pEOSBuffer, (AL_TMetaData*)pCircMeta))
+    {
+      AL_Buffer_RemoveMetaData(pEOSBuffer, (AL_TMetaData*)pStreamMeta);
+      AL_MetaData_Destroy((AL_TMetaData*)pStreamMeta);
+      AL_MetaData_Destroy((AL_TMetaData*)pCircMeta);
+      return false;
+    }
+  }
+  return true;
+}
+
+AL_TFeeder* AL_SplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TBuffer* pEOSBuffer)
+{
+  if(pEOSBuffer)
+  {
+    if(!addEOSMeta(pEOSBuffer))
+      return NULL;
+  }
+
   AL_TSplitBufferFeeder* this = Rtos_Malloc(sizeof(*this));
 
   if(!this)
@@ -271,6 +325,7 @@ AL_TFeeder* AL_SplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum)
   this->vtable = &SplitBufferFeederVtable;
   this->hDec = hDec;
   this->eos = false;
+  this->pEOSBuffer = pEOSBuffer;
   this->keepGoing = 0;
 
   if(iMaxBufNum <= 0 || !AL_Fifo_Init(&this->inputFifo, iMaxBufNum))
