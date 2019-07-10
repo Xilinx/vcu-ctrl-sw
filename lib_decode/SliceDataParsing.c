@@ -286,6 +286,7 @@ bool AL_InitFrameBuffers(AL_TDecCtx* pCtx, AL_TDecPicBuffers* pBufs, AL_TDimensi
 
   if(!AL_PictMngr_BeginFrame(&pCtx->PictMngr, tDim))
   {
+    pCtx->eChanState = CHAN_DESTROYING;
     Rtos_ReleaseSemaphore(pCtx->Sem);
     return false;
   }

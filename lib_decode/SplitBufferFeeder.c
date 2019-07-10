@@ -112,6 +112,7 @@ static void Process(AL_TSplitBufferFeeder* this)
     AL_Buffer_Unref(workBuf);
     return;
   }
+
   AL_Fifo_Queue(&this->workFifo, workBuf, AL_WAIT_FOREVER);
 }
 
@@ -217,20 +218,19 @@ static void destroy_process(AL_TFeeder* hFeeder)
 
   if(!this->eos)
   {
-    while(Rtos_AtomicDecrement(&this->keepGoing) > 0)
-    {
-    }
-
     AL_TBuffer* workBuf = AL_Fifo_Dequeue(&this->inputFifo, AL_NO_WAIT);
 
     while(workBuf)
     {
+      Rtos_AtomicDecrement(&this->keepGoing);
+
       AL_Buffer_Unref(workBuf);
       workBuf = AL_Fifo_Dequeue(&this->inputFifo, AL_NO_WAIT);
     }
 
     flush(hFeeder);
   }
+
   Rtos_JoinThread(this->process);
   Rtos_DeleteThread(this->process);
 }
@@ -242,11 +242,15 @@ static void destroy(AL_TFeeder* hFeeder)
   if(this->process)
     destroy_process(hFeeder);
 
+  AL_TBuffer* workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_NO_WAIT);
+  assert(!workBuf);
+
+  AL_Fifo_Deinit(&this->inputFifo);
+  AL_Fifo_Deinit(&this->workFifo);
+
   Rtos_DeleteMutex(this->lock);
   Rtos_DeleteEvent(this->incomingWorkEvent);
-  assert(!AL_Fifo_Dequeue(&this->workFifo, AL_NO_WAIT));
-  AL_Fifo_Deinit(&this->workFifo);
-  AL_Fifo_Deinit(&this->inputFifo);
+
   Rtos_Free(this);
 }
 

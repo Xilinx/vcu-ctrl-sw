@@ -283,6 +283,8 @@ void AL_Default_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus)
   Rtos_ReleaseMutex(pCtx->DecMutex);
 
   Rtos_ReleaseSemaphore(pCtx->Sem);
+
+  //AL_Feeder_Signal(pCtx->Feeder);
 }
 
 /*************************************************************************//*!
@@ -431,6 +433,17 @@ static bool isAud(AL_ECodec codec, int nut)
 }
 
 /*****************************************************************************/
+static bool isEos(AL_ECodec codec, int nut)
+{
+  if(isAVC(codec))
+    return (nut == AL_AVC_NUT_EOS) || (nut == AL_AVC_NUT_EOB);
+
+  if(isHEVC(codec))
+    return (nut == AL_HEVC_NUT_EOS) || (nut == AL_HEVC_NUT_EOB);
+  return false;
+}
+
+/*****************************************************************************/
 static bool isFd(AL_ECodec codec, int nut)
 {
   if(isAVC(codec))
@@ -561,7 +574,7 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* p
 
     if(!isVcl(eCodec, eNUT))
     {
-      if(isAud(eCodec, eNUT))
+      if(isAud(eCodec, eNUT) || isEos(eCodec, eNUT))
       {
         if(bVCLNalSeen)
         {
@@ -827,6 +840,15 @@ static int FillNalInfo(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* iLastVclNalIn
 }
 
 /*****************************************************************************/
+static void ConsumeNals(AL_TDecCtx* pCtx, int iNumNal)
+{
+  AL_TNal* nals = (AL_TNal*)pCtx->SCTable.tMD.pVirtualAddr;
+
+  pCtx->uNumSC -= iNumNal;
+  Rtos_Memmove(nals, nals + iNumNal, pCtx->uNumSC * sizeof(AL_TNal));
+}
+
+/*****************************************************************************/
 static UNIT_ERROR DecodeOneUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int iNalCount, int iLastVclNalInAU)
 {
   AL_TNal* nals = (AL_TNal*)pCtx->SCTable.tMD.pVirtualAddr;
@@ -879,10 +901,15 @@ static UNIT_ERROR DecodeOneUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int iNalC
       pCtx->bFirstSliceInFrameIsValid = false;
       pCtx->bBeginFrameIsValid = false;
     }
+
+    if(pCtx->eChanState == CHAN_DESTROYING)
+    {
+      ConsumeNals(pCtx, iNalCount);
+      return ERR_UNIT_FAILED;
+    }
   }
 
-  pCtx->uNumSC -= iNalCount;
-  Rtos_Memmove(nals, nals + iNalCount, pCtx->uNumSC * sizeof(AL_TNal));
+  ConsumeNals(pCtx, iNalCount);
 
   return bIsEndOfFrame ? SUCCESS_ACCESS_UNIT : SUCCESS_NAL_UNIT;
 }
@@ -958,7 +985,6 @@ void AL_Default_Decoder_InternalFlush(AL_TDecoder* pAbsDec)
 {
   AL_TDefaultDecoder* pDec = (AL_TDefaultDecoder*)pAbsDec;
   AL_TDecCtx* pCtx = AL_sGetContext(pDec);
-
 
   AL_Default_Decoder_WaitFrameSent(pAbsDec);
 
@@ -1135,8 +1161,8 @@ static AL_TBuffer* AllocEosBufferHEVC(bool bSplitInput, AL_TAllocator* pAllocato
 {
   static const uint8_t EOSNal[] =
   {
-    0, 0, 1, 0x28, 0, 0x80
-  }; // simulate a new frame
+    0, 0, 1, 0x4A, 0
+  }; // simulate end_of_bitstream
   int iSize = sizeof EOSNal;
 
   if(!bSplitInput)
@@ -1151,8 +1177,8 @@ static AL_TBuffer* AllocEosBufferAVC(bool bSplitInput, AL_TAllocator* pAllocator
 {
   static const uint8_t EOSNal[] =
   {
-    0, 0, 1, 0x01, 0x80
-  }; // simulate a new AU
+    0, 0, 1, 0x0B, 0
+  }; // simulate End Of bitstream
   int iSize = sizeof EOSNal;
 
   if(!bSplitInput)
