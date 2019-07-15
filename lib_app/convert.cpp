@@ -1056,7 +1056,7 @@ static void I42X_To_XVXX(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   AL_TSrcMetaData* pDstMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pDst, AL_META_TYPE_SOURCE);
 
   // Luma
-  Y800_To_XV15(pSrc, pDst);
+  Y800_To_XV10(pSrc, pDst);
 
   assert(pDstMeta->tPlanes[AL_PLANE_UV].iPitch % 4 == 0);
   assert(pDstMeta->tPlanes[AL_PLANE_UV].iPitch >= (pDstMeta->tDim.iWidth + 2) / 3 * 4);
@@ -3251,8 +3251,9 @@ static void NV1X_To_XVXX(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
 {
   AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pSrc, AL_META_TYPE_SOURCE);
   AL_TSrcMetaData* pDstMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pDst, AL_META_TYPE_SOURCE);
+
   // Luma
-  XV15_To_Y800(pSrc, pDst);
+  Y800_To_XV10(pSrc, pDst);
 
   assert(pSrcMeta->tPlanes[AL_PLANE_UV].iPitch % 4 == 0);
 
