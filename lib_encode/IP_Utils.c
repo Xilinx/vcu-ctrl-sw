@@ -591,9 +591,9 @@ static void AL_HEVC_UpdateHrdParameters(AL_THevcSps* pSPS, AL_TSubHrdParam* pSub
 
   pSubHrdParam->cbr_flag[0] = (pSettings->tChParam[0].tRCParam.eRCMode == AL_RC_CBR) ? 1 : 0;
 
-  pSPS->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 = 31; // int(log((double)iCurrDelay) / log(2.0));
-  pSPS->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 = 31; // AKH don't change this
-  pSPS->vui_param.hrd_param.dpb_output_delay_length_minus1 = 31; // AKH don't change this
+  pSPS->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 = 31;
+  pSPS->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 = 30;
+  pSPS->vui_param.hrd_param.dpb_output_delay_length_minus1 = 30;
 
   for(int i = 0; i < DeduceNumTemporalLayer(&pSettings->tChParam[0].tGopParam); ++i)
   {
