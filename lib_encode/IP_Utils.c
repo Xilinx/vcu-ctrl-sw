@@ -560,8 +560,8 @@ static void AL_AVC_UpdateHrdParameters(AL_TAvcSps* pSPS, AL_TSubHrdParam* pSubHr
   pSubHrdParam->cbr_flag[0] = (pSettings->tChParam[0].tRCParam.eRCMode == AL_RC_CBR) ? 1 : 0;
 
   pSPS->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 = 31; // int(log((double)iCurrDelay) / log(2.0));
-  pSPS->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 = 31; // AKH don't change this
-  pSPS->vui_param.hrd_param.dpb_output_delay_length_minus1 = 31; // AKH don't change this
+  pSPS->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 = 31;
+  pSPS->vui_param.hrd_param.dpb_output_delay_length_minus1 = 31;
   pSPS->vui_param.hrd_param.time_offset_length = 0;
 }
 
@@ -569,31 +569,27 @@ static void AL_AVC_UpdateHrdParameters(AL_TAvcSps* pSPS, AL_TSubHrdParam* pSubHr
 static void AL_HEVC_UpdateHrdParameters(AL_THevcSps* pSPS, AL_TSubHrdParam* pSubHrdParam, int const iCpbSize, AL_TEncSettings const* pSettings)
 {
   pSubHrdParam->bit_rate_du_value_minus1[0] = (pSettings->tChParam[0].tRCParam.uMaxBitRate / pSettings->NumView) >> 6;
-  AL_sDecomposition(&(pSubHrdParam->bit_rate_du_value_minus1[0]),
-                    &pSPS->vui_param.hrd_param.bit_rate_scale);
+  AL_sDecomposition(&(pSubHrdParam->bit_rate_du_value_minus1[0]), &pSPS->vui_param.hrd_param.bit_rate_scale);
 
   assert(pSubHrdParam->bit_rate_du_value_minus1[0] <= (UINT32_MAX - 1));
 
   pSubHrdParam->bit_rate_value_minus1[0] = (pSettings->tChParam[0].tRCParam.uMaxBitRate / pSettings->NumView) >> 6;
-  AL_sDecomposition(&(pSubHrdParam->bit_rate_value_minus1[0]),
-                    &pSPS->vui_param.hrd_param.bit_rate_scale);
-
+  AL_sDecomposition(&(pSubHrdParam->bit_rate_value_minus1[0]), &pSPS->vui_param.hrd_param.bit_rate_scale);
   assert(pSubHrdParam->bit_rate_value_minus1[0] <= (UINT32_MAX - 1));
 
   pSubHrdParam->cpb_size_du_value_minus1[0] = iCpbSize >> 4;
-  AL_sDecomposition(&(pSubHrdParam->cpb_size_du_value_minus1[0]),
-                    &pSPS->vui_param.hrd_param.cpb_size_scale);
+  AL_sDecomposition(&(pSubHrdParam->cpb_size_du_value_minus1[0]), &pSPS->vui_param.hrd_param.cpb_size_scale);
   assert(pSubHrdParam->cpb_size_du_value_minus1[0] <= (UINT32_MAX - 1));
+
   pSubHrdParam->cpb_size_value_minus1[0] = iCpbSize >> 4;
-  AL_sDecomposition(&(pSubHrdParam->cpb_size_value_minus1[0]),
-                    &pSPS->vui_param.hrd_param.cpb_size_scale);
+  AL_sDecomposition(&(pSubHrdParam->cpb_size_value_minus1[0]), &pSPS->vui_param.hrd_param.cpb_size_scale);
   assert(pSubHrdParam->cpb_size_value_minus1[0] <= (UINT32_MAX - 1));
 
   pSubHrdParam->cbr_flag[0] = (pSettings->tChParam[0].tRCParam.eRCMode == AL_RC_CBR) ? 1 : 0;
 
-  pSPS->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 = 31; // int(log((double)iCurrDelay) / log(2.0));
-  pSPS->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 = 31; // AKH don't change this
-  pSPS->vui_param.hrd_param.dpb_output_delay_length_minus1 = 31; // AKH don't change this
+  pSPS->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 = 31;
+  pSPS->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 = 30;
+  pSPS->vui_param.hrd_param.dpb_output_delay_length_minus1 = 30;
 
   for(int i = 0; i < DeduceNumTemporalLayer(&pSettings->tChParam[0].tGopParam); ++i)
   {
