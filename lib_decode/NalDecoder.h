@@ -46,6 +46,7 @@ typedef struct
   AL_ENut pps;
   AL_ENut vps;
   AL_ENut eos;
+  AL_ENut eob;
 }AL_NonVclNuts;
 
 typedef struct
@@ -56,6 +57,7 @@ typedef struct
   bool (* parseSei)(AL_TAup*, AL_TRbspParser*, bool, AL_CB_ParsedSei*, AL_TSeiMetaData* pMeta);
   void (* decodeSliceData)(AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
   bool (* isSliceData)(AL_ENut nut);
+  void (* finishPendingRequest)(AL_TDecCtx*);
 }AL_NalParser;
 
 void AL_DecodeOneNal(AL_NonVclNuts, AL_NalParser, AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);

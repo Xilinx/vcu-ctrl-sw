@@ -951,6 +951,7 @@ void AL_HEVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bI
     AL_HEVC_NUT_PPS,
     AL_HEVC_NUT_VPS,
     AL_HEVC_NUT_EOS,
+    AL_HEVC_NUT_EOB,
   };
 
   AL_NalParser parser =
@@ -960,7 +961,8 @@ void AL_HEVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bI
     ParseVPS,
     AL_HEVC_ParseSEI,
     decodeSliceData,
-    isSliceData
+    isSliceData,
+    finishPreviousFrame,
   };
   AL_DecodeOneNal(nuts, parser, pAUP, pCtx, eNUT, bIsLastAUNal, iNumSlice);
 }
