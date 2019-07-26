@@ -166,3 +166,4 @@ AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, TCircBuffer* circularB
   Rtos_Free(this);
   return NULL;
 }
+

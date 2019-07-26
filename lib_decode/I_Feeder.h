@@ -83,3 +83,4 @@ static inline void AL_Feeder_Reset(AL_TFeeder* pFeeder)
 {
   return pFeeder->vtable->pfnFeederReset(pFeeder);
 }
+

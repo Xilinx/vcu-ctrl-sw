@@ -41,3 +41,4 @@
 #include "DecoderFeeder.h"
 
 AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, TCircBuffer* circularBuf, int uMaxBufNum, AL_TBuffer* eosBuffer, AL_CB_Error* errorCallback);
+
