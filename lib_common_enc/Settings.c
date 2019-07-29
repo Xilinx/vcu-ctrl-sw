@@ -719,15 +719,6 @@ static void XAVC_CheckCoherency(AL_TEncSettings* pSettings)
 /***************************************************************************/
 static void AL_sSettings_SetDefaultXAVCParam(AL_TEncSettings* pSettings)
 {
-  AL_TEncChanParam* pChannel = &pSettings->tChParam[0];
-  pChannel->uWidth = 1920;
-  pChannel->uHeight = 1080;
-  pChannel->uLevel = 40;
-
-  AL_TRCParam* pRateControl = &pChannel->tRCParam;
-  pRateControl->uFrameRate = 25;
-  pRateControl->uClkRatio = 1000;
-
   XAVC_CheckCoherency(pSettings);
 }
 
