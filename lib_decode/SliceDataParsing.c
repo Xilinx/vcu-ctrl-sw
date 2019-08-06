@@ -172,7 +172,9 @@ static void SetBufferHandleMetaData(AL_TDecCtx* pCtx)
     pMeta = AL_BufHandleMetaData_Create(AL_MAX_SLICES_SUBFRAME);
     AL_Buffer_AddMetaData(pCtx->pRecs.pFrame, (AL_TMetaData*)pMeta);
   }
-  AL_BufHandleMetaData_AddHandle(pMeta, pCtx->pInputBuffer);
+
+  if(pCtx->pInputBuffer != pCtx->eosBuffer)
+    AL_BufHandleMetaData_AddHandle(pMeta, pCtx->pInputBuffer);
 }
 
 /***************************************************************************/
