@@ -905,6 +905,8 @@ static UNIT_ERROR DecodeOneUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int iNalC
     if(pCtx->eChanState == CHAN_DESTROYING)
     {
       ConsumeNals(pCtx, iNalCount);
+      pCtx->bFirstSliceInFrameIsValid = false;
+      pCtx->bBeginFrameIsValid = false;
       return ERR_UNIT_FAILED;
     }
   }
