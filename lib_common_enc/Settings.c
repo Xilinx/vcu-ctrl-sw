@@ -1323,12 +1323,6 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
   int numIncoherency = 0;
 
-  if(AL_IS_XAVC(pChParam->eProfile))
-  {
-    XAVC_CheckCoherency(pSettings);
-    return 0;
-  }
-
   int16_t iMaxPRange = AL_IS_AVC(pChParam->eProfile) ? AVC_MAX_HORIZONTAL_RANGE_P : HEVC_MAX_HORIZONTAL_RANGE_P;
   int16_t iMaxBRange = AL_IS_AVC(pChParam->eProfile) ? AVC_MAX_HORIZONTAL_RANGE_B : HEVC_MAX_HORIZONTAL_RANGE_B;
 
@@ -1685,6 +1679,9 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
   if(pChParam->tRCParam.pMaxPictureSize[AL_SLICE_I] == 0)
     pChParam->tRCParam.pMaxPictureSize[AL_SLICE_I] = pChParam->tRCParam.pMaxPictureSize[AL_SLICE_P];
+
+  if(AL_IS_XAVC(pChParam->eProfile))
+    XAVC_CheckCoherency(pSettings);
 
   return numIncoherency;
 }
