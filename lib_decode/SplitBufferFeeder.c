@@ -191,7 +191,7 @@ static bool pushBuffer(AL_TFeeder* hFeeder, AL_TBuffer* pBuf, size_t uSize, bool
 static void freeBuf(AL_TFeeder* hFeeder, AL_TBuffer* pBuf)
 {
   AL_TSplitBufferFeeder* this = (AL_TSplitBufferFeeder*)hFeeder;
-  AL_TBuffer* workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_NO_WAIT);
+  AL_TBuffer* workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_WAIT_FOREVER);
 
   while(workBuf)
   {
@@ -199,7 +199,7 @@ static void freeBuf(AL_TFeeder* hFeeder, AL_TBuffer* pBuf)
 
     if(workBuf == pBuf)
       break;
-    workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_NO_WAIT);
+    workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_WAIT_FOREVER);
   }
 }
 
