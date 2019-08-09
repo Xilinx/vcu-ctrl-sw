@@ -1043,7 +1043,14 @@ void AL_AVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, int iM
   {
     // Scaling matrix are disabled in SPS but enabled in PPS.
     // PPS scaling matrix use SPS's one
-    pPPS->pic_scaling_matrix_present_flag = 1;
+    AL_EScalingList eScalingList = pSettings->eScalingList;
+
+    assert(eScalingList != AL_SCL_RANDOM);
+    assert(eScalingList != AL_SCL_MAX_ENUM);
+
+    if(eScalingList != AL_SCL_FLAT)
+      pPPS->pic_scaling_matrix_present_flag = 1;
+
   }
   pPPS->pSPS = (AL_TAvcSps*)pSPS;
 }
