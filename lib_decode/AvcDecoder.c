@@ -811,6 +811,7 @@ void AL_AVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIs
     AL_AVC_NUT_SPS,
     AL_AVC_NUT_PPS,
     0,
+    AL_AVC_NUT_FD,
     AL_AVC_NUT_EOS,
     AL_AVC_NUT_EOB,
   };

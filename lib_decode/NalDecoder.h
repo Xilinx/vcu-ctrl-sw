@@ -45,6 +45,7 @@ typedef struct
   AL_ENut sps;
   AL_ENut pps;
   AL_ENut vps;
+  AL_ENut fd;
   AL_ENut eos;
   AL_ENut eob;
 }AL_NonVclNuts;

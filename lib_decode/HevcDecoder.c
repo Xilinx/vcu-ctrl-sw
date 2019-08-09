@@ -950,6 +950,7 @@ void AL_HEVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bI
     AL_HEVC_NUT_SPS,
     AL_HEVC_NUT_PPS,
     AL_HEVC_NUT_VPS,
+    AL_HEVC_NUT_FD,
     AL_HEVC_NUT_EOS,
     AL_HEVC_NUT_EOB,
   };

@@ -124,6 +124,21 @@ static bool IsEndOfStream(AL_TSplitBufferFeeder* this)
   return bRet;
 }
 
+static void freeBuf(AL_TFeeder* hFeeder, AL_TBuffer* pBuf)
+{
+  AL_TSplitBufferFeeder* this = (AL_TSplitBufferFeeder*)hFeeder;
+  AL_TBuffer* workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_WAIT_FOREVER);
+
+  while(workBuf)
+  {
+    AL_Buffer_Unref(workBuf);
+
+    if(workBuf == pBuf)
+      break;
+    workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_WAIT_FOREVER);
+  }
+}
+
 static void Process_EntryPoint(AL_TSplitBufferFeeder* this)
 {
   Rtos_SetCurrentThreadName("DecFeeder");
@@ -134,12 +149,12 @@ static void Process_EntryPoint(AL_TSplitBufferFeeder* this)
 
     if(!shouldKeepGoing(this) && IsEndOfStream(this))
     {
-      if(this->pEOSBuffer)
-      {
+	AL_Buffer_Ref(this->pEOSBuffer);
+	AL_Fifo_Queue(&this->workFifo, this->pEOSBuffer, AL_WAIT_FOREVER);
         /* Ensure in subframe latency that even if the user doesn't send a full frame at the end of the stream, we can finish sent slices */
         AL_Decoder_TryDecodeOneUnit(this->hDec, this->pEOSBuffer);
-      }
       AL_Decoder_InternalFlush(this->hDec);
+      freeBuf(this, this->pEOSBuffer);
       break;
     }
 
@@ -186,21 +201,6 @@ static bool pushBuffer(AL_TFeeder* hFeeder, AL_TBuffer* pBuf, size_t uSize, bool
 
   signal(hFeeder);
   return true;
-}
-
-static void freeBuf(AL_TFeeder* hFeeder, AL_TBuffer* pBuf)
-{
-  AL_TSplitBufferFeeder* this = (AL_TSplitBufferFeeder*)hFeeder;
-  AL_TBuffer* workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_WAIT_FOREVER);
-
-  while(workBuf)
-  {
-    AL_Buffer_Unref(workBuf);
-
-    if(workBuf == pBuf)
-      break;
-    workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_WAIT_FOREVER);
-  }
 }
 
 static void flush(AL_TFeeder* hFeeder)
@@ -275,7 +275,6 @@ static const AL_TFeederVtable SplitBufferFeederVtable =
 
 static bool addEOSMeta(AL_TBuffer* pEOSBuffer)
 {
-  assert(pEOSBuffer);
   AL_TStreamMetaData* pStreamMeta = NULL;
 
   if(NULL == AL_Buffer_GetMetaData(pEOSBuffer, AL_META_TYPE_STREAM))
@@ -315,11 +314,10 @@ static bool addEOSMeta(AL_TBuffer* pEOSBuffer)
 
 AL_TFeeder* AL_SplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TBuffer* pEOSBuffer)
 {
-  if(pEOSBuffer)
-  {
-    if(!addEOSMeta(pEOSBuffer))
-      return NULL;
-  }
+  assert(pEOSBuffer);
+
+  if(!addEOSMeta(pEOSBuffer))
+    return NULL;
 
   AL_TSplitBufferFeeder* this = Rtos_Malloc(sizeof(*this));
 

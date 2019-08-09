@@ -96,16 +96,13 @@ void AL_DecodeOneNal(AL_NonVclNuts nuts, AL_NalParser parser, AL_TAup* pAUP, AL_
     parser.parseVps(pAUP, &rp);
   }
 
-  if(nut == nuts.eos)
-  {
-    pCtx->bIsFirstPicture = true;
-    pCtx->bLastIsEOS = true;
-  }
-
-  if(nut == nuts.eob)
+  if((nut == nuts.eos)||(nut == nuts.eob)||(nut == nuts.fd && pCtx->bSplitInput))
   {
     if(pCtx->bFirstIsValid && pCtx->bFirstSliceInFrameIsValid)
       parser.finishPendingRequest(pCtx);
+
+    pCtx->bIsFirstPicture = true;
+    pCtx->bLastIsEOS = true;
   }
 }
 
