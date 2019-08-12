@@ -73,11 +73,60 @@ static int getSectionSize(AL_TStreamMetaData* pMetaData, AL_SectionFlags eFlags)
   {
     AL_TStreamSection* pSection = &pMetaData->pSections[iSection];
 
-    if(pSection->uFlags &= eFlags)
+    if(pSection->uFlags & eFlags)
       iSize += pSection->uLength;
   }
 
   return iSize;
+}
+
+static void padConfig(AL_TBuffer* pStream)
+{
+  int const iChunk = 512;
+  AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
+  int iConfigSize = getSectionSize(pMetaData, AL_SECTION_CONFIG_FLAG);
+
+  if(iConfigSize >= iChunk)
+    return;
+
+  int iLastConfigSection = AL_StreamMetaData_GetLastSectionOfFlag(pMetaData, AL_SECTION_CONFIG_FLAG);
+
+  if(iLastConfigSection < 0)
+    return;
+
+  AL_TStreamSection* pLastConfigSection = &pMetaData->pSections[iLastConfigSection];
+  int iPaddingSize = iChunk - iConfigSize;
+  Rtos_Memset(AL_Buffer_GetData(pStream) + pLastConfigSection->uOffset + pLastConfigSection->uLength, 0x00, iPaddingSize);
+  pLastConfigSection->uLength += iPaddingSize;
+}
+
+static void padSeiPrefix(AL_TBuffer* pStream, AL_TEncChanParam const* pChannel)
+{
+  int const iChunk = 512;
+  int const iSeiMandatorySize = (pChannel->uHeight <= 720) ? iChunk * 10 : iChunk * 18;
+  assert(iSeiMandatorySize <= AL_ENC_MAX_SEI_SIZE);
+
+  AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
+  int iSeiSize = getSectionSize(pMetaData, AL_SECTION_SEI_PREFIX_FLAG);
+
+  if(iSeiSize >= iSeiMandatorySize)
+    return;
+
+  int iPaddingSize = iSeiMandatorySize - iSeiSize;
+
+  int iLastSeiSection = AL_StreamMetaData_GetLastSectionOfFlag(pMetaData, AL_SECTION_SEI_PREFIX_FLAG);
+
+  if(iLastSeiSection < 0)
+  {
+    int iOffset = AL_ENC_MAX_CONFIG_HEADER_SIZE + 1;
+    Rtos_Memset(AL_Buffer_GetData(pStream) + iOffset, 0x00, iPaddingSize);
+    AL_StreamMetaData_AddSeiSection(pMetaData, true, iOffset, iPaddingSize);
+    return;
+  }
+
+  AL_TStreamSection* pLastSeiSection = &pMetaData->pSections[iLastSeiSection];
+  Rtos_Memset(AL_Buffer_GetData(pStream) + pLastSeiSection->uOffset + pLastSeiSection->uLength, 0x00, iPaddingSize);
+  pLastSeiSection->uLength += iPaddingSize;
 }
 
 void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, bool bForceWritePPS)
@@ -90,40 +139,11 @@ void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatu
 
   if(AL_IS_XAVC_CBG(pChannel->eProfile) && AL_IS_INTRA_PROFILE(pChannel->eProfile))
   {
-    // AUD + SPS + PPS shall be a total of 512 bytes
-    int const iChunk = 512;
-    AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
-    int iConfigSize = getSectionSize(pMetaData, AL_SECTION_CONFIG_FLAG);
-    int iLastConfigSection = AL_StreamMetaData_GetLastSectionOfFlag(pMetaData, AL_SECTION_CONFIG_FLAG);
-    AL_TStreamSection* pLastConfigSection = &pMetaData->pSections[iLastConfigSection];
+    padConfig(pStream);
 
-    if(iConfigSize < iChunk)
+    if(pPicStatus->bIsFirstSlice)
     {
-      int iPaddingSize = iChunk - iConfigSize;
-      Rtos_Memset(AL_Buffer_GetData(pStream) + pLastConfigSection->uOffset + pLastConfigSection->uLength, 0x00, iPaddingSize);
-      pLastConfigSection->uLength += iPaddingSize;
-    }
-
-    // SEI messages (present or not) shall be 512*18 bytes  for the 1080p and 512*10 bytes for the 720p
-    int const iSeiMandatorySize = (pChannel->uHeight == 1080) ? iChunk * 18 : iChunk * 10;
-    assert(iSeiMandatorySize < AL_ENC_MAX_SEI_SIZE);
-    int iSeiSize = getSectionSize(pMetaData, AL_SECTION_SEI_PREFIX_FLAG);
-
-    if(iSeiSize < iSeiMandatorySize)
-    {
-      int iPaddingSize = iSeiMandatorySize - iSeiSize;
-      int iLastSeiSection = AL_StreamMetaData_GetLastSectionOfFlag(pMetaData, AL_SECTION_SEI_PREFIX_FLAG);
-
-      if(iLastSeiSection == -1)
-      {
-        Rtos_Memset(AL_Buffer_GetData(pStream) + pLastConfigSection->uOffset + pLastConfigSection->uLength, 0x00, iPaddingSize);
-        pLastConfigSection->uLength += iPaddingSize;
-        return;
-      }
-
-      AL_TStreamSection* pSection = &pMetaData->pSections[iLastSeiSection];
-      Rtos_Memset(AL_Buffer_GetData(pStream) + pSection->uOffset + pSection->uLength, 0, iPaddingSize);
-      pSection->uLength += iPaddingSize;
+      padSeiPrefix(pStream, pChannel);
     }
   }
 }
