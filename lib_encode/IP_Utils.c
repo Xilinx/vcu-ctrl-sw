@@ -1026,9 +1026,6 @@ void AL_AVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, int iM
   pPPS->redundant_pic_cnt_present_flag = 0;
   pPPS->transform_8x8_mode_flag = pChannel->uMaxTuSize > 2 ? 1 : 0;
 
-  if(AL_IS_XAVC(pChannel->eProfile))
-    pPPS->transform_8x8_mode_flag = 1;
-
   pPPS->pic_scaling_matrix_present_flag = 0;
 
   if(AL_IS_XAVC_VBR(pChannel->eProfile) && AL_IS_INTRA_PROFILE(pChannel->eProfile))
