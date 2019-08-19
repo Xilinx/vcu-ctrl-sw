@@ -668,10 +668,9 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   pSPS->seq_parameter_set_id = 0;
   pSPS->pic_order_cnt_type = 0; // TDMB = 2;
 
-  pSPS->max_num_ref_frames = AL_IS_INTRA_PROFILE(pChannel->eProfile) ? 0 : iMaxRef;
+  pSPS->max_num_ref_frames = iMaxRef;
   pSPS->gaps_in_frame_num_value_allowed_flag = 0;
   pSPS->log2_max_pic_order_cnt_lsb_minus4 = AL_GET_SPS_LOG2_MAX_POC(pChannel->uSpsParam) - 4;
-
 
   if(AL_IS_XAVC(pChannel->eProfile))
     pSPS->log2_max_pic_order_cnt_lsb_minus4 = 0;
