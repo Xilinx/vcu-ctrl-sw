@@ -300,6 +300,15 @@ bool AL_Encoder_SetLoopFilterBetaOffset(AL_HEncoder hEnc, int8_t iBetaOffset);
 bool AL_Encoder_SetLoopFilterTcOffset(AL_HEncoder hEnc, int8_t iTcOffset);
 
 
+/*************************************************************************//*!
+   \brief Specify HDR SEIs to insert in the bitstream
+   \param[in] hEnc Handle to an encoder object
+   \param[in] pHDRSEIs pointer to the HDR related SEIs
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_SetHDRSEIs(AL_HEncoder hEnc, AL_THDRSEIs* pHDRSEIs);
+
 
 #ifdef __cplusplus
 }

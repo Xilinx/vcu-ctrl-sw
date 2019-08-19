@@ -409,7 +409,9 @@ static IRbspWriter writer =
   writeSeiBufferingPeriod,
   writeSeiRecoveryPoint,
   writeSeiPictureTiming,
-  AL_RbspEncoding_WriteUserDataUnregistered,
+  AL_RbspEncoding_WriteMasteringDisplayColourVolume,
+  NULL, /* writeContentLightLevel */
+  AL_RbspEncoding_WriteUserDataUnregistered
 };
 
 IRbspWriter* AL_GetAvcRbspWriter()

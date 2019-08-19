@@ -190,11 +190,18 @@ typedef struct AL_t_EncPicStatus
 /*************************************************************************//*!
    \brief Picture buffers structure
 *****************************************************************************/
+typedef struct AL_t_SrcInfo
+{
+  bool bIs10bits;
+  uint32_t uPitch;
+  uint8_t uFormat;
+}AL_TSrcInfo;
+
 typedef struct AL_t_EncPicBufAddrs
 {
   AL_PADDR pSrc_Y;
   AL_PADDR pSrc_UV;
-  uint32_t uPitchSrc;
+  AL_TSrcInfo tSrcInfo;
 
 
   AL_PADDR pEP2;

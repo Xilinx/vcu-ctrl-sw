@@ -99,9 +99,9 @@ static AL_EDriverError PostMessage(AL_TDriver* driver, int fd, long unsigned int
 
 static AL_DriverVtable hardwareDriverVtable =
 {
-  &Open,
-  &Close,
-  &PostMessage,
+  Open,
+  Close,
+  PostMessage,
 };
 
 static AL_TDriver hardwareDriver =

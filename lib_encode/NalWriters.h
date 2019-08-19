@@ -41,7 +41,7 @@
 #include "lib_bitstream/SkippedPicture.h"
 #include "IP_Stream.h"
 
-typedef struct nalunit
+typedef struct t_NalUnit
 {
   void (* Write)(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param, int iLayerId);
   void const* param;
@@ -49,22 +49,22 @@ typedef struct nalunit
   int idc;
   int iLayerId;
   int tempId;
-  NalHeader header;
-}AL_NalUnit;
+  AL_TNalHeader header;
+}AL_TNalUnit;
 
-AL_NalUnit AL_CreateAud(int nut, AL_ESliceType type, int tempId);
-AL_NalUnit AL_CreateSps(int nut, AL_TSps* sps, int iLayerId, int tempId);
-AL_NalUnit AL_CreatePps(int nut, AL_TPps* pps, int iLayerId, int tempId);
-AL_NalUnit AL_CreateVps(AL_THevcVps* vps, int tempId);
+AL_TNalUnit AL_CreateAud(int nut, AL_ESliceType type, int tempId);
+AL_TNalUnit AL_CreateSps(int nut, AL_TSps* sps, int iLayerId, int tempId);
+AL_TNalUnit AL_CreatePps(int nut, AL_TPps* pps, int iLayerId, int tempId);
+AL_TNalUnit AL_CreateVps(AL_THevcVps* vps, int tempId);
 
 #include "lib_common_enc/EncPicInfo.h"
 typedef struct t_SeiPrefixAPSCtx
 {
   AL_TSps* sps;
   AL_THevcVps* vps;
-}SeiPrefixAPSCtx;
+}AL_TSeiPrefixAPSCtx;
 
-AL_NalUnit AL_CreateSeiPrefixAPS(SeiPrefixAPSCtx* ctx, int nut, int tempId);
+AL_TNalUnit AL_CreateSeiPrefixAPS(AL_TSeiPrefixAPSCtx* ctx, int nut, int tempId);
 
 typedef struct t_SeiPrefixCtx
 {
@@ -73,24 +73,25 @@ typedef struct t_SeiPrefixCtx
   int cpbRemovalDelay;
   uint32_t uFlags;
   AL_TEncPicStatus const* pPicStatus;
-}SeiPrefixCtx;
+  AL_THDRSEIs* pHDRSEIs;
+}AL_TSeiPrefixCtx;
 
-AL_NalUnit AL_CreateSeiPrefix(SeiPrefixCtx* ctx, int nut, int tempId);
+AL_TNalUnit AL_CreateSeiPrefix(AL_TSeiPrefixCtx* ctx, int nut, int tempId);
 
 typedef struct t_SeiPrefixUDUCtx
 {
   uint8_t uuid[16];
   int8_t numSlices;
-}SeiPrefixUDUCtx;
+}AL_TSeiPrefixUDUCtx;
 
-AL_NalUnit AL_CreateSeiPrefixUDU(SeiPrefixUDUCtx* ctx, int nut, int tempId);
+AL_TNalUnit AL_CreateSeiPrefixUDU(AL_TSeiPrefixUDUCtx* ctx, int nut, int tempId);
 
 typedef struct t_SeiExternalCtx
 {
   uint8_t* pPayload;
   int iPayloadType;
   int iPayloadSize;
-}SeiExternalCtx;
+}AL_TSeiExternalCtx;
 
-AL_NalUnit AL_CreateExternalSei(SeiExternalCtx* ctx, int nut, int tempId);
+AL_TNalUnit AL_CreateExternalSei(AL_TSeiExternalCtx* ctx, int nut, int tempId);
 

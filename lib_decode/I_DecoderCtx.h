@@ -115,7 +115,7 @@ typedef struct t_Dec_Ctx
   AL_TDecPicBuffers PoolPB[MAX_STACK_SIZE]; // Picture Buffers
   uint8_t uCurID; // ID of the last independent slice
 
-  AL_TDecChanParam chanParam;
+  AL_TDecChanParam* pChanParam;
   AL_EDpbMode eDpbMode;
   bool bUseBoard;
   bool bConceal;
@@ -125,14 +125,15 @@ typedef struct t_Dec_Ctx
   // Trace stuff
   int iTraceFirstFrame;
   int iTraceLastFrame;
+  int iTracePreviousFrmNum;
   int iTraceCounter;
+  bool shouldPrintFrameDelimiter;
 
   // stream context status
   bool bFirstIsValid;
   bool bFirstSliceInFrameIsValid;
   bool bBeginFrameIsValid;
   bool bIsFirstPicture;
-  bool bLastIsEOS;
   int iStreamOffset[MAX_STACK_SIZE];
   int iCurOffset;
   uint32_t uCurPocLsb;
@@ -174,6 +175,8 @@ typedef struct t_Dec_Ctx
   AL_TBuffer* eosBuffer;
 
   int iNumSlicesRemaining;
+
+  TMemDesc tMDChanParam;
 }AL_TDecCtx;
 
 /****************************************************************************/

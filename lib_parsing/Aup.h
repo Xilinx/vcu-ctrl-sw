@@ -39,6 +39,7 @@
 
 #include "lib_common/SPS.h"
 #include "lib_common/PPS.h"
+#include "lib_common/HDR.h"
 
 #define AL_MAX_VPS 16
 
@@ -52,6 +53,7 @@ typedef struct
 
   AL_EPicStruct ePicStruct;
   int iRecoveryCnt;
+  AL_THDRSEIs tHDRSEIs; // Holds only the currently active HDR SEIs
 }AL_THevcAup;
 
 typedef struct
@@ -63,6 +65,7 @@ typedef struct
 
   AL_ESliceType ePictureType;
   int iRecoveryCnt;
+  AL_THDRSEIs tHDRSEIs; // Holds only the currently active HDR SEIs
 }AL_TAvcAup;
 
 typedef struct

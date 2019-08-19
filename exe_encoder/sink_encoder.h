@@ -41,6 +41,7 @@
 #include "QPGenerator.h"
 #include "EncCmdMngr.h"
 #include "CommandsSender.h"
+#include "HDRParser.h"
 
 #include "TwoPassMngr.h"
 
@@ -69,10 +70,10 @@ static std::string PictTypeToString(AL_ESliceType type)
   return m.at(type);
 }
 
-static bool PreprocessQP(uint8_t* pQPs, const AL_TEncSettings& Settings, const AL_TEncChanParam& tChParam, const std::string& sQPTablesFolder, int iFrameCountSent)
+static bool PreprocessQP(uint8_t* pQPs, AL_EGenerateQpMode eMode, const AL_TEncChanParam& tChParam, const std::string& sQPTablesFolder, int iFrameCountSent)
 {
   uint8_t* pSegs = NULL;
-  return GenerateQPBuffer(Settings.eQpCtrlMode, tChParam.tRCParam.iInitialQP,
+  return GenerateQPBuffer(eMode, tChParam.tRCParam.iInitialQP,
                           tChParam.tRCParam.iMinQP, tChParam.tRCParam.iMaxQP,
                           AL_GetWidthInLCU(tChParam), AL_GetHeightInLCU(tChParam),
                           tChParam.eProfile, sQPTablesFolder, iFrameCountSent, pQPs + EP2_BUF_QP_BY_MB.Offset, pSegs);
@@ -88,8 +89,8 @@ public:
     std::string sRoiFileName;
   };
 
-  QPBuffers(const AL_TEncSettings& settings) :
-    isExternQpTable(settings.eQpCtrlMode & (AL_MASK_QP_TABLE_EXT)), settings(settings)
+  QPBuffers(AL_TEncSettings const& settings, AL_EGenerateQpMode mode) :
+    isExternQpTable(((mode & AL_GENERATE_MASK_QP_TABLE_EXT) != AL_GENERATE_UNIFORM_QP)), settings(settings), mode(mode)
   {
   }
 
@@ -148,7 +149,7 @@ private:
     auto& tLayerChParam = settings.tChParam[iLayerID];
 
     AL_TBuffer* pQpBuf = layerInfo.bufPool->GetBuffer();
-    bool bRet = PreprocessQP(AL_Buffer_GetData(pQpBuf), settings, tLayerChParam, layerInfo.sQPTablesFolder, frameNum);
+    bool bRet = PreprocessQP(AL_Buffer_GetData(pQpBuf), mode, tLayerChParam, layerInfo.sQPTablesFolder, frameNum);
 
     if(!bRet)
       bRet = GenerateROIBuffer(mQPLayerRoiCtxs[iLayerID], layerInfo.sRoiFileName, AL_GetWidthInLCU(tLayerChParam), AL_GetHeightInLCU(tLayerChParam),
@@ -164,8 +165,9 @@ private:
   }
 
 private:
-  bool isExternQpTable;
-  const AL_TEncSettings& settings;
+  bool const isExternQpTable;
+  AL_TEncSettings const& settings;
+  AL_EGenerateQpMode const mode;
   std::map<int, QPLayerInfo> mQPLayerInfos;
   std::map<int, AL_TRoiMngrCtx*> mQPLayerRoiCtxs;
 };
@@ -218,7 +220,7 @@ struct EncoderSink : IFrameSink
     EncCmd(CmdFile.fp, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
     twoPassMngr(cfg.sTwoPassFileName, cfg.Settings.TwoPass, cfg.Settings.bEnableFirstPassSceneChangeDetection, cfg.Settings.tChParam[0].tGopParam.uGopLength,
                 cfg.Settings.tChParam[0].tRCParam.uCPBSize / 90, cfg.Settings.tChParam[0].tRCParam.uInitialRemDelay / 90, cfg.MainInput.FileInfo.FrameRate),
-    qpBuffers(cfg.Settings)
+    qpBuffers{cfg.Settings, cfg.RunInfo.eGenerateQpMode}
   {
     AL_CB_EndEncoding onEndEncoding = { &EncoderSink::EndEncoding, this };
 
@@ -238,6 +240,23 @@ struct EncoderSink : IFrameSink
       LayerRecOutput[i].reset(new NullFrameSink);
 
     m_pictureType = cfg.RunInfo.printPictureType ? AL_SLICE_MAX_ENUM : -1;
+
+    InitHDR(cfg.sHDRFileName);
+  }
+
+  void InitHDR(const std::string& sHDRFile)
+  {
+    if(sHDRFile.empty())
+      return;
+
+    AL_THDRSEIs tHDRSEIs;
+
+    HDRParser hdrParser(sHDRFile);
+
+    if(!hdrParser.ReadHDRSEIs(tHDRSEIs))
+      throw std::runtime_error("Failed to parse HDR File.");
+
+    AL_Encoder_SetHDRSEIs(hEnc, &tHDRSEIs);
   }
 
   ~EncoderSink()

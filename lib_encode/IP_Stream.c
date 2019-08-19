@@ -100,12 +100,12 @@ static void writeStartCode(AL_TBitStreamLite* pStream, int nut)
 }
 
 /****************************************************************************/
-void FlushNAL(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, uint8_t* pDataInNAL, int iBitsInNAL)
+void FlushNAL(AL_TBitStreamLite* pStream, uint8_t uNUT, AL_TNalHeader const* pHeader, uint8_t* pDataInNAL, int iBitsInNAL)
 {
   writeStartCode(pStream, uNUT);
 
-  for(int i = 0; i < header.size; i++)
-    writeByte(pStream, header.bytes[i]);
+  for(int i = 0; i < pHeader->size; i++)
+    writeByte(pStream, pHeader->bytes[i]);
 
   int iBytesInNAL = BitsToBytes(iBitsInNAL);
 
@@ -114,16 +114,16 @@ void FlushNAL(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, uint8_
 }
 
 /****************************************************************************/
-void WriteFillerData(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, int bytesCount)
+void WriteFillerData(AL_TBitStreamLite* pStream, uint8_t uNUT, AL_TNalHeader const* pHeader, int iBytesCount, bool bDontFill)
 {
   int bookmark = AL_BitStreamLite_GetBitsCount(pStream);
   writeStartCode(pStream, uNUT);
 
-  for(int i = 0; i < header.size; i++)
-    writeByte(pStream, header.bytes[i]);
+  for(int i = 0; i < pHeader->size; i++)
+    writeByte(pStream, pHeader->bytes[i]);
 
   int headerInBytes = (AL_BitStreamLite_GetBitsCount(pStream) - bookmark) / 8;
-  int bytesToWrite = bytesCount - headerInBytes;
+  int bytesToWrite = iBytesCount - headerInBytes;
   int spaceRemainingInBytes = (pStream->iMaxBits / 8) - (AL_BitStreamLite_GetBitsCount(pStream) / 8);
 
   bytesToWrite = Min(spaceRemainingInBytes, bytesToWrite);
@@ -131,7 +131,10 @@ void WriteFillerData(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header,
 
   if(bytesToWrite > 0)
   {
-    Rtos_Memset(AL_BitStreamLite_GetCurData(pStream), 0xFF, bytesToWrite);
+    if(bDontFill)
+      AL_BitStreamLite_GetCurData(pStream)[0] = 0xFF; // set single 0xFF byte as start marker
+    else
+      Rtos_Memset(AL_BitStreamLite_GetCurData(pStream), 0xFF, bytesToWrite);
     AL_BitStreamLite_SkipBits(pStream, bytesToWrite * 8);
   }
 

@@ -52,24 +52,13 @@ AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, TScheduler* pScheduler, AL_TAllocato
   if(!pSettings)
     return AL_ERROR;
 
-  *hEnc = (AL_HEncoder)Rtos_Malloc(sizeof(AL_TEncoder));
-  AL_TEncoder* pEncoder = (AL_TEncoder*)*hEnc;
+  AL_TEncoder* pEncoder = AL_Common_Encoder_Create(pAlloc);
+  *hEnc = (AL_HEncoder)pEncoder;
 
   if(!pEncoder)
-    return AL_ERROR;
+    return AL_ERR_NO_MEMORY;
 
-  Rtos_Memset(pEncoder, 0, sizeof(AL_TEncoder));
-
-  AL_ERR errorCode = AL_ERROR;
-  AL_TEncCtx* pCtx = Rtos_Malloc(sizeof(AL_TEncCtx));
-
-  if(!pCtx)
-  {
-    errorCode = AL_ERR_NO_MEMORY;
-    goto fail;
-  }
-
-  Rtos_Memset(pCtx, 0, sizeof *pCtx);
+  AL_TEncCtx* pCtx = pEncoder->pCtx;
 
 
   if(AL_IS_HEVC(pSettings->tChParam[0].eProfile))
@@ -78,10 +67,7 @@ AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, TScheduler* pScheduler, AL_TAllocato
   if(AL_IS_AVC(pSettings->tChParam[0].eProfile))
     AL_CreateAvcEncoder(&pCtx->encoder);
 
-  if(!pCtx->encoder.configureChannel)
-    goto fail;
-
-  errorCode = AL_Common_Encoder_CreateChannel(pCtx, pScheduler, pAlloc, pSettings);
+  AL_ERR errorCode = AL_Common_Encoder_CreateChannel(pEncoder, pScheduler, pAlloc, pSettings);
 
   if(AL_IS_ERROR_CODE(errorCode))
     goto fail;
@@ -89,13 +75,10 @@ AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, TScheduler* pScheduler, AL_TAllocato
   if(callback.func)
     pCtx->tLayerCtx[0].callback = callback;
 
-  pEncoder->pCtx = pCtx;
-
   return errorCode;
 
   fail:
-  Rtos_Free(pCtx);
-  Rtos_Free(pEncoder);
+  AL_Common_Encoder_Destroy(pEncoder);
   *hEnc = NULL;
   return errorCode;
 }
@@ -104,10 +87,7 @@ AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, TScheduler* pScheduler, AL_TAllocato
 void AL_Encoder_Destroy(AL_HEncoder hEnc)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
-
   AL_Common_Encoder_Destroy(pEnc);
-
-  Rtos_Free(pEnc);
 }
 
 /****************************************************************************/
@@ -231,6 +211,14 @@ bool AL_Encoder_SetLoopFilterTcOffset(AL_HEncoder hEnc, int8_t iTcOffset)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
   return AL_Common_Encoder_SetLoopFilterTcOffset(pEnc, iTcOffset);
+}
+
+
+/****************************************************************************/
+bool AL_Encoder_SetHDRSEIs(AL_HEncoder hEnc, AL_THDRSEIs* pHDRSEIs)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  return AL_Common_Encoder_SetHDRSEIs(pEnc, pHDRSEIs);
 }
 
 

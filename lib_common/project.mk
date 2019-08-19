@@ -14,10 +14,13 @@ LIB_COMMON_SRC:=\
 	lib_common/BufferBufHandleMeta.c\
 	lib_common/BufferSeiMeta.c\
 	lib_common/Fifo.c\
+  lib_common/LevelLimit.c\
 	lib_common/AvcLevelsLimit.c\
+  lib_common/HevcLevelsLimit.c\
 	lib_common/StreamBuffer.c\
 	lib_common/FourCC.c\
 	lib_common/HardwareDriver.c\
+	lib_common/HDR.c\
 
 
 

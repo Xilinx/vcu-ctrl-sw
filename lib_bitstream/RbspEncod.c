@@ -121,5 +121,26 @@ void AL_RbspEncoding_WriteUserDataUnregistered(AL_TBitStreamLite* pBS, uint8_t u
   AL_RbspEncoding_CloseSEI(pBS);
 }
 
+/******************************************************************************/
+void AL_RbspEncoding_WriteMasteringDisplayColourVolume(AL_TBitStreamLite* pBS, AL_TMasteringDisplayColourVolume* pMDCV)
+{
+  int const bookmark = AL_RbspEncoding_BeginSEI(pBS, 137);
+
+  for(int c = 0; c < 3; c++)
+  {
+    AL_BitStreamLite_PutU(pBS, 16, pMDCV->display_primaries[c].x);
+    AL_BitStreamLite_PutU(pBS, 16, pMDCV->display_primaries[c].y);
+  }
+
+  AL_BitStreamLite_PutU(pBS, 16, pMDCV->white_point.x);
+  AL_BitStreamLite_PutU(pBS, 16, pMDCV->white_point.y);
+
+  AL_BitStreamLite_PutU(pBS, 32, pMDCV->max_display_mastering_luminance);
+  AL_BitStreamLite_PutU(pBS, 32, pMDCV->min_display_mastering_luminance);
+
+  AL_BitStreamLite_EndOfSEIPayload(pBS);
+  AL_RbspEncoding_EndSEI(pBS, bookmark);
+}
+
 /*@}*/
 

@@ -177,7 +177,7 @@ static int InsertSectionAtId(AL_TStreamMetaData* pMetaData, uint16_t targetId, u
   return targetId;
 }
 
-int AddPrefixSei(AL_TStreamMetaData* pMetaData, uint32_t uOffset, uint32_t uLength)
+static int AddPrefixSei(AL_TStreamMetaData* pMetaData, uint32_t uOffset, uint32_t uLength)
 {
   // the prefix sei needs to be inserted after a config section if it exists
   int seiSectionId = AL_StreamMetaData_GetLastSectionOfFlag(pMetaData, AL_SECTION_CONFIG_FLAG) + 1;

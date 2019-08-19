@@ -47,15 +47,16 @@
 
 #include "lib_decode/lib_decode.h"
 #include "I_DecoderCtx.h"
-#include "I_Decoder.h"
 #include "InternalError.h"
+#include "lib_common_dec/DecBuffers.h"
+#include "lib_common_dec/DecInfo.h"
+#include "lib_rtos/types.h"
 
 
 typedef struct
 {
-  const AL_TDecoderVtable* vtable;
   AL_TDecCtx ctx;
-}AL_TDefaultDecoder;
+}AL_TDecoder;
 
 AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
 
@@ -125,5 +126,20 @@ void AL_Default_Decoder_SetError(AL_TDecCtx* pCtx, AL_ERR eError, int iFrameID);
    \return the output storage mode
 *****************************************************************************/
 AL_EFbStorageMode AL_Default_Decoder_GetDisplayStorageMode(AL_TDecCtx* pCtx, bool* pEnableCompression);
+
+void AL_Default_Decoder_Destroy(AL_TDecoder* pAbsDec);
+void AL_Default_Decoder_SetParam(AL_TDecoder* pAbsDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm, bool bForceCleanBuffers, bool shouldPrintFrameDelimiter);
+bool AL_Default_Decoder_PushBuffer(AL_TDecoder* pAbsDec, AL_TBuffer* pBuf, size_t uSize);
+void AL_Default_Decoder_Flush(AL_TDecoder* pAbsDec);
+void AL_Default_Decoder_PutDecPict(AL_TDecoder* pAbsDec, AL_TBuffer* pDecPict);
+int AL_Default_Decoder_GetMaxBD(AL_TDecoder* pAbsDec);
+AL_ERR AL_Default_Decoder_GetLastError(AL_TDecoder* pAbsDec);
+AL_ERR AL_Default_Decoder_GetFrameError(AL_TDecoder* pAbsDec, AL_TBuffer* pBuf);
+bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec);
+
+int AL_Default_Decoder_GetStrOffset(AL_TDecoder* pAbsDec);
+void AL_Default_Decoder_InternalFlush(AL_TDecoder* pAbsDec);
+void AL_Default_Decoder_FlushInput(AL_TDecoder* pAbsDec);
+
 /*@}*/
 

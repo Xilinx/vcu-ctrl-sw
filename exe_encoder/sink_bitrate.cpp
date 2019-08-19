@@ -50,7 +50,6 @@ struct BitrateWriter : IFrameSink
   {
     OpenOutput(m_file, path);
     imageSizes.push_back(ImageSize { 0, false });
-    m_file << "#header: window size:" << windowSize << ", size in bytes, bitrate in Kbps" << std::endl;
   }
 
   float calculateBitrate(int numBits, int numFrame)
@@ -76,6 +75,7 @@ struct BitrateWriter : IFrameSink
   {
     if(pStream == EndOfStream)
     {
+      m_file << "]" << std::endl;
       return;
     }
 
@@ -98,7 +98,16 @@ struct BitrateWriter : IFrameSink
 
         auto windowBitrate = calculateWindowBitrate();
 
-        m_file << "frame:" << numFrame << ",size:" << it->size << ",window bitrate:" << windowBitrate << ",bitrate alone:" << calculateBitrate(numBits, 1) << ",total bitrate:" << calculateBitrate(totalBits, numFrame) << std::endl;
+        /* first frame */
+        if(numFrame == 1)
+        {
+          m_file << "[";
+          m_file << "{ \"line_type\" : \"header\", \"window size\" : " << windowSize << ", \"units\" : \"size in bytes, bitrate in Kbps\" }";
+        }
+
+        m_file << "," << std::endl;
+
+        m_file << "{ \"frame\" : " << numFrame << ", \"size \" : " << it->size << ", \"window bitrate\" : " << windowBitrate << ", \"bitrate alone\" : " << calculateBitrate(numBits, 1) << ", \"total bitrate\" : " << calculateBitrate(totalBits, numFrame) << "}";
 
         it = imageSizes.erase(it);
       }

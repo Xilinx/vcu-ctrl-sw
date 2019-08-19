@@ -50,6 +50,8 @@
 #include <mutex>
 #include <queue>
 #include <map>
+#include <thread>
+
 extern "C"
 {
 #include "lib_common/BufferSrcMeta.h"
@@ -60,6 +62,7 @@ extern "C"
 #include "lib_common/BufferStreamMeta.h"
 #include "lib_common/BufferBufHandleMeta.h"
 #include "lib_common/BufferSeiMeta.h"
+#include "lib_common_dec/HDRMeta.h"
 }
 
 #include "lib_app/BufPool.h"
@@ -168,6 +171,7 @@ struct Config
   int iMaxFrames = INT_MAX;
   int iFirstFrame = 0;
   string seiFile = "";
+  string hdrFile = "";
 };
 
 /******************************************************************************/
@@ -405,6 +409,7 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addInt("--max-frames", &Config.iMaxFrames, "Abort after max number of decoded frames (approximative abort)");
   opt.addString("--prealloc-args", &preAllocArgs, "Specify stream's parameters: '1920x1080:video-mode:422:10:profile-idc:level'.");
   opt.addString("--sei-file", &Config.seiFile, "File in which the SEI decoded by the decoder will be dumped");
+  opt.addString("--hdr-file", &Config.hdrFile, "Parse and dump HDR data in the specified file");
 
   opt.parse(argc, argv);
 
@@ -811,6 +816,7 @@ struct Display
   unsigned int FirstFrame = 0;
   mutex hMutex;
   int iNumFrameConceal = 0;
+  ofstream hdrOutput;
 };
 
 struct ResChgParam
@@ -821,6 +827,7 @@ struct ResChgParam
   AL_TDecSettings* pDecSettings;
   AL_TAllocator* pAllocator;
   AL_TDecSettings* pSettings;
+  bool bAddHDRMetaData;
   mutex hMutex;
 };
 
@@ -878,6 +885,30 @@ static void writeSei(bool bIsPrefix, int iPayloadType, uint8_t* pPayload, int iP
           << "raw:" << endl;
   printHexdump(seiOut, pPayload, iPayloadSize);
   *seiOut << endl << endl;
+}
+
+static void writeHDR(AL_ETransferCharacteristics eTransferCharacteristics, AL_EColourMatrixCoefficients eMatrixCoeffs, AL_THDRSEIs& hdrSEIs, ostream& hdrOut)
+{
+  if(!hdrOut)
+    return;
+
+  hdrOut << "transfer_characteristics: " << eTransferCharacteristics << endl;
+  hdrOut << "matrix_coefficients: " << eMatrixCoeffs << endl;
+
+  if(hdrSEIs.bHasMDCV)
+  {
+    hdrOut << "mastering_display_colour_volume: ";
+
+    for(int i = 0; i < 3; i++)
+      hdrOut << hdrSEIs.tMDCV.display_primaries[i].x << " " << hdrSEIs.tMDCV.display_primaries[i].y << " ";
+
+    hdrOut << hdrSEIs.tMDCV.white_point.x << " " << hdrSEIs.tMDCV.white_point.y << " " << hdrSEIs.tMDCV.max_display_mastering_luminance << " " << hdrSEIs.tMDCV.min_display_mastering_luminance << endl;
+  }
+
+  if(hdrSEIs.bHasCLL)
+    hdrOut << "content_light_level_info: " << hdrSEIs.tCLL.max_content_light_level << " " << hdrSEIs.tCLL.max_pic_average_light_level << " " << endl;
+
+  hdrOut << endl << endl;
 }
 
 /******************************************************************************/
@@ -984,6 +1015,11 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
   {
     AL_Decoder_PutDisplayPicture(hDec, pFrame);
 
+    auto pHDR = (AL_THDRMetaData*)AL_Buffer_GetMetaData(pFrame, AL_META_TYPE_HDR);
+
+    if(pHDR)
+      writeHDR(pHDR->eTransferCharacteristics, pHDR->eColourMatrixCoeffs, pHDR->tHDRSEIs, hdrOutput);
+
     // TODO: increase only when last frame
     DisplayFrameStatus(NumFrames);
     NumFrames++;
@@ -1055,6 +1091,17 @@ static void sParsedSei(bool bIsPrefix, int iPayloadType, uint8_t* pPayload, int 
   writeSei(bIsPrefix, iPayloadType, pPayload, iPayloadSize, seiOutput);
 }
 
+void AddHDRMetaData(AL_TBuffer* pBufStream)
+{
+  if(AL_Buffer_GetMetaData(pBufStream, AL_META_TYPE_HDR))
+    return;
+
+  auto pHDReta = AL_HDRMetaData_Create();
+
+  if(pHDReta)
+    AL_Buffer_AddMetaData(pBufStream, (AL_TMetaData*)pHDReta);
+}
+
 static AL_ERR sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSettings const* pSettings, AL_TCropInfo const* pCropInfo, void* pUserParam)
 {
   ResChgParam* p = (ResChgParam*)pUserParam;
@@ -1099,6 +1146,9 @@ static AL_ERR sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSe
     auto pDecPict = p->bufPool.GetBuffer(AL_BUF_MODE_NONBLOCK);
     assert(pDecPict);
     Rtos_Memset(AL_Buffer_GetData(pDecPict), 0xDE, pDecPict->zSize);
+
+    if(p->bAddHDRMetaData)
+      AddHDRMetaData(pDecPict);
     AL_Decoder_PutDisplayPicture(p->hDec, pDecPict);
     AL_Buffer_Unref(pDecPict);
   }
@@ -1275,12 +1325,16 @@ void SafeMain(int argc, char** argv)
   display.iBitDepth = Config.tDecSettings.iBitDepth;
   display.MaxFrames = Config.iMaxFrames;
 
+  if(!Config.hdrFile.empty())
+    OpenOutput(display.hdrOutput, Config.hdrFile);
+
   AL_TDecSettings Settings = Config.tDecSettings;
 
   ResChgParam ResolutionFoundParam;
   ResolutionFoundParam.pAllocator = pAllocator;
   ResolutionFoundParam.bPoolIsInit = false;
   ResolutionFoundParam.pDecSettings = &Settings;
+  ResolutionFoundParam.bAddHDRMetaData = display.hdrOutput.is_open();
 
   DecodeParam tDecodeParam {};
   tDecodeParam.hExitMain = display.hExitMain;
@@ -1313,7 +1367,7 @@ void SafeMain(int argc, char** argv)
   tDecodeParam.hDec = hDec;
   ResolutionFoundParam.hDec = hDec;
 
-  AL_Decoder_SetParam(hDec, Config.bConceal, iUseBoard ? true : false, Config.iNumTrace, Config.iNumberTrace, Config.bForceCleanBuffers);
+  AL_Decoder_SetParam(hDec, Config.bConceal, iUseBoard ? true : false, Config.iNumTrace, Config.iNumberTrace, Config.bForceCleanBuffers, Config.ipCtrlMode == IPCTRL_MODE_TRACE);
 
   if(!invalidPreallocSettings(Config.tDecSettings.tStream))
   {

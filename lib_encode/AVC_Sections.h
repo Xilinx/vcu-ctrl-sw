@@ -39,6 +39,6 @@
 #include "Sections.h"
 #include "IP_EncoderCtx.h"
 
-NalHeader GetNalHeaderAvc(uint8_t uNUT, uint8_t uNalIdc, uint8_t uTempID);
+AL_TNalHeader GetNalHeaderAvc(uint8_t uNUT, uint8_t uNalIdc, uint8_t uTempID);
 void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, bool bForceWritePPS);
 

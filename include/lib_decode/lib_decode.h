@@ -178,7 +178,7 @@ void AL_Decoder_Destroy(AL_HDecoder hDec);
 
 /****************************************************************************/
 /* internal. Used for traces */
-void AL_Decoder_SetParam(AL_HDecoder hDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm, bool bForceCleanBuffers);
+void AL_Decoder_SetParam(AL_HDecoder hDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm, bool bForceCleanBuffers, bool shouldPrintFrameDelimiter);
 
 /*************************************************************************//*!
    \brief Pushes a buffer to the decoder queue. It will be decoded when possible

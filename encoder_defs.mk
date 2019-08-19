@@ -41,6 +41,7 @@ ifneq ($(ENABLE_ELASTIC),0)
   LIB_CPR_A=./extra/cpr/build/libcpr.a
 endif
 
+REF_LDFLAGS+=$(LDFLAGS)
 
 # to be fixed
 $(BIN)/lib_encode/unittests/encode.cpp.o: CFLAGS+=-Wno-deprecated-declarations

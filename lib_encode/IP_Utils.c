@@ -59,9 +59,6 @@ enum
   VIDEO_FORMAT_UNSPECIFIED,
 } EVUIVideoFormat;
 
-static int const VUI_TRANSFER_CHARACTERISTICS_UNSPECIFIED = 2;
-static int const VUI_MATRIX_COEFFICIENTS_UNSPECIFIED = 2;
-
 /*************************************************************************//*!
    \brief AL_t_RPS: reference picture set
 *****************************************************************************/
@@ -671,12 +668,7 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   pSPS->seq_parameter_set_id = 0;
   pSPS->pic_order_cnt_type = 0; // TDMB = 2;
 
-  pSPS->max_num_ref_frames = iMaxRef; // TDMB = 1, PyramidB = 4
-
-
-  if(AL_IS_XAVC(pChannel->eProfile))
-    pSPS->max_num_ref_frames = 0;
-
+  pSPS->max_num_ref_frames = AL_IS_INTRA_PROFILE(pChannel->eProfile) ? 0 : iMaxRef;
   pSPS->gaps_in_frame_num_value_allowed_flag = 0;
   pSPS->log2_max_pic_order_cnt_lsb_minus4 = AL_GET_SPS_LOG2_MAX_POC(pChannel->uSpsParam) - 4;
 
@@ -741,8 +733,8 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   // Colour parameter information
   pSPS->vui_param.colour_description_present_flag = 1;
   pSPS->vui_param.colour_primaries = AL_H273_ColourDescToColourPrimaries(pSettings->eColourDescription);
-  pSPS->vui_param.transfer_characteristics = VUI_TRANSFER_CHARACTERISTICS_UNSPECIFIED;
-  pSPS->vui_param.matrix_coefficients = VUI_MATRIX_COEFFICIENTS_UNSPECIFIED;
+  pSPS->vui_param.transfer_characteristics = pSettings->eTransferCharacteristics;
+  pSPS->vui_param.matrix_coefficients = pSettings->eColourMatrixCoeffs;
 
   // Timing information
   // When fixed_frame_rate_flag = 1, num_units_in_tick/time_scale should be equal to
@@ -947,8 +939,8 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   // Colour parameter information
   pSPS->vui_param.colour_description_present_flag = 1;
   pSPS->vui_param.colour_primaries = AL_H273_ColourDescToColourPrimaries(pSettings->eColourDescription);
-  pSPS->vui_param.transfer_characteristics = VUI_TRANSFER_CHARACTERISTICS_UNSPECIFIED;
-  pSPS->vui_param.matrix_coefficients = VUI_MATRIX_COEFFICIENTS_UNSPECIFIED;
+  pSPS->vui_param.transfer_characteristics = pSettings->eTransferCharacteristics;
+  pSPS->vui_param.matrix_coefficients = pSettings->eColourMatrixCoeffs;
 
   // Timing information
   // When fixed_frame_rate_flag = 1, num_units_in_tick/time_scale should be equal to
@@ -1045,12 +1037,8 @@ void AL_AVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, int iM
     // PPS scaling matrix use SPS's one
     AL_EScalingList eScalingList = pSettings->eScalingList;
 
-    assert(eScalingList != AL_SCL_RANDOM);
-    assert(eScalingList != AL_SCL_MAX_ENUM);
-
     if(eScalingList != AL_SCL_FLAT)
       pPPS->pic_scaling_matrix_present_flag = 1;
-
   }
   pPPS->pSPS = (AL_TAvcSps*)pSPS;
 }
@@ -1095,13 +1083,16 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
   pPPS->init_qp_minus26 = 0;
   pPPS->constrained_intra_pred_flag = (pChParam->eEncTools & AL_OPT_CONST_INTRA_PRED) ? 1 : 0;
   pPPS->transform_skip_enabled_flag = (pChParam->eEncTools & AL_OPT_TRANSFO_SKIP) ? 1 : 0;
-  pPPS->cu_qp_delta_enabled_flag = pSettings->eQpCtrlMode ||
-                                   (pChParam->tRCParam.eRCMode == AL_RC_LOW_LATENCY) ||
-                                   (pChParam->tRCParam.pMaxPictureSize[AL_SLICE_I] > 0) ||
-                                   (pChParam->tRCParam.pMaxPictureSize[AL_SLICE_P] > 0) ||
-                                   (pChParam->tRCParam.pMaxPictureSize[AL_SLICE_B] > 0) ||
-                                   (pChParam->tRCParam.eRCMode == AL_RC_CAPPED_VBR) ||
-                                   pChParam->uSliceSize ? 1 : 0;
+  pPPS->cu_qp_delta_enabled_flag = (
+    (pSettings->eQpCtrlMode != AL_QP_CTRL_NONE)
+    || (pSettings->eQpTableMode != AL_QP_TABLE_NONE)
+    || (pChParam->tRCParam.eRCMode == AL_RC_LOW_LATENCY)
+    || (pChParam->tRCParam.pMaxPictureSize[AL_SLICE_I] > 0)
+    || (pChParam->tRCParam.pMaxPictureSize[AL_SLICE_P] > 0)
+    || (pChParam->tRCParam.pMaxPictureSize[AL_SLICE_B] > 0)
+    || (pChParam->tRCParam.eRCMode == AL_RC_CAPPED_VBR)
+    || (pChParam->uSliceSize)
+    ) ? 1 : 0;
   pPPS->diff_cu_qp_delta_depth = pChParam->uCuQPDeltaDepth;
 
   pPPS->pps_cb_qp_offset = pChParam->iCbPicQpOffset;
@@ -1223,12 +1214,14 @@ bool AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TEnc
     bForceWritePPS = true;
   }
 
+  // For LF offsets, the PPS is updated directly, but we don't force PPS update now (offsets overwriten in slice headers).
+  // Will be updated with the next IDR. Works under the assumption that we only insert PPS with IDRs, so that we match the
+  // behaviour of the firmware.
   if(pHLSInfo->bLFOffsetChanged)
   {
     bool bIsGdr = false;
     bIsGdr |= isGdrEnabled(pSettings);
     AL_HEVC_GenerateFilterParam(pPPS, bIsGdr, pChParam->eEncTools, pChParam->uPpsParam, pHLSInfo->iLFBetaOffset, pHLSInfo->iLFTcOffset);
-    bForceWritePPS = true;
   }
 
   return bForceWritePPS;

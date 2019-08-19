@@ -36,8 +36,7 @@
 ******************************************************************************/
 
 #include "CfgParser.h"
-#include "Parser.h"
-
+#include "lib_cfg_parsing/Parser.h"
 
 #include <algorithm>
 #include <cassert>
@@ -151,6 +150,7 @@ static void populateInputSection(ConfigParser& parser, ConfigFile& cfg)
   parser.addPath(curSection, "ROIFile", cfg.MainInput.sRoiFileName, "File containing the Regions of Interest used to encode");
   parser.addPath(curSection, "QpTablesFolder", cfg.MainInput.sQPTablesFolder, "Specifies the location of the files containing the QP tables to use for each frame");
   parser.addPath(curSection, "TwoPassFile", cfg.sTwoPassFileName, "File containing the first pass statistics");
+  parser.addPath(curSection, "HDRFile", cfg.sHDRFileName, "Name of the file specifying HDR SEI contents");
   parser.addArith(curSection, "FrameRate", cfg.MainInput.FileInfo.FrameRate, "Specifies the number of frames per second of the source, if it isn't set, we take the RATE_CONTROL FrameRate value. If this parameter is greater than the frame rate specified in the rate control section, the encoder will drop some frames; when this parameter is lower than the frame rate specified in the rate control section, the encoder will repeat some frames");
 }
 
@@ -361,10 +361,17 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   seis["SEI_BP"] = AL_SEI_BP;
   seis["SEI_PT"] = AL_SEI_PT;
   seis["SEI_RP"] = AL_SEI_RP;
+  seis["SEI_MDCV"] = AL_SEI_MDCV;
+  seis["SEI_CLL"] = AL_SEI_CLL;
   seis["SEI_ALL"] = AL_SEI_ALL;
   parser.addEnum(curSection, "EnableSEI", cfg.Settings.uEnableSEI, seis, "Determines which Supplemental Enhancement Information are sent with the stream");
   parser.addBool(curSection, "EnableAUD", cfg.Settings.bEnableAUD, "Determines if Access Unit Delimiter are added to the stream or not");
-  parser.addBool(curSection, "EnableFillerData", cfg.Settings.bEnableFillerData, "Specifies if filler data can be added to the stream or not");
+  std::map<string, int> fillerEnums {};
+  fillerEnums["DISABLE"] = AL_FILLER_DISABLE;
+  fillerEnums["ENABLE"] = AL_FILLER_ENC; // for backward compatibility
+  fillerEnums["ENC"] = AL_FILLER_ENC;
+  fillerEnums["APP"] = AL_FILLER_APP;
+  parser.addEnum(curSection, "EnableFillerData", cfg.Settings.eEnableFillerData, fillerEnums, "Specifies if filler data can be added to the stream or not");
   std::map<string, int> aspectRatios;
   aspectRatios["ASPECT_RATIO_AUTO"] = AL_ASPECT_RATIO_AUTO;
   aspectRatios["ASPECT_RATIO_1_1"] = AL_ASPECT_RATIO_1_1;
@@ -387,6 +394,15 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   colourDescriptions["COLOUR_DESC_SMPTE_EG_432"] = AL_COLOUR_DESC_SMPTE_EG_432;
   colourDescriptions["COLOUR_DESC_EBU_3213"] = AL_COLOUR_DESC_EBU_3213;
   parser.addEnum(curSection, "ColourDescription", cfg.Settings.eColourDescription, colourDescriptions);
+
+  std::map<string, int> transferCharacteristics;
+  transferCharacteristics["TRANSFER_UNSPECIFIED"] = AL_TRANSFER_CHARAC_UNSPECIFIED;
+  transferCharacteristics["TRANSFER_BT_2100_PQ"] = AL_TRANSFER_CHARAC_BT_2100_PQ;
+  parser.addEnum(curSection, "TransferCharac", cfg.Settings.eTransferCharacteristics, transferCharacteristics, "Specifies the reference opto-electronic transfer characteristic function (HDR setting)");
+  std::map<string, int> colourMatrices;
+  colourMatrices["COLOUR_MAT_UNSPECIFIED"] = AL_COLOUR_MAT_COEFF_UNSPECIFIED;
+  colourMatrices["COLOUR_MAT_BT_2100_YCBCR"] = AL_COLOUR_MAT_COEFF_BT_2100_YCBCR;
+  parser.addEnum(curSection, "ColourMatrix", cfg.Settings.eColourMatrixCoeffs, colourMatrices, "Specifies the matrix coefficients used in deriving luma and chroma signals from RGB (HDR setting)");
 
   std::map<string, int> chromaModes {};
   chromaModes["CHROMA_MONO"] = AL_CHROMA_MONO;
@@ -438,13 +454,40 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   parser.addEnum(curSection, "ScalingList", cfg.Settings.eScalingList, scalingmodes, "Specifies the scaling list mode");
   parser.addPath(curSection, "FileScalingList", temp.sScalingListFile, "if ScalingList is CUSTOM, specifies the file containing the quantization matrices");
   std::map<string, int> qpctrls {};
-  qpctrls["UNIFORM_QP"] = AL_UNIFORM_QP;
-  qpctrls["ROI_QP"] = AL_ROI_QP;
-  qpctrls["AUTO_QP"] = AL_AUTO_QP;
-  qpctrls["ADAPTIVE_AUTO_QP"] = AL_ADAPTIVE_AUTO_QP;
-  qpctrls["RELATIVE_QP"] = AL_RELATIVE_QP;
-  qpctrls["LOAD_QP"] = AL_LOAD_QP;
-  parser.addEnum(curSection, "QPCtrlMode", cfg.Settings.eQpCtrlMode, qpctrls, "Specifies how to generate the QP per CU");
+  qpctrls["UNIFORM_QP"] = AL_GENERATE_UNIFORM_QP;
+  qpctrls["ROI_QP"] = AL_GENERATE_ROI_QP;
+  qpctrls["AUTO_QP"] = AL_GENERATE_AUTO_QP;
+  qpctrls["ADAPTIVE_AUTO_QP"] = AL_GENERATE_ADAPTIVE_AUTO_QP;
+  qpctrls["RELATIVE_QP"] = AL_GENERATE_RELATIVE_QP;
+  qpctrls["LOAD_QP"] = AL_GENERATE_LOAD_QP;
+  parser.addCustom(curSection, "QPCtrlMode", [qpctrls, &cfg](std::deque<Token>& tokens)
+  {
+    cfg.RunInfo.eGenerateQpMode = (AL_EGenerateQpMode)parseEnum(tokens, qpctrls);
+    auto& settings = cfg.Settings;
+    bool isRelativeTable = ((cfg.RunInfo.eGenerateQpMode & AL_GENERATE_RELATIVE_QP) != 0);
+
+    if(AL_IS_GENERATE_AUTO_OR_ADAPTIVE_AUTO_QP(cfg.RunInfo.eGenerateQpMode))
+    {
+      auto isAdaptive = cfg.RunInfo.eGenerateQpMode & AL_GENERATE_ADAPTIVE_AUTO_QP;
+      settings.eQpTableMode = isRelativeTable ? AL_QP_TABLE_RELATIVE : AL_QP_TABLE_NONE;
+      settings.eQpCtrlMode = isAdaptive ? AL_QP_CTRL_ADAPTIVE_AUTO : AL_QP_CTRL_AUTO;
+      return;
+    }
+
+    settings.eQpCtrlMode = AL_QP_CTRL_NONE;
+    settings.eQpTableMode = isRelativeTable ? AL_QP_TABLE_RELATIVE : AL_QP_TABLE_ABSOLUTE;
+
+
+    if(cfg.RunInfo.eGenerateQpMode == AL_GENERATE_ROI_QP)
+      settings.eQpTableMode = AL_QP_TABLE_RELATIVE;
+
+    if(cfg.RunInfo.eGenerateQpMode == AL_GENERATE_UNIFORM_QP)
+      settings.eQpTableMode = AL_QP_TABLE_NONE;
+  }, [qpctrls, &cfg]()
+  {
+    AL_EGenerateQpMode mode = cfg.RunInfo.eGenerateQpMode;
+    return getDefaultEnumValue(mode, qpctrls);
+  }, std::string { "Specifies how to generate the QP per CU" } +startValueDesc() + describeEnum(qpctrls));
 
   std::map<string, int> ldamodes {};
   ldamodes["DEFAULT_LDA"] = AL_DEFAULT_LDA;

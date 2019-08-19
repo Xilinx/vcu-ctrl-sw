@@ -792,23 +792,14 @@ static void writeSeiRecoveryPoint(AL_TBitStreamLite* pBS, int iRecoveryFrameCnt)
 static void writeSeiPictureTiming(AL_TBitStreamLite* pBS, AL_TSps const* pISps, int iAuCpbRemovalDelay, int iPicDpbOutputDelay, int iPicStruct)
 {
   AL_THevcSps* pSps = (AL_THevcSps*)pISps;
-
-  int iSrcScanType = 0;
-  int iDuplicateFlag = 0;
-
-  int iPicDpbOutputDuDelay = 0;
-  int iNumDecodingUnits = 1;
-  int iDuCommonCpbRemovalDelayFlag = 0;
-  int iDuCommonCpbRemovalDelayIncrement = 1;
-  int iNumNalusInDu = 1;
-  int iDuCpbRemovalDelayIncrement = 1;
-
   int bookmark = AL_RbspEncoding_BeginSEI(pBS, 1);
 
   if(pSps->vui_param.frame_field_info_present_flag)
   {
     AL_BitStreamLite_PutU(pBS, 4, iPicStruct);
+    int iSrcScanType = 0;
     AL_BitStreamLite_PutU(pBS, 2, iSrcScanType);
+    int iDuplicateFlag = 0;
     AL_BitStreamLite_PutU(pBS, 1, iDuplicateFlag);
   }
 
@@ -819,22 +810,32 @@ static void writeSeiPictureTiming(AL_TBitStreamLite* pBS, AL_TSps const* pISps, 
 
     if(pSps->vui_param.hrd_param.sub_pic_hrd_params_present_flag)
     {
+      int iPicDpbOutputDuDelay = 0;
       AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.dpb_output_delay_length_minus1 + 1, iPicDpbOutputDuDelay);
 
       if(pSps->vui_param.hrd_param.sub_pic_cpb_params_in_pic_timing_sei_flag)
       {
+        int iNumDecodingUnits = 1;
         AL_BitStreamLite_PutUE(pBS, iNumDecodingUnits - 1);
+        int iDuCommonCpbRemovalDelayFlag = 0;
         AL_BitStreamLite_PutU(pBS, 1, iDuCommonCpbRemovalDelayFlag);
 
         if(iDuCommonCpbRemovalDelayFlag)
+        {
+          int iDuCommonCpbRemovalDelayIncrement = 1;
           AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.du_cpb_removal_delay_increment_length_minus1 + 1, iDuCommonCpbRemovalDelayIncrement - 1);
+        }
 
         for(int i = 0; i < iNumDecodingUnits; ++i)
         {
+          int iNumNalusInDu = 1;
           AL_BitStreamLite_PutUE(pBS, iNumNalusInDu - 1);
 
           if(!iDuCommonCpbRemovalDelayFlag && (i < iNumDecodingUnits - 1))
+          {
+            int iDuCpbRemovalDelayIncrement = 1;
             AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.du_cpb_removal_delay_increment_length_minus1 + 1, iDuCpbRemovalDelayIncrement - 1);
+          }
         }
       }
     }
@@ -842,6 +843,18 @@ static void writeSeiPictureTiming(AL_TBitStreamLite* pBS, AL_TSps const* pISps, 
 
   AL_BitStreamLite_EndOfSEIPayload(pBS);
 
+  AL_RbspEncoding_EndSEI(pBS, bookmark);
+}
+
+/******************************************************************************/
+void writeContentLightLevel(AL_TBitStreamLite* pBS, AL_TContentLightLevel* pCLL)
+{
+  int const bookmark = AL_RbspEncoding_BeginSEI(pBS, 144);
+
+  AL_BitStreamLite_PutU(pBS, 16, pCLL->max_content_light_level);
+  AL_BitStreamLite_PutU(pBS, 16, pCLL->max_pic_average_light_level);
+
+  AL_BitStreamLite_EndOfSEIPayload(pBS);
   AL_RbspEncoding_EndSEI(pBS, bookmark);
 }
 
@@ -855,7 +868,9 @@ static IRbspWriter writer =
   writeSeiBufferingPeriod,
   writeSeiRecoveryPoint,
   writeSeiPictureTiming,
-  AL_RbspEncoding_WriteUserDataUnregistered,
+  AL_RbspEncoding_WriteMasteringDisplayColourVolume,
+  writeContentLightLevel,
+  AL_RbspEncoding_WriteUserDataUnregistered
 };
 
 IRbspWriter* AL_GetHevcRbspWriter()

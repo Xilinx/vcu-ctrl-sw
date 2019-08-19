@@ -78,7 +78,7 @@ typedef struct t_Scheduler
 typedef struct t_SchedulerVtable
 {
   void (* destroy)(TScheduler* pScheduler);
-  AL_ERR (* createChannel)(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEncChanParam* pChParam, TMemDesc* pEP1, AL_TISchedulerCallBacks* pCBs);
+  AL_ERR (* createChannel)(AL_HANDLE* hChannel, TScheduler* pScheduler, TMemDesc* pMDChParam, TMemDesc* pEP1, AL_TISchedulerCallBacks* pCBs);
   bool (* destroyChannel)(TScheduler* pScheduler, AL_HANDLE hChannel);
   bool (* encodeOneFrame)(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TEncInfo* pEncInfo, AL_TEncRequestInfo* pReqInfo, AL_TEncPicBufAddrs* pBufferAddrs);
   void (* putStreamBuffer)(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuffer* pStream, AL_64U streamUserPtr, uint32_t uOffset);
@@ -92,14 +92,15 @@ void AL_ISchedulerEnc_Destroy(TScheduler* pScheduler);
 /*************************************************************************//*!
    \brief Channel creation
    \param[out] opaque valid handle on success, AL_INVALID_CHANNEL otherwise
-   \param[in] pChParam Pointer to the channel parameter
+   \param[in] pMDChParam Pointer to the memory descriptor containing the channel
+   parameters
    \param[in] pCBs Pointer to the callbacks (See Scheduler callbacks)
    \return errorcode explaining why the channel creation failed
 *****************************************************************************/
 static AL_INLINE
-AL_ERR AL_ISchedulerEnc_CreateChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEncChanParam* pChParam, TMemDesc* pEP1, AL_TISchedulerCallBacks* pCBs)
+AL_ERR AL_ISchedulerEnc_CreateChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, TMemDesc* pMDChParam, TMemDesc* pEP1, AL_TISchedulerCallBacks* pCBs)
 {
-  return pScheduler->vtable->createChannel(hChannel, pScheduler, pChParam, pEP1, pCBs);
+  return pScheduler->vtable->createChannel(hChannel, pScheduler, pMDChParam, pEP1, pCBs);
 }
 
 /*************************************************************************//*!

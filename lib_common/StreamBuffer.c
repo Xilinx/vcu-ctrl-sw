@@ -38,6 +38,7 @@
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/StreamBufferPrivate.h"
 #include "lib_common/AvcLevelsLimit.h"
+#include "lib_common/HevcLevelsLimit.h"
 
 /****************************************************************************/
 int GetBlk64x64(AL_TDimension tDim)
@@ -84,7 +85,7 @@ int GetPcmVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth)
 }
 
 /****************************************************************************/
-int GetMaxVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth)
+int Hevc_GetMaxVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth)
 {
   /* Spec. A.3.2, A.3.3: Number of bits in the macroblock is at most: 5 * RawCtuBits / 3. */
   return GetPcmSizeWithFractionalCoefficient(tDim, eMode, iBitDepth, 5, 3);
@@ -94,16 +95,20 @@ int GetMaxVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth)
 int AL_GetMaxNalSize(AL_ECodec eCodec, AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth, int iLevel, int iProfileIdc)
 {
   (void)iProfileIdc;
-  /* Actual worst case: 5/3*PCM + one slice per MB/LCU. */
-  int iMaxPCM = eCodec == AL_CODEC_HEVC ? GetMaxVclNalSize(tDim, eMode, iBitDepth) : GetPcmVclNalSize(tDim, eMode, iBitDepth);
 
-  int iNumSlices = iLevel > 52 ? 600 : 200;
+  int iMaxPCM = (eCodec == AL_CODEC_HEVC) ? Hevc_GetMaxVclNalSize(tDim, eMode, iBitDepth) : GetPcmVclNalSize(tDim, eMode, iBitDepth);
+
+  int iNumSlices = 1;
+
+  if(eCodec == AL_CODEC_HEVC)
+    iNumSlices = AL_HEVC_GetMaxNumberOfSlices(iLevel);
 
   if(eCodec == AL_CODEC_AVC)
-    iNumSlices = Avc_GetMaxNumberOfSlices(iProfileIdc, iLevel, 1, 60, INT32_MAX);
-  iMaxPCM += AL_ENC_MAX_HEADER_SIZE + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
+    iNumSlices = AL_AVC_GetMaxNumberOfSlices(iProfileIdc, iLevel, 1, 60, INT32_MAX);
 
-  return RoundUp(iMaxPCM, 32);
+  int iMaxNalSize = iMaxPCM + AL_ENC_MAX_HEADER_SIZE + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
+
+  return RoundUp(iMaxNalSize, 32);
 }
 
 /****************************************************************************/

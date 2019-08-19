@@ -45,7 +45,7 @@
 
 #define DCACHE_OFFSET 0x80000000
 
-void setChannelParam(struct al5_params* msg, AL_TEncChanParam* pChParam, TMemDesc* pEP1);
+void setChannelParam(struct al5_params* msg, TMemDesc* pMDChParam, TMemDesc* pEP1);
 void setEncodeMsg(struct al5_encode_msg* msg, AL_TEncInfo* encInfo, AL_TEncRequestInfo* reqInfo, AL_TEncPicBufAddrs* bufAddrs);
 
 #endif

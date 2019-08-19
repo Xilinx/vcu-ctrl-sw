@@ -91,7 +91,7 @@ enum
   AL_ERR_CHAN_CREATION_NOT_ENOUGH_CORES = AL_DEF_ERROR(15),
   /*! Some parameters in the request have an invalid value */
   AL_ERR_REQUEST_MALFORMED = AL_DEF_ERROR(16),
-  /*! The dynamic command is not allowed in some configuration */
+  /*! The command is not allowed in some configuration */
   AL_ERR_CMD_NOT_ALLOWED = AL_DEF_ERROR(17),
   /*! The value associated with the command is invalid (in the current configuration) */
   AL_ERR_INVALID_CMD_VALUE = AL_DEF_ERROR(18),

@@ -2,8 +2,7 @@ THIS_EXE_ENCODER:=$(call get-my-dir)
 
 PARSER_SRCS:=\
   $(THIS_EXE_ENCODER)/CfgParser.cpp\
-  $(THIS_EXE_ENCODER)/Parser.cpp\
-  $(THIS_EXE_ENCODER)/Tokenizer.cpp\
+  $(LIB_CFG_PARSING_SRC)\
 
 EXE_ENCODER_SRCS:=\
   $(THIS_EXE_ENCODER)/CodecUtils.cpp\
@@ -20,6 +19,7 @@ EXE_ENCODER_SRCS:=\
   $(THIS_EXE_ENCODER)/EncCmdMngr.cpp\
   $(THIS_EXE_ENCODER)/QPGenerator.cpp\
   $(THIS_EXE_ENCODER)/CommandsSender.cpp\
+  $(THIS_EXE_ENCODER)/HDRParser.cpp\
   $(PARSER_SRCS)\
   $(LIB_CONV_SRC)\
   $(LIB_APP_SRC)\

@@ -63,3 +63,5 @@ typedef struct
 
 void AL_DecodeOneNal(AL_NonVclNuts, AL_NalParser, AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
 
+bool HasOngoingFrame(AL_TDecCtx* pCtx);
+

@@ -49,6 +49,7 @@
 #include "lib_common/SliceConsts.h"
 #include "lib_common/FourCC.h"
 #include "EncChanParam.h"
+#include "lib_common/HDR.h"
 
 
 /*************************************************************************//*!
@@ -67,35 +68,34 @@ typedef enum e_AspectRatio
 /*************************************************************************//*!
    \brief QP Control Mode
 *****************************************************************************/
-typedef enum e_QPCtrlMode
+typedef enum e_QpCtrlMode
 {
-  // exclusive modes
-  AL_UNIFORM_QP = 0x00, /*!< default behaviour */
-  AL_RAMP_QP = 0x02, /*!< used for test purpose */
-  AL_RANDOM_QP = 0x03, /*!< used for test purpose */
-  AL_LOAD_QP = 0x04, /*!< used for test purpose */
-  AL_BORDER_QP = 0x05, /*!< used for test purpose */
-  AL_ROI_QP = 0x06,
-  AL_MASK_QP_TABLE = 0x07,
-
-  // additional modes
-  AL_RANDOM_SKIP = 0x20, /*!< used for test purpose */
-  AL_RANDOM_I_ONLY = 0x40, /*!< used for test purpose */
-
-  AL_BORDER_SKIP = 0x100,
-  AL_FULL_SKIP = 0x200,
-
-  AL_MASK_QP_TABLE_EXT = 0x367,
-
-  // Auto QP
-  AL_AUTO_QP = 0x400, /*!< compute Qp by MB on the fly */
-  AL_ADAPTIVE_AUTO_QP = 0x800, /*!< Dynamically compute Qp by MB on the fly */
-  AL_MASK_AUTO_QP = 0xC00,
-
-  // QP table mode
-  AL_RELATIVE_QP = 0x8000,
-  AL_QP_MAX_ENUM, /* sentinel */
+  AL_QP_CTRL_NONE,
+  AL_QP_CTRL_AUTO,
+  AL_QP_CTRL_ADAPTIVE_AUTO,
+  AL_QP_CTRL_MAX_ENUM,
 }AL_EQpCtrlMode;
+
+static AL_INLINE bool AL_IS_AUTO_OR_ADAPTIVE_QP_CTRL(AL_EQpCtrlMode eMode)
+{
+  return (eMode == AL_QP_CTRL_AUTO) || (eMode == AL_QP_CTRL_ADAPTIVE_AUTO);
+}
+
+/*************************************************************************//*!
+   \brief QP Table Mode
+*****************************************************************************/
+typedef enum e_QpTableMode
+{
+  AL_QP_TABLE_NONE,
+  AL_QP_TABLE_RELATIVE,
+  AL_QP_TABLE_ABSOLUTE,
+  AL_QP_TABLE_MAX_ENUM,
+}AL_EQpTableMode;
+
+static AL_INLINE bool AL_IS_QP_TABLE_REQUIRED(AL_EQpTableMode eMode)
+{
+  return (eMode == AL_QP_TABLE_RELATIVE) || (eMode == AL_QP_TABLE_ABSOLUTE);
+}
 
 
 
@@ -107,11 +107,13 @@ typedef AL_INTROSPECT (category = "debug") struct t_EncSettings
   // Stream
   AL_TEncChanParam tChParam[MAX_NUM_LAYER]; /*!< Specifies the Channel parameters of the correspondong layer. Except for SHVC encoding (when supported) only layer 0 is used.*/
   bool bEnableAUD; /*!< Enable Access Unit Delimiter nal unit in the stream */
-  bool bEnableFillerData; /*!< Allows Filler Data Nal unit insertion when needed (CBR) */
+  AL_EFillerCtrlMode eEnableFillerData; /*!< Allows Filler Data Nal unit insertion when needed (CBR) */
   uint32_t uEnableSEI; /*!< Bit-field specifying which SEI message have to be inserted. see AL_SeiFlag for a list of the supported SEI messages */
 
   AL_EAspectRatio eAspectRatio; /*!< Specifies the sample aspect ratio of the luma samples. */
   AL_EColourDescription eColourDescription; /*!< Indicates the chromaticity coordinates of the source primaries in terms of the CIE 1931 definition. */
+  AL_ETransferCharacteristics eTransferCharacteristics; /*!< Specifies the reference opto-electronic transfer characteristic function */
+  AL_EColourMatrixCoefficients eColourMatrixCoeffs; /*!< Specifies the matrix coefficients used in deriving luma and chroma signals from RGB */
   AL_EScalingList eScalingList; /*!< Specifies which kind of scaling matrices is used for encoding. When set to AL_SCL_CUSTOM, the customized value shall be provided int the ScalingList and DCcoeff parameters below*/
   bool bDependentSlice; /*!< Enable the dependent slice mode */
 
@@ -121,6 +123,7 @@ typedef AL_INTROSPECT (category = "debug") struct t_EncSettings
   uint16_t uClipHrzRange; /*!< Specifies the Horizontal motion vector range. Note: this range can be further reduce by the encoder accroding to various constraints*/
   uint16_t uClipVrtRange; /*!< Specifies the Vertical motion vector range. Note: this range can be further reduce by the encoder accroding to various constraints*/
   AL_EQpCtrlMode eQpCtrlMode; /*!< specifies the QP control mode inside a frame; see AL_EQpCtrlMode for available modes */
+  AL_EQpTableMode eQpTableMode; /*!< specifies the QP table mode. See AL_EQpTableMode for available modes */
   int NumView; /*!< specifies the number of view when multi-view encoding is supported. */
   int NumLayer; /*!< specifies the number of layer (1 or 2) when SHVC is supported. */
   uint8_t ScalingList[4][6][64]; /*!< The scaling matrix coeffecients [S][M][C] where S=0 for 4x4, S=1 for 8x8, S=2 for 16x16 and S=3 for 32x32; M=0 for Intra Y, M=1 for Intra U, M=2 for intra V, M=3 for inter Y, M=4 for inter U and M=5 for interV; and where C is the coeffecient index. Note1 in 4x4 only the 16 first coeffecient are used; Note2 in 32x32 only intra Y inter Y matrices are used */

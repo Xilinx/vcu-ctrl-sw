@@ -47,6 +47,7 @@
 
 #include "lib_common/common_syntax_elements.h"
 #include "lib_common_dec/RbspParser.h"
+#include "lib_common/HDR.h"
 
 /*************************************************************************//*!
    \brief Retrieves the profile and level syntax elements
@@ -95,6 +96,14 @@ bool avc_vui_parameters(AL_TVuiParam* pVuiParam, AL_TRbspParser* pRP);
    \param[in]  pRP       Pointer to NAL parser
 *****************************************************************************/
 void hevc_vui_parameters(AL_TVuiParam* pVuiParam, int iMaxSubLayers, AL_TRbspParser* pRP);
+
+/*************************************************************************//*!
+   \brief The mastering_display_colour_volume parsing
+   \param[out] pMDCV Pointer to the mastering_display_colour_volume structure that
+              will be filled
+   \param[in]  pRP       Pointer to NAL parser
+*****************************************************************************/
+bool sei_mastering_display_colour_volume(AL_TMasteringDisplayColourVolume* pMDCV, AL_TRbspParser* pRP);
 
 /*@}*/
 

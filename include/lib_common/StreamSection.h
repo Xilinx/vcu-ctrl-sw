@@ -51,7 +51,8 @@ typedef enum
   AL_SECTION_END_FRAME_FLAG = 0x20000000, /*< this section denotes the end of a frame */
   AL_SECTION_CONFIG_FLAG = 0x10000000, /*< section data is an sps, pps, vps, aud */
   AL_SECTION_FILLER_FLAG = 0x08000000, /*< section data contains filler data */
-}AL_SectionFlags;
+  AL_SECTION_APP_FILLER_FLAG = 0x04000000, /*< section data contains uninitialized filler data that should be filled by the application layer*/
+}AL_ESectionFlags;
 
 /*************************************************************************//*!
    \brief Stream section. Act as a kind of scatter gather list containing the
@@ -61,7 +62,7 @@ typedef struct
 {
   uint32_t uOffset; /*!< Start offset of the section (in bytes from the beginning of the buffer) */
   uint32_t uLength; /*!< Length in bytes of the section */
-  AL_SectionFlags uFlags; /*!< Flags associated with the section; see macro AL_SECTION_xxxxx_FLAG */
+  AL_ESectionFlags uFlags; /*!< Flags associated with the section; see macro AL_SECTION_xxxxx_FLAG */
 }AL_TStreamSection;
 
 /*@}*/

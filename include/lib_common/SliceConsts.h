@@ -487,7 +487,8 @@ typedef enum e_SeiFlag
   AL_SEI_BP = 0x00000001, // Buffering period
   AL_SEI_PT = 0x00000002, // Picture Timing
   AL_SEI_RP = 0x00000004, // Recovery Point
-  AL_SEI_UDU = 0x00000008, // User Data Unregistered
+  AL_SEI_MDCV = 0x0000008,  // Mastering Display Colour Volume (HDR)
+  AL_SEI_CLL = 0x00000010,   // Content Light Level (HDR)
   // suffix
   AL_SEI_ALL = 0x00FFFFFF, // All supported SEI
 }AL_SeiFlag;
@@ -524,6 +525,16 @@ typedef enum e_ColourDescription
   AL_COLOUR_DESC_GENERIC_FILM,
   AL_COLOUR_DESC_MAX_ENUM,
 }AL_EColourDescription;
+
+/*************************************************************************//*!
+   \brief Filler Data Control Mode
+*****************************************************************************/
+typedef enum e_FillerCtrlMode
+{
+  AL_FILLER_DISABLE,
+  AL_FILLER_ENC, /*!< 0xFF data filled by encoder it-self */
+  AL_FILLER_APP, /*!< 0xFF data filled by the application layer */
+}AL_EFillerCtrlMode;
 
 /*@}*/
 

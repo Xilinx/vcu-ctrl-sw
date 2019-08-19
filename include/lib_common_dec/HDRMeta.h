@@ -36,43 +36,45 @@
 ******************************************************************************/
 
 /**************************************************************************//*!
-   \addtogroup lib_decode_hls
+   \addtogroup Buffers
    @{
    \file
  *****************************************************************************/
+
 #pragma once
 
-#include "lib_rtos/types.h"
+#include "lib_common/HDR.h"
+#include "lib_common/BufferMeta.h"
 
-#include "lib_common_dec/DecBuffers.h"
-#include "lib_common_dec/DecInfo.h"
-#include "InternalError.h"
-
-typedef struct AL_s_TDecoder AL_TDecoder;
-
-typedef struct
+/*************************************************************************//*!
+   \brief Metadata containing HDR related settings
+*****************************************************************************/
+typedef struct AL_t_HDRMeta
 {
-  void (* pfnDecoderDestroy)(AL_TDecoder* pDec);
-  void (* pfnSetParam)(AL_TDecoder* pDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm, bool bForceCleanBuffer);
-  bool (* pfnPushBuffer)(AL_TDecoder* pDec, AL_TBuffer* pBuf, size_t uSize);
-  void (* pfnFlush)(AL_TDecoder* pDec);
-  void (* pfnPutDisplayPicture)(AL_TDecoder* pDec, AL_TBuffer* pDisplay);
-  int (* pfnGetMaxBD)(AL_TDecoder* pDec);
-  AL_ERR (* pfnGetLastError)(AL_TDecoder* pDec);
-  AL_ERR (* pfnGetFrameError)(AL_TDecoder* pDec, AL_TBuffer* pBuf);
-  bool (* pfnPreallocateBuffers)(AL_TDecoder* pDec);
+  AL_TMetaData tMeta;
+  AL_ETransferCharacteristics eTransferCharacteristics;
+  AL_EColourMatrixCoefficients eColourMatrixCoeffs;
+  AL_THDRSEIs tHDRSEIs;
+}AL_THDRMetaData;
 
-  // only for the feeders
-  UNIT_ERROR (* pfnTryDecodeOneUnit)(AL_TDecoder* pDec, AL_TBuffer* pBufStream);
-  void (* pfnInternalFlush)(AL_TDecoder* pDec);
-  int (* pfnGetStrOffset)(AL_TDecoder* pDec);
-  void (* pfnFlushInput)(AL_TDecoder* pDec);
-}AL_TDecoderVtable;
+/*************************************************************************//*!
+   \brief Creates a HDR Metadata
+   \return Pointer to an HDR Metadata if success, NULL otherwise
+*****************************************************************************/
+AL_THDRMetaData* AL_HDRMetaData_Create(void);
 
-typedef struct AL_s_TDecoder
-{
-  const AL_TDecoderVtable* vtable;
-}AL_TDecoder;
+/*************************************************************************//*!
+   \brief Reset an HDR MetaData
+   \param[in] pMeta Pointer to the HDR Metadata
+*****************************************************************************/
+void AL_HDRMetaData_Reset(AL_THDRMetaData* pMeta);
+
+/*************************************************************************//*!
+   \brief Copy HDR Info from one HDRMetaData to another
+   \param[in] pMetaSrc Pointer to the source HDR Metadata
+   \param[in] pMetaDst Pointer to the destination HDR Metadata
+*****************************************************************************/
+void AL_HDRMetaData_Copy(AL_THDRMetaData* pMetaSrc, AL_THDRMetaData* pMetaDst);
 
 /*@}*/
 

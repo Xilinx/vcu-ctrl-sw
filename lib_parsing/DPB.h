@@ -60,8 +60,6 @@
 
 #define MAX_BUF_HELD_BY_NEXT_COMPONENT MAX_REF /*!< e.g. display / encoder / .. */
 #define PIC_ID_POOL_SIZE MAX_REF
-#define CONCEAL_BUF 1
-#define REC_BUF 1
 #define MAX_DPB_SIZE (MAX_REF + MAX_STACK_SIZE + REC_BUF + CONCEAL_BUF)
 #define FRM_BUF_POOL_SIZE (MAX_DPB_SIZE + MAX_BUF_HELD_BY_NEXT_COMPONENT)
 
@@ -425,6 +423,14 @@ void AL_Dpb_ModifShortTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, int iPicNumId
    \param[in,out] pListRef    Pointer on the reference picture list object
 *****************************************************************************/
 void AL_Dpb_ModifLongTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t uOffset, int iL0L1, uint8_t* pRefIdx, TBufferListRef* pListRef);
+
+/*************************************************************************//*!
+   \brief Retrieves the number of really existing reference pictures
+   \param[in] pDpb      Pointer to a DPB context object
+   \param[in] pListRef  Pointer on the reference picture list object
+   \return the number of really existing reference pictures
+*****************************************************************************/
+int AL_Dpb_GetNumExistingRef(AL_TDpb* pDpb, TBufferListRef* pListRef);
 
 /*************************************************************************//*!
    \brief Gets the first free node in the list (arrival order)

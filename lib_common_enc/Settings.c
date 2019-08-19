@@ -57,6 +57,8 @@
 #include "lib_common_enc/ParamConstraints.h"
 #include "lib_common_enc/DPBConstraints.h"
 #include "lib_common/SEI.h"
+#include "lib_common/AvcLevelsLimit.h"
+#include "lib_common/HevcLevelsLimit.h"
 
 static int const HEVC_MAX_CU_SIZE = 5; // 32x32
 static int const AVC_MAX_CU_SIZE = 4; // 16x16
@@ -107,25 +109,9 @@ static bool AL_sSettings_CheckProfile(AL_EProfile eProfile)
 static bool AL_sSettings_CheckLevel(AL_EProfile eProfile, uint8_t uLevel)
 {
   if(AL_IS_HEVC(eProfile))
-  {
-    if((uLevel == 10)
-       || ((uLevel >= 20) && (uLevel <= 21))
-       || ((uLevel >= 30) && (uLevel <= 31))
-       || ((uLevel >= 40) && (uLevel <= 41))
-       || ((uLevel >= 50) && (uLevel <= 52))
-       || ((uLevel >= 60) && (uLevel <= 62)))
-      return true;
-  }
+    return AL_HEVC_CheckLevel(uLevel);
   else if(AL_IS_AVC(eProfile))
-  {
-    if(((uLevel >= 10) && (uLevel <= 13))
-       || ((uLevel >= 20) && (uLevel <= 22))
-       || ((uLevel >= 30) && (uLevel <= 32))
-       || ((uLevel >= 40) && (uLevel <= 42))
-       || ((uLevel >= 50) && (uLevel <= 52))
-       || ((uLevel >= 60) && (uLevel <= 62)))
-      return true;
-  }
+    return AL_AVC_CheckLevel(uLevel);
   return false;
 }
 
@@ -190,221 +176,12 @@ static uint32_t AL_sSettings_GetMaxCPBSize(AL_TEncChanParam const* pChParam)
   uint32_t uCpbSize = 0;
 
   if(AL_IS_AVC(pChParam->eProfile))
-  {
-    switch(pChParam->uLevel)
-    {
-    case 10: uCpbSize = 175u;
-      break;
-    case 9: uCpbSize = 350u;
-      break; // 1b
-    case 11: uCpbSize = 500u;
-      break;
-    case 12: uCpbSize = 1000u;
-      break;
-    case 13: uCpbSize = 2000u;
-      break;
-    case 20: uCpbSize = 2000u;
-      break;
-    case 21: uCpbSize = 4000u;
-      break;
-    case 22: uCpbSize = 4000u;
-      break;
-    case 30: uCpbSize = 10000u;
-      break;
-    case 31: uCpbSize = 14000u;
-      break;
-    case 32: uCpbSize = 20000u;
-      break;
-    case 40: uCpbSize = 25000u;
-      break;
-    case 41: uCpbSize = 62500u;
-      break;
-    case 42: uCpbSize = 62500u;
-      break;
-    case 50: uCpbSize = 135000u;
-      break;
-    case 51: uCpbSize = 240000u;
-      break;
-    case 52: uCpbSize = 240000u;
-      break;
-    case 60: uCpbSize = 240000u;
-      break;
-    case 61: uCpbSize = 480000u;
-      break;
-    case 62: uCpbSize = 800000u;
-      break;
-    default: assert(0);
-      break;
-    }
-  }
+    uCpbSize = AL_AVC_GetMaxCPBSize(pChParam->uLevel);
   else if(AL_IS_HEVC(pChParam->eProfile))
-  {
-    if(pChParam->uTier)
-    {
-      switch(pChParam->uLevel)
-      {
-      case 10: uCpbSize = 350u;
-        break;
-      case 20: uCpbSize = 1500u;
-        break;
-      case 21: uCpbSize = 3000u;
-        break;
-      case 30: uCpbSize = 6000u;
-        break;
-      case 31: uCpbSize = 10000u;
-        break;
-      case 40: uCpbSize = 30000u;
-        break;
-      case 41: uCpbSize = 50000u;
-        break;
-      case 50: uCpbSize = 100000u;
-        break;
-      case 51: uCpbSize = 160000u;
-        break;
-      case 52: uCpbSize = 240000u;
-        break;
-      case 60: uCpbSize = 240000u;
-        break;
-      case 61: uCpbSize = 480000u;
-        break;
-      case 62: uCpbSize = 800000u;
-        break;
-      }
-    }
-    else
-    {
-      switch(pChParam->uLevel)
-      {
-      case 10: uCpbSize = 350u;
-        break;
-      case 20: uCpbSize = 1500u;
-        break;
-      case 21: uCpbSize = 3000u;
-        break;
-      case 30: uCpbSize = 6000u;
-        break;
-      case 31: uCpbSize = 10000u;
-        break;
-      case 40: uCpbSize = 12000u;
-        break;
-      case 41: uCpbSize = 20000u;
-        break;
-      case 50: uCpbSize = 25000u;
-        break;
-      case 51: uCpbSize = 40000u;
-        break;
-      case 52: uCpbSize = 60000u;
-        break;
-      case 60: uCpbSize = 60000u;
-        break;
-      case 61: uCpbSize = 120000u;
-        break;
-      case 62: uCpbSize = 240000u;
-        break;
-      }
-    }
-  }
+    uCpbSize = AL_HEVC_GetMaxCPBSize(pChParam->uLevel, pChParam->uTier);
+
   return uCpbSize * iCpbVclFactor;
 }
-
-/*************************************************************************/
-typedef struct AL_t_LevelLimit
-{
-  uint32_t uLimit;
-  uint8_t uLevel;
-}AL_TLevelLimit;
-
-/*************************************************************************/
-static uint8_t AL_sSettings_GetRequiredLevel(uint32_t uVal, const AL_TLevelLimit* pLevelLimits, int iNbLimits)
-{
-  for(int i = 0; i < iNbLimits; i++)
-  {
-    if(uVal <= pLevelLimits[i].uLimit)
-      return pLevelLimits[i].uLevel;
-  }
-
-  return 255u;
-}
-
-#define  AVC_MAX_FRAME_MB_SIZE 11
-
-/*************************************************************************/
-static const AL_TLevelLimit AVC_MAX_FRAME_MB[AVC_MAX_FRAME_MB_SIZE] =
-{
-  { 99u, 10u },
-  { 396u, 11u },
-  { 792u, 21u },
-  { 1620u, 22u },
-  { 3600u, 31u },
-  { 5120u, 32u },
-  { 8192u, 40u },
-  { 8704u, 42u },
-  { 22080u, 50u },
-  { 36864u, 51u },
-  { 139264u, 60u },
-};
-
-// Max MB Rate
-#define AVC_MAX_MB_RATE_SIZE 17
-static const AL_TLevelLimit AVC_MAX_MB_RATE[AVC_MAX_MB_RATE_SIZE] =
-{
-  { 1485u, 10u },
-  { 3000u, 11u },
-  { 6000u, 12u },
-  { 11880u, 13u },
-  { 19800u, 21u },
-  { 20250u, 22u },
-  { 40500u, 30u },
-  { 108000u, 31u },
-  { 216000u, 32u },
-  { 245760u, 40u },
-  { 522240u, 42u },
-  { 589824u, 50u },
-  { 983040u, 51u },
-  { 2073600u, 52u },
-  { 4177920u, 60u },
-  { 8355840u, 61u },
-  { 16711680u, 62u }
-};
-
-// Max Video processing rate
-#define AVC_MAX_VIDEO_BITRATE_SIZE 15
-static const AL_TLevelLimit AVC_MAX_VIDEO_BITRATE[AVC_MAX_VIDEO_BITRATE_SIZE] =
-{
-  { 64u, 10u },
-  { 128u, 9u }, // 1b
-  { 192u, 11u },
-  { 384u, 12u },
-  { 768u, 13u },
-  { 2000u, 20u },
-  { 4000u, 21u },
-  { 10000u, 30u },
-  { 14000u, 31u },
-  { 20000u, 32u },
-  { 50000u, 41u },
-  { 135000u, 50u },
-  { 240000u, 51u },
-  { 480000u, 61u },
-  { 800000u, 62u }
-};
-
-// Max Video processing rate
-#define AVC_MAX_VIDEO_DPB_SIZE_SIZE 12
-static const AL_TLevelLimit AVC_MAX_VIDEO_DPB_SIZE[AVC_MAX_VIDEO_DPB_SIZE_SIZE] =
-{
-  { 396u, 10u },
-  { 900u, 11u },
-  { 2376u, 12u },
-  { 4752u, 21u },
-  { 8100u, 22u },
-  { 18000u, 31u },
-  { 20480u, 32u },
-  { 32768u, 40u },
-  { 34816u, 42u },
-  { 110400u, 50u },
-  { 184320u, 51u },
-  { 696320u, 60u }
-};
 
 /*************************************************************************//*!
    \brief Retrieves the minimum level required by the AVC specification
@@ -421,109 +198,14 @@ static uint8_t AL_sSettings_GetMinLevelAVC(AL_TEncChanParam const* pChParam)
   int iMaxBR = (pChParam->tRCParam.uMaxBitRate + (iBrVclFactor - 1)) / iBrVclFactor;
   int iDPBSize = AL_DPBConstraint_GetMaxDPBSize(pChParam) * iMaxMB;
 
-  uLevel = AL_sSettings_GetRequiredLevel(iMaxMB, AVC_MAX_FRAME_MB, AVC_MAX_FRAME_MB_SIZE);
+  uLevel = AL_AVC_GetLevelFromFrameSize(iMaxMB);
 
   iMaxMB *= pChParam->tRCParam.uFrameRate;
-  uLevel = Max(AL_sSettings_GetRequiredLevel(iMaxMB, AVC_MAX_MB_RATE, AVC_MAX_MB_RATE_SIZE), uLevel);
-
-  uLevel = Max(AL_sSettings_GetRequiredLevel(iMaxBR, AVC_MAX_VIDEO_BITRATE, AVC_MAX_VIDEO_BITRATE_SIZE), uLevel);
-  uLevel = Max(AL_sSettings_GetRequiredLevel(iDPBSize, AVC_MAX_VIDEO_DPB_SIZE, AVC_MAX_VIDEO_DPB_SIZE_SIZE), uLevel);
+  uLevel = Max(AL_AVC_GetLevelFromMBRate(iMaxMB), uLevel);
+  uLevel = Max(AL_AVC_GetLevelFromBitrate(iMaxBR), uLevel);
+  uLevel = Max(AL_AVC_GetLevelFromDPBSize(iDPBSize), uLevel);
 
   return uLevel;
-}
-
-// Max Frame Size
-#define HEVC_MAX_LUMA_SAMPLES_SIZE 8
-static const AL_TLevelLimit HEVC_MAX_LUMA_SAMPLES[HEVC_MAX_LUMA_SAMPLES_SIZE] =
-{
-  { 36864u, 10u },
-  { 122880u, 20u },
-  { 245760u, 21u },
-  { 552960u, 30u },
-  { 983040u, 31u },
-  { 2228224u, 40u },
-  { 8912896u, 50u },
-  { 35651584u, 60u }
-};
-
-// Max MB processing rate
-#define HEVC_MAX_MB_RATE_SIZE 12
-static const AL_TLevelLimit HEVC_MAX_MB_RATE[HEVC_MAX_MB_RATE_SIZE] =
-{
-  { 552960u, 10u },
-  { 3686400u, 20u },
-  { 7372800u, 21u },
-  { 16588800u, 30u },
-  { 33177600u, 31u },
-  { 66846720u, 40u },
-  { 133693440u, 41u },
-  { 267386880u, 50u },
-  { 534773760u, 51u },
-  { 1069547520u, 52u },
-  { 2139095040u, 61u },
-  { 4278190080u, 62u }
-};
-
-// Max Video processing rate - High Tier
-#define HEVC_MAX_VIDEO_BITRATE_HIGH_SIZE 12
-static const AL_TLevelLimit HEVC_MAX_VIDEO_BITRATE_HIGH[HEVC_MAX_VIDEO_BITRATE_HIGH_SIZE] =
-{
-  { 128u, 10u },
-  { 1500u, 20u },
-  { 3000u, 21u },
-  { 6000u, 30u },
-  { 10000u, 31u },
-  { 30000u, 40u },
-  { 50000u, 41u },
-  { 100000u, 50u },
-  { 160000u, 51u },
-  { 240000u, 52u },
-  { 480000u, 61u },
-  { 800000u, 62u }
-};
-
-// Max Video processing rate - MainTier
-#define HEVC_MAX_VIDEO_BITRATE_MAIN_SIZE 12
-static const AL_TLevelLimit HEVC_MAX_VIDEO_BITRATE_MAIN[HEVC_MAX_VIDEO_BITRATE_MAIN_SIZE] =
-{
-  { 128u, 10u },
-  { 1500u, 20u },
-  { 3000u, 21u },
-  { 6000u, 30u },
-  { 10000u, 31u },
-  { 12000u, 40u },
-  { 20000u, 41u },
-  { 25000u, 50u },
-  { 40000u, 51u },
-  { 60000u, 52u },
-  { 120000u, 61u },
-  { 240000u, 62u }
-};
-
-static uint8_t AL_sGetHEVCMaxLevelDPBSize(uint32_t uMaxLumaPs, uint32_t uPicSizeInSamplesY)
-{
-  // Values computed from HEVC Annex A - with maxDpbPicBuf = 6
-  if(uPicSizeInSamplesY <= (uMaxLumaPs >> 2))
-    return 16;
-  else if(uPicSizeInSamplesY <= (uMaxLumaPs >> 1))
-    return 12;
-  else if(uPicSizeInSamplesY <= ((3 * uMaxLumaPs) >> 2))
-    return 8;
-
-  return 6;
-}
-
-static uint8_t AL_sGetHEVCLevelFromDPBSize(uint32_t uPicSizeInSamplesY, uint8_t uRequiredDPBSize)
-{
-  for(int i = 0; i < HEVC_MAX_LUMA_SAMPLES_SIZE; i++)
-  {
-    uint8_t uHEVCMaxDPBSize = AL_sGetHEVCMaxLevelDPBSize(HEVC_MAX_LUMA_SAMPLES[i].uLimit, uPicSizeInSamplesY);
-
-    if(uRequiredDPBSize <= uHEVCMaxDPBSize)
-      return HEVC_MAX_LUMA_SAMPLES[i].uLevel;
-  }
-
-  return 255;
 }
 
 /*************************************************************************//*!
@@ -542,17 +224,12 @@ static uint8_t AL_sSettings_GetMinLevelHEVC(AL_TEncChanParam const* pChParam)
   uint32_t uBitRate = (pChParam->tRCParam.uMaxBitRate + (iBrVclFactor - 1)) / iBrVclFactor;
   uint8_t uRequiredDPBSize = AL_DPBConstraint_GetMaxDPBSize(pChParam);
 
-  uint8_t uLevel = AL_sSettings_GetRequiredLevel(uMaxSample, HEVC_MAX_LUMA_SAMPLES, HEVC_MAX_LUMA_SAMPLES_SIZE);
+  uint8_t uLevel = AL_HEVC_GetLevelFromFrameSize(uMaxSample);
 
   uMaxSample *= pChParam->tRCParam.uFrameRate;
-  uLevel = Max(AL_sSettings_GetRequiredLevel(uMaxSample, HEVC_MAX_MB_RATE, HEVC_MAX_MB_RATE_SIZE), uLevel);
-
-  if(pChParam->uTier)
-    uLevel = Max(AL_sSettings_GetRequiredLevel(uBitRate, HEVC_MAX_VIDEO_BITRATE_HIGH, HEVC_MAX_VIDEO_BITRATE_HIGH_SIZE), uLevel);
-  else
-    uLevel = Max(AL_sSettings_GetRequiredLevel(uBitRate, HEVC_MAX_VIDEO_BITRATE_MAIN, HEVC_MAX_VIDEO_BITRATE_MAIN_SIZE), uLevel);
-
-  uLevel = Max(AL_sGetHEVCLevelFromDPBSize(uMaxSample, uRequiredDPBSize), uLevel);
+  uLevel = Max(AL_HEVC_GetLevelFromPixRate(uMaxSample), uLevel);
+  uLevel = Max(AL_HEVC_GetLevelFromBitrate(uBitRate, pChParam->uTier), uLevel);
+  uLevel = Max(AL_HEVC_GetLevelFromDPBSize(uRequiredDPBSize, uMaxSample), uLevel);
 
   return uLevel;
 }
@@ -661,7 +338,7 @@ static AL_TMtx8x8 const XAVC_1920x1080_DefaultScalingLists8x8[2] =
 static void XAVC_CheckCoherency(AL_TEncSettings* pSettings)
 {
   pSettings->bEnableAUD = true;
-  pSettings->bEnableFillerData = false;
+  pSettings->eEnableFillerData = AL_FILLER_DISABLE;
   pSettings->eAspectRatio = AL_ASPECT_RATIO_1_1;
   AL_TEncChanParam* pChannel = &pSettings->tChParam[0];
   pChannel->eEncTools &= (~AL_OPT_LF_X_TILE);
@@ -814,11 +491,14 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 
   pSettings->uEnableSEI = AL_SEI_NONE;
   pSettings->bEnableAUD = true;
-  pSettings->bEnableFillerData = true;
+  pSettings->eEnableFillerData = AL_FILLER_ENC;
   pSettings->eAspectRatio = AL_ASPECT_RATIO_AUTO;
   pSettings->eColourDescription = AL_COLOUR_DESC_BT_709;
+  pSettings->eTransferCharacteristics = AL_TRANSFER_CHARAC_UNSPECIFIED;
+  pSettings->eColourMatrixCoeffs = AL_COLOUR_MAT_COEFF_UNSPECIFIED;
 
-  pSettings->eQpCtrlMode = AL_UNIFORM_QP;
+  pSettings->eQpCtrlMode = AL_QP_CTRL_NONE;
+  pSettings->eQpTableMode = AL_QP_TABLE_NONE;
   pChan->eLdaCtrlMode = AL_AUTO_LDA;
   assert(sizeof(pChan->LdaFactors) == sizeof(LAMBDA_FACTORS));
   Rtos_Memcpy(pChan->LdaFactors, LAMBDA_FACTORS, sizeof(LAMBDA_FACTORS));
@@ -1084,14 +764,14 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     {
       int iQP = pChParam->tRCParam.iInitialQP + pChParam->iCrSliceQpOffset;
 
-      if(pSettings->eQpCtrlMode == AL_UNIFORM_QP && (0 > iQP || iQP > 51))
+      if(((pSettings->eQpCtrlMode == AL_QP_CTRL_NONE) && (pSettings->eQpTableMode == AL_QP_TABLE_NONE)) && (0 > iQP || iQP > 51))
       {
         ++err;
         MSG("Invalid parameter: SliceQP, CrQpOffset");
       }
       iQP = pChParam->tRCParam.iInitialQP + pChParam->iCbSliceQpOffset;
 
-      if(pSettings->eQpCtrlMode == AL_UNIFORM_QP && (0 > iQP || iQP > 51))
+      if(((pSettings->eQpCtrlMode == AL_QP_CTRL_NONE) && (pSettings->eQpTableMode == AL_QP_TABLE_NONE)) && (0 > iQP || iQP > 51))
       {
         ++err;
         MSG("Invalid parameter: SliceQP, CbQpOffset");
@@ -1105,22 +785,10 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     }
   }
 
-  AL_EQpCtrlMode eMaskAutoQPMode = pSettings->eQpCtrlMode & AL_MASK_AUTO_QP;
-  AL_EQpCtrlMode eQPTableMode = pSettings->eQpCtrlMode & AL_MASK_QP_TABLE;
-
-  if(eMaskAutoQPMode && eQPTableMode)
+  if(AL_IS_AUTO_OR_ADAPTIVE_QP_CTRL(pSettings->eQpCtrlMode) && ((pSettings->eQpTableMode != AL_QP_TABLE_RELATIVE) && pSettings->eQpTableMode != AL_QP_TABLE_NONE))
   {
-    bool bIsAllowedMode = false;
-
-    bIsAllowedMode = eQPTableMode == AL_ROI_QP;
-
-    bIsAllowedMode = (bIsAllowedMode || (pSettings->eQpCtrlMode & AL_RELATIVE_QP)) && (eMaskAutoQPMode == AL_AUTO_QP);
-
-    if(!bIsAllowedMode)
-    {
-      ++err;
-      MSG("!! QP control mode not allowed !!");
-    }
+    ++err;
+    MSG("!! QP control mode not allowed !!");
   }
 
   if(pChParam->eVideoMode >= AL_VM_MAX_ENUM)
@@ -1341,11 +1009,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     ++numIncoherency;
   }
 
-
-  if((pSettings->eQpCtrlMode & AL_MASK_QP_TABLE) == AL_ROI_QP)
-    pSettings->eQpCtrlMode |= AL_RELATIVE_QP;
-
-  if(pSettings->eQpCtrlMode & (AL_MASK_AUTO_QP | AL_MASK_QP_TABLE))
+  if(AL_IS_AUTO_OR_ADAPTIVE_QP_CTRL(pSettings->eQpCtrlMode) || AL_IS_QP_TABLE_REQUIRED(pSettings->eQpTableMode))
   {
     if((pChParam->uMaxCuSize - pChParam->uCuQPDeltaDepth) < pChParam->uMinCuSize)
     {
@@ -1486,6 +1150,18 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
       pChParam->uCuQPDeltaDepth = 0;
       ++numIncoherency;
     }
+
+    if(pSettings->uEnableSEI & AL_SEI_CLL)
+    {
+      // Silent disable if SEI_ALL
+      if(pSettings->uEnableSEI != AL_SEI_ALL)
+      {
+        MSG("!! AVC does not contain Content Light Level SEIs; disabling it !!");
+        ++numIncoherency;
+      }
+
+      pSettings->uEnableSEI &= ~AL_SEI_CLL;
+    }
   }
 
 
@@ -1500,15 +1176,15 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     ++numIncoherency;
   }
 
-  if((pChParam->tGopParam.eMode & AL_GOP_FLAG_PYRAMIDAL) && ((pChParam->tGopParam.uGopLength - 1) % (pChParam->tGopParam.uNumB + 1)) != 0)
+  if((pChParam->tGopParam.eMode & AL_GOP_FLAG_PYRAMIDAL) && (pChParam->tGopParam.uGopLength % (pChParam->tGopParam.uNumB + 1)) != 0)
   {
     int iRound = pChParam->tGopParam.uNumB + 1;
-    pChParam->tGopParam.uGopLength = (((pChParam->tGopParam.uGopLength + iRound - 1) / iRound) * iRound) + 1;
+    pChParam->tGopParam.uGopLength = ((pChParam->tGopParam.uGopLength + iRound - 1) / iRound) * iRound;
     MSG("!! The specified Gop.Length value in pyramidal gop mode is not reachable, value will be adjusted !!");
     ++numIncoherency;
   }
 
-  if((pSettings->eQpCtrlMode == AL_ADAPTIVE_AUTO_QP || pSettings->eQpCtrlMode == AL_AUTO_QP) && pChParam->tRCParam.iInitialQP >= 0)
+  if(AL_IS_AUTO_OR_ADAPTIVE_QP_CTRL(pSettings->eQpCtrlMode) && pChParam->tRCParam.iInitialQP >= 0)
   {
     if(AL_IS_HEVC(pChParam->eProfile))
     {
@@ -1679,6 +1355,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
   if(pChParam->tRCParam.pMaxPictureSize[AL_SLICE_I] == 0)
     pChParam->tRCParam.pMaxPictureSize[AL_SLICE_I] = pChParam->tRCParam.pMaxPictureSize[AL_SLICE_P];
+
 
   if(AL_IS_XAVC(pChParam->eProfile))
     XAVC_CheckCoherency(pSettings);

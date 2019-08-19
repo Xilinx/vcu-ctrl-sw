@@ -146,8 +146,8 @@ static AL_TDecPicBufferAddrs AL_SetBufferAddrs(AL_TDecCtx* pCtx)
   BufAddrs.pPoc = pPictBuffers->tPoc.tMD.uPhysicalAddr;
   BufAddrs.pRecY = pPictBuffers->tRecY.tMD.uPhysicalAddr;
   BufAddrs.pRecC = pPictBuffers->tRecC.tMD.uPhysicalAddr;
-  BufAddrs.pRecFbcMapY = pCtx->chanParam.bFrameBufferCompression ? pPictBuffers->tRecFbcMapY.tMD.uPhysicalAddr : 0;
-  BufAddrs.pRecFbcMapC = pCtx->chanParam.bFrameBufferCompression ? pPictBuffers->tRecFbcMapC.tMD.uPhysicalAddr : 0;
+  BufAddrs.pRecFbcMapY = pCtx->pChanParam->bFrameBufferCompression ? pPictBuffers->tRecFbcMapY.tMD.uPhysicalAddr : 0;
+  BufAddrs.pRecFbcMapC = pCtx->pChanParam->bFrameBufferCompression ? pPictBuffers->tRecFbcMapC.tMD.uPhysicalAddr : 0;
   BufAddrs.pScl = pPictBuffers->tScl.tMD.uPhysicalAddr;
   BufAddrs.pWP = pPictBuffers->tWP.tMD.uPhysicalAddr;
   BufAddrs.pStream = pPictBuffers->tStream.tMD.uPhysicalAddr;
@@ -173,8 +173,10 @@ static void SetBufferHandleMetaData(AL_TDecCtx* pCtx)
     AL_Buffer_AddMetaData(pCtx->pRecs.pFrame, (AL_TMetaData*)pMeta);
   }
 
-  if(pCtx->pInputBuffer != pCtx->eosBuffer)
-    AL_BufHandleMetaData_AddHandle(pMeta, pCtx->pInputBuffer);
+  if(pCtx->pInputBuffer == pCtx->eosBuffer)
+    return;
+
+  AL_BufHandleMetaData_AddHandle(pMeta, pCtx->pInputBuffer);
 }
 
 /***************************************************************************/

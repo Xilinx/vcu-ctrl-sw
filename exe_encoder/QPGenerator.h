@@ -39,14 +39,53 @@
  *****************************************************************************/
 #pragma once
 
+extern "C"
+{
 #include "lib_common_enc/Settings.h"
+}
+
 #include <string>
 #include "ROIMngr.h"
+
+typedef enum e_GenerateQpMode
+{
+  // exclusive modes
+  AL_GENERATE_UNIFORM_QP = 0x00, /*!< default behaviour */
+  AL_GENERATE_RAMP_QP = 0x02, /*!< used for test purpose */
+  AL_GENERATE_RANDOM_QP = 0x03, /*!< used for test purpose */
+  AL_GENERATE_LOAD_QP = 0x04, /*!< used for test purpose */
+  AL_GENERATE_BORDER_QP = 0x05, /*!< used for test purpose */
+  AL_GENERATE_ROI_QP = 0x06,
+  AL_GENERATE_MASK_QP_TABLE = 0x07,
+
+  // additional modes
+  AL_GENERATE_RANDOM_SKIP = 0x20, /*!< used for test purpose */
+  AL_GENERATE_RANDOM_I_ONLY = 0x40, /*!< used for test purpose */
+
+  AL_GENERATE_BORDER_SKIP = 0x100,
+  AL_GENERATE_FULL_SKIP = 0x200,
+
+  AL_GENERATE_MASK_QP_TABLE_EXT = 0x367,
+
+  // Auto QP
+  AL_GENERATE_AUTO_QP = 0x400, /*!< compute Qp by MB on the fly */
+  AL_GENERATE_ADAPTIVE_AUTO_QP = 0x800, /*!< Dynamically compute Qp by MB on the fly */
+  AL_GENERATE_MASK_AUTO_QP = 0xC00,
+
+  // QP table mode
+  AL_GENERATE_RELATIVE_QP = 0x8000,
+  AL_GENERATE_QP_MAX_ENUM, /* sentinel */
+}AL_EGenerateQpMode;
+
+static AL_INLINE bool AL_IS_GENERATE_AUTO_OR_ADAPTIVE_AUTO_QP(AL_EGenerateQpMode eMode)
+{
+  return (eMode & AL_GENERATE_AUTO_QP) || (eMode & AL_GENERATE_ADAPTIVE_AUTO_QP);
+}
 
 /*************************************************************************//*!
    \brief Fill QP part of the buffer pointed to by pQP with a QP for each
         Macroblock of the slice.
-   \param[in]  eMode      Specifies the way QP values are computed. see EQpCtrlMode
+   \param[in]  eMode      Specifies the way QP values are computed. see AL_EGenerateQpMode
    \param[in]  iSliceQP   Slice QP value (in range [0..51])
    \param[in]  iMinQP     Minimum allowed QP value (in range [0..50])
    \param[in]  iMaxQP     Maximum allowed QP value (in range [1..51]).
@@ -62,7 +101,7 @@
    \note iMinQp <= iMaxQP
    \return true on success, false on error
 *****************************************************************************/
-bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, const std::string& sQPTablesFolder, int iFrameID, uint8_t* pQPs, uint8_t* pSegs);
+bool GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, const std::string& sQPTablesFolder, int iFrameID, uint8_t* pQPs, uint8_t* pSegs);
 
 /*************************************************************************//*!
    \brief Fill QP part of the buffer pointed to by pQP with a QP for each

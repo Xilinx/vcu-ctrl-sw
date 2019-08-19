@@ -41,12 +41,13 @@
 #include "lib_common/Utils.h"
 #include "InternalError.h"
 
-int AL_Decoder_GetStrOffset(AL_HANDLE hDec);
-UNIT_ERROR AL_Decoder_TryDecodeOneUnit(AL_HDecoder hDec, AL_TBuffer* pBufStream);
-void AL_Decoder_InternalFlush(AL_HDecoder hDec);
 void AL_Default_Decoder_WaitFrameSent(AL_HDecoder hDec);
 void AL_Default_Decoder_ReleaseFrames(AL_HDecoder hDec);
+
+UNIT_ERROR AL_Decoder_TryDecodeOneUnit(AL_HDecoder hDec, AL_TBuffer* pBufStream);
+int AL_Decoder_GetStrOffset(AL_HANDLE hDec);
 void AL_Decoder_FlushInput(AL_HDecoder hDec);
+void AL_Decoder_InternalFlush(AL_HDecoder hDec);
 
 typedef struct AL_TDecoderFeederS
 {

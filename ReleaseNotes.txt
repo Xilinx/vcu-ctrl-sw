@@ -400,4 +400,26 @@
     -- Improve rate control on specific sequences
     -- Several minors bugs
 
+2019-08-12 (v1.0.48)
+--------------------
+  Added Features :
+    -- Reduce mail size for channel creation
+    -- HDR 10 support:
+        - the user can encode an HDR10 compliant bitstream by setting the appropriate VUI and SEI parameters using the CtrlSW
+        - the user can extract the HDR10 parameters from a bitstream
+    -- Optimize CPU performance for filler data insertion
+
+  API:
+    -- Version of the API is now 0.15.0
+    -- Remove users API from CtrlSW API (i.e. ROI, RANDOM, ..)
+    -- QpCtrlMode is split at CtrlSW level. We have 2 new parameters: QpCtrl and QpTable. Nothing change for config file
+    -- Filler data new enum: AL_EFillerCtrlMode
+    -- Add new metadata for HDR 10: AL_THDRMetaData
+    -- Add new enum for HDR 10: AL_ETransferCharacteristics, AL_EColourMatrixCoefficients
+    -- Add missing 'AL_' on structs/enums
+
+  Fixes :
+    -- AL_Encoder_SetLoopFilterTcOffset and AL_Encoder_SetLoopFilterBetaOffset for the Adaptive DBF feature
+    -- Several minors bugs
+
 

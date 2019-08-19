@@ -40,18 +40,18 @@
 #include <assert.h>
 #include "lib_common/StreamBuffer.h"
 
-NalHeader GetNalHeaderAvc(uint8_t uNUT, uint8_t uNalIdc, uint8_t uTempID)
+AL_TNalHeader GetNalHeaderAvc(uint8_t uNUT, uint8_t uNalIdc, uint8_t uTempID)
 {
   (void)uTempID;
-  NalHeader nh;
+  AL_TNalHeader nh;
   nh.size = 1;
   nh.bytes[0] = ((uNalIdc & 0x03) << 5) | (uNUT & 0x1F);
   return nh;
 }
 
-Nuts CreateAvcNuts(void)
+AL_TNuts CreateAvcNuts(void)
 {
-  Nuts nuts =
+  AL_TNuts nuts =
   {
     &GetNalHeaderAvc,
     AL_AVC_NUT_SPS,
@@ -65,7 +65,7 @@ Nuts CreateAvcNuts(void)
   return nuts;
 }
 
-static int getSectionSize(AL_TStreamMetaData* pMetaData, AL_SectionFlags eFlags)
+static int getSectionSize(AL_TStreamMetaData* pMetaData, AL_ESectionFlags eFlags)
 {
   int iSize = 0;
 
@@ -131,11 +131,11 @@ static void padSeiPrefix(AL_TBuffer* pStream, AL_TEncChanParam const* pChannel)
 
 void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, bool bForceWritePPS)
 {
-  Nuts nuts = CreateAvcNuts();
-  NalsData nalsData = AL_ExtractNalsData(pCtx, 0);
+  AL_TNuts nuts = CreateAvcNuts();
+  AL_TNalsData nalsData = AL_ExtractNalsData(pCtx, 0);
   nalsData.forceWritePPS = bForceWritePPS;
-  AL_TEncChanParam const* pChannel = &pCtx->Settings.tChParam[0];
-  GenerateSections(AL_GetAvcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, 0, pChannel->uNumSlices);
+  AL_TEncChanParam const* pChannel = &pCtx->pSettings->tChParam[0];
+  GenerateSections(AL_GetAvcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, 0, pChannel->uNumSlices, pChannel->bSubframeLatency);
 
   if(AL_IS_XAVC_CBG(pChannel->eProfile) && AL_IS_INTRA_PROFILE(pChannel->eProfile))
   {

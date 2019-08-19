@@ -186,11 +186,14 @@ void setPictBufferAddrs(struct al5_params* msg, AL_TDecPicBufferAddrs* pBufferAd
 
 
 /* Fill msg with pChParam */
-static void setChannelMsg(struct al5_params* msg, const AL_TDecChanParam* pChParam)
+static void setChannelMsg(struct al5_params* msg, const TMemDesc* pMDChParams)
 {
-  static_assert(sizeof(*pChParam) <= sizeof(msg->opaque), "Driver channel_param struct is too small");
-  msg->size = sizeof(*pChParam);
-  Rtos_Memcpy(msg->opaque, pChParam, msg->size);
+  uint32_t uVirtAddr;
+  static_assert(sizeof(uVirtAddr) <= sizeof(msg->opaque), "Driver channel_param struct is too small");
+  msg->size = sizeof(uVirtAddr);
+
+  uVirtAddr = pMDChParams->uPhysicalAddr + DCACHE_OFFSET;
+  Rtos_Memcpy(msg->opaque, &uVirtAddr, msg->size);
 }
 
 static bool getStatusMsg(Channel* chan, struct al5_params* msg)
@@ -282,12 +285,6 @@ static void* ScNotificationThread(void* p)
   return NULL;
 }
 
-/* Update some values of pChParam set by MCU */
-static void getParamUpdateByMcu(const struct al5_channel_status* msg, AL_TDecChanParam* pChParam)
-{
-  pChParam->uNumCore = msg->num_core;
-}
-
 /** Initialisation cannot be handled by control software with mcu.
  *  With several channels it would be unacceptable to let any reinit scheduler.
  *
@@ -369,7 +366,7 @@ static void DecChannelMcu_Destroy(AL_TIDecChannel* pDecChannel)
   return;
 }
 
-static AL_ERR DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecChanParam* pChParam, AL_CB_EndFrameDecoding callback)
+static AL_ERR DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, TMemDesc* pMDChParams, AL_CB_EndFrameDecoding callback)
 {
   struct DecChanMcuCtx* decChanMcu = (struct DecChanMcuCtx*)pDecChannel;
   AL_ERR errorCode = AL_ERROR;
@@ -388,7 +385,7 @@ static AL_ERR DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecC
   }
 
   struct al5_channel_config msg = { 0 };
-  setChannelMsg(&msg.param, pChParam);
+  setChannelMsg(&msg.param, pMDChParams);
 
   AL_EDriverError errdrv = AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_CONFIG_CHANNEL, &msg);
 
@@ -405,8 +402,6 @@ static AL_ERR DecChannelMcu_ConfigChannel(AL_TIDecChannel* pDecChannel, AL_TDecC
   }
 
   assert(msg.status.error_code == 0);
-
-  getParamUpdateByMcu(&msg.status, pChParam);
 
   chan->thread = Rtos_CreateThread(&NotificationThread, chan);
 

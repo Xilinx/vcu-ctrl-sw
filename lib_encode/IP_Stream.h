@@ -53,10 +53,10 @@ typedef struct t_NalHeader
 {
   uint8_t bytes[2];
   int size;
-}NalHeader;
+}AL_TNalHeader;
 
-void WriteFillerData(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, int bytesCount);
-void FlushNAL(AL_TBitStreamLite* pStream, uint8_t uNUT, NalHeader header, uint8_t* pDataInNAL, int iBitsInNAL);
+void WriteFillerData(AL_TBitStreamLite* pStream, uint8_t uNUT, AL_TNalHeader const* pHeader, int iBytesCount, bool bDoNotFill);
+void FlushNAL(AL_TBitStreamLite* pStream, uint8_t uNUT, AL_TNalHeader const* pHeader, uint8_t* pDataInNAL, int iBitsInNAL);
 
 void AddFlagsToAllSections(AL_TStreamMetaData* pStreamMeta, uint32_t flags);
 

@@ -153,6 +153,28 @@ void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection, con
 /*****************************************************************************/
 
 /*****************************************************************************/
+static void FillSectionFillerData(AL_TBuffer* pStream, int iSection, const AL_TEncChanParam* pChannelParam)
+{
+  assert(AL_IS_AVC(pChannelParam->eProfile) || AL_IS_HEVC(pChannelParam->eProfile));
+
+  AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
+  AL_TStreamSection* pSection = &pStreamMeta->pSections[iSection];
+
+  uint32_t uLength = pSection->uLength;
+  assert(uLength > 4);
+
+  uint8_t* pData = AL_Buffer_GetData(pStream) + pSection->uOffset;
+
+  while(--uLength && (*pData != 0xFF))
+    ++pData;
+
+  if(uLength > 0)
+    Rtos_Memset(pData, 0xFF, uLength);
+
+  assert(pData[uLength] == 0x80);
+}
+
+/*****************************************************************************/
 int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream, const AL_TEncSettings* pSettings)
 {
   AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
@@ -164,6 +186,10 @@ int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream, const AL_TEncSetti
   {
     if(pStreamMeta->pSections[curSection].uFlags & AL_SECTION_END_FRAME_FLAG)
       ++iNumFrame;
+
+    if(pStreamMeta->pSections[curSection].uFlags & AL_SECTION_APP_FILLER_FLAG)
+      FillSectionFillerData(pStream, curSection, &tChParam);
+
     WriteOneSection(HEVCFile, pStream, curSection, &tChParam);
   }
 

@@ -46,6 +46,11 @@ AL_TSeiMetaData* GetSeiMetaData(AL_TDecCtx* pCtx)
   return (AL_TSeiMetaData*)AL_Buffer_GetMetaData(pCtx->pInputBuffer, AL_META_TYPE_SEI);
 }
 
+bool HasOngoingFrame(AL_TDecCtx* pCtx)
+{
+  return pCtx->bFirstIsValid && pCtx->bFirstSliceInFrameIsValid;
+}
+
 bool CheckAvailSpace(AL_TDecCtx* pCtx, AL_TSeiMetaData* pMeta)
 {
   uint32_t uLengthNAL = GetNonVclSize(&pCtx->Stream);
@@ -96,13 +101,11 @@ void AL_DecodeOneNal(AL_NonVclNuts nuts, AL_NalParser parser, AL_TAup* pAUP, AL_
     parser.parseVps(pAUP, &rp);
   }
 
-  if((nut == nuts.eos)||(nut == nuts.eob)||(nut == nuts.fd && pCtx->bSplitInput))
+  if((nut == nuts.eos) || (nut == nuts.eob) || ((nut == nuts.fd) && pCtx->bSplitInput))
   {
     if(pCtx->bFirstIsValid && pCtx->bFirstSliceInFrameIsValid)
       parser.finishPendingRequest(pCtx);
-
     pCtx->bIsFirstPicture = true;
-    pCtx->bLastIsEOS = true;
   }
 }
 

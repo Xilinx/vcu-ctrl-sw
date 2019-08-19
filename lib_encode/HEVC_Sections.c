@@ -38,18 +38,18 @@
 #include "HEVC_Sections.h"
 #include "lib_bitstream/HEVC_RbspEncod.h"
 
-static NalHeader GetNalHeaderHevc(uint8_t uNUT, uint8_t uNalIdc, uint8_t uTempID)
+static AL_TNalHeader GetNalHeaderHevc(uint8_t uNUT, uint8_t uNalIdc, uint8_t uTempID)
 {
-  NalHeader nh;
+  AL_TNalHeader nh;
   nh.size = 2;
   nh.bytes[0] = ((uNalIdc & 0x20) >> 5) | ((uNUT & 0x3F) << 1);
   nh.bytes[1] = (uTempID + 1) | ((uNalIdc & 0x1F) << 3);
   return nh;
 }
 
-Nuts CreateHevcNuts(void)
+AL_TNuts CreateHevcNuts(void)
 {
-  Nuts nuts =
+  AL_TNuts nuts =
   {
     &GetNalHeaderHevc,
     AL_HEVC_NUT_SPS,
@@ -64,9 +64,10 @@ Nuts CreateHevcNuts(void)
 
 void HEVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayerID, bool bForceWritePPS)
 {
-  Nuts nuts = CreateHevcNuts();
-  NalsData nalsData = AL_ExtractNalsData(pCtx, iLayerID);
+  AL_TNuts nuts = CreateHevcNuts();
+  AL_TNalsData nalsData = AL_ExtractNalsData(pCtx, iLayerID);
   nalsData.forceWritePPS = bForceWritePPS;
-  GenerateSections(AL_GetHevcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, iLayerID, pCtx->Settings.tChParam[0].uNumSlices);
+  AL_TEncChanParam const* pChannel = &pCtx->pSettings->tChParam[0];
+  GenerateSections(AL_GetHevcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, iLayerID, pChannel->uNumSlices, pChannel->bSubframeLatency);
 }
 

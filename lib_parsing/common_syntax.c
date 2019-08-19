@@ -534,5 +534,27 @@ void hevc_vui_parameters(AL_TVuiParam* pVuiParam, int iMaxSubLayers, AL_TRbspPar
   }
 }
 
+bool sei_mastering_display_colour_volume(AL_TMasteringDisplayColourVolume* pMDCV, AL_TRbspParser* pRP)
+{
+  Rtos_Memset(pMDCV, 0, sizeof(*pMDCV));
+
+  for(int c = 0; c < 3; c++)
+  {
+    pMDCV->display_primaries[c].x = u(pRP, 16);
+    pMDCV->display_primaries[c].y = u(pRP, 16);
+  }
+
+  pMDCV->white_point.x = u(pRP, 16);
+  pMDCV->white_point.y = u(pRP, 16);
+
+  pMDCV->max_display_mastering_luminance = u(pRP, 32);
+  pMDCV->min_display_mastering_luminance = u(pRP, 32);
+
+  if(byte_aligned(pRP))
+    return true;
+
+  return byte_alignment(pRP);
+}
+
 /*@}*/
 

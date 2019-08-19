@@ -40,6 +40,7 @@
 #include "BitStreamLite.h"
 #include "lib_common/SPS.h"
 #include "lib_common/PPS.h"
+#include "lib_common/HDR.h"
 
 typedef struct rbspWriter
 {
@@ -51,6 +52,8 @@ typedef struct rbspWriter
   void (* WriteSEI_BufferingPeriod)(AL_TBitStreamLite* writer, AL_TSps const* pISps, int iInitialCpbRemovalDelay, int iInitialCpbRemovalOffset);
   void (* WriteSEI_RecoveryPoint)(AL_TBitStreamLite* writer, int iRecoveryFrameCount);
   void (* WriteSEI_PictureTiming)(AL_TBitStreamLite* writer, AL_TSps const* pISps, int iAuCpbRemovalDelay, int iPicDpbOutputDelay, int iPicStruct);
+  void (* WriteSEI_MasteringDisplayColourVolume)(AL_TBitStreamLite* writer, AL_TMasteringDisplayColourVolume* pMDCV);
+  void (* WriteSEI_ContentLightLevel)(AL_TBitStreamLite* writer, AL_TContentLightLevel* pCLL);
   void (* WriteSEI_UserDataUnregistered)(AL_TBitStreamLite* writer, uint8_t uuid[16], int8_t numSlices);
 }IRbspWriter;
 

@@ -413,7 +413,7 @@ void ValidateConfig(ConfigFile& cfg)
   if(cfg.MainInput.YUVFileName.empty())
     throw runtime_error("No YUV input was given, specify it in the [INPUT] section of your configuration file or in your commandline (use -h to get help)");
 
-  if(!cfg.MainInput.sQPTablesFolder.empty() && ((cfg.Settings.eQpCtrlMode & 0x0F) != AL_LOAD_QP))
+  if(!cfg.MainInput.sQPTablesFolder.empty() && ((cfg.RunInfo.eGenerateQpMode & AL_GENERATE_MASK_QP_TABLE) != AL_GENERATE_LOAD_QP))
     throw runtime_error("QPTablesFolder can only be specified with Load QP control mode");
 
   SetConsoleColor(CC_RED);
@@ -687,7 +687,7 @@ static AL_TBufPoolConfig GetQpBufPoolConfig(AL_TEncSettings& Settings, AL_TEncCh
 {
   AL_TBufPoolConfig poolConfig = {};
 
-  if(Settings.eQpCtrlMode & (AL_MASK_QP_TABLE_EXT))
+  if(AL_IS_QP_TABLE_REQUIRED(Settings.eQpTableMode))
   {
     AL_TDimension tDim = { tChParam.uWidth, tChParam.uHeight };
     poolConfig = GetBufPoolConfig("qp-ext", NULL, AL_GetAllocSizeEP2(tDim, static_cast<AL_ECodec>(AL_GET_PROFILE_CODEC(tChParam.eProfile))), frameBuffersCount);
@@ -843,23 +843,12 @@ void LayerRessources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffer
   StreamBufPoolConfig = GetStreamBufPoolConfig(Settings, iLayerID);
   StreamBufPool.Init(pAllocator, StreamBufPoolConfig);
 
-  for(int i = 0; i < (int)StreamBufPoolConfig.uNumBuf; ++i)
+  if(iLayerID == 0 && cfg.RunInfo.printPictureType)
   {
-    AL_TBuffer* pStream = StreamBufPool.GetBuffer(AL_BUF_MODE_NONBLOCK);
-    assert(pStream);
-
-    if(iLayerID == 0)
-    {
-      if(cfg.RunInfo.printPictureType)
-      {
-        AL_TMetaData* pMeta = (AL_TMetaData*)AL_PictureMetaData_Create();
-        assert(pMeta);
-        auto const attached = AL_Buffer_AddMetaData(pStream, pMeta);
-        assert(attached);
-      }
-    }
-
-    AL_Buffer_Unref(pStream);
+    AL_TMetaData* pMeta = (AL_TMetaData*)AL_PictureMetaData_Create();
+    assert(pMeta);
+    assert(StreamBufPool.AddMetaData(pMeta));
+    Rtos_Free(pMeta);
   }
 
   AL_TBufPoolConfig poolConfig = GetQpBufPoolConfig(Settings, Settings.tChParam[iLayerID], frameBuffersCount);

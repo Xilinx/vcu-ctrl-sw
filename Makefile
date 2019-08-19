@@ -37,10 +37,12 @@ include base.mk
 # Libraries
 -include lib_fpga/project.mk
 include lib_app/project.mk
+-include lib_cfg_parsing/project.mk
 -include lib_common/project.mk
 -include lib_rtos/project.mk
 -include lib_scheduler/project.mk
 -include lib_perfs/project.mk
+
 
 ifneq ($(ENABLE_ENCODER),0)
 -include lib_common_enc/project.mk
@@ -52,8 +54,12 @@ ifneq ($(ENABLE_ENCODER),0)
 -include lib_conv_yuv/project.mk
 endif
 
+BUILD_LIB_COM_DEC=0
 ifneq ($(ENABLE_DECODER),0)
--include lib_common_dec/project.mk
+  BUILD_LIB_COM_DEC= 
+endif
+ifneq ($(BUILD_LIB_COM_DEC),0)
+  -include lib_common_dec/project.mk
 endif
 
 -include ref.mk
@@ -66,10 +72,13 @@ ifneq ($(ENABLE_DECODER),0)
   include exe_decoder/project.mk
 endif
 
+
 ifneq ($(ENABLE_ENCODER),0)
   # ctrlsw_encoder
   -include exe_encoder/project.mk
 endif
+
+
 
 
 
@@ -79,8 +88,10 @@ ifneq ($(ENABLE_PERF),0)
   -include exe_perf_monitor/project.mk
 endif
 
+ifneq ($(ENABLE_SYNC_IP),0)
 ifeq ($(findstring linux,$(TARGET)),linux)
   -include exe_sync_ip/project.mk
+endif
 endif
 
 

@@ -56,7 +56,7 @@ struct EncoderLookAheadSink : IFrameSink
                        ) :
     CmdFile(cfg.sCmdFileName),
     EncCmd(CmdFile, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
-    qpBuffers(cfg.Settings),
+    qpBuffers{cfg.Settings, cfg.RunInfo.eGenerateQpMode},
     lookAheadMngr(cfg.Settings.LookAhead, cfg.Settings.bEnableFirstPassSceneChangeDetection)
   {
     AL_CB_EndEncoding onEndEncoding = { &EncoderLookAheadSink::EndEncoding, this };

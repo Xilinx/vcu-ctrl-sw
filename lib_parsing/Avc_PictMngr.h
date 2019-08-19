@@ -121,5 +121,13 @@ void AL_AVC_PictMngr_Fill_Gap_In_FrameNum(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr
 *****************************************************************************/
 void AL_AVC_PictMngr_ReorderPictList(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef);
 
+/*************************************************************************//*!
+   \brief Retrieves the number of really existing reference pictures
+   \param[in] pCtx     Pointer to a Picture manager context object
+   \param[in] pListRef The reference list of the current slice
+   \return the number of really existing reference pictures
+*****************************************************************************/
+int AL_AVC_PictMngr_GetNumExistingRef(AL_TPictMngrCtx* pCtx, TBufferListRef* pListRef);
+
 /*@}*/
 

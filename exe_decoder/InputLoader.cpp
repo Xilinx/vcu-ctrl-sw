@@ -60,6 +60,7 @@ struct INalParser
   virtual int ReadNut(uint8_t* pBuf, uint32_t iSize, uint32_t& uCurOffset) = 0;
   virtual bool IsAUD(AL_ENut eNut) = 0;
   virtual bool IsVcl(AL_ENut eNut) = 0;
+  virtual bool IsFD(AL_ENut eNut) = 0;
 };
 
 struct HevcParser : public INalParser
@@ -80,6 +81,11 @@ struct HevcParser : public INalParser
   {
     return AL_HEVC_IsVcl(eNut);
   }
+
+  bool IsFD(AL_ENut eNut)
+  {
+    return eNut == AL_HEVC_NUT_FD;
+  }
 };
 
 struct AvcParser : public INalParser
@@ -99,6 +105,11 @@ struct AvcParser : public INalParser
   bool IsVcl(AL_ENut eNut)
   {
     return AL_AVC_IsVcl(eNut);
+  }
+
+  bool IsFD(AL_ENut eNut)
+  {
+    return eNut == AL_AVC_NUT_FD;
   }
 };
 
@@ -181,6 +192,9 @@ static NalInfo SearchStartCodes(CircBuffer Stream, bool bIsAVC, bool bSliceCut)
       nal.endOfFrame = true;
       break;
     }
+
+    if(bSliceCut && parser->IsFD(NUT))
+      nal.endOfFrame = true;
 
     if(bSliceCut && parser->IsVcl(NUT))
     {

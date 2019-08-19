@@ -175,7 +175,6 @@ static uint32_t GetSliceHdrSize(AL_TRbspParser* pRP, TCircBuffer* pBufStream)
 void UpdateContextAtEndOfFrame(AL_TDecCtx* pCtx)
 {
   pCtx->bIsFirstPicture = false;
-  pCtx->bLastIsEOS = false;
 
   pCtx->tConceal.iFirstLCU = -1;
   pCtx->tConceal.bValidFrame = false;

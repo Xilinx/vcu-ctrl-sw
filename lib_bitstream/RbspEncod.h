@@ -46,7 +46,8 @@
 #pragma once
 
 #include "BitStreamLite.h"
-#include <lib_common/SliceConsts.h>
+#include "lib_common/SliceConsts.h"
+#include "lib_common/HDR.h"
 
 /*************************************************************************//*!
    \brief This class implements helpful functions to encode Raw Byte Sequence
@@ -65,6 +66,7 @@ void AL_RbspEncoding_BeginSEI2(AL_TBitStreamLite* pBS, int iPayloadType, int iPa
 void AL_RbspEncoding_EndSEI(AL_TBitStreamLite* pRE, int bookmarkSEI);
 void AL_RbspEncoding_CloseSEI(AL_TBitStreamLite* pRE);
 void AL_RbspEncoding_WriteUserDataUnregistered(AL_TBitStreamLite* pRE, uint8_t uuid[16], int8_t numSlices);
+void AL_RbspEncoding_WriteMasteringDisplayColourVolume(AL_TBitStreamLite* pBS, AL_TMasteringDisplayColourVolume* pMDCV);
 /****************************************************************************/
 
 /*@}*/

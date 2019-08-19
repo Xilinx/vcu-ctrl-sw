@@ -660,25 +660,24 @@ bool GenerateROIBuffer(AL_TRoiMngrCtx* pRoiCtx, string const& sRoiFileName, int 
 
 
 /****************************************************************************/
-bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, const string& sQPTablesFolder, int iFrameID, uint8_t* pQPs, uint8_t* pSegs)
+bool GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, const string& sQPTablesFolder, int iFrameID, uint8_t* pQPs, uint8_t* pSegs)
 {
   bool bRet = false;
-  int iNumQPPerLCU, iNumBytesPerLCU, iNumLCUs;
   static int iRandFlag = 0;
   bool bIsAOM = false;
 
   if(bIsAOM)
     Rtos_Memset(pSegs, 0, 8 * sizeof(int16_t));
 
-  int iQPMode = eMode & 0x0F; // exclusive mode
-  bool bRelative = (eMode & AL_RELATIVE_QP);
+  AL_EGenerateQpMode eQPMode = (AL_EGenerateQpMode)(eMode & AL_GENERATE_MASK_QP_TABLE);
+  bool bRelative = (eMode & AL_GENERATE_RELATIVE_QP);
 
   if(bRelative)
   {
     int iMinus = bIsAOM ? 128 : 32;
     int iPlus = bIsAOM ? 127 : 31;
 
-    if(iQPMode == AL_RANDOM_QP)
+    if(eQPMode == AL_GENERATE_RANDOM_QP)
     {
       iMinQP = -iMinus;
       iMaxQP = iPlus;
@@ -689,40 +688,43 @@ bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, in
       iMaxQP = (iSliceQP + iPlus > iMaxQP) ? iMaxQP - iSliceQP : iPlus;
     }
   }
+
+  int iNumQPPerLCU, iNumBytesPerLCU, iNumLCUs;
   GetQPBufferParameters(iLCUWidth, iLCUHeight, eProf, iNumQPPerLCU, iNumBytesPerLCU, iNumLCUs, pQPs);
   /////////////////////////////////  QPs  /////////////////////////////////////
-  switch(iQPMode)
+  switch(eQPMode)
   {
-  case AL_RAMP_QP:
+  case AL_GENERATE_RAMP_QP:
   {
     bIsAOM ? Generate_RampQP_VP9(pSegs, pQPs, iNumLCUs, iMinQP, iMaxQP) :
     Generate_RampQP(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iMinQP, iMaxQP);
     bRet = true;
   } break;
   // ------------------------------------------------------------------------
-  case AL_RANDOM_QP:
+  case AL_GENERATE_RANDOM_QP:
   {
     bIsAOM ? Generate_RandomQP_VP9(pSegs, pQPs, iNumLCUs, iMinQP, iMaxQP, iSliceQP) :
     Generate_RandomQP(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iMinQP, iMaxQP, iSliceQP);
     bRet = true;
   } break;
   // ------------------------------------------------------------------------
-  case AL_BORDER_QP:
+  case AL_GENERATE_BORDER_QP:
   {
     bIsAOM ? Generate_BorderQP_VP9(pSegs, pQPs, iNumLCUs, iLCUWidth, iLCUHeight, iMaxQP, iSliceQP, bRelative) :
     Generate_BorderQP(pQPs, iNumLCUs, iLCUWidth, iLCUHeight, iNumQPPerLCU, iNumBytesPerLCU, iMaxQP, iSliceQP, bRelative);
     bRet = true;
   } break;
   // ------------------------------------------------------------------------
-  case AL_LOAD_QP:
+  case AL_GENERATE_LOAD_QP:
   {
     bRet = bIsAOM ? Load_QPTable_FromFile_Vp9(pSegs, pQPs, iNumLCUs, sQPTablesFolder, iFrameID, bRelative) :
            Load_QPTable_FromFile(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, sQPTablesFolder, iFrameID);
   } break;
+  default: break;
   }
 
   // ------------------------------------------------------------------------
-  if((eMode != AL_UNIFORM_QP) && (iQPMode == AL_UNIFORM_QP) && !bRelative)
+  if((eMode != AL_GENERATE_UNIFORM_QP) && (eQPMode == AL_GENERATE_UNIFORM_QP) && !bRelative)
   {
     if(bIsAOM)
     {
@@ -742,26 +744,26 @@ bool GenerateQPBuffer(AL_EQpCtrlMode eMode, int16_t iSliceQP, int16_t iMinQP, in
   }
   // ------------------------------------------------------------------------
 
-  if(eMode & AL_RANDOM_I_ONLY)
+  if(eMode & AL_GENERATE_RANDOM_I_ONLY)
   {
     Generate_Random_WithFlag(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iSliceQP, iRandFlag++, 20, MASK_FORCE_INTRA); // 20 percent
     bRet = true;
   }
 
   // ------------------------------------------------------------------------
-  if(eMode & AL_RANDOM_SKIP)
+  if(eMode & AL_GENERATE_RANDOM_SKIP)
   {
     Generate_Random_WithFlag(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iSliceQP, iRandFlag++, 30, MASK_FORCE_MV0); // 30 percent
     bRet = true;
   }
 
   // ------------------------------------------------------------------------
-  if(eMode & AL_FULL_SKIP)
+  if(eMode & AL_GENERATE_FULL_SKIP)
   {
     Generate_FullSkip(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU);
     bRet = true;
   }
-  else if(eMode & AL_BORDER_SKIP)
+  else if(eMode & AL_GENERATE_BORDER_SKIP)
   {
     Generate_BorderSkip(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iLCUWidth, iLCUHeight);
     bRet = true;

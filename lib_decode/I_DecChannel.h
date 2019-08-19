@@ -54,8 +54,8 @@
 #include "lib_common_dec/DecSliceParam.h"
 #include "lib_common_dec/DecPicParam.h"
 
-#define AL_INVALID_CHANNEL (AL_HANDLE)0xff
-#define AL_UNINITIALIZED_CHANNEL (AL_HANDLE)0xfe
+static const AL_HANDLE AL_INVALID_CHANNEL = (AL_HANDLE)0xFF;
+static const AL_HANDLE AL_UNINITIALIZED_CHANNEL = (AL_HANDLE)0xFE;
 
 /****************************************************************************/
 typedef struct
@@ -88,7 +88,7 @@ typedef struct AL_t_IDecChannel
 typedef struct AL_t_IDecChannelVtable
 {
   void (* Destroy)(AL_TIDecChannel* pDecChannel);
-  AL_ERR (* Configure)(AL_TIDecChannel* pDecChannel, AL_TDecChanParam* pChParam, AL_CB_EndFrameDecoding callback);
+  AL_ERR (* Configure)(AL_TIDecChannel* pDecChannel, TMemDesc* pMDChParams, AL_CB_EndFrameDecoding callback);
   void (* SearchSC)(AL_TIDecChannel* pDecChannel, AL_TScParam* pScParam, AL_TScBufferAddrs* pBufferAddrs, AL_CB_EndStartCode callback);
   void (* DecodeOneFrame)(AL_TIDecChannel* pDecChannel, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* pSliceParams);
   void (* DecodeOneSlice)(AL_TIDecChannel* pDecChannel, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* pSliceParams);
@@ -108,15 +108,16 @@ void AL_IDecChannel_Destroy(AL_TIDecChannel* pThis)
 /*************************************************************************//*!
    \brief Channel creation
    \param[in] pThis Decoder channel
-   \param[in] pChParam Pointer to the channel parameter
+   \param[in] pMDChParams Pointer to the memory descriptor containing the channel
+   parameters
    \param[in] callback end decoding code callback structure
    \return return the channel ID if the creation is successfull
               255 otherwise(invalide channel ID)
 *****************************************************************************/
 static AL_INLINE
-AL_ERR AL_IDecChannel_Configure(AL_TIDecChannel* pThis, AL_TDecChanParam* pChParam, AL_CB_EndFrameDecoding callback)
+AL_ERR AL_IDecChannel_Configure(AL_TIDecChannel* pThis, TMemDesc* pMDChParams, AL_CB_EndFrameDecoding callback)
 {
-  return pThis->vtable->Configure(pThis, pChParam, callback);
+  return pThis->vtable->Configure(pThis, pMDChParams, callback);
 }
 
 /*************************************************************************//*!

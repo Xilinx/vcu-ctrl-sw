@@ -455,5 +455,11 @@ void AL_AVC_PictMngr_ReorderPictList(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSl
   }
 }
 
+/*****************************************************************************/
+int AL_AVC_PictMngr_GetNumExistingRef(AL_TPictMngrCtx* pCtx, TBufferListRef* pListRef)
+{
+  return AL_Dpb_GetNumExistingRef(&pCtx->DPB, pListRef);
+}
+
 /*@}*/
 

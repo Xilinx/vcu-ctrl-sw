@@ -885,9 +885,25 @@ static bool sei_recovery_point(AL_TRbspParser* pRP, AL_TRecoveryPoint* pRecovery
   return byte_alignment(pRP);
 }
 
+/*****************************************************************************/
+static bool sei_content_light_level(AL_TContentLightLevel* pCLL, AL_TRbspParser* pRP)
+{
+  Rtos_Memset(pCLL, 0, sizeof(*pCLL));
+
+  pCLL->max_content_light_level = u(pRP, 16);
+  pCLL->max_pic_average_light_level = u(pRP, 16);
+
+  if(byte_aligned(pRP))
+    return true;
+
+  return byte_alignment(pRP);
+}
+
 #define PIC_TIMING 1
 #define ACTIVE_PARAMETER_SETS 129
 #define RECOVERY_POINT 6
+#define MASTERING_DISPLAY_COLOUR_VOLUME 137
+#define CONTENT_LIGHT_LEVEL 144
 
 #define PARSE_OR_SKIP(ParseCmd) \
   uint32_t uOffset = offset(pRP); \
@@ -941,6 +957,8 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB
 
     payload_size += byte;
 
+    bool bCBAndSEIMeta = true; // Don't call CB or add in SEI metadata for HDR related SEIs, HDR settings are provided through dedicated metadata
+
     /* get payload data address, at this point we may not have the whole payload
      * data loaded in the rbsp parser */
     uint8_t* payload_data = get_raw_data(pRP);
@@ -973,6 +991,20 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB
         aup->pActiveSPS = &aup->pSPS[uSpsId];
       break;
     }
+    case MASTERING_DISPLAY_COLOUR_VOLUME:
+    {
+      PARSE_OR_SKIP(sei_mastering_display_colour_volume(&aup->tHDRSEIs.tMDCV, pRP));
+      aup->tHDRSEIs.bHasMDCV = true;
+      bCBAndSEIMeta = false;
+      break;
+    }
+    case CONTENT_LIGHT_LEVEL:
+    {
+      PARSE_OR_SKIP(sei_content_light_level(&aup->tHDRSEIs.tCLL, pRP));
+      aup->tHDRSEIs.bHasCLL = true;
+      bCBAndSEIMeta = false;
+      break;
+    }
     default: // payload not supported
     {
       skip(pRP, payload_size << 3); // skip data
@@ -980,13 +1012,13 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB
     }
     }
 
-    if(pMeta)
+    if(bCBAndSEIMeta && pMeta)
     {
       if(!AL_SeiMetaData_AddPayload(pMeta, (AL_TSeiMessage) {bIsPrefix, payload_type, payload_data, payload_size }))
         return false;
     }
 
-    if(cb->func)
+    if(bCBAndSEIMeta && cb->func)
       cb->func(bIsPrefix, payload_type, payload_data, payload_size, cb->userParam);
 
     uint32_t offsetAfter = offset(pRP);

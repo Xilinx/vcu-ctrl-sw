@@ -1607,5 +1607,25 @@ void AL_Dpb_ModifLongTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t uOffse
   }
 }
 
+/*****************************************************************************/
+int AL_Dpb_GetNumExistingRef(AL_TDpb* pDpb, TBufferListRef* pListRef)
+{
+  int iNumExisting = 0;
+
+  for(int l = 0; l < 2; ++l) // L0/L1
+  {
+    TBufferRef* pRef = (*pListRef)[l];
+
+    while(pRef->uNodeID != uEndOfList)
+    {
+      if(!pDpb->Nodes[pRef->uNodeID].non_existing)
+        ++iNumExisting;
+      ++pRef;
+    }
+  }
+
+  return iNumExisting;
+}
+
 /*@}*/
 

@@ -50,6 +50,7 @@
 
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/SEI.h"
+#include "lib_common/HDR.h"
 #include "lib_common_enc/EncBuffersInternal.h"
 
 #include "Encoder.h"
@@ -59,7 +60,28 @@
 
 #include "lib_encode/IScheduler.h"
 
-AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncCtx* pCtx, TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings);
+/*************************************************************************//*!
+   \brief Creates an encoder object
+   \return Pointer to the encoder created if succeeded, NULL otherwise
+*****************************************************************************/
+AL_TEncoder* AL_Common_Encoder_Create(AL_TAllocator* pAlloc);
+
+/*************************************************************************//*!
+   \brief Destroy an encoder object
+   \param[in] pEnc Pointer on the encoder object to destroy
+*****************************************************************************/
+void AL_Common_Encoder_Destroy(AL_TEncoder* pEnc);
+
+/*************************************************************************//*!
+   \brief Creates an encoding channel
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] pScheduler Pointer to the scheduler object
+   \param[in] pAlloc Pointer to a AL_TAllocator interface.
+   \param[in] pSettings Pointer to AL_TEncSettings structure specifying the encoder
+   parameters.
+   \return Channel creation result
+*****************************************************************************/
+AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncoder* pEnc, TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings);
 
 
 /*************************************************************************//*!
@@ -134,12 +156,6 @@ AL_ERR AL_Common_Encoder_GetLastError(AL_TEncoder* pEnc);
 void AL_Common_Encoder_WaitReadiness(AL_TEncCtx* pCtx);
 
 /*************************************************************************//*!
-   \brief The Encoder_Destroy function destroy an encoder object
-   \param[in] pEnc Pointer on an encoder object
-*****************************************************************************/
-void AL_Common_Encoder_Destroy(AL_TEncoder* pEnc);
-
-/*************************************************************************//*!
    \brief The AL_Encoder_RestartGop requests the encoder to insert a Keyframe
    and restart a new Gop.
    \param[in] pEnc Pointer on an encoder object
@@ -207,7 +223,7 @@ bool AL_Common_Encoder_SetQP(AL_TEncoder* pEnc, int16_t iQP);
    pushed frame
    \param[in] pEnc Pointer on an encoder object
    \param[in] tDim The new dimension of pushed frames
-   \return true on success, false on error : call AL_Encoder_GetLastError to
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError to
    retrieve the error code
 *****************************************************************************/
 bool AL_Common_Encoder_SetInputResolution(AL_TEncoder* pEnc, AL_TDimension tDim);
@@ -216,7 +232,7 @@ bool AL_Common_Encoder_SetInputResolution(AL_TEncoder* pEnc, AL_TDimension tDim)
    \brief Changes the loop filter beta offset
    \param[in] pEnc Pointer on an encoder object
    \param[in] iBetaOffset The new loop filter beta offset
-   \return true on success, false on error : call AL_Encoder_GetLastError to
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError to
    retrieve the error code
 *****************************************************************************/
 bool AL_Common_Encoder_SetLoopFilterBetaOffset(AL_TEncoder* pEnc, int8_t iBetaOffset);
@@ -225,11 +241,20 @@ bool AL_Common_Encoder_SetLoopFilterBetaOffset(AL_TEncoder* pEnc, int8_t iBetaOf
    \brief Changes the loop filter TC offset
    \param[in] pEnc Pointer on an encoder object
    \param[in] iTcOffset The new loop filter TC offset
-   \return true on success, false on error : call AL_Encoder_GetLastError to
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError to
    retrieve the error code
 *****************************************************************************/
 bool AL_Common_Encoder_SetLoopFilterTcOffset(AL_TEncoder* pEnc, int8_t iTcOffset);
 
+
+/*************************************************************************//*!
+   \brief Specify HDR SEIs to insert in the bitstream
+   \param[in] pEnc  Pointer on an encoder object
+   \param[in] pHDRSettings pointer to the HDR related SEIs
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Common_Encoder_SetHDRSEIs(AL_TEncoder* pEnc, AL_THDRSEIs* pHDRSEIs);
 
 
 /*************************************************************************//*!

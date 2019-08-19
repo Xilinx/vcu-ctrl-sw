@@ -123,6 +123,8 @@ typedef struct
   int iCurStreamRecv;
   AL_TBuffer* StreamSent[AL_MAX_STREAM_BUFFER];
 
+  TMemDesc tMDChParam;
+
   AL_TCbUserParam callback_user_param;
   AL_CB_EndEncoding callback;
 }AL_TLayerCtx;
@@ -139,25 +141,24 @@ typedef struct
 typedef struct AL_t_EncCtx
 {
   HighLevelEncoder encoder;
-  AL_TEncSettings Settings;
+
+  AL_TEncSettings* pSettings;
+
   AL_TLayerCtx tLayerCtx[MAX_NUM_LAYER];
 
   AL_TDimension nalResolutionsPerID[MAX_NAL_IDS];
   AL_THevcVps vps;
 
-  TStreamInfo StreamInfo;
   bool bEndOfStreamReceived[MAX_NUM_LAYER];
   int iLastIdrId;
 
-  AL_SeiData seiData;
+  AL_TSeiData seiData;
 
   int iMaxNumRef;
 
+  bool bEncodingStarted;
   int iFrameCountDone;
   AL_ERR eError;
-  int iNumLCU;
-  int iMinQP;
-  int iMaxQP;
 
   /* O(1) access to a frame info */
   AL_TFrameInfo Pool[MAX_NUM_LAYER * ENC_MAX_CMD];
@@ -175,9 +176,11 @@ typedef struct AL_t_EncCtx
 
   int iInitialNumB;
   uint16_t uInitialFrameRate;
+
+  TMemDesc tMDSettings;
 }AL_TEncCtx;
 
-NalsData AL_ExtractNalsData(AL_TEncCtx* pCtx, int iLayerID);
+AL_TNalsData AL_ExtractNalsData(AL_TEncCtx* pCtx, int iLayerID);
 
 /*@}*/
 

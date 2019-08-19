@@ -70,11 +70,12 @@ static const int AVC_LCU_CMP_SIZE[4] =
   800, 1120, 1408, 2016
 }; /*!< AVC  LCU compressed max size*/
 
-static const int POCOL_LIST_OFFSET = 128;
-static const int MVCOL_LIST_OFFSET = 192;
-static const int FBC_LIST_OFFSET = 256;
+static const int POCOL_LIST_OFFSET = 32; // in number of list entry
+static const int MVCOL_LIST_OFFSET = 48; // in number of list entry
+static const int FBC_LIST_OFFSET = 64; // in number of list entry
+static const int REF_LIST_SIZE = 96; // in number of list entry
+
 static const int SCLST_SIZE_DEC = 12288;
-static const int REF_LIST_SIZE = 96 * sizeof(size_t);
 
 
 /*************************************************************************//*!
@@ -84,10 +85,6 @@ typedef TBuffer TBufferPOC;
 
 static const int POCBUFF_PL_SIZE = 96;  // POC List size
 static const int POCBUFF_LONG_TERM_OFFSET = 64;  // Long term flag List
-
-/****************************************************************************/
-
-#define MAX_SECTION 32 // greater or equal to 2 * (MAX_ENC_SLICE + 2)
 
 /*************************************************************************//*!
    \brief List of references frame buffer

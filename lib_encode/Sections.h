@@ -41,23 +41,25 @@
 #include "lib_bitstream/IRbspWriter.h"
 #include "lib_common_enc/EncPicInfo.h"
 #include "lib_common/BufferAPI.h"
+#include "lib_common/HDR.h"
 
 typedef struct t_nuts
 {
-  NalHeader (* GetNalHeader)(uint8_t uNUT, uint8_t uNalIdc, uint8_t uTempID);
+  AL_TNalHeader (* GetNalHeader)(uint8_t uNUT, uint8_t uNalIdc, uint8_t uTempID);
   int spsNut;
   int ppsNut;
   int audNut;
   int fdNut;
   int seiPrefixNut;
   int seiSuffixNut;
-}Nuts;
+}AL_TNuts;
 
 typedef struct
 {
   int initialCpbRemovalDelay;
   int cpbRemovalDelay;
-}AL_SeiData;
+  AL_THDRSEIs tHDRSEIs;
+}AL_TSeiData;
 
 typedef struct
 {
@@ -65,12 +67,12 @@ typedef struct
   AL_TSps* sps;
   AL_TPps* pps;
   bool shouldWriteAud;
-  bool shouldWriteFillerData;
+  AL_EFillerCtrlMode fillerCtrlMode;
   bool forceWritePPS;
-  AL_SeiData* seiData;
+  AL_TSeiData* seiData;
   uint32_t seiFlags;
-}NalsData;
+}AL_TNalsData;
 
-void GenerateSections(IRbspWriter* writer, Nuts nuts, const NalsData* nalsData, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayerID, int iNumSlices);
-int AL_WriteSeiSection(Nuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId);
+void GenerateSections(IRbspWriter* writer, AL_TNuts Nuts, const AL_TNalsData* pNalsData, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayerID, int iNumSlices, bool bSubframeLatency);
+int AL_WriteSeiSection(AL_TNuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId);
 

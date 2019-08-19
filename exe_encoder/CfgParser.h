@@ -45,6 +45,7 @@
 #pragma once
 #include "lib_app/InputFiles.h"
 #include "lib_app/utils.h"
+#include "QPGenerator.h"
 
 extern "C"
 {
@@ -75,6 +76,7 @@ typedef AL_INTROSPECT (category = "debug") struct tCfgRunInfo
   bool printPictureType = false;
   std::string bitrateFile = "";
   AL_64U uInputSleepInMilliseconds;
+  AL_EGenerateQpMode eGenerateQpMode = AL_GENERATE_UNIFORM_QP;
 }TCfgRunInfo;
 
 
@@ -123,6 +125,9 @@ AL_INTROSPECT(category = "debug") struct ConfigFile
 
   // \brief Name of the file that reads/writes video statistics for TwoPassMode
   std::string sTwoPassFileName;
+
+  // \brief Name of the file specifying HDR SEI contents
+  std::string sHDRFileName;
 
   // \brief FOURCC Code of the reconstructed picture output file
   TFourCC RecFourCC;

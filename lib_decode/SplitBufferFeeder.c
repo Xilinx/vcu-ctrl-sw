@@ -112,7 +112,6 @@ static void Process(AL_TSplitBufferFeeder* this)
     AL_Buffer_Unref(workBuf);
     return;
   }
-
   AL_Fifo_Queue(&this->workFifo, workBuf, AL_WAIT_FOREVER);
 }
 
@@ -149,12 +148,12 @@ static void Process_EntryPoint(AL_TSplitBufferFeeder* this)
 
     if(!shouldKeepGoing(this) && IsEndOfStream(this))
     {
-	AL_Buffer_Ref(this->pEOSBuffer);
-	AL_Fifo_Queue(&this->workFifo, this->pEOSBuffer, AL_WAIT_FOREVER);
-        /* Ensure in subframe latency that even if the user doesn't send a full frame at the end of the stream, we can finish sent slices */
-        AL_Decoder_TryDecodeOneUnit(this->hDec, this->pEOSBuffer);
+      /* Ensure in subframe latency that even if the user doesn't send a full frame at the end of the stream, we can finish sent slices */
+      AL_Buffer_Ref(this->pEOSBuffer);
+      AL_Fifo_Queue(&this->workFifo, this->pEOSBuffer, AL_WAIT_FOREVER);
+      AL_Decoder_TryDecodeOneUnit(this->hDec, this->pEOSBuffer);
       AL_Decoder_InternalFlush(this->hDec);
-      freeBuf(this, this->pEOSBuffer);
+      freeBuf((AL_TFeeder*)this, this->pEOSBuffer);
       break;
     }
 
@@ -230,7 +229,6 @@ static void destroy_process(AL_TFeeder* hFeeder)
 
     flush(hFeeder);
   }
-
   Rtos_JoinThread(this->process);
   Rtos_DeleteThread(this->process);
 }
@@ -245,8 +243,8 @@ static void destroy(AL_TFeeder* hFeeder)
   AL_TBuffer* workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_NO_WAIT);
   assert(!workBuf);
 
-  AL_Fifo_Deinit(&this->inputFifo);
   AL_Fifo_Deinit(&this->workFifo);
+  AL_Fifo_Deinit(&this->inputFifo);
 
   Rtos_DeleteMutex(this->lock);
   Rtos_DeleteEvent(this->incomingWorkEvent);

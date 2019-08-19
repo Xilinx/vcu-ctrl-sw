@@ -314,7 +314,6 @@ typedef enum __AL_ALIGNED__ (4) AL_e_RateCtrlMode
   AL_RC_CAPPED_VBR = 0x04,
   AL_RC_BYPASS = 0x3F,
   AL_RC_PLUGIN = 0x40,
-  AL_TEST_RC_FILLER = 0xF1,
   AL_RC_MAX_ENUM,
 } AL_ERateCtrlMode;
 

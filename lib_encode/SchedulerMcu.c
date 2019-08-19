@@ -78,21 +78,13 @@ typedef struct
 static const char* deviceFile = "/dev/allegroIP";
 static void* WaitForStatus(void* p);
 
-static void setChannelFeedback(AL_TEncChanParam* pChParam, struct al5_channel_status* msg)
-{
-  pChParam->eEncOptions = msg->options;
-  pChParam->eEncTools = msg->tools;
-  pChParam->uNumCore = msg->num_core;
-  pChParam->uPpsParam = msg->pps_param;
-}
-
 static void setCallbacks(Channel* chan, AL_TISchedulerCallBacks* pCBs)
 {
   chan->CBs.pEndEncodingCBParam = pCBs->pEndEncodingCBParam;
   chan->CBs.pfnEndEncodingCallBack = pCBs->pfnEndEncodingCallBack;
 }
 
-static AL_ERR createChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEncChanParam* pChParam, TMemDesc* pEP1, AL_TISchedulerCallBacks* pCBs)
+static AL_ERR createChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, TMemDesc* pMDChParam, TMemDesc* pEP1, AL_TISchedulerCallBacks* pCBs)
 {
   AL_ERR errorCode = AL_ERROR;
   AL_TSchedulerMcu* schedulerMcu = (AL_TSchedulerMcu*)pScheduler;
@@ -116,8 +108,9 @@ static AL_ERR createChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEnc
     goto driver_open_fail;
   }
 
+  AL_TEncChanParam* pChParam = ((AL_TEncChanParam*)pMDChParam->pVirtualAddr);
   struct al5_channel_config msg = { 0 };
-  setChannelParam(&msg.param, pChParam, pEP1);
+  setChannelParam(&msg.param, pMDChParam, pEP1);
   chan->outputRec = pChParam->eEncOptions & AL_OPT_FORCE_REC;
 
   AL_EDriverError errdrv = AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_CONFIG_CHANNEL, &msg);
@@ -137,7 +130,6 @@ static AL_ERR createChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEnc
 
   assert(!AL_IS_ERROR_CODE(msg.status.error_code));
 
-  setChannelFeedback(pChParam, &msg.status);
   setCallbacks(chan, pCBs);
   chan->shouldContinue = 1;
   chan->thread = Rtos_CreateThread(&WaitForStatus, chan);
@@ -145,7 +137,7 @@ static AL_ERR createChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, AL_TEnc
   if(!chan->thread)
     goto fail;
 
-  SetChannelInfo(&chan->info, pChParam);
+  SetChannelInfo(&chan->info, (AL_TEncChanParam*)pMDChParam->pVirtualAddr);
   *hChannel = (AL_HANDLE)chan;
   return AL_SUCCESS;
 
@@ -333,13 +325,13 @@ static void putStreamBuffer(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuff
 
 static const TSchedulerVtable McuSchedulerVtable =
 {
-  &destroy,
-  &createChannel,
-  &destroyChannel,
-  &encodeOneFrame,
-  &putStreamBuffer,
-  &getRecPicture,
-  &releaseRecPicture,
+  destroy,
+  createChannel,
+  destroyChannel,
+  encodeOneFrame,
+  putStreamBuffer,
+  getRecPicture,
+  releaseRecPicture,
 };
 
 TScheduler* AL_SchedulerMcu_Create(AL_TDriver* driver, AL_TAllocator* pDmaAllocator)

@@ -1135,10 +1135,10 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam* pSP, TBuff
 
   if(pListAddr && pListAddr->tMD.pVirtualAddr)
   {
-    uint32_t* pAddr = (uint32_t*)pListAddr->tMD.pVirtualAddr;
-    uint32_t* pColocMvList = (uint32_t*)(pListAddr->tMD.pVirtualAddr + MVCOL_LIST_OFFSET);
-    uint32_t* pColocPocList = (uint32_t*)(pListAddr->tMD.pVirtualAddr + POCOL_LIST_OFFSET);
-    uint32_t* pFbcList = (uint32_t*)(pListAddr->tMD.pVirtualAddr + FBC_LIST_OFFSET);
+    AL_PADDR* pAddr = (AL_PADDR*)pListAddr->tMD.pVirtualAddr;
+    AL_PADDR* pColocMvList = ((AL_PADDR*)pListAddr->tMD.pVirtualAddr) + MVCOL_LIST_OFFSET;
+    AL_PADDR* pColocPocList = ((AL_PADDR*)pListAddr->tMD.pVirtualAddr) + POCOL_LIST_OFFSET;
+    AL_PADDR* pFbcList = ((AL_PADDR*)pListAddr->tMD.pVirtualAddr) + FBC_LIST_OFFSET;
 
     for(int i = 0; i < PIC_ID_POOL_SIZE; ++i)
     {
