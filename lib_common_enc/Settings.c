@@ -350,6 +350,9 @@ static void XAVC_CheckCoherency(AL_TEncSettings* pSettings)
     AL_SET_BITDEPTH(&pChannel->ePicFormat, 10);
     pChannel->uSrcBitDepth = 10;
     pChannel->uNumSlices = 8;
+    AL_TGopParam* pGop = &pChannel->tGopParam;
+    pGop->uGopLength = 1;
+    pGop->uFreqIDR = 1;
 
     if(AL_IS_XAVC_CBG(pChannel->eProfile))
     {
@@ -1084,14 +1087,14 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
   {
     if(pChParam->tGopParam.uGopLength > 1)
     {
-      pChParam->tGopParam.uGopLength = 0;
+      pChParam->tGopParam.uGopLength = 1;
       MSG("!! Gop.Length shall be set to 0 or 1 for Intra only profile; it will be adjusted!!");
       ++numIncoherency;
     }
 
     if(pChParam->tGopParam.uFreqIDR > 1)
     {
-      pChParam->tGopParam.uFreqIDR = 0;
+      pChParam->tGopParam.uFreqIDR = 1;
       MSG("!! Gop.uFreqIDR shall be set to 0 or 1 for Intra only profile; it will be adjusted!!");
       ++numIncoherency;
     }
