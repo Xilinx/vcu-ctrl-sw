@@ -1098,6 +1098,13 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
       MSG("!! Gop.uFreqIDR shall be set to 0 or 1 for Intra only profile; it will be adjusted!!");
       ++numIncoherency;
     }
+
+    if(pSettings->iPrefetchLevel2 != 0)
+    {
+      pSettings->iPrefetchLevel2 = 0;
+      MSG("!! iPrefetchLevel2 shall be set to 0 for Intra only profile; it will be adjusted!!");
+      ++numIncoherency;
+    }
   }
 
   if(AL_IS_AVC(pChParam->eProfile))
