@@ -347,9 +347,12 @@ static void XAVC_CheckCoherency(AL_TEncSettings* pSettings)
 
   if(AL_IS_INTRA_PROFILE(pChannel->eProfile))
   {
+    pSettings->iPrefetchLevel2 = 0;
+
     AL_SET_BITDEPTH(&pChannel->ePicFormat, 10);
     pChannel->uSrcBitDepth = 10;
     pChannel->uNumSlices = 8;
+
     AL_TGopParam* pGop = &pChannel->tGopParam;
     pGop->uGopLength = 1;
     pGop->uFreqIDR = 1;
