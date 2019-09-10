@@ -202,7 +202,6 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, const AL_TNalsData* pN
 
     AL_TSeiPrefixAPSCtx seiPrefixAPSCtx;
     AL_TSeiPrefixCtx seiPrefixCtx;
-    AL_TSeiPrefixUDUCtx seiPrefixUDUCtx;
 
     if(AL_IS_SEI_PREFIX(pNalsData->seiFlags))
     {
@@ -225,13 +224,15 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, const AL_TNalsData* pN
         nals[nalsCount] = AL_CreateSeiPrefix(&seiPrefixCtx, nuts.seiPrefixNut, pPicStatus->uTempId);
         nalsFlags[nalsCount++] = AL_SECTION_SEI_PREFIX_FLAG;
       }
+    }
 
-      if(bSubframeLatency)
-      {
-        seiPrefixUDUCtx = createSeiPrefixUDUCtx(iNumSlices);
-        nals[nalsCount] = AL_CreateSeiPrefixUDU(&seiPrefixUDUCtx, nuts.seiPrefixNut, pPicStatus->uTempId);
-        nalsFlags[nalsCount++] = AL_SECTION_SEI_PREFIX_FLAG;
-      }
+    AL_TSeiPrefixUDUCtx seiPrefixUDUCtx;
+
+    if(bSubframeLatency)
+    {
+      seiPrefixUDUCtx = createSeiPrefixUDUCtx(iNumSlices);
+      nals[nalsCount] = AL_CreateSeiPrefixUDU(&seiPrefixUDUCtx, nuts.seiPrefixNut, pPicStatus->uTempId);
+      nalsFlags[nalsCount++] = AL_SECTION_SEI_PREFIX_FLAG;
     }
 
     for(int i = 0; i < nalsCount; i++)
