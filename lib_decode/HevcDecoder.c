@@ -586,7 +586,6 @@ static void createConcealSlice(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSl
 /*****************************************************************************/
 static void endFrame(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_THevcSliceHdr* pSlice, AL_TDecPicParam* pPP, uint8_t pic_output_flag, bool bHasPreviousSlice)
 {
-  AL_HEVC_PictMngr_UpdateRecInfo(&pCtx->PictMngr, pSlice->pSPS, pPP);
   AL_HEVC_PictMngr_EndFrame(&pCtx->PictMngr, pSlice->slice_pic_order_cnt_lsb, eNUT, pSlice, pic_output_flag);
 
   if(pCtx->pChanParam->eDecUnit == AL_AU_UNIT)
@@ -796,6 +795,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     if(!hevcInitFrameBuffers(pCtx, pSlice->pSPS, &pAUP->tHDRSEIs, pPP, pBufs))
       return;
     *bBeginFrameIsValid = true;
+    AL_HEVC_PictMngr_UpdateRecInfo(&pCtx->PictMngr, pSlice->pSPS, pPP);
   }
 
   bool bLastSlice = *iNumSlice >= pCtx->pChanParam->iMaxSlices;
