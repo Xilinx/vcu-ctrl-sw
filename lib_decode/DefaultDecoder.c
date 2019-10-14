@@ -1088,8 +1088,7 @@ void AL_Default_Decoder_PutDecPict(AL_TDecoder* pAbsDec, AL_TBuffer* pDecPict)
 
   AL_PictMngr_PutDisplayBuffer(&pCtx->PictMngr, pDecPict);
 
-  if(!pCtx->bSplitInput)
-    AL_Feeder_Signal(pCtx->Feeder);
+  AL_Feeder_Signal(pCtx->Feeder);
 }
 
 /*****************************************************************************/
