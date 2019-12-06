@@ -118,14 +118,13 @@ uint8_t AL_DPBConstraint_GetMaxRef_GopMngrCustom(const AL_TGopParam* pGopParam, 
   return uNumRef;
 }
 
-
 /****************************************************************************/
 uint8_t AL_DPBConstraint_GetMaxDPBSize(const AL_TEncChanParam* pChParam)
 {
   bool bIsAOM = false;
 
   AL_EGopMngrType eGopMngrType = AL_GetGopMngrType(pChParam->tGopParam.eMode, bIsAOM);
-  AL_ECodec eCodec = AL_GetCodec(pChParam->eProfile);
+  AL_ECodec eCodec = AL_GET_CODEC(pChParam->eProfile);
   uint8_t uDPBSize = 0;
   switch(eGopMngrType)
   {

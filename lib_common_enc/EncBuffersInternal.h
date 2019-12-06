@@ -113,7 +113,6 @@ static const size_t MVBUFF_MV_OFFSET = 256; // Motion Vectors
 *****************************************************************************/
 uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bComp);
 
-
 /*************************************************************************//*!
    \brief Retrieves the size of a compressed buffer(LCU header + MVDs + Residuals)
    \param[in] tDim Frame dimensions
@@ -163,14 +162,4 @@ uint32_t AL_GetAllocSize_SliceSize(uint32_t uWidth, uint32_t uHeight, uint32_t u
    \return the size (in bytes) needed for the entry_points size buffer
 *****************************************************************************/
 uint32_t GetAllocSize_StreamPart(int iLCUHeight, int iNumSlices, int iSliceSize);
-
-/*************************************************************************//*!
-   \brief Retrieves the size of a Source YUV frame buffer
-   \param[in] tDim Frame size in pixels
-   \param[in] uBitDepth YUV bit-depth
-   \param[in] eChromaMode Chroma Mode
-   \param[in] eStorageMode Source Storage Mode
-   \return maximum size (in bytes) needed for the YUV frame buffer
-*****************************************************************************/
-uint32_t AL_GetAllocSizeSrcNoFbc(AL_TDimension tDim, AL_EChromaMode eChromaMode, AL_EFbStorageMode eStorageMode, int iPitch, int iChromaOffset);
 

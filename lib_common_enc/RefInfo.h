@@ -109,4 +109,3 @@ typedef struct AL_t_AvailRef
   int32_t pType[2 * AL_MAX_NUM_REF]; /*!< Slice type of the available reference picture(s) */
 }AL_TAvailRef;
 
-

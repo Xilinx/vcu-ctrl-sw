@@ -77,9 +77,14 @@ typedef enum e_GenerateQpMode
   AL_GENERATE_QP_MAX_ENUM, /* sentinel */
 }AL_EGenerateQpMode;
 
-static AL_INLINE bool AL_IS_GENERATE_AUTO_OR_ADAPTIVE_AUTO_QP(AL_EGenerateQpMode eMode)
+static AL_INLINE bool AL_IsAutoQP(AL_EGenerateQpMode eMode)
 {
-  return (eMode & AL_GENERATE_AUTO_QP) || (eMode & AL_GENERATE_ADAPTIVE_AUTO_QP);
+  return eMode & AL_GENERATE_MASK_AUTO_QP;
+}
+
+static AL_INLINE bool AL_HasQpTable(AL_EGenerateQpMode eMode)
+{
+  return eMode & AL_GENERATE_MASK_QP_TABLE_EXT;
 }
 
 /*************************************************************************//*!

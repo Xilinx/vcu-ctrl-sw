@@ -48,14 +48,22 @@ uint32_t AL_GetRecPitch(uint32_t uBitDepth, uint32_t uWidth)
   return ((uWidth + 63) >> 6) * 256;
 }
 
-void AL_RecMetaData_FillPlanes(AL_TPlane* pRecPlanes, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bComp, bool bIsAvc)
+void AL_EncRecBuffer_FillPlaneDesc(AL_TPlaneDescription* pPlaneDesc, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bIsAvc)
 {
-  (void)eChromaMode, (void)bComp, (void)bIsAvc; // if no fbc support
-  pRecPlanes[AL_PLANE_Y].iOffset = 0;
-  pRecPlanes[AL_PLANE_Y].iPitch = AL_GetRecPitch(uBitDepth, tDim.iWidth);
-
-  pRecPlanes[AL_PLANE_UV].iOffset = AL_GetAllocSize_EncReference(tDim, uBitDepth, AL_CHROMA_MONO, false);
-  pRecPlanes[AL_PLANE_UV].iPitch = pRecPlanes[AL_PLANE_Y].iPitch;
-
+  (void)eChromaMode, (void)bIsAvc; // if no fbc support
+  switch(pPlaneDesc->ePlaneId)
+  {
+  case AL_PLANE_Y:
+    pPlaneDesc->iOffset = 0;
+    pPlaneDesc->iPitch = AL_GetRecPitch(uBitDepth, tDim.iWidth);
+    break;
+  case AL_PLANE_UV:
+    pPlaneDesc->iOffset = AL_GetAllocSize_EncReference(tDim, uBitDepth, AL_CHROMA_MONO, false);
+    pPlaneDesc->iPitch = AL_GetRecPitch(uBitDepth, tDim.iWidth);
+    break;
+  default:
+    assert(0);
+    break;
+  }
 }
 

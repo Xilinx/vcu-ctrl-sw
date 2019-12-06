@@ -40,7 +40,7 @@
 
 extern "C"
 {
-#include "lib_common/BufferSrcMeta.h"
+#include "lib_common/PixMapBuffer.h"
 }
 
 #include "Conversion.h"
@@ -50,38 +50,34 @@ void CropFrame(AL_TBuffer* pYUV, int iSizePix, uint32_t uCropLeft, uint32_t uCro
   int iBeginVert, iEndVert, iBeginHrz, iEndHrz;
   int iParse, iUV, iCbOffset, iCrOffset;
 
-  AL_TSrcMetaData* pMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pYUV, AL_META_TYPE_SOURCE);
-
-  int iWidth = pMeta->tDim.iWidth;
-  int iHeight = pMeta->tDim.iHeight;
-  AL_EChromaMode eMode = AL_GetChromaMode(pMeta->tFourCC);
-
-  uint8_t* pOut = AL_Buffer_GetData(pYUV);
-  uint8_t* pIn = AL_Buffer_GetData(pYUV);
+  AL_TDimension tRawDim = AL_PixMapBuffer_GetDimension(pYUV);
+  AL_EChromaMode eMode = AL_GetChromaMode(AL_PixMapBuffer_GetFourCC(pYUV));
 
   /*warning: works in frame only in 4:2:0*/
   iBeginVert = uCropTop;
   iBeginHrz = uCropLeft;
-  iEndVert = iHeight - uCropBottom;
-  iEndHrz = iWidth - uCropRight;
+  iEndVert = tRawDim.iHeight - uCropBottom;
+  iEndHrz = tRawDim.iWidth - uCropRight;
 
-  pMeta->tDim.iWidth = iEndHrz - iBeginHrz;
-  pMeta->tDim.iHeight = iEndVert - iBeginVert;
+  AL_PixMapBuffer_SetDimension(pYUV, AL_TDimension { iEndHrz - iBeginHrz, iEndVert - iBeginVert });
+
+  uint8_t* pIn = AL_PixMapBuffer_GetPlaneAddress(pYUV, AL_PLANE_Y);
+  uint8_t* pOut = pIn;
 
   /*luma samples*/
   for(iParse = iBeginVert; iParse < iEndVert; ++iParse)
   {
-    memmove(pOut, &pIn[(iParse * iWidth + iBeginHrz) * iSizePix], (iEndHrz - iBeginHrz) * iSizePix);
+    memmove(pOut, &pIn[(iParse * tRawDim.iWidth + iBeginHrz) * iSizePix], (iEndHrz - iBeginHrz) * iSizePix);
     pOut += (iEndHrz - iBeginHrz) * iSizePix;
   }
 
   /*chroma samples*/
   if(eMode != AL_CHROMA_MONO)
   {
-    iCbOffset = iWidth * iHeight;
-    iWidth /= (eMode == AL_CHROMA_4_4_4) ? 1 : 2;
-    iHeight /= (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
-    iCrOffset = iCbOffset + (iWidth * iHeight);
+    iCbOffset = tRawDim.iWidth * tRawDim.iHeight;
+    tRawDim.iWidth /= (eMode == AL_CHROMA_4_4_4) ? 1 : 2;
+    tRawDim.iHeight /= (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
+    iCrOffset = iCbOffset + (tRawDim.iWidth * tRawDim.iHeight);
 
     iBeginVert /= (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
     iEndVert /= (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
@@ -94,7 +90,7 @@ void CropFrame(AL_TBuffer* pYUV, int iSizePix, uint32_t uCropLeft, uint32_t uCro
 
       for(iParse = iBeginVert; iParse < iEndVert; ++iParse)
       {
-        memmove(pOut, &pIn[(iParse * iWidth + iBeginHrz + iChromaOffset) * iSizePix], (iEndHrz - iBeginHrz) * iSizePix);
+        memmove(pOut, &pIn[(iParse * tRawDim.iWidth + iBeginHrz + iChromaOffset) * iSizePix], (iEndHrz - iBeginHrz) * iSizePix);
         pOut += (iEndHrz - iBeginHrz) * iSizePix;
       }
     }

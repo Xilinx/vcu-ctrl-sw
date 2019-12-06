@@ -76,7 +76,6 @@ typedef struct AL_t_SliceStatus
   uint16_t uNumSlices; /*!< Number of slices */
   int32_t iEstimNumBytes; /*!< Estimated Number of bytes in the stream (AVC multi-core only) */
 
-
   uint32_t SyntaxElements;
 }AL_TEncSliceStatus;
 

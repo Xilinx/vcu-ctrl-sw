@@ -56,7 +56,6 @@ struct AL_t_Timer
   const AL_TimerVtable* vtable;
 };
 
-
 typedef struct
 {
   const AL_TimerVtable* vtable;
@@ -73,7 +72,7 @@ typedef struct
   AL_MUTEX mutex;
 }AL_Logger;
 
-static inline uint32_t AL_Timer_GetTime(AL_Timer* timer)
+static AL_INLINE uint32_t AL_Timer_GetTime(AL_Timer* timer)
 {
   return timer->vtable->pfnGetTime(timer);
 }

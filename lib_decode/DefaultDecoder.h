@@ -52,13 +52,12 @@
 #include "lib_common_dec/DecInfo.h"
 #include "lib_rtos/types.h"
 
-
 typedef struct
 {
   AL_TDecCtx ctx;
 }AL_TDecoder;
 
-AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
+AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
 
 /*************************************************************************//*!
    \brief This function performs the decoding of one unit
@@ -67,6 +66,13 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel,
    \return if the function succeeds the return valis is ERR_UNIT_NONE
 *****************************************************************************/
 UNIT_ERROR AL_Default_Decoder_TryDecodeOneUnit(AL_TDecoder* pAbsDec, AL_TBuffer* pBufStream);
+
+/*************************************************************************//*!
+   \brief This function signal that a buffer as been fully parsed
+   \param[in] pUserParam filled with the decoder context
+   \param[in] iFrameID frame id for the picture manager
+*****************************************************************************/
+void AL_Default_Decoder_EndParsing(void* pUserParam, int iFrameID);
 
 /*************************************************************************//*!
    \brief This function performs DPB operations after frames decoding
@@ -117,7 +123,6 @@ bool AL_Default_Decoder_AllocMv(AL_TDecCtx* pCtx, int iMVSize, int iPOCSize, int
    \param[in] iFrameID Id of the erronous frame, -1 if error is not frame-related
 *****************************************************************************/
 void AL_Default_Decoder_SetError(AL_TDecCtx* pCtx, AL_ERR eError, int iFrameID);
-
 
 /*************************************************************************//*!
    \brief This function indicates the storage mode of displayed reconstructed frames

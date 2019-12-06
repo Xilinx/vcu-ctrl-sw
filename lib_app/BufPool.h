@@ -101,7 +101,8 @@ typedef struct
   AL_TBuffer** pPool; /*! pool of allocated buffers */
   uint32_t uNumBuf; /*! Number of buffer in the pool */
 
-  AL_TBufPoolConfig config;
+  size_t zBufSize; /*! Size of the buffers in the pool */
+  AL_TMetaData* pCreationMeta; /*! Metadata added at buffers creation */
 
   App_Fifo fifo;
 }AL_TBufPool;
@@ -114,6 +115,7 @@ typedef struct
    \return return true on success, false on failure
 *****************************************************************************/
 bool AL_BufPool_Init(AL_TBufPool* pBufPool, AL_TAllocator* pAllocator, AL_TBufPoolConfig* pConfig);
+
 /*************************************************************************//*!
    \brief AL_BufPool_Deinit Deiniatilize the AL_TBufPool
    \param[in] pBufPool Pointer to an AL_TBufPool
@@ -156,24 +158,17 @@ public:
   }
 };
 
-// RAII wrapper
-struct BufPool
+/************************    RAII wrappers    *****************************/
+struct BaseBufPool
 {
-  BufPool() = default;
-
-  BufPool(AL_TAllocator* pAllocator, AL_TBufPoolConfig& config)
-  {
-    AL_BufPool_Init(&m_pool, pAllocator, &config);
-  }
-
-  ~BufPool()
+  virtual ~BaseBufPool()
   {
     AL_BufPool_Deinit(&m_pool);
   }
 
-  int Init(AL_TAllocator* pAllocator, AL_TBufPoolConfig& config)
+  int AddMetaData(AL_TMetaData* pMeta)
   {
-    return AL_BufPool_Init(&m_pool, pAllocator, &config);
+    return AL_BufPool_AddMetaData(&m_pool, pMeta);
   }
 
   AL_TBuffer* GetBuffer(AL_EBufMode mode = AL_BUF_MODE_BLOCK)
@@ -185,17 +180,32 @@ struct BufPool
     return pBuf;
   }
 
-  int AddMetaData(AL_TMetaData* pMeta)
-  {
-    return AL_BufPool_AddMetaData(&m_pool, pMeta);
-  }
-
   void Decommit()
   {
     AL_BufPool_Decommit(&m_pool);
   }
 
   AL_TBufPool m_pool {};
+
+protected:
+  bool InitStructure(AL_TAllocator* pAllocator, uint32_t uNumBuf, size_t zBufSize, AL_TMetaData* pCreationMeta);
+  bool AddBuf(AL_TBuffer* pBuf);
+  static void FreeBufInPool(AL_TBuffer* pBuf);
+};
+
+struct BufPool : public BaseBufPool
+{
+  BufPool() = default;
+
+  BufPool(AL_TAllocator* pAllocator, AL_TBufPoolConfig& config)
+  {
+    AL_BufPool_Init(&m_pool, pAllocator, &config);
+  }
+
+  int Init(AL_TAllocator* pAllocator, AL_TBufPoolConfig& config)
+  {
+    return AL_BufPool_Init(&m_pool, pAllocator, &config);
+  }
 };
 
 #endif

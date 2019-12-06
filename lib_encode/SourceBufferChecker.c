@@ -36,15 +36,10 @@
 ******************************************************************************/
 
 #include "SourceBufferChecker.h"
-#include "lib_common/BufferSrcMeta.h"
+#include "lib_common/PixMapBufferInternal.h"
 #include "lib_common_enc/EncBuffers.h"
 #include "lib_common_enc/IpEncFourCC.h"
 #include "lib_common/Utils.h"
-
-static uint32_t getExpectedSourceBufferSize(AL_TSrcBufferChecker* pCtx, int pitch, int strideHeight)
-{
-  return AL_GetAllocSizeSrc(pCtx->currentDim, pCtx->picFmt.eChromaMode, pCtx->srcMode, pitch, strideHeight);
-}
 
 void AL_SrcBuffersChecker_Init(AL_TSrcBufferChecker* pCtx, AL_TEncChanParam const* pChParam)
 {
@@ -66,60 +61,86 @@ bool AL_SrcBuffersChecker_UpdateResolution(AL_TSrcBufferChecker* pCtx, AL_TDimen
   return true;
 }
 
-static int GetPitchYValue(int iWidth)
+static bool CheckMetaData(AL_TBuffer* pBuf)
 {
-  return RoundUp(iWidth, HW_IP_BURST_ALIGNMENT);
+  return AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_PIXMAP) != NULL;
 }
 
-static bool CheckMetaData(AL_TSrcBufferChecker* pCtx, AL_TSrcMetaData* pMetaDataBuf)
+static bool CheckPlanes(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf)
 {
-  if(pMetaDataBuf == NULL)
+  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
+  TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
+  AL_EChromaMode eChromaMode = AL_GetChromaMode(tFourCC);
+
+  int iPitchY = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_Y);
+
+  if(tDim.iWidth != pCtx->currentDim.iWidth)
     return false;
 
-  if(pMetaDataBuf->tDim.iWidth > pMetaDataBuf->tPlanes[AL_PLANE_Y].iPitch)
+  if(tDim.iHeight != pCtx->currentDim.iHeight)
     return false;
 
-  if(pMetaDataBuf->tDim.iWidth != pCtx->currentDim.iWidth)
+  if(tFourCC != pCtx->fourCC)
     return false;
 
-  if(pMetaDataBuf->tDim.iHeight != pCtx->currentDim.iHeight)
+  int iMinPitchY = AL_EncGetMinPitch(tDim.iWidth, AL_GetBitDepth(tFourCC), AL_GetStorageMode(tFourCC));
+
+  if(iPitchY < iMinPitchY)
     return false;
 
-  if(pMetaDataBuf->tFourCC != pCtx->fourCC)
+  if(iPitchY % HW_IP_BURST_ALIGNMENT)
     return false;
 
-  int iMinPitch;
-
-  if((pMetaDataBuf->tFourCC == FOURCC(XV15)) ||
-     (pMetaDataBuf->tFourCC == FOURCC(XV20)) ||
-     (pMetaDataBuf->tFourCC == FOURCC(XV10))
-     )
-    iMinPitch = GetPitchYValue((pCtx->currentDim.iWidth + 2) / 3 * 4);
-  else
-  iMinPitch = GetPitchYValue(pCtx->currentDim.iWidth);
-
-  if(pMetaDataBuf->tPlanes[AL_PLANE_Y].iPitch < iMinPitch)
-    return false;
-
-  if(pMetaDataBuf->tPlanes[AL_PLANE_Y].iPitch % HW_IP_BURST_ALIGNMENT)
-    return false;
-
-  if(AL_GetChromaMode(pMetaDataBuf->tFourCC) != AL_CHROMA_MONO)
+  if(eChromaMode != AL_CHROMA_MONO)
   {
-    if(pMetaDataBuf->tDim.iWidth > pMetaDataBuf->tPlanes[AL_PLANE_UV].iPitch)
-      return false;
+    int iPitchUV = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_UV);
 
-    if(pMetaDataBuf->tPlanes[AL_PLANE_UV].iPitch != pMetaDataBuf->tPlanes[AL_PLANE_Y].iPitch)
+    if(iPitchUV != iPitchY)
       return false;
+  }
 
-    if((pMetaDataBuf->tPlanes[AL_PLANE_Y].iOffset < pMetaDataBuf->tPlanes[AL_PLANE_UV].iOffset) &&
-       (pMetaDataBuf->tPlanes[AL_PLANE_UV].iOffset < AL_SrcMetaData_GetLumaSize(pMetaDataBuf))
-       )
-      return false;
+  return true;
+}
 
-    if((pMetaDataBuf->tPlanes[AL_PLANE_UV].iOffset < pMetaDataBuf->tPlanes[AL_PLANE_Y].iOffset) &&
-       (pMetaDataBuf->tPlanes[AL_PLANE_Y].iOffset < AL_SrcMetaData_GetChromaSize(pMetaDataBuf))
-       )
+static uint32_t GetSrcPlaneSize(AL_TDimension tDim, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt, int iPitchY, int iStrideHeight, AL_EPlaneId ePlaneId)
+{
+  (void)tDim;
+  switch(ePlaneId)
+  {
+  case AL_PLANE_Y:
+    return AL_GetAllocSizeSrc_Y(eSrcFmt, iPitchY, iStrideHeight);
+  case AL_PLANE_UV:
+    return AL_GetAllocSizeSrc_UV(eSrcFmt, iPitchY, iStrideHeight, eChromaMode);
+  default:
+    assert(0);
+  }
+
+  return 0;
+}
+
+static bool CheckSize(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf)
+{
+  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
+  int const iPitchY = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_Y);
+  int const iMinStrideHeight = RoundUp(tDim.iHeight, 8);
+
+  TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
+  AL_EChromaMode eChromaMode = AL_GetChromaMode(tFourCC);
+
+  uint32_t uChunkSizes[AL_BUFFER_MAX_CHUNK] = { 0 };
+
+  for(int iPlane = 0; iPlane < (int)AL_PLANE_MAX_ENUM; iPlane++)
+  {
+    AL_EPlaneId ePlaneId = (AL_EPlaneId)iPlane;
+    int iChunkIdx = AL_PixMapBuffer_GetPlaneChunkIdx(pBuf, ePlaneId);
+
+    if(iChunkIdx != AL_BUFFER_BAD_CHUNK)
+      uChunkSizes[iChunkIdx] += GetSrcPlaneSize(tDim, eChromaMode, pCtx->srcMode, iPitchY, iMinStrideHeight, ePlaneId);
+  }
+
+  for(int i = 0; i < AL_BUFFER_MAX_CHUNK; i++)
+  {
+    if(uChunkSizes[i] != 0 && (AL_Buffer_GetSizeChunk(pBuf, i) < uChunkSizes[i]))
       return false;
   }
 
@@ -131,19 +152,12 @@ bool AL_SrcBuffersChecker_CanBeUsed(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf
   if(pBuf == NULL)
     return false;
 
-  AL_TSrcMetaData* pMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
-
-  if(!CheckMetaData(pCtx, pMeta))
+  if(!CheckMetaData(pBuf))
     return false;
 
-  int const iPitch = pMeta->tPlanes[AL_PLANE_Y].iPitch;
-  // We assume the strideHeight used is the smallest one. The check could be irrelevant if your strideHeight is higher.
-  int const strideHeight = RoundUp(pMeta->tDim.iHeight, 8);
-  uint32_t const minSize = getExpectedSourceBufferSize(pCtx, iPitch, strideHeight);
-
-  if(pBuf->zSize < minSize)
+  if(!CheckPlanes(pCtx, pBuf))
     return false;
 
-  return true;
+  return CheckSize(pCtx, pBuf);
 }
 

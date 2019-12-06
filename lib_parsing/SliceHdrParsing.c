@@ -44,16 +44,19 @@
 #include "lib_common_dec/RbspParser.h"
 
 #include "SliceHdrParsing.h"
+
+#include "lib_common/AvcUtils.h"
+#include "lib_common/HevcUtils.h"
 #include "HevcParser.h"
+
+/***************************************************************************/
+/*   A V C   S L I C E   H E A D E R   P A R S I N G   f u n c t i o n s   */
+/***************************************************************************/
 
 static const int AVC_SLICE_TYPE[5] =
 {
   1, 0, 2, 3, 4
 };
-
-/***************************************************************************/
-/*   A V C   S L I C E   H E A D E R   P A R S I N G   f u n c t i o n s   */
-/***************************************************************************/
 
 /*****************************************************************************/
 static void AL_AVC_sReadWPCoeff(AL_TRbspParser* pRP, AL_TAvcSliceHdr* pSlice, uint8_t uL0L1)
@@ -562,9 +565,10 @@ static void AL_HEVC_sReadWPCoeff(AL_TRbspParser* pRP, AL_THevcSliceHdr* pSlice, 
 }
 
 /*************************************************************************//*!
-                                                                           \brief the pred_weight_table function parses the weighted pred table syntax elements from a Slice Header NAL
-                                                                           \param[in]  pRP    Pointer to NAL buffer
-                                                                           \param[out] pSlice Pointer to the slice header structure that will be filled
+   \brief the pred_weight_table function parses the weighted pred table syntax
+         elements from a Slice Header NAL
+   \param[in]  pRP    Pointer to NAL buffer
+   \param[out] pSlice Pointer to the slice header structure that will be filled
 *****************************************************************************/
 static void AL_HEVC_spred_weight_table(AL_TRbspParser* pRP, AL_THevcSliceHdr* pSlice)
 {
@@ -578,10 +582,13 @@ static void AL_HEVC_spred_weight_table(AL_TRbspParser* pRP, AL_THevcSliceHdr* pS
 }
 
 /*************************************************************************//*!
-                                                                           \brief This function parses the reordering syntax elements from a Slice Header NAL
-                                                                           \param[in]  pRP             Pointer to NAL buffer
-                                                                           \param[out] pSlice          Pointer to the slice header structure that will be filled
-                                                                           \param[in]  NumPocTotalCurr Number of pictures available as reference for the current picture
+   \brief This function parses the reordering syntax elements from a Slice
+         Header NAL
+   \param[in]  pRP             Pointer to NAL buffer
+   \param[out] pSlice          Pointer to the slice header structure that will
+                              be filled
+   \param[in]  NumPocTotalCurr Number of pictures available as reference for
+                              the current picture
 *****************************************************************************/
 static void AL_HEVC_sref_pic_list_modification(AL_TRbspParser* pRP, AL_THevcSliceHdr* pSlice, uint8_t NumPocTotalCurr)
 {
@@ -621,7 +628,7 @@ static void AL_HEVC_sref_pic_list_modification(AL_TRbspParser* pRP, AL_THevcSlic
 }
 
 /*****************************************************************************/
-void InitRefPictSet(AL_THevcSliceHdr* pSlice)
+static void InitRefPictSet(AL_THevcSliceHdr* pSlice)
 {
   pSlice->NumPocStCurrBefore = 0;
   pSlice->NumPocStCurrAfter = 0;
@@ -666,6 +673,7 @@ void InitRefPictSet(AL_THevcSliceHdr* pSlice)
   pSlice->NumPocTotalCurr = pSlice->NumPocStCurrBefore + pSlice->NumPocStCurrAfter + pSlice->NumPocLtCurr;
 }
 
+/*****************************************************************************/
 static bool noValidPpsHasEverBeenParsed(AL_TConceal* pConceal)
 {
   return pConceal->iLastPPSId == -1;

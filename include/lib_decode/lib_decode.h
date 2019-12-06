@@ -62,7 +62,32 @@
 #include "lib_common_dec/DecDpbMode.h"
 #include "lib_common_dec/DecSynchro.h"
 
-typedef struct AL_t_IDecChannel AL_TIDecChannel;
+typedef struct AL_i_DecScheduler AL_IDecScheduler;
+void AL_IDecScheduler_Destroy(AL_IDecScheduler* pThis);
+
+typedef enum
+{
+  AL_DEC_HANDLE_STATE_PROCESSING,
+  AL_DEC_HANDLE_STATE_PROCESSED,
+  AL_DEC_HANDLE_STATE_MAX_ENUM, /* sentinel */
+}AL_EDecHandleState;
+
+typedef struct
+{
+  AL_EDecHandleState eState;
+  AL_TBuffer* pHandle;
+}AL_TDecMetaHandle;
+
+/*************************************************************************//*!
+   \brief Parsing callback definition.
+   It is called every time an input buffer as been parsed by the hardware
+   If bSplitInput is disable, pParsedFrame should not have AL_THandleMetaData
+*****************************************************************************/
+typedef struct
+{
+  void (* func)(AL_TBuffer* pParsedFrame, void* pUserParam);
+  void* userParam;
+}AL_CB_EndParsing;
 
 /*************************************************************************//*!
    \brief Decoded callback definition.
@@ -126,7 +151,7 @@ typedef struct
 {
   int iStackSize;       /*!< Size of the command stack handled by the decoder */
   int iBitDepth;        /*!< Output bitDepth */
-  uint8_t uNumCore;     /*!< Number of hevc decoder core used for the decoding */
+  uint8_t uNumCore;     /*!< Number of core used for the decoding */
   uint32_t uFrameRate;  /*!< Frame rate value used if syntax element isn't present */
   uint32_t uClkRatio;   /*!< Clock ratio value used if syntax element isn't present */
   AL_ECodec eCodec;     /*!< Specify which codec is used */
@@ -151,6 +176,7 @@ typedef struct
 *****************************************************************************/
 typedef struct
 {
+  AL_CB_EndParsing endParsingCB; /*!< Called when an input buffer is parsed */
   AL_CB_EndDecoding endDecodingCB; /*!< Called when a frame is decoded */
   AL_CB_Display displayCB; /*!< Called when a buffer is ready to be displayed */
   AL_CB_ResolutionFound resolutionFoundCB; /*!< Called when a resolution change occurs */
@@ -160,14 +186,14 @@ typedef struct
 /*************************************************************************//*!
    \brief Creates a new instance of the Decoder
    \param[out] hDec           handle to the created decoder
-   \param[in] pDecChannel     Pointer to an dec channel structure.
+   \param[in] pScheduler      Pointer to a dec scheduler structure.
    \param[in] pAllocator      Pointer to an allocator handle
    \param[in] pSettings       Pointer to the decoder settings
    \param[in] pCB             Pointer to the decoder callbacks
    \return error code specifying why this decoder couldn't be created
    \see AL_Decoder_Destroy
 *****************************************************************************/
-AL_ERR AL_Decoder_Create(AL_HDecoder* hDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
+AL_ERR AL_Decoder_Create(AL_HDecoder* hDec, AL_IDecScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
 
 /*************************************************************************//*!
    \brief Releases all allocated and/or owned ressources
@@ -265,8 +291,29 @@ uint32_t AL_Decoder_GetMinStrideHeight(uint32_t uHeight);
    \param[in] eChromaMode chroma mode of the picture
    \param[in] bFrameBufferCompression will the frame buffer be compressed
    \param[in] eFbStorage frame buffer storage mode
+   \return return the size of the reconstructed picture buffer
 *****************************************************************************/
 int AL_DecGetAllocSize_Frame(AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode, bool bFrameBufferCompression, AL_EFbStorageMode eFbStorage);
+
+/*************************************************************************//*!
+   \brief Give the size of the luma component of a reconstructed picture buffer
+   \param[in] eFbStorage frame buffer storage mode
+   \param[in] tDim dimensions of the picture
+   \param[in] iPitch luma pitch in bytes of the picture
+   \return return the size of the luma component of the reconstruct
+*****************************************************************************/
+int AL_DecGetAllocSize_Frame_Y(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch);
+
+/*************************************************************************//*!
+   \brief Give the size of the chroma component of a reconstructed picture buffer
+   \param[in] eFbStorage frame buffer storage mode
+   \param[in] tDim dimensions of the picture
+   \param[in] iPitch luma pitch in bytes of the picture
+   \param[in] eChromaMode Chroma Mode
+   \return return the size of the chroma component of the reconstruct
+*****************************************************************************/
+int AL_DecGetAllocSize_Frame_UV(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode);
+
 /*@}*/
 
 AL_DEPRECATED("Renamed. Use AL_Decoder_GetMinPitch. Will be deleted in 0.9")

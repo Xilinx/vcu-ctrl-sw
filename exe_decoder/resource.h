@@ -1,7 +1,9 @@
+#pragma once
+
 #define IDI_ICON1 101
 
-#define AL_DECODER_VERSION 1, 0, 48
-#define AL_DECODER_VERSION_STR "1,0,48"
+#define AL_DECODER_VERSION 1, 0, 53
+#define AL_DECODER_VERSION_STR "1,0,53"
 
 #define AL_DECODER_NAME_PART1 "AVC/"
 #define AL_DECODER_NAME_PART2 "HEVC"
@@ -15,4 +17,3 @@
 #define AL_DECODER_INTERNAL_NAME AL_DECODER_NAME " Decoder"
 #define AL_DECODER_COPYRIGHT "Copyright (C) 2019"
 #define AL_DECODER_ORIGINAL_NAME "AL_Decoder.exe"
-

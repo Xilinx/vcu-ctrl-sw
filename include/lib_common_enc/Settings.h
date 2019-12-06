@@ -51,7 +51,6 @@
 #include "EncChanParam.h"
 #include "lib_common/HDR.h"
 
-
 /*************************************************************************//*!
    \brief Aspect Ratio identifer
 *****************************************************************************/
@@ -97,7 +96,16 @@ static AL_INLINE bool AL_IS_QP_TABLE_REQUIRED(AL_EQpTableMode eMode)
   return (eMode == AL_QP_TABLE_RELATIVE) || (eMode == AL_QP_TABLE_ABSOLUTE);
 }
 
-
+/*************************************************************************//*!
+   \brief Scaling List identifier
+*****************************************************************************/
+typedef enum e_ScalingList
+{
+  AL_SCL_FLAT, /*!< All matrices coefficients set to 16 */
+  AL_SCL_DEFAULT, /*!< Use default matrices coefficients as defined in the codec specification */
+  AL_SCL_CUSTOM, /*!< Use custom matrices coefficients */
+  AL_SCL_MAX_ENUM, /* sentinel */
+}AL_EScalingList;
 
 /*************************************************************************//*!
    \brief Encoder Parameters
@@ -146,7 +154,6 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings);
 void AL_Settings_SetDefaultParam(AL_TEncSettings* pSettings);
 
 void AL_Settings_SetDefaultRCParam(AL_TRCParam* pRCParam);
-
 
 /*************************************************************************//*!
    \brief Checks that all encoding parameters are valids

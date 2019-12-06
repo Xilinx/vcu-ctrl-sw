@@ -95,14 +95,14 @@ typedef struct t_FrmBufPool
 *****************************************************************************/
 typedef struct t_MvBufPool
 {
-  TBufferMV pMvBufs[MAX_DPB_SIZE]; /*!< The DPB pool */
-  TBuffer pPocBufs[MAX_DPB_SIZE]; /*!< The DPB pool */
+  TBufferMV pMvBufs[MAX_DPB_SIZE]; /*!< The MV/coloc buffer pool */
+  TBuffer pPocBufs[MAX_DPB_SIZE]; /*!< The POC list buffer pool */
   int iBufCnt;
 
   // Free Buffers
-  int pFreeIDs[MAX_DPB_SIZE]; /*!< Heap of free frame buffer index */
+  uint8_t pFreeIDs[MAX_DPB_SIZE]; /*!< Heap of free buffer index */
   int32_t iAccessCnt[MAX_DPB_SIZE]; /*number of handles holding the motion-vector*/
-  int iFreeCnt;                /*!< Number of free frame buffer in m_pFreeIDs */
+  int iFreeCnt;                /*!< Number of free buffer in m_pFreeIDs */
 
   AL_MUTEX Mutex;
   AL_SEMAPHORE Semaphore;
@@ -125,8 +125,8 @@ typedef struct t_PictMngrCtx
   uint16_t uNumSlice;
 
   // Current Buffers/index
-  uint8_t uRecID;    /*!< Index of the Frame buffers currently used as reconstructed buffers */
-  uint8_t uMvID;     /*!< Index of the Motionvector buffers currently used as reconstructed buffers */
+  uint8_t uRecID;    /*!< Index of the Frame buffer currently used as reconstructed buffer */
+  uint8_t uMvID;     /*!< Index of the Motionvector buffers currently used */
 
   uint32_t uSizeMV;  /*!< Whole size of motion-vector Buffer */
   uint32_t uSizePOC; /*!< Whole size of poc Buffer */
@@ -158,20 +158,28 @@ typedef struct t_PictMngrCtx
   AL_TAllocator* pAllocator;
 }AL_TPictMngrCtx;
 
+typedef struct AL_t_PictMngrParam
+{
+  int iNumDPBRef; /*!< Number of reference to manage */
+  AL_EDpbMode eDPBMode; /*!< Mode of the DPB */
+  AL_EFbStorageMode eFbStorageMode; /*!< Frame buffer storage mode */
+  int iBitdepth; /*!< Bitdepth of the outputed frame */
+
+  int iNumMV;  /*!< Number of motion-vector buffer to manage */
+  int iSizeMV; /*!< Size of motion-vector buffer managed */
+
+  bool bForceOutput; /*!< Force frame output */
+}AL_TPictMngrParam;
+
 /*************************************************************************//*!
    \brief Initialize the PictureManager.
    \param[in] pCtx        Pointer to a Picture manager context object
-   \param[in] iNumMV      Number of motion-vector buffer to manage
-   \param[in] iSizeMV     Size of motion-vector buffer managed
-   \param[in] iNumDPBRef  Number of reference to manage
-   \param[in] eDPBMode    Mode of the DPB
-   \param[in] eFbStorageMode Frame buffer storage mode
-   \param[in] iBitdepth	  Bitdepth of the outputed frame
-   \param[in] bEnableRasterOutput Specifies if raster output in tile/compression mode is enabled
-   \param[in] bForceOutput Force frame output
+   \param[in] pAllocator  Pointer to ac Alloctor interface object used to
+                          allocate internal buffers
+   \param[in] pParam      Picture manager parameters
    \return If the function succeeds the return true. Return false otherwise
 *****************************************************************************/
-bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, AL_TAllocator* pAllocator, int iNumMV, int iSizeMV, int iNumDPBRef, AL_EDpbMode eDPBMode, AL_EFbStorageMode eFbStorageMode, int iBitdepth, bool bEnableRasterOutput, bool bForceOutput);
+bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, AL_TAllocator* pAllocator, AL_TPictMngrParam* pParam);
 
 /*************************************************************************//*!
    \brief Flush all pictures so all buffers are fully released
@@ -344,7 +352,6 @@ void AL_PictMngr_UnlockID(AL_TPictMngrCtx* pCtx, int iFrameID, int iMotionVector
 
 /*****************************************************************************/
 bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam* pSP, TBufferListRef* pListRef, TBuffer* pListVirtAddr, TBuffer* pListAddr, TBufferPOC* pPOC, TBufferMV* pMV, AL_TRecBuffers* pRecs);
-
 
 /*@}*/
 

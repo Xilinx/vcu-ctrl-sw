@@ -49,6 +49,12 @@
 #include "lib_common_dec/RbspParser.h"
 #include "lib_common/HDR.h"
 
+/* COMMON SEI PAYLOAD TYPES */
+#define SEI_PTYPE_RECOVERY_POINT 6
+#define SEI_PTYPE_PIC_TIMING 1
+#define SEI_PTYPE_MASTERING_DISPLAY_COLOUR_VOLUME 137
+#define SEI_PTYPE_CONTENT_LIGHT_LEVEL 144
+
 /*************************************************************************//*!
    \brief Retrieves the profile and level syntax elements
    \param[out] pPrfLvl       Pointer to the profile and level structure that will be filled
@@ -104,6 +110,14 @@ void hevc_vui_parameters(AL_TVuiParam* pVuiParam, int iMaxSubLayers, AL_TRbspPar
    \param[in]  pRP       Pointer to NAL parser
 *****************************************************************************/
 bool sei_mastering_display_colour_volume(AL_TMasteringDisplayColourVolume* pMDCV, AL_TRbspParser* pRP);
+
+/*************************************************************************//*!
+   \brief The sei_content_light_level parsing
+   \param[out] pCLL Pointer to the sei_content_light_level structure that
+   will be filled
+   \param[in]  pRP       Pointer to NAL parser
+*****************************************************************************/
+bool sei_content_light_level(AL_TContentLightLevel* pCLL, AL_TRbspParser* pRP);
 
 /*@}*/
 

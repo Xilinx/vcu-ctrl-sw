@@ -52,7 +52,7 @@
 */
 struct EncoderLookAheadSink : IFrameSink
 {
-  EncoderLookAheadSink(ConfigFile const& cfg, TScheduler* pScheduler, AL_TAllocator* pAllocator
+  EncoderLookAheadSink(ConfigFile const& cfg, AL_IEncScheduler* pScheduler, AL_TAllocator* pAllocator
                        ) :
     CmdFile(cfg.sCmdFileName),
     EncCmd(CmdFile, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
@@ -102,7 +102,6 @@ struct EncoderLookAheadSink : IFrameSink
     if(Src)
     {
 
-
       auto pPictureMetaLA = (AL_TLookAheadMetaData*)AL_Buffer_GetMetaData(Src, AL_META_TYPE_LOOKAHEAD);
 
       if(!pPictureMetaLA)
@@ -130,7 +129,6 @@ struct EncoderLookAheadSink : IFrameSink
       ProcessFifo(true);
     }
   }
-
 
   AL_HEncoder hEnc;
   IFrameSink* next;
@@ -188,7 +186,7 @@ private:
       assert(bRet);
     }
 
-    TRecPic RecPic;
+    AL_TRecPic RecPic;
 
     while(AL_Encoder_GetRecPicture(hEnc, &RecPic))
       AL_Encoder_ReleaseRecPicture(hEnc, &RecPic);
@@ -209,8 +207,17 @@ private:
     return bRet;
   }
 
+  AL_TBuffer* GetSrcBuffer()
+  {
+    AL_TBuffer* pSrc = lookAheadMngr.m_fifo.front();
+    lookAheadMngr.m_fifo.pop_front();
+    return pSrc;
+  }
+
   void ProcessFifo(bool isEOS)
   {
+    auto iLASize = lookAheadMngr.uLookAheadSize;
+
     // Fifo is empty, we propagate the EndOfStream
     if(isEOS && lookAheadMngr.m_fifo.size() == 0)
     {
@@ -218,21 +225,18 @@ private:
       next->ProcessFrame(NULL);
     }
     // Fifo is full, or fifo must be emptied at EOS
-    else if(isEOS || lookAheadMngr.m_fifo.size() == lookAheadMngr.uLookAheadSize)
+    else if(isEOS || lookAheadMngr.m_fifo.size() == iLASize)
     {
       lookAheadMngr.ProcessLookAheadParams();
-      AL_TBuffer* pSrc = lookAheadMngr.m_fifo.front();
-      lookAheadMngr.m_fifo.pop_front();
+      AL_TBuffer* pSrc = GetSrcBuffer();
 
       next->PreprocessFrame();
       next->ProcessFrame(pSrc);
       AL_Buffer_Unref(pSrc);
-
 
       if(isEOS)
         ProcessFifo(isEOS);
     }
   }
 };
-
 

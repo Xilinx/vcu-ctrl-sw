@@ -58,7 +58,6 @@ static int8_t const MASK_FORCE_INTRA = (int8_t)0x40;
 static int8_t const MASK_FORCE_MV0 = (int8_t)0x80;
 static int8_t const MASK_FORCE = (int8_t)0xC0;
 
-
 // Encoder Parameter Buf 2 Flag,  Size, Offset
 static const AL_TBufInfo EP2_BUF_QP_CTRL =
 {
@@ -72,7 +71,6 @@ static const AL_TBufInfo EP2_BUF_QP_BY_MB =
 {
   4, 0, 64
 }; // no fixed size
-
 
 /*************************************************************************//*!
    \brief Retrieves the size of a Encoder parameters buffer 2 (QP Ctrl)
@@ -90,11 +88,32 @@ uint32_t AL_GetAllocSize_Src(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMo
    \param[in] tDim Frame size in pixels
    \param[in] eChromaMode Chroma Mode
    \param[in] eSrcFmt Source format used by the HW IP
-   \param[in] iPitch pitch / stride of the source frame buffer
-   \param[in] iStrideHeight the offset to the chroma in line of pixels
+   \param[in] iPitch Pitch / stride of the source frame buffer
+   \param[in] iStrideHeight The height used for buffer allocation. Might be
+   greater than the frame height when frame-height is non 8-multiple, or to
+   customize offset between luma and chroma.
    \return maximum size (in bytes) needed for the YUV frame buffer
 *****************************************************************************/
 uint32_t AL_GetAllocSizeSrc(AL_TDimension tDim, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight);
+
+/*************************************************************************//*!
+   \brief Retrieves the size of the luma component of a YUV frame buffer
+   \param[in] eSrcFmt Source format used by the HW IP
+   \param[in] iPitch Pitch / stride of the source frame buffer
+   \param[in] iStrideHeight The height used for buffer allocation
+   \return maximum size (in bytes) needed for the luma component
+*****************************************************************************/
+uint32_t AL_GetAllocSizeSrc_Y(AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight);
+
+/*************************************************************************//*!
+   \brief Retrieves the size of the choma component of a YUV frame buffer
+   \param[in] eSrcFmt Source format used by the HW IP
+   \param[in] iPitch Pitch / stride of the source frame buffer
+   \param[in] iStrideHeight The height used for buffer allocation
+   \param[in] eChromaMode Chroma Mode
+   \return maximum size (in bytes) needed for the chroma component
+*****************************************************************************/
+uint32_t AL_GetAllocSizeSrc_UV(AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight, AL_EChromaMode eChromaMode);
 
 /*************************************************************************//*!
    \brief Retrieves the minimal pitch value supported by the ip depending
@@ -122,8 +141,6 @@ AL_EFbStorageMode AL_GetSrcStorageMode(AL_ESrcMode eSrcMode);
    \return Source Storage Mode
 *****************************************************************************/
 bool AL_IsSrcCompressed(AL_ESrcMode eSrcMode);
-
-
 
 /*@}*/
 

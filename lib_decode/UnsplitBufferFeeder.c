@@ -103,7 +103,7 @@ static void flush(AL_TFeeder* hFeeder)
   AL_TUnsplitBufferFeeder* this = (AL_TUnsplitBufferFeeder*)hFeeder;
 
   if(this->eosBuffer)
-    pushBuffer(hFeeder, this->eosBuffer, this->eosBuffer->zSize, true);
+    pushBuffer(hFeeder, this->eosBuffer, AL_Buffer_GetSize(this->eosBuffer), true);
 
   AL_DecoderFeeder_Flush(this->decoderFeeder);
 }
@@ -119,7 +119,7 @@ static void destroy(AL_TFeeder* hFeeder)
   AL_TUnsplitBufferFeeder* this = (AL_TUnsplitBufferFeeder*)hFeeder;
 
   if(this->eosBuffer)
-    pushBuffer(hFeeder, this->eosBuffer, this->eosBuffer->zSize, false);
+    pushBuffer(hFeeder, this->eosBuffer, AL_Buffer_GetSize(this->eosBuffer), false);
   AL_DecoderFeeder_Destroy(this->decoderFeeder);
   AL_Patchworker_Deinit(&this->patchworker);
   AL_Fifo_Deinit(&this->fifo);
@@ -161,7 +161,7 @@ AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TAl
     goto fail_stream_allocation;
 
   /* prevent trailing_zero_bits*/
-  Rtos_Memset(AL_Buffer_GetData(stream), 0xFF, stream->zSize);
+  AL_Buffer_MemSet(stream, 0xFF);
 
   if(!AL_Patchworker_Init(&this->patchworker, stream, &this->fifo))
     goto fail_patchworker_allocation;

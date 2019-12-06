@@ -44,7 +44,8 @@
  *****************************************************************************/
 
 #include "Avc_PictMngr.h"
-#include "lib_common/BufferSrcMeta.h"
+#include "lib_common/BufferPixMapMeta.h"
+#include "lib_common/AvcUtils.h"
 
 /*****************************************************************************/
 static void AL_sGetPocType0(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)

@@ -49,6 +49,7 @@
 #include "lib_rtos/lib_rtos.h"
 
 #include "lib_common/SliceConsts.h"
+#include "lib_common/Nuts.h"
 #include "lib_common/SliceHeader.h"
 #include "lib_common/Utils.h"
 

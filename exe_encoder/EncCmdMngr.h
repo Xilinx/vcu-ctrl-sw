@@ -68,6 +68,8 @@ private:
     int iGopLength = 0;
     bool bChangeGopNumB = false;
     int iGopNumB = 0;
+    bool bChangeFreqIDR = false;
+    int iFreqIDR = 0;
     bool bChangeBitRate = false;
     int iBitRate = 0;
     bool bChangeFrameRate = false;
@@ -75,6 +77,13 @@ private:
     int iClkRatio = 0;
     bool bChangeQP = false;
     int iQP = 0;
+    bool bChangeQPBounds = false;
+    int iMinQP = 0;
+    int iMaxQP = 0;
+    bool bChangeIPDelta = false;
+    int iIPDelta = 0;
+    bool bChangePBDelta = false;
+    int iPBDelta = 0;
     bool bChangeResolution = false;
     int iInputIdx;
     bool bSetLFBetaOffset = false;

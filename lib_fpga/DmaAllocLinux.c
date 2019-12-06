@@ -50,16 +50,7 @@
 #include "allegro_ioctl_reg.h"
 #include "DevicePool.h"
 
-#if 0
-static void LogAllocation(struct DmaBuffer* p)
-{
-  printf("Allocated: {vaddr:%p,phyaddr:%x,size:%d,offset:%d}\n", p->vaddr, p->info.phy_addr, p->info.size, p->offset);
-}
-
-#define LOG_ALLOCATION(p) LogAllocation(p)
-#else
 #define LOG_ALLOCATION(p)
-#endif
 
 struct DmaBuffer
 {
@@ -186,7 +177,6 @@ static size_t AlignToPageSize(size_t zSize)
     return zSize;
   return zSize + pagesize - (zSize % pagesize);
 }
-
 
 /* Get a dmabuf fd representing a buffer of size pInfo->size */
 static bool LinuxDma_GetDmaFd(AL_TAllocator* pAllocator, struct al5_dma_info* pInfo)
@@ -358,5 +348,4 @@ AL_TAllocator* AL_DmaAlloc_Create(const char* deviceFile)
 {
   return create(deviceFile, &DmaAllocLinuxVtable);
 }
-
 

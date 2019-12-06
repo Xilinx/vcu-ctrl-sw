@@ -94,17 +94,17 @@ int Hevc_GetMaxVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDept
 /****************************************************************************/
 int AL_GetMaxNalSize(AL_ECodec eCodec, AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth, int iLevel, int iProfileIdc)
 {
-  (void)iProfileIdc;
+  (void)iLevel, (void)iProfileIdc;
 
   int iMaxPCM = (eCodec == AL_CODEC_HEVC) ? Hevc_GetMaxVclNalSize(tDim, eMode, iBitDepth) : GetPcmVclNalSize(tDim, eMode, iBitDepth);
 
   int iNumSlices = 1;
 
-  if(eCodec == AL_CODEC_HEVC)
-    iNumSlices = AL_HEVC_GetMaxNumberOfSlices(iLevel);
-
   if(eCodec == AL_CODEC_AVC)
     iNumSlices = AL_AVC_GetMaxNumberOfSlices(iProfileIdc, iLevel, 1, 60, INT32_MAX);
+
+  if(eCodec == AL_CODEC_HEVC)
+    iNumSlices = AL_HEVC_GetMaxNumberOfSlices(iLevel);
 
   int iMaxNalSize = iMaxPCM + AL_ENC_MAX_HEADER_SIZE + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
 

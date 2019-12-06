@@ -48,14 +48,6 @@
 #include "lib_common_enc/EncPicInfo.h"
 #include "lib_common/Utils.h"
 
-/****************************************************************************/
-static const int PicStructInfo[3] =
-{
-  2, // 0:frame
-  4, // 1:frame doubling
-  6  // 2:frame tripling
-};
-
 /*****************************************************************************/
 static const uint8_t PicStructToFieldNumber[] =
 {
@@ -111,7 +103,6 @@ typedef struct AL_t_PictureInfo
 
   uint16_t uGdrPos; /*!< Gradual Refresh position */
   AL_EGdrMode eGdrMode; /*!< Gradual Refresh Mode */
-
 
   AL_TLookAheadParam tLAParam;
 }AL_TPictureInfo;

@@ -221,6 +221,17 @@ const AL_TLevelLimit HEVC_MAX_VIDEO_BITRATE_MAIN[] =
   { 240000u, 62u }
 };
 
+// Max number of tile columns
+const AL_TLevelLimit HEVC_MAX_TILE_COLS[] =
+{
+  { 1u, 10u },
+  { 2u, 30u },
+  { 3u, 31u },
+  { 5u, 40u },
+  { 10u, 50u },
+  { 20u, 60u },
+};
+
 #define NUM_LIMIT(array) (sizeof(array) / sizeof(AL_TLevelLimit))
 
 /*************************************************************************/
@@ -242,6 +253,12 @@ uint8_t AL_HEVC_GetLevelFromBitrate(int bitrate, int tier)
     return AL_GetRequiredLevel(bitrate, HEVC_MAX_VIDEO_BITRATE_HIGH, NUM_LIMIT(HEVC_MAX_VIDEO_BITRATE_HIGH));
   else
     return AL_GetRequiredLevel(bitrate, HEVC_MAX_VIDEO_BITRATE_MAIN, NUM_LIMIT(HEVC_MAX_VIDEO_BITRATE_MAIN));
+}
+
+/****************************************************************************/
+uint8_t AL_HEVC_GetLevelFromTileCols(int tileCols)
+{
+  return AL_GetRequiredLevel(tileCols, HEVC_MAX_TILE_COLS, NUM_LIMIT(HEVC_MAX_TILE_COLS));
 }
 
 /****************************************************************************/

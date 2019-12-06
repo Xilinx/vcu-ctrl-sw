@@ -78,14 +78,27 @@
 #define AL_SET_DEC_OPT(pPictParam, Opt, Val) (pPictParam)->OptionFlags = (((pPictParam)->OptionFlags & ~(AL_DEC_OPT_ ## Opt)) | ((Val) * (AL_DEC_OPT_ ## Opt)))
 #define AL_GET_DEC_OPT(pPictParam, Opt) ((pPictParam)->OptionFlags & (AL_DEC_OPT_ ## Opt))
 
+/****************************************************************************/
+typedef struct AL_t_DecBufIDs
+{
+  uint8_t FrmID;
+  uint8_t MvID;
+}AL_TDecBufIDs;
+
+static const AL_TDecBufIDs tEmptyBufIDs =
+{
+  0xFF, 0xFF,
+};
+
 /*************************************************************************//*!
    \brief Slice Parameters : Mimics structure for IP registers
 *****************************************************************************/
 typedef struct AL_t_DecPictParam
 {
   uint8_t Codec;
-  uint8_t FrmID;
-  uint8_t MvID;
+
+  AL_TDecBufIDs tBufIDs;
+
   uint8_t MaxTransfoDepthIntra;
   uint8_t MaxTransfoDepthInter;
   uint8_t MinTUSize;
@@ -172,7 +185,6 @@ typedef struct AL_t_DecPicBufferAddrs
 
 }AL_TDecPicBufferAddrs;
 
-
 /*****************************************************************************/
 typedef uint8_t AL_TDecPicState;
 static const AL_TDecPicState AL_DEC_PIC_STATE_CONCEAL = 0x01;
@@ -188,8 +200,7 @@ static const AL_TDecPicState AL_DEC_PIC_STATE_CMD_INVALID = 0x08;
 /*****************************************************************************/
 typedef struct AL_t_DecPicStatus
 {
-  uint8_t uFrmID;
-  uint8_t uMvID;
+  AL_TDecBufIDs tBufIDs;
 
   uint32_t uNumLCU;
   uint32_t uNumBytes;

@@ -129,7 +129,6 @@ void I2AL_To_NV16(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I2AL_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I2AL_To_XV20(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
-
 void T608_To_YV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T608_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T608_To_IYUV(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -180,6 +179,13 @@ void XV20_To_I422(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void XV20_To_NV16(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void XV20_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void XV20_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+
+/*
+   Copy pixels from a source to a destination buffer having both
+   the same FourCC. Format must not be 10bit-packed, tiled, or
+   compressed.
+ */
+void CopyPixMapBuffer(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 /*@}*/
 

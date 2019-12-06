@@ -35,7 +35,7 @@
 *
 ******************************************************************************/
 
-#include "lib_common/BufferAPI.h"
+#include "lib_common/BufferAPIInternal.h"
 #include "assert.h"
 
 typedef struct al_t_BufferImpl
@@ -49,8 +49,6 @@ typedef struct al_t_BufferImpl
 
   void* pUserData; /*!< user private data */
   PFN_RefCount_CallBack pCallBack; /*!< user callback. called when the buffer refcount reaches 0 */
-
-  uint8_t* pData; /*!< Buffer data mapped in userspace */
 }AL_TBufferImpl;
 
 static void* Realloc(void* pPtr, size_t zOldSize, size_t zNewSize)
@@ -70,17 +68,33 @@ static void* Realloc(void* pPtr, size_t zOldSize, size_t zNewSize)
   return pNewPtr;
 }
 
-static bool AL_Buffer_InitData(AL_TBufferImpl* pBuf, AL_TAllocator* pAllocator, AL_HANDLE hBuf, size_t zSize, PFN_RefCount_CallBack pCallBack)
+static bool isMaxChunkReached(AL_TBufferImpl* pBuf)
 {
-  pBuf->buf.zSize = zSize;
+  return pBuf->buf.iChunkCnt >= AL_BUFFER_MAX_CHUNK;
+}
+
+static AL_INLINE int8_t addBufferChunk(AL_TBufferImpl* pBuf, AL_HANDLE hChunk, size_t zSize)
+{
+  if(zSize && !hChunk)
+    return AL_BUFFER_BAD_CHUNK;
+
+  int iChunkIdx = pBuf->buf.iChunkCnt;
+  pBuf->buf.hBufs[iChunkIdx] = hChunk;
+  pBuf->buf.zSizes[iChunkIdx] = zSize;
+  pBuf->buf.iChunkCnt++;
+
+  return iChunkIdx;
+}
+
+static bool initData(AL_TBufferImpl* pBuf, AL_TAllocator* pAllocator, PFN_RefCount_CallBack pCallBack)
+{
   pBuf->buf.pAllocator = pAllocator;
   pBuf->pCallBack = pCallBack;
-  pBuf->buf.hBuf = hBuf;
-  pBuf->pData = NULL;
   pBuf->pMeta = NULL;
   pBuf->iMetaCount = 0;
-
   pBuf->iRefCount = 0;
+  pBuf->buf.iChunkCnt = 0;
+
   pBuf->pLock = Rtos_CreateMutex();
 
   if(!pBuf->pLock)
@@ -89,17 +103,14 @@ static bool AL_Buffer_InitData(AL_TBufferImpl* pBuf, AL_TAllocator* pAllocator, 
   return true;
 }
 
-static AL_TBuffer* createBuffer(AL_TAllocator* pAllocator, AL_HANDLE hBuf, size_t zSize, PFN_RefCount_CallBack pCallBack)
+static AL_TBuffer* createEmptyBuffer(AL_TAllocator* pAllocator, PFN_RefCount_CallBack pCallBack)
 {
-  if(zSize && !hBuf)
-    return NULL;
-
   AL_TBufferImpl* pBuf = Rtos_Malloc(sizeof(*pBuf));
 
   if(!pBuf)
     return NULL;
 
-  if(!AL_Buffer_InitData(pBuf, pAllocator, hBuf, zSize, pCallBack))
+  if(!initData(pBuf, pAllocator, pCallBack))
     goto fail_init_data;
 
   return (AL_TBuffer*)pBuf;
@@ -109,17 +120,60 @@ static AL_TBuffer* createBuffer(AL_TAllocator* pAllocator, AL_HANDLE hBuf, size_
   return NULL;
 }
 
+static AL_TBuffer* createBufferWithOneChunk(AL_TAllocator* pAllocator, AL_HANDLE hBuf, size_t zSize, PFN_RefCount_CallBack pCallBack)
+{
+  AL_TBuffer* pBuf = createEmptyBuffer(pAllocator, pCallBack);
+
+  if(pBuf == NULL)
+    return NULL;
+
+  if(addBufferChunk((AL_TBufferImpl*)pBuf, hBuf, zSize) == AL_BUFFER_BAD_CHUNK)
+  {
+    AL_Buffer_Destroy(pBuf);
+    return NULL;
+  }
+
+  return pBuf;
+}
+
+AL_TBuffer* AL_Buffer_CreateEmpty(AL_TAllocator* pAllocator, PFN_RefCount_CallBack pCallBack)
+{
+  return createEmptyBuffer(pAllocator, pCallBack);
+}
+
+int AL_Buffer_AllocateChunk(AL_TBuffer* hBuf, size_t zSize)
+{
+  AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
+
+  if(isMaxChunkReached(pBuf))
+    return AL_BUFFER_BAD_CHUNK;
+
+  AL_HANDLE hChunk = AL_Allocator_AllocNamed(pBuf->buf.pAllocator, zSize, "unknown");
+
+  return addBufferChunk(pBuf, hChunk, zSize);
+}
+
+int AL_Buffer_AddChunk(AL_TBuffer* hBuf, AL_HANDLE hChunk, size_t zSize)
+{
+  AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
+
+  if(isMaxChunkReached(pBuf))
+    return AL_BUFFER_BAD_CHUNK;
+
+  return addBufferChunk(pBuf, hChunk, zSize);
+}
+
 AL_TBuffer* AL_Buffer_WrapData(uint8_t* pData, size_t zSize, PFN_RefCount_CallBack pCallBack)
 {
   AL_TAllocator* pAllocator = AL_GetWrapperAllocator();
   AL_HANDLE hBuf = AL_WrapperAllocator_WrapData(pData, NULL, NULL);
 
-  return createBuffer(pAllocator, hBuf, zSize, pCallBack);
+  return createBufferWithOneChunk(pAllocator, hBuf, zSize, pCallBack);
 }
 
 AL_TBuffer* AL_Buffer_Create(AL_TAllocator* pAllocator, AL_HANDLE hBuf, size_t zSize, PFN_RefCount_CallBack pCallBack)
 {
-  return createBuffer(pAllocator, hBuf, zSize, pCallBack);
+  return createBufferWithOneChunk(pAllocator, hBuf, zSize, pCallBack);
 }
 
 AL_TBuffer* AL_Buffer_Create_And_AllocateNamed(AL_TAllocator* pAllocator, size_t zSize, PFN_RefCount_CallBack pCallBack, char const* name)
@@ -129,7 +183,7 @@ AL_TBuffer* AL_Buffer_Create_And_AllocateNamed(AL_TAllocator* pAllocator, size_t
   if(!hBuf)
     return NULL;
 
-  AL_TBuffer* pBuf = createBuffer(pAllocator, hBuf, zSize, pCallBack);
+  AL_TBuffer* pBuf = createBufferWithOneChunk(pAllocator, hBuf, zSize, pCallBack);
 
   if(!pBuf)
     AL_Allocator_Free(pAllocator, hBuf);
@@ -153,10 +207,16 @@ void AL_Buffer_Destroy(AL_TBuffer* hBuf)
     AL_MetaData_Destroy(pBuf->pMeta[i]);
 
   Rtos_Free(pBuf->pMeta);
-  AL_Allocator_Free(hBuf->pAllocator, hBuf->hBuf);
-  Rtos_ReleaseMutex(pBuf->pLock);
 
+  for(int i = 0; i < hBuf->iChunkCnt; ++i)
+  {
+    AL_HANDLE hChunk = hBuf->hBufs[i];
+    AL_Allocator_Free(hBuf->pAllocator, hChunk);
+  }
+
+  Rtos_ReleaseMutex(pBuf->pLock);
   Rtos_DeleteMutex(pBuf->pLock);
+
   Rtos_Free(pBuf);
 }
 
@@ -275,18 +335,56 @@ bool AL_Buffer_RemoveMetaData(AL_TBuffer* hBuf, AL_TMetaData* pMeta)
   return false;
 }
 
+/****************************************************************************/
 uint8_t* AL_Buffer_GetData(const AL_TBuffer* hBuf)
 {
-  AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
-
-  if(!pBuf->pData)
-    pBuf->pData = AL_Allocator_GetVirtualAddr(pBuf->buf.pAllocator, pBuf->buf.hBuf);
-  return pBuf->pData;
+  return AL_Buffer_GetDataChunk(hBuf, 0);
 }
 
-void AL_Buffer_SetData(const AL_TBuffer* hBuf, uint8_t* pData)
+/****************************************************************************/
+uint8_t* AL_Buffer_GetDataChunk(const AL_TBuffer* hBuf, int iChunkIdx)
 {
-  AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
-  pBuf->pData = pData;
+  if(!AL_Buffer_HasChunk(hBuf, iChunkIdx))
+    return NULL;
+
+  return AL_Allocator_GetVirtualAddr(hBuf->pAllocator, hBuf->hBufs[iChunkIdx]);
+}
+
+/****************************************************************************/
+AL_PADDR AL_Buffer_GetPhysicalAddress(const AL_TBuffer* hBuf)
+{
+  return AL_Buffer_GetPhysicalAddressChunk(hBuf, 0);
+}
+
+/****************************************************************************/
+AL_PADDR AL_Buffer_GetPhysicalAddressChunk(const AL_TBuffer* hBuf, int iChunkIdx)
+{
+  if(!AL_Buffer_HasChunk(hBuf, iChunkIdx))
+    return 0;
+
+  return AL_Allocator_GetPhysicalAddr(hBuf->pAllocator, hBuf->hBufs[iChunkIdx]);
+}
+
+/****************************************************************************/
+size_t AL_Buffer_GetSize(const AL_TBuffer* hBuf)
+{
+  return AL_Buffer_GetSizeChunk(hBuf, 0);
+}
+
+/****************************************************************************/
+size_t AL_Buffer_GetSizeChunk(const AL_TBuffer* hBuf, int iChunkIdx)
+{
+  if(!AL_Buffer_HasChunk(hBuf, iChunkIdx))
+    return 0;
+
+  return hBuf->zSizes[iChunkIdx];
+}
+
+void AL_Buffer_MemSet(const AL_TBuffer* pBuf, int iVal)
+{
+  int iChunkCnt = AL_Buffer_GetChunkCount(pBuf);
+
+  for(int i = 0; i < iChunkCnt; i++)
+    Rtos_Memset(AL_Buffer_GetDataChunk(pBuf, i), iVal, AL_Buffer_GetSizeChunk(pBuf, i));
 }
 

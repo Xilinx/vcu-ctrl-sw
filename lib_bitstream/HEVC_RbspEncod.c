@@ -221,7 +221,6 @@ static void writeProfileTierLevel(AL_TBitStreamLite* pBS, AL_TProfilevel const* 
   }
 }
 
-
 /******************************************************************************/
 static void writeVpsData(AL_TBitStreamLite* pBS, AL_THevcVps const* pVps)
 {
@@ -847,19 +846,15 @@ static void writeSeiPictureTiming(AL_TBitStreamLite* pBS, AL_TSps const* pISps, 
 }
 
 /******************************************************************************/
-void writeContentLightLevel(AL_TBitStreamLite* pBS, AL_TContentLightLevel* pCLL)
+static AL_ECodec getCodec(void)
 {
-  int const bookmark = AL_RbspEncoding_BeginSEI(pBS, 144);
-
-  AL_BitStreamLite_PutU(pBS, 16, pCLL->max_content_light_level);
-  AL_BitStreamLite_PutU(pBS, 16, pCLL->max_pic_average_light_level);
-
-  AL_BitStreamLite_EndOfSEIPayload(pBS);
-  AL_RbspEncoding_EndSEI(pBS, bookmark);
+  return AL_CODEC_HEVC;
 }
 
+/******************************************************************************/
 static IRbspWriter writer =
 {
+  getCodec,
   AL_RbspEncoding_WriteAUD,
   writeVps,
   writeSps,
@@ -869,7 +864,7 @@ static IRbspWriter writer =
   writeSeiRecoveryPoint,
   writeSeiPictureTiming,
   AL_RbspEncoding_WriteMasteringDisplayColourVolume,
-  writeContentLightLevel,
+  AL_RbspEncoding_WriteContentLightLevel,
   AL_RbspEncoding_WriteUserDataUnregistered
 };
 

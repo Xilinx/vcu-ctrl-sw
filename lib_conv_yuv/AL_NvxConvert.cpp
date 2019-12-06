@@ -42,7 +42,7 @@
 
 extern "C"
 {
-#include "lib_common/BufferSrcMeta.h"
+#include "lib_common/PixMapBuffer.h"
 #include "lib_common_enc/EncBuffers.h"
 #include "lib_common_enc/IpEncFourCC.h"
 }
@@ -57,12 +57,6 @@ CNvxConv::CNvxConv(TFrameInfo const& FrameInfo) : m_FrameInfo(FrameInfo)
 }
 
 /*****************************************************************************/
-unsigned int CNvxConv::GetSrcBufSize(int iPitch, int iStrideHeight)
-{
-  AL_TDimension tDim = { m_FrameInfo.iWidth, m_FrameInfo.iHeight };
-  return AL_GetAllocSizeSrc(tDim, m_FrameInfo.eCMode, AL_SRC_NVX, iPitch, iStrideHeight);
-}
-
 #include <sstream>
 #include <string>
 
@@ -71,7 +65,7 @@ static string FourCCToString(TFourCC tFourCC)
   stringstream ss;
   ss << static_cast<char>(tFourCC & 0xFF) << static_cast<char>((tFourCC & 0xFF00) >> 8) << static_cast<char>((tFourCC & 0xFF0000) >> 16) << static_cast<char>((tFourCC & 0xFF000000) >> 24);
   return ss.str();
-};
+}
 
 static void convertToY010(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
@@ -132,7 +126,7 @@ static void convertToNV12(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
     YV12_To_NV12(pSrcIn, pSrcOut);
     break;
   case FOURCC(NV12):
-    AL_CopyYuv(pSrcIn, pSrcOut);
+    CopyPixMapBuffer(pSrcIn, pSrcOut);
     break;
   case FOURCC(P010):
     P010_To_NV12(pSrcIn, pSrcOut);
@@ -157,7 +151,7 @@ static void convertToNV16(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
     I422_To_NV16(pSrcIn, pSrcOut);
     break;
   case FOURCC(NV16):
-    AL_CopyYuv(pSrcIn, pSrcOut);
+    CopyPixMapBuffer(pSrcIn, pSrcOut);
     break;
   case FOURCC(I2AL):
     I2AL_To_NV16(pSrcIn, pSrcOut);
@@ -250,7 +244,6 @@ static void convertToXV10(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   }
 }
 
-
 static void convertToP010(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
@@ -271,7 +264,7 @@ static void convertToP010(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
     NV12_To_P010(pSrcIn, pSrcOut);
     break;
   case FOURCC(P010):
-    AL_CopyYuv(pSrcIn, pSrcOut);
+    CopyPixMapBuffer(pSrcIn, pSrcOut);
     break;
   case FOURCC(I0AL):
     I0AL_To_P010(pSrcIn, pSrcOut);
@@ -293,7 +286,7 @@ static void convertToP210(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
     I422_To_P210(pSrcIn, pSrcOut);
     break;
   case FOURCC(P210):
-    AL_CopyYuv(pSrcIn, pSrcOut);
+    CopyPixMapBuffer(pSrcIn, pSrcOut);
     break;
   case FOURCC(I2AL):
     I2AL_To_P210(pSrcIn, pSrcOut);
@@ -310,45 +303,45 @@ static void convertToP210(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
 /*****************************************************************************/
 void CNvxConv::ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut)
 {
-  AL_TSrcMetaData* pSrcInMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pSrcIn, AL_META_TYPE_SOURCE);
+  TFourCC tFourCCIn = AL_PixMapBuffer_GetFourCC(pSrcIn);
   auto const picFmt = AL_EncGetSrcPicFormat(m_FrameInfo.eCMode, uBitDepth, AL_FB_RASTER, false);
   TFourCC tSrcFourCC = AL_GetFourCC(picFmt);
   switch(tSrcFourCC)
   {
   case FOURCC(Y010):
-    convertToY010(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
+    convertToY010(pSrcIn, tFourCCIn, pSrcOut);
     break;
 
   case FOURCC(Y800):
-    convertToY800(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
+    convertToY800(pSrcIn, tFourCCIn, pSrcOut);
     break;
 
   case FOURCC(NV12):
-    convertToNV12(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
+    convertToNV12(pSrcIn, tFourCCIn, pSrcOut);
     break;
 
   case FOURCC(NV16):
-    convertToNV16(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
+    convertToNV16(pSrcIn, tFourCCIn, pSrcOut);
     break;
 
   case FOURCC(XV15):
-    convertToXV15(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
+    convertToXV15(pSrcIn, tFourCCIn, pSrcOut);
     break;
 
   case FOURCC(XV20):
-    convertToXV20(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
+    convertToXV20(pSrcIn, tFourCCIn, pSrcOut);
     break;
 
   case FOURCC(XV10):
-    convertToXV10(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
+    convertToXV10(pSrcIn, tFourCCIn, pSrcOut);
     break;
 
   case FOURCC(P010):
-    convertToP010(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
+    convertToP010(pSrcIn, tFourCCIn, pSrcOut);
     break;
 
   case FOURCC(P210):
-    convertToP210(pSrcIn, pSrcInMeta->tFourCC, pSrcOut);
+    convertToP210(pSrcIn, tFourCCIn, pSrcOut);
     break;
 
   default:

@@ -35,8 +35,9 @@
 *
 ******************************************************************************/
 
-#include "lib_common/FourCC.h"
 #include "lib_common_enc/IpEncFourCC.h"
+
+#include "lib_common/FourCC.h"
 #include <assert.h>
 
 /****************************************************************************/

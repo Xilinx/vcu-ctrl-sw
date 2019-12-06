@@ -77,7 +77,6 @@ static const int REF_LIST_SIZE = 96; // in number of list entry
 
 static const int SCLST_SIZE_DEC = 12288;
 
-
 /*************************************************************************//*!
    \brief Buffer with Poc list content
 *****************************************************************************/
@@ -141,7 +140,8 @@ int AL_GetAllocSize_HevcMV(AL_TDimension tDim);
 int AL_GetAllocSize_AvcMV(AL_TDimension tDim);
 
 /*************************************************************************//*!
-   \brief Retrieves the size of the output frame buffer
+   \brief Retrieves the size of the output frame buffer, using the
+   minimum pitch value.
    \param[in] tDim Frame dimension (width, height) in pixel
    \param[in] eChromaMode Chroma mode
    \param[in] uBitDepth Bit Depth
@@ -150,16 +150,6 @@ int AL_GetAllocSize_AvcMV(AL_TDimension tDim);
    \return the size (in bytes) needed for the output frame buffer
 *****************************************************************************/
 int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bFrameBufferCompression, AL_EFbStorageMode eFrameBufferStorageMode);
-
-/*************************************************************************//*!
-   \brief Retrieves the size of a reference frame buffer
-   \param[in] tDim Frame dimension (width, height) in pixel
-   \param[in] eChromaMode Chroma subsampling
-   \param[in] uBitDepth   Size in bits of picture samples
-   \param[in] eFrameBufferStorageMode Storage Mode of the frame buffer
-   \return the size (in bytes) needed for reference frame buffer
-*****************************************************************************/
-int AL_GetAllocSize_DecReference(AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode, AL_EFbStorageMode eFrameBufferStorageMode);
 
 /*************************************************************************//*!
    \brief Create the AL_TMetaData associated to the reconstruct buffers

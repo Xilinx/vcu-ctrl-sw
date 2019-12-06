@@ -36,6 +36,7 @@
 ******************************************************************************/
 
 #if __linux__
+#pragma once
 
 #include "allegro_ioctl_mcu_enc.h"
 #include "lib_common_enc/EncPicInfo.h"

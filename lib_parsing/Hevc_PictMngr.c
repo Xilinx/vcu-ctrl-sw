@@ -44,7 +44,8 @@
  *****************************************************************************/
 
 #include "Hevc_PictMngr.h"
-#include "lib_common/BufferSrcMeta.h"
+#include "lib_common/BufferPixMapMeta.h"
+#include "lib_common/HevcUtils.h"
 
 /*****************************************************************************/
 static void AL_HEVC_sFillWPCoeff(AL_VADDR pDataWP, AL_THevcSliceHdr* pSlice, uint8_t uL0L1)

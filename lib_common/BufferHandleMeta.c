@@ -35,46 +35,45 @@
 *
 ******************************************************************************/
 
-#include "lib_common/BufferBufHandleMeta.h"
+#include "lib_common/BufferHandleMeta.h"
 #include "lib_rtos/lib_rtos.h"
 
 static bool destroy(AL_TMetaData* pMeta)
 {
-  AL_TBufHandleMetaData* pBufHandleMeta = (AL_TBufHandleMetaData*)pMeta;
-  Rtos_Free(pBufHandleMeta->pHandles);
-  Rtos_Free(pBufHandleMeta);
+  AL_THandleMetaData* pHandleMeta = (AL_THandleMetaData*)pMeta;
+  Rtos_Free(pHandleMeta->pHandles);
+  Rtos_Free(pHandleMeta);
   return true;
 }
 
-AL_TBufHandleMetaData* AL_BufHandleMetaData_Clone(AL_TBufHandleMetaData* pMeta)
+AL_THandleMetaData* AL_HandleMetaData_Clone(AL_THandleMetaData* pMeta)
 {
   if(!pMeta)
     return NULL;
 
-  AL_TBufHandleMetaData* pBufHandleMeta = AL_BufHandleMetaData_Create(pMeta->maxHandles);
+  AL_THandleMetaData* pHandleMeta = AL_HandleMetaData_Create(pMeta->maxHandles, pMeta->handleSizeInBytes);
 
-  if(!pBufHandleMeta)
+  if(!pHandleMeta)
     return NULL;
 
-  for(int i = 0; i < pMeta->numHandles; ++i, ++pBufHandleMeta->numHandles)
-    pBufHandleMeta->pHandles[i] = pMeta->pHandles[i];
+  Rtos_Memcpy(pHandleMeta->pHandles, pMeta->pHandles, (pHandleMeta->maxHandles * pHandleMeta->handleSizeInBytes));
 
-  return pBufHandleMeta;
+  return pHandleMeta;
 }
 
 static AL_TMetaData* clone(AL_TMetaData* pMeta)
 {
-  return (AL_TMetaData*)AL_BufHandleMetaData_Clone((AL_TBufHandleMetaData*)pMeta);
+  return (AL_TMetaData*)AL_HandleMetaData_Clone((AL_THandleMetaData*)pMeta);
 }
 
-AL_TBufHandleMetaData* AL_BufHandleMetaData_Create(int iMaxHandles)
+AL_THandleMetaData* AL_HandleMetaData_Create(int iMaxHandles, int iHandleSize)
 {
-  AL_TBufHandleMetaData* pMeta = Rtos_Malloc(sizeof(*pMeta));
+  AL_THandleMetaData* pMeta = Rtos_Malloc(sizeof(*pMeta));
 
   if(!pMeta)
     return NULL;
 
-  pMeta->pHandles = Rtos_Malloc(iMaxHandles * sizeof(*(pMeta->pHandles)));
+  pMeta->pHandles = Rtos_Malloc(iMaxHandles * iHandleSize);
 
   if(!pMeta->pHandles)
   {
@@ -82,22 +81,32 @@ AL_TBufHandleMetaData* AL_BufHandleMetaData_Create(int iMaxHandles)
     return NULL;
   }
 
-  pMeta->tMeta.eType = AL_META_TYPE_BUFHANDLE;
+  pMeta->tMeta.eType = AL_META_TYPE_HANDLE;
   pMeta->tMeta.MetaDestroy = destroy;
   pMeta->tMeta.MetaClone = clone;
   pMeta->numHandles = 0;
+  pMeta->handleSizeInBytes = iHandleSize;
   pMeta->maxHandles = iMaxHandles;
 
   return pMeta;
 }
 
-bool AL_BufHandleMetaData_AddHandle(AL_TBufHandleMetaData* pMeta, AL_TBuffer* pBuf)
+static AL_HANDLE getHandlePtr(AL_THandleMetaData* pMeta, int iNumHandle)
+{
+  return (AL_HANDLE)(((uintptr_t)pMeta->pHandles) + (iNumHandle * pMeta->handleSizeInBytes));
+}
+
+bool AL_HandleMetaData_AddHandle(AL_THandleMetaData* pMeta, AL_HANDLE pHandle)
 {
   if(pMeta->numHandles + 1 > pMeta->maxHandles)
     return false;
 
-  pMeta->pHandles[pMeta->numHandles] = pBuf;
+  Rtos_Memcpy(getHandlePtr(pMeta, pMeta->numHandles), pHandle, pMeta->handleSizeInBytes);
   ++pMeta->numHandles;
   return true;
 }
 
+AL_HANDLE AL_HandleMetaData_GetHandle(AL_THandleMetaData* pMeta, int iNumHandle)
+{
+  return getHandlePtr(pMeta, iNumHandle);
+}

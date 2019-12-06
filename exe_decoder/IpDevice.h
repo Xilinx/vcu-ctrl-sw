@@ -43,14 +43,14 @@
 #include "lib_common_dec/DecChanParam.h"
 
 typedef struct AL_t_Allocator AL_TAllocator;
-typedef struct AL_t_IDecChannel AL_TIDecChannel;
+typedef struct AL_i_DecScheduler AL_IDecScheduler;
 typedef struct AL_t_IpCtrl AL_TIpCtrl;
 typedef struct AL_t_Timer AL_Timer;
 
 /*****************************************************************************/
 struct CIpDevice
 {
-  AL_TIDecChannel* m_pDecChannel = nullptr;
+  AL_IDecScheduler* m_pScheduler = nullptr;
   std::shared_ptr<AL_TAllocator> m_pAllocator;
   AL_Timer* m_pTimer;
 };

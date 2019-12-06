@@ -38,6 +38,7 @@
 #include "HevcParser.h"
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/Utils.h"
+#include "lib_common/SeiInternal.h"
 #include "lib_common_dec/RbspParser.h"
 
 #define CONCEAL_LEVEL_IDC 60 * 3
@@ -885,25 +886,7 @@ static bool sei_recovery_point(AL_TRbspParser* pRP, AL_TRecoveryPoint* pRecovery
   return byte_alignment(pRP);
 }
 
-/*****************************************************************************/
-static bool sei_content_light_level(AL_TContentLightLevel* pCLL, AL_TRbspParser* pRP)
-{
-  Rtos_Memset(pCLL, 0, sizeof(*pCLL));
-
-  pCLL->max_content_light_level = u(pRP, 16);
-  pCLL->max_pic_average_light_level = u(pRP, 16);
-
-  if(byte_aligned(pRP))
-    return true;
-
-  return byte_alignment(pRP);
-}
-
-#define PIC_TIMING 1
-#define ACTIVE_PARAMETER_SETS 129
-#define RECOVERY_POINT 6
-#define MASTERING_DISPLAY_COLOUR_VOLUME 137
-#define CONTENT_LIGHT_LEVEL 144
+#define SEI_PTYPE_ACTIVE_PARAMETER_SETS 129
 
 #define PARSE_OR_SKIP(ParseCmd) \
   uint32_t uOffset = offset(pRP); \
@@ -964,7 +947,7 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB
     uint8_t* payload_data = get_raw_data(pRP);
     switch(payload_type)
     {
-    case PIC_TIMING: // picture_timing parsing
+    case SEI_PTYPE_PIC_TIMING: // picture_timing parsing
     {
       if(aup->pActiveSPS)
       {
@@ -976,13 +959,13 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB
         skip(pRP, payload_size << 3);
       break;
     }
-    case RECOVERY_POINT: // picture_timing parsing
+    case SEI_PTYPE_RECOVERY_POINT: // picture_timing parsing
     {
       PARSE_OR_SKIP(sei_recovery_point(pRP, &sei.recovery_point));
-      aup->iRecoveryCnt = sei.recovery_point.recovery_cnt + 1; // +1 for non-zero value when AL_SEI_RP is present
+      pIAup->iRecoveryCnt = sei.recovery_point.recovery_cnt + 1; // +1 for non-zero value when AL_SEI_RP is present
       break;
     }
-    case ACTIVE_PARAMETER_SETS:
+    case SEI_PTYPE_ACTIVE_PARAMETER_SETS:
     {
       uint8_t uSpsId;
       PARSE_OR_SKIP(sei_active_parameter_sets(pRP, aup, &uSpsId));
@@ -991,17 +974,17 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB
         aup->pActiveSPS = &aup->pSPS[uSpsId];
       break;
     }
-    case MASTERING_DISPLAY_COLOUR_VOLUME:
+    case SEI_PTYPE_MASTERING_DISPLAY_COLOUR_VOLUME:
     {
-      PARSE_OR_SKIP(sei_mastering_display_colour_volume(&aup->tHDRSEIs.tMDCV, pRP));
-      aup->tHDRSEIs.bHasMDCV = true;
+      PARSE_OR_SKIP(sei_mastering_display_colour_volume(&pIAup->tHDRSEIs.tMDCV, pRP));
+      pIAup->tHDRSEIs.bHasMDCV = true;
       bCBAndSEIMeta = false;
       break;
     }
-    case CONTENT_LIGHT_LEVEL:
+    case SEI_PTYPE_CONTENT_LIGHT_LEVEL:
     {
-      PARSE_OR_SKIP(sei_content_light_level(&aup->tHDRSEIs.tCLL, pRP));
-      aup->tHDRSEIs.bHasCLL = true;
+      PARSE_OR_SKIP(sei_content_light_level(&pIAup->tHDRSEIs.tCLL, pRP));
+      pIAup->tHDRSEIs.bHasCLL = true;
       bCBAndSEIMeta = false;
       break;
     }

@@ -35,12 +35,24 @@
 *
 ******************************************************************************/
 
-#include "IScheduler.h"
+#pragma once
 
-/* can't be a static inline function as api user need this function and
- * don't know about the TScheduler type internals */
-void AL_ISchedulerEnc_Destroy(TScheduler* pScheduler)
-{
-  pScheduler->vtable->destroy(pScheduler);
-}
+#include "lib_common/BufferAPI.h"
 
+/*************************************************************************//*!
+   \brief Gets the buffer memory physical address. If the buffer contains
+   multiple chunks, returns the physical address of the first chunk.
+   \param[in] pBuf Pointer to an AL_TBuffer
+   \return Returns the physical address of the memory chunk if succeeded,
+   0 otherwise
+*****************************************************************************/
+AL_PADDR AL_Buffer_GetPhysicalAddress(const AL_TBuffer* pBuf);
+
+/*************************************************************************//*!
+   \brief Gets the physical address of a memory chunk of an AL_TBuffer
+   \param[in] pBuf Pointer to an AL_TBuffer
+   \param[in] iChunkIdx Index of the chunk
+   \return Returns the physical address of the memory chunk if succeeded,
+   0 otherwise
+*****************************************************************************/
+AL_PADDR AL_Buffer_GetPhysicalAddressChunk(const AL_TBuffer* pBuf, int iChunkIdx);

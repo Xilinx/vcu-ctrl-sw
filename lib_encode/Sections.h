@@ -41,11 +41,12 @@
 #include "lib_bitstream/IRbspWriter.h"
 #include "lib_common_enc/EncPicInfo.h"
 #include "lib_common/BufferAPI.h"
+#include "lib_common/SEI.h"
 #include "lib_common/HDR.h"
 
 typedef struct t_nuts
 {
-  AL_TNalHeader (* GetNalHeader)(uint8_t uNUT, uint8_t uNalIdc, uint8_t uTempID);
+  AL_TNalHeader (* GetNalHeader)(uint8_t uNUT, uint8_t uNalRefIdc, uint8_t uLayerId, uint8_t uTempId);
   int spsNut;
   int ppsNut;
   int audNut;
@@ -70,9 +71,9 @@ typedef struct
   AL_EFillerCtrlMode fillerCtrlMode;
   bool forceWritePPS;
   AL_TSeiData* seiData;
-  uint32_t seiFlags;
+  AL_ESeiFlag seiFlags;
 }AL_TNalsData;
 
 void GenerateSections(IRbspWriter* writer, AL_TNuts Nuts, const AL_TNalsData* pNalsData, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayerID, int iNumSlices, bool bSubframeLatency);
-int AL_WriteSeiSection(AL_TNuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId);
+int AL_WriteSeiSection(AL_ECodec eCodec, AL_TNuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId);
 

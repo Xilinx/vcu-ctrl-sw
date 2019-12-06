@@ -40,7 +40,7 @@
 #include "lib_common/BufCommonInternal.h"
 #include "lib_common_enc/EncRecBuffer.h"
 #include "lib_common/BufferAPI.h"
-#include "lib_common/BufferSrcMeta.h"
+#include "lib_common/BufferPixMapMeta.h"
 #include "EncEPBuffer.h"
 
 /*************************************************************************//*!
@@ -66,6 +66,7 @@ typedef struct t_SliceBuffersEnc
   TBufferMV Coloc; /*!< Pointer to co-located buffer. */
   TBufferMV MV; /*!< Pointer to MV buffer that contains valid POC List section
                    and that receives Motion Vectors of the encoded slice. */
+
   TBuffer CompData; /*!< Pointer to the intermediate compressed buffer */
   TBuffer CompMap; /*!< Pointer to the intermediate compressed mapping */
 
@@ -74,7 +75,6 @@ typedef struct t_SliceBuffersEnc
   TBufferEP* pEP2; /*!< Pointer to the QP table buffer */
 
   TBufferEP Hwrc[AL_ENC_NUM_CORES]; /*!< Pointer to the HwRcCtx buffers for each core */
-
 
   TCircBuffer Stream;
 }TSliceBuffersEnc;

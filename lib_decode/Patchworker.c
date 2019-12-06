@@ -53,42 +53,36 @@ static size_t GetCopiedAreaSize(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, AL_TB
    * we keep a chunk of memory always free after the used area to be able to write
    * the EOS at any moment.
    */
-  size_t unusedAreaSize = stream->zSize - pStreamMeta->iAvailSize;
+  size_t unusedAreaSize = AL_Buffer_GetSize(stream) - pStreamMeta->iAvailSize;
 
   /* if no metadata, assume offset = 0 and available size = buffer size */
   if(!pMeta)
-  {
-    return UnsignedMin(pBuf->zSize, unusedAreaSize);
-  }
-  else
-  {
-    return UnsignedMin(pMeta->iAvailSize, unusedAreaSize);
-  }
+    return UnsignedMin(AL_Buffer_GetSize(pBuf), unusedAreaSize);
+  return UnsignedMin(pMeta->iAvailSize, unusedAreaSize);
 }
 
 static size_t GetNotCopiedAreaSize(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, size_t zCopiedSize)
 {
   if(!pMeta)
-    return pBuf->zSize - zCopiedSize;
-  else
-    return pMeta->iAvailSize - zCopiedSize;
+    return AL_Buffer_GetSize(pBuf) - zCopiedSize;
+  return pMeta->iAvailSize - zCopiedSize;
 }
 
 static void CopyAreaToStream(uint8_t* pData, uint32_t uOffset, size_t zCopySize, AL_TBuffer* stream, AL_TCircMetaData* pStreamMeta)
 {
-  uint32_t uEndStream = (pStreamMeta->iOffset + pStreamMeta->iAvailSize) % stream->zSize;
+  size_t sStreamSize = AL_Buffer_GetSize(stream);
+  uint32_t uEndStream = (pStreamMeta->iOffset + pStreamMeta->iAvailSize) % sStreamSize;
   uint8_t* pStreamData = AL_Buffer_GetData(stream);
 
-  if(uEndStream + zCopySize > stream->zSize)
+  if(uEndStream + zCopySize > sStreamSize)
   {
-    uint32_t SpaceLeftBeforeWrapping = stream->zSize - uEndStream;
+    uint32_t SpaceLeftBeforeWrapping = sStreamSize - uEndStream;
     Rtos_Memcpy(pStreamData + uEndStream, pData + uOffset, SpaceLeftBeforeWrapping);
     Rtos_Memcpy(pStreamData, pData + uOffset + SpaceLeftBeforeWrapping, zCopySize - SpaceLeftBeforeWrapping);
+    return;
   }
-  else
-  {
-    Rtos_Memcpy(pStreamData + uEndStream, pData + uOffset, zCopySize);
-  }
+
+  Rtos_Memcpy(pStreamData + uEndStream, pData + uOffset, zCopySize);
 }
 
 static size_t TryCopyBufferToStream(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, AL_TBuffer* stream)
@@ -157,7 +151,7 @@ bool AL_Patchworker_Init(AL_TPatchworker* this, AL_TBuffer* stream, AL_TFifo* pI
   this->workBuf = NULL;
   this->inputFifo = pInputFifo;
 
-  this->outputCirc = AL_Buffer_WrapData(AL_Buffer_GetData(stream), stream->zSize, NULL);
+  this->outputCirc = AL_Buffer_WrapData(AL_Buffer_GetData(stream), AL_Buffer_GetSize(stream), NULL);
 
   if(!this->outputCirc)
     return false;
@@ -198,21 +192,17 @@ void AL_Patchworker_Deinit(AL_TPatchworker* this)
 
 size_t AL_Patchworker_Transfer(AL_TPatchworker* this)
 {
-  size_t zTotalSize = 0;
-
   assert(this->inputFifo);
-
-  size_t zCopiedSize = 0;
-  size_t zNotCopiedSize = 0;
 
   if(!this->workBuf)
     this->workBuf = AL_Fifo_Dequeue(this->inputFifo, AL_NO_WAIT);
 
   if(!this->workBuf)
-    return zTotalSize; /* no more input buffers in fifo */
+    return 0; /* no more input buffers in fifo */
 
-  zNotCopiedSize = AL_Patchworker_CopyBuffer(this, this->workBuf, &zCopiedSize);
-  zTotalSize += zCopiedSize;
+  size_t zCopiedSize = 0;
+  size_t zNotCopiedSize = AL_Patchworker_CopyBuffer(this, this->workBuf, &zCopiedSize);
+  size_t zTotalSize = zCopiedSize;
 
   if(zNotCopiedSize != 0)
     return zTotalSize; /* no more free space in circular buffer */

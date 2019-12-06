@@ -44,6 +44,17 @@ bool hasOnlyOneIdentifier(std::deque<Token>& tokens)
   return tokens.size() == 1 && tokens[0].type == TokenType::Identifier;
 }
 
+void adaptPath(std::string path)
+{
+  char pathSeparator = '/';
+  char badPathSeparator = '\\';
+#if defined(_WIN32)
+  pathSeparator = '\\';
+  badPathSeparator = '/';
+#endif
+  replace(path.begin(), path.end(), badPathSeparator, pathSeparator);
+}
+
 std::string parsePath(std::deque<Token>& tokens)
 {
   char pathSeparator = '/';
@@ -138,7 +149,7 @@ std::map<std::string, int> createBoolEnums()
   boolEnums["DISABLE"] = false;
 
   return boolEnums;
-};
+}
 
 static void tryTransformUnaryOp(TokenType tokenType, TokenType unaryTokenType, Token& token, std::deque<Token>& treatedInputQueue)
 {

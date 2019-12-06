@@ -42,7 +42,3 @@ ifneq ($(ENABLE_ELASTIC),0)
 endif
 
 REF_LDFLAGS+=$(LDFLAGS)
-
-# to be fixed
-$(BIN)/lib_encode/unittests/encode.cpp.o: CFLAGS+=-Wno-deprecated-declarations
-$(BIN)/test/integration/dmabuf/test_dmabuf_encode.cpp.o: CFLAGS+=-Wno-deprecated-declarations

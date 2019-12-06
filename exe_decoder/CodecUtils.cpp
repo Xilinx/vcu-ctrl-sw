@@ -44,7 +44,7 @@
 #include <cassert>
 
 #include "CodecUtils.h"
-#include "al_resource.h"
+#include "resource.h"
 #include "lib_app/utils.h"
 #include "lib_app/BuildInfo.h"
 

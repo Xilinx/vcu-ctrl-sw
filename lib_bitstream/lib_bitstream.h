@@ -45,9 +45,9 @@
 #pragma once
 
 #include "BitStreamLite.h"
-#include "HEVC_RbspEncod.h"
-#include "HEVC_SkippedPict.h"
 #include "AVC_RbspEncod.h"
 #include "AVC_SkippedPict.h"
+#include "HEVC_RbspEncod.h"
+#include "HEVC_SkippedPict.h"
 /*@}*/
 

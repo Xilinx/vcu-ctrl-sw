@@ -40,7 +40,9 @@
 #include "lib_common/Utils.h"
 #include "lib_common/HwScalingList.h"
 #include "lib_common/HevcLevelsLimit.h"
+#include "lib_common/HevcUtils.h"
 #include "lib_common/Error.h"
+#include "lib_common/SyntaxConversion.h"
 
 #include "lib_common_dec/DecSliceParam.h"
 #include "lib_common_dec/DecBuffers.h"
@@ -50,7 +52,6 @@
 #include "lib_common_dec/HDRMeta.h"
 
 #include "lib_parsing/HevcParser.h"
-#include "lib_parsing/Avc_PictMngr.h"
 #include "lib_parsing/Hevc_PictMngr.h"
 #include "lib_parsing/SliceHdrParsing.h"
 
@@ -60,7 +61,6 @@
 #include "SliceDataParsing.h"
 #include "NalUnitParserPrivate.h"
 #include "NalDecoder.h"
-
 
 /******************************************************************************/
 static AL_TCropInfo extractCropInfo(AL_THevcSps const* pSPS)
@@ -312,7 +312,6 @@ static bool isSPSCompatibleWithStreamSettings(AL_THevcSps const* pSPS, AL_TStrea
 /*****************************************************************************/
 static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
 {
-  pCtx->tStreamSettings = extractStreamSettings(pSPS);
   int iSPSMaxSlices = getMaxSlicesCount(pCtx->tStreamSettings.iLevel);
   int iSizeWP = iSPSMaxSlices * WP_SLICE_SIZE;
   int iSizeSP = iSPSMaxSlices * sizeof(AL_TDecSliceParam);
@@ -332,9 +331,16 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
     goto fail_alloc;
 
   int iDpbRef = Min(pSPS->sps_max_dec_pic_buffering_minus1[pSPS->sps_max_sub_layers_minus1] + 1, iDpbMaxBuf);
-  bool bEnableRasterOutput = pCtx->pChanParam->eBufferOutputMode != AL_OUTPUT_INTERNAL;
 
-  AL_PictMngr_Init(&pCtx->PictMngr, pCtx->pAllocator, iMaxBuf, iSizeMV, iDpbRef, pCtx->eDpbMode, pCtx->pChanParam->eFBStorageMode, pCtx->tStreamSettings.iBitDepth, bEnableRasterOutput, pCtx->pChanParam->bUseEarlyCallback);
+  AL_TPictMngrParam tPictMngrParam =
+  {
+    iDpbRef, pCtx->eDpbMode, pCtx->pChanParam->eFBStorageMode, pCtx->tStreamSettings.iBitDepth,
+    iMaxBuf, iSizeMV,
+    pCtx->pChanParam->bUseEarlyCallback,
+
+  };
+
+  AL_PictMngr_Init(&pCtx->PictMngr, pCtx->pAllocator, &tPictMngrParam);
 
   AL_TCropInfo tCropInfo = extractCropInfo(pSPS);
   error = resolutionFound(pCtx, &pCtx->tStreamSettings, &tCropInfo);
@@ -365,8 +371,9 @@ static bool initChannel(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
     pChan->uClkRatio = pSPS->vui_param.vui_num_units_in_tick;
   }
 
-  AL_CB_EndFrameDecoding endFrameDecodingCallback = { AL_Default_Decoder_EndDecoding, pCtx };
-  AL_ERR eError = AL_IDecChannel_Configure(pCtx->pDecChannel, &pCtx->tMDChanParam, endFrameDecodingCallback);
+  AL_TDecScheduler_CB_EndParsing endParsingCallback = { AL_Default_Decoder_EndParsing, pCtx };
+  AL_TDecScheduler_CB_EndDecoding endDecodingCallback = { AL_Default_Decoder_EndDecoding, pCtx };
+  AL_ERR eError = AL_IDecScheduler_CreateChannel(&pCtx->hChannel, pCtx->pScheduler, &pCtx->tMDChanParam, endParsingCallback, endDecodingCallback);
 
   if(AL_IS_ERROR_CODE(eError))
   {
@@ -374,7 +381,6 @@ static bool initChannel(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
     pCtx->eChanState = CHAN_INVALID;
     return false;
   }
-
 
   pCtx->eChanState = CHAN_CONFIGURED;
 
@@ -397,13 +403,14 @@ static int sliceSpsId(AL_THevcPps const* pPps, AL_THevcSliceHdr const* pSlice)
 /*****************************************************************************/
 static bool initSlice(AL_TDecCtx* pCtx, AL_THevcSliceHdr* pSlice)
 {
-  AL_THevcAup* aup = &pCtx->aup.hevcAup;
+  AL_TAup* pIAup = &pCtx->aup;
+  AL_THevcAup* pAup = &pIAup->hevcAup;
 
   if(!pCtx->bIsFirstSPSChecked)
   {
     if(!isSPSCompatibleWithStreamSettings(pSlice->pSPS, &pCtx->tStreamSettings))
     {
-      pSlice->pPPS = &aup->pPPS[pCtx->tConceal.iLastPPSId];
+      pSlice->pPPS = &pAup->pPPS[pCtx->tConceal.iLastPPSId];
       pSlice->pSPS = pSlice->pPPS->pSPS;
       AL_Default_Decoder_SetError(pCtx, AL_WARN_SPS_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS, -1);
       return false;
@@ -412,20 +419,23 @@ static bool initSlice(AL_TDecCtx* pCtx, AL_THevcSliceHdr* pSlice)
     pCtx->bIsFirstSPSChecked = true;
 
     if(!pCtx->bIsBuffersAllocated)
+      pCtx->tStreamSettings = extractStreamSettings(pSlice->pSPS);
+
+    if(!initChannel(pCtx, pSlice->pSPS))
+      return false;
+
+    if(!pCtx->bIsBuffersAllocated)
     {
       if(!allocateBuffers(pCtx, pSlice->pSPS))
         return false;
     }
 
     pCtx->bIsBuffersAllocated = true;
-
-    if(!initChannel(pCtx, pSlice->pSPS))
-      return false;
   }
 
-  int const spsid = sliceSpsId(aup->pPPS, pSlice);
+  int const spsid = sliceSpsId(pAup->pPPS, pSlice);
 
-  aup->pActiveSPS = &aup->pSPS[spsid];
+  pAup->pActiveSPS = &pAup->pSPS[spsid];
 
   const AL_TDimension tDim = { pSlice->pSPS->pic_width_in_luma_samples, pSlice->pSPS->pic_height_in_luma_samples };
   const int iLevel = pSlice->pSPS->profile_and_level.general_level_idc / 3;
@@ -435,7 +445,7 @@ static bool initSlice(AL_TDecCtx* pCtx, AL_THevcSliceHdr* pSlice)
 
   if(!pSlice->dependent_slice_segment_flag)
   {
-    if(pSlice->slice_type != AL_SLICE_I && !aup->iRecoveryCnt && !AL_HEVC_PictMngr_HasPictInDPB(&pCtx->PictMngr))
+    if(pSlice->slice_type != AL_SLICE_I && !pIAup->iRecoveryCnt && !AL_HEVC_PictMngr_HasPictInDPB(&pCtx->PictMngr))
       return false;
 
     if(pSlice->IdrPicFlag)
@@ -555,7 +565,7 @@ static void processScalingList(AL_THevcAup* pAUP, AL_THevcSliceHdr* pSlice, AL_T
 static void concealSlice(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, AL_THevcSliceHdr* pSlice, bool bSliceHdrValid)
 {
   pSP->eSliceType = pSlice->slice_type = AL_SLICE_CONCEAL;
-  AL_Default_Decoder_SetError(pCtx, AL_WARN_CONCEAL_DETECT, pPP->FrmID);
+  AL_Default_Decoder_SetError(pCtx, AL_WARN_CONCEAL_DETECT, pPP->tBufIDs.FrmID);
 
   AL_HEVC_FillPictParameters(pSlice, pCtx, pPP);
   AL_HEVC_FillSliceParameters(pSlice, pCtx, pSP, true);
@@ -584,9 +594,8 @@ static void createConcealSlice(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSl
 }
 
 /*****************************************************************************/
-static void endFrame(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_THevcSliceHdr* pSlice, AL_TDecPicParam* pPP, uint8_t pic_output_flag, bool bHasPreviousSlice)
+static void endFrame(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_THevcSliceHdr* pSlice, uint8_t pic_output_flag, bool bHasPreviousSlice)
 {
-  AL_HEVC_PictMngr_UpdateRecInfo(&pCtx->PictMngr, pSlice->pSPS, pPP);
   AL_HEVC_PictMngr_EndFrame(&pCtx->PictMngr, pSlice->slice_pic_order_cnt_lsb, eNUT, pSlice, pic_output_flag);
 
   if(pCtx->pChanParam->eDecUnit == AL_AU_UNIT)
@@ -610,7 +619,7 @@ static void finishPreviousFrame(AL_TDecCtx* pCtx)
   // copy stream offset from previous command
   pCtx->iStreamOffset[pCtx->iNumFrmBlk1 % pCtx->iStackSize] = pCtx->iStreamOffset[(pCtx->iNumFrmBlk1 + pCtx->iStackSize - 1) % pCtx->iStackSize];
 
-  endFrame(pCtx, pSlice->nal_unit_type, pSlice, pPP, pSlice->pic_output_flag, false);
+  endFrame(pCtx, pSlice->nal_unit_type, pSlice, pSlice->pic_output_flag, false);
 
   pCtx->bFirstSliceInFrameIsValid = false;
   pCtx->bBeginFrameIsValid = false;
@@ -645,11 +654,12 @@ static bool hevcInitFrameBuffers(AL_TDecCtx* pCtx, const AL_THevcSps* pSPS, AL_T
   if(!AL_InitFrameBuffers(pCtx, pBufs, tDim, pPP))
     return false;
 
-  AL_TBuffer* pDispBuf = AL_PictMngr_GetDisplayBufferFromID(&pCtx->PictMngr, pPP->FrmID);
+  AL_TBuffer* pDispBuf = AL_PictMngr_GetDisplayBufferFromID(&pCtx->PictMngr, pPP->tBufIDs.FrmID);
   AL_THDRMetaData* pMeta = (AL_THDRMetaData*)AL_Buffer_GetMetaData(pDispBuf, AL_META_TYPE_HDR);
 
   if(pMeta != NULL)
   {
+    pMeta->eColourDescription = AL_H273_ColourPrimariesToColourDesc(pSPS->vui_param.colour_primaries);
     pMeta->eTransferCharacteristics = pSPS->vui_param.transfer_characteristics;
     pMeta->eColourMatrixCoeffs = pSPS->vui_param.matrix_coefficients;
     pMeta->tHDRSEIs = *pHDRSEIs;
@@ -739,7 +749,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
 
     if(!isValid)
     {
-      AL_Default_Decoder_SetError(pCtx, AL_WARN_SPS_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS, pPP->FrmID);
+      AL_Default_Decoder_SetError(pCtx, AL_WARN_SPS_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS, pPP->tBufIDs.FrmID);
       pSPS->bConceal = true;
     }
     else if(bCheckDynResChange && (spsSettings.tDim.iWidth != tLastDim.iWidth || spsSettings.tDim.iHeight != tLastDim.iHeight))
@@ -781,7 +791,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     }
   }
 
-  if(pSlice->slice_type != AL_SLICE_I && !pIAUP->hevcAup.iRecoveryCnt && !AL_HEVC_PictMngr_HasPictInDPB(&pCtx->PictMngr))
+  if(pSlice->slice_type != AL_SLICE_I && !pIAUP->iRecoveryCnt && !AL_HEVC_PictMngr_HasPictInDPB(&pCtx->PictMngr))
     isValid = false;
   else if(!(*bFirstSliceInFrameIsValid) && pSlice->slice_segment_address)
   {
@@ -793,9 +803,10 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
 
   if(!(*bBeginFrameIsValid) && pSlice->pSPS)
   {
-    if(!hevcInitFrameBuffers(pCtx, pSlice->pSPS, &pAUP->tHDRSEIs, pPP, pBufs))
+    if(!hevcInitFrameBuffers(pCtx, pSlice->pSPS, &pIAUP->tHDRSEIs, pPP, pBufs))
       return;
     *bBeginFrameIsValid = true;
+    AL_HEVC_PictMngr_UpdateRecInfo(&pCtx->PictMngr, pSlice->pSPS, pPP);
   }
 
   bool bLastSlice = *iNumSlice >= pCtx->pChanParam->iMaxSlices;
@@ -809,7 +820,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   {
     if(!(*bFirstIsValid))
     {
-      if(!isValidSyncPoint(pCtx, eNUT, pSlice->slice_type, pAUP->iRecoveryCnt))
+      if(!isValidSyncPoint(pCtx, eNUT, pSlice->slice_type, pIAUP->iRecoveryCnt))
       {
         *bBeginFrameIsValid = false;
         AL_CancelFrameBuffers(pCtx);
@@ -826,7 +837,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
       AL_HEVC_FillPictParameters(pSlice, pCtx, pPP);
     AL_HEVC_FillSliceParameters(pSlice, pCtx, pSP, false);
 
-    if(!AL_HEVC_PictMngr_BuildPictureList(&pCtx->PictMngr, pSlice, &pCtx->ListRef) && !pAUP->iRecoveryCnt)
+    if(!AL_HEVC_PictMngr_BuildPictureList(&pCtx->PictMngr, pSlice, &pCtx->ListRef) && !pIAUP->iRecoveryCnt)
     {
       concealSlice(pCtx, pPP, pSP, pSlice, true);
     }
@@ -866,7 +877,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   if(bIsLastAUNal || bLastSlice)
   {
     uint8_t pic_output_flag = (AL_HEVC_IsRASL(eNUT) && pCtx->uNoRaslOutputFlag) ? 0 : pSlice->pic_output_flag;
-    endFrame(pCtx, eNUT, pSlice, pPP, pic_output_flag, true);
+    endFrame(pCtx, eNUT, pSlice, pic_output_flag, true);
     return;
   }
 
@@ -994,8 +1005,8 @@ void AL_HEVC_InitAUP(AL_THevcAup* pAUP)
 }
 
 /*****************************************************************************/
-AL_ERR CreateHevcDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB)
+AL_ERR CreateHevcDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB)
 {
-  return AL_CreateDefaultDecoder((AL_TDecoder**)hDec, pDecChannel, pAllocator, pSettings, pCB);
+  return AL_CreateDefaultDecoder((AL_TDecoder**)hDec, pScheduler, pAllocator, pSettings, pCB);
 }
 

@@ -42,11 +42,11 @@
 #include "lib_app/console.h"
 #include "lib_app/utils.h"
 
-
 extern "C"
 {
 #include "lib_fpga/DmaAlloc.h"
 #include "lib_perfs/Logger.h"
+#include "lib_decode/lib_decode.h"
 }
 
 using namespace std;
@@ -60,36 +60,56 @@ AL_TAllocator* createDmaAllocator(const char* deviceName)
   return h;
 }
 
+std::string g_DecDevicePath = "/dev/allegroDecodeIP";
 
 extern "C"
 {
-#include "lib_common/HardwareDriver.h"
-AL_TIDecChannel* AL_DecChannelMcu_Create(AL_TDriver*);
+#include "lib_decode/DecSchedulerMcu.h"
 }
 
-static unique_ptr<CIpDevice> createMcuIpDevice()
+static shared_ptr<CIpDevice> createMcuIpDevice()
 {
-  auto device = make_unique<CIpDevice>();
+  AL_TAllocator* pAllocator = nullptr;
+  AL_IDecScheduler* pScheduler = nullptr;
 
-  device->m_pAllocator.reset(createDmaAllocator("/dev/allegroDecodeIP"), &AL_Allocator_Destroy);
+  auto atExit = scopeExit([&]()
+  {
+    if(pAllocator)
+      AL_Allocator_Destroy(pAllocator);
 
-  if(!device->m_pAllocator)
+    if(pScheduler)
+      AL_IDecScheduler_Destroy(pScheduler);
+  });
+
+  pAllocator = createDmaAllocator(g_DecDevicePath.c_str());
+
+  if(!pAllocator)
     throw runtime_error("Can't open DMA allocator");
 
-  device->m_pDecChannel = AL_DecChannelMcu_Create(AL_GetHardwareDriver());
+  pScheduler = AL_DecSchedulerMcu_Create(AL_GetHardwareDriver(), g_DecDevicePath.c_str());
 
-  if(!device->m_pDecChannel)
+  if(!pScheduler)
     throw runtime_error("Failed to create MCU scheduler");
+
+  auto deleteDevice = [=](CIpDevice* device)
+                      {
+                        AL_IDecScheduler_Destroy(pScheduler);
+                        delete device;
+                      };
+
+  auto device = shared_ptr<CIpDevice>(new CIpDevice, deleteDevice);
+  device->m_pScheduler = pScheduler;
+  device->m_pAllocator = shared_ptr<AL_TAllocator>(pAllocator, &AL_Allocator_Destroy);
+
+  pAllocator = nullptr;
+  pScheduler = nullptr;
 
   return device;
 }
 
-
 shared_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl, bool trackDma, int uNumCore, int hangers)
 {
   (void)iUseBoard, (void)wrapIpCtrl, (void)uNumCore, (void)trackDma, (void)hangers;
-
-
 
   if(iSchedulerType == SCHEDULER_TYPE_MCU)
     return createMcuIpDevice();

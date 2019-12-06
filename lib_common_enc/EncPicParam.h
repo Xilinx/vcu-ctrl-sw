@@ -62,6 +62,7 @@ typedef struct
   int32_t iMaxSize;
   int32_t iOffset;
   int32_t iStreamPartOffset;
+  uint8_t* pExternalMV_v;
 }AL_EncStreamInfo;
 /*************************************************************************//*!
    \brief Picture buffers structure
@@ -97,6 +98,7 @@ typedef struct AL_t_EncPicBufAddrsFull
   AL_PADDR pIntermData;
   AL_TRecInfo tRecInfo;
   AL_EncStreamInfo* pStreamInfo;
+  void* pMV_v;
   void* pWPP_v;
   void* pEP3_v;
   void* pEP1_v;

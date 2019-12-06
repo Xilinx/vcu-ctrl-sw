@@ -47,7 +47,6 @@
 extern "C"
 {
 #include "lib_rtos/lib_rtos.h"
-#include "lib_common/BufferSrcMeta.h"
 #include "lib_common/BufferStreamMeta.h"
 #include "lib_common_enc/IpEncFourCC.h"
 }
@@ -123,7 +122,6 @@ unsigned int ReadNextFrameMV(std::ifstream& File, int& iX, int& iY)
   return iFrame - 1;
 }
 
-
 /*****************************************************************************/
 void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection, const AL_TEncChanParam* pChannelParam)
 {
@@ -136,7 +134,7 @@ void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection, con
   if(pCurSection->uLength)
   {
 
-    uint32_t uRemSize = pStream->zSize - pCurSection->uOffset;
+    uint32_t uRemSize = AL_Buffer_GetSize(pStream) - pCurSection->uOffset;
 
     if(uRemSize < pCurSection->uLength)
     {

@@ -163,11 +163,15 @@ static void writeSpsData(AL_TBitStreamLite* pBS, AL_TAvcSps const* pSps)
   AL_BitStreamLite_PutU(pBS, 8, pSps->level_idc);
   AL_BitStreamLite_PutUE(pBS, pSps->seq_parameter_set_id);
 
-  if((pSps->profile_idc == 100) || (pSps->profile_idc == 110)
-     || (pSps->profile_idc == 122) || (pSps->profile_idc == 244)
-     || (pSps->profile_idc == 44)
-     || (pSps->profile_idc == 83) || (pSps->profile_idc == 86)
-     || (pSps->profile_idc == 118) || (pSps->profile_idc == 128))
+  if(
+    (pSps->profile_idc == AVC_PROFILE_IDC_HIGH)
+    || (pSps->profile_idc == AVC_PROFILE_IDC_HIGH10)
+    || (pSps->profile_idc == AVC_PROFILE_IDC_HIGH_422)
+    || (pSps->profile_idc == AVC_PROFILE_IDC_HIGH_444_PRED)
+    || (pSps->profile_idc == AVC_PROFILE_IDC_CAVLC_444)
+    || (pSps->profile_idc == 83) || (pSps->profile_idc == 86)
+    || (pSps->profile_idc == 118) || (pSps->profile_idc == 128)
+    )
   {
     AL_BitStreamLite_PutUE(pBS, pSps->chroma_format_idc);
     assert(pSps->chroma_format_idc != 3);
@@ -399,8 +403,16 @@ static void writeSeiPictureTiming(AL_TBitStreamLite* pBS, AL_TSps const* pISps, 
   AL_RbspEncoding_EndSEI(pBS, bookmark);
 }
 
+/******************************************************************************/
+static AL_ECodec getCodec(void)
+{
+  return AL_CODEC_AVC;
+}
+
+/******************************************************************************/
 static IRbspWriter writer =
 {
+  getCodec,
   AL_RbspEncoding_WriteAUD,
   NULL, /* writeVps */
   writeSps,
@@ -410,7 +422,7 @@ static IRbspWriter writer =
   writeSeiRecoveryPoint,
   writeSeiPictureTiming,
   AL_RbspEncoding_WriteMasteringDisplayColourVolume,
-  NULL, /* writeContentLightLevel */
+  AL_RbspEncoding_WriteContentLightLevel,
   AL_RbspEncoding_WriteUserDataUnregistered
 };
 

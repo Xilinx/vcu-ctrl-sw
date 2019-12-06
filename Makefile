@@ -3,6 +3,11 @@ CFLAGS+=-g0
 SCM_REV:=-D'SCM_REV="$(shell git rev-parse HEAD 2> /dev/null || echo 0)"'
 SCM_BRANCH=-D'SCM_BRANCH="$(shell git rev-parse --abbrev-ref HEAD 2> /dev/null || echo unknown)"'
 
+REQUIRED_MAKE_VERSION:=4.0
+ifneq ($(REQUIRED_MAKE_VERSION), $(firstword $(sort $(MAKE_VERSION) $(REQUIRED_MAKE_VERSION))))
+  $(error Bad 'make' version $(MAKE_VERSION), required a version $(REQUIRED_MAKE_VERSION) or higher)
+endif
+
 include config.mk
 -include delivery.mk
 
@@ -15,12 +20,12 @@ CROSS_COMPILE?=
 CXX:=$(CROSS_COMPILE)g++
 CC:=$(CROSS_COMPILE)gcc
 AS:=$(CROSS_COMPILE)as
-AR:=$(CROSS_COMPILE)ar
-NM:=$(CROSS_COMPILE)nm
+AR:=$(CROSS_COMPILE)gcc-ar
+NM:=$(CROSS_COMPILE)gcc-nm
 LD:=$(CROSS_COMPILE)ld
 OBJDUMP:=$(CROSS_COMPILE)objdump
 OBJCOPY:=$(CROSS_COMPILE)objcopy
-RANLIB:=$(CROSS_COMPILE)ranlib
+RANLIB:=$(CROSS_COMPILE)gcc-ranlib
 STRIP:=$(CROSS_COMPILE)strip
 SIZE:=$(CROSS_COMPILE)size
 
@@ -30,7 +35,7 @@ all: true_all
 
 # Basic build rules and external variables
 include ctrlsw_version.mk
-include encoder_defs.mk
+include codec_defs.mk
 include base.mk
 -include compiler.mk
 
@@ -40,6 +45,7 @@ include lib_app/project.mk
 -include lib_cfg_parsing/project.mk
 -include lib_common/project.mk
 -include lib_rtos/project.mk
+-include lib_ip_ctrl/project.mk
 -include lib_scheduler/project.mk
 -include lib_perfs/project.mk
 

@@ -56,7 +56,6 @@ extern "C"
 #include <vector>
 #include <iostream>
 
-
 /*************************************************************************//*!
    \brief Mimics structure for RUN Section of cfg file
 *****************************************************************************/
@@ -74,11 +73,11 @@ typedef AL_INTROSPECT (category = "debug") struct tCfgRunInfo
   std::string logsFile = "";
   bool trackDma = false;
   bool printPictureType = false;
+  bool printRateCtrlStat = false;
   std::string bitrateFile = "";
   AL_64U uInputSleepInMilliseconds;
   AL_EGenerateQpMode eGenerateQpMode = AL_GENERATE_UNIFORM_QP;
 }TCfgRunInfo;
-
 
 /*************************************************************************//*!
    \brief Mimics structure for a configuration of an YUV Input
@@ -110,7 +109,6 @@ AL_INTROSPECT(category = "debug") struct ConfigFile
   // \brief List of inputs for resolution change
   std::vector<TConfigYUVInput> DynamicInputs;
 
-
   // \brief Output bitstream file name
   std::string BitstreamFileName;
 
@@ -120,8 +118,6 @@ AL_INTROSPECT(category = "debug") struct ConfigFile
   // \brief Name of the file specifying the frame numbers where scene changes
   // happen
   std::string sCmdFileName;
-
-
 
   // \brief Name of the file that reads/writes video statistics for TwoPassMode
   std::string sTwoPassFileName;

@@ -40,6 +40,7 @@
 extern "C"
 {
 #include "lib_common/BufferAPI.h"
+#include "lib_common/Profiles.h"
 }
 #include <vector>
 #include <istream>
@@ -58,7 +59,7 @@ struct BasicLoader : public InputLoader
   {
     uint8_t* pBuf = AL_Buffer_GetData(pBufStream);
 
-    ifFileStream.read((char*)pBuf, pBufStream->zSize);
+    ifFileStream.read((char*)pBuf, AL_Buffer_GetSize(pBufStream));
     return (uint32_t)ifFileStream.gcount();
   }
 };
@@ -80,13 +81,13 @@ struct CircBuffer
 class SplitInput : public InputLoader
 {
 public:
-  SplitInput(int iSize, bool bIsAVC, bool bSliceCut);
+  SplitInput(int iSize, AL_ECodec eCodec, bool bSliceCut);
   uint32_t ReadStream(std::istream& ifFileStream, AL_TBuffer* pBufStream);
 
 private:
   std::vector<uint8_t> m_Stream;
   CircBuffer m_CircBuf {};
-  bool m_bIsAVC;
+  AL_ECodec m_eCodec;
   bool m_bSliceCut;
   bool m_bEOF {};
 };

@@ -45,7 +45,6 @@
 extern "C"
 {
 #include <lib_common/BufferLookAheadMeta.h>
-#include <lib_common/BufferSrcMeta.h>
 #include <lib_common/BufferAPI.h>
 #include <lib_common_enc/Settings.h>
 }
@@ -115,7 +114,6 @@ struct LookAheadMngr
   bool bUseComplexity;
   bool bEnableFirstPassSceneChangeDetection;
   std::deque<AL_TBuffer*> m_fifo;
-
 
   void ProcessLookAheadParams();
   void ComputeComplexity();

@@ -44,8 +44,7 @@
 #pragma once
 
 #include "lib_common/SliceConsts.h"
-#include "lib_common/BufferAPI.h"
-#include "lib_common/BufferSrcMeta.h"
+#include "lib_common/PixMapBuffer.h"
 
 /*************************************************************************//*!
    \brief Reconstructed picture information
@@ -62,10 +61,10 @@ typedef struct t_RecPic
 {
   AL_TBuffer* pBuf;
   AL_TReconstructedInfo tInfo;
-}TRecPic;
+}AL_TRecPic;
 
 uint32_t AL_GetRecPitch(uint32_t uBitDepth, uint32_t uWidth);
-void AL_RecMetaData_FillPlanes(AL_TPlane* pRecPlanes, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bComp, bool bIsAvc);
+void AL_EncRecBuffer_FillPlaneDesc(AL_TPlaneDescription* pPlaneDesc, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bIsAvc);
 
 /*@}*/
 

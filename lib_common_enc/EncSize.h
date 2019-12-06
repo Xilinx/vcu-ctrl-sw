@@ -46,13 +46,11 @@
 
 int AL_GetCompLcuSize(uint8_t uLcuSize, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bUseEnt);
 
-
 #define AL_MAX_SUPPORTED_LCU_SIZE 6
 #define AL_MIN_SUPPORTED_LCU_SIZE 3
 
 #define AL_MAX_FIXED_SLICE_HEADER_SIZE 32
 #define QP_CTRL_TABLE_SIZE 48
-
 
 #define AL_MAX_STREAM_BUFFER (AL_MAX_SLICES_SUBFRAME * 10)
 #define AL_MAX_SOURCE_BUFFER (AL_MAX_NUM_B_PICT * 2 + 8)

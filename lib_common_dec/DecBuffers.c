@@ -46,8 +46,7 @@
 #include <assert.h>
 #include "lib_common_dec/DecBuffers.h"
 #include "lib_common/Utils.h"
-#include "lib_common/BufferSrcMeta.h"
-
+#include "lib_common/BufferPixMapMeta.h"
 
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/StreamBufferPrivate.h"
@@ -116,13 +115,46 @@ int AL_GetAllocSize_AvcMV(AL_TDimension tDim)
   return 16 * iNumBlk * sizeof(int32_t);
 }
 
+/****************************************************************************/
+static uint32_t GetChromaAllocSize(AL_EChromaMode eChromaMode, uint32_t uAllocSizeY)
+{
+  switch(eChromaMode)
+  {
+  case AL_CHROMA_MONO:
+    return 0;
+  case AL_CHROMA_4_2_0:
+    return uAllocSizeY >> 1;
+  case AL_CHROMA_4_2_2:
+    return uAllocSizeY;
+  default:
+    assert(0);
+    break;
+  }
+
+  return 0;
+}
+
+/*****************************************************************************/
+int AL_DecGetAllocSize_Frame_Y(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch)
+{
+  return iPitch * RndHeight(tDim.iHeight) / AL_GetNumLinesInPitch(eFbStorage);
+}
+
+/*****************************************************************************/
+int AL_DecGetAllocSize_Frame_UV(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode)
+{
+  return GetChromaAllocSize(eChromaMode, AL_DecGetAllocSize_Frame_Y(eFbStorage, tDim, iPitch));
+}
+
+/*****************************************************************************/
 int AL_DecGetAllocSize_Frame(AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode, bool bFbCompression, AL_EFbStorageMode eFbStorageMode)
 {
   (void)bFbCompression;
 
-  int iTotalSize = AL_GetAllocSize_DecReference(tDim, iPitch, eChromaMode, eFbStorageMode);
+  uint32_t uAllocSizeY = AL_DecGetAllocSize_Frame_Y(eFbStorageMode, tDim, iPitch);
+  uint32_t uSize = uAllocSizeY + GetChromaAllocSize(eChromaMode, uAllocSizeY);
 
-  return iTotalSize;
+  return uSize;
 }
 
 /*****************************************************************************/
@@ -133,39 +165,13 @@ int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_
 }
 
 /*****************************************************************************/
-int AL_GetAllocSize_DecReference(AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode, AL_EFbStorageMode eFbStorageMode)
-{
-  int iSize = iPitch * RndHeight(tDim.iHeight) / AL_GetNumLinesInPitch(eFbStorageMode);
-  switch(eChromaMode)
-  {
-  case AL_CHROMA_4_2_0:
-    iSize += (iSize / 2);
-    break;
-
-  case AL_CHROMA_4_2_2:
-    iSize += iSize;
-    break;
-
-  case AL_CHROMA_4_4_4:
-    iSize += (iSize * 2);
-    break;
-
-  default:
-    break;
-  }
-
-  return iSize;
-}
-
-/*****************************************************************************/
-/*****************************************************************************/
 AL_TMetaData* AL_CreateRecBufMetaData(AL_TDimension tDim, int iMinPitch, TFourCC tFourCC)
 {
   AL_EFbStorageMode eStorageMode = AL_GetStorageMode(tFourCC);
-  AL_TPlane tPlaneY = { 0, iMinPitch };
-  int iOffsetC = AL_GetAllocSize_DecReference(tDim, iMinPitch, AL_CHROMA_MONO, eStorageMode);
-  AL_TPlane tPlaneUV = { iOffsetC, iMinPitch };
-  AL_TSrcMetaData* pSrcMeta = AL_SrcMetaData_Create(tDim, tPlaneY, tPlaneUV, tFourCC);
+  AL_TPlane tPlaneY = { 0, 0, iMinPitch };
+  int iOffsetC = AL_DecGetAllocSize_Frame_Y(eStorageMode, tDim, iMinPitch);
+  AL_TPlane tPlaneUV = { 0, iOffsetC, iMinPitch };
+  AL_TPixMapMetaData* pSrcMeta = AL_PixMapMetaData_Create(tDim, tPlaneY, tPlaneUV, tFourCC);
 
   return (AL_TMetaData*)pSrcMeta;
 }

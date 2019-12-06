@@ -43,18 +43,18 @@
 
 typedef struct t_NalUnit
 {
-  void (* Write)(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param, int iLayerId);
+  void (* Write)(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param, int layerId);
   void const* param;
   int nut;
-  int idc;
-  int iLayerId;
+  int nalRefIdc;
+  int layerId;
   int tempId;
   AL_TNalHeader header;
 }AL_TNalUnit;
 
 AL_TNalUnit AL_CreateAud(int nut, AL_ESliceType type, int tempId);
-AL_TNalUnit AL_CreateSps(int nut, AL_TSps* sps, int iLayerId, int tempId);
-AL_TNalUnit AL_CreatePps(int nut, AL_TPps* pps, int iLayerId, int tempId);
+AL_TNalUnit AL_CreateSps(int nut, AL_TSps* sps, int layerId, int tempId);
+AL_TNalUnit AL_CreatePps(int nut, AL_TPps* pps, int layerId, int tempId);
 AL_TNalUnit AL_CreateVps(AL_THevcVps* vps, int tempId);
 
 #include "lib_common_enc/EncPicInfo.h"

@@ -52,8 +52,6 @@ typedef struct
   AL_THevcSps* pActiveSPS;           // Holds only the currently active SPS.
 
   AL_EPicStruct ePicStruct;
-  int iRecoveryCnt;
-  AL_THDRSEIs tHDRSEIs; // Holds only the currently active HDR SEIs
 }AL_THevcAup;
 
 typedef struct
@@ -64,16 +62,16 @@ typedef struct
   AL_TAvcSps* pActiveSPS;    // Holds only the currently active ParserSPS.
 
   AL_ESliceType ePictureType;
-  int iRecoveryCnt;
-  AL_THDRSEIs tHDRSEIs; // Holds only the currently active HDR SEIs
 }AL_TAvcAup;
 
 typedef struct
 {
   union
   {
-    AL_THevcAup hevcAup;
     AL_TAvcAup avcAup;
+    AL_THevcAup hevcAup;
   };
+  int iRecoveryCnt;
+  AL_THDRSEIs tHDRSEIs; // Holds only the currently active HDR SEIs
 }AL_TAup;
 

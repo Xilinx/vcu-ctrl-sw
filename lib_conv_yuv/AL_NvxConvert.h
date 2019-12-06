@@ -44,8 +44,7 @@ class CNvxConv : public IConvSrc
 public:
   CNvxConv(TFrameInfo const& FrameInfo);
 
-  virtual unsigned int GetSrcBufSize(int iPitch, int iStrideHeight);
-  virtual void ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut);
+  void ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut) override;
 
 protected:
   TFrameInfo const m_FrameInfo;

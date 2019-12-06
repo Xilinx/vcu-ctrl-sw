@@ -55,8 +55,8 @@
    \param[out] pHwSclLst pointer to Hardware formated Scaling list that receives
    the preprocessed matrices
 *****************************************************************************/
-void AL_HEVC_GenerateHwScalingList(AL_TSCLParam const* pSclLst, AL_THwScalingList* pHwSclLst);
 void AL_AVC_GenerateHwScalingList(AL_TSCLParam const* pSclLst, AL_THwScalingList* pHwSclLst);
+void AL_HEVC_GenerateHwScalingList(AL_TSCLParam const* pSclLst, AL_THwScalingList* pHwSclLst);
 
 /*@}*/
 

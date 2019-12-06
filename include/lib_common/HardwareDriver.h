@@ -35,6 +35,8 @@
 *
 ******************************************************************************/
 
+#pragma once
+
 typedef struct AL_t_driver AL_TDriver;
 
 AL_TDriver* AL_GetHardwareDriver();

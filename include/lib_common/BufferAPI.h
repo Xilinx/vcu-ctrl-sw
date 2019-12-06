@@ -51,8 +51,17 @@
 #include "lib_common/BufferMeta.h"
 #include "lib_common/Allocator.h"
 
+#define AL_BUFFER_MAX_CHUNK 3
+#define AL_BUFFER_BAD_CHUNK -1
+
 /*************************************************************************//*!
    \brief Reference counted buffer
+
+   The AL_TBuffer api provides an easy access to one or multiple memory chunks.
+   Chunks of an AL_TBuffer are memory buffers that will share:
+   - the same lifetime
+   - a reference counting mechanism
+   - custom user information, through metadata
 
    The reference count mechanism is still an opt-in feature. The first time you
    create a buffer, the refcount is 0. You need to call AL_Buffer_Ref to start
@@ -60,25 +69,27 @@
    AL_Buffer_Ref is scheduled to be done inside the buffer creation.
 
    The AL_TBuffer api doesn't allocate the memory itself and only provide
-   an easy access to it via its api. It wraps a memory buffer allocated using
-   the AL_TAllocator api. The AL_TBuffer takes ownership of the memory buffer
+   an easy access to it via its api. It wraps memory buffers allocated using
+   the AL_TAllocator api. The AL_TBuffer takes ownership of the memory buffers
    and will free it at destruction.
 *****************************************************************************/
 typedef struct
 {
   AL_TAllocator* pAllocator; /*!< Used to retrieve the memory hidden behind hBuf */
-  size_t zSize; /*!< Size of the allocated memory attached to the buffer */
-  AL_HANDLE hBuf; /*!< Handle to the allocated buffer */
+  int8_t iChunkCnt; /*!< Number of chunks allocated in the buffer */
+  size_t zSizes[AL_BUFFER_MAX_CHUNK]; /*!< Sizes of the allocated memory chunks */
+  AL_HANDLE hBufs[AL_BUFFER_MAX_CHUNK]; /*!< Handles to the allocated chunks */
 }AL_TBuffer;
 
 typedef void (* PFN_RefCount_CallBack)(AL_TBuffer* pBuf);
 
 /*************************************************************************//*!
-   \brief Creates an AL_TBuffer and bind a memory of zSize to it
+   \brief Creates an AL_TBuffer and binds one memory chunk of zSize to it.
+   Index of the bound chunk is 0.
 
    \param[in] pAllocator Pointer to an Allocator. Will be used to allocate the
-   buffer data via AL_Allocator_Alloc.
-   \param[in] zSize The size of the buffer
+   chunk data via AL_Allocator_Alloc.
+   \param[in] zSize The size of the chunk
    \param[in] pCallBack is called after the buffer reference count reaches zero
    and the buffer can safely be reused.
    \return Returns a buffer if successful. Returns NULL otherwise
@@ -86,14 +97,15 @@ typedef void (* PFN_RefCount_CallBack)(AL_TBuffer* pBuf);
 AL_TBuffer* AL_Buffer_Create_And_Allocate(AL_TAllocator* pAllocator, size_t zSize, PFN_RefCount_CallBack pCallBack);
 
 /*************************************************************************//*!
-   \brief Creates an AL_TBuffer and bind a memory of zSize to it
+   \brief Creates an AL_TBuffer and binds one memory chunk of zSize to it.
+   Index of the bound chunk is 0.
 
    Using the named version permits tracking of which buffer is allocated using
    a custom allocator.
 
    \param[in] pAllocator Pointer to an Allocator. Will be used to allocate the
-   buffer data via AL_Allocator_Alloc.
-   \param[in] zSize The size of the buffer
+   chunk data via AL_Allocator_Alloc.
+   \param[in] zSize The size of the chunk
    \param[in] pCallBack is called after the buffer reference count reaches zero
    and the buffer can safely be reused.
    \param[in] name Associate a name to the allocated memory
@@ -102,9 +114,10 @@ AL_TBuffer* AL_Buffer_Create_And_Allocate(AL_TAllocator* pAllocator, size_t zSiz
 AL_TBuffer* AL_Buffer_Create_And_AllocateNamed(AL_TAllocator* pAllocator, size_t zSize, PFN_RefCount_CallBack pCallBack, char const* name);
 
 /*************************************************************************//*!
-   \brief Creates the buffer and bind it to the memory hBuf
+   \brief Creates the buffer and binds it to the memory hBuf. Index of the
+   bound chunk is 0.
    \param[in] pAllocator Pointer to an Allocator.
-   \param[in] hBuf Handle to an already allocated buffer (with pAllocator)
+   \param[in] hBuf Handle to an already allocated buffer chunk (with pAllocator)
    \param[in] zSize The size of the buffer
    \param[in] pCallBack is called after the buffer reference count reaches zero
    and the buffer can safely be reused.
@@ -113,7 +126,8 @@ AL_TBuffer* AL_Buffer_Create_And_AllocateNamed(AL_TAllocator* pAllocator, size_t
 AL_TBuffer* AL_Buffer_Create(AL_TAllocator* pAllocator, AL_HANDLE hBuf, size_t zSize, PFN_RefCount_CallBack pCallBack);
 
 /*************************************************************************//*!
-   \brief Wraps an already allocated buffer with an AL_TBuffer.
+   \brief Wraps an already allocated buffer chunk with an AL_TBuffer. Index of
+   the bound chunk is 0.
    \param[in] pData Pointer to the data to wrap
    \param[in] zSize size of the data to wrap
    \param[in] pCallBack is called after the buffer reference count reaches zero
@@ -122,6 +136,54 @@ AL_TBuffer* AL_Buffer_Create(AL_TAllocator* pAllocator, AL_HANDLE hBuf, size_t z
    \return Returns a buffer if successful. Returns NULL otherwise
 *****************************************************************************/
 AL_TBuffer* AL_Buffer_WrapData(uint8_t* pData, size_t zSize, PFN_RefCount_CallBack pCallBack);
+
+/*************************************************************************//*!
+   \brief Creates a buffer structure without binded memory
+   \param[in] pAllocator Pointer to an Allocator.
+   \param[in] pCallBack is called after the buffer reference count reaches zero
+   and the buffer can safely be reused.
+   \return Returns a buffer if successful. Returns NULL otherwise
+*****************************************************************************/
+AL_TBuffer* AL_Buffer_CreateEmpty(AL_TAllocator* pAllocator, PFN_RefCount_CallBack pCallBack);
+
+/*************************************************************************//*!
+   \brief Allocate and bind a new memory chunk to the buffer
+   \param[in] pBuf Pointer to an AL_TBuffer
+   \param[in] zSize Size of the chunk to allocate
+   \return Returns the chunk index if succeeded, BAD_CHUNK_INDEX otherwise
+*****************************************************************************/
+int AL_Buffer_AllocateChunk(AL_TBuffer* pBuf, size_t zSize);
+
+/*************************************************************************//*!
+   \brief Add an already allocated chunk to a buffer
+   \param[in] pBuf Pointer to an AL_TBuffer
+   \param[in] hChunk Handle to the chunk
+   \param[in] zSize Size of the chunk
+   \return Returns the chunk index if succeeded, BAD_CHUNK_INDEX otherwise
+*****************************************************************************/
+int AL_Buffer_AddChunk(AL_TBuffer* pBuf, AL_HANDLE hChunk, size_t zSize);
+
+/*************************************************************************//*!
+   \brief Get the number of chunks belonging to the buffer
+   \param[in] pBuf Pointer to an AL_TBuffer
+   \return Returns the number of chunks of the buffer
+*****************************************************************************/
+static AL_INLINE int8_t AL_Buffer_GetChunkCount(const AL_TBuffer* pBuf)
+{
+  return pBuf->iChunkCnt;
+}
+
+/*************************************************************************//*!
+   \brief Check if a buffer has a chunk with specific index
+   \param[in] pBuf Pointer to an AL_TBuffer
+   \param[in] iChunkIdx Index of the chunk
+   \return Returns true if the buffer contains a chunk with given index, false
+   otherwise
+*****************************************************************************/
+static AL_INLINE bool AL_Buffer_HasChunk(const AL_TBuffer* pBuf, int8_t iChunkIdx)
+{
+  return iChunkIdx >= 0 && iChunkIdx < pBuf->iChunkCnt;
+}
 
 /*************************************************************************//*!
    \brief Destroys the buffer
@@ -160,11 +222,38 @@ void AL_Buffer_SetUserData(AL_TBuffer* pBuf, void* pUserData);
 void* AL_Buffer_GetUserData(AL_TBuffer* pBuf);
 
 /*************************************************************************//*!
-   \brief Gets the buffer data. This might map the data in memory if needed.
+   \brief Gets the buffer data. If the buffer contains multiple chunks,
+   return a pointer to the first chunk.
    \param[in] pBuf Pointer to an AL_TBuffer
-   \return Returns a pointer to the memory wrapped by the AL_TBuffer
+   \return Returns a pointer to the memory wrapped by the AL_TBuffer if
+   successfull, NULL otherwise
 *****************************************************************************/
 uint8_t* AL_Buffer_GetData(const AL_TBuffer* pBuf);
+
+/*************************************************************************//*!
+   \brief Gets a pointer to a chunk data.
+   \param[in] pBuf Pointer to an AL_TBuffer
+   \param[in] iChunkIdx Index of the chunk
+   \return Returns a pointer to the chunk memory wrapped by the AL_TBuffer if
+   successfull, NULL otherwise
+*****************************************************************************/
+uint8_t* AL_Buffer_GetDataChunk(const AL_TBuffer* pBuf, int iChunkIdx);
+
+/*************************************************************************//*!
+   \brief Gets the buffer size. If the buffer contains multiple chunks,
+   return the size of the first chunk.
+   \param[in] pBuf Pointer to an AL_TBuffer
+   \return Returns the buffer size if successfull, 0 otherwise
+*****************************************************************************/
+size_t AL_Buffer_GetSize(const AL_TBuffer* pBuf);
+
+/*************************************************************************//*!
+   \brief Gets the size of a chunk.
+   \param[in] pBuf Pointer to an AL_TBuffer
+   \param[in] iChunkIdx Index of the chunk
+   \return  Returns the chunk size if successfull, 0 otherwise
+*****************************************************************************/
+size_t AL_Buffer_GetSizeChunk(const AL_TBuffer* pBuf, int iChunkIdx);
 
 /*************************************************************************//*!
    \brief Binds a metadata to a buffer
@@ -211,14 +300,12 @@ bool AL_Buffer_RemoveMetaData(AL_TBuffer* pBuf, AL_TMetaData* pMeta);
 *****************************************************************************/
 AL_TMetaData* AL_Buffer_GetMetaData(AL_TBuffer const* pBuf, AL_EMetaType eType);
 
-/*
- * Changes the memory region backed by the buffer
- * without any check
- *
- * _do not use this in new code, this is here for historical reason_
- */
-void AL_Buffer_SetData(const AL_TBuffer* pBuf, uint8_t* pData);
-void AL_CopyYuv(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+/*************************************************************************//*!
+   \brief Set the memory of all chunks of the buffer to a provided value.
+   \param[in] pBuf Pointer to an AL_TBuffer
+   \param[in] iVal Value to set
+*****************************************************************************/
+void AL_Buffer_MemSet(const AL_TBuffer* pBuf, int iVal);
 
 /*@}*/
 

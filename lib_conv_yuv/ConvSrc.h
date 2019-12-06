@@ -41,6 +41,7 @@ extern "C"
 {
 #include "lib_common/BufferAPI.h"
 #include "lib_common/SliceConsts.h"
+#include "lib_common_enc/EncChanParam.h"
 }
 
 class IConvSrc
@@ -48,7 +49,6 @@ class IConvSrc
 public:
   virtual ~IConvSrc() {};
 
-  virtual unsigned int GetSrcBufSize(int iPitch, int iStrideHeight) = 0;
   virtual void ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut) = 0;
 };
 

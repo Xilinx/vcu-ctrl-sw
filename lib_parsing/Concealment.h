@@ -57,12 +57,10 @@ typedef enum
   AL_UNSUPPORTED = 2
 }AL_PARSE_RESULT;
 
-
 #define COMPLY(cond) \
   do { \
     if(!(cond)) \
       return AL_CONCEAL; \
   } \
   while(0) \
-
 

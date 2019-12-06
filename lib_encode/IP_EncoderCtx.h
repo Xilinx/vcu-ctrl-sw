@@ -59,11 +59,9 @@
 #include "lib_encode/lib_encoder.h"
 #include "lib_common/Fifo.h"
 
-
-
 #define MAX_NAL_IDS 15
 
-typedef struct t_Scheduler TScheduler;
+typedef struct AL_i_EncScheduler AL_IEncScheduler;
 
 /*************************************************************************//*!
    \brief Structure containing infos for non-vcl nals generation
@@ -87,7 +85,6 @@ typedef struct AL_t_FrameInfo
   AL_TBuffer* pQpTable;
   AL_HLSInfo tHLSUpdateInfo;
 }AL_TFrameInfo;
-
 
 typedef AL_TEncSliceStatus TStreamInfo;
 
@@ -148,7 +145,6 @@ typedef struct AL_t_EncCtx
 
   AL_TDimension nalResolutionsPerID[MAX_NAL_IDS];
   AL_THevcVps vps;
-
   bool bEndOfStreamReceived[MAX_NUM_LAYER];
   int iLastIdrId;
 
@@ -168,11 +164,10 @@ typedef struct AL_t_EncCtx
   /* O(n) as you need to search for the source inside */
   AL_TFrameCtx SourceSent[AL_MAX_SOURCE_BUFFER];
 
-
   AL_MUTEX Mutex;
   AL_SEMAPHORE PendingEncodings; // tracks the count of jobs sent to the scheduler
 
-  TScheduler* pScheduler;
+  AL_IEncScheduler* pScheduler;
 
   int iInitialNumB;
   uint16_t uInitialFrameRate;

@@ -70,7 +70,7 @@ typedef AL_TDecoderFeeder DecoderFeederSlave;
 static bool CircBuffer_IsFull(AL_TBuffer* pBuf)
 {
   AL_TCircMetaData* pMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_CIRCULAR);
-  return pMeta->iAvailSize == (int32_t)pBuf->zSize;
+  return pMeta->iAvailSize == (int32_t)AL_Buffer_GetSize(pBuf);
 }
 
 static bool shouldKeepGoing(AL_TDecoderFeeder* slave)
@@ -144,9 +144,10 @@ static bool Slave_Process(DecoderFeederSlave* slave, AL_TBuffer* startCodeStream
   return true;
 }
 
-static void Slave_EntryPoint(AL_TDecoderFeeder* slave)
+static void* Slave_EntryPoint(void* userParam)
 {
   Rtos_SetCurrentThreadName("DecFeeder");
+  AL_TDecoderFeeder* slave = (AL_TDecoderFeeder*)userParam;
 
   while(1)
   {
@@ -167,11 +168,13 @@ static void Slave_EntryPoint(AL_TDecoderFeeder* slave)
       break; // exit thread
     }
   }
+
+  return NULL;
 }
 
 static bool CreateSlave(AL_TDecoderFeeder* this)
 {
-  this->slave = Rtos_CreateThread((void*)&Slave_EntryPoint, this);
+  this->slave = Rtos_CreateThread(Slave_EntryPoint, this);
 
   if(!this->slave)
     return false;

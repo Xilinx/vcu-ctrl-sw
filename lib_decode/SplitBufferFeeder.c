@@ -125,22 +125,26 @@ static bool IsEndOfStream(AL_TSplitBufferFeeder* this)
 
 static void freeBuf(AL_TFeeder* hFeeder, AL_TBuffer* pBuf)
 {
+  assert(pBuf);
   AL_TSplitBufferFeeder* this = (AL_TSplitBufferFeeder*)hFeeder;
   AL_TBuffer* workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_WAIT_FOREVER);
 
   while(workBuf)
   {
-    AL_Buffer_Unref(workBuf);
-
     if(workBuf == pBuf)
-      break;
+    {
+      AL_Buffer_Unref(workBuf);
+      return;
+    }
+    AL_Buffer_Unref(workBuf);
     workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_WAIT_FOREVER);
   }
 }
 
-static void Process_EntryPoint(AL_TSplitBufferFeeder* this)
+static void* Process_EntryPoint(void* userParam)
 {
   Rtos_SetCurrentThreadName("DecFeeder");
+  AL_TSplitBufferFeeder* this = (AL_TSplitBufferFeeder*)userParam;
 
   while(1)
   {
@@ -159,6 +163,8 @@ static void Process_EntryPoint(AL_TSplitBufferFeeder* this)
 
     Process(this);
   }
+
+  return NULL;
 }
 
 static void reset(AL_TFeeder* pFeeder)
@@ -254,7 +260,7 @@ static void destroy(AL_TFeeder* hFeeder)
 
 static bool CreateProcess(AL_TSplitBufferFeeder* this)
 {
-  this->process = Rtos_CreateThread((void*)&Process_EntryPoint, this);
+  this->process = Rtos_CreateThread(Process_EntryPoint, this);
 
   if(!this->process)
     return false;
@@ -290,7 +296,7 @@ static bool addEOSMeta(AL_TBuffer* pEOSBuffer)
 
   if(NULL == AL_Buffer_GetMetaData(pEOSBuffer, AL_META_TYPE_CIRCULAR))
   {
-    AL_TCircMetaData* pCircMeta = AL_CircMetaData_Create(0, pEOSBuffer->zSize, true);
+    AL_TCircMetaData* pCircMeta = AL_CircMetaData_Create(0, AL_Buffer_GetSize(pEOSBuffer), true);
 
     if(!pCircMeta)
     {

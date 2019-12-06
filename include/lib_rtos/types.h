@@ -74,6 +74,8 @@
 
 #endif
 
+#define AL_DEPRECATED_ENUM_VALUE(eType, name, val, msg) AL_DEPRECATED(msg) static const eType name = val
+
 typedef uint64_t AL_64U __AL_ALIGNED__ (8); // Ensure that 64bits has same alignment on all platforms
 typedef int64_t AL_64S;
 typedef uint8_t* AL_VADDR; // keep byte pointer

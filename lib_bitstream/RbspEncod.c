@@ -142,5 +142,17 @@ void AL_RbspEncoding_WriteMasteringDisplayColourVolume(AL_TBitStreamLite* pBS, A
   AL_RbspEncoding_EndSEI(pBS, bookmark);
 }
 
+/******************************************************************************/
+void AL_RbspEncoding_WriteContentLightLevel(AL_TBitStreamLite* pBS, AL_TContentLightLevel* pCLL)
+{
+  int const bookmark = AL_RbspEncoding_BeginSEI(pBS, 144);
+
+  AL_BitStreamLite_PutU(pBS, 16, pCLL->max_content_light_level);
+  AL_BitStreamLite_PutU(pBS, 16, pCLL->max_pic_average_light_level);
+
+  AL_BitStreamLite_EndOfSEIPayload(pBS);
+  AL_RbspEncoding_EndSEI(pBS, bookmark);
+}
+
 /*@}*/
 

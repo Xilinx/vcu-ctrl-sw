@@ -93,11 +93,16 @@ struct al5_encode_msg {
 	struct al5_params addresses;
 };
 
+struct al5_stream_buffer {
+  __u64 stream_buffer_ptr;
+  __u32 handle;
+  __u32 offset;
+  __u32 size;
+};
+
 struct al5_buffer {
-	__u64 stream_buffer_ptr;
-	__u32 handle;
-	__u32 offset;
-	__u32 size;
+  struct al5_stream_buffer stream_buffer;
+  __u32 external_mv_handle;
 };
 
 #endif	/* _AL_ENC_IOCTL_H_ */

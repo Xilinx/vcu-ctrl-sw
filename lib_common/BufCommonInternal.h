@@ -40,6 +40,7 @@
 #include "lib_common/BufferCircMeta.h"
 #include "lib_common/BufCommon.h"
 #include "lib_common/BufConst.h"
+#include "lib_common/MemDesc.h"
 
 /*************************************************************************//*!
    \brief Generic Buffer
@@ -71,7 +72,7 @@ static AL_INLINE void CircBuffer_ConsumeUpToOffset(AL_TBuffer* stream, int32_t i
   AL_TCircMetaData* pCircMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(stream, AL_META_TYPE_CIRCULAR);
 
   if(iNewOffset < pCircMeta->iOffset)
-    pCircMeta->iAvailSize -= iNewOffset + stream->zSize - pCircMeta->iOffset;
+    pCircMeta->iAvailSize -= iNewOffset + AL_Buffer_GetSize(stream) - pCircMeta->iOffset;
   else
     pCircMeta->iAvailSize -= iNewOffset - pCircMeta->iOffset;
   pCircMeta->iOffset = iNewOffset;

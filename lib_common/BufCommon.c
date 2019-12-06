@@ -39,7 +39,7 @@
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/BufCommon.h"
 #include "lib_common/BufferAPI.h"
-#include "lib_common/BufferSrcMeta.h"
+#include "lib_common/BufferPixMapMeta.h"
 #include "Utils.h"
 
 /*****************************************************************************/
@@ -105,20 +105,6 @@ int32_t ComputeRndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFr
 
   assert(iBurstAlignment > 0 && (iBurstAlignment % HW_IP_BURST_ALIGNMENT) == 0);
   return RoundUp(iVal, iBurstAlignment);
-}
-
-/****************************************************************************/
-void AL_CopyYuv(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
-{
-  AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pSrc, AL_META_TYPE_SOURCE);
-  AL_TSrcMetaData* pDstMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pDst, AL_META_TYPE_SOURCE);
-
-  pDstMeta->tDim = pSrcMeta->tDim;
-  pDstMeta->tFourCC = pSrcMeta->tFourCC;
-
-  assert(pDst->zSize >= pSrc->zSize);
-
-  Rtos_Memcpy(AL_Buffer_GetData(pDst), AL_Buffer_GetData(pSrc), pSrc->zSize);
 }
 
 /****************************************************************************/

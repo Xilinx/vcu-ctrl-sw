@@ -36,7 +36,7 @@
 ******************************************************************************/
 
 #include <assert.h>
-#include "lib_common/BufferSrcMeta.h"
+#include "lib_common/PixMapBufferInternal.h"
 #include "I_PictMngr.h"
 #include "lib_decode/lib_decode.h"
 #include "lib_common_dec/IpDecFourCC.h"
@@ -54,7 +54,6 @@ static bool sRecBuffers_AreNull(AL_TRecBuffers* tRecBuffers)
 {
   bool bNull = NULL == tRecBuffers->pFrame;
 
-
   return bNull;
 }
 
@@ -63,7 +62,6 @@ static bool sRecBuffers_AreNotNull(AL_TRecBuffers* tRecBuffers, AL_TFrmBufPool* 
 {
   (void)pPool;
   bool bNotNull = tRecBuffers->pFrame;
-
 
   return bNotNull;
 }
@@ -78,8 +76,12 @@ static void sRecBuffers_Reset(AL_TRecBuffers* tRecBuffers)
 static void sRecBuffers_CleanUp(AL_TRecBuffers* tRecBuffers, AL_TFrmBufPool* pPool)
 {
   (void)pPool;
-  AL_CleanupMemory(AL_Buffer_GetData(tRecBuffers->pFrame), tRecBuffers->pFrame->zSize);
 
+  if(AL_CLEAN_BUFFERS)
+  {
+    AL_Buffer_MemSet(tRecBuffers->pFrame, 0);
+
+  }
 }
 
 /*************************************************************************/
@@ -87,7 +89,6 @@ static bool sRecBuffers_HasBuf(AL_TRecBuffers* tRecBuffers, AL_TBuffer* pBuf, AL
 {
   (void)pPool;
   bool bHasBuf = tRecBuffers->pFrame == pBuf;
-
 
   return bHasBuf;
 }
@@ -311,7 +312,6 @@ static bool sFrmBufPool_Init(AL_TFrmBufPool* pPool, bool bHasRasterFrame)
 
   sFrmBufPoolFifo_Init(pPool);
 
-
   return true;
   fail_alloc_sem_free:
   Rtos_DeleteMutex(pPool->Mutex);
@@ -376,6 +376,12 @@ static void sFrmBufPool_IncrementBufID(AL_TFrmBufPool* pPool, int iFrameID)
   Rtos_ReleaseMutex(pPool->Mutex);
 }
 
+/*****************************************************************************/
+static void sFrmBufPool_Terminate(AL_TFrmBufPool* pPool)
+{
+  (void)pPool; // Nothing to do
+}
+
 /*************************************************************************/
 static bool sMvBufPool_Init(AL_TMvBufPool* pPool, int iMaxBuf)
 {
@@ -423,17 +429,17 @@ static void sMvBufPool_Deinit(AL_TMvBufPool* pPool)
 }
 
 /*************************************************************************/
-static int sMvBufPool_GetFreeBufID(AL_TMvBufPool* pPool)
+static uint8_t sMvBufPool_GetFreeBufID(AL_TMvBufPool* pPool)
 {
   Rtos_GetSemaphore(pPool->Semaphore, AL_WAIT_FOREVER);
 
   Rtos_GetMutex(pPool->Mutex);
-  int iMvID = pPool->pFreeIDs[--pPool->iFreeCnt];
-  assert(pPool->iAccessCnt[iMvID] == 0);
-  pPool->iAccessCnt[iMvID] = 1;
+  uint8_t uMvID = pPool->pFreeIDs[--pPool->iFreeCnt];
+  assert(pPool->iAccessCnt[uMvID] == 0);
+  pPool->iAccessCnt[uMvID] = 1;
   Rtos_ReleaseMutex(pPool->Mutex);
 
-  return iMvID;
+  return uMvID;
 }
 
 /*************************************************************************/
@@ -466,6 +472,16 @@ static void sMvBufPool_IncrementBufID(AL_TMvBufPool* pPool, int iMvID)
   Rtos_GetMutex(pPool->Mutex);
   Rtos_AtomicIncrement(&(pPool->iAccessCnt[iMvID]));
   Rtos_ReleaseMutex(pPool->Mutex);
+}
+
+/*****************************************************************************/
+static void sMvBufPool_Terminate(AL_TMvBufPool* pPool)
+{
+  for(int i = 0; i < pPool->iBufCnt; ++i)
+    Rtos_GetSemaphore(pPool->Semaphore, AL_WAIT_FOREVER);
+
+  for(int i = 0; i < pPool->iBufCnt; ++i)
+    Rtos_ReleaseSemaphore(pPool->Semaphore);
 }
 
 /*************************************************************************/
@@ -509,43 +525,45 @@ static void sPictMngr_DecrementMvBuf(void* pUserParam, uint8_t uMvID)
 }
 
 /*****************************************************************************/
-static bool CheckPictMngrInitParameter(int iNumMV, int iSizeMV, int iNumDPBRef, AL_EDpbMode eDPBMode, AL_EFbStorageMode eFbStorageMode, int iBitdepth)
+static bool CheckPictMngrInitParameter(AL_TPictMngrParam* pParam)
 {
-  if(iSizeMV < 0)
+  if(pParam->iSizeMV < 0)
     return false;
 
-  if(iNumMV < 0)
+  if(pParam->iNumMV < 0)
     return false;
 
-  if(iNumDPBRef < 0)
+  if(pParam->iNumDPBRef < 0)
     return false;
 
-  if(iNumMV < iNumDPBRef)
+  if(pParam->iNumMV < pParam->iNumDPBRef)
     return false;
 
-  if(eDPBMode >= AL_DPB_MAX_ENUM)
+  if(pParam->eDPBMode >= AL_DPB_MAX_ENUM)
     return false;
 
-  if(eFbStorageMode >= AL_FB_MAX_ENUM)
+  if(pParam->eFbStorageMode >= AL_FB_MAX_ENUM)
     return false;
 
-  if(iBitdepth < 0)
+  if(pParam->iBitdepth < 0)
     return false;
 
   return true;
 }
 
 /*****************************************************************************/
-bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, AL_TAllocator* pAllocator, int iNumMV, int iSizeMV, int iNumDPBRef, AL_EDpbMode eDPBMode, AL_EFbStorageMode eFbStorageMode, int iBitdepth, bool bEnableRasterOutput, bool bForceOutput)
+bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, AL_TAllocator* pAllocator, AL_TPictMngrParam* pParam)
 {
   if(!pCtx)
     return false;
 
-  if(!CheckPictMngrInitParameter(iNumMV, iSizeMV, iNumDPBRef, eDPBMode, eFbStorageMode, iBitdepth))
+  if(!CheckPictMngrInitParameter(pParam))
     return false;
 
-  if(!sMvBufPool_Init(&pCtx->MvBufPool, iNumMV))
+  if(!sMvBufPool_Init(&pCtx->MvBufPool, pParam->iNumMV))
     return false;
+
+  bool bEnableRasterOutput = false;
 
   if(!sFrmBufPool_Init(&pCtx->FrmBufPool, bEnableRasterOutput))
     return false;
@@ -560,11 +578,11 @@ bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, AL_TAllocator* pAllocator, int iNum
     pCtx,
   };
 
-  AL_Dpb_Init(&pCtx->DPB, iNumDPBRef, eDPBMode, tCallbacks);
+  AL_Dpb_Init(&pCtx->DPB, pParam->iNumDPBRef, pParam->eDPBMode, tCallbacks);
 
-  pCtx->eFbStorageMode = eFbStorageMode;
-  pCtx->iBitdepth = iBitdepth;
-  pCtx->uSizeMV = iSizeMV;
+  pCtx->eFbStorageMode = pParam->eFbStorageMode;
+  pCtx->iBitdepth = pParam->iBitdepth;
+  pCtx->uSizeMV = pParam->iSizeMV;
   pCtx->uSizePOC = POCBUFF_PL_SIZE;
   pCtx->iCurFramePOC = 0;
 
@@ -577,27 +595,11 @@ bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, AL_TAllocator* pAllocator, int iNum
   pCtx->uNumSlice = 0;
   pCtx->iPrevFrameNum = -1;
   pCtx->bFirstInit = true;
-  pCtx->bForceOutput = bForceOutput;
+  pCtx->bForceOutput = pParam->bForceOutput;
 
   pCtx->pAllocator = pAllocator;
 
   return true;
-}
-
-/*****************************************************************************/
-static void sFrmBufPool_Terminate(AL_TFrmBufPool* pPool)
-{
-  (void)pPool; // Nothing to do
-}
-
-/*****************************************************************************/
-static void sMvBufPool_Terminate(AL_TMvBufPool* pPool)
-{
-  for(int i = 0; i < pPool->iBufCnt; ++i)
-    Rtos_GetSemaphore(pPool->Semaphore, AL_WAIT_FOREVER);
-
-  for(int i = 0; i < pPool->iBufCnt; ++i)
-    Rtos_ReleaseSemaphore(pPool->Semaphore);
 }
 
 /*****************************************************************************/
@@ -675,9 +677,7 @@ bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, AL_TDimension tDim)
 
   AL_TRecBuffers tBuffers = sFrmBufPool_GetBufferFromID(&pCtx->FrmBufPool, pCtx->uRecID);
 
-  AL_TSrcMetaData* pMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(tBuffers.pFrame, AL_META_TYPE_SOURCE);
-  pMeta->tDim = tDim;
-
+  AL_PixMapBuffer_SetDimension(tBuffers.pFrame, tDim);
 
   return true;
 }
@@ -699,6 +699,7 @@ static void sFrmBufPool_SignalCallbackReleaseIsDone(AL_TFrmBufPool* pPool, AL_TB
 /***************************************************************************/
 void AL_PictMngr_CancelFrame(AL_TPictMngrCtx* pCtx)
 {
+
   if(pCtx->uMvID != UndefID)
   {
     sMvBufPool_DecrementBufID(&pCtx->MvBufPool, pCtx->uMvID);
@@ -819,16 +820,16 @@ static void sFrmBufPool_GetInfoDecode(AL_TFrmBufPool* pPool, int iFrameID, AL_TI
   assert(sRecBuffers_AreNotNull(&tBuffers, pPool));
 
   AL_TBuffer* pBuf = bDisplayInfo ? sRecBuffers_GetDisplayBuffer(&tBuffers, pPool) : tBuffers.pFrame;
-  AL_TSrcMetaData* pMetaSrc = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
-  assert(pMetaSrc);
 
   pInfo->tCrop = pPool->array[iFrameID].tCrop;
   pInfo->uBitDepthY = pInfo->uBitDepthC = iBitdepth;
   pInfo->uCRC = pPool->array[iFrameID].uCRC;
-  pInfo->tDim = pMetaSrc->tDim;
+  pInfo->tDim = AL_PixMapBuffer_GetDimension(pBuf);
   pInfo->eFbStorageMode = eFbStorageMode;
   pInfo->ePicStruct = pPool->array[iFrameID].ePicStruct;
-  AL_EChromaMode eChromaMode = AL_GetChromaMode(pMetaSrc->tFourCC);
+  TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
+  assert(tFourCC != 0);
+  AL_EChromaMode eChromaMode = AL_GetChromaMode(tFourCC);
   pInfo->bChroma = (eChromaMode != AL_CHROMA_MONO);
 }
 
@@ -839,7 +840,6 @@ static AL_TBuffer* AL_PictMngr_GetDisplayBuffer2(AL_TPictMngrCtx* pCtx, AL_TInfo
     return NULL;
 
   AL_EFbStorageMode eOutputStorageMode = pCtx->eFbStorageMode;
-
 
   if(pInfo)
     sFrmBufPool_GetInfoDecode(&pCtx->FrmBufPool, iFrameID, pInfo, eOutputStorageMode, pCtx->iBitdepth, true);
@@ -990,7 +990,6 @@ static AL_TRecBuffers sFrmBufPool_BuildRecBuffer(AL_TFrmBufPool* pPool, AL_TBuff
   AL_TRecBuffers tRecBuffers;
   tRecBuffers.pFrame = pDisplayBuf;
 
-
   return tRecBuffers;
 }
 
@@ -1117,10 +1116,6 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam* pSP, TBuff
   AL_TRecBuffers pRecBuffers = sFrmBufPool_GetBufferFromID(&pCtx->FrmBufPool, pCtx->uRecID);
   pRecs->pFrame = pRecBuffers.pFrame;
 
-  AL_TSrcMetaData* pRecMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pRecs->pFrame, AL_META_TYPE_SOURCE);
-  assert(pRecMeta);
-
-
   if(pMV && pPOC)
   {
     if(pCtx->uMvID == UndefID)
@@ -1150,13 +1145,15 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam* pSP, TBuff
          && pCtx->DPB.uCountPic)
         uNodeID = AL_Dpb_ConvertPicIDToNodeID(&pCtx->DPB, pSP->ConcealPicID);
 
+      AL_TBuffer* pRefBuf = NULL;
+
       if(uNodeID != UndefID)
       {
         int iFrameID = AL_Dpb_GetFrmID_FromNode(&pCtx->DPB, uNodeID);
         uint8_t uMvID = AL_Dpb_GetMvID_FromNode(&pCtx->DPB, uNodeID);
         AL_TRecBuffers pBufs = sFrmBufPool_GetBufferFromID(&pCtx->FrmBufPool, iFrameID);
+        pRefBuf = pBufs.pFrame;
 
-        pAddr[i] = AL_Allocator_GetPhysicalAddr(pBufs.pFrame->pAllocator, pBufs.pFrame->hBuf);
         pColocMvList[i] = pCtx->MvBufPool.pMvBufs[uMvID].tMD.uPhysicalAddr;
         pColocPocList[i] = pCtx->MvBufPool.pPocBufs[uMvID].tMD.uPhysicalAddr;
 
@@ -1164,20 +1161,20 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam* pSP, TBuff
       else
       {
         // Use current Rec & MV Buffers to avoid non existing ref/coloc
-        pAddr[i] = AL_Allocator_GetPhysicalAddr(pRecs->pFrame->pAllocator, pRecs->pFrame->hBuf);
+        pRefBuf = pRecs->pFrame;
         pColocMvList[i] = pMV->tMD.uPhysicalAddr;
         pColocPocList[i] = pPOC->tMD.uPhysicalAddr;
 
       }
 
-      pAddr[PIC_ID_POOL_SIZE + i] = pAddr[i] + pRecMeta->tPlanes[AL_PLANE_UV].iOffset;
+      pAddr[i] = AL_PixMapBuffer_GetPlanePhysicalAddress(pRefBuf, AL_PLANE_Y);
+      pAddr[PIC_ID_POOL_SIZE + i] = AL_PixMapBuffer_GetPlanePhysicalAddress(pRefBuf, AL_PLANE_UV);
       pFbcList[i] = 0;
       pFbcList[PIC_ID_POOL_SIZE + i] = 0;
     }
   }
   return true;
 }
-
 
 /*@}*/
 

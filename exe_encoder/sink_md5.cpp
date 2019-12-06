@@ -43,10 +43,10 @@
 
 extern "C"
 {
-#include "lib_common/BufferSrcMeta.h"
+#include "lib_common/PixMapBuffer.h"
 }
 
-void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tFourCC);
+void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tYuvFourCC);
 
 class Md5Calculator : public IFrameSink
 {
@@ -67,15 +67,18 @@ public:
       return;
     }
 
-    auto meta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
+    TFourCC tRecFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
 
-    if(meta->tFourCC != fourcc)
+    if(tRecFourCC != fourcc)
     {
       RecToYuv(pBuf, Yuv, fourcc);
       pBuf = Yuv;
     }
 
-    m_MD5.Update(AL_Buffer_GetData(pBuf), pBuf->zSize);
+    int iChunkCnt = AL_Buffer_GetChunkCount(pBuf);
+
+    for(int i = 0; i < iChunkCnt; i++)
+      m_MD5.Update(AL_Buffer_GetDataChunk(pBuf, i), AL_Buffer_GetSizeChunk(pBuf, i));
   }
 
 private:

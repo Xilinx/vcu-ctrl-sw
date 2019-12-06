@@ -79,7 +79,7 @@ struct AL_t_Allocator
    \param[in] pAllocator the Allocator interface object to be destroyed
    \return true on success false otherwise
 ******************************************************************************/
-static inline bool AL_Allocator_Destroy(AL_TAllocator* pAllocator)
+static AL_INLINE bool AL_Allocator_Destroy(AL_TAllocator* pAllocator)
 {
   if(pAllocator->vtable->pfnDestroy)
     return pAllocator->vtable->pfnDestroy(pAllocator);
@@ -94,7 +94,7 @@ static inline bool AL_Allocator_Destroy(AL_TAllocator* pAllocator)
    The handle value depends on the Allocator implementation and shall be treat as
    a black box.
 ******************************************************************************/
-static inline
+static AL_INLINE
 AL_HANDLE AL_Allocator_Alloc(AL_TAllocator* pAllocator, size_t zSize)
 {
   return pAllocator->vtable->pfnAlloc(pAllocator, zSize);
@@ -110,7 +110,7 @@ AL_HANDLE AL_Allocator_Alloc(AL_TAllocator* pAllocator, size_t zSize)
    The handle value depends on the Allocator implementation and shall be treat as
    a black box.
 ******************************************************************************/
-static inline
+static AL_INLINE
 AL_HANDLE AL_Allocator_AllocNamed(AL_TAllocator* pAllocator, size_t zSize, char const* sName)
 {
   (void)sName;
@@ -128,7 +128,7 @@ AL_HANDLE AL_Allocator_AllocNamed(AL_TAllocator* pAllocator, size_t zSize, char 
    \param[in] hBuf Handle to the memory buffer to be freed.
    \return true on success, false otherwise
 ******************************************************************************/
-static inline
+static AL_INLINE
 bool AL_Allocator_Free(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
 {
   return pAllocator->vtable->pfnFree(pAllocator, hBuf);
@@ -141,7 +141,7 @@ bool AL_Allocator_Free(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
    \param[in] hBuf Handle to the memory buffer.
    \return a pointer to the allocated memory in user space
 ******************************************************************************/
-static inline
+static AL_INLINE
 AL_VADDR AL_Allocator_GetVirtualAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
 {
   return pAllocator->vtable->pfnGetVirtualAddr(pAllocator, hBuf);
@@ -154,7 +154,7 @@ AL_VADDR AL_Allocator_GetVirtualAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
    \param[in] hBuf Handle to the memory buffer.
    \return a pointer to the allocated memory in the IP address space
 ******************************************************************************/
-static inline
+static AL_INLINE
 AL_PADDR AL_Allocator_GetPhysicalAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
 {
   return pAllocator->vtable->pfnGetPhysicalAddr(pAllocator, hBuf);

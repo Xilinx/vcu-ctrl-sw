@@ -53,9 +53,9 @@
 #include "lib_common_dec/DecBuffers.h"
 #include "lib_common_dec/RbspParser.h"
 
+#include "lib_parsing/SliceHdrParsing.h"
 #include "lib_parsing/Avc_PictMngr.h"
 #include "lib_parsing/Hevc_PictMngr.h"
-#include "lib_parsing/SliceHdrParsing.h"
 
 #include "FrameParam.h"
 #include "I_DecoderCtx.h"

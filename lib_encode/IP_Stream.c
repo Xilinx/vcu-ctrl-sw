@@ -42,6 +42,7 @@
 #include "IP_Stream.h"
 
 #include "lib_common/SliceConsts.h"
+#include "lib_common/Nuts.h"
 #include "lib_common/Utils.h"
 #include "lib_rtos/lib_rtos.h"
 
@@ -81,17 +82,29 @@ static void AntiEmul(AL_TBitStreamLite* pStream, uint8_t const* pData, int iNumB
   writeByte(pStream, *pData);
 }
 
-static void writeStartCode(AL_TBitStreamLite* pStream, int nut)
+static void writeStartCode(AL_TBitStreamLite* pStream, AL_ECodec eCodec, int nut)
 {
-#if !(defined(ANDROID) || defined(__ANDROID_API__))
-
-  // If this is a SPS, a PPS, an Access Unit or a SEI, add an extra zero_byte (spec. B.1.2).
-  if((nut >= AL_AVC_NUT_PREFIX_SEI && nut <= AL_AVC_NUT_SUB_SPS) ||
-     (nut >= AL_HEVC_NUT_VPS && nut <= AL_HEVC_NUT_SUFFIX_SEI))
+  (void)nut;
+#if (defined(ANDROID) || defined(__ANDROID_API__))
+  bool bZeroByte = true;
+#else
+  bool bZeroByte = false;
 #endif
+  // If this is a SPS, a PPS, an AUD or a SEI, add an extra zero_byte (spec. B.1.2).
+  switch(eCodec)
   {
-    writeByte(pStream, 0x00);
+  case AL_CODEC_AVC:
+    bZeroByte |= (nut >= AL_AVC_NUT_PREFIX_SEI && nut <= AL_AVC_NUT_SUB_SPS);
+    break;
+  case AL_CODEC_HEVC:
+    bZeroByte |= (nut >= AL_HEVC_NUT_VPS && nut <= AL_HEVC_NUT_SUFFIX_SEI);
+    break;
+  default:
+    break;
   }
+
+  if(bZeroByte)
+    writeByte(pStream, 0x00);
 
   // don't count start code in case of "VCL Compliance"
   writeByte(pStream, 0x00);
@@ -100,9 +113,9 @@ static void writeStartCode(AL_TBitStreamLite* pStream, int nut)
 }
 
 /****************************************************************************/
-void FlushNAL(AL_TBitStreamLite* pStream, uint8_t uNUT, AL_TNalHeader const* pHeader, uint8_t* pDataInNAL, int iBitsInNAL)
+void FlushNAL(AL_TBitStreamLite* pStream, AL_ECodec eCodec, uint8_t uNUT, AL_TNalHeader const* pHeader, uint8_t* pDataInNAL, int iBitsInNAL)
 {
-  writeStartCode(pStream, uNUT);
+  writeStartCode(pStream, eCodec, uNUT);
 
   for(int i = 0; i < pHeader->size; i++)
     writeByte(pStream, pHeader->bytes[i]);
@@ -114,10 +127,10 @@ void FlushNAL(AL_TBitStreamLite* pStream, uint8_t uNUT, AL_TNalHeader const* pHe
 }
 
 /****************************************************************************/
-void WriteFillerData(AL_TBitStreamLite* pStream, uint8_t uNUT, AL_TNalHeader const* pHeader, int iBytesCount, bool bDontFill)
+void WriteFillerData(AL_TBitStreamLite* pStream, AL_ECodec eCodec, uint8_t uNUT, AL_TNalHeader const* pHeader, int iBytesCount, bool bDontFill)
 {
   int bookmark = AL_BitStreamLite_GetBitsCount(pStream);
-  writeStartCode(pStream, uNUT);
+  writeStartCode(pStream, eCodec, uNUT);
 
   for(int i = 0; i < pHeader->size; i++)
     writeByte(pStream, pHeader->bytes[i]);
@@ -135,7 +148,7 @@ void WriteFillerData(AL_TBitStreamLite* pStream, uint8_t uNUT, AL_TNalHeader con
       AL_BitStreamLite_GetCurData(pStream)[0] = 0xFF; // set single 0xFF byte as start marker
     else
       Rtos_Memset(AL_BitStreamLite_GetCurData(pStream), 0xFF, bytesToWrite);
-    AL_BitStreamLite_SkipBits(pStream, bytesToWrite * 8);
+    AL_BitStreamLite_SkipBits(pStream, BytesToBits(bytesToWrite));
   }
 
   writeByte(pStream, 0x80);

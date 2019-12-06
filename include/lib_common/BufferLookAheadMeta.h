@@ -67,9 +67,9 @@ typedef struct AL_t_LookAheadMetaData
   int32_t iPictureSize;   /*< current frame size */
   int8_t iPercentIntra[5];   /*< current frame Percent Intra Ratio */
   AL_ESceneChangeType eSceneChange;  /*< scene change description  */
-  int32_t iIPRatio;       /*< current frame IPRatio for scene change*/
-  int32_t iComplexity;    /*< current frame complexity */
-  int32_t iTargetLevel;   /*< current frame target CPB level */
+  int32_t iIPRatio;         /*< current frame IPRatio for scene change*/
+  int32_t iComplexity;      /*< current frame complexity */
+  int32_t iTargetLevel;     /*< current frame target CPB level */
 }AL_TLookAheadMetaData;
 
 /*************************************************************************//*!

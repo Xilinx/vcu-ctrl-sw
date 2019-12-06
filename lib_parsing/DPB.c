@@ -46,6 +46,7 @@
 #include <assert.h>
 
 #include "DPB.h"
+#include "lib_common/AvcUtils.h"
 
 static void DispFifo_Init(AL_TDispFifo* pFifo)
 {
@@ -146,7 +147,7 @@ static void AL_Dpb_sResetNodeInfo(AL_TDpb* pDpb, AL_TDpbNode* pNode)
   pNode->iLong_term_frame_idx = INT32_MAX;
   pNode->iSlice_frame_num = INT32_MAX;
   pNode->non_existing = 0;
-  pNode->eNUT = AL_HEVC_NUT_ERR;
+  pNode->eNUT = AL_NUT_ERR;
 }
 
 /*****************************************************************************/
@@ -383,7 +384,7 @@ static void AL_Dpb_sSetAllPicAsUnused(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice)
 
   pNodes[iCurRef].iFramePOC = 0;
   pNodes[iCurRef].iSlice_frame_num = 0;
-  pNodes[iCurRef].eNUT = AL_HEVC_NUT_ERR;
+  pNodes[iCurRef].eNUT = AL_NUT_ERR;
   pDpb->MaxLongTermFrameIdx = INT32_MAX;
 
   if(pSlice->nal_ref_idc)
@@ -1403,6 +1404,7 @@ void AL_Dpb_MarkingProcess(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice)
 /*****************************************************************************/
 void AL_Dpb_InitPSlice_RefList(AL_TDpb* pDpb, TBufferRef* pRefList)
 {
+  Rtos_GetMutex(pDpb->Mutex);
   AL_TDpbNode* pNodes = pDpb->Nodes;
   AL_TDpbNode NodeShortTerm[16], NodeLongTerm[16];
   AL_TDpbNode* pNodeTemp;
@@ -1436,11 +1438,14 @@ void AL_Dpb_InitPSlice_RefList(AL_TDpb* pDpb, TBufferRef* pRefList)
 
   while(iPic < (iCnt_short + iCnt_long))
     pRefList[iPic++].uNodeID = NodeLongTerm[iRef++].uNodeID;
+
+  Rtos_ReleaseMutex(pDpb->Mutex);
 }
 
 /*****************************************************************************/
 void AL_Dpb_InitBSlice_RefList(AL_TDpb* pDpb, int iCurFramePOC, TBufferListRef* pListRef)
 {
+  Rtos_GetMutex(pDpb->Mutex);
   AL_TDpbNode* pNodes = pDpb->Nodes;
   AL_TDpbNode NodeShortTermPOCGreat[16], NodeShortTermPOCLess[16], NodeLongTerm[16];
   AL_TDpbNode* pNodeShort;
@@ -1510,17 +1515,24 @@ void AL_Dpb_InitBSlice_RefList(AL_TDpb* pDpb, int iCurFramePOC, TBufferListRef* 
     (*pListRef)[1][iPic++].uNodeID = NodeLongTerm[iRef++].uNodeID;
 
   if(!(iCnt_short_less + iCnt_short_great + iCnt_long > 1))
+  {
+    Rtos_ReleaseMutex(pDpb->Mutex);
     return;
+  }
 
   for(iPic = 0; iPic < iCnt_short_less + iCnt_short_great + iCnt_long; ++iPic)
   {
     if((*pListRef)[1][iPic].uNodeID != (*pListRef)[0][iPic].uNodeID)
+    {
+      Rtos_ReleaseMutex(pDpb->Mutex);
       return;
+    }
   }
 
   NodeTemp = pNodes[(*pListRef)[1][0].uNodeID & 0x3F];
   (*pListRef)[1][0].uNodeID = (*pListRef)[1][1].uNodeID;
   (*pListRef)[1][1].uNodeID = NodeTemp.uNodeID;
+  Rtos_ReleaseMutex(pDpb->Mutex);
 }
 
 /*****************************************************************************/

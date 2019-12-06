@@ -37,17 +37,16 @@
 
 #include "Encoder.h"
 #include "lib_rtos/lib_rtos.h"
-#include "lib_encode/IScheduler.h"
+#include "lib_encode/I_EncScheduler.h"
 #include "lib_encode/Com_Encoder.h"
 #include "lib_encode/lib_encoder.h"
 #include "IP_EncoderCtx.h"
-
 
 void AL_CreateHevcEncoder(HighLevelEncoder* pCtx);
 void AL_CreateAvcEncoder(HighLevelEncoder* pCtx);
 
 /****************************************************************************/
-AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings, AL_CB_EndEncoding callback)
+AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, AL_IEncScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings, AL_CB_EndEncoding callback)
 {
   if(!pSettings)
     return AL_ERROR;
@@ -59,7 +58,6 @@ AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, TScheduler* pScheduler, AL_TAllocato
     return AL_ERR_NO_MEMORY;
 
   AL_TEncCtx* pCtx = pEncoder->pCtx;
-
 
   if(AL_IS_HEVC(pSettings->tChParam[0].eProfile))
     AL_CreateHevcEncoder(&pCtx->encoder);
@@ -111,11 +109,8 @@ void AL_Encoder_NotifyUseLongTerm(AL_HEncoder hEnc)
   AL_Common_Encoder_NotifyUseLongTerm(pEnc);
 }
 
-
-
-
 /****************************************************************************/
-bool AL_Encoder_GetRecPicture(AL_HEncoder hEnc, TRecPic* pRecPic)
+bool AL_Encoder_GetRecPicture(AL_HEncoder hEnc, AL_TRecPic* pRecPic)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
 
@@ -123,7 +118,7 @@ bool AL_Encoder_GetRecPicture(AL_HEncoder hEnc, TRecPic* pRecPic)
 }
 
 /****************************************************************************/
-void AL_Encoder_ReleaseRecPicture(AL_HEncoder hEnc, TRecPic* pRecPic)
+void AL_Encoder_ReleaseRecPicture(AL_HEncoder hEnc, AL_TRecPic* pRecPic)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
   AL_Common_Encoder_ReleaseRecPicture(pEnc, pRecPic, 0);
@@ -172,6 +167,13 @@ bool AL_Encoder_SetGopNumB(AL_HEncoder hEnc, int iNumB)
 }
 
 /****************************************************************************/
+bool AL_Encoder_SetFreqIDR(AL_HEncoder hEnc, int iFreqIDR)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  return AL_Common_Encoder_SetFreqIDR(pEnc, iFreqIDR);
+}
+
+/****************************************************************************/
 bool AL_Encoder_SetBitRate(AL_HEncoder hEnc, int iBitRate)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
@@ -190,6 +192,27 @@ bool AL_Encoder_SetQP(AL_HEncoder hEnc, int16_t iQP)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
   return AL_Common_Encoder_SetQP(pEnc, iQP);
+}
+
+/****************************************************************************/
+bool AL_Encoder_SetQPBounds(AL_HEncoder hEnc, int16_t iMinQP, int16_t iMaxQP)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  return AL_Common_Encoder_SetQPBounds(pEnc, iMinQP, iMaxQP);
+}
+
+/****************************************************************************/
+bool AL_Encoder_SetQPIPDelta(AL_HEncoder hEnc, int16_t uIPDelta)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  return AL_Common_Encoder_SetQPIPDelta(pEnc, uIPDelta);
+}
+
+/****************************************************************************/
+bool AL_Encoder_SetQPPBDelta(AL_HEncoder hEnc, int16_t uPBDelta)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  return AL_Common_Encoder_SetQPPBDelta(pEnc, uPBDelta);
 }
 
 /****************************************************************************/
@@ -213,12 +236,10 @@ bool AL_Encoder_SetLoopFilterTcOffset(AL_HEncoder hEnc, int8_t iTcOffset)
   return AL_Common_Encoder_SetLoopFilterTcOffset(pEnc, iTcOffset);
 }
 
-
 /****************************************************************************/
 bool AL_Encoder_SetHDRSEIs(AL_HEncoder hEnc, AL_THDRSEIs* pHDRSEIs)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
   return AL_Common_Encoder_SetHDRSEIs(pEnc, pHDRSEIs);
 }
-
 

@@ -55,7 +55,7 @@ typedef struct AL_t_Timer AL_Timer;
 /*****************************************************************************/
 struct CIpDevice
 {
-  TScheduler* m_pScheduler = nullptr;
+  AL_IEncScheduler* m_pScheduler = nullptr;
   std::shared_ptr<AL_TAllocator> m_pAllocator;
   AL_Timer* m_pTimer;
 };

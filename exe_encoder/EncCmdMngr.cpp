@@ -39,6 +39,12 @@
 
 using namespace std;
 
+struct TBounds
+{
+  int min;
+  int max;
+};
+
 /****************************************************************************/
 class CCmdTokenizer
 {
@@ -48,12 +54,12 @@ public:
     m_zBeg(0),
     m_zEnd(0),
     m_zNext(0),
-    m_fVal(0.0)
+    m_sVal("")
   {}
 
   bool GetNext()
   {
-    m_fVal = 0.0;
+    m_sVal = "";
 
     if(m_zNext == string::npos)
       return false;
@@ -74,7 +80,7 @@ public:
 
       size_t zPos2 = m_sLine.find_first_of(m_Separators, zPos1 + 1);
 
-      m_fVal = atof(m_sLine.substr(zPos1, zPos2 - zPos1).c_str());
+      m_sVal = m_sLine.substr(zPos1, zPos2 - zPos1);
 
       m_zNext = zPos2;
     }
@@ -84,7 +90,24 @@ public:
     return true;
   }
 
-  double GetValue() { return m_fVal; }
+  double GetValue() { return atof(m_sVal.c_str()); }
+
+  TBounds GetValueBounds()
+  {
+    TBounds tBounds = { 0, 0 };
+
+    size_t sLowerPos = m_sVal.find('[');
+    size_t sSplitPos = m_sVal.find(';');
+    size_t sUpperPos = m_sVal.find(']');
+
+    if(sLowerPos != 0 || sSplitPos == std::string::npos || sSplitPos <= sLowerPos || sUpperPos == std::string::npos || sUpperPos <= sSplitPos)
+      return tBounds;
+
+    tBounds.min = atof(m_sVal.substr(1, sSplitPos - 1).c_str());
+    tBounds.max = atof(m_sVal.substr(sSplitPos + 1, sUpperPos - (sSplitPos + 1)).c_str());
+
+    return tBounds;
+  }
 
   bool operator == (const char* S) const { return m_sLine.substr(m_zBeg, m_zEnd - m_zBeg) == S; }
   int atoi()
@@ -99,7 +122,7 @@ private:
   size_t m_zBeg;
   size_t m_zEnd;
   size_t m_zNext;
-  double m_fVal;
+  string m_sVal;
 };
 
 /****************************************************************************
@@ -202,7 +225,6 @@ bool CEncCmdMngr::ParseCmd(std::string sLine, TFrmCmd& Cmd, bool bSameFrame)
     else if(Tok == "UseLT")
       Cmd.bUseLongTerm = true;
 
-
     else if(Tok == "KF")
       Cmd.bKeyFrame = true;
     else if(Tok == "GopLen")
@@ -214,6 +236,11 @@ bool CEncCmdMngr::ParseCmd(std::string sLine, TFrmCmd& Cmd, bool bSameFrame)
     {
       Cmd.bChangeGopNumB = true;
       Cmd.iGopNumB = int(Tok.GetValue());
+    }
+    else if(Tok == "FreqIDR")
+    {
+      Cmd.bChangeFreqIDR = true;
+      Cmd.iFreqIDR = int(Tok.GetValue());
     }
     else if(Tok == "BR")
     {
@@ -234,6 +261,23 @@ bool CEncCmdMngr::ParseCmd(std::string sLine, TFrmCmd& Cmd, bool bSameFrame)
     {
       Cmd.bChangeQP = true;
       Cmd.iQP = int(Tok.GetValue());
+    }
+    else if(Tok == "QPBounds")
+    {
+      Cmd.bChangeQPBounds = true;
+      TBounds tBounds = Tok.GetValueBounds();
+      Cmd.iMinQP = tBounds.min;
+      Cmd.iMaxQP = tBounds.max;
+    }
+    else if(Tok == "IPDelta")
+    {
+      Cmd.bChangeIPDelta = true;
+      Cmd.iIPDelta = int(Tok.GetValue());
+    }
+    else if(Tok == "PBDelta")
+    {
+      Cmd.bChangePBDelta = true;
+      Cmd.iPBDelta = int(Tok.GetValue());
     }
     else if(Tok == "Input")
     {
@@ -285,7 +329,6 @@ void CEncCmdMngr::Process(ICommandsSender* sender, int iFrame)
         m_bHasLT = true;
       }
 
-
       if(m_Cmds.front().bKeyFrame)
         sender->restartGop();
 
@@ -295,11 +338,23 @@ void CEncCmdMngr::Process(ICommandsSender* sender, int iFrame)
       if(m_Cmds.front().bChangeGopNumB)
         sender->setNumB(m_Cmds.front().iGopNumB);
 
+      if(m_Cmds.front().bChangeFreqIDR)
+        sender->setFreqIDR(m_Cmds.front().iFreqIDR);
+
       if(m_Cmds.front().bChangeFrameRate)
         sender->setFrameRate(m_Cmds.front().iFrameRate, m_Cmds.front().iClkRatio);
 
       if(m_Cmds.front().bChangeBitRate)
         sender->setBitRate(m_Cmds.front().iBitRate);
+
+      if(m_Cmds.front().bChangeQPBounds)
+        sender->setQPBounds(m_Cmds.front().iMinQP, m_Cmds.front().iMaxQP);
+
+      if(m_Cmds.front().bChangeIPDelta)
+        sender->setQPIPDelta(m_Cmds.front().iIPDelta);
+
+      if(m_Cmds.front().bChangePBDelta)
+        sender->setQPPBDelta(m_Cmds.front().iPBDelta);
 
       if(m_Cmds.front().bChangeQP)
         sender->setQP(m_Cmds.front().iQP);

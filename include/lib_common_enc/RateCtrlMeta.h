@@ -35,21 +35,35 @@
 *
 ******************************************************************************/
 
+/**************************************************************************//*!
+   \addtogroup Buffers
+   @{
+   \file
+ *****************************************************************************/
+
 #pragma once
 
-#include "lib_common_enc/EncChanParam.h"
-#include "lib_common_enc/EncRecBuffer.h"
-#include "lib_common_enc/EncBuffers.h"
-#include "lib_common_enc/IpEncFourCC.h"
+#include "lib_common/BufferMeta.h"
+#include "lib_common_enc/RateCtrlStats.h"
+#include "lib_common/BufferAPI.h"
+#include "lib_common/SliceConsts.h"
 
-typedef struct
+/*************************************************************************//*!
+   \brief MetaData gathering encode-statistics usefull for rate-control
+   algorithms
+*****************************************************************************/
+typedef struct AL_t_RateCtrlMetaData
 {
-  uint32_t uRecSize;
-  TFourCC RecFourCC;
-  bool bIsAvc;
-}AL_TCommonChannelInfo;
+  AL_TMetaData tMeta;
+  bool bFilled;
+  AL_RateCtrl_Statistics tRateCtrlStats;
+  AL_TBuffer* pMVBuf;
+}AL_TRateCtrlMetaData;
 
-void SetChannelInfo(AL_TCommonChannelInfo* pChanInfo, AL_TEncChanParam* pChParam);
+/*************************************************************************//*!
+   \brief Create a RateCtrl metadata.
+   \return Pointer to a RateCtrl Metadata if success, NULL otherwise
+*****************************************************************************/
+AL_TRateCtrlMetaData* AL_RateCtrlMetaData_Create(AL_TAllocator* pAllocator, AL_TDimension tDim, uint8_t uLcuSize, AL_ECodec eCodec);
 
-void SetRecPic(TRecPic* pRecPic, AL_TAllocator* pAllocator, AL_HANDLE hRecBuf, AL_TCommonChannelInfo* pChanInfo, AL_TReconstructedInfo* pRecInfo);
-
+/*@}*/

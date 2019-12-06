@@ -556,5 +556,19 @@ bool sei_mastering_display_colour_volume(AL_TMasteringDisplayColourVolume* pMDCV
   return byte_alignment(pRP);
 }
 
+/*****************************************************************************/
+bool sei_content_light_level(AL_TContentLightLevel* pCLL, AL_TRbspParser* pRP)
+{
+  Rtos_Memset(pCLL, 0, sizeof(*pCLL));
+
+  pCLL->max_content_light_level = u(pRP, 16);
+  pCLL->max_pic_average_light_level = u(pRP, 16);
+
+  if(byte_aligned(pRP))
+    return true;
+
+  return byte_alignment(pRP);
+}
+
 /*@}*/
 

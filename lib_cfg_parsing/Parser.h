@@ -49,6 +49,7 @@
 
 std::deque<Token> toReversePolish(std::deque<Token>& tokens);
 std::string parseString(std::deque<Token>& tokens);
+void adaptPath(std::string path);
 std::string parsePath(std::deque<Token>& tokens);
 int parseEnum(std::deque<Token>& tokens, std::map<std::string, int> const& availableEnums);
 std::map<std::string, int> createBoolEnums();

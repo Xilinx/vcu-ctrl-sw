@@ -11,8 +11,8 @@ LIBS:=\
 
 all: true_all
 
-AL5E?=../../allegro-vcu-firmware/1.0.0/lib/firmware/al5e.fw
-AL5E_B?=../../allegro-vcu-firmware/1.0.0/lib/firmware/al5e_b.fw
+AL5E?=../../Firmware/al5e.fw
+AL5E_B?=../../Firmware/al5e_b.fw
 SOFT?=..
 INCLUDES+=-I$(SOFT)/extra/include
 INCLUDES+=-I$(SOFT)

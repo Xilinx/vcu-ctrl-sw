@@ -36,6 +36,7 @@
 ******************************************************************************/
 
 #include "CfgParser.h"
+#include "lib_common/SEI.h"
 #include "lib_cfg_parsing/Parser.h"
 
 #include <algorithm>
@@ -73,6 +74,7 @@ struct Temporary
   bool bHeightIsParsed = false;
   bool bNameIsParsed = false;
   bool bParseLambdaFactors = false;
+
 };
 
 static TFourCC GetFourCCValue(const string& sVal)
@@ -107,12 +109,6 @@ static TFourCC GetFourCCValue(const string& sVal)
   return (TFourCC)uFourCC;
 }
 
-
-static std::string noDefaultValue()
-{
-  return "unknown";
-}
-
 static std::string FourCCToString(TFourCC tFourCC)
 {
   std::stringstream ss;
@@ -127,7 +123,6 @@ static void populateInputSection(ConfigParser& parser, ConfigFile& cfg)
   parser.addCustom(curSection, "Width", [&](std::deque<Token>& tokens)
   {
     cfg.MainInput.FileInfo.PictWidth = parseArithmetic<int>(tokens);
-    AL_SetSrcWidth(&cfg.Settings.tChParam[0], cfg.MainInput.FileInfo.PictWidth);
   },
                    [&]() { return std::to_string(cfg.MainInput.FileInfo.PictWidth); },
                    "Specifies the YUV input width");
@@ -135,7 +130,6 @@ static void populateInputSection(ConfigParser& parser, ConfigFile& cfg)
   parser.addCustom(curSection, "Height", [&](std::deque<Token>& tokens)
   {
     cfg.MainInput.FileInfo.PictHeight = parseArithmetic<int>(tokens);
-    AL_SetSrcHeight(&cfg.Settings.tChParam[0], cfg.MainInput.FileInfo.PictHeight);
   },
                    [&]() { return std::to_string(cfg.MainInput.FileInfo.PictHeight); },
                    "Specifies the YUV input height");
@@ -152,6 +146,7 @@ static void populateInputSection(ConfigParser& parser, ConfigFile& cfg)
   parser.addPath(curSection, "TwoPassFile", cfg.sTwoPassFileName, "File containing the first pass statistics");
   parser.addPath(curSection, "HDRFile", cfg.sHDRFileName, "Name of the file specifying HDR SEI contents");
   parser.addArith(curSection, "FrameRate", cfg.MainInput.FileInfo.FrameRate, "Specifies the number of frames per second of the source, if it isn't set, we take the RATE_CONTROL FrameRate value. If this parameter is greater than the frame rate specified in the rate control section, the encoder will drop some frames; when this parameter is lower than the frame rate specified in the rate control section, the encoder will repeat some frames");
+
 }
 
 static void populateOutputSection(ConfigParser& parser, ConfigFile& cfg)
@@ -186,7 +181,6 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
   rateCtrlModes["VBR"] = AL_RC_VBR;
   rateCtrlModes["LOW_LATENCY"] = AL_RC_LOW_LATENCY;
   rateCtrlModes["CAPPED_VBR"] = AL_RC_CAPPED_VBR;
-  rateCtrlModes["BYPASS"] = AL_RC_BYPASS;
   rateCtrlModes["PLUGIN"] = AL_RC_PLUGIN;
 
   parser.addEnum(curSection, "RateCtrlMode", RCParam.eRCMode, rateCtrlModes, "Selects the way the bit rate is controlled");
@@ -260,6 +254,7 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
     return size / 1000;
   }, MaxPicSizeEnums, "Specifies a coarse size (in Kbits) for B-frame that shouldn't be exceeded");
   parser.addFlag(curSection, "EnableSkip", RCParam.eOptions, AL_RC_OPT_ENABLE_SKIP);
+  parser.addFlag(curSection, "SCPrevention", RCParam.eOptions, AL_RC_OPT_SC_PREVENTION, "Enable Scene Change Prevention");
 }
 
 static void populateRateControlSection(ConfigParser& parser, ConfigFile& cfg)
@@ -273,13 +268,12 @@ static void populateGopSection(ConfigParser& parser, ConfigFile& cfg)
   auto curSection = Section::Gop;
   std::map<string, int> gopCtrlModes {};
   gopCtrlModes["DEFAULT_GOP"] = AL_GOP_MODE_DEFAULT;
+  gopCtrlModes["LOW_DELAY_P"] = AL_GOP_MODE_LOW_DELAY_P;
+  gopCtrlModes["LOW_DELAY_B"] = AL_GOP_MODE_LOW_DELAY_B;
   gopCtrlModes["PYRAMIDAL_GOP"] = AL_GOP_MODE_PYRAMIDAL;
   gopCtrlModes["DEFAULT_GOP_B"] = AL_GOP_MODE_DEFAULT_B;
   gopCtrlModes["PYRAMIDAL_GOP_B"] = AL_GOP_MODE_PYRAMIDAL_B;
   gopCtrlModes["ADAPTIVE_GOP"] = AL_GOP_MODE_ADAPTIVE;
-  gopCtrlModes["BYPASS"] = AL_GOP_MODE_BYPASS;
-  gopCtrlModes["LOW_DELAY_P"] = AL_GOP_MODE_LOW_DELAY_P;
-  gopCtrlModes["LOW_DELAY_B"] = AL_GOP_MODE_LOW_DELAY_B;
   parser.addEnum(curSection, "GopCtrlMode", GopParam.eMode, gopCtrlModes, "Specifies the Group Of Pictures configuration mode");
   parser.addArith(curSection, "Gop.Length", GopParam.uGopLength, "GOP length in frames including the I picture. 0 for Intra only.");
   std::map<string, int> freqIdrEnums {};
@@ -303,6 +297,7 @@ static void populateGopSection(ConfigParser& parser, ConfigFile& cfg)
 
 static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Temporary& temp, std::ostream& warnStream)
 {
+  (void)warnStream;
   auto curSection = Section::Settings;
   std::map<string, int> profiles {};
 
@@ -409,7 +404,6 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   chromaModes["CHROMA_4_0_0"] = AL_CHROMA_4_0_0;
   chromaModes["CHROMA_4_2_0"] = AL_CHROMA_4_2_0;
   chromaModes["CHROMA_4_2_2"] = AL_CHROMA_4_2_2;
-  chromaModes["CHROMA_4_4_4"] = AL_CHROMA_4_4_4;
 
   parser.addCustom(curSection, "ChromaMode", [chromaModes, &cfg](std::deque<Token>& tokens)
   {
@@ -433,20 +427,6 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
     return std::to_string(AL_GET_BITDEPTH(cfg.Settings.tChParam[0].ePicFormat));
   }, "Number of bits used to encode one pixel");
 
-  parser.addCustom(curSection, "BitDepthChroma", [&](std::deque<Token>& tokens)
-  {
-    auto bitdepth = parseArithmetic<int>(tokens);
-    warnStream << "Warning: using BitDepthChroma instead of BitDepth, this will set the BitDepth variable" << endl;
-    AL_SET_BITDEPTH(&cfg.Settings.tChParam[0].ePicFormat, bitdepth);
-  }, noDefaultValue, "deprecated");
-
-  parser.addCustom(curSection, "BitDepthLuma", [&](std::deque<Token>& tokens)
-  {
-    auto bitdepth = parseArithmetic<int>(tokens);
-    warnStream << "Warning: using BitDepthLuma instead of BitDepth, this will set the BitDepth variable" << endl;
-    AL_SET_BITDEPTH(&cfg.Settings.tChParam[0].ePicFormat, bitdepth);
-  }, noDefaultValue, "deprecated");
-
   std::map<string, int> scalingmodes {};
   scalingmodes["FLAT"] = AL_SCL_FLAT;
   scalingmodes["DEFAULT"] = AL_SCL_DEFAULT;
@@ -464,25 +444,23 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   {
     cfg.RunInfo.eGenerateQpMode = (AL_EGenerateQpMode)parseEnum(tokens, qpctrls);
     auto& settings = cfg.Settings;
-    bool isRelativeTable = ((cfg.RunInfo.eGenerateQpMode & AL_GENERATE_RELATIVE_QP) != 0);
 
-    if(AL_IS_GENERATE_AUTO_OR_ADAPTIVE_AUTO_QP(cfg.RunInfo.eGenerateQpMode))
+    settings.eQpTableMode = AL_QP_TABLE_NONE;
+    settings.eQpCtrlMode = AL_QP_CTRL_NONE;
+
+    if(AL_IsAutoQP(cfg.RunInfo.eGenerateQpMode))
     {
       auto isAdaptive = cfg.RunInfo.eGenerateQpMode & AL_GENERATE_ADAPTIVE_AUTO_QP;
-      settings.eQpTableMode = isRelativeTable ? AL_QP_TABLE_RELATIVE : AL_QP_TABLE_NONE;
       settings.eQpCtrlMode = isAdaptive ? AL_QP_CTRL_ADAPTIVE_AUTO : AL_QP_CTRL_AUTO;
-      return;
     }
+    else if(AL_HasQpTable(cfg.RunInfo.eGenerateQpMode))
+    {
+      bool isRelativeTable = ((cfg.RunInfo.eGenerateQpMode & AL_GENERATE_RELATIVE_QP) != 0);
+      settings.eQpTableMode = isRelativeTable ? AL_QP_TABLE_RELATIVE : AL_QP_TABLE_ABSOLUTE;
 
-    settings.eQpCtrlMode = AL_QP_CTRL_NONE;
-    settings.eQpTableMode = isRelativeTable ? AL_QP_TABLE_RELATIVE : AL_QP_TABLE_ABSOLUTE;
-
-
-    if(cfg.RunInfo.eGenerateQpMode == AL_GENERATE_ROI_QP)
-      settings.eQpTableMode = AL_QP_TABLE_RELATIVE;
-
-    if(cfg.RunInfo.eGenerateQpMode == AL_GENERATE_UNIFORM_QP)
-      settings.eQpTableMode = AL_QP_TABLE_NONE;
+      if(cfg.RunInfo.eGenerateQpMode == AL_GENERATE_ROI_QP)
+        settings.eQpTableMode = AL_QP_TABLE_RELATIVE;
+    }
   }, [qpctrls, &cfg]()
   {
     AL_EGenerateQpMode mode = cfg.RunInfo.eGenerateQpMode;
@@ -512,11 +490,11 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
     return getDefaultArrayValue(pChan->LdaFactors, NumFactors, 256);
   }, "Specifies a lambda factor for each pictures: I, P and B by increasing temporal id");
   parser.addBool(curSection, "CabacInit", cfg.Settings.tChParam[0].uCabacInitIdc, "Specifies the CABAC initialization table index (AVC) or flag (HEVC)");
-  parser.addArith(curSection, "PicCbQpOffset", cfg.Settings.tChParam[0].iCbPicQpOffset, "Specifies the QP offset for the first chroma channel (Cb) at picture level (HEVC)");
-  parser.addArith(curSection, "PicCrQpOffset", cfg.Settings.tChParam[0].iCrPicQpOffset, "Specifies the QP offset for the second chroma channel (Cr) at picture level (HEVC)");
-  parser.addArith(curSection, "SliceCbQpOffset", cfg.Settings.tChParam[0].iCbSliceQpOffset, "Specifies the QP offset for the first chroma channel (Cb) at slice level (AVC/HEVC)");
-  parser.addArith(curSection, "SliceCrQpOffset", cfg.Settings.tChParam[0].iCrSliceQpOffset, "Specifies the QP offset for the second chroma channel (Cr) at slice level (AVC/HEVC)");
-  parser.addArith(curSection, "CuQpDeltaDepth", cfg.Settings.tChParam[0].uCuQPDeltaDepth, "Specifies the QP per CU granularity, Used only when QPCtrlMode is set to AUTO_QP or ADAPTIVE_AUTO_QP");
+  parser.addArith(curSection, "PicCbQpOffset", cfg.Settings.tChParam[0].iCbPicQpOffset, "Specifies the QP offset for the first chroma channel (Cb) at picture level (AVC/HEVC)");
+  parser.addArith(curSection, "PicCrQpOffset", cfg.Settings.tChParam[0].iCrPicQpOffset, "Specifies the QP offset for the second chroma channel (Cr) at picture level (AVC/HEVC)");
+  parser.addArith(curSection, "SliceCbQpOffset", cfg.Settings.tChParam[0].iCbSliceQpOffset, "Specifies the QP offset for the first chroma channel (Cb) at slice level (HEVC)");
+  parser.addArith(curSection, "SliceCrQpOffset", cfg.Settings.tChParam[0].iCrSliceQpOffset, "Specifies the QP offset for the second chroma channel (Cr) at slice level (HEVC)");
+  parser.addArith(curSection, "CuQpDeltaDepth", cfg.Settings.tChParam[0].uCuQPDeltaDepth, "Specifies the QP per CU granularity, Used only when QPCtrlMode is set to either LOAD_QP/AUTO_QP/ADAPTIVE_AUTO_QP");
   parser.addArith(curSection, "LoopFilter.BetaOffset", cfg.Settings.tChParam[0].iBetaOffset, "Specifies the beta offset (AVC/HEVC) or the Filter level (VP9) for the deblocking filter");
   parser.addArith(curSection, "LoopFilter.TcOffset", cfg.Settings.tChParam[0].iTcOffset, "Specifies the Alpha_c0 offset (AVC), Tc offset (HEVC) or sharpness level (VP9) for the deblocking filter");
   parser.addFlag(curSection, "LoopFilter.CrossSlice", cfg.Settings.tChParam[0].eEncTools, AL_OPT_LF_X_SLICE, "In-loop filtering across the left and upper boundaries of each tile of the frame (HEVC, AVC)");
@@ -527,14 +505,6 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   string l2cacheDesc = "";
   l2cacheDesc = "Specifies if the L2 cache is used of not";
   parser.addBool(curSection, "CacheLevel2", cfg.Settings.iPrefetchLevel2, l2cacheDesc);
-
-  std::map<string, int> srcmodes {};
-  srcmodes["NVX"] = AL_SRC_NVX;
-  srcmodes["TILE_64x4"] = AL_SRC_TILE_64x4;
-  srcmodes["COMP_64x4"] = AL_SRC_COMP_64x4;
-  srcmodes["TILE_32x4"] = AL_SRC_TILE_32x4;
-  srcmodes["COMP_32x4"] = AL_SRC_COMP_32x4;
-  parser.addEnum(curSection, "SrcFormat", cfg.Settings.tChParam[0].eSrcMode, srcmodes);
   parser.addFlag(curSection, "AvcLowLat", cfg.Settings.tChParam[0].eEncOptions, AL_OPT_LOWLAT_SYNC, "Enables a special synchronization mode for AVC low latency encoding (Validation only)");
   parser.addBool(curSection, "SliceLat", cfg.Settings.tChParam[0].bSubframeLatency, "Enables slice latency mode");
   parser.addBool(curSection, "LowLatInterrupt", cfg.Settings.tChParam[0].bSubframeLatency, "deprecated, same behaviour as SliceLat");
@@ -568,7 +538,6 @@ static void populateRunSection(ConfigParser& parser, ConfigFile& cfg)
   parser.addArith(curSection, "InputSleep", cfg.RunInfo.uInputSleepInMilliseconds, "Time period in milliseconds. The encoder is given frames each time period (at a minimum)");
   parser.addPath(curSection, "BitrateFile", cfg.RunInfo.bitrateFile, "The generated stream size for each picture and bitrate informations will be written to this file");
 }
-
 
 static void try_to_push_secondary_input(ConfigFile& cfg, Temporary& temp, std::vector<TConfigYUVInput>& inputList)
 {
@@ -610,13 +579,10 @@ static void populateSecondaryInputParam(ConfigParser& parser, Temporary& temp, S
   }
 }
 
-
 static void populateDynamicInputSection(ConfigParser& parser, Temporary& temp)
 {
   return populateSecondaryInputParam(parser, temp, Section::DynamicInput, false);
 }
-
-
 
 static void try_finalize_section(ConfigParser& parser, ConfigFile& cfg, Temporary& temp)
 {
@@ -695,7 +661,6 @@ static string readWholeFileInMemory(char const* filename)
   ss << in.rdbuf();
   return ss.str();
 }
-
 
 typedef enum e_SLMode
 {
@@ -929,13 +894,7 @@ static void GetScalingList(AL_TEncSettings& Settings, string const& sScalingList
       Settings.eScalingList = AL_SCL_DEFAULT;
     }
   }
-  else if(Settings.eScalingList == AL_SCL_RANDOM)
-  {
-    Settings.eScalingList = AL_SCL_CUSTOM;
-    GenerateMatrice(Settings);
-  }
 }
-
 
 /* Perform some settings coherence checks after complete parsing. */
 static void PostParsingChecks(AL_TEncSettings& Settings)
@@ -948,16 +907,10 @@ static void PostParsingChecks(AL_TEncSettings& Settings)
      && (GopParam.uNumB > 0))
     throw std::runtime_error("Unsupported Gop.NumB value in this gop mode");
 
-
   if(!(GopParam.eMode & AL_GOP_FLAG_LOW_DELAY)
      && GopParam.eGdrMode != AL_GDR_OFF)
     throw std::runtime_error("GDR mode is not supported if the gop mode is not low delay");
 
-}
-
-static void SetDefaultValue(ConfigFile& cfg)
-{
-  (void)cfg;
 }
 
 static void DefaultLambdaFactors(AL_TEncSettings& Settings, bool bParseLambdaFactors)
@@ -977,10 +930,15 @@ static void PostParsingInit(ConfigFile& cfg, Temporary const& temporaries, std::
 {
   GetScalingList(cfg.Settings, temporaries.sScalingListFile, warnStream);
   DefaultLambdaFactors(cfg.Settings, temporaries.bParseLambdaFactors);
+
 }
 
 static void ParseConfig(string const& toParse, ConfigFile& cfg, Temporary& temporaries, std::ostream& warnStream = cerr, bool debug = false)
 {
+  /* ParseConfig should only modify the values that were parsed. It can't set
+   * default values as this would break the use case of multiple ParseConfig
+   * calls (for example the --set command.) as it would possibly reset the values
+   * changes in previous calls to ParseConfig. */
   std::ofstream nullsink;
   nullsink.setstate(std::ios_base::badbit);
   std::ostream* logger;
@@ -993,8 +951,6 @@ static void ParseConfig(string const& toParse, ConfigFile& cfg, Temporary& tempo
   Tokenizer tokenizer {
     toParse, logger
   };
-
-  SetDefaultValue(cfg);
 
   ConfigParser parser {};
   populateIdentifiers(parser, cfg, temporaries, warnStream);
@@ -1092,7 +1048,6 @@ static bool isDynamicSection(Section const& sectionName)
   (void)sectionName;
 
   notSupported = notSupported || sectionName == Section::DynamicInput;
-
 
   return notSupported;
 }

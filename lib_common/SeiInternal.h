@@ -38,15 +38,14 @@
 /****************************************************************************
    -----------------------------------------------------------------------------
  **************************************************************************//*!
-   \addtogroup lib_base
+   \addtogroup lib_common
    @{
    \file
  *****************************************************************************/
 #pragma once
 
+#include "lib_common/SEI.h"
 #include "common_syntax_elements.h"
-
-static uint8_t const SEI_PREFIX_USER_DATA_UNREGISTERED_UUID[16] = { 0xb1, 0xe1, 0x67, 0xa4, 0xd9, 0xca, 0x11, 0xe7, 0xb1, 0x9b, 0x00, 0x50, 0xc2, 0x49, 0x00, 0x48 };
 
 /*************************************************************************//*!
    \brief Mimics structure for AVC SEI buffering period
@@ -151,10 +150,10 @@ typedef struct t_hevc_pic_timing_s
 *****************************************************************************/
 typedef struct t_avc_sei
 {
+  AL_ESeiFlag present_flags;
   AL_TAvcPicTiming picture_timing;
   AL_TAvcBufPeriod buffering_period;
   AL_TRecoveryPoint recovery_point;
-  uint32_t present_flags;
 }AL_TAvcSei;
 
 /*************************************************************************//*!
@@ -162,13 +161,12 @@ typedef struct t_avc_sei
 *****************************************************************************/
 typedef struct t_Hevc_Sei
 {
+  AL_ESeiFlag present_flags;
   AL_THevcPicTiming picture_timing;
   AL_THevcBufPeriod buffering_period;
   AL_TRecoveryPoint recovery_point;
-  uint32_t present_flags;
 }AL_THevcSei;
 
 /****************************************************************************/
 
 /*@}*/
-

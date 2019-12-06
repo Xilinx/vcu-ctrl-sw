@@ -47,7 +47,6 @@
 
 #include "FileUtils.h"
 
-
 #include <string>
 #include <memory>
 #include <fstream>
@@ -112,7 +111,6 @@ public:
     return getBufferP(frameNum, 0);
   }
 
-
   void releaseBuffer(AL_TBuffer* buffer)
   {
     if(!isExternQpTable || !buffer)
@@ -129,7 +127,7 @@ private:
     while(auto curQp = qpLayerInfo.bufPool->GetBuffer(AL_BUF_MODE_NONBLOCK))
     {
       qpBufs.push_back(curQp);
-      Rtos_Memset(AL_Buffer_GetData(curQp), 0, curQp->zSize);
+      AL_Buffer_MemSet(curQp, 0);
     }
 
     for(auto qpBuf : qpBufs)
@@ -137,7 +135,7 @@ private:
 
     mQPLayerInfos[iLayerID] = qpLayerInfo;
     auto& tChParam = settings.tChParam[iLayerID];
-    mQPLayerRoiCtxs[iLayerID] = AL_RoiMngr_Create(tChParam.uWidth, tChParam.uHeight, tChParam.eProfile, AL_ROI_QUALITY_LOW, AL_ROI_QUALITY_ORDER);
+    mQPLayerRoiCtxs[iLayerID] = AL_RoiMngr_Create(tChParam.uEncWidth, tChParam.uEncHeight, tChParam.eProfile, AL_ROI_QUALITY_LOW, AL_ROI_QUALITY_ORDER);
   }
 
   AL_TBuffer* getBufferP(int frameNum, int iLayerID)
@@ -172,8 +170,6 @@ private:
   std::map<int, AL_TRoiMngrCtx*> mQPLayerRoiCtxs;
 };
 
-
-
 static AL_ERR g_EncoderLastError = AL_SUCCESS;
 
 AL_ERR GetEncoderLastError()
@@ -193,6 +189,9 @@ const char* EncoderErrorToString(AL_ERR eErr)
   case AL_ERR_CHAN_CREATION_NOT_ENOUGH_CORES: return "Channel creation failed, couldn't spread the load on enough cores";
   case AL_ERR_REQUEST_MALFORMED: return "Channel creation failed, request was malformed";
   case AL_ERR_NO_MEMORY: return "Memory shortage detected (DMA, embedded memory or virtual memory)";
+#if AL_ENABLE_ENC_WATCHDOG
+  case AL_ERR_WATCHDOG_TIMEOUT: return "Watchdog timeout";
+#endif
   case AL_WARN_LCU_OVERFLOW: return "Warning some LCU exceed the maximum allowed bits";
   case AL_WARN_NUM_SLICES_ADJUSTED: return "Warning num slices have been adjusted";
   case AL_SUCCESS: return "Success";
@@ -214,7 +213,7 @@ struct safe_ifstream
 
 struct EncoderSink : IFrameSink
 {
-  EncoderSink(ConfigFile const& cfg, TScheduler* pScheduler, AL_TAllocator* pAllocator
+  EncoderSink(ConfigFile const& cfg, AL_IEncScheduler* pScheduler, AL_TAllocator* pAllocator
               ) :
     CmdFile(cfg.sCmdFileName, false),
     EncCmd(CmdFile.fp, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
@@ -302,9 +301,6 @@ struct EncoderSink : IFrameSink
 
     DisplayFrameStatus(m_picCount);
 
-
-
-
     if(twoPassMngr.iPass)
     {
       auto pPictureMetaTP = AL_TwoPassMngr_CreateAndAttachTwoPassMetaData(Src);
@@ -322,7 +318,6 @@ struct EncoderSink : IFrameSink
 
     m_picCount++;
   }
-
 
   std::unique_ptr<IFrameSink> LayerRecOutput[MAX_NUM_LAYER];
   std::unique_ptr<IFrameSink> BitstreamOutput;
@@ -357,7 +352,6 @@ private:
 
     if(isStreamReleased(pStream, pSrc) || isSourceReleased(pStream, pSrc))
       return;
-
 
     if(pThis->twoPassMngr.iPass == 1)
     {
@@ -407,11 +401,19 @@ private:
       AddSei(pStream, true, 18, payload, payloadSize, pStreamMeta->uTemporalID);
     }
 
-    if(pStream && m_pictureType != -1)
+    if(pStream)
     {
-      auto const pMeta = (AL_TPictureMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_PICTURE);
-      m_pictureType = pMeta->eType;
-      LogInfo("Picture Type %s (%i)\n", PictTypeToString(pMeta->eType).c_str(), m_pictureType);
+      if(m_pictureType != -1)
+      {
+        auto const pMeta = (AL_TPictureMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_PICTURE);
+        m_pictureType = pMeta->eType;
+        LogInfo("Picture Type %s (%i)\n", PictTypeToString(pMeta->eType).c_str(), m_pictureType);
+      }
+
+      auto const pMeta = (AL_TRateCtrlMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_RATECTRL);
+
+      if(pMeta && pMeta->bFilled)
+        LogInfo("NumBytes: %i, MinQP: %i, MaxQP: %i, NumSkip: %i, NumIntra: %i\n", pMeta->tRateCtrlStats.uNumBytes, pMeta->tRateCtrlStats.uMinQP, pMeta->tRateCtrlStats.uMaxQP, pMeta->tRateCtrlStats.uNumSkip, pMeta->tRateCtrlStats.uNumIntra);
     }
 
     BitstreamOutput->ProcessFrame(pStream);
@@ -438,7 +440,7 @@ private:
       assert(bRet);
     }
 
-    TRecPic RecPic;
+    AL_TRecPic RecPic;
 
     while(AL_Encoder_GetRecPicture(hEnc, &RecPic))
     {

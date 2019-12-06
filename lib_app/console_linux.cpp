@@ -40,7 +40,8 @@
 #include <unistd.h>
 #include <stdio.h>
 
-static bool bUseColor;
+static bool bUseColor = true;
+static bool isAuto = true;
 
 static
 int translateColor(EConColor col)
@@ -70,6 +71,9 @@ int translateColor(EConColor col)
 
 void SetConsoleColor(EConColor eColor)
 {
+  if(isAuto)
+    bUseColor = isatty(fileno(stdout));
+
   if(bUseColor)
     printf("\033[%dm", translateColor(eColor));
 }
@@ -77,5 +81,6 @@ void SetConsoleColor(EConColor eColor)
 void SetEnableColor(bool bColor)
 {
   bUseColor = bColor;
+  isAuto = false;
 }
 

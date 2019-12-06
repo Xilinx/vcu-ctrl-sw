@@ -37,7 +37,6 @@
 
 #include "lib_common_enc/ParamConstraints.h"
 
-
 ECheckResolutionError AL_ParamConstraints_CheckResolution(AL_EProfile eProfile, AL_EChromaMode eChromaMode, uint16_t uWidth, uint16_t uHeight)
 {
   (void)eProfile;
@@ -47,7 +46,6 @@ ECheckResolutionError AL_ParamConstraints_CheckResolution(AL_EProfile eProfile, 
 
   if((uHeight % 2 != 0) && (eChromaMode == AL_CHROMA_4_2_0))
     return CRERROR_HEIGHTCHROMA;
-
 
   return CRERROR_OK;
 }

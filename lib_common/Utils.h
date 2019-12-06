@@ -47,14 +47,20 @@
 #pragma once
 
 #include "lib_rtos/types.h"
-#include "lib_common/SliceConsts.h"
+#include "lib_common/Allocator.h"
 
-#define NUMCORE_AUTO 0
+static const int NUMCORE_AUTO = 0;
 
 /***************************************************************************/
 static AL_INLINE size_t BitsToBytes(size_t zBits)
 {
   return (zBits + 7) / 8;
+}
+
+/***************************************************************************/
+static AL_INLINE size_t BytesToBits(size_t zBytes)
+{
+  return zBytes * 8;
 }
 
 /***************************************************************************/
@@ -123,95 +129,6 @@ static AL_INLINE size_t UnsignedRoundDown(size_t zVal, size_t zRnd)
   return (zVal / zRnd) * zRnd;
 }
 
-AL_INLINE static AL_ECodec AL_GetCodec(AL_EProfile eProf)
-{
-
-  if(AL_IS_AVC(eProf))
-    return AL_CODEC_AVC;
-
-  if(AL_IS_HEVC(eProf))
-    return AL_CODEC_HEVC;
-  return AL_CODEC_INVALID;
-}
-
-/*************************************************************************//*!
-   \brief This function checks if the current Nal Unit Type corresponds to an IDR
-   picture respect to the AVC specification
-   \param[in] eNUT Nal Unit Type
-   \return true if it's an IDR nal unit type
-   false otherwise
- ***************************************************************************/
-bool AL_AVC_IsIDR(AL_ENut eNUT);
-
-/*************************************************************************//*!
-   \brief This function checks if the current Nal Unit Type corresponds to a Vcl NAL
-   respect to the AVC specification
-   \param[in] eNUT Nal Unit Type
-   \return true if it's a VCL nal unit type
-   false otherwise
- ***************************************************************************/
-bool AL_AVC_IsVcl(AL_ENut eNUT);
-/*************************************************************************//*!
-    \brief This function checks if the current Nal Unit Type corresponds to an
-           SLNR picture respect to the HEVC specification
-    \param[in] eNUT Nal Unit Type
-    \return true if it's an SLNR nal unit type
-    false otherwise
- ***************************************************************************/
-bool AL_HEVC_IsSLNR(AL_ENut eNUT);
-/*************************************************************************//*!
-   \brief This function checks if the current Nal Unit Type corresponds to an RADL,
-   RASL or SLNR picture respect to the HEVC specification
-   \param[in] eNUT Nal Unit Type
-   \return true if it's an RASL, RADL or SLNR nal unit type
-   false otherwise
- ***************************************************************************/
-bool AL_HEVC_IsRASL_RADL_SLNR(AL_ENut eNUT);
-/*************************************************************************//*!
-   \brief This function checks if the current Nal Unit Type corresponds to a BLA
-   picture respect to the HEVC specification
-   \param[in] eNUT Nal Unit Type
-   \return true if it's a BLA nal unit type
-   false otherwise
- ***************************************************************************/
-bool AL_HEVC_IsBLA(AL_ENut eNUT);
-
-/*************************************************************************//*!
-   \brief This function checks if the current Nal Unit Type corresponds to a CRA
-   picture respect to the HEVC specification
-   \param[in] eNUT Nal Unit Type
-   \return true if it's a CRA nal unit type
-   false otherwise
- ***************************************************************************/
-bool AL_HEVC_IsCRA(AL_ENut eNUT);
-
-/*************************************************************************//*!
-   \brief This function checks if the current Nal Unit Type corresponds to an IDR
-   picture respect to the HEVC specification
-   \param[in] eNUT Nal Unit Type
-   \return true if it's an IDR nal unit type
-   false otherwise
- ***************************************************************************/
-bool AL_HEVC_IsIDR(AL_ENut eNUT);
-
-/*************************************************************************//*!
-   \brief This function checks if the current Nal Unit Type corresponds to an RASL
-   picture respect to the HEVC specification
-   \param[in] eNUT Nal Unit Type
-   \return true if it's an RASL nal unit type
-   false otherwise
- ***************************************************************************/
-bool AL_HEVC_IsRASL(AL_ENut eNUT);
-
-/*************************************************************************//*!
-   \brief This function checks if the current Nal Unit Type corresponds to a Vcl NAL
-   respect to the HEVC specification
-   \param[in] eNUT Nal Unit Type
-   \return true if it's a VCL nal unit type
-   false otherwise
- ***************************************************************************/
-bool AL_HEVC_IsVcl(AL_ENut eNUT);
-
 /***************************************************************************/
 int ceil_log2(uint16_t n);
 
@@ -219,7 +136,7 @@ int ceil_log2(uint16_t n);
 int floor_log2(uint16_t n);
 
 /****************************************************************************/
-int AL_H273_ColourDescToColourPrimaries(AL_EColourDescription colourDesc);
+AL_HANDLE AlignedAlloc(AL_TAllocator* pAllocator, const char* pBufName, uint32_t uSize, uint32_t uAlign, uint32_t* uAllocatedSize, uint32_t* uAlignmentOffset);
 
 /*************************************************************************//*!
    \brief Reference picture status

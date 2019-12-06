@@ -77,12 +77,35 @@ static bool destroy(AL_TAllocator* handle)
       auto totalSize = 0;
 
       /* buffer with the same name should have the same size */
+      if(alloc.first != "unknown")
+      {
+        for(auto& size : sizes)
+          assert(size == firstSize);
+      }
+
+      cout << setfill(' ') << setw(24) << left << alloc.first;
+      size_t curSize = 0;
+      auto numElem = 0;
+
       for(auto& size : sizes)
-        assert(size == firstSize);
+      {
+        if(curSize != size)
+        {
+          if(numElem != 0)
+            cout << numElem << " * " << curSize << ", ";
 
-      totalSize = firstSize * sizes.size();
+          curSize = size;
+          numElem = 0;
+        }
 
-      cout << setfill(' ') << setw(24) << left << alloc.first << sizes.size() << " * " << firstSize << " (total: ~" << bytes_to_megabytes(totalSize) << "MB" << ")" << endl;
+        ++numElem;
+        totalSize += size;
+      }
+
+      if(numElem != 0)
+        cout << numElem << " * " << curSize << " ";
+
+      cout << "(total: ~" << bytes_to_megabytes(totalSize) << "MB" << ")" << endl;
     }
   }
 

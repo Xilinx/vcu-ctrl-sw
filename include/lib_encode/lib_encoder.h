@@ -61,8 +61,8 @@
 extern "C" {
 #endif
 
-typedef struct t_Scheduler TScheduler;
-void AL_ISchedulerEnc_Destroy(TScheduler* pScheduler);
+typedef struct AL_i_EncScheduler AL_IEncScheduler;
+extern void AL_IEncScheduler_Destroy(AL_IEncScheduler* pScheduler);
 
 /*************************************************************************//*!
    \brief Handle to an Encoder object
@@ -98,7 +98,7 @@ typedef struct
    \return errorcode specifying why this encoder couldn't be created
    \see AL_Encoder_Destroy
 *****************************************************************************/
-AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings, AL_CB_EndEncoding callback);
+AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, AL_IEncScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings, AL_CB_EndEncoding callback);
 
 /*************************************************************************//*!
    \brief Releases all allocated and/or owned ressources
@@ -128,9 +128,6 @@ void AL_Encoder_NotifyIsLongTerm(AL_HEncoder hEnc);
 *****************************************************************************/
 void AL_Encoder_NotifyUseLongTerm(AL_HEncoder hEnc);
 
-
-
-
 /*************************************************************************//*!
    \brief When the encoder has been created with bEnableRecOutput set to
    true, the AL_Encoder_GetRecPicture function allows to retrieve the
@@ -140,7 +137,7 @@ void AL_Encoder_NotifyUseLongTerm(AL_HEncoder hEnc);
    \return true if a reconstructed buffer is available, false otherwise.
    \see AL_Encoder_ReleaseRecPicture
 *****************************************************************************/
-bool AL_Encoder_GetRecPicture(AL_HEncoder hEnc, TRecPic* pRecPic);
+bool AL_Encoder_GetRecPicture(AL_HEncoder hEnc, AL_TRecPic* pRecPic);
 
 /*************************************************************************//*!
    \brief Release Reconstructed buffer previously obtains through
@@ -149,7 +146,7 @@ bool AL_Encoder_GetRecPicture(AL_HEncoder hEnc, TRecPic* pRecPic);
    \param[in] pRecPic Buffer to be released.
    \see AL_Encoder_GetRecPicture
 *****************************************************************************/
-void AL_Encoder_ReleaseRecPicture(AL_HEncoder hEnc, TRecPic* pRecPic);
+void AL_Encoder_ReleaseRecPicture(AL_HEncoder hEnc, AL_TRecPic* pRecPic);
 
 /*************************************************************************//*!
    \brief Pushes a stream buffer in the encoder stream buffer queue.
@@ -171,7 +168,7 @@ bool AL_Encoder_PutStreamBuffer(AL_HEncoder hEnc, AL_TBuffer* pStream);
    According to the GOP pattern, this frame buffer could or couldn't be encoded immediately.
    \param[in] hEnc  Handle to an encoder object
    \param[in] pFrame Pointer to the frame buffer to encode
-   The pFrame buffer needs to have an associated AL_TSrcMetaData describing
+   The pFrame buffer needs to have an associated AL_TPixMapMetaData describing
    how the yuv is stored in memory. The memory of the buffer should not be altered
    while the encoder is using it. There are some restrictions associated to the
    source metadata.
@@ -201,7 +198,6 @@ bool AL_Encoder_Process(AL_HEncoder hEnc, AL_TBuffer* pFrame, AL_TBuffer* pQpTab
    \return returns the section id
 *****************************************************************************/
 int AL_Encoder_AddSei(AL_HEncoder hEnc, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId);
-
 
 /*************************************************************************//*!
    \brief Return an error code when an error has occured during encoding,
@@ -242,6 +238,19 @@ bool AL_Encoder_SetGopLength(AL_HEncoder hEnc, int iGopLength);
 bool AL_Encoder_SetGopNumB(AL_HEncoder hEnc, int iNumB);
 
 /*************************************************************************//*!
+   \brief Changes the IDR frequency. If the new frequency is shorter than the
+   number of frames already encoded since the last IDR, insert and IDR as soon
+   as possible. Otherwise, the next IDR is inserted when the new IDR frequency
+   is reached.
+   \param[in] hEnc Handle to an encoder object
+   \param[in] iFreqIDR The new IDR frequency (number of frames between two
+   IDR pictures, -1 to disable IDRs). Might be rounded to a GOPLength multiple.
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_SetFreqIDR(AL_HEncoder hEnc, int iFreqIDR);
+
+/*************************************************************************//*!
    \brief Changes the target bitrate
    \param[in] hEnc Handle to an encoder object
    \param[in] iBitRate New target bitrate in kbps
@@ -272,6 +281,34 @@ bool AL_Encoder_SetFrameRate(AL_HEncoder hEnc, uint16_t uFrameRate, uint16_t uCl
 bool AL_Encoder_SetQP(AL_HEncoder hEnc, int16_t iQP);
 
 /*************************************************************************//*!
+   \brief Changes the bounds of the QP set by the rate control
+   \param[in] hEnc Handle to an encoder object
+   \param[in] iMinQP The new QP lower bound
+   \param[in] iMaxQP The new QP upper bound
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_SetQPBounds(AL_HEncoder hEnc, int16_t iMinQP, int16_t iMaxQP);
+
+/*************************************************************************//*!
+   \brief Changes the QP delta between I frames and P frames
+   \param[in] hEnc Handle to an encoder object
+   \param[in] uIPDelta The new QP IP delta
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_SetQPIPDelta(AL_HEncoder hEnc, int16_t uIPDelta);
+
+/*************************************************************************//*!
+   \brief Changes the QP delta between P frames and B frames
+   \param[in] hEnc Handle to an encoder object
+   \param[in] uPBDelta The new QP PB delta
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_SetQPPBDelta(AL_HEncoder hEnc, int16_t uPBDelta);
+
+/*************************************************************************//*!
    \brief Changes the resolution of the input frames to encode from the next
    pushed frame
    \param[in] hEnc Handle to an encoder object
@@ -299,7 +336,6 @@ bool AL_Encoder_SetLoopFilterBetaOffset(AL_HEncoder hEnc, int8_t iBetaOffset);
 *****************************************************************************/
 bool AL_Encoder_SetLoopFilterTcOffset(AL_HEncoder hEnc, int8_t iTcOffset);
 
-
 /*************************************************************************//*!
    \brief Specify HDR SEIs to insert in the bitstream
    \param[in] hEnc Handle to an encoder object
@@ -308,7 +344,6 @@ bool AL_Encoder_SetLoopFilterTcOffset(AL_HEncoder hEnc, int8_t iTcOffset);
    retrieve the error code
 *****************************************************************************/
 bool AL_Encoder_SetHDRSEIs(AL_HEncoder hEnc, AL_THDRSEIs* pHDRSEIs);
-
 
 #ifdef __cplusplus
 }

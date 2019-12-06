@@ -65,7 +65,6 @@ static bool isGdrEnabled(AL_TEncChanParam const* pChParam)
   return (pGop->eGdrMode & AL_GDR_ON) != 0;
 }
 
-
 static void initHlsSps(AL_TEncChanParam* pChParam, uint32_t* pSpsParam)
 {
   (void)pChParam;
@@ -101,37 +100,9 @@ static void SetMotionEstimationRange(AL_TEncChanParam* pChParam)
 
 static void ComputeQPInfo(AL_TEncChanParam* pChParam)
 {
-  // Calculate Initial QP if not provided ----------------------------------
-  if(!AL_Common_Encoder_IsInitialQpProvided(pChParam))
-  {
-    uint32_t iBitPerPixel = AL_Common_Encoder_ComputeBitPerPixel(pChParam);
-    int8_t iInitQP = AL_Common_Encoder_GetInitialQP(iBitPerPixel);
-
-    if(pChParam->tGopParam.uGopLength <= 1)
-      iInitQP += 12;
-    pChParam->tRCParam.iInitialQP = iInitQP;
-  }
-
-  if(pChParam->tRCParam.eRCMode != AL_RC_CONST_QP && pChParam->tRCParam.iMinQP < 10)
-    pChParam->tRCParam.iMinQP = 10;
-
-  if(pChParam->tRCParam.iMaxQP < pChParam->tRCParam.iMinQP)
-    pChParam->tRCParam.iMaxQP = pChParam->tRCParam.iMinQP;
-
   int iCbOffset = pChParam->iCbPicQpOffset;
   int iCrOffset = pChParam->iCrPicQpOffset;
-
-  pChParam->tRCParam.iMinQP = Max(0, (0 - Min(iCbOffset, iCrOffset)));
-  pChParam->tRCParam.iMaxQP = Min(51, (51 - Min(iCbOffset, iCrOffset)));
-  pChParam->tRCParam.iInitialQP = Clip3(pChParam->tRCParam.iInitialQP,
-                                        pChParam->tRCParam.iMinQP,
-                                        pChParam->tRCParam.iMaxQP);
-
-  if(pChParam->tRCParam.eRCMode == AL_RC_CAPPED_VBR)
-  {
-    pChParam->tRCParam.uMaxPelVal = AL_GET_BITDEPTH(pChParam->ePicFormat) == 8 ? 255 : 1023;
-    pChParam->tRCParam.uNumPel = pChParam->uWidth * pChParam->uHeight;
-  }
+  AL_Common_Encoder_ComputeRCParam(iCbOffset, iCrOffset, 0, 12, pChParam);
 }
 
 static void generateNals(AL_TEncCtx* pCtx, int iLayerID, bool bWriteVps)
@@ -170,5 +141,4 @@ void AL_CreateAvcEncoder(HighLevelEncoder* pCtx)
   pCtx->generateNals = &generateNals;
   pCtx->updateHlsAndWriteSections = &updateHlsAndWriteSections;
 }
-
 

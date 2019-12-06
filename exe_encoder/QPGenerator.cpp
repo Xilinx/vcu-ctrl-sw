@@ -437,8 +437,6 @@ static AL_ERoiQuality get_roi_quality(char* sLine, int iPos)
   if(s == "NO_QUALITY")
     return AL_ROI_QUALITY_DONT_CARE;
 
-
-
   if(s == "INTRA_QUALITY")
     return AL_ROI_QUALITY_INTRA;
 
@@ -564,7 +562,6 @@ bool Load_QPTable_FromRoiFile(AL_TRoiMngrCtx* pCtx, string const& sRoiFileName, 
   return true;
 }
 
-
 /****************************************************************************/
 void Generate_FullSkip(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBytesPerLCU)
 {
@@ -657,7 +654,6 @@ bool GenerateROIBuffer(AL_TRoiMngrCtx* pRoiCtx, string const& sRoiFileName, int 
   GetQPBufferParameters(iLCUWidth, iLCUHeight, eProf, iNumQPPerLCU, iNumBytesPerLCU, iNumLCUs, pQPs);
   return Load_QPTable_FromRoiFile(pRoiCtx, sRoiFileName, pQPs, iFrameID, iNumQPPerLCU, iNumBytesPerLCU);
 }
-
 
 /****************************************************************************/
 bool GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, const string& sQPTablesFolder, int iFrameID, uint8_t* pQPs, uint8_t* pSegs)

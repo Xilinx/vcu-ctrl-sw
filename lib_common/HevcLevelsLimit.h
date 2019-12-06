@@ -47,5 +47,6 @@ uint32_t AL_HEVC_GetMaxDPBSize(int iLevel, int iWidth, int iHeight);
 uint8_t AL_HEVC_GetLevelFromFrameSize(int numPixPerFrame);
 uint8_t AL_HEVC_GetLevelFromPixRate(int pixRate);
 uint8_t AL_HEVC_GetLevelFromBitrate(int bitrate, int tier);
+uint8_t AL_HEVC_GetLevelFromTileCols(int tileCols);
 uint8_t AL_HEVC_GetLevelFromDPBSize(int dpbSize, int pixRate);
 

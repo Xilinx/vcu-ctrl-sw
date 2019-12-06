@@ -41,140 +41,139 @@
 #include "lib_app/utils.h"
 #include <cassert>
 
-
 extern "C"
 {
 #include "lib_encode/lib_encoder.h"
-#include "lib_common/BufferSrcMeta.h"
+#include "lib_common/PixMapBuffer.h"
 #include "lib_common_enc/IpEncFourCC.h"
 }
 #include "lib_app/convert.h"
 
 /****************************************************************************/
-void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tFourCC)
+void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tYuvFourCC)
 {
-  AL_TSrcMetaData* pRecMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pRec, AL_META_TYPE_SOURCE);
+  TFourCC tRecFourCC = AL_PixMapBuffer_GetFourCC(pRec);
 
-  if(pRecMeta->tFourCC == FOURCC(Y800))
+  if(tRecFourCC == FOURCC(Y800))
   {
-    if(tFourCC == FOURCC(I420))
+    if(tYuvFourCC == FOURCC(I420))
       Y800_To_I420(pRec, pYuv);
-    else if(tFourCC == FOURCC(IYUV))
+    else if(tYuvFourCC == FOURCC(IYUV))
       Y800_To_IYUV(pRec, pYuv);
-    else if(tFourCC == FOURCC(YV12))
+    else if(tYuvFourCC == FOURCC(YV12))
       Y800_To_YV12(pRec, pYuv);
-    else if(tFourCC == FOURCC(NV12))
+    else if(tYuvFourCC == FOURCC(NV12))
       Y800_To_NV12(pRec, pYuv);
-    else if(tFourCC == FOURCC(Y800))
-      AL_CopyYuv(pRec, pYuv);
-    else if(tFourCC == FOURCC(P010))
+    else if(tYuvFourCC == FOURCC(Y800))
+      CopyPixMapBuffer(pRec, pYuv);
+    else if(tYuvFourCC == FOURCC(P010))
       Y800_To_P010(pRec, pYuv);
-    else if(tFourCC == FOURCC(I0AL))
+    else if(tYuvFourCC == FOURCC(I0AL))
       Y800_To_I0AL(pRec, pYuv);
-    // else if(tFourCC == FOURCC(Y010)) Y800_To_Y010(pRec, pYuv);
+    // else if(tYuvFourCC == FOURCC(Y010)) Y800_To_Y010(pRec, pYuv);
     else
       assert(0);
   }
-  else if(pRecMeta->tFourCC == FOURCC(T60A))
+  else if(tRecFourCC == FOURCC(T60A))
   {
-    if(tFourCC == FOURCC(Y800))
+    if(tYuvFourCC == FOURCC(Y800))
       T60A_To_Y800(pRec, pYuv);
-    else if(tFourCC == FOURCC(I420))
+    else if(tYuvFourCC == FOURCC(I420))
       T60A_To_I420(pRec, pYuv);
-    else if(tFourCC == FOURCC(IYUV))
+    else if(tYuvFourCC == FOURCC(IYUV))
       T60A_To_IYUV(pRec, pYuv);
-    else if(tFourCC == FOURCC(YV12))
+    else if(tYuvFourCC == FOURCC(YV12))
       T60A_To_YV12(pRec, pYuv);
-    else if(tFourCC == FOURCC(NV12))
+    else if(tYuvFourCC == FOURCC(NV12))
       T60A_To_NV12(pRec, pYuv);
-    else if(tFourCC == FOURCC(P010))
+    else if(tYuvFourCC == FOURCC(P010))
       T60A_To_P010(pRec, pYuv);
-    else if(tFourCC == FOURCC(I0AL))
+    else if(tYuvFourCC == FOURCC(I0AL))
       T60A_To_I0AL(pRec, pYuv);
-    else if(tFourCC == FOURCC(Y010))
+    else if(tYuvFourCC == FOURCC(Y010))
       T60A_To_Y010(pRec, pYuv);
-    else if(tFourCC == FOURCC(XV15))
+    else if(tYuvFourCC == FOURCC(XV15))
       T60A_To_XV15(pRec, pYuv);
   }
-  else if(pRecMeta->tFourCC == FOURCC(T62A))
+  else if(tRecFourCC == FOURCC(T62A))
   {
-    if(tFourCC == FOURCC(Y800))
+    if(tYuvFourCC == FOURCC(Y800))
       T62A_To_Y800(pRec, pYuv);
-    else if(tFourCC == FOURCC(Y010))
+    else if(tYuvFourCC == FOURCC(Y010))
       T62A_To_Y010(pRec, pYuv);
-    else if(tFourCC == FOURCC(I422))
+    else if(tYuvFourCC == FOURCC(I422))
       T62A_To_I422(pRec, pYuv);
-    else if(tFourCC == FOURCC(NV16))
+    else if(tYuvFourCC == FOURCC(NV16))
       T62A_To_NV16(pRec, pYuv);
-    else if(tFourCC == FOURCC(I2AL))
+    else if(tYuvFourCC == FOURCC(I2AL))
       T62A_To_I2AL(pRec, pYuv);
-    else if(tFourCC == FOURCC(P210))
+    else if(tYuvFourCC == FOURCC(P210))
       T62A_To_P210(pRec, pYuv);
-    else if(tFourCC == FOURCC(Y010))
+    else if(tYuvFourCC == FOURCC(Y010))
       T62A_To_Y010(pRec, pYuv);
-    else if(tFourCC == FOURCC(XV20))
+    else if(tYuvFourCC == FOURCC(XV20))
       T62A_To_XV20(pRec, pYuv);
     else
       assert(0);
   }
-  else if(pRecMeta->tFourCC == FOURCC(T608))
+  else if(tRecFourCC == FOURCC(T608))
   {
-    if(tFourCC == FOURCC(Y800))
+    if(tYuvFourCC == FOURCC(Y800))
       T608_To_Y800(pRec, pYuv);
-    else if(tFourCC == FOURCC(Y010))
+    else if(tYuvFourCC == FOURCC(Y010))
       T608_To_Y010(pRec, pYuv);
-    else if(tFourCC == FOURCC(I420))
+    else if(tYuvFourCC == FOURCC(I420))
       T608_To_I420(pRec, pYuv);
-    else if(tFourCC == FOURCC(IYUV))
+    else if(tYuvFourCC == FOURCC(IYUV))
       T608_To_IYUV(pRec, pYuv);
-    else if(tFourCC == FOURCC(YV12))
+    else if(tYuvFourCC == FOURCC(YV12))
       T608_To_YV12(pRec, pYuv);
-    else if(tFourCC == FOURCC(NV12))
+    else if(tYuvFourCC == FOURCC(NV12))
       T608_To_NV12(pRec, pYuv);
-    else if(tFourCC == FOURCC(P010))
+    else if(tYuvFourCC == FOURCC(P010))
       T608_To_P010(pRec, pYuv);
-    else if(tFourCC == FOURCC(I0AL))
+    else if(tYuvFourCC == FOURCC(I0AL))
       T608_To_I0AL(pRec, pYuv);
-    else if(tFourCC == FOURCC(Y010))
+    else if(tYuvFourCC == FOURCC(Y010))
       T608_To_Y010(pRec, pYuv);
   }
-  else if(pRecMeta->tFourCC == FOURCC(T628))
+  else if(tRecFourCC == FOURCC(T628))
   {
-    if(tFourCC == FOURCC(Y800))
+    if(tYuvFourCC == FOURCC(Y800))
       T628_To_Y800(pRec, pYuv);
-    else if(tFourCC == FOURCC(Y010))
+    else if(tYuvFourCC == FOURCC(Y010))
       T628_To_Y010(pRec, pYuv);
-    else if(tFourCC == FOURCC(I422))
+    else if(tYuvFourCC == FOURCC(I422))
       T628_To_I422(pRec, pYuv);
-    else if(tFourCC == FOURCC(NV16))
+    else if(tYuvFourCC == FOURCC(NV16))
       T628_To_NV16(pRec, pYuv);
-    else if(tFourCC == FOURCC(I2AL))
+    else if(tYuvFourCC == FOURCC(I2AL))
       T628_To_I2AL(pRec, pYuv);
-    else if(tFourCC == FOURCC(P210))
+    else if(tYuvFourCC == FOURCC(P210))
       T628_To_P210(pRec, pYuv);
-    else if(tFourCC == FOURCC(Y010))
+    else if(tYuvFourCC == FOURCC(Y010))
       T628_To_Y010(pRec, pYuv);
     else
       assert(0);
   }
-  else if(pRecMeta->tFourCC == FOURCC(T6m8))
+  else if(tRecFourCC == FOURCC(T6m8))
   {
-    if(tFourCC == FOURCC(Y800))
+    if(tYuvFourCC == FOURCC(Y800))
       T608_To_Y800(pRec, pYuv);
-    else if(tFourCC == FOURCC(Y010))
+    else if(tYuvFourCC == FOURCC(Y010))
       T608_To_Y010(pRec, pYuv);
-    else if(tFourCC == FOURCC(I420))
+    else if(tYuvFourCC == FOURCC(I420))
       T6m8_To_I420(pRec, pYuv);
     else
       assert(0);
   }
-  else if(pRecMeta->tFourCC == FOURCC(T6mA))
+  else if(tRecFourCC == FOURCC(T6mA))
   {
-    if(tFourCC == FOURCC(Y800))
+    if(tYuvFourCC == FOURCC(Y800))
       T60A_To_Y800(pRec, pYuv);
-    else if(tFourCC == FOURCC(Y010))
+    else if(tYuvFourCC == FOURCC(Y010))
       T60A_To_Y010(pRec, pYuv);
-    else if(tFourCC == FOURCC(XV10))
+    else if(tYuvFourCC == FOURCC(XV10))
       T60A_To_XV10(pRec, pYuv);
     else
       assert(0);
@@ -202,9 +201,7 @@ public:
       return;
     }
 
-    AL_TSrcMetaData* pMetaRec = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
-    AL_TSrcMetaData* pMetaYUV = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(m_Yuv, AL_META_TYPE_SOURCE);
-    pMetaYUV->tDim = pMetaRec->tDim;
+    AL_PixMapBuffer_SetDimension(m_Yuv, AL_PixMapBuffer_GetDimension(pBuf));
 
     {
       RecToYuv(pBuf, m_Yuv, m_cfg.RecFourCC);

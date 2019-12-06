@@ -39,21 +39,20 @@
 #include "lib_common_dec/DecBuffers.h"
 #include "lib_decode/DefaultDecoder.h"
 
-AL_ERR CreateAvcDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
-AL_ERR CreateHevcDecoder(AL_TDecoder** hDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
+AL_ERR CreateAvcDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
+AL_ERR CreateHevcDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
 
 /*****************************************************************************/
-AL_ERR AL_Decoder_Create(AL_HDecoder* hDec, AL_TIDecChannel* pDecChannel, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB)
+AL_ERR AL_Decoder_Create(AL_HDecoder* hDec, AL_IDecScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB)
 {
-  if(!pSettings || !pCB || !pAllocator || !pDecChannel || !hDec)
+  if(!pSettings || !pCB || !pAllocator || !pScheduler || !hDec)
     return AL_ERROR;
 
   if(pSettings->eCodec == AL_CODEC_AVC)
-    return CreateAvcDecoder((AL_TDecoder**)hDec, pDecChannel, pAllocator, pSettings, pCB);
+    return CreateAvcDecoder((AL_TDecoder**)hDec, pScheduler, pAllocator, pSettings, pCB);
 
   if(pSettings->eCodec == AL_CODEC_HEVC)
-    return CreateHevcDecoder((AL_TDecoder**)hDec, pDecChannel, pAllocator, pSettings, pCB);
-
+    return CreateHevcDecoder((AL_TDecoder**)hDec, pScheduler, pAllocator, pSettings, pCB);
 
   return AL_ERROR;
 }
@@ -152,12 +151,12 @@ int AL_Decoder_GetStrOffset(AL_HDecoder hDec)
 /*****************************************************************************/
 void AL_Decoder_InternalFlush(AL_HDecoder hDec)
 {
-  return AL_Default_Decoder_InternalFlush((AL_TDecoder*)hDec);
+  AL_Default_Decoder_InternalFlush((AL_TDecoder*)hDec);
 }
 
 /*****************************************************************************/
 void AL_Decoder_FlushInput(AL_HDecoder hDec)
 {
-  return AL_Default_Decoder_FlushInput((AL_TDecoder*)hDec);
+  AL_Default_Decoder_FlushInput((AL_TDecoder*)hDec);
 }
 

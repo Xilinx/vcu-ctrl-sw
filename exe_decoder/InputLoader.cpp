@@ -42,7 +42,8 @@ extern "C"
 #include "lib_common/SliceConsts.h"
 #include "lib_common/BufferStreamMeta.h"
 #include "lib_common/BufferSeiMeta.h"
-#include "lib_common/Utils.h"
+#include "lib_common/AvcUtils.h"
+#include "lib_common/HevcUtils.h"
 }
 #include <algorithm>
 #include <memory>
@@ -63,6 +64,7 @@ struct INalParser
   virtual bool IsFD(AL_ENut eNut) = 0;
 };
 
+/****************************************************************************/
 struct HevcParser : public INalParser
 {
   int ReadNut(uint8_t* pBuf, uint32_t iSize, uint32_t& uCurOffset)
@@ -88,6 +90,7 @@ struct HevcParser : public INalParser
   }
 };
 
+/****************************************************************************/
 struct AvcParser : public INalParser
 {
   int ReadNut(uint8_t* pBuf, uint32_t iSize, uint32_t& uCurOffset)
@@ -113,17 +116,26 @@ struct AvcParser : public INalParser
   }
 };
 
-std::unique_ptr<INalParser> getParser(bool bIsAVC)
+/****************************************************************************/
+std::unique_ptr<INalParser> getParser(AL_ECodec eCodec)
 {
   std::unique_ptr<INalParser> parser;
-
-  if(bIsAVC)
+  switch(eCodec)
+  {
+  case AL_CODEC_AVC:
     parser.reset(new AvcParser);
-  else
+    break;
+  case AL_CODEC_HEVC:
     parser.reset(new HevcParser);
+    break;
+  default:
+    break;
+  }
+
   return parser;
 }
 
+/****************************************************************************/
 struct NalInfo
 {
   int32_t numBytes;
@@ -172,10 +184,10 @@ static bool sFindNextStartCode(CircBuffer& BufStream, uint32_t& uCurOffset)
 }
 
 /******************************************************************************/
-static NalInfo SearchStartCodes(CircBuffer Stream, bool bIsAVC, bool bSliceCut)
+static NalInfo SearchStartCodes(CircBuffer Stream, AL_ECodec eCodec, bool bSliceCut)
 {
   NalInfo nal {};
-  auto parser = getParser(bIsAVC);
+  auto parser = getParser(eCodec);
 
   uint32_t iOffset = Stream.iOffset;
   bool bCurNonVcl = false;
@@ -211,7 +223,7 @@ static NalInfo SearchStartCodes(CircBuffer Stream, bool bIsAVC, bool bSliceCut)
 }
 
 /******************************************************************************/
-SplitInput::SplitInput(int iSize, bool bIsAVC, bool bSliceCut) : m_bIsAVC(bIsAVC), m_bSliceCut(bSliceCut)
+SplitInput::SplitInput(int iSize, AL_ECodec eCodec, bool bSliceCut) : m_eCodec(eCodec), m_bSliceCut(bSliceCut)
 {
   auto const numBuf = 2;
   m_Stream.resize(iSize * numBuf);
@@ -235,14 +247,32 @@ void AddSeiMetaData(AL_TBuffer* pBufStream)
 /******************************************************************************/
 uint32_t SplitInput::ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream)
 {
-  uint8_t const AVC_AUD[] = { 0, 0, 1, 0x01, 0x80 };
-  uint8_t const HEVC_AUD[] = { 0, 0, 1, 0x28, 0x80 };
-  auto const iNalHdrSize = m_bIsAVC ? sizeof(AVC_AUD) : sizeof(HEVC_AUD);
+  size_t iNalAudSize = 0;
+  uint8_t const* pAUD = NULL;
+  uint8_t const AVC_AUD[] = { 0, 0, 1, 0x09, 0x80 };
+
+  if(m_eCodec == AL_CODEC_AVC)
+  {
+    iNalAudSize = sizeof(AVC_AUD);
+    pAUD = AVC_AUD;
+  }
+  uint8_t const HEVC_AUD[] = { 0, 0, 1, 0x46, 0x00, 0x80 };
+
+  if(m_eCodec == AL_CODEC_HEVC)
+  {
+    iNalAudSize = sizeof(HEVC_AUD);
+    pAUD = HEVC_AUD;
+  }
+
   NalInfo nal {};
+
+  AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pBufStream, AL_META_TYPE_STREAM);
+  assert(pStreamMeta);
+  AL_StreamMetaData_ClearAllSections(pStreamMeta);
 
   while(true)
   {
-    if(m_bEOF && m_CircBuf.iAvailSize == (int)iNalHdrSize)
+    if(m_bEOF && m_CircBuf.iAvailSize == (int)iNalAudSize)
       return 0;
 
     if(!m_bEOF)
@@ -257,17 +287,16 @@ uint32_t SplitInput::ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream)
       if(size == 0)
       {
         m_bEOF = true;
-        auto pAUD = m_bIsAVC ? AVC_AUD : HEVC_AUD;
-        Rtos_Memcpy(m_CircBuf.tBuf.pBuf + start, pAUD, iNalHdrSize);
-        m_CircBuf.iAvailSize += iNalHdrSize;
+        Rtos_Memcpy(m_CircBuf.tBuf.pBuf + start, pAUD, iNalAudSize);
+        m_CircBuf.iAvailSize += iNalAudSize;
       }
     }
 
-    m_CircBuf.iOffset += iNalHdrSize;
-    m_CircBuf.iAvailSize -= iNalHdrSize;
-    nal = SearchStartCodes(m_CircBuf, m_bIsAVC, m_bSliceCut);
-    m_CircBuf.iOffset -= iNalHdrSize;
-    m_CircBuf.iAvailSize += iNalHdrSize;
+    m_CircBuf.iOffset += iNalAudSize;
+    m_CircBuf.iAvailSize -= iNalAudSize;
+    nal = SearchStartCodes(m_CircBuf, m_eCodec, m_bSliceCut);
+    m_CircBuf.iOffset -= iNalAudSize;
+    m_CircBuf.iAvailSize += iNalAudSize;
 
     if(nal.numBytes < m_CircBuf.iAvailSize)
       break;
@@ -279,7 +308,7 @@ uint32_t SplitInput::ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream)
     }
   }
 
-  assert(nal.numBytes <= (int)pBufStream->zSize);
+  assert(nal.numBytes <= (int)AL_Buffer_GetSize(pBufStream));
 
   uint8_t* pBuf = AL_Buffer_GetData(pBufStream);
 

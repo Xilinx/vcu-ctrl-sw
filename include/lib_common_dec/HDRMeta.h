@@ -52,6 +52,7 @@
 typedef struct AL_t_HDRMeta
 {
   AL_TMetaData tMeta;
+  AL_EColourDescription eColourDescription;
   AL_ETransferCharacteristics eTransferCharacteristics;
   AL_EColourMatrixCoefficients eColourMatrixCoeffs;
   AL_THDRSEIs tHDRSEIs;

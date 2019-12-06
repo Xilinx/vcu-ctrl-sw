@@ -107,20 +107,22 @@ AL_TLookAheadMetaData* AL_TwoPassMngr_CreateAndAttachTwoPassMetaData(AL_TBuffer*
 /***************************************************************************/
 bool AL_TwoPassMngr_HasLookAhead(AL_TEncSettings const& settings)
 {
-  return settings.LookAhead > 0;
+  return settings.LookAhead > 0
+  ;
 }
 
 /***************************************************************************/
 static void setPass1RateControlSettings(AL_TRCParam& rc)
 {
   rc.eRCMode = AL_RC_CONST_QP;
-  rc.iInitialQP = 20;
+  rc.iInitialQP = AL_RC_FIRSTPASS_QP;
   rc.eOptions = static_cast<AL_ERateCtrlOption>(rc.eOptions & (~AL_RC_OPT_ENABLE_SKIP));
 }
 
 /***************************************************************************/
 static void setPass1GopSettings(AL_TGopParam& gop)
 {
+  (void)gop;
   gop.eMode = AL_GOP_MODE_LOW_DELAY_P;
   gop.uGopLength = 0;
   gop.uNumB = 0;
@@ -545,6 +547,7 @@ void LookAheadMngr::ProcessLookAheadParams()
 
   for(int i = 2; i < min(iNextSceneChange, 4); i++)
     pPictureMetaLA->iIPRatio = min(pPictureMetaLA->iIPRatio, ComputeIPRatio(m_fifo[0], m_fifo[i]));
+
 }
 
 /***************************************************************************/
@@ -592,5 +595,4 @@ bool LookAheadMngr::HasPatternTwoFrames()
 
   return DetectPatternTwoFrames(v);
 }
-
 

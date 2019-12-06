@@ -44,6 +44,7 @@
 
 typedef struct rbspWriter
 {
+  AL_ECodec (* GetCodec)(void);
   void (* WriteAUD)(AL_TBitStreamLite* writer, AL_ESliceType eSliceType);
   void (* WriteVPS)(AL_TBitStreamLite* writer, AL_THevcVps const* pVps);
   void (* WriteSPS)(AL_TBitStreamLite* writer, AL_TSps const* pSps, int iLayerId);

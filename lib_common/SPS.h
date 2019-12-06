@@ -46,21 +46,16 @@
 
 #include "lib_common/ScalingList.h"
 #include "lib_common/common_syntax_elements.h"
-#include "lib_common/VPS.h"
 
+#define MAX_BIT_DEPTH 2
+#define MAX_POC_LSB 12
+
+/****************************************************************************/
 #define AL_AVC_MAX_SPS 32
-#define AL_HEVC_MAX_SPS 16
 
 // define max sps value respect to AVC semantics
 #define MAX_FRAME_NUM 12
 #define MAX_POC_TYPE 2
-
-// define max sps value respect to HEVC semantics
-#define MAX_BIT_DEPTH 2
-#define MAX_POC_LSB 12
-#define MAX_SUB_LAYER 7
-#define MAX_REF_PIC_SET 64
-#define MAX_LONG_TERM_PIC 32
 
 /*************************************************************************//*!
    \brief Mimics structure described in spec sec. 7.3.2.1.
@@ -125,6 +120,16 @@ typedef struct t_Avc_Sps
   // concealment flag
   bool bConceal;
 }AL_TAvcSps;
+
+/****************************************************************************/
+#include "lib_common/VPS.h"
+
+#define AL_HEVC_MAX_SPS 16
+
+// define max sps value respect to HEVC semantics
+#define MAX_SUB_LAYER 7
+#define MAX_REF_PIC_SET 64
+#define MAX_LONG_TERM_PIC 32
 
 /*************************************************************************//*!
    \brief Mimics structure described in spec sec. 7.3.2.2.
@@ -250,13 +255,11 @@ typedef struct t_Hevc_Sps
   uint8_t ChromaArrayType;
 }AL_THevcSps;
 
-typedef struct
+/****************************************************************************/
+typedef union
 {
-  union
-  {
-    AL_THevcSps HevcSPS;
-    AL_TAvcSps AvcSPS;
-  };
+  AL_TAvcSps AvcSPS;
+  AL_THevcSps HevcSPS;
 }AL_TSps;
 
 /****************************************************************************/

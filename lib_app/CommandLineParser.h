@@ -88,6 +88,19 @@ struct CommandLineParser
     }
   }
 
+  void startSection(std::string const& sectionName)
+  {
+    curSection = sectionName;
+  }
+
+  void endSection(std::string const& sectionName)
+  {
+    if(curSection != sectionName)
+      throw std::runtime_error("The section being ended isn't the current section.");
+    /* Return to the default section */
+    curSection = "";
+  }
+
   template<typename T>
   T readVal(std::string word)
   {
@@ -135,17 +148,17 @@ struct CommandLineParser
     return word;
   }
 
-  void addOption(std::string name, std::function<void(std::string)> func, std::string desc_)
+  void addOption(std::string name, std::function<void(std::string)> func, std::string desc_, std::string const& type = "")
   {
     Option o;
     o.parser = func;
     o.desc_ = desc_;
-    o.desc = makeDescription(name, "", desc_);
+    o.desc = makeDescription(name, type, desc_);
     insertOption(name, o);
   }
 
   template<typename VariableType, typename Func>
-  void setCustom_(std::string name, VariableType* value, Func customParser, std::string desc_)
+  void setCustom_(std::string name, VariableType* value, Func customParser, std::string desc_, std::string const& type)
   {
     Option o;
     o.parser = [=](std::string word)
@@ -156,21 +169,21 @@ struct CommandLineParser
                    *value = customParser(word);
                };
     o.desc_ = desc_;
-    o.desc = makeDescription(name, "value", desc_);
+    o.desc = makeDescription(name, type, desc_);
     insertOption(name, o);
   }
 
   template<typename VariableType, typename ParserRetType>
-  void addCustom(std::string name, VariableType* value, ParserRetType (* customParser)(std::string const &), std::string desc_)
+  void addCustom(std::string name, VariableType* value, ParserRetType (* customParser)(std::string const &), std::string desc_, std::string const& type = "")
   {
-    setCustom_(name, value, customParser, desc_);
+    setCustom_(name, value, customParser, desc_, type);
   }
 
   // add an option with a user-provided value parsing function
   template<typename VariableType, typename ParserRetType>
-  void addCustom(std::string name, VariableType* value, std::function<ParserRetType(std::string const &)> customParser, std::string desc_)
+  void addCustom(std::string name, VariableType* value, std::function<ParserRetType(std::string const &)> customParser, std::string desc_, std::string const& type = "")
   {
-    setCustom_(name, value, customParser, desc_);
+    setCustom_(name, value, customParser, desc_, type);
   }
 
   template<typename T>
@@ -236,13 +249,29 @@ struct CommandLineParser
 
   std::map<std::string, Option> options;
   std::map<std::string, std::string> descs;
+  std::map<std::string, std::string> sections;
+  std::string curSection = "";
   std::vector<std::string> displayOrder;
   std::deque<Option> positionals;
 
   void usage() const
   {
+    std::string section {};
+
     for(auto& command: displayOrder)
+    {
+      if(sections.at(command) != section)
+      {
+        section = sections.at(command);
+
+        if(section == "")
+          throw std::runtime_error("If a section has been started, you can't go back to the general section. (For display reasons)");
+        std::cerr << std::endl;
+        std::cerr << "  [" << section << "]" << std::endl;
+      }
+
       std::cerr << "  " << descs.at(command) << std::endl;
+    }
   }
 
   /* not a complete escape function. This just validates our usecases. */
@@ -269,11 +298,12 @@ struct CommandLineParser
     {
       auto name = o_.first;
       auto& o = o_.second;
+      auto section = sections.at(name);
 
       if(!first)
         std::cerr << ", " << std::endl;
       first = false;
-      std::cerr << "{ \"name\":\"" << name << "\", \"desc\":\"" << jsonEscape(o.desc_) << "\" }";
+      std::cerr << "{ \"name\":\"" << name << "\", \"desc\":\"" << jsonEscape(o.desc_) << "\", \"section\":\"" << section << "\"}";
     }
 
     std::cerr << "]" << std::endl;
@@ -288,12 +318,16 @@ private:
     if(isOption(name))
     {
       while(getline(ss, item, ','))
+      {
         options[item] = o;
+        sections[item] = curSection;
+      }
     }
     else
       positionals.push_back(o);
 
     descs[name] = o.desc;
+    sections[name] = curSection;
     displayOrder.push_back(name);
   }
 

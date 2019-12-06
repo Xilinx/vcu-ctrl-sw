@@ -53,6 +53,7 @@
 #include <vector>
 
 #include "lib_app/BufPool.h"
+#include "lib_app/PixMapBufPool.h"
 #include "lib_app/console.h"
 #include "lib_app/utils.h"
 #include "lib_app/plateform.h"
@@ -68,7 +69,7 @@
 
 extern "C"
 {
-#include "lib_common/BufferSrcMeta.h"
+#include "lib_common/PixMapBuffer.h"
 #include "lib_common/BufferStreamMeta.h"
 #include "lib_common/BufferPictureMeta.h"
 #include "lib_common/BufferLookAheadMeta.h"
@@ -76,6 +77,7 @@ extern "C"
 #include "lib_common/Error.h"
 #include "lib_encode/lib_encoder.h"
 #include "lib_rtos/lib_rtos.h"
+#include "lib_common_enc/RateCtrlMeta.h"
 #include "lib_common_enc/IpEncFourCC.h"
 }
 
@@ -89,10 +91,11 @@ extern "C"
 #include "sink_repeater.h"
 #include "QPGenerator.h"
 
-
 static int g_numFrameToRepeat;
 static int g_StrideHeight = -1;
 static int g_Stride = -1;
+static int constexpr g_defaultMinBuffers = 2;
+static bool g_MultiChunk = false;
 
 using namespace std;
 
@@ -101,6 +104,31 @@ using namespace std;
 static inline int RoundUp(int iVal, int iRnd)
 {
   return (iVal + iRnd - 1) / iRnd * iRnd;
+}
+
+static inline int UnsignedRoundUp(int iVal, int iRnd)
+{
+  return ((iVal + iRnd - 1) / iRnd) * iRnd;
+}
+
+AL_HANDLE AlignedAlloc(AL_TAllocator* pAllocator, const char* pBufName, uint32_t uSize, uint32_t uAlign, uint32_t* uAllocatedSize, uint32_t* uAlignmentOffset)
+{
+  AL_HANDLE pBuf = NULL;
+  *uAllocatedSize = 0;
+  *uAlignmentOffset = 0;
+
+  uSize += uAlign;
+
+  pBuf = AL_Allocator_AllocNamed(pAllocator, uSize, pBufName);
+
+  if(NULL == pBuf)
+    return NULL;
+
+  *uAllocatedSize = uSize;
+  AL_PADDR pAddr = AL_Allocator_GetPhysicalAddr(pAllocator, pBuf);
+  *uAlignmentOffset = UnsignedRoundUp(pAddr, uAlign) - pAddr;
+
+  return pBuf;
 }
 
 /*****************************************************************************/
@@ -162,7 +190,7 @@ static void Usage(CommandLineParser const& opt, char* ExeName)
 
   opt.usage();
 
-  cerr << "Examples:" << endl;
+  cerr << endl << "Examples:" << endl;
   cerr << "  " << ExeName << " -cfg test/config/encode_simple.cfg -r rec.yuv -o output.hevc -i input.yuv" << endl;
 }
 
@@ -182,7 +210,6 @@ static AL_EChromaMode stringToChromaMode(string s)
 
   throw runtime_error("Unknown chroma mode: \"" + s + "\"");
 }
-
 
 template<typename T>
 function<T(string const &)> createCmdlineParsingFunc(char const* name_, function<T(ConfigFile &)> extractWantedValue)
@@ -224,19 +251,16 @@ function<AL_EGopCtrlMode(string const &)> createParseGopMode()
   return createCmdlineParsingFunc<AL_EGopCtrlMode>("[GOP]\nGopCtrlMode", [](ConfigFile& cfg) { return cfg.Settings.tChParam[0].tGopParam.eMode; });
 }
 
-
-
 void introspect(ConfigFile& cfg)
 {
   (void)cfg;
   throw runtime_error("introspection is not compiled in");
 }
 
-void SetChannelMaxResolution(ConfigFile& cfg)
+static void SetCodingResolution(ConfigFile& cfg)
 {
   int iMaxSrcWidth = cfg.MainInput.FileInfo.PictWidth;
   int iMaxSrcHeight = cfg.MainInput.FileInfo.PictHeight;
-
 
   for(auto input = cfg.DynamicInputs.begin(); input != cfg.DynamicInputs.end(); input++)
   {
@@ -244,9 +268,12 @@ void SetChannelMaxResolution(ConfigFile& cfg)
     iMaxSrcHeight = std::max(input->FileInfo.PictHeight, iMaxSrcHeight);
   }
 
+  cfg.Settings.tChParam[0].uSrcWidth = iMaxSrcWidth;
+  cfg.Settings.tChParam[0].uSrcHeight = iMaxSrcHeight;
 
-  AL_SetSrcWidth(&cfg.Settings.tChParam[0], iMaxSrcWidth);
-  AL_SetSrcHeight(&cfg.Settings.tChParam[0], iMaxSrcHeight);
+  cfg.Settings.tChParam[0].uEncWidth = cfg.Settings.tChParam[0].uSrcWidth;
+  cfg.Settings.tChParam[0].uEncHeight = cfg.Settings.tChParam[0].uSrcHeight;
+
 }
 
 bool g_helpCfg = false;
@@ -272,97 +299,126 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
       DoNotAcceptCfg = true;
   });
 
-  opt.addOption("-cfg", [&](string)
-  {
-    auto const cfgPath = opt.popWord();
-    cfg.strict_mode = true;
-    ParseConfigFile(cfgPath, cfg, warning);
-  }, "Specify configuration file");
-
-  opt.addOption("-cfg-permissive", [&](string)
-  {
-    auto const cfgPath = opt.popWord();
-    ParseConfigFile(cfgPath, cfg, warning);
-  }, "Use it instead of -cfg. Errors in the configuration file will be ignored");
-
   opt.addFlag("--help-cfg", &g_helpCfg, "Show cfg help. Show the default value for each parameter. If this option is used with a cfg, show the end value of each parameter.");
   opt.addFlag("--help-cfg-json", &g_helpCfgJson, "Same as --help-cfg but in json format");
   opt.addFlag("--help,-h", &help, "Show this help");
   opt.addFlag("--help-json", &helpJson, "Show this help (json)");
   opt.addFlag("--show-cfg", &g_showCfg, "Show the cfg variables value before launching the program");
   opt.addFlag("--version", &version, "Show version");
-  opt.addString("--input,-i", &cfg.MainInput.YUVFileName, "YUV input file");
 
-  opt.addString("--output,-o", &cfg.BitstreamFileName, "Compressed output file");
-  opt.addString("--md5", &cfg.RunInfo.sMd5Path, "Path to the output MD5 textfile");
-  opt.addString("--output-rec,-r", &cfg.RecFileName, "Output reconstructed YUV file");
-  opt.addOption("--color", [&](string)
+  opt.addOption("-cfg", [&](string)
   {
-    SetEnableColor(true);
-  }, "Enable color");
-  opt.addInt("--input-sleep", &cfg.RunInfo.uInputSleepInMilliseconds, "Minimum waiting time in milliseconds between each process frame (0 by default)");
+    auto const cfgPath = opt.popWord();
+    cfg.strict_mode = true;
+    ParseConfigFile(cfgPath, cfg, warning);
+  }, "Specify configuration file", "string");
 
-  opt.addFlag("--quiet,-q", &g_Verbosity, "Do not print anything", 0);
-  opt.addInt("--verbosity", &g_Verbosity, "Choose the verbosity level (-q is equivalent to --verbosity 0)");
+  opt.addOption("-cfg-permissive", [&](string)
+  {
+    auto const cfgPath = opt.popWord();
+    ParseConfigFile(cfgPath, cfg, warning);
+  }, "Use it instead of -cfg. Errors in the configuration file will be ignored", "string");
 
+  opt.addOption("--set", [&](string)
+  {
+    ParseConfig(opt.popWord(), cfg);
+  }, "Use the same syntax as in the cfg to specify a parameter (Example: --set \"[INPUT] Width = 512\"", "string");
+
+  opt.addString("--input,-i", &cfg.MainInput.YUVFileName, "YUV input file");
+  opt.addString("--output,-o", &cfg.BitstreamFileName, "Compressed output file");
+  opt.addString("--output-rec,-r", &cfg.RecFileName, "Output reconstructed YUV file");
+  opt.addString("--md5", &cfg.RunInfo.sMd5Path, "Path to the output MD5 textfile");
   opt.addInt("--input-width", &cfg.MainInput.FileInfo.PictWidth, "Specifies YUV input width");
   opt.addInt("--input-height", &cfg.MainInput.FileInfo.PictHeight, "Specifies YUV input height");
+  opt.addCustom("--input-format", &cfg.MainInput.FileInfo.FourCC, createParseInputFourCC(), "Specifies YUV input format (I420, IYUV, YV12, NV12, Y800, Y010, P010, I0AL ...)", "enum");
+  opt.addCustom("--rec-format", &cfg.RecFourCC, createParseRecFourCC(), "Specifies output format", "enum");
+
+  opt.addInt("--level", &cfg.Settings.tChParam[0].uLevel, "Specifies the level we want to encode with (10 to 62)");
+  opt.addCustom("--profile", &cfg.Settings.tChParam[0].eProfile, createParseProfile(), "Specifies the profile we want to encode with (example: HEVC_MAIN, AVC_MAIN, ...)", "enum");
   opt.addOption("--chroma-mode", [&](string)
   {
     auto chromaMode = stringToChromaMode(opt.popWord());
     AL_SET_CHROMA_MODE(&cfg.Settings.tChParam[0].ePicFormat, chromaMode);
-  }, "Specify chroma-mode (CHROMA_MONO, CHROMA_4_0_0, CHROMA_4_2_0, CHROMA_4_2_2)");
+  }, "Specify chroma-mode (CHROMA_MONO, CHROMA_4_0_0, CHROMA_4_2_0, CHROMA_4_2_2)", "enum");
 
   int ipbitdepth = -1;
-  opt.addInt("--level", &cfg.Settings.tChParam[0].uLevel, "Specifies the level we want to encode with (10 to 62)");
-  opt.addCustom("--profile", &cfg.Settings.tChParam[0].eProfile, createParseProfile(), "Specifies the profile we want to encode with (example: HEVC_MAIN, AVC_MAIN, ...)");
   opt.addInt("--ip-bitdepth", &ipbitdepth, "Specifies bitdepth of ip input (8 : 10)");
-  opt.addCustom("--input-format", &cfg.MainInput.FileInfo.FourCC, createParseInputFourCC(), "Specifies YUV input format (I420, IYUV, YV12, NV12, Y800, Y010, P010, I0AL ...)");
-  opt.addCustom("--rec-format", &cfg.RecFourCC, createParseRecFourCC(), "Specifies output format");
-  opt.addCustom("--ratectrl-mode", &cfg.Settings.tChParam[0].tRCParam.eRCMode, createParseRCMode(),
-                "Specifies rate control mode (CONST_QP, CBR, VBR"
-                ", LOW_LATENCY"
-                ")"
-                );
-  opt.addOption("--bitrate", [&](string)
-  {
-    cfg.Settings.tChParam[0].tRCParam.uTargetBitRate = opt.popInt() * 1000;
-  }, "Specifies bitrate in Kbits/s");
-  opt.addOption("--max-bitrate", [&](string)
-  {
-    cfg.Settings.tChParam[0].tRCParam.uMaxBitRate = opt.popInt() * 1000;
-  }, "Specifies max bitrate in Kbits/s");
-  opt.addOption("--framerate", [&](string)
-  {
-    ParseConfig("[RATE_CONTROL]\nFrameRate=" + opt.popWord(), cfg);
-  }, "Specifies the frame rate used for encoding");
-  opt.addInt("--sliceQP", &cfg.Settings.tChParam[0].tRCParam.iInitialQP, "Specifies the initial slice QP");
-  opt.addInt("--gop-length", &cfg.Settings.tChParam[0].tGopParam.uGopLength, "Specifies the GOP length, 0 means I slice only");
-  opt.addInt("--gop-numB", &cfg.Settings.tChParam[0].tGopParam.uNumB, "Number of consecutive B frame (0 .. 4)");
-  opt.addCustom("--gop-mode", &cfg.Settings.tChParam[0].tGopParam.eMode, createParseGopMode(), "Specifies gop control mode (DEFAULT_GOP, PYRAMIDAL_GOP)");
-  opt.addInt("--first-picture", &cfg.RunInfo.iFirstPict, "First picture encoded (skip those before)");
-  opt.addInt("--max-picture", &cfg.RunInfo.iMaxPict, "Maximum number of pictures encoded (1,2 .. -1 for ALL)");
   opt.addInt("--num-slices", &cfg.Settings.tChParam[0].uNumSlices, "Specifies the number of slices to use");
-  opt.addInt("--num-core", &cfg.Settings.tChParam[0].uNumCore, "Specifies the number of cores to use (resolution needs to be sufficient)");
-  opt.addString("--log", &cfg.RunInfo.logsFile, "A file where log event will be dumped");
-  opt.addFlag("--loop", &cfg.RunInfo.bLoop, "Loop at the end of the yuv file");
   opt.addFlag("--slicelat", &cfg.Settings.tChParam[0].bSubframeLatency, "Enable subframe latency");
   opt.addFlag("--framelat", &cfg.Settings.tChParam[0].bSubframeLatency, "Disable subframe latency", false);
-
-  opt.addInt("--prefetch", &g_numFrameToRepeat, "Prefetch n frames and loop between these frames for max picture count");
-  opt.addFlag("--print-picture-type", &cfg.RunInfo.printPictureType, "Write picture type for each frame in the file", true);
-
-
 
   opt.addInt("--lookahead", &cfg.Settings.LookAhead, "Set the twopass LookAhead size");
   opt.addInt("--pass", &cfg.Settings.TwoPass, "Specify which pass we are encoding");
   opt.addString("--pass-logfile", &cfg.sTwoPassFileName, "LogFile to transmit dual pass statistics");
   opt.addFlag("--first-pass-scd", &cfg.Settings.bEnableFirstPassSceneChangeDetection, "During first pass, the encoder encode faster by only enabling scene change detection");
 
-  opt.addOption("--set", [&](string)
+  opt.startSection("Rate Control && GOP");
+  opt.addCustom("--ratectrl-mode", &cfg.Settings.tChParam[0].tRCParam.eRCMode, createParseRCMode(),
+                "Specifies rate control mode (CONST_QP, CBR, VBR"
+                ", LOW_LATENCY"
+                ")", "enum"
+                );
+  opt.addOption("--bitrate", [&](string)
   {
-    ParseConfig(opt.popWord(), cfg);
-  }, "Use the same syntax as in the cfg to specify a parameter (Example: --set \"[INPUT] Width = 512\"");
+    cfg.Settings.tChParam[0].tRCParam.uTargetBitRate = opt.popInt() * 1000;
+  }, "Specifies bitrate in Kbits/s", "number");
+  opt.addOption("--max-bitrate", [&](string)
+  {
+    cfg.Settings.tChParam[0].tRCParam.uMaxBitRate = opt.popInt() * 1000;
+  }, "Specifies max bitrate in Kbits/s", "number");
+  opt.addOption("--framerate", [&](string)
+  {
+    ParseConfig("[RATE_CONTROL]\nFrameRate=" + opt.popWord(), cfg);
+  }, "Specifies the frame rate used for encoding", "number");
+  opt.addInt("--sliceQP", &cfg.Settings.tChParam[0].tRCParam.iInitialQP, "Specifies the initial slice QP");
+
+  opt.addCustom("--gop-mode", &cfg.Settings.tChParam[0].tGopParam.eMode, createParseGopMode(), "Specifies gop control mode (DEFAULT_GOP, LOW_DELAY_P)", "enum");
+  opt.addInt("--gop-length", &cfg.Settings.tChParam[0].tGopParam.uGopLength, "Specifies the GOP length, 1 means I slice only");
+  opt.addInt("--gop-numB", &cfg.Settings.tChParam[0].tGopParam.uNumB, "Number of consecutive B frame (0 .. 4)");
+
+  opt.endSection("Rate Control && GOP");
+
+  opt.startSection("Run");
+
+  opt.addInt("--first-picture", &cfg.RunInfo.iFirstPict, "First picture encoded (skip those before)");
+  opt.addInt("--max-picture", &cfg.RunInfo.iMaxPict, "Maximum number of pictures encoded (1,2 .. -1 for ALL)");
+  opt.addFlag("--loop", &cfg.RunInfo.bLoop, "Loop at the end of the yuv file");
+
+  opt.addInt("--input-sleep", &cfg.RunInfo.uInputSleepInMilliseconds, "Minimum waiting time in milliseconds between each process frame (0 by default)");
+
+  opt.endSection("Run");
+
+  opt.startSection("Traces && Debug");
+
+  opt.addInt("--stride-height", &g_StrideHeight, "Chroma offset (vertical stride)");
+  opt.addInt("--stride", &g_Stride, "Luma stride");
+  opt.addFlag("--multi-chunk", &g_MultiChunk, "Allocate source luma and chroma on different memory chunks");
+  opt.addInt("--num-core", &cfg.Settings.tChParam[0].uNumCore, "Specifies the number of cores to use (resolution needs to be sufficient)");
+
+  opt.addString("--log", &cfg.RunInfo.logsFile, "A file where log event will be dumped");
+  opt.addInt("--prefetch", &g_numFrameToRepeat, "Prefetch n frames and loop between these frames for max picture count");
+  opt.addFlag("--print-picture-type", &cfg.RunInfo.printPictureType, "Write picture type for each frame in the file", true);
+  opt.addFlag("--print-ratectrl-stat", &cfg.RunInfo.printRateCtrlStat, "Write rate-control related statistics for each frame in the file. Only a subset of the statistics is written, more data and motion vectors are also available.", true);
+
+  opt.endSection("Traces && Debug");
+
+  opt.startSection("Misc");
+
+  opt.addOption("--color", [&](string)
+  {
+    SetEnableColor(true);
+  }, "Enable color (Default: Auto)");
+
+  opt.addOption("--no-color", [&](string)
+  {
+    SetEnableColor(false);
+  }, "Disable color");
+
+  opt.addFlag("--quiet,-q", &g_Verbosity, "Do not print anything", 0);
+  opt.addInt("--verbosity", &g_Verbosity, "Choose the verbosity level (-q is equivalent to --verbosity 0)");
+
+  opt.endSection("Misc");
+
   opt.parse(argc, argv);
 
   if(help)
@@ -384,17 +440,10 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
     exit(0);
   }
 
-
   if(g_Verbosity)
     cerr << warning.str();
 
-  SetChannelMaxResolution(cfg);
-
-  if(AL_GetSrcWidth(cfg.Settings.tChParam[0]) > UINT16_MAX)
-    throw runtime_error("Unsupported picture width value");
-
-  if(AL_GetSrcHeight(cfg.Settings.tChParam[0]) > UINT16_MAX)
-    throw runtime_error("Unsupported picture height value");
+  SetCodingResolution(cfg);
 
   if(ipbitdepth != -1)
     AL_SET_BITDEPTH(&cfg.Settings.tChParam[0].ePicFormat, ipbitdepth);
@@ -403,7 +452,6 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
 
   if(AL_IS_STILL_PROFILE(cfg.Settings.tChParam[0].eProfile))
     cfg.RunInfo.iMaxPict = 1;
-
 }
 
 void ValidateConfig(ConfigFile& cfg)
@@ -423,7 +471,6 @@ void ValidateConfig(ConfigFile& cfg)
   if(!g_Verbosity)
     out = NULL;
 
-
   for(int i = 0; i < cfg.Settings.NumLayer; ++i)
   {
     auto const err = AL_Settings_CheckValidity(&cfg.Settings, &cfg.Settings.tChParam[i], out);
@@ -441,10 +488,8 @@ void ValidateConfig(ConfigFile& cfg)
       throw runtime_error("Fatal coherency error in settings");
   }
 
-
   if(cfg.Settings.TwoPass == 1)
     AL_TwoPassMngr_SetPass1Settings(cfg.Settings);
-
 
   SetConsoleColor(CC_DEFAULT);
 }
@@ -476,76 +521,48 @@ void SetMoreDefaults(ConfigFile& cfg)
   }
 }
 
-static AL_TPlane GetCPlane(int iPitchY, int iHeight, TFourCC fourCC)
+static int GetCPlanePitch(int iPitchY, TFourCC fourCC)
 {
-  AL_TPlane tPlane;
-  auto const iNumLinesInPitch = AL_GetNumLinesInPitch(AL_GetStorageMode(fourCC));
-  tPlane.iOffset = (int)(iPitchY * iHeight / iNumLinesInPitch);
-  tPlane.iPitch = AL_IsSemiPlanar(fourCC) ? iPitchY : iPitchY / 2;
-  return tPlane;
-}
-
-static AL_TPlane GetYMapPlane(int iSizeY, int iWidth, TFourCC fourCC)
-{
-  (void)iSizeY, (void)iWidth, (void)fourCC;
-  return {
-           0, 0
-  };
-}
-
-static AL_TPlane GetCMapPlane(AL_TDimension tDim, AL_TPlane tYMapPlane, TFourCC fourCC)
-{
-  (void)tDim, (void)tYMapPlane, (void)fourCC;
-  return {
-           0, 0
-  };
+  return AL_IsSemiPlanar(fourCC) ? iPitchY : iPitchY / 2;
 }
 
 /*****************************************************************************/
 static
-shared_ptr<AL_TBuffer> AllocateConversionBuffer(vector<uint8_t>& YuvBuffer, int iWidth, int iHeight, TFourCC tFourCC)
+shared_ptr<AL_TBuffer> AllocateConversionBuffer(int iWidth, int iHeight, TFourCC tFourCC)
 {
+  assert(AL_IsCompressed(tFourCC) == false);
+
+  AL_TDimension tDimension = { iWidth, iHeight };
+  AL_TBuffer* pBuf = AL_PixMapBuffer_Create(AL_GetDefaultAllocator(), NULL, tDimension, tFourCC);
+
+  if(pBuf == nullptr)
+    return nullptr;
+
+  auto sharedBuf = shared_ptr<AL_TBuffer>(pBuf, &AL_Buffer_Destroy);
+
+  std::vector<AL_TPlaneDescription> vPlaneDesc;
+  int iSrcSize = 0;
+
   /* we want to read from /write to a file, so no alignement is necessary */
   int const iWidthInBytes = GetIOLumaRowSize(tFourCC, static_cast<uint32_t>(iWidth));
-  AL_TPlane tYPlane {
-    0, iWidthInBytes
-  };
+  vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_Y, 0, iWidthInBytes });
+  iSrcSize += iWidthInBytes * iHeight;
 
-  uint32_t uSize = tYPlane.iPitch * iHeight;
-  switch(AL_GetChromaMode(tFourCC))
+  AL_EChromaMode eChromaMode = AL_GetChromaMode(tFourCC);
+
+  if(eChromaMode != AL_CHROMA_MONO)
   {
-  case AL_CHROMA_4_2_0:
-    uSize += uSize / 2;
-    break;
-  case AL_CHROMA_4_2_2:
-    uSize += uSize;
-    break;
-  default:
-    break;
+    vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_UV, iSrcSize, GetCPlanePitch(iWidthInBytes, tFourCC) });
+    iSrcSize += eChromaMode == AL_CHROMA_4_2_0 ? iSrcSize / 2 : iSrcSize;
   }
 
-  YuvBuffer.resize(uSize);
-  AL_TBuffer* Yuv = AL_Buffer_WrapData(YuvBuffer.data(), uSize, NULL);
+  if(!AL_PixMapBuffer_Allocate_And_AddPlanes(pBuf, iSrcSize, &vPlaneDesc[0], vPlaneDesc.size()))
+    return nullptr;
 
-  auto tCPlane = GetCPlane(tYPlane.iPitch, iHeight, tFourCC);
-  AL_TDimension tDimension = { iWidth, iHeight };
-  assert(AL_IsCompressed(tFourCC) == false);
-  AL_TMetaData* pMeta = (AL_TMetaData*)AL_SrcMetaData_Create(tDimension, tYPlane, tCPlane, tFourCC);
-
-  if(!pMeta)
-    throw runtime_error("Couldn't allocate conversion buffer");
-  AL_Buffer_AddMetaData(Yuv, pMeta);
-
-  return shared_ptr<AL_TBuffer>(Yuv, &AL_Buffer_Destroy);
+  return sharedBuf;
 }
 
-void UpdateBufferMetadata(AL_TBuffer* pBuf, AL_TDimension& tUpdatedDim)
-{
-  AL_TSrcMetaData* pSrcMeta = (AL_TSrcMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_SOURCE);
-  pSrcMeta->tDim = tUpdatedDim;
-}
-
-shared_ptr<AL_TBuffer> ReadSourceFrame(BufPool* pBufPool, AL_TBuffer* conversionBuffer, ifstream& YuvFile, AL_TEncChanParam const& tChParam, ConfigFile const& cfg, IConvSrc* hConv)
+shared_ptr<AL_TBuffer> ReadSourceFrame(BaseBufPool* pBufPool, AL_TBuffer* conversionBuffer, ifstream& YuvFile, AL_TEncChanParam const& tChParam, ConfigFile const& cfg, IConvSrc* hConv)
 {
   shared_ptr<AL_TBuffer> sourceBuffer(pBufPool->GetBuffer(), &AL_Buffer_Unref);
   assert(sourceBuffer);
@@ -554,11 +571,11 @@ shared_ptr<AL_TBuffer> ReadSourceFrame(BufPool* pBufPool, AL_TBuffer* conversion
     AL_GetSrcWidth(tChParam), AL_GetSrcHeight(tChParam)
   };
 
-  UpdateBufferMetadata(sourceBuffer.get(), tUpdatedDim);
+  AL_PixMapBuffer_SetDimension(sourceBuffer.get(), tUpdatedDim);
 
   if(hConv)
   {
-    UpdateBufferMetadata(conversionBuffer, tUpdatedDim);
+    AL_PixMapBuffer_SetDimension(conversionBuffer, tUpdatedDim);
 
     if(!ReadOneFrameYuv(YuvFile, conversionBuffer, cfg.RunInfo.bLoop))
       return nullptr;
@@ -573,14 +590,20 @@ shared_ptr<AL_TBuffer> ReadSourceFrame(BufPool* pBufPool, AL_TBuffer* conversion
   return sourceBuffer;
 }
 
-bool ConvertSrcBuffer(AL_TEncChanParam& tChParam, TYUVFileInfo& FileInfo, vector<uint8_t>& YuvBuffer, shared_ptr<AL_TBuffer>& SrcYuv)
+bool ConvertSrcBuffer(AL_TEncChanParam& tChParam, TYUVFileInfo& FileInfo, shared_ptr<AL_TBuffer>& SrcYuv)
 {
   auto const picFmt = AL_EncGetSrcPicFormat(AL_GET_CHROMA_MODE(tChParam.ePicFormat), tChParam.uSrcBitDepth, AL_GetSrcStorageMode(tChParam.eSrcMode),
                                             AL_IsSrcCompressed(tChParam.eSrcMode));
   bool shouldConvert = IsConversionNeeded(FileInfo.FourCC, picFmt);
 
   if(shouldConvert)
-    SrcYuv = AllocateConversionBuffer(YuvBuffer, AL_GetSrcWidth(tChParam), AL_GetSrcHeight(tChParam), FileInfo.FourCC);
+  {
+    SrcYuv = AllocateConversionBuffer(AL_GetSrcWidth(tChParam), AL_GetSrcHeight(tChParam), FileInfo.FourCC);
+
+    if(SrcYuv == nullptr)
+      throw runtime_error("Couldn't allocate source conversion buffer");
+  }
+
   return shouldConvert;
 }
 
@@ -608,7 +631,7 @@ static void PrepareInput(ifstream& YuvFile, string& YUVFileName, TYUVFileInfo& F
   GotoFirstPicture(FileInfo, YuvFile, iFirstPict);
 }
 
-static void GetSrcFrame(shared_ptr<AL_TBuffer>& frame, int& iReadCount, int iPictCount, ifstream& YuvFile, const TYUVFileInfo& FileInfo, BufPool& SrcBufPool, AL_TBuffer* Yuv, AL_TEncChanParam const& tChParam, ConfigFile const& cfg, IConvSrc* pSrcConv)
+static void GetSrcFrame(shared_ptr<AL_TBuffer>& frame, int& iReadCount, int iPictCount, ifstream& YuvFile, const TYUVFileInfo& FileInfo, PixMapBufPool& SrcBufPool, AL_TBuffer* Yuv, AL_TEncChanParam const& tChParam, ConfigFile const& cfg, IConvSrc* pSrcConv)
 {
   if(!isLastPict(iPictCount, cfg.RunInfo.iMaxPict))
   {
@@ -620,7 +643,7 @@ static void GetSrcFrame(shared_ptr<AL_TBuffer>& frame, int& iReadCount, int iPic
   }
 }
 
-static bool sendInputFileTo(ifstream& YuvFile, BufPool& SrcBufPool, AL_TBuffer* Yuv, ConfigFile const& cfg, TYUVFileInfo& FileInfo, IConvSrc* pSrcConv, IFrameSink* sink, int& iPictCount, int& iReadCount)
+static bool sendInputFileTo(ifstream& YuvFile, PixMapBufPool& SrcBufPool, AL_TBuffer* Yuv, ConfigFile const& cfg, TYUVFileInfo& FileInfo, IConvSrc* pSrcConv, IFrameSink* sink, int& iPictCount, int& iReadCount)
 {
   if(AL_IS_ERROR_CODE(GetEncoderLastError()))
   {
@@ -639,7 +662,6 @@ static bool sendInputFileTo(ifstream& YuvFile, BufPool& SrcBufPool, AL_TBuffer* 
   return true;
 }
 
-
 unique_ptr<IConvSrc> CreateSrcConverter(TFrameInfo const& FrameInfo, AL_ESrcMode eSrcMode, AL_TEncChanParam& tChParam)
 {
   (void)tChParam;
@@ -651,7 +673,6 @@ unique_ptr<IConvSrc> CreateSrcConverter(TFrameInfo const& FrameInfo, AL_ESrcMode
     throw runtime_error("Unsupported source conversion.");
   }
 }
-
 
 /*****************************************************************************/
 function<AL_TIpCtrl* (AL_TIpCtrl*)> GetIpCtrlWrapper(TCfgRunInfo& RunInfo)
@@ -689,41 +710,50 @@ static AL_TBufPoolConfig GetQpBufPoolConfig(AL_TEncSettings& Settings, AL_TEncCh
 
   if(AL_IS_QP_TABLE_REQUIRED(Settings.eQpTableMode))
   {
-    AL_TDimension tDim = { tChParam.uWidth, tChParam.uHeight };
-    poolConfig = GetBufPoolConfig("qp-ext", NULL, AL_GetAllocSizeEP2(tDim, static_cast<AL_ECodec>(AL_GET_PROFILE_CODEC(tChParam.eProfile))), frameBuffersCount);
+    AL_TDimension tDim = { tChParam.uEncWidth, tChParam.uEncHeight };
+    poolConfig = GetBufPoolConfig("qp-ext", NULL, AL_GetAllocSizeEP2(tDim, static_cast<AL_ECodec>(AL_GET_CODEC(tChParam.eProfile))), frameBuffersCount);
   }
   return poolConfig;
 }
 
 /*****************************************************************************/
-static AL_TBufPoolConfig GetSrcBufPoolConfig(unique_ptr<IConvSrc>& pSrcConv, TFrameInfo& FrameInfo, AL_ESrcMode eSrcMode, int frameBuffersCount)
+static void ConfigureSrcBufPool(PixMapBufPool& SrcBufPool, TFrameInfo& FrameInfo, AL_ESrcMode eSrcMode)
 {
   auto const tPictFormat = AL_EncGetSrcPicFormat(FrameInfo.eCMode, FrameInfo.iBitDepth, AL_GetSrcStorageMode(eSrcMode), AL_IsSrcCompressed(eSrcMode));
   TFourCC FourCC = AL_GetFourCC(tPictFormat);
-  AL_TPlane tYPlane = { 0, ComputeYPitch(FrameInfo.iWidth, FourCC) };
-  int iStrideHeight = RoundUp(FrameInfo.iHeight, 8);
+  AL_TDimension tDim = { FrameInfo.iWidth, FrameInfo.iHeight };
 
-  if(g_StrideHeight != -1)
-    iStrideHeight = g_StrideHeight;
+  SrcBufPool.SetFormat(tDim, FourCC);
 
-  auto tCPlane = GetCPlane(tYPlane.iPitch, iStrideHeight, FourCC);
-  auto pMetaData = AL_SrcMetaData_Create({ FrameInfo.iWidth, FrameInfo.iHeight }, tYPlane, tCPlane, FourCC);
-  auto tYMapPlane = GetYMapPlane(tCPlane.iOffset, FrameInfo.iWidth, FourCC);
-  AL_SrcMetaData_AddPlane(pMetaData, tYMapPlane, AL_PLANE_MAP_Y);
-  auto tCMapPlane = GetCMapPlane({ FrameInfo.iWidth, FrameInfo.iHeight }, tYMapPlane, FourCC);
-  AL_SrcMetaData_AddPlane(pMetaData, tCMapPlane, AL_PLANE_MAP_UV);
-  int iSrcSize = pSrcConv->GetSrcBufSize(tYPlane.iPitch, iStrideHeight);
+  int iPitchY = ComputeYPitch(FrameInfo.iWidth, FourCC);
+  int iStrideHeight = g_StrideHeight != -1 ? g_StrideHeight : RoundUp(FrameInfo.iHeight, 8);
 
-  return GetBufPoolConfig("src", (AL_TMetaData*)(pMetaData), iSrcSize, frameBuffersCount);
+  std::vector<AL_TPlaneDescription> vPlaneDesc;
+  int iSrcSize = 0;
+
+  vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_Y, 0, iPitchY });
+  iSrcSize += AL_GetAllocSizeSrc_Y(eSrcMode, iPitchY, iStrideHeight);
+
+  if(g_MultiChunk)
+  {
+    SrcBufPool.AddChunk(iSrcSize, vPlaneDesc);
+    vPlaneDesc.clear();
+    iSrcSize = 0;
+  }
+
+  vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_UV, iSrcSize, GetCPlanePitch(iPitchY, FourCC) });
+  iSrcSize += AL_GetAllocSizeSrc_UV(eSrcMode, iPitchY, iStrideHeight, FrameInfo.eCMode);
+
+  SrcBufPool.AddChunk(iSrcSize, vPlaneDesc);
 }
 
 /*****************************************************************************/
 static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, int iLayerID)
 {
-  auto numStreams = 2 + 2 + Settings.tChParam[0].tGopParam.uNumB;
-  AL_TDimension dim = { Settings.tChParam[iLayerID].uWidth, Settings.tChParam[iLayerID].uHeight };
+  int smoothingStream = 2;
+  auto numStreams = g_defaultMinBuffers + smoothingStream + Settings.tChParam[0].tGopParam.uNumB;
+  AL_TDimension dim = { Settings.tChParam[iLayerID].uEncWidth, Settings.tChParam[iLayerID].uEncHeight };
   auto streamSize = AL_GetMitigatedMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat));
-
 
   if(AL_TwoPassMngr_HasLookAhead(Settings))
   {
@@ -749,7 +779,6 @@ static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, int i
   return GetBufPoolConfig("stream", pMetaData, streamSize, numStreams);
 }
 
-
 /*****************************************************************************/
 static TFrameInfo GetFrameInfo(AL_TEncChanParam& tChParam)
 {
@@ -764,10 +793,10 @@ static TFrameInfo GetFrameInfo(AL_TEncChanParam& tChParam)
 }
 
 /*****************************************************************************/
-static void InitSrcBufPool(AL_TAllocator* pAllocator, bool shouldConvert, unique_ptr<IConvSrc>& pSrcConv, TFrameInfo& FrameInfo, AL_ESrcMode eSrcMode, int frameBuffersCount, BufPool& SrcBufPool)
+static void InitSrcBufPool(AL_TAllocator* pAllocator, bool shouldConvert, unique_ptr<IConvSrc>& pSrcConv, TFrameInfo& FrameInfo, AL_ESrcMode eSrcMode, int frameBuffersCount, PixMapBufPool& SrcBufPool)
 {
-  AL_TBufPoolConfig poolConfig = GetSrcBufPoolConfig(pSrcConv, FrameInfo, eSrcMode, frameBuffersCount);
-  bool ret = SrcBufPool.Init(pAllocator, poolConfig);
+  ConfigureSrcBufPool(SrcBufPool, FrameInfo, eSrcMode);
+  bool ret = SrcBufPool.Init(pAllocator, frameBuffersCount);
   assert(ret);
 
   if(!shouldConvert)
@@ -804,12 +833,10 @@ struct LayerRessources
 
   BufPool QpBufPool;
 
-  BufPool SrcBufPool;
-
+  PixMapBufPool SrcBufPool;
 
   // Input/Output Format conversion
   shared_ptr<AL_TBuffer> SrcYuv;
-  vector<uint8_t> YuvBuffer;
 
   shared_ptr<AL_TBuffer> RecYuv;
   vector<uint8_t> RecYuvBuffer;
@@ -851,18 +878,29 @@ void LayerRessources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffer
     Rtos_Free(pMeta);
   }
 
+  if(cfg.RunInfo.printRateCtrlStat)
+  {
+    AL_TDimension tDim = { Settings.tChParam[iLayerID].uEncWidth, Settings.tChParam[iLayerID].uEncHeight };
+    AL_TMetaData* pMeta = (AL_TMetaData*)AL_RateCtrlMetaData_Create(pAllocator, tDim, Settings.tChParam[iLayerID].uMaxCuSize, AL_GET_CODEC(Settings.tChParam[iLayerID].eProfile));
+    assert(pMeta);
+    assert(StreamBufPool.AddMetaData(pMeta));
+    Rtos_Free(pMeta);
+  }
+
   AL_TBufPoolConfig poolConfig = GetQpBufPoolConfig(Settings, Settings.tChParam[iLayerID], frameBuffersCount);
   QpBufPool.Init(pAllocator, poolConfig);
 
-
   // Input/Output Format conversion
-  bool shouldConvert = ConvertSrcBuffer(Settings.tChParam[iLayerID], layerInputs[iInputIdx].FileInfo, YuvBuffer, SrcYuv);
+  bool shouldConvert = ConvertSrcBuffer(Settings.tChParam[iLayerID], layerInputs[iInputIdx].FileInfo, SrcYuv);
 
   string LayerRecFileName = cfg.RecFileName;
 
   if(!LayerRecFileName.empty())
   {
-    RecYuv = AllocateConversionBuffer(RecYuvBuffer, Settings.tChParam[iLayerID].uWidth, Settings.tChParam[iLayerID].uHeight, cfg.RecFourCC);
+    RecYuv = AllocateConversionBuffer(Settings.tChParam[iLayerID].uEncWidth, Settings.tChParam[iLayerID].uEncHeight, cfg.RecFourCC);
+
+    if(RecYuv == nullptr)
+      throw runtime_error("Couldn't allocate reconstruct conversion buffer");
     frameWriter = createFrameWriter(LayerRecFileName, cfg, RecYuv.get(), iLayerID);
   }
 
@@ -891,7 +929,6 @@ void LayerRessources::PushRessources(ConfigFile& cfg, EncoderSink* enc
   };
 
   enc->AddQpBufPool(qpInf, iLayerID);
-
 
   if(AL_TwoPassMngr_HasLookAhead(cfg.Settings))
     encFirstPassLA->AddQpBufPool(qpInf, iLayerID);
@@ -949,8 +986,10 @@ void LayerRessources::ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hE
 
     if(bResChange)
     {
-      cfg.Settings.tChParam[iLayerID].uWidth = inputDim.iWidth;
-      cfg.Settings.tChParam[iLayerID].uHeight = inputDim.iHeight;
+      /* No resize with dynamic resolution changes */
+      cfg.Settings.tChParam[iLayerID].uEncWidth = cfg.Settings.tChParam[iLayerID].uSrcWidth = inputDim.iWidth;
+      cfg.Settings.tChParam[iLayerID].uEncHeight = cfg.Settings.tChParam[iLayerID].uSrcHeight = inputDim.iHeight;
+
       AL_Encoder_SetInputResolution(hEnc, inputDim);
     }
     PrepareInput(YuvFile, layerInputs[iInputIdx].YUVFileName, layerInputs[iInputIdx].FileInfo, cfg.RunInfo.iFirstPict + iReadCount);
@@ -980,8 +1019,6 @@ void SafeMain(int argc, char** argv)
   if(!RecFileName.empty() || !cfg.RunInfo.sMd5Path.empty())
     Settings.tChParam[0].eEncOptions = (AL_EChEncOption)(Settings.tChParam[0].eEncOptions | AL_OPT_FORCE_REC);
 
-
-
   if(g_helpCfg)
   {
     PrintConfigFileUsage(cfg);
@@ -1001,15 +1038,12 @@ void SafeMain(int argc, char** argv)
     PrintConfig(cfg);
   }
 
-
-
   function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl = GetIpCtrlWrapper(RunInfo);
 
   auto pIpDevice = CreateIpDevice(!RunInfo.bUseBoard, RunInfo.iSchedulerType, cfg, wrapIpCtrl, RunInfo.trackDma, RunInfo.eVQDescr);
 
   if(!pIpDevice)
     throw runtime_error("Can't create IpDevice");
-
 
   std::vector<LayerRessources> layerRessources(cfg.Settings.NumLayer);
 
@@ -1021,11 +1055,13 @@ void SafeMain(int argc, char** argv)
 
   // --------------------------------------------------------------------------------
   // Allocate Layers Ressources
-  int frameBuffersCount = 2 + Settings.tChParam[0].tGopParam.uNumB;
+  int frameBuffersCount = g_defaultMinBuffers + Settings.tChParam[0].tGopParam.uNumB;
 
   // the LookAhead needs LookAheadSize source buffers to work
   if(AL_TwoPassMngr_HasLookAhead(Settings))
-    frameBuffersCount += Settings.LookAhead;
+  {
+    frameBuffersCount += Settings.LookAhead + (Settings.tChParam[0].tGopParam.uNumB * 2);
+  }
 
   int srcBuffersCount = g_numFrameToRepeat == 0 ? frameBuffersCount : max(frameBuffersCount, g_numFrameToRepeat);
 
@@ -1038,7 +1074,6 @@ void SafeMain(int argc, char** argv)
                             ));
 
   IFrameSink* firstSink = enc.get();
-
 
   if(AL_TwoPassMngr_HasLookAhead(cfg.Settings))
   {
@@ -1080,7 +1115,6 @@ void SafeMain(int argc, char** argv)
     enc->LayerRecOutput[0] = move(multisink);
   }
 
-
   unique_ptr<RepeaterSink> prefetch;
 
   if(g_numFrameToRepeat > 0)
@@ -1115,6 +1149,7 @@ void SafeMain(int argc, char** argv)
 
   if(auto err = GetEncoderLastError())
     throw codec_error(EncoderErrorToString(err), err);
+
 }
 
 /******************************************************************************/

@@ -56,38 +56,37 @@
 static const AL_HANDLE AL_INVALID_CHANNEL = (AL_HANDLE)(NULL);
 
 /****************************************************************************/
-typedef void (* AL_PFN_iChannel_CB) (void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U streamUserPtr);
 
 /*************************************************************************//*!
    \brief Scheduler callbacks structure
 *****************************************************************************/
-typedef struct AL_t_ISchedulerCallBacks
+typedef struct
 {
-  AL_PFN_iChannel_CB pfnEndEncodingCallBack;
-  void* pEndEncodingCBParam;
-}AL_TISchedulerCallBacks;
+  void (* func)(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U streamUserPtr);
+  void* userParam;
+}AL_TEncScheduler_CB_EndEncoding;
 
 /****************************************************************************/
-typedef struct t_SchedulerVtable TSchedulerVtable;
+typedef struct AL_i_EncSchedulerVtable AL_IEncSchedulerVtable;
 
-typedef struct t_Scheduler
+typedef struct AL_i_EncScheduler
 {
-  const TSchedulerVtable* vtable;
-}TScheduler;
+  const AL_IEncSchedulerVtable* vtable;
+}AL_IEncScheduler;
 
-typedef struct t_SchedulerVtable
+typedef struct AL_i_EncSchedulerVtable
 {
-  void (* destroy)(TScheduler* pScheduler);
-  AL_ERR (* createChannel)(AL_HANDLE* hChannel, TScheduler* pScheduler, TMemDesc* pMDChParam, TMemDesc* pEP1, AL_TISchedulerCallBacks* pCBs);
-  bool (* destroyChannel)(TScheduler* pScheduler, AL_HANDLE hChannel);
-  bool (* encodeOneFrame)(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TEncInfo* pEncInfo, AL_TEncRequestInfo* pReqInfo, AL_TEncPicBufAddrs* pBufferAddrs);
-  void (* putStreamBuffer)(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuffer* pStream, AL_64U streamUserPtr, uint32_t uOffset);
-  bool (* getRecPicture)(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPic* pRecPic);
-  bool (* releaseRecPicture)(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPic* pRecPic);
+  void (* destroy)(AL_IEncScheduler* pScheduler);
+  AL_ERR (* createChannel)(AL_HANDLE* hChannel, AL_IEncScheduler* pScheduler, TMemDesc* pMDChParam, TMemDesc* pEP1, AL_TEncScheduler_CB_EndEncoding* pCBs);
+  bool (* destroyChannel)(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel);
+  bool (* encodeOneFrame)(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel, AL_TEncInfo* pEncInfo, AL_TEncRequestInfo* pReqInfo, AL_TEncPicBufAddrs* pBufferAddrs);
+  void (* putStreamBuffer)(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuffer* pStream, AL_64U streamUserPtr, uint32_t uOffset);
+  bool (* getRecPicture)(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel, AL_TRecPic* pRecPic);
+  bool (* releaseRecPicture)(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel, AL_TRecPic* pRecPic);
 
-}TSchedulerVtable;
+}AL_IEncSchedulerVtable;
 
-void AL_ISchedulerEnc_Destroy(TScheduler* pScheduler);
+void AL_IEncScheduler_Destroy(AL_IEncScheduler* pScheduler);
 
 /*************************************************************************//*!
    \brief Channel creation
@@ -98,7 +97,7 @@ void AL_ISchedulerEnc_Destroy(TScheduler* pScheduler);
    \return errorcode explaining why the channel creation failed
 *****************************************************************************/
 static AL_INLINE
-AL_ERR AL_ISchedulerEnc_CreateChannel(AL_HANDLE* hChannel, TScheduler* pScheduler, TMemDesc* pMDChParam, TMemDesc* pEP1, AL_TISchedulerCallBacks* pCBs)
+AL_ERR AL_IEncScheduler_CreateChannel(AL_HANDLE* hChannel, AL_IEncScheduler* pScheduler, TMemDesc* pMDChParam, TMemDesc* pEP1, AL_TEncScheduler_CB_EndEncoding* pCBs)
 {
   return pScheduler->vtable->createChannel(hChannel, pScheduler, pMDChParam, pEP1, pCBs);
 }
@@ -109,7 +108,7 @@ AL_ERR AL_ISchedulerEnc_CreateChannel(AL_HANDLE* hChannel, TScheduler* pSchedule
    \return return true
 *****************************************************************************/
 static AL_INLINE
-bool AL_ISchedulerEnc_DestroyChannel(TScheduler* pScheduler, AL_HANDLE hChannel)
+bool AL_IEncScheduler_DestroyChannel(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel)
 {
   return pScheduler->vtable->destroyChannel(pScheduler, hChannel);
 }
@@ -123,14 +122,14 @@ bool AL_ISchedulerEnc_DestroyChannel(TScheduler* pScheduler, AL_HANDLE hChannel)
    false otherwise
 *****************************************************************************/
 static AL_INLINE
-bool AL_ISchedulerEnc_EncodeOneFrame(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TEncInfo* pEncInfo, AL_TEncRequestInfo* pReqInfo, AL_TEncPicBufAddrs* pBufferAddrs)
+bool AL_IEncScheduler_EncodeOneFrame(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel, AL_TEncInfo* pEncInfo, AL_TEncRequestInfo* pReqInfo, AL_TEncPicBufAddrs* pBufferAddrs)
 {
   return pScheduler->vtable->encodeOneFrame(pScheduler, hChannel, pEncInfo, pReqInfo, pBufferAddrs);
 }
 
 /*************************************************************************//*!
    \brief Give a stream buffer. It will be filled with the bitstream generated
-   while encoding a frame given with the EncodeOneFrame function
+   while encoding a frame given with the EncodeOneFrame function.
    \param[in] hChannel Channel identifier
    \param[in] pStream stream buffer given for the scheduler to fill
    \param[in] uOffset offset in the stream buffer data
@@ -138,7 +137,7 @@ bool AL_ISchedulerEnc_EncodeOneFrame(TScheduler* pScheduler, AL_HANDLE hChannel,
    false otherwise
 *****************************************************************************/
 static AL_INLINE
-void AL_ISchedulerEnc_PutStreamBuffer(TScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuffer* pStream, AL_64U streamUserPtr, uint32_t uOffset)
+void AL_IEncScheduler_PutStreamBuffer(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuffer* pStream, AL_64U streamUserPtr, uint32_t uOffset)
 {
   pScheduler->vtable->putStreamBuffer(pScheduler, hChannel, pStream, streamUserPtr, uOffset);
 }
@@ -151,7 +150,7 @@ void AL_ISchedulerEnc_PutStreamBuffer(TScheduler* pScheduler, AL_HANDLE hChannel
    false otherwise
 *****************************************************************************/
 static AL_INLINE
-bool AL_ISchedulerEnc_GetRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPic* pRecPic)
+bool AL_IEncScheduler_GetRecPicture(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel, AL_TRecPic* pRecPic)
 {
   return pScheduler->vtable->getRecPicture(pScheduler, hChannel, pRecPic);
 }
@@ -164,12 +163,9 @@ bool AL_ISchedulerEnc_GetRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, 
    false if the buffer is not known in the scheduler
 *****************************************************************************/
 static AL_INLINE
-bool AL_ISchedulerEnc_ReleaseRecPicture(TScheduler* pScheduler, AL_HANDLE hChannel, TRecPic* pRecPic)
+bool AL_IEncScheduler_ReleaseRecPicture(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel, AL_TRecPic* pRecPic)
 {
   return pScheduler->vtable->releaseRecPicture(pScheduler, hChannel, pRecPic);
 }
 
-
-
 /*@}*/
-

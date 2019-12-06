@@ -48,11 +48,6 @@
 #include "common_syntax_elements.h"
 #include "SPS.h"
 
-#define AL_AVC_MAX_PPS 256
-#define AL_AVC_MAX_REF_IDX 15
-#define AL_HEVC_MAX_PPS 64
-#define AL_HEVC_MAX_REF_IDX 14
-
 #define AL_MAX_WP_IDC 2
 #define AL_MIN_INIT_QP -26
 #define AL_MAX_INIT_QP 25
@@ -60,6 +55,10 @@
 #define AL_MAX_QP_OFFSET 12
 #define AL_MIN_DBF_PARAM -6
 #define AL_MAX_DBF_PARAM 6
+
+/*****************************************************************************/
+#define AL_AVC_MAX_PPS 256
+#define AL_AVC_MAX_REF_IDX 15
 
 /*************************************************************************//*!
    \brief Mimics structure described in spec sec. 7.3.2.2.
@@ -110,6 +109,10 @@ typedef struct t_Avc_Pps
   // concealment flag
   bool bConceal;
 }AL_TAvcPps;
+
+/*****************************************************************************/
+#define AL_HEVC_MAX_PPS 64
+#define AL_HEVC_MAX_REF_IDX 14
 
 /*************************************************************************//*!
    \brief Mimics structure described in spec sec. 7.3.2.3.
@@ -198,13 +201,11 @@ typedef struct t_Hevc_Pps
   bool bConceal;
 }AL_THevcPps;
 
-typedef struct
+/****************************************************************************/
+typedef union
 {
-  union
-  {
-    AL_THevcPps HevcPPS;
-    AL_TAvcPps AvcPPS;
-  };
+  AL_TAvcPps AvcPPS;
+  AL_THevcPps HevcPPS;
 }AL_TPps;
 
 /****************************************************************************/

@@ -51,7 +51,7 @@
 #include "lib_parsing/Concealment.h"
 
 #include "NalUnitParser.h"
-#include "lib_decode/I_DecChannel.h"
+#include "lib_decode/I_DecScheduler.h"
 #include "lib_decode/lib_decode.h"
 #include "I_Feeder.h"
 
@@ -77,11 +77,14 @@ typedef struct t_Dec_Ctx
   AL_TBuffer* pInputBuffer;     // keep a refence to input buffer and its meta data
 
   // decoder IP handle
-  AL_TIDecChannel* pDecChannel;
+  AL_IDecScheduler* pScheduler;
+  AL_HANDLE hChannel;
+  AL_HANDLE hStartCodeChannel;
   AL_TAllocator* pAllocator;
 
   AL_EChanState eChanState;
 
+  AL_CB_EndParsing parseCB;
   AL_CB_EndDecoding decodeCB;
   AL_CB_Display displayCB;
   AL_CB_ResolutionFound resolutionFoundCB;

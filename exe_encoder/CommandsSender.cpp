@@ -52,7 +52,6 @@ void CommandsSender::notifyUseLongTerm()
   AL_Encoder_NotifyUseLongTerm(hEnc);
 }
 
-
 #include <iostream>
 
 #define CHECK(statement) \
@@ -74,6 +73,11 @@ void CommandsSender::setNumB(int numB)
   CHECK(AL_Encoder_SetGopNumB(hEnc, numB));
 }
 
+void CommandsSender::setFreqIDR(int freqIDR)
+{
+  CHECK(AL_Encoder_SetFreqIDR(hEnc, freqIDR));
+}
+
 void CommandsSender::setFrameRate(int frameRate, int clockRatio)
 {
   CHECK(AL_Encoder_SetFrameRate(hEnc, frameRate, clockRatio));
@@ -87,6 +91,21 @@ void CommandsSender::setBitRate(int bitRate)
 void CommandsSender::setQP(int qp)
 {
   CHECK(AL_Encoder_SetQP(hEnc, qp));
+}
+
+void CommandsSender::setQPBounds(int iMinQP, int iMaxQP)
+{
+  CHECK(AL_Encoder_SetQPBounds(hEnc, iMinQP, iMaxQP));
+}
+
+void CommandsSender::setQPIPDelta(int iQPDelta)
+{
+  CHECK(AL_Encoder_SetQPIPDelta(hEnc, iQPDelta));
+}
+
+void CommandsSender::setQPPBDelta(int iQPDelta)
+{
+  CHECK(AL_Encoder_SetQPPBDelta(hEnc, iQPDelta));
 }
 
 void CommandsSender::setDynamicInput(int iInputIdx)
@@ -104,7 +123,6 @@ void CommandsSender::setLFTcOffset(int iTcOffset)
 {
   CHECK(AL_Encoder_SetLoopFilterTcOffset(hEnc, iTcOffset));
 }
-
 
 void CommandsSender::Reset()
 {

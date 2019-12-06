@@ -95,114 +95,23 @@ int floor_log2(uint16_t n)
   return s;
 }
 
-/*************************************************************************/
-bool AL_AVC_IsIDR(AL_ENut eNUT)
+AL_HANDLE AlignedAlloc(AL_TAllocator* pAllocator, const char* pBufName, uint32_t uSize, uint32_t uAlign, uint32_t* uAllocatedSize, uint32_t* uAlignmentOffset)
 {
-  return eNUT == AL_AVC_NUT_VCL_IDR;
-}
+  AL_HANDLE pBuf = NULL;
+  *uAllocatedSize = 0;
+  *uAlignmentOffset = 0;
 
-/*************************************************************************/
-bool AL_AVC_IsVcl(AL_ENut eNUT)
-{
-  return eNUT == AL_AVC_NUT_VCL_IDR || eNUT == AL_AVC_NUT_VCL_NON_IDR;
-}
+  uSize += uAlign;
 
-/*************************************************************************/
-bool AL_HEVC_IsSLNR(AL_ENut eNUT)
-{
-  switch(eNUT)
-  {
-  case AL_HEVC_NUT_TRAIL_N:
-  case AL_HEVC_NUT_TSA_N:
-  case AL_HEVC_NUT_STSA_N:
-  case AL_HEVC_NUT_RADL_N:
-  case AL_HEVC_NUT_RASL_N:
-  case AL_HEVC_NUT_RSV_VCL_N10:
-  case AL_HEVC_NUT_RSV_VCL_N12:
-  case AL_HEVC_NUT_RSV_VCL_N14:
-    return true;
-    break;
-  default:
-    return false;
-    break;
-  }
-}
+  pBuf = AL_Allocator_AllocNamed(pAllocator, uSize, pBufName);
 
-/*************************************************************************/
-bool AL_HEVC_IsRASL_RADL_SLNR(AL_ENut eNUT)
-{
-  switch(eNUT)
-  {
-  case AL_HEVC_NUT_TRAIL_N:
-  case AL_HEVC_NUT_TSA_N:
-  case AL_HEVC_NUT_STSA_N:
-  case AL_HEVC_NUT_RADL_N:
-  case AL_HEVC_NUT_RADL_R:
-  case AL_HEVC_NUT_RASL_N:
-  case AL_HEVC_NUT_RASL_R:
-  case AL_HEVC_NUT_RSV_VCL_N10:
-  case AL_HEVC_NUT_RSV_VCL_N12:
-  case AL_HEVC_NUT_RSV_VCL_N14:
-    return true;
-    break;
-  default:
-    return false;
-    break;
-  }
-}
+  if(NULL == pBuf)
+    return NULL;
 
-/*************************************************************************/
-bool AL_HEVC_IsBLA(AL_ENut eNUT)
-{
-  return eNUT == AL_HEVC_NUT_BLA_N_LP || eNUT == AL_HEVC_NUT_BLA_W_LP || eNUT == AL_HEVC_NUT_BLA_W_RADL;
-}
+  *uAllocatedSize = uSize;
+  AL_PADDR pAddr = AL_Allocator_GetPhysicalAddr(pAllocator, pBuf);
+  *uAlignmentOffset = UnsignedRoundUp(pAddr, uAlign) - pAddr;
 
-/*************************************************************************/
-bool AL_HEVC_IsCRA(AL_ENut eNUT)
-{
-  return eNUT == AL_HEVC_NUT_CRA;
-}
-
-/*************************************************************************/
-bool AL_HEVC_IsIDR(AL_ENut eNUT)
-{
-  return eNUT == AL_HEVC_NUT_IDR_N_LP || eNUT == AL_HEVC_NUT_IDR_W_RADL;
-}
-
-/*************************************************************************/
-bool AL_HEVC_IsRASL(AL_ENut eNUT)
-{
-  return eNUT == AL_HEVC_NUT_RASL_N || eNUT == AL_HEVC_NUT_RASL_R;
-}
-
-/*************************************************************************/
-bool AL_HEVC_IsVcl(AL_ENut eNUT)
-{
-  return (eNUT >= AL_HEVC_NUT_TRAIL_N && eNUT <= AL_HEVC_NUT_RASL_R) ||
-         (eNUT >= AL_HEVC_NUT_BLA_W_LP && eNUT <= AL_HEVC_NUT_CRA);
-}
-
-/***************************************************************************/
-int AL_H273_ColourDescToColourPrimaries(AL_EColourDescription colourDesc)
-{
-  switch(colourDesc)
-  {
-  case AL_COLOUR_DESC_RESERVED: return 0;
-  case AL_COLOUR_DESC_BT_709: return 1;
-  case AL_COLOUR_DESC_UNSPECIFIED: return 2;
-  case AL_COLOUR_DESC_BT_470_NTSC: return 4;
-  case AL_COLOUR_DESC_BT_601_PAL: return 5;
-  case AL_COLOUR_DESC_BT_601_NTSC: return 6;
-  case AL_COLOUR_DESC_SMPTE_240M: return 7;
-  case AL_COLOUR_DESC_GENERIC_FILM: return 8;
-  case AL_COLOUR_DESC_BT_2020: return 9;
-  case AL_COLOUR_DESC_SMPTE_ST_428: return 10;
-  case AL_COLOUR_DESC_SMPTE_RP_431: return 11;
-  case AL_COLOUR_DESC_SMPTE_EG_432: return 12;
-  case AL_COLOUR_DESC_EBU_3213: return 22;
-  case AL_COLOUR_DESC_MAX_ENUM: assert(0);
-  }
-
-  return 2;
+  return pBuf;
 }
 

@@ -96,7 +96,6 @@ typedef enum AL_e_GdrMode
   AL_GDR_MAX_ENUM,
 }AL_EGdrMode;
 
-
 /*************************************************************************//*!
    \brief Picture format enum
 *****************************************************************************/
@@ -327,6 +326,7 @@ typedef enum __AL_ALIGNED__ (4) AL_e_RateCtrlOption
   AL_RC_OPT_DELAYED = 0x00000002,
   AL_RC_OPT_STATIC_SCENE = 0x00000004,
   AL_RC_OPT_ENABLE_SKIP = 0x00000008,
+  AL_RC_OPT_SC_PREVENTION = 0x00000010,
   AL_RC_OPT_MAX_ENUM,
 } AL_ERateCtrlOption;
 
@@ -364,7 +364,6 @@ static AL_INLINE bool AL_IS_HWRC_ENABLED(AL_TRCParam const* pRCParam)
          || (pRCParam->pMaxPictureSize[AL_SLICE_P] > 0)
          || (pRCParam->pMaxPictureSize[AL_SLICE_B] > 0);
 }
-
 
 /*************************************************************************//*!
    \brief GOP Control Mode
@@ -451,7 +450,6 @@ typedef enum e_SrcConvMode // [0] : CompMode | [3:1] : SourceFormat
 #define AL_SET_COMP_MODE(SrcConvFmt, CompMode) (SrcConvFmt) = ((SrcConvFmt) & ~MASK_SRC_COMP) | ((CompMode) & MASK_SRC_COMP)
 #define AL_SET_SRC_FMT(SrcConvFmt, SrcFmt) (SrcConvFmt) = ((SrcConvFmt) & ~MASK_SRC_FMT) | (((SrcFmt) << 1) & MASK_SRC_FMT)
 
-
 /*************************************************************************//*!
    \brief AOM interpolation filter
 *****************************************************************************/
@@ -473,9 +471,12 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   int iLayerID;
 
   /* Encoding resolution */
-  uint16_t uWidth;
-  uint16_t uHeight;
+  uint16_t uEncWidth;
+  uint16_t uEncHeight;
 
+  /* Input resolution */
+  uint16_t uSrcWidth;
+  uint16_t uSrcHeight;
 
   AL_EVideoMode eVideoMode;
   /* Encoding picture format */
@@ -503,7 +504,6 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   int8_t iCbPicQpOffset;
   int8_t iCrPicQpOffset;
 
-
   uint8_t uCuQPDeltaDepth;
   uint8_t uCabacInitIdc;
 
@@ -516,7 +516,6 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   uint32_t uL2PrefetchMemSize;
   uint16_t uClipHrzRange;
   uint16_t uClipVrtRange;
-
 
   /* MV range */
   int16_t pMeRange[2][2];  /*!< Allowed range for motion estimation */
@@ -533,11 +532,6 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   AL_EEntropyMode eEntropyMode;
   AL_EWPMode eWPMode;
 
-
-
-
-
-
   /* Gop & Rate control parameters */
   AL_TRCParam tRCParam;
   AL_TGopParam tGopParam;
@@ -545,23 +539,28 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   AL_ELdaCtrlMode eLdaCtrlMode;
   int LdaFactors[6];
 
-
-
   int8_t MaxNumMergeCand;
 } AL_TEncChanParam;
 
 /***************************************************************************/
 #define ROUND_POWER_OF_TWO(value, n) (((value) + (1 << ((n) - 1))) >> (n))
 #define ROUND_UP_POWER_OF_TWO(value, n) (((value) + (1 << (n)) - 1) >> (n))
-#define AL_GetWidthInLCU(tChParam) (ROUND_UP_POWER_OF_TWO((tChParam).uWidth, (tChParam).uMaxCuSize))
-#define AL_GetHeightInLCU(tChParam) (ROUND_UP_POWER_OF_TWO((tChParam).uHeight, (tChParam).uMaxCuSize))
+#define AL_GetWidthInLCU(tChParam) (ROUND_UP_POWER_OF_TWO((tChParam).uEncWidth, (tChParam).uMaxCuSize))
+#define AL_GetHeightInLCU(tChParam) (ROUND_UP_POWER_OF_TWO((tChParam).uEncHeight, (tChParam).uMaxCuSize))
 
 #define AL_ENTCOMP(tChParam) false
 
-#define AL_GetSrcWidth(tChParam) ((tChParam).uWidth)
-#define AL_GetSrcHeight(tChParam) ((tChParam).uHeight)
-#define AL_SetSrcWidth(tChParam, _uSrcWidth) ((tChParam)->uWidth = (_uSrcWidth))
-#define AL_SetSrcHeight(tChParam, _uSrcHeight) ((tChParam)->uHeight = (_uSrcHeight))
+#define AL_GetSrcWidth(tChParam) ((tChParam).uSrcWidth)
+#define AL_GetSrcHeight(tChParam) ((tChParam).uSrcHeight)
+
+#define AL_RC_FIRSTPASS_QP 20
+
+/****************************************************************************/
+static AL_INLINE bool AL_IS_CBR(AL_ERateCtrlMode eRcMode)
+{
+  return eRcMode == AL_RC_CBR
+  ;
+}
 
 /*@}*/
 

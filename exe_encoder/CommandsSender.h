@@ -54,9 +54,13 @@ public:
   void restartGop() override;
   void setGopLength(int gopLength) override;
   void setNumB(int numB) override;
+  void setFreqIDR(int freqIDR) override;
   void setFrameRate(int frameRate, int clockRatio) override;
   void setBitRate(int bitRate) override;
   void setQP(int qp) override;
+  void setQPBounds(int iMinQP, int iMaxQP) override;
+  void setQPIPDelta(int iQPDelta) override;
+  void setQPPBDelta(int iQPDelta) override;
   void setDynamicInput(int iInputIdx) override;
   void setLFBetaOffset(int iBetaOffset) override;
   void setLFTcOffset(int iTcOffset) override;

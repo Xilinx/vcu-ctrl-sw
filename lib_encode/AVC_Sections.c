@@ -39,13 +39,14 @@
 #include "lib_bitstream/AVC_RbspEncod.h"
 #include <assert.h>
 #include "lib_common/StreamBuffer.h"
+#include "lib_common/Nuts.h"
 
-AL_TNalHeader GetNalHeaderAvc(uint8_t uNUT, uint8_t uNalIdc, uint8_t uTempID)
+AL_TNalHeader GetNalHeaderAvc(uint8_t uNUT, uint8_t uNalRefIdc, uint8_t uLayerId, uint8_t uTempId)
 {
-  (void)uTempID;
+  (void)uTempId, (void)uLayerId;
   AL_TNalHeader nh;
   nh.size = 1;
-  nh.bytes[0] = ((uNalIdc & 0x03) << 5) | (uNUT & 0x1F);
+  nh.bytes[0] = ((uNalRefIdc & 0x03) << 5) | (uNUT & 0x1F);
   return nh;
 }
 
@@ -103,7 +104,7 @@ static void padConfig(AL_TBuffer* pStream)
 static void padSeiPrefix(AL_TBuffer* pStream, AL_TEncChanParam const* pChannel)
 {
   int const iChunk = 512;
-  int const iSeiMandatorySize = (pChannel->uHeight <= 720) ? iChunk * 10 : iChunk * 18;
+  int const iSeiMandatorySize = (pChannel->uEncHeight <= 720) ? iChunk * 10 : iChunk * 18;
   assert(iSeiMandatorySize <= AL_ENC_MAX_SEI_SIZE);
 
   AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);

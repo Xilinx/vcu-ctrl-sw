@@ -45,20 +45,16 @@
 
 #pragma once
 
-#include <assert.h>
-#include <stdlib.h>
+#include "Encoder.h"
+#include "EncUtils.h"
+#include "IP_EncoderCtx.h"
 
 #include "lib_rtos/lib_rtos.h"
+#include "lib_encode/I_EncScheduler.h"
 #include "lib_common/SEI.h"
 #include "lib_common/HDR.h"
 #include "lib_common_enc/EncBuffersInternal.h"
-
-#include "Encoder.h"
-#include "IP_EncoderCtx.h"
-
-#include "IP_Utils.h"
-
-#include "lib_encode/IScheduler.h"
+#include "lib_bitstream/SkippedPicture.h"
 
 /*************************************************************************//*!
    \brief Creates an encoder object
@@ -81,8 +77,7 @@ void AL_Common_Encoder_Destroy(AL_TEncoder* pEnc);
    parameters.
    \return Channel creation result
 *****************************************************************************/
-AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncoder* pEnc, TScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings);
-
+AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncoder* pEnc, AL_IEncScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings);
 
 /*************************************************************************//*!
    \brief The Encoder_NotifySceneChange function informs the encoder that a scene
@@ -107,9 +102,6 @@ void AL_Common_Encoder_NotifyIsLongTerm(AL_TEncoder* pEnc);
 *****************************************************************************/
 void AL_Common_Encoder_NotifyUseLongTerm(AL_TEncoder* pEnc);
 
-
-
-
 /*************************************************************************//*!
    \brief The Encoder_PutStreamBuffer function push a stream buffer to be filled
    \param[in] pEnc Handle to an encoder object
@@ -119,10 +111,10 @@ void AL_Common_Encoder_NotifyUseLongTerm(AL_TEncoder* pEnc);
 bool AL_Common_Encoder_PutStreamBuffer(AL_TEncoder* pEnc, AL_TBuffer* pStream, int iLayerID);
 
 /***************************************************************************/
-bool AL_Common_Encoder_GetRecPicture(AL_TEncoder* pEnc, TRecPic* pRecPic, int iLayerID);
+bool AL_Common_Encoder_GetRecPicture(AL_TEncoder* pEnc, AL_TRecPic* pRecPic, int iLayerID);
 
 /***************************************************************************/
-void AL_Common_Encoder_ReleaseRecPicture(AL_TEncoder* pEnc, TRecPic* pRecPic, int iLayerID);
+void AL_Common_Encoder_ReleaseRecPicture(AL_TEncoder* pEnc, AL_TRecPic* pRecPic, int iLayerID);
 
 /*************************************************************************//*!
    \brief The Encoder_Process function allows to push a frame buffer to the
@@ -188,6 +180,19 @@ bool AL_Common_Encoder_SetGopLength(AL_TEncoder* pEnc, int iGopLength);
 bool AL_Common_Encoder_SetGopNumB(AL_TEncoder* pEnc, int iNumB);
 
 /*************************************************************************//*!
+   \brief Changes the IDR frequency. If the new frequency is shorter than the
+   number of frames already encoded since the last IDR, insert and IDR as soon
+   as possible. Otherwise, the next IDR is inserted when the new IDR frequency
+   is reached.
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] iFreqIDR The new IDR frequency (number of frames between two
+   IDR pictures, -1 to disable IDRs). Might be rounded to a GOP length multiple.
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError
+   to retrieve the error code
+*****************************************************************************/
+bool AL_Common_Encoder_SetFreqIDR(AL_TEncoder* pEnc, int iFreqIDR);
+
+/*************************************************************************//*!
    \brief The AL_Encoder_SetBitRate changes the target bitrate
    \param[in] pEnc Pointer on an encoder object
    \param[in] iGopLength New Gop Length
@@ -219,6 +224,34 @@ bool AL_Common_Encoder_SetFrameRate(AL_TEncoder* pEnc, uint16_t uFrameRate, uint
 bool AL_Common_Encoder_SetQP(AL_TEncoder* pEnc, int16_t iQP);
 
 /*************************************************************************//*!
+   \brief Changes the bounds of the QP set by the rate control
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] iMinQP The new QP lower bound
+   \param[in] iMaxQP The new QP upper bound
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Common_Encoder_SetQPBounds(AL_TEncoder* pEnc, int16_t iMinQP, int16_t iMaxQP);
+
+/*************************************************************************//*!
+   \brief Changes the QP delta between I frames and P frames
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] uIPDelta The new QP IP delta
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Common_Encoder_SetQPIPDelta(AL_TEncoder* pEnc, int16_t uIPDelta);
+
+/*************************************************************************//*!
+   \brief Changes the QP delta between P frames and B frames
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] uPBDelta The new QP PB delta
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Common_Encoder_SetQPPBDelta(AL_TEncoder* pEnc, int16_t uPBDelta);
+
+/*************************************************************************//*!
    \brief Changes the resolution of the input frames to encode from the next
    pushed frame
    \param[in] pEnc Pointer on an encoder object
@@ -246,7 +279,6 @@ bool AL_Common_Encoder_SetLoopFilterBetaOffset(AL_TEncoder* pEnc, int8_t iBetaOf
 *****************************************************************************/
 bool AL_Common_Encoder_SetLoopFilterTcOffset(AL_TEncoder* pEnc, int8_t iTcOffset);
 
-
 /*************************************************************************//*!
    \brief Specify HDR SEIs to insert in the bitstream
    \param[in] pEnc  Pointer on an encoder object
@@ -255,7 +287,6 @@ bool AL_Common_Encoder_SetLoopFilterTcOffset(AL_TEncoder* pEnc, int8_t iTcOffset
    retrieve the error code
 *****************************************************************************/
 bool AL_Common_Encoder_SetHDRSEIs(AL_TEncoder* pEnc, AL_THDRSEIs* pHDRSEIs);
-
 
 /*************************************************************************//*!
    \brief The SetME function initializes the motion estimation parameters
@@ -267,12 +298,21 @@ bool AL_Common_Encoder_SetHDRSEIs(AL_TEncoder* pEnc, AL_THDRSEIs* pHDRSEIs);
 *****************************************************************************/
 void AL_Common_Encoder_SetME(int iHrzRange_P, int iVrtRange_P, int iHrzRange_B, int iVrtRange_B, AL_TEncChanParam* pChParam);
 
+/*************************************************************************//*!
+   \brief The AL_Common_Encoder_ComputeRCParam function initializes the rate control basic parameters
+   \param[in]  iCbOffset U plane qp offset
+   \param[in]  iCrOffset V plane qp offset
+   \param[in]  iTableIdx Initial QP table index
+   \param[out] pChParam Pointer to the structure receiving the rate control parameters
+*****************************************************************************/
+void AL_Common_Encoder_ComputeRCParam(int iCbOffset, int iCrOffset, int iTableIdx, int iIntraOnlyOff, AL_TEncChanParam* pChParam);
+
+#if AL_ENABLE_ENC_WATCHDOG
+void AL_Common_Encoder_SetWatchdogCB(AL_TEncCtx* pCtx, const AL_TEncSettings* pSettings);
+#endif
 
 void AL_Common_Encoder_SetHlsParam(AL_TEncChanParam* pChParam);
 bool AL_Common_Encoder_IsInitialQpProvided(AL_TEncChanParam* pChParam);
-uint32_t AL_Common_Encoder_ComputeBitPerPixel(AL_TEncChanParam* pChParam);
-int8_t AL_Common_Encoder_GetInitialQP(uint32_t iBitPerPixel);
 
-void AL_Common_Encoder_InitSkippedPicture(AL_TSkippedPicture* pSkipPicture);
 /*@}*/
 

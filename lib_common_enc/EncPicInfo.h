@@ -48,6 +48,7 @@
 #include "lib_common/Error.h"
 #include "lib_common_enc/EncChanParam.h"
 #include "lib_common/BufferAPI.h"
+#include "lib_common_enc/RateCtrlStats.h"
 
 /*************************************************************************//*!
    \brief Segmentation structure
@@ -97,8 +98,6 @@ typedef enum
   AL_OPT_SET_INPUT_RESOLUTION = 0x0200,
   AL_OPT_SET_LF_OFFSETS = 0x0400,
 }AL_ERequestEncOption;
-
-
 
 typedef struct
 {
@@ -178,6 +177,18 @@ typedef struct AL_t_EncPicStatus
   int32_t iPictureSize;
   int8_t iPercentIntra[5];
 
+  int32_t NumMV0;
+  int32_t NumMV1;
+  int32_t SumMVX;
+  int32_t SumMVY;
+  int32_t PercentSkip;
+  uint32_t NumBitsIntra;
+  uint32_t NumBitsInterL0;
+  uint32_t NumBitsInterL1;
+  uint32_t NumBitsInterBi;
+
+  AL_RateCtrl_Statistics tRateCtrlStats;
+
 }AL_TEncPicStatus;
 
 #define AL_ERR_SRC_BUF_NOT_READY AL_DEF_ERROR(20)
@@ -202,7 +213,6 @@ typedef struct AL_t_EncPicBufAddrs
   AL_PADDR pSrc_Y;
   AL_PADDR pSrc_UV;
   AL_TSrcInfo tSrcInfo;
-
 
   AL_PADDR pEP2;
   AL_PTR64 pEP2_v;

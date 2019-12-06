@@ -49,20 +49,21 @@
 /*************************************************************************//*!
    \brief Useful pointer to another buffer
 *****************************************************************************/
-typedef struct AL_t_BufHandleMetaData
+typedef struct AL_t_HandleMetaData
 {
   AL_TMetaData tMeta;
-  AL_TBuffer** pHandles;
+  AL_HANDLE pHandles;
   int numHandles;
+  int handleSizeInBytes;
   int maxHandles;
-}AL_TBufHandleMetaData;
+}AL_THandleMetaData;
 
 /*************************************************************************//*!
-   \brief Create a BufHandle metadata.
+   \brief Create a Handle metadata.
 *****************************************************************************/
-AL_TBufHandleMetaData* AL_BufHandleMetaData_Create(int iMaxHandles);
-AL_TBufHandleMetaData* AL_BufHandleMetaData_Clone(AL_TBufHandleMetaData* pMeta);
-bool AL_BufHandleMetaData_AddHandle(AL_TBufHandleMetaData* pMeta, AL_TBuffer* pBuf);
+AL_THandleMetaData* AL_HandleMetaData_Create(int iMaxHandles, int iHandleSizeInBytes);
+AL_THandleMetaData* AL_HandleMetaData_Clone(AL_THandleMetaData* pMeta);
+bool AL_HandleMetaData_AddHandle(AL_THandleMetaData* pMeta, AL_HANDLE pHandle);
+AL_HANDLE AL_HandleMetaData_GetHandle(AL_THandleMetaData* pMeta, int iNumHandle);
 
 /*@}*/
-

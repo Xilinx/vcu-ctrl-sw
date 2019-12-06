@@ -38,6 +38,7 @@
 #include "AvcParser.h"
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/Utils.h"
+#include "lib_common/SeiInternal.h"
 #include "lib_common_dec/RbspParser.h"
 #include <string.h>
 
@@ -629,11 +630,8 @@ static bool sei_recovery_point(AL_TRbspParser* pRP, AL_TRecoveryPoint* pRecovery
   return byte_alignment(pRP);
 }
 
-#define BUFFERING_PERIOD 0
-#define PIC_TIMING 1
-#define USER_DATA_UNREGISTERED 5
-#define RECOVERY_POINT 6
-#define MASTERING_DISPLAY_COLOUR_VOLUME 137
+#define SEI_PTYPE_BUFFERING_PERIOD 0
+#define SEI_PTYPE_USER_DATA_UNREGISTERED 5
 
 #define PARSE_OR_SKIP(ParseCmd) \
   uint32_t uOffset = offset(pRP); \
@@ -692,33 +690,40 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB_
     uint8_t* payload_data = get_raw_data(pRP);
     switch(payload_type)
     {
-    case BUFFERING_PERIOD: // buffering_period parsing
+    case SEI_PTYPE_BUFFERING_PERIOD: // buffering_period parsing
     {
       PARSE_OR_SKIP(sei_buffering_period(pRP, aup->pSPS, &sei.buffering_period, &aup->pActiveSPS))
       sei.present_flags |= AL_SEI_BP;
       break;
     }
-    case PIC_TIMING: // picture_timing parsing
+    case SEI_PTYPE_PIC_TIMING: // picture_timing parsing
     {
       PARSE_OR_SKIP(sei_pic_timing(pRP, aup->pActiveSPS, &sei.picture_timing))
       sei.present_flags |= AL_SEI_PT;
       break;
     }
-    case USER_DATA_UNREGISTERED: // user_data_unregistered parsing
+    case SEI_PTYPE_USER_DATA_UNREGISTERED: // user_data_unregistered parsing
     {
       skip(pRP, payload_size << 3); // skip data
       break;
     }
-    case RECOVERY_POINT: // picture_timing parsing
+    case SEI_PTYPE_RECOVERY_POINT: // picture_timing parsing
     {
       PARSE_OR_SKIP(sei_recovery_point(pRP, &sei.recovery_point));
-      aup->iRecoveryCnt = sei.recovery_point.recovery_cnt + 1; // +1 for non-zero value when SEI_RP is present
+      pIAup->iRecoveryCnt = sei.recovery_point.recovery_cnt + 1; // +1 for non-zero value when SEI_RP is present
       break;
     }
-    case MASTERING_DISPLAY_COLOUR_VOLUME:
+    case SEI_PTYPE_MASTERING_DISPLAY_COLOUR_VOLUME:
     {
-      PARSE_OR_SKIP(sei_mastering_display_colour_volume(&aup->tHDRSEIs.tMDCV, pRP));
-      aup->tHDRSEIs.bHasMDCV = true;
+      PARSE_OR_SKIP(sei_mastering_display_colour_volume(&pIAup->tHDRSEIs.tMDCV, pRP));
+      pIAup->tHDRSEIs.bHasMDCV = true;
+      bCBAndSEIMeta = false;
+      break;
+    }
+    case SEI_PTYPE_CONTENT_LIGHT_LEVEL:
+    {
+      PARSE_OR_SKIP(sei_content_light_level(&pIAup->tHDRSEIs.tCLL, pRP));
+      pIAup->tHDRSEIs.bHasCLL = true;
       bCBAndSEIMeta = false;
       break;
     }

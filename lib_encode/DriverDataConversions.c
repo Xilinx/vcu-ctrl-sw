@@ -75,7 +75,6 @@ static void setPicParam(struct al5_params* msg, AL_TEncInfo* encInfo, AL_TEncReq
   if(reqInfo->eReqOptions & AL_OPT_SCENE_CHANGE)
     write(msg, &reqInfo->uSceneChangeDelay, sizeof(reqInfo->uSceneChangeDelay));
 
-
   if(reqInfo->eReqOptions & AL_OPT_UPDATE_PARAMS)
   {
     write(msg, &reqInfo->smartParams.rc, sizeof(reqInfo->smartParams.rc));

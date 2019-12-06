@@ -44,7 +44,26 @@
 #pragma once
 
 #include "lib_rtos/types.h"
-#include "lib_common/SliceConsts.h"
+/*************************************************************************//*!
+   \brief Colour Description identifer (See ISO/IEC 23091-4 or ITU-T H.273)
+*****************************************************************************/
+typedef enum e_ColourDescription
+{
+  AL_COLOUR_DESC_RESERVED,
+  AL_COLOUR_DESC_UNSPECIFIED,
+  AL_COLOUR_DESC_BT_470_NTSC,
+  AL_COLOUR_DESC_BT_601_NTSC,
+  AL_COLOUR_DESC_BT_601_PAL,
+  AL_COLOUR_DESC_BT_709,
+  AL_COLOUR_DESC_BT_2020,
+  AL_COLOUR_DESC_SMPTE_240M,
+  AL_COLOUR_DESC_SMPTE_ST_428,
+  AL_COLOUR_DESC_SMPTE_RP_431,
+  AL_COLOUR_DESC_SMPTE_EG_432,
+  AL_COLOUR_DESC_EBU_3213,
+  AL_COLOUR_DESC_GENERIC_FILM,
+  AL_COLOUR_DESC_MAX_ENUM,
+}AL_EColourDescription;
 
 /************************************//*!
    \brief Transfer Function identifer

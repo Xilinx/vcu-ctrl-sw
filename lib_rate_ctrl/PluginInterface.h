@@ -35,11 +35,14 @@
 *
 ******************************************************************************/
 
+#pragma once
+
 #include <stddef.h>
 #include <stdint.h>
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/Allocator.h"
 #include "lib_common/SliceConsts.h"
+#include "lib_common_enc/RateCtrlStats.h"
 
 /* all dependencies here will need to be shipped to the implementer of the plugin */
 
@@ -76,20 +79,7 @@ typedef struct Plugin_t_PictureInfo
   AL_EPicStruct ePicStruct;
 }Plugin_PictureInfo;
 
-typedef struct Plugin_t_Statistics
-{
-  uint32_t uNumLCUs; /*!< Total number of encoded LCU */
-  uint32_t uNumBytes; /*!< Number of bytes in the stream or Estimated Number of bytes in the stream (AVC multi-core only) */
-  uint32_t uNumBins; /*!< Number of CABAC bin */
-  uint32_t uNumIntra; /*!< Number of 8x8 blocks coded with intra mode */
-  uint32_t uNumSkip; /*!< Number of 8x8 blocks coded with skip mode */
-  uint32_t uNumCU8x8; /*!< Number of 8x8 CUs */
-  uint32_t uNumCU16x16; /*!< Number of 16x16 CUs */
-  uint32_t uNumCU32x32; /*!< Number of 32x32 CUs */
-  int32_t uSumQP; /*!< Sum of QP value used to encode each block unit */
-  int16_t uMinQP; /*!< Minimum QP value */
-  int16_t uMaxQP; /*!< Maximum QP value */
-}Plugin_Statistics;
+typedef AL_RateCtrl_Statistics Plugin_Statistics;
 
 typedef struct t_RC_Plugin_Vtable
 {
