@@ -528,7 +528,14 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
 static void populateRunSection(ConfigParser& parser, ConfigFile& cfg)
 {
   auto curSection = Section::Run;
-  parser.addBool(curSection, "UseBoard", cfg.RunInfo.bUseBoard, "Specifies if we are using the reference model (DISABLE) or the actual hardware (ENABLE)");
+
+  // parser.addBool(curSection, "UseBoard", cfg.RunInfo.bUseBoard, "Specifies if we are using the reference model (DISABLE) or the actual hardware (ENABLE)");
+  parser.addCustom(curSection, "UseBoard", [&](std::deque<Token>& tokens)
+  {
+    bool bUseBoard = parseBoolEnum(tokens, createBoolEnums());
+    cfg.RunInfo.iDeviceType = bUseBoard ? DEVICE_TYPE_BOARD : DEVICE_TYPE_REFSW;
+  }, [&]() { return (cfg.RunInfo.iDeviceType == DEVICE_TYPE_BOARD) ? "ENABLE" : "DISABLE"; }, "Specifies if we are using the reference model (DISABLE) or the actual hardware (ENABLE)");
+
   parser.addBool(curSection, "Loop", cfg.RunInfo.bLoop, "Specifies if it should loop back to the beginning of YUV input stream when it reaches the end of the file");
   std::map<string, int> maxPicts {};
   maxPicts["ALL"] = -1;

@@ -58,7 +58,7 @@ public:
     OpenOutput(m_Md5File, path);
   }
 
-  void ProcessFrame(AL_TBuffer* pBuf)
+  void ProcessFrame(AL_TBuffer* pBuf) override
   {
     if(pBuf == EndOfStream)
     {

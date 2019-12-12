@@ -58,7 +58,7 @@ extern "C"
 class HDRParser
 {
 public:
-  HDRParser(const std::string& sHDRFile);
+  explicit HDRParser(const std::string& sHDRFile);
 
   bool ReadHDRSEIs(AL_THDRSEIs& tHDRSEIs);
 

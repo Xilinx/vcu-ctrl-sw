@@ -58,7 +58,7 @@ struct BitstreamWriter : IFrameSink
     WriteContainerHeader(m_file, cfg.Settings, cfg.MainInput.FileInfo, -1);
   }
 
-  void ProcessFrame(AL_TBuffer* pStream)
+  void ProcessFrame(AL_TBuffer* pStream) override
   {
     if(pStream == EndOfStream)
     {

@@ -37,16 +37,14 @@
 
 #pragma once
 
-#include "ConvSrc.h"
+#include "lib_rtos/lib_rtos.h"
+#include "lib_rtos/types.h"
 
-class CNvxConv : public IConvSrc
+struct AL_t_internalHandleMetaData
 {
-public:
-  explicit CNvxConv(TFrameInfo const& FrameInfo);
-
-  void ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut) override;
-
-protected:
-  TFrameInfo const m_FrameInfo;
+  AL_HANDLE pHandles;
+  AL_MUTEX mutex;
+  int numHandles;
+  int handleSizeInBytes;
+  int maxHandles;
 };
-

@@ -207,9 +207,7 @@ static void AL_sDecoder_CallEndParsing(AL_TDecCtx* pCtx, AL_TBuffer* pParsedFram
     return;
   }
 
-  Rtos_GetMutex(pCtx->DecMutex);
-  int numHandles = pHandlesMeta->numHandles;
-  Rtos_ReleaseMutex(pCtx->DecMutex);
+  int numHandles = AL_HandleMetaData_GetNumHandles(pHandlesMeta);
 
   for(int handle = 0; handle < numHandles; handle++)
   {
@@ -218,7 +216,6 @@ static void AL_sDecoder_CallEndParsing(AL_TDecCtx* pCtx, AL_TBuffer* pParsedFram
     if(pDecMetaHandle->eState == AL_DEC_HANDLE_STATE_PROCESSING)
     {
       AL_TBuffer* pStream = pDecMetaHandle->pHandle;
-
       pDecMetaHandle->eState = AL_DEC_HANDLE_STATE_PROCESSED;
 
       if(pCtx->parseCB.func)

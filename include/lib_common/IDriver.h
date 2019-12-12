@@ -62,19 +62,19 @@ struct AL_t_driver
   const AL_DriverVtable* vtable;
 };
 
-static inline
+static AL_INLINE
 int AL_Driver_Open(AL_TDriver* driver, const char* device)
 {
   return driver->vtable->pfnOpen(driver, device);
 }
 
-static inline
+static AL_INLINE
 void AL_Driver_Close(AL_TDriver* driver, int fd)
 {
   driver->vtable->pfnClose(driver, fd);
 }
 
-static inline
+static AL_INLINE
 AL_EDriverError AL_Driver_PostMessage(AL_TDriver* driver, int fd, long unsigned int messageId, void* data)
 {
   return driver->vtable->pfnPostMessage(driver, fd, messageId, data);

@@ -662,9 +662,6 @@ bool GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP
   static int iRandFlag = 0;
   bool bIsAOM = false;
 
-  if(bIsAOM)
-    Rtos_Memset(pSegs, 0, 8 * sizeof(int16_t));
-
   AL_EGenerateQpMode eQPMode = (AL_EGenerateQpMode)(eMode & AL_GENERATE_MASK_QP_TABLE);
   bool bRelative = (eMode & AL_GENERATE_RELATIVE_QP);
 

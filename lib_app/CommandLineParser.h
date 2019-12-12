@@ -50,7 +50,7 @@
 struct CommandLineParser
 {
   CommandLineParser() = default;
-  CommandLineParser(std::function<void(std::string)> onOptionParsed_) : onOptionParsed{onOptionParsed_} {};
+  explicit CommandLineParser(std::function<void(std::string)> onOptionParsed_) : onOptionParsed{onOptionParsed_} {};
 
   struct Option
   {
@@ -104,9 +104,14 @@ struct CommandLineParser
   template<typename T>
   T readVal(std::string word)
   {
-    std::stringstream ss(word);
+    bool hex = (word[0] == '0' && word[1] == 'x');
+
+    std::stringstream ss(hex ? word.substr(2) : word);
     ss.unsetf(std::ios::dec);
     ss.unsetf(std::ios::hex);
+
+    if(hex)
+      ss.setf(std::ios_base::hex, std::ios_base::basefield);
 
     T value;
     ss >> value;
@@ -122,6 +127,11 @@ struct CommandLineParser
     return readVal<int>(word);
   }
 
+  uint32_t readUint(std::string word)
+  {
+    return readVal<uint32_t>(word);
+  }
+
   double readDouble(std::string word)
   {
     return readVal<double>(word);
@@ -131,6 +141,12 @@ struct CommandLineParser
   {
     auto word = popWord();
     return readInt(word);
+  }
+
+  uint32_t popUint()
+  {
+    auto word = popWord();
+    return readUint(word);
   }
 
   double popDouble()
@@ -212,6 +228,22 @@ struct CommandLineParser
                    *number = popInt();
                  else
                    *number = readInt(word);
+               };
+    insertOption(name, o);
+  }
+
+  template<typename T>
+  void addUint(std::string name, T* number, std::string desc_)
+  {
+    Option o;
+    o.desc_ = desc_;
+    o.desc = makeDescription(name, "number", desc_);
+    o.parser = [=](std::string word)
+               {
+                 if(isOption(word))
+                   *number = popUint();
+                 else
+                   *number = readUint(word);
                };
     insertOption(name, o);
   }

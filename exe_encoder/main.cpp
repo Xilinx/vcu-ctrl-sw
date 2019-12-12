@@ -106,9 +106,9 @@ static inline int RoundUp(int iVal, int iRnd)
   return (iVal + iRnd - 1) / iRnd * iRnd;
 }
 
-static inline int UnsignedRoundUp(int iVal, int iRnd)
+static inline uint32_t UnsignedRoundUp(uint32_t uVal, int iRnd)
 {
-  return ((iVal + iRnd - 1) / iRnd) * iRnd;
+  return ((uVal + iRnd - 1) / iRnd) * iRnd;
 }
 
 AL_HANDLE AlignedAlloc(AL_TAllocator* pAllocator, const char* pBufName, uint32_t uSize, uint32_t uAlign, uint32_t* uAllocatedSize, uint32_t* uAlignmentOffset)
@@ -169,7 +169,7 @@ void SetDefaults(ConfigFile& cfg)
   cfg.MainInput.FileInfo.FrameRate = 0;
   cfg.MainInput.FileInfo.PictHeight = 0;
   cfg.MainInput.FileInfo.PictWidth = 0;
-  cfg.RunInfo.bUseBoard = true;
+  cfg.RunInfo.iDeviceType = DEVICE_TYPE_BOARD;
   cfg.RunInfo.iSchedulerType = SCHEDULER_TYPE_MCU;
   cfg.RunInfo.bLoop = false;
   cfg.RunInfo.iMaxPict = INT_MAX; // ALL
@@ -1040,7 +1040,14 @@ void SafeMain(int argc, char** argv)
 
   function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl = GetIpCtrlWrapper(RunInfo);
 
-  auto pIpDevice = CreateIpDevice(!RunInfo.bUseBoard, RunInfo.iSchedulerType, cfg, wrapIpCtrl, RunInfo.trackDma, RunInfo.eVQDescr);
+  CIpDeviceParam param;
+  param.iSchedulerType = RunInfo.iSchedulerType;
+  param.iDeviceType = RunInfo.iDeviceType;
+  param.pCfgFile = &cfg;
+  param.bTrackDma = RunInfo.trackDma;
+  param.iVqDescr = RunInfo.eVQDescr;
+
+  auto pIpDevice = CreateIpDevice(param, wrapIpCtrl);
 
   if(!pIpDevice)
     throw runtime_error("Can't create IpDevice");

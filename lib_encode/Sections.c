@@ -207,9 +207,8 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, const AL_TNalsData* pN
     AL_TSeiPrefixAPSCtx seiPrefixAPSCtx;
     AL_TSeiPrefixCtx seiPrefixCtx;
 
-    if(AL_HAS_SEI_PREFIX(pNalsData->seiFlags))
+    if(pNalsData != NULL && AL_HAS_SEI_PREFIX(pNalsData->seiFlags))
     {
-      assert(pNalsData != NULL);
       assert(pNalsData->seiFlags != AL_SEI_NONE);
 
       uint32_t const uFlags = generateSeiFlags(pPicStatus, bWriteSPS) & pNalsData->seiFlags;

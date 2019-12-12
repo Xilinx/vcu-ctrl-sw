@@ -92,6 +92,9 @@ static void initHls(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
 
   if(!(pChParam->eEncTools & AL_OPT_LF))
     pChParam->uPpsParam |= AL_PPS_DISABLE_LF;
+
+  if((AL_GET_CHROMA_MODE(pChParam->ePicFormat) != AL_CHROMA_MONO) && (pChParam->iCbSliceQpOffset || pChParam->iCrSliceQpOffset))
+    pChParam->uPpsParam |= AL_PPS_SLICE_CHROMA_QP_OFFSET_PRES_FLAG;
 }
 
 static void SetMotionEstimationRange(AL_TEncChanParam* pChParam)

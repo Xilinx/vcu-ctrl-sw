@@ -449,14 +449,9 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   // NAL
   pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag = 0;
 
-  if(pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag)
-    AL_HEVC_UpdateHrdParameters(pSPS, &(pSPS->vui_param.hrd_param.nal_sub_hrd_param), iCpbSize, pSettings);
-
   // VCL
   pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag = 1;
-
-  if(pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag)
-    AL_HEVC_UpdateHrdParameters(pSPS, &(pSPS->vui_param.hrd_param.vcl_sub_hrd_param), iCpbSize, pSettings);
+  AL_HEVC_UpdateHrdParameters(pSPS, &(pSPS->vui_param.hrd_param.vcl_sub_hrd_param), iCpbSize, pSettings);
 
   pSPS->vui_param.vui_hrd_parameters_present_flag = pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag + pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag;
 
@@ -539,7 +534,7 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
 
   pPPS->pps_cb_qp_offset = pChParam->iCbPicQpOffset;
   pPPS->pps_cr_qp_offset = pChParam->iCrPicQpOffset;
-  pPPS->pps_slice_chroma_qp_offsets_present_flag = (pChParam->iCbSliceQpOffset || pChParam->iCrSliceQpOffset) ? 1 : 0;
+  pPPS->pps_slice_chroma_qp_offsets_present_flag = AL_GET_PPS_SLICE_CHROMA_QP_OFFSET_PRES_FLAG(pChParam->uPpsParam);
 
   pPPS->weighted_pred_flag = 0; // not supported yet
   pPPS->weighted_bipred_flag = 0; // not supported yet

@@ -116,7 +116,7 @@ public:
   }
 
 private:
-  const char* m_Separators = ":,= \t";
+  const char* m_Separators = ":,= \t\r";
 
   string const& m_sLine;
   size_t m_zBeg;

@@ -60,5 +60,18 @@ struct CIpDevice
   AL_Timer* m_pTimer;
 };
 
-std::shared_ptr<CIpDevice> CreateIpDevice(bool bUseRefSoftware, int iSchedulerType, ConfigFile& cfg, std::function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl, bool trackDma = false, int iVqDescr = 0);
+/*****************************************************************************/
+#define AL_DEVICE_
+
+/*****************************************************************************/
+struct CIpDeviceParam
+{
+  int iDeviceType;
+  int iSchedulerType;
+  ConfigFile* pCfgFile;
+  bool bTrackDma = false;
+  int iVqDescr = 0;
+};
+
+std::shared_ptr<CIpDevice> CreateIpDevice(CIpDeviceParam& param, std::function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl);
 

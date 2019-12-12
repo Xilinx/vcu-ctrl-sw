@@ -54,12 +54,12 @@ struct IFrameSink
 
 struct NullFrameSink : IFrameSink
 {
-  virtual void ProcessFrame(AL_TBuffer*) {}
+  virtual void ProcessFrame(AL_TBuffer*) override {}
 };
 
 struct MultiSink : IFrameSink
 {
-  virtual void ProcessFrame(AL_TBuffer* frame)
+  void ProcessFrame(AL_TBuffer* frame) override
   {
     for(auto& sink : sinks)
       sink->ProcessFrame(frame);

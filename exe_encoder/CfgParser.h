@@ -61,7 +61,7 @@ extern "C"
 *****************************************************************************/
 typedef AL_INTROSPECT (category = "debug") struct tCfgRunInfo
 {
-  bool bUseBoard;
+  DEVICE_TYPE iDeviceType;
   SCHEDULER_TYPE iSchedulerType;
   bool bLoop;
   int iMaxPict;

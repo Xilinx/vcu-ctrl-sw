@@ -167,9 +167,7 @@ static void SetBufferHandleMetaData(AL_TDecCtx* pCtx)
   }
 
   AL_TDecMetaHandle handle = { AL_DEC_HANDLE_STATE_PROCESSING, pCtx->pInputBuffer };
-  Rtos_GetMutex(pCtx->DecMutex);
   AL_HandleMetaData_AddHandle(pMeta, &handle);
-  Rtos_ReleaseMutex(pCtx->DecMutex);
 }
 
 /***************************************************************************/

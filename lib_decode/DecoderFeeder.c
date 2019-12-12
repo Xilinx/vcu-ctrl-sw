@@ -35,11 +35,12 @@
 *
 ******************************************************************************/
 
-#include "lib_rtos/lib_rtos.h"
 #include "DecoderFeeder.h"
+#include "InternalError.h"
+
+#include "lib_rtos/lib_rtos.h"
 #include "lib_common/Error.h"
 #include "lib_common/Utils.h"
-#include "InternalError.h"
 
 void AL_Default_Decoder_WaitFrameSent(AL_HDecoder hDec);
 void AL_Default_Decoder_ReleaseFrames(AL_HDecoder hDec);

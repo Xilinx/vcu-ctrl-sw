@@ -193,7 +193,7 @@ public:
     OpenOutput(m_RecFile, RecFileName);
   }
 
-  void ProcessFrame(AL_TBuffer* pBuf)
+  void ProcessFrame(AL_TBuffer* pBuf) override
   {
     if(pBuf == EndOfStream)
     {

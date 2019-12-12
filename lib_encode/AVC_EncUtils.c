@@ -305,10 +305,10 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag = 0;
 
   if(AL_IS_XAVC(pChannel->eProfile) && !(AL_IS_INTRA_PROFILE(pChannel->eProfile)))
+  {
     pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag = 1;
-
-  if(pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag)
     AL_AVC_UpdateHrdParameters(pSPS, &(pSPS->vui_param.hrd_param.nal_sub_hrd_param), iCpbSize, pSettings);
+  }
 
   // VCL HRD
   pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag = 1;
@@ -359,7 +359,7 @@ void AL_AVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, int iM
 
   pPPS->deblocking_filter_control_present_flag = 1; // TDMB = 0;
 
-  pPPS->constrained_intra_pred_flag = pChannel->eEncTools & AL_OPT_CONST_INTRA_PRED ? 1 : 0;
+  pPPS->constrained_intra_pred_flag = (pChannel->eEncTools & AL_OPT_CONST_INTRA_PRED) ? 1 : 0;
   pPPS->redundant_pic_cnt_present_flag = 0;
   pPPS->transform_8x8_mode_flag = pChannel->uMaxTuSize > 2 ? 1 : 0;
   pPPS->pic_scaling_matrix_present_flag = 0;

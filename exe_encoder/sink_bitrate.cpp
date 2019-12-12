@@ -71,7 +71,7 @@ struct BitrateWriter : IFrameSink
     return calculateBitrate(totalBits, window.size());
   }
 
-  void ProcessFrame(AL_TBuffer* pStream)
+  void ProcessFrame(AL_TBuffer* pStream) override
   {
     if(pStream == EndOfStream)
     {

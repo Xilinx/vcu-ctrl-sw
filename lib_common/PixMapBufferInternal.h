@@ -43,7 +43,7 @@
    \brief Get the physical address of a plane of a AL_TBuffer
    \param[in] pBuf Pointer to the AL_TBuffer
    \param[in] ePlaneId Type of plane
-   \return Returns the physical address of the specified plane if successfull,
+   \return Returns the physical address of the specified plane if successful,
    0 otherwise
 *****************************************************************************/
 AL_PADDR AL_PixMapBuffer_GetPlanePhysicalAddress(AL_TBuffer const* pBuf, AL_EPlaneId ePlaneId);

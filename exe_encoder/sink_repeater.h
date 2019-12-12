@@ -70,7 +70,7 @@ struct RepeaterSink : IFrameSink
     next->ProcessFrame(nullptr);
   }
 
-  void ProcessFrame(AL_TBuffer* frame)
+  void ProcessFrame(AL_TBuffer* frame) override
   {
     if(frame)
     {

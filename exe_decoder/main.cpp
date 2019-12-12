@@ -920,7 +920,9 @@ static void WriteSyncSei(AL_TBuffer* pDecodedFrame, ofstream* seiOut)
   if(!pInput)
     return;
 
-  for(auto handle = 0; handle < pInput->numHandles; ++handle)
+  int numHandles = AL_HandleMetaData_GetNumHandles(pInput);
+
+  for(auto handle = 0; handle < numHandles; ++handle)
   {
     AL_TDecMetaHandle* pDecMetaHandle = (AL_TDecMetaHandle*)AL_HandleMetaData_GetHandle(pInput, handle);
     auto pSei = (AL_TSeiMetaData*)AL_Buffer_GetMetaData(pDecMetaHandle->pHandle, AL_META_TYPE_SEI);
@@ -949,7 +951,9 @@ static void sInputParsed(AL_TBuffer* pParsedFrame, void* pUserParam)
  * Avoiding the copy increase the latency because we delay the release of the pStream buffer
  */
 
-  for(int handle = pHandlesMeta->numHandles - 1; handle >= 0; handle--)
+  int numHandles = AL_HandleMetaData_GetNumHandles(pHandlesMeta);
+
+  for(int handle = numHandles - 1; handle >= 0; handle--)
   {
     AL_TDecMetaHandle* pDecMetaHandle = (AL_TDecMetaHandle*)AL_HandleMetaData_GetHandle(pHandlesMeta, handle);
 
@@ -983,7 +987,9 @@ static void sFrameDecoded(AL_TBuffer* pDecodedFrame, void* pUserParam)
 
   if(pMeta)
   {
-    for(int handle = 0; handle < pMeta->numHandles; handle++)
+    int numHandles = AL_HandleMetaData_GetNumHandles(pMeta);
+
+    for(int handle = 0; handle < numHandles; handle++)
     {
       AL_TDecMetaHandle* pDecMetaHandle = (AL_TDecMetaHandle*)AL_HandleMetaData_GetHandle(pMeta, handle);
       AL_Buffer_Unref(pDecMetaHandle->pHandle);

@@ -204,20 +204,38 @@ bool Rtos_SetEvent(AL_EVENT Event)
   return SetEvent((HANDLE)Event);
 }
 
+struct AL_WindowsThread
+{
+  HANDLE handle;
+  void* (* func)(void*);
+  void* param;
+};
+
 /****************************************************************************/
 static HANDLE GetNative(AL_THREAD Thread)
 {
-  return *((HANDLE*)Thread);
+  struct AL_WindowsThread* pThread = (struct AL_WindowsThread*)Thread;
+  return pThread->handle;
+}
+
+static DWORD WINAPI WindowsCallback(void* p)
+{
+  struct AL_WindowsThread* pThread = (struct AL_WindowsThread*)p;
+  pThread->func(pThread->param);
+  return 0;
 }
 
 /****************************************************************************/
 AL_THREAD Rtos_CreateThread(void* (*pFunc)(void* pParam), void* pParam)
 {
-  HANDLE* pThread = Rtos_Malloc(sizeof(HANDLE));
+  struct AL_WindowsThread* pThread = Rtos_Malloc(sizeof(HANDLE));
   DWORD id;
 
+  pThread->func = pFunc;
+  pThread->param = pParam;
+
   if(pThread)
-    *pThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)pFunc, pParam, 0, &id);
+    pThread->handle = CreateThread(NULL, 0, WindowsCallback, pThread, 0, &id);
   return pThread;
 }
 
