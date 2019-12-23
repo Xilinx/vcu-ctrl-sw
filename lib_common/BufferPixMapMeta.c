@@ -45,12 +45,15 @@ static bool SrcMeta_Destroy(AL_TMetaData* pMeta)
   return true;
 }
 
+static AL_EPlaneId const tPlanes[] = { AL_PLANE_Y, AL_PLANE_UV, AL_PLANE_MAP_Y, AL_PLANE_MAP_UV };
+static int const iPlanesSize = (sizeof(tPlanes) / sizeof(tPlanes[0]));
+
 AL_TPixMapMetaData* AL_PixMapMetaData_Clone(AL_TPixMapMetaData* pMeta)
 {
   AL_TPixMapMetaData* pClone = AL_PixMapMetaData_Create(pMeta->tDim, pMeta->tPlanes[AL_PLANE_Y], pMeta->tPlanes[AL_PLANE_UV], pMeta->tFourCC);
 
-  for(int iId = AL_PLANE_MAP_Y; iId < AL_PLANE_MAX_ENUM; ++iId)
-    AL_PixMapMetaData_AddPlane(pClone, pMeta->tPlanes[iId], iId);
+  for(int iPlaneID = 0; iPlaneID < iPlanesSize; iPlaneID++)
+    AL_PixMapMetaData_AddPlane(pClone, pMeta->tPlanes[iPlaneID], tPlanes[iPlaneID]);
 
   return pClone;
 }
@@ -67,7 +70,7 @@ void AL_PixMapMetaData_AddPlane(AL_TPixMapMetaData* pMeta, AL_TPlane tPlane, AL_
 
 AL_TPixMapMetaData* AL_PixMapMetaData_CreateEmpty(TFourCC tFourCC)
 {
-  AL_TPixMapMetaData* pMeta = Rtos_Malloc(sizeof(*pMeta));
+  AL_TPixMapMetaData* pMeta = (AL_TPixMapMetaData*)Rtos_Malloc(sizeof(*pMeta));
 
   if(!pMeta)
     return NULL;
@@ -81,8 +84,8 @@ AL_TPixMapMetaData* AL_PixMapMetaData_CreateEmpty(TFourCC tFourCC)
 
   AL_TPlane tEmptyPlane = { -1, 0, 0 };
 
-  for(int iId = AL_PLANE_Y; iId < AL_PLANE_MAX_ENUM; ++iId)
-    AL_PixMapMetaData_AddPlane(pMeta, tEmptyPlane, iId);
+  for(int iPlaneID = 0; iPlaneID < iPlanesSize; iPlaneID++)
+    AL_PixMapMetaData_AddPlane(pMeta, tEmptyPlane, tPlanes[iPlaneID]);
 
   pMeta->tFourCC = tFourCC;
 

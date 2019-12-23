@@ -53,6 +53,7 @@ typedef struct AL_t_PictureMetaData
 {
   AL_TMetaData tMeta;
   AL_ESliceType eType; /*< slice type chosen to encode the picture */
+  bool bSkipped; /*< picture contains skip-only MBs */
 }AL_TPictureMetaData;
 
 /*************************************************************************//*!

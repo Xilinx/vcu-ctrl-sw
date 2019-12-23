@@ -125,10 +125,10 @@ static int AL_sSettings_GetCpbVclFactor(AL_EProfile eProfile)
   {
   case AL_PROFILE_AVC_BASELINE:
   case AL_PROFILE_AVC_MAIN:
-  case AL_PROFILE_AVC_EXTENDED: return 1200;
-  case AL_PROFILE_AVC_HIGH: return 1500;
-  case AL_PROFILE_AVC_HIGH10: return 3600;
-  case AL_PROFILE_AVC_HIGH_422: return 4800;
+  case AL_PROFILE_AVC_EXTENDED: return 1000;
+  case AL_PROFILE_AVC_HIGH: return 1250;
+  case AL_PROFILE_AVC_HIGH10: return 3000;
+  case AL_PROFILE_AVC_HIGH_422: return 4000;
   case AL_PROFILE_HEVC_MONO: return 667;
   case AL_PROFILE_HEVC_MONO12: return 1000;
   case AL_PROFILE_HEVC_MONO16: return 1333;

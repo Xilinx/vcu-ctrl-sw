@@ -1183,7 +1183,10 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
   AL_TPictureMetaData* pPictureMeta = (AL_TPictureMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_PICTURE);
 
   if(pPictureMeta)
+  {
     pPictureMeta->eType = pPicStatus->eType;
+    pPictureMeta->bSkipped = pPicStatus->bSkip;
+  }
 
   AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
   assert(pStreamMeta);

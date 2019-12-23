@@ -44,12 +44,12 @@
 #pragma once
 
 #include "lib_common/BufferMeta.h"
-#include "lib_common_enc/RateCtrlStats.h"
 #include "lib_common/BufferAPI.h"
 #include "lib_common/SliceConsts.h"
+#include "lib_common_enc/RateCtrlStats.h"
 
 /*************************************************************************//*!
-   \brief MetaData gathering encode-statistics usefull for rate-control
+   \brief MetaData gathering encode-statistics useful for rate-control
    algorithms
 *****************************************************************************/
 typedef struct AL_t_RateCtrlMetaData

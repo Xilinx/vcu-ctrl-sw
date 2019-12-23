@@ -166,7 +166,7 @@ struct BaseBufPool
     AL_BufPool_Deinit(&m_pool);
   }
 
-  int AddMetaData(AL_TMetaData* pMeta)
+  bool AddMetaData(AL_TMetaData* pMeta)
   {
     return AL_BufPool_AddMetaData(&m_pool, pMeta);
   }

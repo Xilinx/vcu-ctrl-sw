@@ -107,11 +107,10 @@ static shared_ptr<CIpDevice> createMcuIpDevice()
   return device;
 }
 
-shared_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl, bool trackDma, int uNumCore, int hangers)
+std::shared_ptr<CIpDevice> CreateIpDevice(CIpDeviceParam& param, std::function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl)
 {
-  (void)iUseBoard, (void)wrapIpCtrl, (void)uNumCore, (void)trackDma, (void)hangers;
 
-  if(iSchedulerType == SCHEDULER_TYPE_MCU)
+  if(param.iSchedulerType == SCHEDULER_TYPE_MCU)
     return createMcuIpDevice();
 
   throw runtime_error("No support for this scheduling type");

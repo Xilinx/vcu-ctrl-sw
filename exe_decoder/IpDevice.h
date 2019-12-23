@@ -55,5 +55,16 @@ struct CIpDevice
   AL_Timer* m_pTimer;
 };
 
-std::shared_ptr<CIpDevice> CreateIpDevice(int* iUseBoard, int iSchedulerType, std::function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl, bool trackDma = false, int uNumCore = 0, int hangers = 0);
+/*****************************************************************************/
+struct CIpDeviceParam
+{
+  int iDeviceType;
+  int iSchedulerType;
+  bool bTrackDma = false;
+  uint8_t uNumCore = 0;
+  int iHangers = 0;
+};
+
+/*****************************************************************************/
+std::shared_ptr<CIpDevice> CreateIpDevice(CIpDeviceParam& param, std::function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl);
 

@@ -255,6 +255,10 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
   }, MaxPicSizeEnums, "Specifies a coarse size (in Kbits) for B-frame that shouldn't be exceeded");
   parser.addFlag(curSection, "EnableSkip", RCParam.eOptions, AL_RC_OPT_ENABLE_SKIP);
   parser.addFlag(curSection, "SCPrevention", RCParam.eOptions, AL_RC_OPT_SC_PREVENTION, "Enable Scene Change Prevention");
+
+#if AL_ENABLE_CUTREE // Disable for quality models delivery for now
+  parser.addBool(curSection, "CuTree", RCParam.bEnableCuTree, "Enable the CU Tree");
+#endif
 }
 
 static void populateRateControlSection(ConfigParser& parser, ConfigFile& cfg)

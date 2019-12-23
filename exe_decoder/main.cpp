@@ -153,7 +153,8 @@ struct Config
   string sCrc;
 
   AL_TDecSettings tDecSettings = getDefaultDecSettings();
-  int iUseBoard = 1; // board
+
+  int iDeviceType = DEVICE_TYPE_BOARD; // board
   SCHEDULER_TYPE iSchedulerType = SCHEDULER_TYPE_MCU;
   int iNumTrace = -1;
   int iNumberTrace = 0;
@@ -1335,7 +1336,6 @@ void SafeMain(int argc, char** argv)
   }
 
   // IP Device ------------------------------------------------------------
-  auto iUseBoard = Config.iUseBoard;
 
   function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl;
   switch(Config.ipCtrlMode)
@@ -1348,7 +1348,16 @@ void SafeMain(int argc, char** argv)
     break;
   }
 
-  auto pIpDevice = CreateIpDevice(&iUseBoard, Config.iSchedulerType, wrapIpCtrl, Config.trackDma, Config.tDecSettings.uNumCore, Config.hangers);
+  CIpDeviceParam param;
+  param.iSchedulerType = Config.iSchedulerType;
+  param.iDeviceType = Config.iDeviceType;
+  param.bTrackDma = Config.trackDma;
+  param.uNumCore = Config.tDecSettings.uNumCore;
+  param.iHangers = Config.hangers;
+
+  auto pIpDevice = CreateIpDevice(param, wrapIpCtrl);
+
+  bool bUseBoard = (param.iDeviceType == DEVICE_TYPE_BOARD); // retrieve auto-detected device type
 
   auto pAllocator = pIpDevice->m_pAllocator.get();
   auto pScheduler = pIpDevice->m_pScheduler;
@@ -1438,7 +1447,7 @@ void SafeMain(int argc, char** argv)
   tDecodeParam.hDec = hDec;
   ResolutionFoundParam.hDec = hDec;
 
-  AL_Decoder_SetParam(hDec, Config.bConceal, iUseBoard ? true : false, Config.iNumTrace, Config.iNumberTrace, Config.bForceCleanBuffers, Config.ipCtrlMode == IPCTRL_MODE_TRACE);
+  AL_Decoder_SetParam(hDec, Config.bConceal, bUseBoard, Config.iNumTrace, Config.iNumberTrace, Config.bForceCleanBuffers, Config.ipCtrlMode == IPCTRL_MODE_TRACE);
 
   if(!invalidPreallocSettings(Config.tDecSettings.tStream))
   {

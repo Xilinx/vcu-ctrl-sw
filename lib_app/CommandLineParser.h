@@ -55,7 +55,7 @@ struct CommandLineParser
   struct Option
   {
     std::function<void(std::string)> parser;
-    std::string desc; /* full formated description with the name of the option */
+    std::string desc; /* full formatted description with the name of the option */
     std::string desc_; /* description provided by the user verbatim */
   };
 

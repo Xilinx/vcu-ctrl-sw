@@ -56,7 +56,7 @@ static AL_TMetaData* clone(AL_TMetaData* pMeta)
 
 AL_TCircMetaData* AL_CircMetaData_Create(int32_t iOffset, int32_t iAvailSize, bool bLastBuffer)
 {
-  AL_TCircMetaData* pMeta = Rtos_Malloc(sizeof(*pMeta));
+  AL_TCircMetaData* pMeta = (AL_TCircMetaData*)Rtos_Malloc(sizeof(*pMeta));
 
   if(!pMeta)
     return NULL;

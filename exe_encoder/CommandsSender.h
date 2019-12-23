@@ -38,7 +38,10 @@
 #pragma once
 
 #include "ICommandsSender.h"
+extern "C"
+{
 #include "lib_encode/lib_encoder.h"
+}
 
 class CommandsSender : public ICommandsSender
 {

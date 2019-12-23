@@ -80,7 +80,7 @@ static AL_TMetaData* clone(AL_TMetaData* pMeta)
 
 static AL_TInternalHandleMetaData* allocInternal(int iMaxHandles, int iHandleSize)
 {
-  AL_TInternalHandleMetaData* pInternal = Rtos_Malloc(sizeof(*pInternal));
+  AL_TInternalHandleMetaData* pInternal = (AL_TInternalHandleMetaData*)Rtos_Malloc(sizeof(*pInternal));
 
   if(!pInternal)
     return NULL;
@@ -111,7 +111,7 @@ static AL_TInternalHandleMetaData* allocInternal(int iMaxHandles, int iHandleSiz
 
 AL_THandleMetaData* AL_HandleMetaData_Create(int iMaxHandles, int iHandleSize)
 {
-  AL_THandleMetaData* pMeta = Rtos_Malloc(sizeof(*pMeta));
+  AL_THandleMetaData* pMeta = (AL_THandleMetaData*)Rtos_Malloc(sizeof(*pMeta));
 
   if(!pMeta)
     return NULL;

@@ -160,7 +160,7 @@ void AddFlagsToAllSections(AL_TStreamMetaData* pStreamMeta, uint32_t flags)
   for(int i = 0; i < pStreamMeta->uNumSection; i++)
   {
     AL_TStreamSection section = pStreamMeta->pSections[i];
-    AL_StreamMetaData_SetSectionFlags(pStreamMeta, i, flags | section.uFlags);
+    AL_StreamMetaData_SetSectionFlags(pStreamMeta, i, flags | section.eFlags);
   }
 }
 

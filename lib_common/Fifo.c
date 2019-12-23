@@ -44,7 +44,7 @@ bool AL_Fifo_Init(AL_TFifo* pFifo, size_t zMaxElem)
   pFifo->zHead = 0;
 
   size_t zElemSize = pFifo->zMaxElem * sizeof(void*);
-  pFifo->ElemBuffer = Rtos_Malloc(zElemSize);
+  pFifo->ElemBuffer = (void**)Rtos_Malloc(zElemSize);
 
   if(!pFifo->ElemBuffer)
     return false;

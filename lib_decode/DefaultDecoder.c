@@ -67,6 +67,20 @@
 
 #include "lib_parsing/I_PictMngr.h"
 #include "lib_decode/I_DecScheduler.h"
+#include "lib_common_dec/DecHook.h"
+
+#define TraceRecordEnd(pTraceHooks, unit) \
+  do { \
+    if(pTraceHooks && pTraceHooks->RecordEnd) \
+      pTraceHooks->RecordEnd(pTraceHooks->pUserParam, unit); \
+  } while(0) \
+
+#define TraceRecordStart(pTraceHooks, unit) \
+  do { \
+    if(pTraceHooks && pTraceHooks->RecordStart) \
+      pTraceHooks->RecordStart(pTraceHooks->pUserParam, unit); \
+  } while(0) \
+
 
 static int const AVC_NAL_HDR_SIZE = 4;
 static int const HEVC_NAL_HDR_SIZE = 5;
@@ -774,9 +788,6 @@ static void GenerateScdIpTraces(AL_TDecCtx* pCtx, AL_TScParam ScP, AL_TScBufferA
   (void)pStream;
   (void)scBuffer;
 
-  if(!(pCtx->iTraceFirstFrame >= 0 && pCtx->iNumFrmBlk1 >= pCtx->iTraceFirstFrame && pCtx->iNumFrmBlk1 < pCtx->iTraceLastFrame))
-    return;
-
 }
 
 /*****************************************************************************/
@@ -829,6 +840,7 @@ static bool RefillStartCodes(AL_TDecCtx* pCtx, AL_TBuffer* pStream)
    * means that the whole chunk of data doesn't have a startcode in it and
    * for example that we can stop sending new decoding request if there isn't
    * more input data. */
+
   do
   {
     AL_IDecScheduler_SearchSC(pCtx->pScheduler, pCtx->hStartCodeChannel, &ScParam, &ScdBuffer, callback);
@@ -904,7 +916,7 @@ static int FillNalInfo(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* iLastVclNalIn
 
   for(int curSection = 0; curSection < pStreamMeta->uNumSection; ++curSection)
   {
-    if(pStreamMeta->pSections[curSection].uFlags & AL_SECTION_END_FRAME_FLAG)
+    if(pStreamMeta->pSections[curSection].eFlags & AL_SECTION_END_FRAME_FLAG)
     {
       bSearchLastVCLNal = true;
       break;

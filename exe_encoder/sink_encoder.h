@@ -407,7 +407,7 @@ private:
       {
         auto const pMeta = (AL_TPictureMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_PICTURE);
         m_pictureType = pMeta->eType;
-        LogInfo("Picture Type %s (%i)\n", PictTypeToString(pMeta->eType).c_str(), m_pictureType);
+        LogInfo("Picture Type %s (%i) %s\n", PictTypeToString(pMeta->eType).c_str(), m_pictureType, pMeta->bSkipped ? "is skipped" : "");
       }
 
       auto const pMeta = (AL_TRateCtrlMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_RATECTRL);

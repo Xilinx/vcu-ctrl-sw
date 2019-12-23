@@ -74,7 +74,7 @@ static int getSectionSize(AL_TStreamMetaData* pMetaData, AL_ESectionFlags eFlags
   {
     AL_TStreamSection* pSection = &pMetaData->pSections[iSection];
 
-    if(pSection->uFlags & eFlags)
+    if(pSection->eFlags & eFlags)
       iSize += pSection->uLength;
   }
 

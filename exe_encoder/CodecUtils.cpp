@@ -182,10 +182,10 @@ int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream, const AL_TEncSetti
 
   for(int curSection = 0; curSection < pStreamMeta->uNumSection; ++curSection)
   {
-    if(pStreamMeta->pSections[curSection].uFlags & AL_SECTION_END_FRAME_FLAG)
+    if(pStreamMeta->pSections[curSection].eFlags & AL_SECTION_END_FRAME_FLAG)
       ++iNumFrame;
 
-    if(pStreamMeta->pSections[curSection].uFlags & AL_SECTION_APP_FILLER_FLAG)
+    if(pStreamMeta->pSections[curSection].eFlags & AL_SECTION_APP_FILLER_FLAG)
       FillSectionFillerData(pStream, curSection, &tChParam);
 
     WriteOneSection(HEVCFile, pStream, curSection, &tChParam);
@@ -206,7 +206,7 @@ void GetImageStreamSize(AL_TBuffer* pStream, std::deque<ImageSize>& imageSizes)
   {
     AL_TStreamSection& section = pStreamMeta->pSections[curSection];
 
-    if(section.uFlags & AL_SECTION_END_FRAME_FLAG)
+    if(section.eFlags & AL_SECTION_END_FRAME_FLAG)
     {
       imageSizes.back().finished = true;
       imageSizes.push_back(ImageSize { 0, false });

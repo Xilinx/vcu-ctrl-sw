@@ -70,7 +70,7 @@ AL_TStreamMetaData* AL_StreamMetaData_Create(uint16_t uMaxNumSection)
   if(uMaxNumSection == 0)
     return NULL;
 
-  AL_TStreamMetaData* pMeta = Rtos_Malloc(sizeof(*pMeta));
+  AL_TStreamMetaData* pMeta = (AL_TStreamMetaData*)Rtos_Malloc(sizeof(*pMeta));
 
   if(!pMeta)
     return NULL;
@@ -83,7 +83,7 @@ AL_TStreamMetaData* AL_StreamMetaData_Create(uint16_t uMaxNumSection)
   pMeta->uMaxNumSection = uMaxNumSection;
   pMeta->uNumSection = 0;
 
-  pMeta->pSections = Rtos_Malloc(sizeof(AL_TStreamSection) * uMaxNumSection);
+  pMeta->pSections = (AL_TStreamSection*)Rtos_Malloc(sizeof(AL_TStreamSection) * uMaxNumSection);
 
   if(!pMeta->pSections)
     goto fail_alloc_section;
@@ -95,21 +95,24 @@ AL_TStreamMetaData* AL_StreamMetaData_Create(uint16_t uMaxNumSection)
   return NULL;
 }
 
-static void SetSection(AL_TStreamSection* pSections, uint16_t uSectionID, uint32_t uOffset, uint32_t uLength, uint32_t uFlags)
+static void SetSection(AL_TStreamSection* pSections, uint16_t uSectionID, uint32_t uOffset, uint32_t uLength, AL_ESectionFlags eFlags)
 {
   pSections[uSectionID].uOffset = uOffset;
   pSections[uSectionID].uLength = uLength;
-  pSections[uSectionID].uFlags = uFlags;
+  pSections[uSectionID].eFlags = eFlags;
 }
 
-int AL_StreamMetaData_AddSection(AL_TStreamMetaData* pMetaData, uint32_t uOffset, uint32_t uLength, uint32_t uFlags)
+int AL_StreamMetaData_AddSection(AL_TStreamMetaData* pMetaData, uint32_t uOffset, uint32_t uLength, AL_ESectionFlags eFlags)
 {
-  uint16_t uSectionID = pMetaData->uNumSection;
-
-  if(!pMetaData || uSectionID >= pMetaData->uMaxNumSection)
+  if(!pMetaData)
     return -1;
 
-  SetSection(pMetaData->pSections, uSectionID, uOffset, uLength, uFlags);
+  uint16_t uSectionID = pMetaData->uNumSection;
+
+  if(uSectionID >= pMetaData->uMaxNumSection)
+    return -1;
+
+  SetSection(pMetaData->pSections, uSectionID, uOffset, uLength, eFlags);
   ++pMetaData->uNumSection;
 
   return uSectionID;
@@ -125,10 +128,10 @@ void AL_StreamMetaData_ChangeSection(AL_TStreamMetaData* pMetaData, uint16_t uSe
 }
 
 /****************************************************************************/
-void AL_StreamMetaData_SetSectionFlags(AL_TStreamMetaData* pMetaData, uint16_t uSectionID, uint32_t uFlags)
+void AL_StreamMetaData_SetSectionFlags(AL_TStreamMetaData* pMetaData, uint16_t uSectionID, AL_ESectionFlags eFlags)
 {
   assert(pMetaData && uSectionID < pMetaData->uNumSection);
-  pMetaData->pSections[uSectionID].uFlags = uFlags;
+  pMetaData->pSections[uSectionID].eFlags = eFlags;
 }
 
 /****************************************************************************/
@@ -147,7 +150,7 @@ int AL_StreamMetaData_GetLastSectionOfFlag(AL_TStreamMetaData* pMetaData, uint32
 
   while(flagSectionId >= 0)
   {
-    if(pSections[flagSectionId].uFlags & flag)
+    if(pSections[flagSectionId].eFlags & flag)
       break;
     --flagSectionId;
   }
@@ -157,21 +160,24 @@ int AL_StreamMetaData_GetLastSectionOfFlag(AL_TStreamMetaData* pMetaData, uint32
   return flagSectionId;
 }
 
-static int InsertSectionAtId(AL_TStreamMetaData* pMetaData, uint16_t targetId, uint32_t uOffset, uint32_t uLength, uint32_t uFlags)
+static int InsertSectionAtId(AL_TStreamMetaData* pMetaData, uint16_t targetId, uint32_t uOffset, uint32_t uLength, AL_ESectionFlags eFlags)
 {
+  if(!pMetaData)
+    return -1;
+
   uint16_t uNumSection = pMetaData->uNumSection;
   AL_TStreamSection* pSections = pMetaData->pSections;
 
-  if(!pMetaData || uNumSection >= pMetaData->uMaxNumSection)
+  if(uNumSection >= pMetaData->uMaxNumSection)
     return -1;
 
   for(int i = uNumSection - 1; i >= (int)targetId; --i)
   {
     AL_TStreamSection* cur = &pSections[i];
-    SetSection(pSections, i + 1, cur->uOffset, cur->uLength, cur->uFlags);
+    SetSection(pSections, i + 1, cur->uOffset, cur->uLength, cur->eFlags);
   }
 
-  SetSection(pSections, targetId, uOffset, uLength, uFlags);
+  SetSection(pSections, targetId, uOffset, uLength, eFlags);
   ++pMetaData->uNumSection;
 
   return targetId;
@@ -189,7 +195,7 @@ int AL_StreamMetaData_AddSeiSection(AL_TStreamMetaData* pMetaData, bool isPrefix
   if(isPrefix)
     return AddPrefixSei(pMetaData, uOffset, uLength);
 
-  return AL_StreamMetaData_AddSection(pMetaData, uOffset, uLength, 0);
+  return AL_StreamMetaData_AddSection(pMetaData, uOffset, uLength, AL_SECTION_NO_FLAG);
 }
 
 uint32_t AL_StreamMetaData_GetUnusedStreamPart(AL_TStreamMetaData* pMetaData)

@@ -146,11 +146,12 @@ static bool LinuxDma_Destroy(AL_TAllocator* pAllocator)
 /******************************************************************************/
 static AL_TAllocator* create(const char* deviceFile, void const* vtable)
 {
-  struct LinuxDmaCtx* pCtx = calloc(1, sizeof(struct LinuxDmaCtx));
+  struct LinuxDmaCtx* pCtx = (struct LinuxDmaCtx*)calloc(1, sizeof(struct LinuxDmaCtx));
 
   if(!pCtx)
     return NULL;
-  pCtx->base.vtable = vtable;
+
+  pCtx->base.vtable = (AL_DmaAllocLinuxVtable const*)vtable;
 
   /* for debug */
   if(strlen(deviceFile) > MAX_DEVICE_FILE_NAME)
@@ -239,7 +240,7 @@ int isAligned256B(AL_PADDR addr)
 
 static struct DmaBuffer* OverAllocateAndAlign256B(AL_TAllocator* pAllocator, size_t zSize)
 {
-  struct DmaBuffer* p = LinuxDma_Alloc(pAllocator, Ceil256B(zSize));
+  struct DmaBuffer* p = (struct DmaBuffer*)LinuxDma_Alloc(pAllocator, Ceil256B(zSize));
 
   if(!p)
     return NULL;
@@ -247,7 +248,7 @@ static struct DmaBuffer* OverAllocateAndAlign256B(AL_TAllocator* pAllocator, siz
   p->info.phy_addr = Ceil256B(p->info.phy_addr);
   void* vaddr = (void*)Ceil256B((unsigned long)p->vaddr);
   p->offset = (unsigned long)vaddr - (unsigned long)p->vaddr;
-  p->vaddr = vaddr;
+  p->vaddr = (AL_VADDR)vaddr;
 
   return p;
 }

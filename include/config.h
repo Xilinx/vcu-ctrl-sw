@@ -102,6 +102,6 @@
 
 #define AL_CONFIGURE_COMMANDLINE "./configure --config-blob customers/Xilinx/config.ini"
 #define AL_VERSION_MAJOR 0
-#define AL_VERSION_MINOR 18
+#define AL_VERSION_MINOR 19
 #define AL_VERSION_STEP 0
 

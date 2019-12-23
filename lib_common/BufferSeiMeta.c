@@ -67,12 +67,12 @@ static AL_TMetaData* clone(AL_TMetaData* pMeta)
 
 AL_TSeiMetaData* AL_SeiMetaData_Create(uint8_t uMaxPayload, uint32_t uMaxBufSize)
 {
-  AL_TSeiMetaData* pMeta = Rtos_Malloc(sizeof(*pMeta));
+  AL_TSeiMetaData* pMeta = (AL_TSeiMetaData*)Rtos_Malloc(sizeof(*pMeta));
 
   if(!pMeta)
     return NULL;
 
-  pMeta->pBuf = Rtos_Malloc(uMaxBufSize * sizeof(*(pMeta->pBuf)));
+  pMeta->pBuf = (uint8_t*)Rtos_Malloc(uMaxBufSize * sizeof(*(pMeta->pBuf)));
 
   if(!pMeta->pBuf)
   {
@@ -80,7 +80,7 @@ AL_TSeiMetaData* AL_SeiMetaData_Create(uint8_t uMaxPayload, uint32_t uMaxBufSize
     return NULL;
   }
 
-  pMeta->payload = Rtos_Malloc(uMaxPayload * sizeof(*(pMeta->payload)));
+  pMeta->payload = (AL_TSeiMessage*)Rtos_Malloc(uMaxPayload * sizeof(*(pMeta->payload)));
 
   if(!pMeta->payload)
   {

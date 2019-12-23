@@ -177,16 +177,6 @@ typedef struct AL_t_EncPicStatus
   int32_t iPictureSize;
   int8_t iPercentIntra[5];
 
-  int32_t NumMV0;
-  int32_t NumMV1;
-  int32_t SumMVX;
-  int32_t SumMVY;
-  int32_t PercentSkip;
-  uint32_t NumBitsIntra;
-  uint32_t NumBitsInterL0;
-  uint32_t NumBitsInterL1;
-  uint32_t NumBitsInterBi;
-
   AL_RateCtrl_Statistics tRateCtrlStats;
 
 }AL_TEncPicStatus;

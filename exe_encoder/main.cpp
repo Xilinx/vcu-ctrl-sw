@@ -874,7 +874,8 @@ void LayerRessources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffer
   {
     AL_TMetaData* pMeta = (AL_TMetaData*)AL_PictureMetaData_Create();
     assert(pMeta);
-    assert(StreamBufPool.AddMetaData(pMeta));
+    bool bRet = StreamBufPool.AddMetaData(pMeta);
+    assert(bRet);
     Rtos_Free(pMeta);
   }
 
@@ -883,7 +884,8 @@ void LayerRessources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffer
     AL_TDimension tDim = { Settings.tChParam[iLayerID].uEncWidth, Settings.tChParam[iLayerID].uEncHeight };
     AL_TMetaData* pMeta = (AL_TMetaData*)AL_RateCtrlMetaData_Create(pAllocator, tDim, Settings.tChParam[iLayerID].uMaxCuSize, AL_GET_CODEC(Settings.tChParam[iLayerID].eProfile));
     assert(pMeta);
-    assert(StreamBufPool.AddMetaData(pMeta));
+    bool bRet = StreamBufPool.AddMetaData(pMeta);
+    assert(bRet);
     Rtos_Free(pMeta);
   }
 
@@ -1061,7 +1063,7 @@ void SafeMain(int argc, char** argv)
   auto pScheduler = pIpDevice->m_pScheduler;
 
   // --------------------------------------------------------------------------------
-  // Allocate Layers Ressources
+  // Allocate Layers resources
   int frameBuffersCount = g_defaultMinBuffers + Settings.tChParam[0].tGopParam.uNumB;
 
   // the LookAhead needs LookAheadSize source buffers to work
@@ -1091,7 +1093,7 @@ void SafeMain(int argc, char** argv)
   }
 
   // --------------------------------------------------------------------------------
-  // Push created layer ressources
+  // Push created layer resources
   for(size_t i = 0; i < layerRessources.size(); i++)
   {
     layerRessources[i].PushRessources(cfg, enc.get()

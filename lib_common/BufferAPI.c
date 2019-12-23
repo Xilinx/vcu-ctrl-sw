@@ -105,7 +105,7 @@ static bool initData(AL_TBufferImpl* pBuf, AL_TAllocator* pAllocator, PFN_RefCou
 
 static AL_TBuffer* createEmptyBuffer(AL_TAllocator* pAllocator, PFN_RefCount_CallBack pCallBack)
 {
-  AL_TBufferImpl* pBuf = Rtos_Malloc(sizeof(*pBuf));
+  AL_TBufferImpl* pBuf = (AL_TBufferImpl*)Rtos_Malloc(sizeof(*pBuf));
 
   if(!pBuf)
     return NULL;
@@ -290,7 +290,7 @@ bool AL_Buffer_AddMetaData(AL_TBuffer* hBuf, AL_TMetaData* pMeta)
 
   size_t const zOldSize = sizeof(AL_TMetaData*) * pBuf->iMetaCount;
   size_t const zNewSize = sizeof(AL_TMetaData*) * (pBuf->iMetaCount + 1);
-  AL_TMetaData** pNewBuffer = Realloc(pBuf->pMeta, zOldSize, zNewSize);
+  AL_TMetaData** pNewBuffer = (AL_TMetaData**)Realloc(pBuf->pMeta, zOldSize, zNewSize);
 
   if(!pNewBuffer)
   {
@@ -319,7 +319,7 @@ bool AL_Buffer_RemoveMetaData(AL_TBuffer* hBuf, AL_TMetaData* pMeta)
     if(pBuf->pMeta[i] == pMeta)
     {
       pBuf->pMeta[i] = pBuf->pMeta[pBuf->iMetaCount - 1];
-      AL_TMetaData** pTmp = Realloc(pBuf->pMeta, sizeof(void*) * pBuf->iMetaCount, sizeof(void*) * (pBuf->iMetaCount - 1));
+      AL_TMetaData** pTmp = (AL_TMetaData**)Realloc(pBuf->pMeta, sizeof(void*) * pBuf->iMetaCount, sizeof(void*) * (pBuf->iMetaCount - 1));
 
       /* if we can't realloc, keep the old bigger buffer */
       if(pTmp)

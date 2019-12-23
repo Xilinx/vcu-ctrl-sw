@@ -76,10 +76,10 @@ AL_TStreamMetaData* AL_StreamMetaData_Clone(AL_TStreamMetaData* pMeta);
    \param[in] pMetaData Pointer to the stream metadata
    \param[in] uOffset offset in the stream data of the section
    \param[in] uLength size of the data of the section
-   \param[in] uFlags stream section bitfield (see SECTION_xxxxx_FLAG)
+   \param[in] eFlags stream section bitfield (see SECTION_xxxxx_FLAG)
    \return return the id given to the added section, -1 if the section couldn't be added
 *****************************************************************************/
-int AL_StreamMetaData_AddSection(AL_TStreamMetaData* pMetaData, uint32_t uOffset, uint32_t uLength, uint32_t uFlags);
+int AL_StreamMetaData_AddSection(AL_TStreamMetaData* pMetaData, uint32_t uOffset, uint32_t uLength, AL_ESectionFlags eFlags);
 
 /*************************************************************************//*!
    \brief Change the information of a previously added section
@@ -94,9 +94,9 @@ void AL_StreamMetaData_ChangeSection(AL_TStreamMetaData* pMetaData, uint16_t uSe
    \brief Change the flags related to a section (see SECTION_xxxxx_FLAG)
    \param[in] pMetaData Pointer to the stream metadata
    \param[in] uSectionID id representing the section you want to change
-   \param[in] uFlags stream section bitfield (see SECTION_xxxxx_FLAG)
+   \param[in] eFlags stream section bitfield (see SECTION_xxxxx_FLAG)
 *****************************************************************************/
-void AL_StreamMetaData_SetSectionFlags(AL_TStreamMetaData* pMetaData, uint16_t uSectionID, uint32_t uFlags);
+void AL_StreamMetaData_SetSectionFlags(AL_TStreamMetaData* pMetaData, uint16_t uSectionID, AL_ESectionFlags eFlags);
 
 /*************************************************************************//*!
    \brief Remove all the sections of a particular stream metadata

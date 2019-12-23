@@ -70,7 +70,7 @@ typedef struct
 
 struct AL_t_Allocator
 {
-  const AL_AllocatorVtable* vtable;
+  AL_AllocatorVtable const* vtable;
 };
 /*! \endcond *****************************************************************/
 

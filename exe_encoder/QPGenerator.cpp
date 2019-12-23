@@ -58,7 +58,7 @@ extern "C"
 using namespace std;
 
 /****************************************************************************/
-// We need to have a determinist seed to compare soft and hard
+// We need to have a deterministic seed to compare soft and hard
 static int CreateSeed(int iNumLCUs, int iSliceQP, int iRandQP)
 {
   return iNumLCUs * iSliceQP - (0xEFFACE << (iSliceQP >> 1)) + iRandQP;
@@ -440,7 +440,11 @@ static AL_ERoiQuality get_roi_quality(char* sLine, int iPos)
   if(s == "INTRA_QUALITY")
     return AL_ROI_QUALITY_INTRA;
 
-  return AL_ROI_QUALITY_MAX_ENUM;
+  std::stringstream ss {};
+  ss.str(s);
+  int i;
+  ss >> i;
+  return static_cast<AL_ERoiQuality>(i);
 }
 
 /****************************************************************************/

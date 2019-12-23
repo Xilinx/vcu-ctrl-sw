@@ -50,7 +50,7 @@
 #include "lib_common/SliceConsts.h"
 
 /*************************************************************************//*!
-   \brief FOURCC identifer type
+   \brief FOURCC identifier type
 *****************************************************************************/
 typedef uint32_t TFourCC;
 

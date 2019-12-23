@@ -474,3 +474,19 @@
   Fixes:
     -- Buffer handles metadata
     -- Several minors bugs
+
+2019-12-23 (v1.0.54)
+-------------------
+  Added Features:
+    -- Add frame skipped information
+    -- User can choose between ROI enum or a numeric value to describe the quality in the ROI file
+
+  API:
+    -- Version of the API is now 0.19.0
+    -- Add 'bSkipped' in Picture Metadata
+    -- Rename AL_TStreamSection 'uFlags' -> 'eFlags'
+    -- Use 'AL_TStreamSection' instead of 'uint32_t'
+    -- Change 'AL_ESectionFlags' enum values
+
+  Fixes:
+    -- Several minors bugs

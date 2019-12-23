@@ -91,7 +91,7 @@ typedef struct
 static AL_HANDLE WrapData(AL_TAllocator* pAllocator, uint8_t* pData, void (* destructor)(void* pUserData, uint8_t* pData), void* pUserData)
 {
   (void)pAllocator;
-  AL_TWrapperHandle* h = Rtos_Malloc(sizeof(*h));
+  AL_TWrapperHandle* h = (AL_TWrapperHandle*)Rtos_Malloc(sizeof(*h));
 
   if(!h)
     return NULL;
@@ -109,7 +109,7 @@ static void WrapperFree(void* pUserParam, uint8_t* pData)
 
 static AL_HANDLE AL_sWrapperAllocator_Alloc(AL_TAllocator* pAllocator, size_t zSize)
 {
-  uint8_t* pData = Rtos_Malloc(zSize);
+  uint8_t* pData = (uint8_t*)Rtos_Malloc(zSize);
 
   if(!pData)
     return NULL;

@@ -57,10 +57,6 @@
 #include "lib_common_enc/Settings.h"
 #include "lib_common_enc/EncRecBuffer.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct AL_i_EncScheduler AL_IEncScheduler;
 extern void AL_IEncScheduler_Destroy(AL_IEncScheduler* pScheduler);
 
@@ -344,10 +340,6 @@ bool AL_Encoder_SetLoopFilterTcOffset(AL_HEncoder hEnc, int8_t iTcOffset);
    retrieve the error code
 *****************************************************************************/
 bool AL_Encoder_SetHDRSEIs(AL_HEncoder hEnc, AL_THDRSEIs* pHDRSEIs);
-
-#ifdef __cplusplus
-}
-#endif
 
 /*@}*/
 
