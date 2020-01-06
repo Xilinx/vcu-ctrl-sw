@@ -98,7 +98,7 @@ const char* ToString(AL_ERR eErrCode)
 
 struct codec_error : public runtime_error
 {
-  codec_error(AL_ERR eErrCode) : runtime_error(ToString(eErrCode)), Code(eErrCode)
+  explicit codec_error(AL_ERR eErrCode) : runtime_error(ToString(eErrCode)), Code(eErrCode)
   {
   }
 
@@ -170,7 +170,6 @@ struct Config
   int iLoop = 1;
   int iTimeoutInSeconds = -1;
   int iMaxFrames = INT_MAX;
-  int iFirstFrame = 0;
   string seiFile = "";
   string hdrFile = "";
 };
@@ -1370,16 +1369,16 @@ void SafeMain(int argc, char** argv)
     BufPoolConfig.zBufSize = Config.zInputBufferSize;
     BufPoolConfig.uNumBuf = Config.uInputBufferNum;
     AL_TMetaData* meta = nullptr;
-    auto pAllocator = AL_GetDefaultAllocator();
+    auto pBufPoolAllocator = AL_GetDefaultAllocator();
 
     if(Config.tDecSettings.bSplitInput)
     {
       meta = (AL_TMetaData*)AL_StreamMetaData_Create(1);
-      pAllocator = pIpDevice->m_pAllocator.get();
+      pBufPoolAllocator = pIpDevice->m_pAllocator.get();
     }
 
     BufPoolConfig.pMetaData = meta;
-    auto ret = bufPool.Init(pAllocator, BufPoolConfig);
+    auto ret = bufPool.Init(pBufPoolAllocator, BufPoolConfig);
 
     if(!ret)
       throw runtime_error("Can't create BufPool");

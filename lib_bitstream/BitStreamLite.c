@@ -35,8 +35,8 @@
 *
 ******************************************************************************/
 
-#include <assert.h>
 #include "BitStreamLite.h"
+#include "lib_assert/al_assert.h"
 
 /******************************************************************************/
 
@@ -82,7 +82,7 @@ int AL_BitStreamLite_GetBitsCount(AL_TBitStreamLite* pBS)
 /******************************************************************************/
 void AL_BitStreamLite_PutBit(AL_TBitStreamLite* pBS, uint8_t iBit)
 {
-  assert((iBit == 0) || (iBit == 1));
+  AL_Assert((iBit == 0) || (iBit == 1));
   AL_BitStreamLite_PutBits(pBS, 1, iBit);
 }
 
@@ -110,7 +110,7 @@ static AL_INLINE void writeData(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32
   uint32_t byteNum = pBS->iBitCount >> 3;
   uint8_t byteOffset = pBS->iBitCount & 7;
 
-  assert(byteOffset + iNumBits <= 8);
+  AL_Assert(byteOffset + iNumBits <= 8);
 
   if(byteOffset == 0)
   {
@@ -136,7 +136,7 @@ static void PutInByte(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32_t uValue)
 /******************************************************************************/
 void AL_BitStreamLite_PutBits(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32_t uValue)
 {
-  assert(iNumBits == 32 || (uValue >> iNumBits) == 0);
+  AL_Assert(iNumBits == 32 || (uValue >> iNumBits) == 0);
 
   uint8_t numBitsToWrite = 8 - (pBS->iBitCount & 7);
 

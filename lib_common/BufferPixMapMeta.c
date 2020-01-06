@@ -37,7 +37,7 @@
 
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/BufferPixMapMeta.h"
-#include <assert.h>
+#include "lib_assert/al_assert.h"
 
 static bool SrcMeta_Destroy(AL_TMetaData* pMeta)
 {
@@ -109,15 +109,15 @@ AL_TPixMapMetaData* AL_PixMapMetaData_Create(AL_TDimension tDim, AL_TPlane tYPla
 
 int AL_PixMapMetaData_GetOffsetY(AL_TPixMapMetaData* pMeta)
 {
-  assert(pMeta->tPlanes[AL_PLANE_Y].iOffset <= pMeta->tPlanes[AL_PLANE_UV].iOffset);
+  AL_Assert(pMeta->tPlanes[AL_PLANE_Y].iOffset <= pMeta->tPlanes[AL_PLANE_UV].iOffset);
   return pMeta->tPlanes[AL_PLANE_Y].iOffset;
 }
 
 int AL_PixMapMetaData_GetOffsetUV(AL_TPixMapMetaData* pMeta)
 {
-  assert(pMeta->tPlanes[AL_PLANE_Y].iPitch * pMeta->tDim.iHeight <= pMeta->tPlanes[AL_PLANE_UV].iOffset ||
-         (AL_IsTiled(pMeta->tFourCC) &&
-          (pMeta->tPlanes[AL_PLANE_Y].iPitch * pMeta->tDim.iHeight / 4 <= pMeta->tPlanes[AL_PLANE_UV].iOffset)));
+  AL_Assert(pMeta->tPlanes[AL_PLANE_Y].iPitch * pMeta->tDim.iHeight <= pMeta->tPlanes[AL_PLANE_UV].iOffset ||
+            (AL_IsTiled(pMeta->tFourCC) &&
+             (pMeta->tPlanes[AL_PLANE_Y].iPitch * pMeta->tDim.iHeight / 4 <= pMeta->tPlanes[AL_PLANE_UV].iOffset)));
   return pMeta->tPlanes[AL_PLANE_UV].iOffset;
 }
 

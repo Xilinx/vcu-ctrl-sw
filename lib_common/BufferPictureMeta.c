@@ -37,7 +37,6 @@
 
 #include "lib_common/BufferPictureMeta.h"
 #include "lib_rtos/lib_rtos.h"
-#include <assert.h>
 
 static bool PictureMeta_Destroy(AL_TMetaData* pMeta)
 {

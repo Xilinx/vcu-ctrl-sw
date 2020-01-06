@@ -36,7 +36,7 @@
 ******************************************************************************/
 
 #include "SyntaxConversion.h"
-#include <assert.h>
+#include "lib_assert/al_assert.h"
 
 /***************************************************************************/
 int AL_H273_ColourDescToColourPrimaries(AL_EColourDescription colourDesc)
@@ -56,7 +56,7 @@ int AL_H273_ColourDescToColourPrimaries(AL_EColourDescription colourDesc)
   case AL_COLOUR_DESC_SMPTE_RP_431: return 11;
   case AL_COLOUR_DESC_SMPTE_EG_432: return 12;
   case AL_COLOUR_DESC_EBU_3213: return 22;
-  case AL_COLOUR_DESC_MAX_ENUM: assert(0);
+  case AL_COLOUR_DESC_MAX_ENUM: AL_Assert(0);
   }
 
   return 2;

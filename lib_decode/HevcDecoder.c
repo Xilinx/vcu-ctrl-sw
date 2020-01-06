@@ -35,7 +35,12 @@
 *
 ******************************************************************************/
 
-#include <assert.h>
+#include "FrameParam.h"
+#include "I_DecoderCtx.h"
+#include "DefaultDecoder.h"
+#include "SliceDataParsing.h"
+#include "NalUnitParserPrivate.h"
+#include "NalDecoder.h"
 
 #include "lib_common/Utils.h"
 #include "lib_common/HwScalingList.h"
@@ -55,12 +60,7 @@
 #include "lib_parsing/Hevc_PictMngr.h"
 #include "lib_parsing/SliceHdrParsing.h"
 
-#include "FrameParam.h"
-#include "I_DecoderCtx.h"
-#include "DefaultDecoder.h"
-#include "SliceDataParsing.h"
-#include "NalUnitParserPrivate.h"
-#include "NalDecoder.h"
+#include "lib_assert/al_assert.h"
 
 /******************************************************************************/
 static AL_TCropInfo extractCropInfo(AL_THevcSps const* pSPS)
@@ -111,7 +111,7 @@ static uint8_t getMaxRextBitDepth(AL_TProfilevel pf)
 }
 
 /*************************************************************************/
-static int getMaxBitDepth(AL_TProfilevel pf)
+static int getMaxBitDepthFromProfile(AL_TProfilevel pf)
 {
   if((pf.general_profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_RExt)) || pf.general_profile_compatibility_flag[AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_RExt)])
     return getMaxRextBitDepth(pf);
@@ -123,6 +123,15 @@ static int getMaxBitDepth(AL_TProfilevel pf)
     return 8;
 
   return 10;
+}
+
+/*************************************************************************/
+static int getMaxBitDepth(AL_THevcSps const* pSPS)
+{
+  int iSPSLumaBitDepth = pSPS->bit_depth_luma_minus8 + 8;
+  int iSPSChromaBitDepth = pSPS->bit_depth_chroma_minus8 + 8;
+  int iMaxSPSBitdepth = Max(iSPSLumaBitDepth, iSPSChromaBitDepth);
+  return Max(iMaxSPSBitdepth, getMaxBitDepthFromProfile(pSPS->profile_and_level));
 }
 
 /*****************************************************************************/
@@ -222,11 +231,11 @@ static AL_TStreamSettings extractStreamSettings(AL_THevcSps const* pSPS)
   AL_TDimension tSPSDim = { pSPS->pic_width_in_luma_samples, pSPS->pic_height_in_luma_samples };
   tStreamSettings.tDim = tSPSDim;
   tStreamSettings.eChroma = (AL_EChromaMode)pSPS->chroma_format_idc;
-  tStreamSettings.iBitDepth = getMaxBitDepth(pSPS->profile_and_level);
+  tStreamSettings.iBitDepth = getMaxBitDepth(pSPS);
   tStreamSettings.iLevel = pSPS->profile_and_level.general_level_idc / 3;
   tStreamSettings.iProfileIdc = pSPS->profile_and_level.general_profile_idc;
   tStreamSettings.eSequenceMode = getSequenceMode(pSPS);
-  assert(tStreamSettings.eSequenceMode != AL_SM_MAX_ENUM);
+  AL_Assert(tStreamSettings.eSequenceMode != AL_SM_MAX_ENUM);
   return tStreamSettings;
 }
 
@@ -264,7 +273,7 @@ static bool isSPSCompatibleWithStreamSettings(AL_THevcSps const* pSPS, AL_TStrea
   if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSChromaBitDepth))
     return false;
 
-  int iSPSMaxBitDepth = getMaxBitDepth(pSPS->profile_and_level);
+  int iSPSMaxBitDepth = getMaxBitDepth(pSPS);
 
   if(iSPSMaxBitDepth > HW_IP_BIT_DEPTH)
     return false;

@@ -190,5 +190,11 @@ typedef void (* PFN_WrapDestructor)(void* pUserData, uint8_t* pData);
 AL_HANDLE AL_WrapperAllocator_WrapData(uint8_t* pData, PFN_WrapDestructor destructor, void* pUserData);
 /*****************************************************************************/
 
+/* pMemoryAllocator is used to allocate the context of the allocator / internal metadata,
+ * pRealAllocator will be used to allocate the memory of the buffer
+ * uAlign is the alignment of the buffer in bytes.
+ */
+AL_TAllocator* AL_AlignedAllocator_Create(AL_TAllocator* pMemoryAllocator, AL_TAllocator* pRealAllocator, uint32_t uAlign);
+
 /*@}*/
 

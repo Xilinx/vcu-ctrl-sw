@@ -43,7 +43,10 @@
    \file
  *****************************************************************************/
 
-#include <assert.h>
+#include "FrameParam.h"
+#include "I_DecoderCtx.h"
+#include "DefaultDecoder.h"
+#include "SliceDataParsing.h"
 
 #include "lib_common/Utils.h"
 #include "lib_common/HwScalingList.h"
@@ -56,11 +59,6 @@
 #include "lib_parsing/SliceHdrParsing.h"
 #include "lib_parsing/Avc_PictMngr.h"
 #include "lib_parsing/Hevc_PictMngr.h"
-
-#include "FrameParam.h"
-#include "I_DecoderCtx.h"
-#include "DefaultDecoder.h"
-#include "SliceDataParsing.h"
 
 /*************************************************************************//*!
    \brief This function returns a pointer to the Nal data cleaned of the AE bytes

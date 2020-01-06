@@ -489,7 +489,7 @@ void ValidateConfig(ConfigFile& cfg)
   }
 
   if(cfg.Settings.TwoPass == 1)
-    AL_TwoPassMngr_SetPass1Settings(cfg.Settings);
+    AL_TwoPassMngr_SetPass1Settings(cfg.Settings, NULL);
 
   SetConsoleColor(CC_DEFAULT);
 }
@@ -1086,7 +1086,7 @@ void SafeMain(int argc, char** argv)
 
   if(AL_TwoPassMngr_HasLookAhead(cfg.Settings))
   {
-    encFirstPassLA.reset(new EncoderLookAheadSink(cfg, pScheduler, pAllocator
+    encFirstPassLA.reset(new EncoderLookAheadSink(cfg, enc.get(), pScheduler, pAllocator
                                                   ));
     encFirstPassLA->next = firstSink;
     firstSink = encFirstPassLA.get();

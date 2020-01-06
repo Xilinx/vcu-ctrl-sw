@@ -45,7 +45,6 @@
 
 #include "common_syntax_elements.h"
 #include "HwScalingList.h"
-#include <assert.h>
 
 /******************************************************************************/
 #define  X16_DIV(n, d) ((((n) << 4) + ((d) >> 1)) / (d))

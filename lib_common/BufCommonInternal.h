@@ -41,6 +41,7 @@
 #include "lib_common/BufCommon.h"
 #include "lib_common/BufConst.h"
 #include "lib_common/MemDesc.h"
+#include "lib_assert/al_assert.h"
 
 /*************************************************************************//*!
    \brief Generic Buffer
@@ -66,7 +67,6 @@ typedef struct t_CircBuffer
   int32_t iAvailSize; /*!< Avail Space in Circular Buffer */
 }TCircBuffer;
 
-#include <assert.h>
 static AL_INLINE void CircBuffer_ConsumeUpToOffset(AL_TBuffer* stream, int32_t iNewOffset)
 {
   AL_TCircMetaData* pCircMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(stream, AL_META_TYPE_CIRCULAR);
@@ -77,7 +77,7 @@ static AL_INLINE void CircBuffer_ConsumeUpToOffset(AL_TBuffer* stream, int32_t i
     pCircMeta->iAvailSize -= iNewOffset - pCircMeta->iOffset;
   pCircMeta->iOffset = iNewOffset;
 
-  assert(pCircMeta->iAvailSize >= 0);
+  AL_Assert(pCircMeta->iAvailSize >= 0);
 }
 
 static AL_INLINE void CircBuffer_Init(TCircBuffer* pBuf)

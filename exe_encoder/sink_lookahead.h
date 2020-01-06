@@ -52,18 +52,19 @@
 */
 struct EncoderLookAheadSink : IFrameSink
 {
-  EncoderLookAheadSink(ConfigFile const& cfg, AL_IEncScheduler* pScheduler, AL_TAllocator* pAllocator
+  EncoderLookAheadSink(ConfigFile const& cfg, EncoderSink* pBaseSink, AL_IEncScheduler* pScheduler, AL_TAllocator* pAllocator
                        ) :
     CmdFile(cfg.sCmdFileName),
     EncCmd(CmdFile, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
     qpBuffers{cfg.Settings, cfg.RunInfo.eGenerateQpMode},
     lookAheadMngr(cfg.Settings.LookAhead, cfg.Settings.bEnableFirstPassSceneChangeDetection)
   {
+    (void)pBaseSink;
     AL_CB_EndEncoding onEndEncoding = { &EncoderLookAheadSink::EndEncoding, this };
-
+    AL_HANDLE hBaseHandle = nullptr;
     ConfigFile cfgLA = cfg;
 
-    AL_TwoPassMngr_SetPass1Settings(cfgLA.Settings);
+    AL_TwoPassMngr_SetPass1Settings(cfgLA.Settings, hBaseHandle);
     AL_Settings_CheckCoherency(&cfgLA.Settings, &cfgLA.Settings.tChParam[0], cfgLA.MainInput.FileInfo.FourCC, NULL);
 
     AL_ERR errorCode = AL_Encoder_Create(&hEnc, pScheduler, pAllocator, &cfgLA.Settings, onEndEncoding);

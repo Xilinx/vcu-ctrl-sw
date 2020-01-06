@@ -46,10 +46,9 @@ struct TBounds
 };
 
 /****************************************************************************/
-class CCmdTokenizer
+struct CCmdTokenizer
 {
-public:
-  CCmdTokenizer(string& sLine)
+  explicit CCmdTokenizer(string& sLine)
     : m_sLine(sLine),
     m_zBeg(0),
     m_zEnd(0),

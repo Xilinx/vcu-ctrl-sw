@@ -43,13 +43,13 @@
    \file
  *****************************************************************************/
 
-#include <assert.h>
 #include "lib_common_dec/DecBuffers.h"
 #include "lib_common/Utils.h"
 #include "lib_common/BufferPixMapMeta.h"
 
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/StreamBufferPrivate.h"
+#include "lib_assert/al_assert.h"
 
 /*****************************************************************************/
 int32_t RndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode)
@@ -74,7 +74,7 @@ int AL_GetNumLCU(AL_TDimension tDim, uint8_t uLCUSize)
   case 4: return GetBlk16x16(tDim);
   case 5: return GetBlk32x32(tDim);
   case 6: return GetBlk64x64(tDim);
-  default: assert(0);
+  default: AL_Assert(0);
   }
 
   return 0;
@@ -127,7 +127,7 @@ static uint32_t GetChromaAllocSize(AL_EChromaMode eChromaMode, uint32_t uAllocSi
   case AL_CHROMA_4_2_2:
     return uAllocSizeY;
   default:
-    assert(0);
+    AL_Assert(0);
     break;
   }
 

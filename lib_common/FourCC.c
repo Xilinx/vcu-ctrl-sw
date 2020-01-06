@@ -36,7 +36,7 @@
 ******************************************************************************/
 
 #include "lib_common/FourCC.h"
-#include <assert.h>
+#include "lib_assert/al_assert.h"
 
 /* FOURCC from chars */
 #define FOURCC2(A, B, C, D) ((TFourCC)(((uint32_t)((A))) \
@@ -114,7 +114,7 @@ bool AL_GetPicFormat(TFourCC tFourCC, AL_TPicFormat* tPicFormat)
     }
   }
 
-  assert(0 && "Unknown fourCC");
+  AL_Assert(0 && "Unknown fourCC");
 
   return false;
 }
@@ -136,7 +136,7 @@ TFourCC AL_GetFourCC(AL_TPicFormat tPictFormat)
       return pMapping->tfourCC;
   }
 
-  assert(0 && "Unknown picture format");
+  AL_Assert(0 && "Unknown picture format");
 
   return 0;
 }

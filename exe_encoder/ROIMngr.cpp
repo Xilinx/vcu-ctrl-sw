@@ -239,8 +239,8 @@ static void ComputeROI(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerL
     // Update above transition
     if(pNode->iPosY)
     {
-      auto* pLcuTop1 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY - 1, iNumBytesPerLCU);
-      auto* pLcuTop2 = pLcuTop1;
+      uint8_t* pLcuTop1 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY - 1, iNumBytesPerLCU);
+      uint8_t* pLcuTop2 = pLcuTop1;
 
       if(pNode->iPosY > 1)
         pLcuTop2 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY - 2, iNumBytesPerLCU);
@@ -251,8 +251,8 @@ static void ComputeROI(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerL
     // update below transition
     if(pNode->iPosY + pNode->iHeight + 1 < pCtx->iLcuHeight)
     {
-      auto* pLcuBot1 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY + pNode->iHeight, iNumBytesPerLCU);
-      auto* pLcuBot2 = pLcuBot1;
+      uint8_t* pLcuBot1 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY + pNode->iHeight, iNumBytesPerLCU);
+      uint8_t* pLcuBot2 = pLcuBot1;
 
       if(pNode->iPosY + pNode->iHeight + 2 < pCtx->iLcuHeight)
         pLcuBot2 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY + pNode->iHeight + 1, iNumBytesPerLCU);
@@ -263,8 +263,8 @@ static void ComputeROI(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerL
     // update left transition
     if(pNode->iPosX)
     {
-      auto* pLcuLeft1 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX - 1, pNode->iPosY, iNumBytesPerLCU);
-      auto* pLcuLeft2 = pLcuLeft1;
+      uint8_t* pLcuLeft1 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX - 1, pNode->iPosY, iNumBytesPerLCU);
+      uint8_t* pLcuLeft2 = pLcuLeft1;
 
       if(pNode->iPosX > 1)
         pLcuLeft2 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX - 2, pNode->iPosY, iNumBytesPerLCU);
@@ -275,8 +275,8 @@ static void ComputeROI(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerL
     // update right transition
     if(pNode->iPosX + pNode->iWidth + 1 < pCtx->iLcuWidth)
     {
-      auto* pLcuRight1 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX + pNode->iWidth, pNode->iPosY, iNumBytesPerLCU);
-      auto* pLcuRight2 = pLcuRight1;
+      uint8_t* pLcuRight1 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX + pNode->iWidth, pNode->iPosY, iNumBytesPerLCU);
+      uint8_t* pLcuRight2 = pLcuRight1;
 
       if(pNode->iPosX + pNode->iWidth + 2 < pCtx->iLcuWidth)
         pLcuRight2 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX + pNode->iWidth + 1, pNode->iPosY, iNumBytesPerLCU);

@@ -47,17 +47,14 @@ extern "C"
 
 void CropFrame(AL_TBuffer* pYUV, int iSizePix, uint32_t uCropLeft, uint32_t uCropRight, uint32_t uCropTop, uint32_t uCropBottom)
 {
-  int iBeginVert, iEndVert, iBeginHrz, iEndHrz;
-  int iParse, iUV, iCbOffset, iCrOffset;
-
   AL_TDimension tRawDim = AL_PixMapBuffer_GetDimension(pYUV);
   AL_EChromaMode eMode = AL_GetChromaMode(AL_PixMapBuffer_GetFourCC(pYUV));
 
   /*warning: works in frame only in 4:2:0*/
-  iBeginVert = uCropTop;
-  iBeginHrz = uCropLeft;
-  iEndVert = tRawDim.iHeight - uCropBottom;
-  iEndHrz = tRawDim.iWidth - uCropRight;
+  int iBeginVert = uCropTop;
+  int iBeginHrz = uCropLeft;
+  int iEndVert = tRawDim.iHeight - uCropBottom;
+  int iEndHrz = tRawDim.iWidth - uCropRight;
 
   AL_PixMapBuffer_SetDimension(pYUV, AL_TDimension { iEndHrz - iBeginHrz, iEndVert - iBeginVert });
 
@@ -65,7 +62,7 @@ void CropFrame(AL_TBuffer* pYUV, int iSizePix, uint32_t uCropLeft, uint32_t uCro
   uint8_t* pOut = pIn;
 
   /*luma samples*/
-  for(iParse = iBeginVert; iParse < iEndVert; ++iParse)
+  for(int iParse = iBeginVert; iParse < iEndVert; ++iParse)
   {
     memmove(pOut, &pIn[(iParse * tRawDim.iWidth + iBeginHrz) * iSizePix], (iEndHrz - iBeginHrz) * iSizePix);
     pOut += (iEndHrz - iBeginHrz) * iSizePix;
@@ -74,21 +71,21 @@ void CropFrame(AL_TBuffer* pYUV, int iSizePix, uint32_t uCropLeft, uint32_t uCro
   /*chroma samples*/
   if(eMode != AL_CHROMA_MONO)
   {
-    iCbOffset = tRawDim.iWidth * tRawDim.iHeight;
+    int iCbOffset = tRawDim.iWidth * tRawDim.iHeight;
     tRawDim.iWidth /= (eMode == AL_CHROMA_4_4_4) ? 1 : 2;
     tRawDim.iHeight /= (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
-    iCrOffset = iCbOffset + (tRawDim.iWidth * tRawDim.iHeight);
+    int iCrOffset = iCbOffset + (tRawDim.iWidth * tRawDim.iHeight);
 
     iBeginVert /= (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
     iEndVert /= (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
     iBeginHrz /= (eMode == AL_CHROMA_4_4_4) ? 1 : 2;
     iEndHrz /= (eMode == AL_CHROMA_4_4_4) ? 1 : 2;
 
-    for(iUV = 0; iUV < 2; ++iUV)
+    for(int iUV = 0; iUV < 2; ++iUV)
     {
       int iChromaOffset = (iUV ? iCrOffset : iCbOffset);
 
-      for(iParse = iBeginVert; iParse < iEndVert; ++iParse)
+      for(int iParse = iBeginVert; iParse < iEndVert; ++iParse)
       {
         memmove(pOut, &pIn[(iParse * tRawDim.iWidth + iBeginHrz + iChromaOffset) * iSizePix], (iEndHrz - iBeginHrz) * iSizePix);
         pOut += (iEndHrz - iBeginHrz) * iSizePix;

@@ -44,11 +44,12 @@
 #include <stdio.h>
 #include <string.h> // strerrno, strlen, strcpy
 #include <errno.h>
-#include <assert.h>
+#include "lib_rtos/types.h" // static_assert
 
 #include "allegro_ioctl_mcu_dec.h"
 #include "lib_common/List.h"
 #include "lib_common/Error.h"
+#include "lib_assert/al_assert.h"
 
 #define DCACHE_OFFSET 0x80000000
 
@@ -62,7 +63,7 @@ static void AL_WakeUp(AL_WaitQueue* pQueue)
 {
   pthread_mutex_lock(&pQueue->Lock);
   int ret = pthread_cond_broadcast(&pQueue->Cond);
-  assert(ret == 0);
+  AL_Assert(ret == 0);
   pthread_mutex_unlock(&pQueue->Lock);
 }
 
@@ -233,7 +234,7 @@ static void processStatusMsg(Channel* channel, struct al5_params* msg)
       channel->endDecodingCB.func(channel->endDecodingCB.userParam, &status);
     return;
   }
-  assert(0);
+  AL_Assert(0);
 }
 
 static void* NotificationThread(void* p)
@@ -466,7 +467,7 @@ static AL_ERR API_CreateChannel(AL_HANDLE* hChannel, AL_IDecScheduler* pSchedule
     goto fail_open;
   }
 
-  assert(msg.status.error_code == 0);
+  AL_Assert(msg.status.error_code == 0);
 
   chan->thread = Rtos_CreateThread(&NotificationThread, chan);
 

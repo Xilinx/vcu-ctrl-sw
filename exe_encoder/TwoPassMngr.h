@@ -50,7 +50,7 @@ extern "C"
 }
 
 bool AL_TwoPassMngr_HasLookAhead(AL_TEncSettings const& settings);
-void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings);
+void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings, AL_HANDLE hBaseHandle);
 AL_TLookAheadMetaData* AL_TwoPassMngr_CreateAndAttachTwoPassMetaData(AL_TBuffer* Src);
 
 /***************************************************************************/

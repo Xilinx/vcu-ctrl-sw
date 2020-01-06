@@ -37,7 +37,6 @@
 
 #include "lib_common/BufferLookAheadMeta.h"
 #include "lib_rtos/lib_rtos.h"
-#include <assert.h>
 
 static bool LookAheadMeta_Destroy(AL_TMetaData* pMeta)
 {

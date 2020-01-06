@@ -228,7 +228,7 @@ static DWORD WINAPI WindowsCallback(void* p)
 /****************************************************************************/
 AL_THREAD Rtos_CreateThread(void* (*pFunc)(void* pParam), void* pParam)
 {
-  struct AL_WindowsThread* pThread = Rtos_Malloc(sizeof(HANDLE));
+  struct AL_WindowsThread* pThread = Rtos_Malloc(sizeof(*pThread));
   DWORD id;
 
   pThread->func = pFunc;

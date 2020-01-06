@@ -43,8 +43,9 @@
    \file
  *****************************************************************************/
 
+#include "EncBuffersInternal.h"
+
 #include <string.h>
-#include <assert.h>
 #include "lib_common/Utils.h"
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/StreamBufferPrivate.h"
@@ -52,8 +53,7 @@
 #include "lib_common_enc/EncBuffers.h"
 #include "lib_common_enc/IpEncFourCC.h"
 #include "lib_common_enc/EncSize.h"
-
-#include "EncBuffersInternal.h"
+#include "lib_assert/al_assert.h"
 
 /****************************************************************************/
 uint32_t GetMaxLCU(uint16_t uWidth, uint16_t uHeight, uint8_t uMaxCuSize)
@@ -92,7 +92,7 @@ uint32_t AL_GetAllocSizeEP2(AL_TDimension tDim, AL_ECodec eCodec)
     break;
   }
   default:
-    assert(0);
+    AL_Assert(0);
   }
 
   return (uint32_t)(EP2_BUF_QP_CTRL.Size + EP2_BUF_SEG_CTRL.Size) + RoundUp(uMaxSize, 128);
@@ -124,7 +124,7 @@ static uint32_t GetChromaAllocSize(AL_EChromaMode eChromaMode, uint32_t uAllocSi
   case AL_CHROMA_4_2_2:
     return uAllocSizeY;
   default:
-    assert(0);
+    AL_Assert(0);
     break;
   }
 
@@ -215,7 +215,7 @@ static uint32_t GetRasterFrameSize(AL_TDimension tDim, uint8_t uBitDepth, AL_ECh
     uSize *= 2;
     break;
   default:
-    assert(0);
+    AL_Assert(0);
   }
 
   if(uBitDepth > 8)
@@ -291,7 +291,7 @@ uint32_t AL_GetAllocSize_MV(AL_TDimension tDim, uint8_t uLCUSize, AL_ECodec Code
     break;
   case 6: uNumBlk = GetBlk64x64(tDim) << 4;
     break;
-  default: assert(0);
+  default: AL_Assert(0);
   }
 
   return MVBUFF_MV_OFFSET + ((uNumBlk * 4 * sizeof(uint32_t)) * iMul);

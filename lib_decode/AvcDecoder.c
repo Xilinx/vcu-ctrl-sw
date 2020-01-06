@@ -35,7 +35,12 @@
 *
 ******************************************************************************/
 
-#include <assert.h>
+#include "FrameParam.h"
+#include "I_DecoderCtx.h"
+#include "DefaultDecoder.h"
+#include "SliceDataParsing.h"
+#include "NalUnitParserPrivate.h"
+#include "NalDecoder.h"
 
 #include "lib_common/Utils.h"
 #include "lib_common/HwScalingList.h"
@@ -56,12 +61,7 @@
 #include "lib_parsing/Avc_PictMngr.h"
 #include "lib_parsing/SliceHdrParsing.h"
 
-#include "FrameParam.h"
-#include "I_DecoderCtx.h"
-#include "DefaultDecoder.h"
-#include "SliceDataParsing.h"
-#include "NalUnitParserPrivate.h"
-#include "NalDecoder.h"
+#include "lib_assert/al_assert.h"
 
 /******************************************************************************/
 static AL_TDimension extractDimension(AL_TAvcSps const* pSPS)
@@ -106,7 +106,7 @@ static AL_TCropInfo extractCropInfo(AL_TAvcSps const* pSPS)
 }
 
 /*************************************************************************/
-static int getMaxBitDepth(int profile_idc)
+static int getMaxBitDepthFromProfile(int profile_idc)
 {
   if(
     (profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_AVC_BASELINE))
@@ -116,6 +116,15 @@ static int getMaxBitDepth(int profile_idc)
     )
     return 8;
   return 10;
+}
+
+/*************************************************************************/
+static int getMaxBitDepth(AL_TAvcSps const* pSPS)
+{
+  int iSPSLumaBitDepth = pSPS->bit_depth_luma_minus8 + 8;
+  int iSPSChromaBitDepth = pSPS->bit_depth_chroma_minus8 + 8;
+  int iMaxSPSBitdepth = Max(iSPSLumaBitDepth, iSPSChromaBitDepth);
+  return Max(iMaxSPSBitdepth, getMaxBitDepthFromProfile(pSPS->profile_idc));
 }
 
 /*************************************************************************/
@@ -155,7 +164,7 @@ static bool isSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, AL_TStream
   if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSChromaBitDepth))
     return false;
 
-  int iSPSMaxBitDepth = getMaxBitDepth(pSPS->profile_idc);
+  int iSPSMaxBitDepth = getMaxBitDepth(pSPS);
 
   if(iSPSMaxBitDepth > HW_IP_BIT_DEPTH)
     return false;
@@ -201,7 +210,7 @@ static AL_TStreamSettings extractStreamSettings(AL_TAvcSps const* pSPS)
   AL_TStreamSettings tStreamSettings;
   tStreamSettings.tDim = extractDimension(pSPS);
   tStreamSettings.eChroma = (AL_EChromaMode)pSPS->chroma_format_idc;
-  tStreamSettings.iBitDepth = getMaxBitDepth(pSPS->profile_idc);
+  tStreamSettings.iBitDepth = getMaxBitDepth(pSPS);
   tStreamSettings.iLevel = pSPS->constraint_set3_flag ? 9 : pSPS->level_idc;
   tStreamSettings.iProfileIdc = pSPS->profile_idc;
   tStreamSettings.eSequenceMode = AL_SM_PROGRESSIVE;
@@ -231,7 +240,7 @@ static AL_ERR resolutionFound(AL_TDecCtx* pCtx, AL_TStreamSettings const* pSpsSe
 static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
 {
   int iNumMBs = (pSPS->pic_width_in_mbs_minus1 + 1) * (pSPS->pic_height_in_map_units_minus1 + 1);
-  assert(iNumMBs == ((pCtx->tStreamSettings.tDim.iWidth / 16) * (pCtx->tStreamSettings.tDim.iHeight / 16)));
+  AL_Assert(iNumMBs == ((pCtx->tStreamSettings.tDim.iWidth / 16) * (pCtx->tStreamSettings.tDim.iHeight / 16)));
   int iSPSMaxSlices = getMaxNumberOfSlices(&pCtx->tStreamSettings, pSPS);
   int iSizeWP = iSPSMaxSlices * WP_SLICE_SIZE;
   int iSizeSP = iSPSMaxSlices * sizeof(AL_TDecSliceParam);
@@ -252,8 +261,12 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
 
   AL_TPictMngrParam tPictMngrParam =
   {
-    iDpbMaxBuf, pCtx->eDpbMode, pCtx->pChanParam->eFBStorageMode, getMaxBitDepth(pSPS->profile_idc),
-    iMaxBuf, iSizeMV,
+    iDpbMaxBuf,
+    pCtx->eDpbMode,
+    pCtx->pChanParam->eFBStorageMode,
+    getMaxBitDepth(pSPS),
+    iMaxBuf,
+    iSizeMV,
     pCtx->pChanParam->bUseEarlyCallback,
 
   };

@@ -43,16 +43,14 @@
    \file
  *****************************************************************************/
 
-#include <assert.h>
+#include "DefaultDecoder.h"
+#include "I_DecoderCtx.h"
+#include "FrameParam.h"
 
 #include "lib_common/Utils.h"
 
 #include "lib_common_dec/DecSliceParam.h"
 #include "lib_common_dec/DecChanParam.h"
-
-#include "DefaultDecoder.h"
-#include "I_DecoderCtx.h"
-#include "FrameParam.h"
 
 /******************************************************************************/
 static void FillRefPicID(AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP)

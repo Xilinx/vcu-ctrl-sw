@@ -36,7 +36,7 @@
 ******************************************************************************/
 
 #include "lib_common/BufferAPIInternal.h"
-#include "assert.h"
+#include "lib_assert/al_assert.h"
 
 typedef struct al_t_BufferImpl
 {
@@ -201,7 +201,7 @@ void AL_Buffer_Destroy(AL_TBuffer* hBuf)
   AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
   Rtos_GetMutex(pBuf->pLock);
 
-  assert(pBuf->iRefCount == 0);
+  AL_Assert(pBuf->iRefCount == 0);
 
   for(int i = 0; i < pBuf->iMetaCount; ++i)
     AL_MetaData_Destroy(pBuf->pMeta[i]);
@@ -253,13 +253,13 @@ void AL_Buffer_Unref(AL_TBuffer* hBuf)
   AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
 
   int32_t iRefCount = Rtos_AtomicDecrement(&pBuf->iRefCount);
-  assert(iRefCount >= 0);
+  AL_Assert(iRefCount >= 0);
 
-  if(iRefCount <= 0)
-  {
-    if(pBuf->pCallBack)
-      pBuf->pCallBack(hBuf);
-  }
+  if(iRefCount > 0)
+    return;
+
+  if(pBuf->pCallBack)
+    pBuf->pCallBack(hBuf);
 }
 
 /****************************************************************************/

@@ -55,7 +55,7 @@ struct InputLoader
 /****************************************************************************/
 struct BasicLoader : public InputLoader
 {
-  uint32_t ReadStream(std::istream& ifFileStream, AL_TBuffer* pBufStream)
+  uint32_t ReadStream(std::istream& ifFileStream, AL_TBuffer* pBufStream) override
   {
     uint8_t* pBuf = AL_Buffer_GetData(pBufStream);
 
@@ -78,11 +78,10 @@ struct CircBuffer
   int32_t iAvailSize; /*!< Avail Space in Circular Buffer */
 };
 
-class SplitInput : public InputLoader
+struct SplitInput : public InputLoader
 {
-public:
   SplitInput(int iSize, AL_ECodec eCodec, bool bSliceCut);
-  uint32_t ReadStream(std::istream& ifFileStream, AL_TBuffer* pBufStream);
+  uint32_t ReadStream(std::istream& ifFileStream, AL_TBuffer* pBufStream) override;
 
 private:
   std::vector<uint8_t> m_Stream;

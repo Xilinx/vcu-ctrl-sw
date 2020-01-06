@@ -47,7 +47,7 @@
 #include "lib_common/PPS.h"
 #include "lib_common/ScalingList.h"
 
-#include <assert.h>
+#include "lib_assert/al_assert.h"
 
 /******************************************************************************/
 static int writeScalingList(AL_TBitStreamLite* pBS, uint8_t const* pScalingList, int iSize)
@@ -118,7 +118,7 @@ static void writeScalingMatrix(AL_TBitStreamLite* pBS, uint8_t isScalingMatrixPr
       column = 3 * AL_SL_INTER;
       break;
     default:
-      assert(0);
+      AL_Assert(0);
     }
 
     writeScalingList(pBS, pSps->scaling_list_param.ScalingList[row][column], size);
@@ -128,7 +128,7 @@ static void writeScalingMatrix(AL_TBitStreamLite* pBS, uint8_t isScalingMatrixPr
 /******************************************************************************/
 static void writeHrdParam(AL_TBitStreamLite* pBS, AL_THrdParam const* pHrd, AL_TSubHrdParam const* pSubHrd)
 {
-  assert(pHrd->cpb_cnt_minus1[0] < AL_MAX_NUM_CPB);
+  AL_Assert(pHrd->cpb_cnt_minus1[0] < MAX_NUM_CPB);
 
   AL_BitStreamLite_PutUE(pBS, pHrd->cpb_cnt_minus1[0]);
   AL_BitStreamLite_PutU(pBS, 4, pHrd->bit_rate_scale);
@@ -174,7 +174,7 @@ static void writeSpsData(AL_TBitStreamLite* pBS, AL_TAvcSps const* pSps)
     )
   {
     AL_BitStreamLite_PutUE(pBS, pSps->chroma_format_idc);
-    assert(pSps->chroma_format_idc != 3);
+    AL_Assert(pSps->chroma_format_idc != 3);
     AL_BitStreamLite_PutUE(pBS, pSps->bit_depth_luma_minus8);
     AL_BitStreamLite_PutUE(pBS, pSps->bit_depth_chroma_minus8);
     AL_BitStreamLite_PutU(pBS, 1, pSps->qpprime_y_zero_transform_bypass_flag);
@@ -189,7 +189,7 @@ static void writeSpsData(AL_TBitStreamLite* pBS, AL_TAvcSps const* pSps)
   if(pSps->pic_order_cnt_type == 0)
     AL_BitStreamLite_PutUE(pBS, pSps->log2_max_pic_order_cnt_lsb_minus4);
 
-  assert(pSps->pic_order_cnt_type != 1);
+  AL_Assert(pSps->pic_order_cnt_type != 1);
 
   AL_BitStreamLite_PutUE(pBS, pSps->max_num_ref_frames);
   AL_BitStreamLite_PutU(pBS, 1, pSps->gaps_in_frame_num_value_allowed_flag);
@@ -278,7 +278,7 @@ static void writeSpsData(AL_TBitStreamLite* pBS, AL_TAvcSps const* pSps)
 
     AL_BitStreamLite_PutU(pBS, 1, pSps->vui_param.pic_struct_present_flag);
     AL_BitStreamLite_PutU(pBS, 1, pSps->vui_param.bitstream_restriction_flag);
-    assert(pSps->vui_param.bitstream_restriction_flag == 0);
+    AL_Assert(pSps->vui_param.bitstream_restriction_flag == 0);
   }
 }
 
@@ -305,14 +305,14 @@ static void writePps(AL_TBitStreamLite* pBS, AL_TPps const* pIPps)
   AL_BitStreamLite_PutU(pBS, 1, pPps->entropy_coding_mode_flag);
   AL_BitStreamLite_PutU(pBS, 1, pPps->bottom_field_pic_order_in_frame_present_flag);
   AL_BitStreamLite_PutUE(pBS, pPps->num_slice_groups_minus1);
-  assert(pPps->num_slice_groups_minus1 == 0);
+  AL_Assert(pPps->num_slice_groups_minus1 == 0);
   AL_BitStreamLite_PutUE(pBS, pPps->num_ref_idx_l0_active_minus1);
   AL_BitStreamLite_PutUE(pBS, pPps->num_ref_idx_l1_active_minus1);
   AL_BitStreamLite_PutU(pBS, 1, pPps->weighted_pred_flag);
   AL_BitStreamLite_PutU(pBS, 2, pPps->weighted_bipred_idc);
   AL_BitStreamLite_PutSE(pBS, pPps->pic_init_qp_minus26);
   AL_BitStreamLite_PutSE(pBS, pPps->pic_init_qs_minus26);
-  assert(pPps->chroma_qp_index_offset >= -12 && pPps->chroma_qp_index_offset <= 12);
+  AL_Assert(pPps->chroma_qp_index_offset >= -12 && pPps->chroma_qp_index_offset <= 12);
   AL_BitStreamLite_PutSE(pBS, pPps->chroma_qp_index_offset);
   AL_BitStreamLite_PutU(pBS, 1, pPps->deblocking_filter_control_present_flag);
   AL_BitStreamLite_PutU(pBS, 1, pPps->constrained_intra_pred_flag);
@@ -323,9 +323,9 @@ static void writePps(AL_TBitStreamLite* pBS, AL_TPps const* pIPps)
   {
     AL_BitStreamLite_PutU(pBS, 1, pPps->transform_8x8_mode_flag);
     AL_BitStreamLite_PutU(pBS, 1, pPps->pic_scaling_matrix_present_flag);
-    assert(pPps->pSPS != NULL);
+    AL_Assert(pPps->pSPS != NULL);
     writeScalingMatrix(pBS, pPps->pic_scaling_matrix_present_flag, pPps->pSPS);
-    assert(pPps->second_chroma_qp_index_offset >= -12 && pPps->second_chroma_qp_index_offset <= 12);
+    AL_Assert(pPps->second_chroma_qp_index_offset >= -12 && pPps->second_chroma_qp_index_offset <= 12);
     AL_BitStreamLite_PutSE(pBS, pPps->second_chroma_qp_index_offset);
   }
 
@@ -394,7 +394,7 @@ static void writeSeiPictureTiming(AL_TBitStreamLite* pBS, AL_TSps const* pISps, 
   {
     AL_BitStreamLite_PutU(pBS, 4, iPicStruct);
 
-    assert(iPicStruct <= 8 && iPicStruct >= 0);
+    AL_Assert(iPicStruct <= 8 && iPicStruct >= 0);
     AL_BitStreamLite_PutBits(pBS, PicStructToNumClockTS[iPicStruct], 0x0);
   }
 

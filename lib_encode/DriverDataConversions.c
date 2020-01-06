@@ -38,9 +38,9 @@
 #if __linux__
 
 #include "DriverDataConversions.h"
-#include "lib_rtos/types.h"
 #include <string.h>
-#include <assert.h>
+
+#include "lib_rtos/types.h"
 
 static void write(struct al5_params* msg, void* data, int size)
 {

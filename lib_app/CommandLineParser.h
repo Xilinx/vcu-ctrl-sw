@@ -210,7 +210,8 @@ struct CommandLineParser
     o.desc = makeDescription(name, "", desc_);
     o.parser = [=](std::string word)
                {
-                 assert(isOption(word));
+                 bool checkIsOption = isOption(word);
+                 assert(checkIsOption);
                  * flag = value;
                };
     insertOption(name, o);

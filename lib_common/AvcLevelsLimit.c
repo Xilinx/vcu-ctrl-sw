@@ -39,7 +39,7 @@
 #include "Utils.h"
 #include "LevelLimit.h"
 #include "BufConst.h"
-#include <assert.h>
+#include "lib_assert/al_assert.h"
 
 /****************************************************************************/
 bool AL_AVC_CheckLevel(int level)
@@ -203,8 +203,8 @@ static int getMaxDpbMBs(int iLevel)
 /******************************************************************************/
 uint32_t AL_AVC_GetMaxDPBSize(int iLevel, int iWidth, int iHeight)
 {
-  assert(iWidth);
-  assert(iHeight);
+  AL_Assert(iWidth);
+  AL_Assert(iHeight);
 
   int iMaxDpbMbs = getMaxDpbMBs(iLevel);
   int const iNumMbs = ((iWidth / 16) * (iHeight / 16));

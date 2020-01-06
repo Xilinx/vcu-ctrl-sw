@@ -129,8 +129,9 @@ static void setPass1GopSettings(AL_TGopParam& gop)
 }
 
 /***************************************************************************/
-void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings)
+void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings, AL_HANDLE hBaseHandle)
 {
+  (void)hBaseHandle;
   settings.NumLayer = 1;
   auto& channel = settings.tChParam[0];
   channel.bSubframeLatency = false;

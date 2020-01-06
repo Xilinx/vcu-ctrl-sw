@@ -45,8 +45,9 @@
 #include "HEVC_SkippedPict.h"
 #include "BitStreamLite.h"
 #include "Cabac.h"
+
 #include "lib_common/Utils.h"
-#include <assert.h>
+#include "lib_assert/al_assert.h"
 
 /****************************************************************************/
 
@@ -247,7 +248,7 @@ bool AL_HEVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iWidth, i
       iBinsCount = AL_sHEVC_GenerateSkippedTileCabac(&BS, bLastTile, iTileWidth, iTileHeight, uMaxCuSize, uMinCuSize, uTileNumLCU);
       iBitsCount = AL_BitStreamLite_GetBitsCount(&BS);
 
-      assert(((iBitsCount - iPrevBitsCount) % 8) == 0);
+      AL_Assert(((iBitsCount - iPrevBitsCount) % 8) == 0);
       pSkipPict->uTileSizes[iTile++] = (iBitsCount - iPrevBitsCount) / 8;
 
       iPrevBitsCount = iBitsCount;

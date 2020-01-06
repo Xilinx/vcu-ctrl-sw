@@ -68,15 +68,15 @@ typedef struct
 #if __linux__
 
 #include <stdio.h>
-#include <assert.h>
 #include <string.h> // strerrno, strlen, strcpy
 #include <errno.h>
 
 #include <unistd.h> // for close
 
-#include "lib_fpga/DmaAllocLinux.h"
 #include "allegro_ioctl_mcu_enc.h"
 #include "DriverDataConversions.h"
+#include "lib_fpga/DmaAllocLinux.h"
+#include "lib_assert/al_assert.h"
 
 static void* WaitForStatus(void* p);
 
@@ -130,7 +130,7 @@ static AL_ERR API_CreateChannel(AL_HANDLE* hChannel, AL_IEncScheduler* pSchedule
     goto fail;
   }
 
-  assert(!AL_IS_ERROR_CODE(msg.status.error_code));
+  AL_Assert(!AL_IS_ERROR_CODE(msg.status.error_code));
 
   setCallbacks(chan, pCBs);
   chan->shouldContinue = 1;
@@ -260,7 +260,7 @@ static bool getStatusMsg(Channel* chan, struct al5_params* msg)
 
 static void processStatusMsg(Channel* chan, struct al5_params* msg)
 {
-  assert(msg->size >= sizeof(AL_PTR64));
+  AL_Assert(msg->size >= sizeof(AL_PTR64));
   AL_PTR64 streamBufferPtr;
   Rtos_Memcpy(&streamBufferPtr, msg->opaque_params, sizeof(AL_PTR64));
   AL_TEncPicStatus* pStatus = NULL;
@@ -268,7 +268,7 @@ static void processStatusMsg(Channel* chan, struct al5_params* msg)
 
   if(msg->size > sizeof(AL_PTR64))
   {
-    assert(msg->size == sizeof(AL_PTR64) + sizeof(AL_TEncPicStatus));
+    AL_Assert(msg->size == sizeof(AL_PTR64) + sizeof(AL_TEncPicStatus));
     Rtos_Memcpy(&status, (char*)msg->opaque_params + sizeof(AL_PTR64), sizeof(status));
     pStatus = &status;
   }
@@ -324,7 +324,7 @@ static void createPutStreamMsg(struct al5_buffer* msg, AL_TBuffer* streamBuffer,
 
 static void API_PutStreamBuffer(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuffer* streamBuffer, AL_64U streamUserPtr, uint32_t uOffset)
 {
-  assert(streamBuffer);
+  AL_Assert(streamBuffer);
   AL_TEncSchedulerMcu* scheduler = (AL_TEncSchedulerMcu*)pScheduler;
   Channel* chan = (Channel*)hChannel;
   struct al5_buffer driverBuffer;

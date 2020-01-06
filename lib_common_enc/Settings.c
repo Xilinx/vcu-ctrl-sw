@@ -43,11 +43,11 @@
    \file
  *****************************************************************************/
 
-#include <assert.h>
 #include <string.h>
 #include <stdio.h>
 
 #include "lib_rtos/lib_rtos.h"
+#include "lib_assert/al_assert.h"
 #include "lib_common_enc/Settings.h"
 #include "lib_common/ChannelResources.h"
 #include "lib_common/Utils.h"
@@ -61,7 +61,9 @@
 #include "lib_common/AvcLevelsLimit.h"
 #include "lib_common/HevcLevelsLimit.h"
 
-static int const HEVC_MAX_CU_SIZE = 5; // 32x32
+static int const HEVC_MAX_CTB_SIZE = 5; // 32x32
+static int const HEVC_MIN_CTB_SIZE = 5; // 32x32
+
 static int const AVC_MAX_CU_SIZE = 4; // 16x16
 static int const MIN_CU_SIZE = AL_MIN_SUPPORTED_LCU_SIZE; // 8x8
 
@@ -162,7 +164,7 @@ static int AL_sSettings_GetCpbVclFactor(AL_EProfile eProfile)
 /****************************************************************************/
 static int AL_sSettings_GetHbrFactor(AL_EProfile eProfile)
 {
-  assert(AL_IS_HEVC(eProfile));
+  AL_Assert(AL_IS_HEVC(eProfile));
 
   if(AL_GET_PROFILE_CODEC_AND_IDC(eProfile) != AL_PROFILE_HEVC_RExt)
     return 1;
@@ -466,7 +468,7 @@ void AL_Settings_SetDefaultRCParam(AL_TRCParam* pRCParam)
 /***************************************************************************/
 void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 {
-  assert(pSettings);
+  AL_Assert(pSettings);
   Rtos_Memset(pSettings, 0, sizeof(*pSettings));
 
   AL_TEncChanParam* pChan = &pSettings->tChParam[0];
@@ -512,7 +514,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pSettings->eQpCtrlMode = AL_QP_CTRL_NONE;
   pSettings->eQpTableMode = AL_QP_TABLE_NONE;
   pChan->eLdaCtrlMode = AL_AUTO_LDA;
-  assert(sizeof(pChan->LdaFactors) == sizeof(LAMBDA_FACTORS));
+  AL_Assert(sizeof(pChan->LdaFactors) == sizeof(LAMBDA_FACTORS));
   Rtos_Memcpy(pChan->LdaFactors, LAMBDA_FACTORS, sizeof(LAMBDA_FACTORS));
 
   pSettings->eScalingList = AL_SCL_MAX_ENUM;
@@ -522,7 +524,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pChan->pMeRange[AL_SLICE_P][1] = -1; // Vert
   pChan->pMeRange[AL_SLICE_B][0] = -1; // Horz
   pChan->pMeRange[AL_SLICE_B][1] = -1; // Vert
-  pChan->uMaxCuSize = HEVC_MAX_CU_SIZE;
+  pChan->uMaxCuSize = HEVC_MAX_CTB_SIZE;
   pChan->uMinCuSize = MIN_CU_SIZE;
   pChan->uMaxTuSize = 5; // 32x32
   pChan->uMinTuSize = 2; // 4x4
@@ -616,7 +618,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     MSG("Invalid parameter: MinCuSize");
   }
 
-  bool bHEVCCuSupported = pChParam->uMaxCuSize == HEVC_MAX_CU_SIZE;
+  bool bHEVCCuSupported = pChParam->uMaxCuSize == HEVC_MIN_CTB_SIZE;
 
   if(AL_IS_HEVC(pChParam->eProfile) && !bHEVCCuSupported)
   {
@@ -890,7 +892,7 @@ static uint32_t GetHevcMaxTileRow(uint8_t uLevel)
     return 22;
   default:
     printf("level:%d\n", uLevel);
-    assert(0);
+    AL_Assert(0);
     return 1;
   }
 }
@@ -947,7 +949,7 @@ AL_EProfile getHevcMinimumProfile(int iBitDepth, AL_EChromaMode eChroma)
     case AL_CHROMA_4_0_0: return AL_PROFILE_HEVC_MONO;
     case AL_CHROMA_4_2_0: return AL_PROFILE_HEVC_MAIN;
     case AL_CHROMA_4_2_2: return AL_PROFILE_HEVC_MAIN_422;
-    default: assert(0);
+    default: AL_Assert(0);
     }
   }
   case 10:
@@ -956,11 +958,11 @@ AL_EProfile getHevcMinimumProfile(int iBitDepth, AL_EChromaMode eChroma)
     case AL_CHROMA_4_0_0: return AL_PROFILE_HEVC_MONO10;
     case AL_CHROMA_4_2_0: return AL_PROFILE_HEVC_MAIN10;
     case AL_CHROMA_4_2_2: return AL_PROFILE_HEVC_MAIN_422_10;
-    default: assert(0);
+    default: AL_Assert(0);
     }
 
   default:
-    assert(0);
+    AL_Assert(0);
   }
 
   return AL_PROFILE_HEVC;
@@ -978,7 +980,7 @@ AL_EProfile getAvcMinimumProfile(int iBitDepth, AL_EChromaMode eChroma)
     case AL_CHROMA_4_0_0: return AL_PROFILE_AVC_HIGH;
     case AL_CHROMA_4_2_0: return AL_PROFILE_AVC_C_BASELINE;
     case AL_CHROMA_4_2_2: return AL_PROFILE_AVC_HIGH_422;
-    default: assert(0);
+    default: AL_Assert(0);
     }
   }
   case 10:
@@ -988,14 +990,14 @@ AL_EProfile getAvcMinimumProfile(int iBitDepth, AL_EChromaMode eChroma)
     case AL_CHROMA_4_0_0: return AL_PROFILE_AVC_HIGH10;
     case AL_CHROMA_4_2_0: return AL_PROFILE_AVC_HIGH10;
     case AL_CHROMA_4_2_2: return AL_PROFILE_AVC_HIGH_422;
-    default: assert(0);
+    default: AL_Assert(0);
     }
   }
   default:
-    assert(0);
+    AL_Assert(0);
   }
 
-  assert(0);
+  AL_Assert(0);
 
   return AL_PROFILE_AVC;
 }
@@ -1008,7 +1010,7 @@ AL_EProfile getMinimumProfile(AL_ECodec eCodec, int iBitDepth, AL_EChromaMode eC
   case AL_CODEC_AVC: return getAvcMinimumProfile(iBitDepth, eChromaMode);
   case AL_CODEC_HEVC: return getHevcMinimumProfile(iBitDepth, eChromaMode);
   default:
-    assert(0);
+    AL_Assert(0);
   }
 
   return AL_PROFILE_UNKNOWN;
@@ -1017,7 +1019,7 @@ AL_EProfile getMinimumProfile(AL_ECodec eCodec, int iBitDepth, AL_EChromaMode eC
 /***************************************************************************/
 int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pChParam, TFourCC tFourCC, FILE* pOut)
 {
-  assert(pSettings);
+  AL_Assert(pSettings);
 
   int numIncoherency = 0;
 
@@ -1358,7 +1360,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
   if(pChParam->eVideoMode != AL_VM_PROGRESSIVE)
   {
-    assert(AL_IS_HEVC(pChParam->eProfile));
+    AL_Assert(AL_IS_HEVC(pChParam->eProfile));
     pSettings->uEnableSEI |= AL_SEI_PT;
   }
 

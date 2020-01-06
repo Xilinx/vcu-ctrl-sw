@@ -38,6 +38,8 @@
 #include "Sections.h"
 #include "NalWriters.h"
 
+#include <stdio.h>
+
 #include "lib_common/SeiInternal.h"
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/Utils.h"
@@ -45,13 +47,12 @@
 #include "lib_bitstream/AVC_RbspEncod.h"
 #include "lib_bitstream/HEVC_RbspEncod.h"
 
-#include <assert.h>
-#include <stdio.h>
+#include "lib_assert/al_assert.h"
 
 static void AddSection(AL_TStreamMetaData* pMeta, uint32_t uOffset, uint32_t uLength, uint32_t uFlags)
 {
   int iSection = AL_StreamMetaData_AddSection(pMeta, uOffset, uLength, uFlags);
-  assert(iSection >= 0);
+  AL_Assert(iSection >= 0);
 }
 
 static int getBytesOffset(AL_TBitStreamLite* pStream)
@@ -96,7 +97,7 @@ static void GenerateNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, int b
   int size = WriteNal(writer, bitstream, bitstreamSize, nal);
   /* we should always be able to write the configuration nals as we reserved
    * enough space for them */
-  assert(size >= 0);
+  AL_Assert(size >= 0);
   AddSection(pMeta, start, size, uFlags);
 }
 
@@ -209,7 +210,7 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, const AL_TNalsData* pN
 
     if(pNalsData != NULL && AL_HAS_SEI_PREFIX(pNalsData->seiFlags))
     {
-      assert(pNalsData->seiFlags != AL_SEI_NONE);
+      AL_Assert(pNalsData->seiFlags != AL_SEI_NONE);
 
       uint32_t const uFlags = generateSeiFlags(pPicStatus, bWriteSPS) & pNalsData->seiFlags;
       bool bIsBufferingPeriodOrPictureTiming = ((uFlags & (AL_SEI_BP | AL_SEI_PT)) != 0);
@@ -329,8 +330,8 @@ uint32_t getUserSeiPrefixOffset(AL_TStreamMetaData* pStreamMeta)
 int AL_WriteSeiSection(AL_ECodec eCodec, AL_TNuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId)
 {
   AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
-  assert(pMetaData);
-  assert(iPayloadType >= 0);
+  AL_Assert(pMetaData);
+  AL_Assert(iPayloadType >= 0);
 
   uint32_t uOffset = isPrefix ? getUserSeiPrefixOffset(pMetaData) : AL_StreamMetaData_GetUnusedStreamPart(pMetaData);
 

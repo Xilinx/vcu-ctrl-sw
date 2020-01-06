@@ -35,8 +35,7 @@
 *
 ******************************************************************************/
 
-#include "assert.h"
-#include "lib_common/PixMapBufferInternal.h"
+#include "PixMapBufferInternal.h"
 #include "lib_common/BufferAPIInternal.h"
 
 AL_TBuffer* AL_PixMapBuffer_Create(AL_TAllocator* pAllocator, PFN_RefCount_CallBack pCallBack, AL_TDimension tDim, TFourCC tFourCC)

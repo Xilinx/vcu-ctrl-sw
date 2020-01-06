@@ -41,8 +41,6 @@
 #include "lib_common/AvcLevelsLimit.h"
 #include "lib_common/HevcLevelsLimit.h"
 
-#include <assert.h>
-
 /******************************************************************************/
 bool AL_NeedsCropping(AL_TCropInfo const* pInfo)
 {

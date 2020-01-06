@@ -35,11 +35,12 @@
 *
 ******************************************************************************/
 
-#include <assert.h>
-#include "lib_common/PixMapBufferInternal.h"
 #include "I_PictMngr.h"
+
+#include "lib_common/PixMapBufferInternal.h"
 #include "lib_decode/lib_decode.h"
 #include "lib_common_dec/IpDecFourCC.h"
+#include "lib_assert/al_assert.h"
 
 /*************************************************************************/
 static AL_TBuffer* sRecBuffers_GetDisplayBuffer(AL_TRecBuffers* tRecBuffers, AL_TFrmBufPool* pPool)
@@ -168,7 +169,7 @@ static void AddBufferToFifo(AL_TFrmBufPool* pPool, int iFrameID, AL_TRecBuffers 
 /*************************************************************************/
 static void sFrmBufPoolFifo_PushBack(AL_TFrmBufPool* pPool, AL_TRecBuffers tRecBuffers)
 {
-  assert(sRecBuffers_AreNotNull(&tRecBuffers, pPool));
+  AL_Assert(sRecBuffers_AreNotNull(&tRecBuffers, pPool));
 
   Rtos_GetMutex(pPool->Mutex);
 
@@ -188,7 +189,7 @@ static void sFrmBufPoolFifo_PushBack(AL_TFrmBufPool* pPool, AL_TRecBuffers tRecB
   }
 
   Rtos_ReleaseMutex(pPool->Mutex);
-  assert(0);
+  AL_Assert(0);
 }
 
 /*************************************************************************/
@@ -228,10 +229,10 @@ static int sFrmBufPoolFifo_Pop(AL_TFrmBufPool* pPool)
     Rtos_GetMutex(pPool->Mutex);
   }
 
-  assert(pPool->iFifoHead != -1);
-  assert(sRecBuffers_AreNotNull(&pPool->array[pPool->iFifoHead].tRecBuffers, pPool));
-  assert(pPool->array[pPool->iFifoHead].iAccessCnt == 0);
-  assert(pPool->array[pPool->iFifoHead].bWillBeOutputed == false);
+  AL_Assert(pPool->iFifoHead != -1);
+  AL_Assert(sRecBuffers_AreNotNull(&pPool->array[pPool->iFifoHead].tRecBuffers, pPool));
+  AL_Assert(pPool->array[pPool->iFifoHead].iAccessCnt == 0);
+  AL_Assert(pPool->array[pPool->iFifoHead].bWillBeOutputed == false);
 
   sRecBuffers_CleanUp(&pPool->array[pPool->iFifoHead].tRecBuffers, pPool);
   pPool->array[pPool->iFifoHead].eError = AL_SUCCESS;
@@ -255,12 +256,12 @@ static void sFrmBufPoolFifo_Decommit(AL_TFrmBufPool* pPool)
 static void sFrmBufPool_RemoveID(AL_TFrmBufPool* pPool, int iFrameID)
 {
   Rtos_GetMutex(pPool->Mutex);
-  assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
+  AL_Assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
   AL_TFrameFifo* pFrame = &pPool->array[iFrameID];
 
-  assert(sRecBuffers_AreNotNull(&pFrame->tRecBuffers, pPool));
-  assert(pFrame->iNext == -1);
-  assert(pFrame->iAccessCnt == 0);
+  AL_Assert(sRecBuffers_AreNotNull(&pFrame->tRecBuffers, pPool));
+  AL_Assert(pFrame->iNext == -1);
+  AL_Assert(pFrame->iAccessCnt == 0);
 
   sRecBuffers_Reset(&pFrame->tRecBuffers);
   pFrame->iAccessCnt = -1;
@@ -273,8 +274,8 @@ static void sFrmBufPool_RemoveID(AL_TFrmBufPool* pPool, int iFrameID)
 /*************************************************************************/
 static AL_TRecBuffers sFrmBufPool_GetBufferFromID(AL_TFrmBufPool* pPool, int iFrameID)
 {
-  assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
-  assert(sRecBuffers_AreNotNull(&pPool->array[iFrameID].tRecBuffers, pPool));
+  AL_Assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
+  AL_Assert(sRecBuffers_AreNotNull(&pPool->array[iFrameID].tRecBuffers, pPool));
   return pPool->array[iFrameID].tRecBuffers;
 }
 
@@ -330,9 +331,9 @@ static void sFrmBufPool_Deinit(AL_TFrmBufPool* pPool)
 static void sFrmBufPool_DecrementBufID(AL_TFrmBufPool* pPool, int iFrameID, bool bForceOutput)
 {
   Rtos_GetMutex(pPool->Mutex);
-  assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
+  AL_Assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
   AL_TFrameFifo* pFrame = &pPool->array[iFrameID];
-  assert(pFrame->iAccessCnt >= 1);
+  AL_Assert(pFrame->iAccessCnt >= 1);
   pFrame->iAccessCnt--;
 
   if(pFrame->iAccessCnt == 0 && !pFrame->bOutEarly)
@@ -344,7 +345,7 @@ static void sFrmBufPool_DecrementBufID(AL_TFrmBufPool* pPool, int iFrameID, bool
 
     if((!bWillBeOutputed && !bForceOutput) || (!bOutEarly && bForceOutput))
     {
-      assert(sFrmBufPoolFifo_IsInFifo(pPool, sRecBuffers_GetDisplayBuffer(&tBuffers, pPool)) == false);
+      AL_Assert(sFrmBufPoolFifo_IsInFifo(pPool, sRecBuffers_GetDisplayBuffer(&tBuffers, pPool)) == false);
       sFrmBufPoolFifo_PushBack(pPool, tBuffers);
     }
     else
@@ -358,9 +359,9 @@ static void sFrmBufPool_DecrementBufID(AL_TFrmBufPool* pPool, int iFrameID, bool
 static void sFrmBufPool_OutputBufID(AL_TFrmBufPool* pPool, int iFrameID)
 {
   Rtos_GetMutex(pPool->Mutex);
-  assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
+  AL_Assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
   AL_TFrameFifo* pFrame = &pPool->array[iFrameID];
-  assert(pFrame->bWillBeOutputed == false);
+  AL_Assert(pFrame->bWillBeOutputed == false);
   pFrame->bWillBeOutputed = true;
   Rtos_ReleaseMutex(pPool->Mutex);
 }
@@ -369,9 +370,9 @@ static void sFrmBufPool_OutputBufID(AL_TFrmBufPool* pPool, int iFrameID)
 static void sFrmBufPool_IncrementBufID(AL_TFrmBufPool* pPool, int iFrameID)
 {
   Rtos_GetMutex(pPool->Mutex);
-  assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
+  AL_Assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
   AL_TFrameFifo* pFrame = &pPool->array[iFrameID];
-  assert(pFrame->iAccessCnt >= 0);
+  AL_Assert(pFrame->iAccessCnt >= 0);
   pFrame->iAccessCnt++;
   Rtos_ReleaseMutex(pPool->Mutex);
 }
@@ -385,7 +386,7 @@ static void sFrmBufPool_Terminate(AL_TFrmBufPool* pPool)
 /*************************************************************************/
 static bool sMvBufPool_Init(AL_TMvBufPool* pPool, int iMaxBuf)
 {
-  assert(iMaxBuf <= MAX_DPB_SIZE);
+  AL_Assert(iMaxBuf <= MAX_DPB_SIZE);
 
   for(int i = 0; i < iMaxBuf; ++i)
   {
@@ -435,7 +436,7 @@ static uint8_t sMvBufPool_GetFreeBufID(AL_TMvBufPool* pPool)
 
   Rtos_GetMutex(pPool->Mutex);
   uint8_t uMvID = pPool->pFreeIDs[--pPool->iFreeCnt];
-  assert(pPool->iAccessCnt[uMvID] == 0);
+  AL_Assert(pPool->iAccessCnt[uMvID] == 0);
   pPool->iAccessCnt[uMvID] = 1;
   Rtos_ReleaseMutex(pPool->Mutex);
 
@@ -445,7 +446,7 @@ static uint8_t sMvBufPool_GetFreeBufID(AL_TMvBufPool* pPool)
 /*************************************************************************/
 static void sMvBufPool_DecrementBufID(AL_TMvBufPool* pPool, uint8_t uMvID)
 {
-  assert(uMvID < MAX_DPB_SIZE);
+  AL_Assert(uMvID < MAX_DPB_SIZE);
 
   Rtos_GetMutex(pPool->Mutex);
 
@@ -468,7 +469,7 @@ static void sMvBufPool_DecrementBufID(AL_TMvBufPool* pPool, uint8_t uMvID)
 /*************************************************************************/
 static void sMvBufPool_IncrementBufID(AL_TMvBufPool* pPool, int iMvID)
 {
-  assert(iMvID < FRM_BUF_POOL_SIZE);
+  AL_Assert(iMvID < FRM_BUF_POOL_SIZE);
   Rtos_GetMutex(pPool->Mutex);
   Rtos_AtomicIncrement(&(pPool->iAccessCnt[iMvID]));
   Rtos_ReleaseMutex(pPool->Mutex);
@@ -487,7 +488,7 @@ static void sMvBufPool_Terminate(AL_TMvBufPool* pPool)
 /*************************************************************************/
 static void sPictMngr_DecrementFrmBuf(void* pUserParam, int iFrameID)
 {
-  assert(pUserParam);
+  AL_Assert(pUserParam);
   AL_TPictMngrCtx* pCtx = (AL_TPictMngrCtx*)pUserParam;
   sFrmBufPool_DecrementBufID(&pCtx->FrmBufPool, iFrameID, pCtx->bForceOutput);
 }
@@ -495,7 +496,7 @@ static void sPictMngr_DecrementFrmBuf(void* pUserParam, int iFrameID)
 /*************************************************************************/
 static void sPictMngr_IncrementFrmBuf(void* pUserParam, int iFrameID)
 {
-  assert(pUserParam);
+  AL_Assert(pUserParam);
   AL_TPictMngrCtx* pCtx = (AL_TPictMngrCtx*)pUserParam;
   sFrmBufPool_IncrementBufID(&pCtx->FrmBufPool, iFrameID);
 }
@@ -503,7 +504,7 @@ static void sPictMngr_IncrementFrmBuf(void* pUserParam, int iFrameID)
 /*************************************************************************/
 static void sPictMngr_OutputFrmBuf(void* pUserParam, int iFrameID)
 {
-  assert(pUserParam);
+  AL_Assert(pUserParam);
   AL_TPictMngrCtx* pCtx = (AL_TPictMngrCtx*)pUserParam;
   sFrmBufPool_OutputBufID(&pCtx->FrmBufPool, iFrameID);
 }
@@ -511,7 +512,7 @@ static void sPictMngr_OutputFrmBuf(void* pUserParam, int iFrameID)
 /*************************************************************************/
 static void sPictMngr_IncrementMvBuf(void* pUserParam, uint8_t uMvID)
 {
-  assert(pUserParam);
+  AL_Assert(pUserParam);
   AL_TPictMngrCtx* pCtx = (AL_TPictMngrCtx*)pUserParam;
   sMvBufPool_IncrementBufID(&pCtx->MvBufPool, uMvID);
 }
@@ -519,7 +520,7 @@ static void sPictMngr_IncrementMvBuf(void* pUserParam, uint8_t uMvID)
 /*************************************************************************/
 static void sPictMngr_DecrementMvBuf(void* pUserParam, uint8_t uMvID)
 {
-  assert(pUserParam);
+  AL_Assert(pUserParam);
   AL_TPictMngrCtx* pCtx = (AL_TPictMngrCtx*)pUserParam;
   sMvBufPool_DecrementBufID(&pCtx->MvBufPool, uMvID);
 }
@@ -673,7 +674,7 @@ bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, AL_TDimension tDim)
     return false;
 
   pCtx->uMvID = sMvBufPool_GetFreeBufID(&pCtx->MvBufPool);
-  assert(pCtx->uMvID != UndefID);
+  AL_Assert(pCtx->uMvID != UndefID);
 
   AL_TRecBuffers tBuffers = sFrmBufPool_GetBufferFromID(&pCtx->FrmBufPool, pCtx->uRecID);
 
@@ -687,9 +688,9 @@ static void sFrmBufPool_SignalCallbackReleaseIsDone(AL_TFrmBufPool* pPool, AL_TB
 {
   Rtos_GetMutex(pPool->Mutex);
   int const iFrameID = sFrmBufPool_GetFrameIDFromDisplay(pPool, pReleasedFrame);
-  assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
-  assert(sFrmBufPoolFifo_IsInFifo(pPool, pReleasedFrame) == false);
-  assert(pPool->array[iFrameID].bWillBeOutputed || pPool->array[iFrameID].bOutEarly);
+  AL_Assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
+  AL_Assert(sFrmBufPoolFifo_IsInFifo(pPool, pReleasedFrame) == false);
+  AL_Assert(pPool->array[iFrameID].bWillBeOutputed || pPool->array[iFrameID].bOutEarly);
   pPool->array[iFrameID].bWillBeOutputed = false;
   sFrmBufPool_RemoveID(pPool, iFrameID);
   AL_Buffer_Unref(pReleasedFrame);
@@ -749,28 +750,28 @@ void AL_PictMngr_Insert(AL_TPictMngrCtx* pCtx, int iFramePOC, uint32_t uPocLsb, 
 /***************************************************************************/
 static void sFrmBufPool_UpdateCRC(AL_TFrmBufPool* pPool, int iFrameID, uint32_t uCRC)
 {
-  assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
+  AL_Assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
   pPool->array[iFrameID].uCRC = uCRC;
 }
 
 /***************************************************************************/
 static void sFrmBufPool_UpdateCrop(AL_TFrmBufPool* pPool, int iFrameID, AL_TCropInfo tCrop)
 {
-  assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
+  AL_Assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
   pPool->array[iFrameID].tCrop = tCrop;
 }
 
 /***************************************************************************/
 static void sFrmBufPool_UpdatePicStruct(AL_TFrmBufPool* pPool, int iFrameID, AL_EPicStruct ePicStruct)
 {
-  assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
+  AL_Assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
   pPool->array[iFrameID].ePicStruct = ePicStruct;
 }
 
 /***************************************************************************/
 static void sFrmBufPool_UpdateError(AL_TFrmBufPool* pPool, int iFrameID, AL_ERR error)
 {
-  assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
+  AL_Assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
   pPool->array[iFrameID].eError = error;
 }
 
@@ -814,10 +815,10 @@ void AL_PictMngr_UnlockID(AL_TPictMngrCtx* pCtx, int iFrameID, int iMotionVector
 /***************************************************************************/
 static void sFrmBufPool_GetInfoDecode(AL_TFrmBufPool* pPool, int iFrameID, AL_TInfoDecode* pInfo, AL_EFbStorageMode eFbStorageMode, int iBitdepth, bool bDisplayInfo)
 {
-  assert(pInfo);
+  AL_Assert(pInfo);
 
   AL_TRecBuffers tBuffers = sFrmBufPool_GetBufferFromID(pPool, iFrameID);
-  assert(sRecBuffers_AreNotNull(&tBuffers, pPool));
+  AL_Assert(sRecBuffers_AreNotNull(&tBuffers, pPool));
 
   AL_TBuffer* pBuf = bDisplayInfo ? sRecBuffers_GetDisplayBuffer(&tBuffers, pPool) : tBuffers.pFrame;
 
@@ -828,7 +829,7 @@ static void sFrmBufPool_GetInfoDecode(AL_TFrmBufPool* pPool, int iFrameID, AL_TI
   pInfo->eFbStorageMode = eFbStorageMode;
   pInfo->ePicStruct = pPool->array[iFrameID].ePicStruct;
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
-  assert(tFourCC != 0);
+  AL_Assert(tFourCC != 0);
   AL_EChromaMode eChromaMode = AL_GetChromaMode(tFourCC);
   pInfo->bChroma = (eChromaMode != AL_CHROMA_MONO);
 }
@@ -852,7 +853,7 @@ static AL_TBuffer* AL_PictMngr_GetDisplayBuffer2(AL_TPictMngrCtx* pCtx, AL_TInfo
 /***************************************************************************/
 AL_TBuffer* AL_PictMngr_ForceDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo, int iFrameID)
 {
-  assert(pCtx->bForceOutput);
+  AL_Assert(pCtx->bForceOutput);
   AL_TFrmBufPool* pPool = &pCtx->FrmBufPool;
   Rtos_GetMutex(pPool->Mutex);
   AL_TFrameFifo* pFrame = &pPool->array[iFrameID];
@@ -874,7 +875,7 @@ AL_TBuffer* AL_PictMngr_GetDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* 
 static void sPictMngr_ReleaseDisplayBuffer(AL_TFrmBufPool* pPool, int iFrameID)
 {
   Rtos_GetMutex(pPool->Mutex);
-  assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
+  AL_Assert(iFrameID >= 0 && iFrameID < FRM_BUF_POOL_SIZE);
 
   AL_TFrameFifo* pFrame = &pPool->array[iFrameID];
 
@@ -887,7 +888,7 @@ static void sPictMngr_ReleaseDisplayBuffer(AL_TFrmBufPool* pPool, int iFrameID)
       pFrame->bWillBeOutputed = false;
       AL_TRecBuffers pBuffers = sFrmBufPool_GetBufferFromID(pPool, iFrameID);
       sFrmBufPool_RemoveID(pPool, iFrameID);
-      assert(sFrmBufPoolFifo_IsInFifo(pPool, sRecBuffers_GetDisplayBuffer(&pBuffers, pPool)) == false);
+      AL_Assert(sFrmBufPoolFifo_IsInFifo(pPool, sRecBuffers_GetDisplayBuffer(&pBuffers, pPool)) == false);
       sFrmBufPoolFifo_PushBack(pPool, pBuffers);
     }
 
@@ -895,7 +896,7 @@ static void sPictMngr_ReleaseDisplayBuffer(AL_TFrmBufPool* pPool, int iFrameID)
     return;
   }
 
-  assert(pFrame->bWillBeOutputed == true);
+  AL_Assert(pFrame->bWillBeOutputed == true);
 
   pFrame->bWillBeOutputed = false;
 
@@ -903,7 +904,7 @@ static void sPictMngr_ReleaseDisplayBuffer(AL_TFrmBufPool* pPool, int iFrameID)
   {
     AL_TRecBuffers pBuffers = sFrmBufPool_GetBufferFromID(pPool, iFrameID);
     sFrmBufPool_RemoveID(pPool, iFrameID);
-    assert(sFrmBufPoolFifo_IsInFifo(pPool, sRecBuffers_GetDisplayBuffer(&pBuffers, pPool)) == false);
+    AL_Assert(sFrmBufPoolFifo_IsInFifo(pPool, sRecBuffers_GetDisplayBuffer(&pBuffers, pPool)) == false);
     sFrmBufPoolFifo_PushBack(pPool, pBuffers);
   }
 
@@ -913,7 +914,7 @@ static void sPictMngr_ReleaseDisplayBuffer(AL_TFrmBufPool* pPool, int iFrameID)
 /*************************************************************************/
 AL_TBuffer* AL_PictMngr_GetDisplayBufferFromID(AL_TPictMngrCtx* pCtx, int iFrameID)
 {
-  assert(pCtx);
+  AL_Assert(pCtx);
 
   AL_TRecBuffers tRecBuffers = sFrmBufPool_GetBufferFromID(&pCtx->FrmBufPool, iFrameID);
   return sRecBuffers_GetDisplayBuffer(&tRecBuffers, &pCtx->FrmBufPool);
@@ -922,7 +923,7 @@ AL_TBuffer* AL_PictMngr_GetDisplayBufferFromID(AL_TPictMngrCtx* pCtx, int iFrame
 /*************************************************************************/
 AL_TBuffer* AL_PictMngr_GetRecBufferFromID(AL_TPictMngrCtx* pCtx, int iFrameID)
 {
-  assert(pCtx);
+  AL_Assert(pCtx);
 
   AL_TRecBuffers tRecBuffers = sFrmBufPool_GetBufferFromID(&pCtx->FrmBufPool, iFrameID);
   return tRecBuffers.pFrame;
@@ -935,7 +936,7 @@ static AL_TBuffer* sFrmBufPool_GetRecBufferFromDisplayBuffer(AL_TFrmBufPool* pPo
 
   Rtos_GetMutex(pPool->Mutex);
 
-  assert(pDisplayBuf);
+  AL_Assert(pDisplayBuf);
 
   *iFrameID = sFrmBufPool_GetFrameIDFromDisplay(pPool, pDisplayBuf);
 
@@ -998,7 +999,7 @@ static void sFrmBufPool_PutDisplayBuffer(AL_TFrmBufPool* pPool, AL_TBuffer* pBuf
 {
   Rtos_GetMutex(pPool->Mutex);
 
-  assert(pBuf);
+  AL_Assert(pBuf);
 
   int const iFrameID = sFrmBufPool_GetFrameIDFromDisplay(pPool, pBuf);
 
@@ -1054,12 +1055,12 @@ static AL_TBuffer* sFrmBufPoolFifo_FlushOneDisplayBuffer(AL_TFrmBufPool* pPool)
     return NULL;
   }
 
-  assert(iFifoHead != -1);
+  AL_Assert(iFifoHead != -1);
   AL_TFrameFifo* headBuf = &pPool->array[iFifoHead];
-  assert(headBuf->iAccessCnt == 0);
+  AL_Assert(headBuf->iAccessCnt == 0);
 
   if(!headBuf->bOutEarly)
-    assert(headBuf->bWillBeOutputed == false);
+    AL_Assert(headBuf->bWillBeOutputed == false);
 
   int const iFrameID = RemoveBufferFromFifo(pPool);
   AL_TFrameFifo* removedBuf = &pPool->array[iFrameID];

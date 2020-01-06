@@ -84,8 +84,6 @@ typedef AL_64U AL_PTR64;
 typedef uint32_t AL_ERR;
 typedef void* AL_HANDLE;
 
-#define AL_MAX_NUM_CPB 32
-#define AL_MAX_NUM_VIEW 1
 #define AL_MAX_NUM_REF 16
 #define AL_MAX_NUM_B_PICT 15
 

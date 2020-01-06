@@ -43,7 +43,12 @@
    \file
  *****************************************************************************/
 
-#include <assert.h>
+#include "SliceDataParsing.h"
+#include "I_DecoderCtx.h"
+#include "FrameParam.h"
+
+#include "lib_decode/lib_decode.h"
+#include "lib_decode/I_DecScheduler.h"
 
 #include "lib_common/PixMapBufferInternal.h"
 #include "lib_common/BufferHandleMeta.h"
@@ -56,11 +61,7 @@
 #include "lib_parsing/Avc_PictMngr.h"
 #include "lib_parsing/Hevc_PictMngr.h"
 
-#include "lib_decode/lib_decode.h"
-#include "lib_decode/I_DecScheduler.h"
-#include "SliceDataParsing.h"
-#include "I_DecoderCtx.h"
-#include "FrameParam.h"
+#include "lib_assert/al_assert.h"
 
 /******************************************************************************/
 static void setBufferHandle(const TBuffer* in, TBuffer* out)
@@ -101,7 +102,7 @@ static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecP
   AL_TBuffer* pRec = pCtx->pRecs.pFrame;
 
   uint16_t uPitch = AL_PixMapBuffer_GetPlanePitch(pRec, AL_PLANE_Y);
-  assert(uPitch != 0);
+  AL_Assert(uPitch != 0);
 
   uint32_t const u10BitsFlag = (iMaxBitDepth == 8) ? 0x00000000 : 0x80000000;
   pBufs->uPitch = uPitch | u10BitsFlag;
@@ -143,7 +144,7 @@ static AL_TDecPicBufferAddrs AL_SetBufferAddrs(AL_TDecCtx* pCtx)
   BufAddrs.pWP = pPictBuffers->tWP.tMD.uPhysicalAddr;
   BufAddrs.pStream = pPictBuffers->tStream.tMD.uPhysicalAddr;
 
-  assert(pPictBuffers->tStream.tMD.uSize > 0);
+  AL_Assert(pPictBuffers->tStream.tMD.uSize > 0);
   BufAddrs.uStreamSize = pPictBuffers->tStream.tMD.uSize;
   BufAddrs.uPitch = pPictBuffers->uPitch;
 

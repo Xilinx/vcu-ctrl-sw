@@ -383,7 +383,7 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   {
     pSPS->pcm_sample_bit_depth_luma_minus1 = AL_GET_BITDEPTH_LUMA(pChParam->ePicFormat) - 1;
     pSPS->pcm_sample_bit_depth_chroma_minus1 = AL_GET_BITDEPTH_CHROMA(pChParam->ePicFormat) - 1;
-    pSPS->log2_min_pcm_luma_coding_block_size_minus3 = pChParam->uMaxCuSize - 3;
+    pSPS->log2_min_pcm_luma_coding_block_size_minus3 = Min(pChParam->uMaxCuSize - 3, 2);
     pSPS->log2_diff_max_min_pcm_luma_coding_block_size = 0;
     pSPS->pcm_loop_filter_disabled_flag = (pChParam->eEncTools & AL_OPT_LF) ? 0 : 1;
   }

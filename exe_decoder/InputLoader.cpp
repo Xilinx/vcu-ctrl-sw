@@ -65,52 +65,52 @@ struct INalParser
 };
 
 /****************************************************************************/
-struct HevcParser : public INalParser
+struct HevcParser final : public INalParser
 {
-  int ReadNut(uint8_t* pBuf, uint32_t iSize, uint32_t& uCurOffset)
+  int ReadNut(uint8_t* pBuf, uint32_t iSize, uint32_t& uCurOffset) override
   {
     auto NUT = ((pBuf[uCurOffset % iSize] >> 1) & 0x3F);
     uCurOffset += 2; // nal header length is 2 bytes in HEVC
     return NUT;
   }
 
-  bool IsAUD(AL_ENut eNut)
+  bool IsAUD(AL_ENut eNut) override
   {
     return eNut == AL_HEVC_NUT_AUD;
   }
 
-  bool IsVcl(AL_ENut eNut)
+  bool IsVcl(AL_ENut eNut) override
   {
     return AL_HEVC_IsVcl(eNut);
   }
 
-  bool IsFD(AL_ENut eNut)
+  bool IsFD(AL_ENut eNut) override
   {
     return eNut == AL_HEVC_NUT_FD;
   }
 };
 
 /****************************************************************************/
-struct AvcParser : public INalParser
+struct AvcParser final : public INalParser
 {
-  int ReadNut(uint8_t* pBuf, uint32_t iSize, uint32_t& uCurOffset)
+  int ReadNut(uint8_t* pBuf, uint32_t iSize, uint32_t& uCurOffset) override
   {
     auto NUT = pBuf[uCurOffset % iSize] & 0x1F;
     uCurOffset += 1; // nal header length is 1 bytes in AVC
     return NUT;
   }
 
-  bool IsAUD(AL_ENut eNut)
+  bool IsAUD(AL_ENut eNut) override
   {
     return eNut == AL_AVC_NUT_AUD;
   }
 
-  bool IsVcl(AL_ENut eNut)
+  bool IsVcl(AL_ENut eNut) override
   {
     return AL_AVC_IsVcl(eNut);
   }
 
-  bool IsFD(AL_ENut eNut)
+  bool IsFD(AL_ENut eNut) override
   {
     return eNut == AL_AVC_NUT_FD;
   }
@@ -327,11 +327,7 @@ uint32_t SplitInput::ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream)
   AddSeiMetaData(pBufStream);
 
   if(nal.endOfFrame)
-  {
-    AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pBufStream, AL_META_TYPE_STREAM);
-    assert(pStreamMeta);
     AL_StreamMetaData_AddSection(pStreamMeta, 0, nal.numBytes, AL_SECTION_END_FRAME_FLAG);
-  }
 
   return nal.numBytes;
 }

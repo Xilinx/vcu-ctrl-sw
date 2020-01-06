@@ -42,11 +42,12 @@
    @{
    \file
  *****************************************************************************/
-#include <assert.h>
+#include "RbspParser.h"
 #include <string.h>
+
 #include "lib_common/Utils.h"
 #include "lib_common_dec/DecBuffers.h"
-#include "RbspParser.h"
+#include "lib_assert/al_assert.h"
 
 #define odd(a) ((a) & 1)
 #define even(a) (!odd(a))
@@ -266,7 +267,7 @@ bool rbsp_trailing_bits(AL_TRbspParser* pRP)
 /*****************************************************************************/
 uint8_t getbyte(AL_TRbspParser* pRP)
 {
-  assert(pRP->iTotalBitIndex % 8 == 0);
+  AL_Assert(pRP->iTotalBitIndex % 8 == 0);
 
   int byte_offset = (int)(pRP->iTotalBitIndex >> 3);
 
@@ -280,7 +281,7 @@ uint8_t getbyte(AL_TRbspParser* pRP)
     }
   }
 
-  assert(pRP->iTotalBitIndex <= pRP->iTrailingBitOneIndex);
+  AL_Assert(pRP->iTotalBitIndex <= pRP->iTrailingBitOneIndex);
 
   pRP->iTotalBitIndex += 8;
   ++(pRP->pByte);

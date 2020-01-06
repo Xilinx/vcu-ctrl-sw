@@ -43,9 +43,9 @@
    \file
  *****************************************************************************/
 
-#include "assert.h"
 #include "Utils.h"
 #include "lib_rtos/lib_rtos.h"
+#include "lib_assert/al_assert.h"
 
 /***************************************************************************/
 static const uint8_t tab_ceil_log2[] =
@@ -64,7 +64,7 @@ static const uint8_t tab_ceil_log2[] =
 int ceil_log2(uint16_t n)
 {
   int v = 0;
-  assert(n > 0);
+  AL_Assert(n > 0);
 
   if(n < 32)
     return tab_ceil_log2[n];

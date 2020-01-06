@@ -35,19 +35,18 @@
 *
 ******************************************************************************/
 
-#include <assert.h>
+#include "SliceHdrParsing.h"
 
-#include "lib_rtos/lib_rtos.h"
+#include "HevcParser.h"
+#include "lib_common/HevcUtils.h"
+#include "lib_common/AvcUtils.h"
 
 #include "lib_common/SliceConsts.h"
 #include "lib_common/Utils.h"
 #include "lib_common_dec/RbspParser.h"
 
-#include "SliceHdrParsing.h"
-
-#include "lib_common/AvcUtils.h"
-#include "lib_common/HevcUtils.h"
-#include "HevcParser.h"
+#include "lib_rtos/lib_rtos.h"
+#include "lib_assert/al_assert.h"
 
 /***************************************************************************/
 /*   A V C   S L I C E   H E A D E R   P A R S I N G   f u n c t i o n s   */
@@ -452,7 +451,7 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
   }
 
   if(pPps->num_slice_groups_minus1 > 0 && pPps->slice_group_map_type >= 3 && pPps->slice_group_map_type <= 5)
-    assert(0);
+    AL_Assert(0);
   pConceal->iFirstLCU = pSlice->first_mb_in_slice;
   return true;
 }

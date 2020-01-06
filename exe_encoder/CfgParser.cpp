@@ -258,6 +258,7 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
 
 #if AL_ENABLE_CUTREE // Disable for quality models delivery for now
   parser.addBool(curSection, "CuTree", RCParam.bEnableCuTree, "Enable the CU Tree");
+  parser.addArith(curSection, "CuTree.Strength", RCParam.iCuTreeStrength, "Strength of the CU Tree algorithm");
 #endif
 }
 

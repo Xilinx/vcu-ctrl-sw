@@ -44,7 +44,6 @@
  *****************************************************************************/
 
 #include <string.h>
-#include <assert.h>
 #include <stdio.h>
 
 #include "DefaultDecoder.h"
@@ -68,6 +67,8 @@
 #include "lib_parsing/I_PictMngr.h"
 #include "lib_decode/I_DecScheduler.h"
 #include "lib_common_dec/DecHook.h"
+
+#include "lib_assert/al_assert.h"
 
 #define TraceRecordEnd(pTraceHooks, unit) \
   do { \
@@ -246,7 +247,7 @@ static void AL_sDecoder_CallEndParsing(AL_TDecCtx* pCtx, AL_TBuffer* pParsedFram
 static void AL_sDecoder_CallDecode(AL_TDecCtx* pCtx, int iFrameID)
 {
   AL_TBuffer* pDecodedFrame = AL_PictMngr_GetDisplayBufferFromID(&pCtx->PictMngr, iFrameID);
-  assert(pDecodedFrame);
+  AL_Assert(pDecodedFrame);
 
   AL_THandleMetaData* pHandlesMeta = (AL_THandleMetaData*)AL_Buffer_GetMetaData(pDecodedFrame, AL_META_TYPE_HANDLE);
 
@@ -274,7 +275,7 @@ static void AL_sDecoder_CallDisplay(AL_TDecCtx* pCtx)
     if(!pFrameToDisplay)
       break;
 
-    assert(AL_Buffer_GetData(pFrameToDisplay));
+    AL_Assert(AL_Buffer_GetData(pFrameToDisplay));
 
     if(!pCtx->pChanParam->bUseEarlyCallback)
       pCtx->displayCB.func(pFrameToDisplay, &pInfo, pCtx->displayCB.userParam);
@@ -298,7 +299,7 @@ void AL_Default_Decoder_EndParsing(void* pUserParam, int iFrameID)
     return;
 
   AL_TBuffer* pParsedFrame = AL_PictMngr_GetDisplayBufferFromID(&pCtx->PictMngr, iFrameID);
-  assert(pParsedFrame);
+  AL_Assert(pParsedFrame);
 
   AL_sDecoder_CallEndParsing(pCtx, pParsedFrame);
 }
@@ -309,7 +310,7 @@ void AL_Default_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus)
   if(AL_DEC_IS_PIC_STATE_ENABLED(pStatus->tDecPicState, AL_DEC_PIC_STATE_CMD_INVALID))
   {
     printf("\n***** /!\\ Error trying to conceal bitstream - ending decoding /!\\ *****\n");
-    assert(0);
+    AL_Assert(0);
   }
 
   AL_TDecCtx* pCtx = (AL_TDecCtx*)pUserParam;
@@ -319,11 +320,11 @@ void AL_Default_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus)
   {
     /* we want to notify the user, but we don't want to update the decoder state */
     AL_TBuffer* pDecodedFrame = AL_PictMngr_GetDisplayBufferFromID(&pCtx->PictMngr, iFrameID);
-    assert(pDecodedFrame);
+    AL_Assert(pDecodedFrame);
     pCtx->decodeCB.func(pDecodedFrame, pCtx->decodeCB.userParam);
     AL_TInfoDecode info = { 0 };
     AL_TBuffer* pFrameToDisplay = AL_PictMngr_ForceDisplayBuffer(&pCtx->PictMngr, &info, iFrameID);
-    assert(pFrameToDisplay);
+    AL_Assert(pFrameToDisplay);
     pCtx->displayCB.func(pFrameToDisplay, &info, pCtx->displayCB.userParam);
     AL_PictMngr_SignalCallbackDisplayIsDone(&pCtx->PictMngr);
     return;
@@ -433,7 +434,7 @@ static void ReleaseFramePictureUnused(AL_TDecCtx* pCtx)
     if(!pFrameToRelease)
       break;
 
-    assert(AL_Buffer_GetData(pFrameToRelease));
+    AL_Assert(AL_Buffer_GetData(pFrameToRelease));
 
     pCtx->displayCB.func(pFrameToRelease, NULL, pCtx->displayCB.userParam);
     AL_PictMngr_SignalCallbackReleaseIsDone(&pCtx->PictMngr, pFrameToRelease);
@@ -452,7 +453,7 @@ void AL_Default_Decoder_Destroy(AL_TDecoder* pAbsDec)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)pAbsDec;
   AL_TDecCtx* pCtx = &pDec->ctx;
-  assert(pCtx);
+  AL_Assert(pCtx);
 
   AL_PictMngr_DecommitPool(&pCtx->PictMngr);
 
@@ -578,7 +579,7 @@ static bool checkSeiUUID(uint8_t* pBufs, AL_TNal* pNal, AL_ECodec codec, int iTo
 /*****************************************************************************/
 static int getNumSliceInSei(uint8_t* pBufs, AL_TNal* pNal, AL_ECodec eCodec, int iTotalSize)
 {
-  assert(checkSeiUUID(pBufs, pNal, eCodec, iTotalSize));
+  AL_Assert(checkSeiUUID(pBufs, pNal, eCodec, iTotalSize));
   int const iStart = isAVC(eCodec) ? 6 : 7;
   int const iSize = sizeof(SEI_PREFIX_USER_DATA_UNREGISTERED_UUID) / sizeof(*SEI_PREFIX_USER_DATA_UNREGISTERED_UUID);
   int iPosition = (pNal->tStartCode.uPosition + iStart + iSize) % iTotalSize;
@@ -630,7 +631,7 @@ static bool isFirstSlice(uint8_t* pBuf, uint32_t uPos)
 {
   // in AVC, the first bit of the slice data is 1. (first_mb_in_slice = 0 encoded in ue)
   // in HEVC, the first bit is 1 too. (first_slice_segment_in_pic_flag = 1 if true))
-  return pBuf[uPos] & 0x80;
+  return (pBuf[uPos] & 0x80) != 0;
 }
 
 /*****************************************************************************/
@@ -645,7 +646,7 @@ static bool isFirstSliceNAL(AL_TNal* pNal, AL_TBuffer* pStream, AL_ECodec eCodec
   uint8_t* pBuf = AL_Buffer_GetData(pStream);
   uint32_t uPos = pNal->tStartCode.uPosition;
   uint32_t uSize = AL_Buffer_GetSize(pStream);
-  assert(isStartCode(pBuf, uSize, uPos));
+  AL_Assert(isStartCode(pBuf, uSize, uPos));
   uPos = skipNalHeader(uPos, eCodec, uSize);
   return isFirstSlice(pBuf, uPos);
 }
@@ -687,7 +688,7 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* p
       if(isPrefixSei(eCodec, eNUT) && checkSeiUUID(pBuf, pNal, eCodec, AL_Buffer_GetSize(pStream)))
       {
         pCtx->iNumSlicesRemaining = getNumSliceInSei(pBuf, pNal, eCodec, AL_Buffer_GetSize(pStream));
-        assert(pCtx->iNumSlicesRemaining > 0);
+        AL_Assert(pCtx->iNumSlicesRemaining > 0);
       }
 
       if(isFd(eCodec, eNUT) && isSubframeUnit(pCtx->pChanParam->eDecUnit))
@@ -1124,22 +1125,22 @@ void AL_Default_Decoder_InternalFlush(AL_TDecoder* pAbsDec)
 /*****************************************************************************/
 static void CheckDisplayBufferCanBeUsed(AL_TDecCtx* pCtx, AL_TBuffer* pBuf)
 {
-  assert(pBuf);
+  AL_Assert(pBuf);
 
   int iPitchY = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_Y);
   int iPitchUV = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_UV);
 
   /* decoder only output semiplanar */
-  assert((iPitchY != 0) && (iPitchY == iPitchUV));
+  AL_Assert((iPitchY != 0) && (iPitchY == iPitchUV));
 
   AL_TStreamSettings* pSettings = &pCtx->tStreamSettings;
 
   bool bEnableDisplayCompression;
   AL_EFbStorageMode eDisplayStorageMode = AL_Default_Decoder_GetDisplayStorageMode(pCtx, &bEnableDisplayCompression);
 
-  assert(iPitchY >= (int)AL_Decoder_GetMinPitch(pSettings->tDim.iWidth, pSettings->iBitDepth, eDisplayStorageMode));
+  AL_Assert(iPitchY >= (int)AL_Decoder_GetMinPitch(pSettings->tDim.iWidth, pSettings->iBitDepth, eDisplayStorageMode));
 
-  assert(iPitchY % 64 == 0);
+  AL_Assert(iPitchY % 64 == 0);
 }
 
 /*****************************************************************************/
@@ -1212,8 +1213,8 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)pAbsDec;
   AL_TDecCtx* pCtx = &pDec->ctx;
-  assert(!pCtx->bIsBuffersAllocated);
-  assert(IsAllStreamSettingsSet(pCtx->tStreamSettings));
+  AL_Assert(!pCtx->bIsBuffersAllocated);
+  AL_Assert(IsAllStreamSettingsSet(pCtx->tStreamSettings));
 
   AL_ERR error = AL_ERR_NO_MEMORY;
   AL_TStreamSettings tStreamSettings = pCtx->tStreamSettings;
@@ -1352,7 +1353,7 @@ static bool CheckDecodeUnit(AL_EDecUnit eDecUnit)
 /*****************************************************************************/
 static bool CheckAVCSettings(AL_TDecSettings const* pSettings)
 {
-  assert(isAVC(pSettings->eCodec));
+  AL_Assert(isAVC(pSettings->eCodec));
 
   if(pSettings->bParallelWPP)
     return false;
@@ -1648,7 +1649,7 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler,
   if(isHEVC(pCtx->pChanParam->eCodec))
     pCtx->eosBuffer = AllocEosBufferHEVC(pCtx->bSplitInput, pAllocator);
 
-  assert(pCtx->eosBuffer);
+  AL_Assert(pCtx->eosBuffer);
 
   if(!pCtx->eosBuffer)
     goto cleanup;

@@ -35,7 +35,6 @@
 *
 ******************************************************************************/
 
-#include <assert.h>
 #include "SplitBufferFeeder.h"
 #include "InternalError.h"
 #include "lib_decode/lib_decode.h"
@@ -43,6 +42,7 @@
 #include "lib_common/BufferSeiMeta.h"
 #include "lib_common/StreamSection.h"
 #include "lib_common/BufferStreamMeta.h"
+#include "lib_assert/al_assert.h"
 
 UNIT_ERROR AL_Decoder_TryDecodeOneUnit(AL_HDecoder hDec, AL_TBuffer* pBuf);
 void AL_Decoder_InternalFlush(AL_HDecoder hDec);
@@ -125,7 +125,7 @@ static bool IsEndOfStream(AL_TSplitBufferFeeder* this)
 
 static void freeBuf(AL_TFeeder* hFeeder, AL_TBuffer* pBuf)
 {
-  assert(pBuf);
+  AL_Assert(pBuf);
   AL_TSplitBufferFeeder* this = (AL_TSplitBufferFeeder*)hFeeder;
   AL_TBuffer* workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_WAIT_FOREVER);
 
@@ -247,7 +247,7 @@ static void destroy(AL_TFeeder* hFeeder)
     destroy_process(hFeeder);
 
   AL_TBuffer* workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_NO_WAIT);
-  assert(!workBuf);
+  AL_Assert(!workBuf);
 
   AL_Fifo_Deinit(&this->workFifo);
   AL_Fifo_Deinit(&this->inputFifo);
@@ -283,7 +283,7 @@ static bool addEOSMeta(AL_TBuffer* pEOSBuffer)
 
   if(NULL == AL_Buffer_GetMetaData(pEOSBuffer, AL_META_TYPE_STREAM))
   {
-    AL_TStreamMetaData* pStreamMeta = AL_StreamMetaData_Create(1);
+    pStreamMeta = AL_StreamMetaData_Create(1);
 
     if(!AL_Buffer_AddMetaData(pEOSBuffer, (AL_TMetaData*)pStreamMeta))
     {
@@ -318,7 +318,7 @@ static bool addEOSMeta(AL_TBuffer* pEOSBuffer)
 
 AL_TFeeder* AL_SplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TBuffer* pEOSBuffer)
 {
-  assert(pEOSBuffer);
+  AL_Assert(pEOSBuffer);
 
   if(!addEOSMeta(pEOSBuffer))
     return NULL;

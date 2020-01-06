@@ -2,6 +2,7 @@ LIB_COMMON_SRC:=\
   lib_common/Utils.c\
   lib_common/BufCommon.c\
   lib_common/AllocatorDefault.c\
+  lib_common/AlignedAllocator.c\
   lib_common/ChannelResources.c\
   lib_common/MemDesc.c\
   lib_common/HwScalingList.c\

@@ -35,8 +35,8 @@
 *
 ******************************************************************************/
 
-#include "assert.h"
 #include "DecHwScalingList.h"
+#include "lib_assert/al_assert.h"
 
 /******************************************************************************/
 static void AL_sWriteWord(const uint8_t* pSrc, int iSize, uint32_t* pBuf, const int* pScan)
@@ -52,15 +52,14 @@ static void AL_sWriteWord(const uint8_t* pSrc, int iSize, uint32_t* pBuf, const 
 /******************************************************************************/
 void AL_AVC_WriteDecHwScalingList(AL_TScl const* pSclLst, uint8_t* pBuf)
 {
-  uint8_t const* pSrc;
   uint32_t* pBuf32 = (uint32_t*)pBuf;
 
-  assert((1 & (size_t)pBuf) == 0);
+  AL_Assert((1 & (size_t)pBuf) == 0);
 
   for(int m = 0; m < 2; m++) // Mode : 0 = Intra; 1 = Inter
   {
     // 8x8
-    pSrc = (*pSclLst)[m].t8x8Y;
+    uint8_t const* pSrc = (*pSclLst)[m].t8x8Y;
     AL_sWriteWord(pSrc, 16, pBuf32, AL_AVC_DEC_SCL_ORDER_8x8);
     pBuf32 += 16;
 
@@ -84,13 +83,12 @@ void AL_AVC_WriteDecHwScalingList(AL_TScl const* pSclLst, uint8_t* pBuf)
 /******************************************************************************/
 void AL_HEVC_WriteDecHwScalingList(AL_TScl const* pSclLst, uint8_t* pBuf)
 {
-  uint8_t const* pSrc;
   uint32_t* pBuf32 = (uint32_t*)pBuf;
 
   for(int m = 0; m < 2; m++) // Mode : 0 = Intra; 1 = Inter
   {
     // 32x32
-    pSrc = (*pSclLst)[m].t32x32;
+    uint8_t const* pSrc = (*pSclLst)[m].t32x32;
     AL_sWriteWord(pSrc, 16, pBuf32, AL_HEVC_DEC_SCL_ORDER_8x8);
     pBuf32 += 16;
 

@@ -36,14 +36,14 @@
 ******************************************************************************/
 
 #include "lib_common_dec/IpDecFourCC.h"
-#include <assert.h>
+#include "lib_assert/al_assert.h"
 
 TFourCC AL_GetDecFourCC(AL_TPicFormat const picFmt)
 {
   if(AL_FB_RASTER == picFmt.eStorageMode)
   {
-    assert(picFmt.eChromaMode == AL_CHROMA_MONO || picFmt.eChromaOrder == AL_C_ORDER_SEMIPLANAR);
-    assert(picFmt.uBitDepth == 8 || picFmt.b10bPacked);
+    AL_Assert(picFmt.eChromaMode == AL_CHROMA_MONO || picFmt.eChromaOrder == AL_C_ORDER_SEMIPLANAR);
+    AL_Assert(picFmt.uBitDepth == 8 || picFmt.b10bPacked);
   }
 
   return AL_GetFourCC(picFmt);

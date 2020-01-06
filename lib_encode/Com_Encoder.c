@@ -37,8 +37,6 @@
 
 #include "Com_Encoder.h"
 
-#include <assert.h>
-
 #include "lib_encode/lib_encoder.h"
 #include "lib_encode/LoadLda.h"
 
@@ -55,6 +53,8 @@
 #include "lib_common_enc/ParamConstraints.h"
 
 #define DEBUG_PATH "."
+
+#include "lib_assert/al_assert.h"
 
 static const AL_HLSInfo DEFAULT_HLS_INFO = { 0 };
 
@@ -99,7 +99,7 @@ static void RemoveSourceSent(AL_TEncCtx* pCtx, AL_TBuffer const* const pSrc)
     }
   }
 
-  assert(0);
+  AL_Assert(0);
   Rtos_ReleaseMutex(pCtx->Mutex);
 }
 
@@ -154,7 +154,7 @@ static bool init(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TAllocator* pA
   Rtos_Memset(pCtx->SourceSent, 0, sizeof(pCtx->SourceSent));
 
   pCtx->Mutex = Rtos_CreateMutex();
-  assert(pCtx->Mutex);
+  AL_Assert(pCtx->Mutex);
   return true;
 }
 
@@ -196,8 +196,8 @@ bool AL_Common_Encoder_PutStreamBuffer(AL_TEncoder* pEnc, AL_TBuffer* pStream, i
 {
   AL_TEncCtx* pCtx = pEnc->pCtx;
   AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
-  assert(pMetaData);
-  assert(pCtx);
+  AL_Assert(pMetaData);
+  AL_Assert(pCtx);
 
   AL_StreamMetaData_ClearAllSections(pMetaData);
   Rtos_GetMutex(pCtx->Mutex);
@@ -225,7 +225,7 @@ bool AL_Common_Encoder_PutStreamBuffer(AL_TEncoder* pEnc, AL_TBuffer* pStream, i
 bool AL_Common_Encoder_GetRecPicture(AL_TEncoder* pEnc, AL_TRecPic* pRecPic, int iLayerID)
 {
   AL_TEncCtx* pCtx = pEnc->pCtx;
-  assert(pCtx);
+  AL_Assert(pCtx);
 
   return AL_IEncScheduler_GetRecPicture(pCtx->pScheduler, pCtx->tLayerCtx[iLayerID].hChannel, pRecPic);
 }
@@ -234,7 +234,7 @@ bool AL_Common_Encoder_GetRecPicture(AL_TEncoder* pEnc, AL_TRecPic* pRecPic, int
 void AL_Common_Encoder_ReleaseRecPicture(AL_TEncoder* pEnc, AL_TRecPic* pRecPic, int iLayerID)
 {
   AL_TEncCtx* pCtx = pEnc->pCtx;
-  assert(pCtx);
+  AL_Assert(pCtx);
 
   AL_IEncScheduler_ReleaseRecPicture(pCtx->pScheduler, pCtx->tLayerCtx[iLayerID].hChannel, pRecPic);
 
@@ -298,7 +298,7 @@ static void AddSourceSent(AL_TEncCtx* pCtx, AL_TBuffer* pSrc, AL_TFrameInfo* pFI
     }
   }
 
-  assert(0);
+  AL_Assert(0);
   Rtos_ReleaseMutex(pCtx->Mutex);
 }
 
@@ -1163,8 +1163,8 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
   int streamId = (int)streamUserPtr;
 
   /* we require the stream to come back in the same order we sent them */
-  assert(streamId >= 0 && streamId < AL_MAX_STREAM_BUFFER);
-  assert(pCtx->tLayerCtx[iLayerID].iCurStreamRecv == streamId);
+  AL_Assert(streamId >= 0 && streamId < AL_MAX_STREAM_BUFFER);
+  AL_Assert(pCtx->tLayerCtx[iLayerID].iCurStreamRecv == streamId);
 
   pCtx->tLayerCtx[iLayerID].iCurStreamRecv = (pCtx->tLayerCtx[iLayerID].iCurStreamRecv + 1) % AL_MAX_STREAM_BUFFER;
 
@@ -1189,7 +1189,7 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
   }
 
   AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
-  assert(pStreamMeta);
+  AL_Assert(pStreamMeta);
   pStreamMeta->uTemporalID = pPicStatus->uTempId;
 
   AL_TBuffer* pSrc = (AL_TBuffer*)(uintptr_t)pPicStatus->SrcHandle;
@@ -1243,7 +1243,7 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
 /****************************************************************************/
 AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncoder* pEnc, AL_IEncScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings)
 {
-  assert(pSettings->NumLayer > 0);
+  AL_Assert(pSettings->NumLayer > 0);
 
   AL_TEncCtx* pCtx = pEnc->pCtx;
   AL_ERR errorCode = AL_ERROR;
