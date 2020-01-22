@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -69,7 +69,6 @@ void I422_To_NV16(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I422_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I422_To_XV20(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
-void IYUV_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void IYUV_To_YV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void IYUV_To_NV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void IYUV_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -112,6 +111,10 @@ void P010_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void P210_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void P210_To_I422(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+
+void I444_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I4AL_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+
 void P210_To_XV20(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void Y010_To_XV15(AL_TBuffer const* pSrc, AL_TBuffer* pDst);

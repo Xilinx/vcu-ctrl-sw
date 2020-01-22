@@ -21,7 +21,9 @@ LIB_COMMON_SRC:=\
   lib_common/HardwareDriver.c\
   lib_common/HDR.c\
   lib_common/PixMapBuffer.c\
-  lib_common/SyntaxConversion.c
+  lib_common/SyntaxConversion.c\
+  lib_common/IntVector.c\
+
 
 ifneq ($(ENABLE_AVC),0)
   LIB_COMMON_SRC+=lib_common/AvcLevelsLimit.c

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,7 @@ TFourCC AL_GetDecFourCC(AL_TPicFormat const picFmt)
 {
   if(AL_FB_RASTER == picFmt.eStorageMode)
   {
-    AL_Assert(picFmt.eChromaMode == AL_CHROMA_MONO || picFmt.eChromaOrder == AL_C_ORDER_SEMIPLANAR);
+    AL_Assert(picFmt.eChromaMode == AL_CHROMA_MONO || picFmt.eChromaMode == AL_CHROMA_4_4_4 || picFmt.eChromaOrder == AL_C_ORDER_SEMIPLANAR);
     AL_Assert(picFmt.uBitDepth == 8 || picFmt.b10bPacked);
   }
 
@@ -55,6 +55,9 @@ AL_TPicFormat AL_GetDecPicFormat(AL_EChromaMode eChromaMode, uint8_t uBitDepth, 
   b10bPacked = AL_FB_RASTER == eStorageMode && 10 == uBitDepth;
 
   AL_TPicFormat picFormat = { eChromaMode, uBitDepth, eStorageMode, eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : AL_C_ORDER_SEMIPLANAR, bIsCompressed, b10bPacked };
+
+  if(eChromaMode == AL_CHROMA_4_4_4)
+    picFormat.eChromaOrder = AL_C_ORDER_U_V;
   return picFormat;
 }
 

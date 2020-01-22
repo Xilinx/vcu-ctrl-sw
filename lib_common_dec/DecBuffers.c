@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -116,16 +116,18 @@ int AL_GetAllocSize_AvcMV(AL_TDimension tDim)
 }
 
 /****************************************************************************/
-static uint32_t GetChromaAllocSize(AL_EChromaMode eChromaMode, uint32_t uAllocSizeY)
+static int GetChromaAllocSize(AL_EChromaMode eChromaMode, int iAllocSizeY)
 {
   switch(eChromaMode)
   {
   case AL_CHROMA_MONO:
     return 0;
   case AL_CHROMA_4_2_0:
-    return uAllocSizeY >> 1;
+    return iAllocSizeY >> 1;
   case AL_CHROMA_4_2_2:
-    return uAllocSizeY;
+    return iAllocSizeY;
+  case AL_CHROMA_4_4_4:
+    return iAllocSizeY << 1;
   default:
     AL_Assert(0);
     break;

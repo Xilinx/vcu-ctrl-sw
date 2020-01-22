@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -226,7 +226,7 @@ static void writeVpsData(AL_TBitStreamLite* pBS, AL_THevcVps const* pVps)
   AL_BitStreamLite_PutU(pBS, 6, pVps->vps_max_layers_minus1);
   AL_BitStreamLite_PutU(pBS, 3, pVps->vps_max_sub_layers_minus1);
   AL_BitStreamLite_PutU(pBS, 1, pVps->vps_temporal_id_nesting_flag);
-  AL_BitStreamLite_PutU(pBS, 16, 0xFFFF);
+  AL_BitStreamLite_PutU(pBS, 16, UINT16_MAX);
 
   writeProfileTierLevel(pBS, &pVps->profile_and_level[0], pVps->vps_max_sub_layers_minus1, true);
 

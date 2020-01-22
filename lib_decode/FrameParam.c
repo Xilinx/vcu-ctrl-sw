@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -325,6 +325,7 @@ void AL_HEVC_FillPictParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx
     for(int i = 0; i <= pPps->num_tile_rows_minus1; ++i)
       pPP->row_height[i] = pPps->row_height[i];
   }
+
 }
 
 /******************************************************************************/

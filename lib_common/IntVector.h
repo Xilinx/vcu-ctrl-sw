@@ -35,39 +35,28 @@
 *
 ******************************************************************************/
 
-#include "lib_rtos/lib_rtos.h"
-#include "BufferCircMeta.h"
+#pragma once
 
-static bool destroy(AL_TMetaData* pMeta)
+#include <stdbool.h>
+#include <lib_common/Utils.h>
+#include <lib_assert/al_assert.h>
+
+#define MAX_ELEMENTS 32
+
+typedef struct _IntVector
 {
-  Rtos_Free(pMeta);
-  return true;
-}
+  int count;
+  int elements[MAX_ELEMENTS];
+}IntVector;
 
-AL_TCircMetaData* AL_CircMetaData_Clone(AL_TCircMetaData* pMeta)
-{
-  return AL_CircMetaData_Create(pMeta->iOffset, pMeta->iAvailSize, pMeta->bLastBuffer);
-}
+void IntVector_Init(IntVector* self);
+void IntVector_Add(IntVector* self, int element);
+void IntVector_MoveBack(IntVector* self, int element);
+void IntVector_Remove(IntVector* self, int element);
+bool IntVector_IsIn(IntVector* self, int element);
+void IntVector_Revert(IntVector* self);
+void IntVector_Copy(IntVector* from, IntVector* to);
 
-static AL_TMetaData* clone(AL_TMetaData* pMeta)
-{
-  return (AL_TMetaData*)AL_CircMetaData_Clone((AL_TCircMetaData*)pMeta);
-}
-
-AL_TCircMetaData* AL_CircMetaData_Create(int32_t iOffset, int32_t iAvailSize, bool bLastBuffer)
-{
-  AL_TCircMetaData* pMeta = (AL_TCircMetaData*)Rtos_Malloc(sizeof(*pMeta));
-
-  if(!pMeta)
-    return NULL;
-
-  pMeta->tMeta.eType = AL_META_TYPE_CIRCULAR;
-  pMeta->tMeta.MetaDestroy = destroy;
-  pMeta->tMeta.MetaClone = clone;
-  pMeta->iOffset = iOffset;
-  pMeta->iAvailSize = iAvailSize;
-  pMeta->bLastBuffer = bLastBuffer;
-
-  return pMeta;
-}
-
+#define VECTOR_FOREACH(iterator, v) \
+  AL_Assert((v).count <= MAX_ELEMENTS); \
+  for(int i = 0, iterator = (v).elements[0]; i < (v).count; i++, iterator = (v).elements[Min(i, MAX_ELEMENTS - 1)])

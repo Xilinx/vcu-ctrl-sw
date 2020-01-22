@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -164,7 +164,7 @@ void I420_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 }
 
 /****************************************************************************/
-void I420_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+static void I4XX_To_IXAL(AL_TBuffer const* pSrc, AL_TBuffer* pDst, int iHScale, int iVScale)
 {
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pSrc);
 
@@ -192,9 +192,10 @@ void I420_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
   pSrcData = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
   pDstData = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
 
-  int iWidthChroma = tDim.iWidth >> 1;
+  int iWidthChroma = tDim.iWidth / iHScale;
+  int iHeightChroma = (tDim.iHeight * 2) / iVScale;
 
-  for(int iH = 0; iH < tDim.iHeight /* U then V component */; iH++)
+  for(int iH = 0; iH < iHeightChroma /* U then V component */; iH++)
   {
     for(int iW = 0; iW < iWidthChroma; iW++)
       *pDstData++ = ((uint16_t)*pSrcData++) << 2;
@@ -202,6 +203,20 @@ void I420_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
     pSrcData += iPitchSrc - iWidthChroma;
     pDstData += iPitchDst - iWidthChroma;
   }
+}
+
+/****************************************************************************/
+void I420_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I0AL));
+  I4XX_To_IXAL(pSrc, pDst, 2, 2);
+}
+
+/****************************************************************************/
+void I444_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I4AL));
+  I4XX_To_IXAL(pSrc, pDst, 1, 1);
 }
 
 /****************************************************************************/
@@ -780,7 +795,7 @@ void P010_To_XV15(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 }
 
 /****************************************************************************/
-void I0AL_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+static void IXAL_To_I4XX(AL_TBuffer const* pSrc, AL_TBuffer* pDst, int iHScale, int iVScale)
 {
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pSrc);
   AL_PixMapBuffer_SetDimension(pDst, tDim);
@@ -794,20 +809,34 @@ void I0AL_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
   uint32_t uSrcPitchChroma = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_UV) / sizeof(uint16_t);
   uint32_t uDstPitchChroma = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_UV);
 
-  int iH = tDim.iHeight;
+  int iH = (tDim.iHeight * 2) / iVScale;
+
+  int iCWidth = tDim.iWidth / iHScale;
 
   while(iH--)
   {
-    int iW = tDim.iWidth >> 1;
+    int iW = iCWidth;
 
     while(iW--)
       *pBufOut++ = (uint8_t)((2 + *pBufIn++) >> 2);
 
-    pBufOut += uDstPitchChroma - (tDim.iWidth >> 1);
-    pBufIn += uSrcPitchChroma - (tDim.iWidth >> 1);
+    pBufOut += uDstPitchChroma - iCWidth;
+    pBufIn += uSrcPitchChroma - iCWidth;
   }
+}
 
+/****************************************************************************/
+void I0AL_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  IXAL_To_I4XX(pSrc, pDst, 2, 2);
   AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I420));
+}
+
+/****************************************************************************/
+void I4AL_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  IXAL_To_I4XX(pSrc, pDst, 1, 1);
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I444));
 }
 
 /****************************************************************************/
@@ -3240,9 +3269,12 @@ void CopyPixMapBuffer(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
   // Chroma
   if(tPicFormat.eChromaMode != AL_CHROMA_MONO)
   {
-    int iRatio = tPicFormat.eChromaOrder == AL_C_ORDER_SEMIPLANAR ? 1 : 2;
-    iWidthInByte = iWidthInByte / iRatio;
-    int iChromaHeight = (tDim.iHeight / (tPicFormat.eChromaMode == AL_CHROMA_4_2_0 ? 2 : 1)) * iRatio;
+    int iHScale = tPicFormat.eChromaOrder == AL_C_ORDER_SEMIPLANAR || tPicFormat.eChromaMode == AL_CHROMA_4_4_4 ? 1 : 2;
+    iWidthInByte = iWidthInByte / iHScale;
+
+    int iVScale = tPicFormat.eChromaMode == AL_CHROMA_4_2_0 ? 2 : 1;
+    int iChromaHeight = (tDim.iHeight * 2) / iVScale;
+
     iPitchSrc = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_UV);
     iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_UV);
     pSrcData = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);

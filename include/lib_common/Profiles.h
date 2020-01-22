@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,7 @@
 #define AVC_PROFILE_IDC_HIGH 100
 #define AVC_PROFILE_IDC_HIGH10 110
 #define AVC_PROFILE_IDC_HIGH_422 122
-#define AVC_PROFILE_IDC_HIGH_444_PRED 244 // not supported
+#define AVC_PROFILE_IDC_HIGH_444_PRED 244
 
 #define AL_RExt_FLAGS(Flags) (((Flags) & 0xFFFF) << 8)
 #define HEVC_PROFILE_IDC_MAIN 1

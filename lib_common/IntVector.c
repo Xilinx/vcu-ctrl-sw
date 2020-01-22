@@ -35,39 +35,62 @@
 *
 ******************************************************************************/
 
-#include "lib_rtos/lib_rtos.h"
-#include "BufferCircMeta.h"
+#include "IntVector.h"
 
-static bool destroy(AL_TMetaData* pMeta)
+void IntVector_Init(IntVector* self)
 {
-  Rtos_Free(pMeta);
-  return true;
+  self->count = 0;
 }
 
-AL_TCircMetaData* AL_CircMetaData_Clone(AL_TCircMetaData* pMeta)
+static void shiftLeftFrom(IntVector* self, int index)
 {
-  return AL_CircMetaData_Create(pMeta->iOffset, pMeta->iAvailSize, pMeta->bLastBuffer);
+  for(int i = index; i < self->count; i++)
+    self->elements[i] = self->elements[i + 1];
 }
 
-static AL_TMetaData* clone(AL_TMetaData* pMeta)
+void IntVector_Add(IntVector* self, int element)
 {
-  return (AL_TMetaData*)AL_CircMetaData_Clone((AL_TCircMetaData*)pMeta);
+  self->elements[self->count] = element;
+  self->count++;
 }
 
-AL_TCircMetaData* AL_CircMetaData_Create(int32_t iOffset, int32_t iAvailSize, bool bLastBuffer)
+static int find(IntVector* self, int element)
 {
-  AL_TCircMetaData* pMeta = (AL_TCircMetaData*)Rtos_Malloc(sizeof(*pMeta));
+  for(int i = 0; i < self->count; i++)
+    if(self->elements[i] == element)
+      return i;
 
-  if(!pMeta)
-    return NULL;
-
-  pMeta->tMeta.eType = AL_META_TYPE_CIRCULAR;
-  pMeta->tMeta.MetaDestroy = destroy;
-  pMeta->tMeta.MetaClone = clone;
-  pMeta->iOffset = iOffset;
-  pMeta->iAvailSize = iAvailSize;
-  pMeta->bLastBuffer = bLastBuffer;
-
-  return pMeta;
+  return -1;
 }
 
+void IntVector_MoveBack(IntVector* self, int element)
+{
+  int index = find(self, element);
+  shiftLeftFrom(self, index);
+  self->elements[self->count - 1] = element;
+}
+
+void IntVector_Remove(IntVector* self, int element)
+{
+  IntVector_MoveBack(self, element);
+  self->count--;
+}
+
+bool IntVector_IsIn(IntVector* self, int element)
+{
+  return find(self, element) != -1;
+}
+
+void IntVector_Revert(IntVector* self)
+{
+  for(int i = self->count - 1; i >= 0; i--)
+    IntVector_MoveBack(self, self->elements[i]);
+}
+
+void IntVector_Copy(IntVector* from, IntVector* to)
+{
+  to->count = from->count;
+
+  for(int i = 0; i < from->count; i++)
+    to->elements[i] = from->elements[i];
+}

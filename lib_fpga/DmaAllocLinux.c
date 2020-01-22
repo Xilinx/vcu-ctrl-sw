@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -64,6 +64,7 @@ struct DmaBuffer
 };
 
 #define MAX_DEVICE_FILE_NAME 30
+
 struct LinuxDmaCtx
 {
   AL_TLinuxDmaAllocator base;
@@ -154,7 +155,7 @@ static AL_TAllocator* create(const char* deviceFile, void const* vtable)
   pCtx->base.vtable = (AL_DmaAllocLinuxVtable const*)vtable;
 
   /* for debug */
-  if(strlen(deviceFile) > MAX_DEVICE_FILE_NAME)
+  if(strlen(deviceFile) > (MAX_DEVICE_FILE_NAME - 1))
     goto fail_open;
 
   strncpy(pCtx->deviceFile, deviceFile, MAX_DEVICE_FILE_NAME);

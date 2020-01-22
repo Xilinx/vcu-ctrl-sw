@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -1125,8 +1125,7 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam* pSP, TBuff
     pMV->tMD = pCtx->MvBufPool.pMvBufs[pCtx->uMvID].tMD;
     pPOC->tMD = pCtx->MvBufPool.pPocBufs[pCtx->uMvID].tMD;
 
-    if(pPOC)
-      FillPocAndLongtermLists(&pCtx->DPB, pPOC, pSP, pListRef);
+    FillPocAndLongtermLists(&pCtx->DPB, pPOC, pSP, pListRef);
   }
 
   if(pListAddr && pListAddr->tMD.pVirtualAddr)

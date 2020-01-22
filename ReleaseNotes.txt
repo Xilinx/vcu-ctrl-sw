@@ -490,3 +490,15 @@
 
   Fixes:
     -- Several minors bugs
+
+2020-01-21 (v1.0.55)
+-------------------
+  Added Features:
+    -- Performances logs for rate control
+
+  API:
+    -- Version of the API is now 0.20.0
+    -- Modify 'AL_ENABLE_PERF_MONITOR' usage
+
+  Fixes:
+    -- Several minors bugs

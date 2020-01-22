@@ -46,7 +46,6 @@ include lib_app/project.mk
 -include lib_common/project.mk
 -include lib_rtos/project.mk
 -include lib_ip_ctrl/project.mk
--include lib_scheduler/project.mk
 -include lib_perfs/project.mk
 
 

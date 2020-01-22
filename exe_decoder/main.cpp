@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -505,6 +505,9 @@ AL_TO_IP Get8BitsConversionFunction(int iPicFmt)
 
   auto constexpr AL_CHROMA_422_8bitTo8bit = 0x00080802;
   auto constexpr AL_CHROMA_422_8bitTo10bit = 0x000A0802;
+
+  auto const AL_CHROMA_444_8bitTo8bit = 0x00080803;
+  auto const AL_CHROMA_444_8bitTo10bit = 0x000A0803;
   switch(iPicFmt)
   {
   case AL_CHROMA_420_8bitTo8bit:
@@ -515,6 +518,10 @@ AL_TO_IP Get8BitsConversionFunction(int iPicFmt)
     return NV16_To_I422;
   case AL_CHROMA_422_8bitTo10bit:
     return NV16_To_I2AL;
+  case AL_CHROMA_444_8bitTo8bit:
+    return CopyPixMapBuffer;
+  case AL_CHROMA_444_8bitTo10bit:
+    return I444_To_I4AL;
   case AL_CHROMA_MONO_8bitTo8bit:
     return Y800_To_Y800;
   case AL_CHROMA_MONO_8bitTo10bit:
@@ -535,6 +542,9 @@ AL_TO_IP Get10BitsConversionFunction(int iPicFmt)
 
   auto const AL_CHROMA_422_10bitTo10bit = 0x000A0A02;
   auto const AL_CHROMA_422_10bitTo8bit = 0x00080A02;
+
+  auto const AL_CHROMA_444_10bitTo10bit = 0x000A0A03;
+  auto const AL_CHROMA_444_10bitTo8bit = 0x00080A03;
   switch(iPicFmt)
   {
   case AL_CHROMA_420_10bitTo10bit:
@@ -545,6 +555,13 @@ AL_TO_IP Get10BitsConversionFunction(int iPicFmt)
     return XV20_To_I2AL;
   case AL_CHROMA_422_10bitTo8bit:
     return XV20_To_I422;
+
+  case AL_CHROMA_444_10bitTo10bit:
+    return CopyPixMapBuffer;
+
+  case AL_CHROMA_444_10bitTo8bit:
+    return I4AL_To_I444;
+
   case AL_CHROMA_MONO_10bitTo10bit:
     return XV15_To_Y010;
   case AL_CHROMA_MONO_10bitTo8bit:
@@ -1487,6 +1504,17 @@ void SafeMain(int argc, char** argv)
 
   auto const duration = (uEnd - uBegin) / 1000.0;
   ShowStatistics(duration, display.iNumFrameConceal, tDecodeParam.decodedFrames, timeoutOccured);
+}
+
+template<typename T, typename U, typename V>
+V clip_it(V value, T min, U max)
+{
+  if(value < min)
+    return min;
+
+  if(value > max)
+    return max;
+  return value;
 }
 
 /******************************************************************************/

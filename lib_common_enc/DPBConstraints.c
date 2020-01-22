@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2019 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -122,8 +122,8 @@ uint8_t AL_DPBConstraint_GetMaxRef_GopMngrCustom(const AL_TGopParam* pGopParam, 
 uint8_t AL_DPBConstraint_GetMaxDPBSize(const AL_TEncChanParam* pChParam)
 {
   bool bIsAOM = false;
-
-  AL_EGopMngrType eGopMngrType = AL_GetGopMngrType(pChParam->tGopParam.eMode, bIsAOM);
+  bool bIsLookAhead = false;
+  AL_EGopMngrType eGopMngrType = AL_GetGopMngrType(pChParam->tGopParam.eMode, bIsAOM, bIsLookAhead);
   AL_ECodec eCodec = AL_GET_CODEC(pChParam->eProfile);
   uint8_t uDPBSize = 0;
   switch(eGopMngrType)
@@ -146,9 +146,10 @@ uint8_t AL_DPBConstraint_GetMaxDPBSize(const AL_TEncChanParam* pChParam)
 }
 
 /****************************************************************************/
-AL_EGopMngrType AL_GetGopMngrType(AL_EGopCtrlMode eMode, bool bIsAom)
+AL_EGopMngrType AL_GetGopMngrType(AL_EGopCtrlMode eMode, bool bIsAom, bool bIsLookAhead)
 {
   (void)bIsAom;
+  (void)bIsLookAhead;
 
   if(eMode == AL_GOP_MODE_ADAPTIVE || (eMode & AL_GOP_FLAG_LOW_DELAY))
     return AL_GOP_MNGR_DEFAULT;
