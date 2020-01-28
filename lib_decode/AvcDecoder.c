@@ -123,8 +123,12 @@ static int getMaxBitDepth(AL_TAvcSps const* pSPS)
 {
   int iSPSLumaBitDepth = pSPS->bit_depth_luma_minus8 + 8;
   int iSPSChromaBitDepth = pSPS->bit_depth_chroma_minus8 + 8;
-  int iMaxSPSBitdepth = Max(iSPSLumaBitDepth, iSPSChromaBitDepth);
-  return Max(iMaxSPSBitdepth, getMaxBitDepthFromProfile(pSPS->profile_idc));
+  int iMaxSPSBitDepth = Max(iSPSLumaBitDepth, iSPSChromaBitDepth);
+  int iMaxBitDepth = Max(iMaxSPSBitDepth, getMaxBitDepthFromProfile(pSPS->profile_idc));
+
+  if((iMaxBitDepth % 2) != 0)
+    iMaxBitDepth++;
+  return iMaxBitDepth;
 }
 
 /*************************************************************************/
@@ -211,6 +215,7 @@ static AL_TStreamSettings extractStreamSettings(AL_TAvcSps const* pSPS)
   tStreamSettings.tDim = extractDimension(pSPS);
   tStreamSettings.eChroma = (AL_EChromaMode)pSPS->chroma_format_idc;
   tStreamSettings.iBitDepth = getMaxBitDepth(pSPS);
+  AL_Assert(tStreamSettings.iBitDepth <= HW_IP_BIT_DEPTH);
   tStreamSettings.iLevel = pSPS->constraint_set3_flag ? 9 : pSPS->level_idc;
   tStreamSettings.iProfileIdc = pSPS->profile_idc;
   tStreamSettings.eSequenceMode = AL_SM_PROGRESSIVE;

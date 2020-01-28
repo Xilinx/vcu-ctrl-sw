@@ -113,13 +113,13 @@ static uint8_t getMaxRextBitDepth(AL_TProfilevel pf)
 /*************************************************************************/
 static int getMaxBitDepthFromProfile(AL_TProfilevel pf)
 {
-  if((pf.general_profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_RExt)) || pf.general_profile_compatibility_flag[AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_RExt)])
+  if(pf.general_profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_RExt))
     return getMaxRextBitDepth(pf);
 
-  if((pf.general_profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_MAIN)) || pf.general_profile_compatibility_flag[AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_MAIN)])
+  if(pf.general_profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_MAIN))
     return 8;
 
-  if((pf.general_profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_MAIN_STILL)) || pf.general_profile_compatibility_flag[AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_MAIN_STILL)])
+  if(pf.general_profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_MAIN_STILL))
     return 8;
 
   return 10;
@@ -130,8 +130,12 @@ static int getMaxBitDepth(AL_THevcSps const* pSPS)
 {
   int iSPSLumaBitDepth = pSPS->bit_depth_luma_minus8 + 8;
   int iSPSChromaBitDepth = pSPS->bit_depth_chroma_minus8 + 8;
-  int iMaxSPSBitdepth = Max(iSPSLumaBitDepth, iSPSChromaBitDepth);
-  return Max(iMaxSPSBitdepth, getMaxBitDepthFromProfile(pSPS->profile_and_level));
+  int iMaxSPSBitDepth = Max(iSPSLumaBitDepth, iSPSChromaBitDepth);
+  int iMaxBitDepth = Max(iMaxSPSBitDepth, getMaxBitDepthFromProfile(pSPS->profile_and_level));
+
+  if((iMaxBitDepth % 2) != 0)
+    iMaxBitDepth++;
+  return iMaxBitDepth;
 }
 
 /*****************************************************************************/
@@ -232,6 +236,7 @@ static AL_TStreamSettings extractStreamSettings(AL_THevcSps const* pSPS)
   tStreamSettings.tDim = tSPSDim;
   tStreamSettings.eChroma = (AL_EChromaMode)pSPS->chroma_format_idc;
   tStreamSettings.iBitDepth = getMaxBitDepth(pSPS);
+  AL_Assert(tStreamSettings.iBitDepth <= HW_IP_BIT_DEPTH);
   tStreamSettings.iLevel = pSPS->profile_and_level.general_level_idc / 3;
   tStreamSettings.iProfileIdc = pSPS->profile_and_level.general_profile_idc;
   tStreamSettings.eSequenceMode = getSequenceMode(pSPS);
