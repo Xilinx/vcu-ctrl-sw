@@ -820,7 +820,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     if(!hevcInitFrameBuffers(pCtx, pSlice->pSPS, &pIAUP->tHDRSEIs, pPP, pBufs))
       return;
     *bBeginFrameIsValid = true;
-    AL_HEVC_PictMngr_UpdateRecInfo(&pCtx->PictMngr, pSlice->pSPS, pPP);
+    AL_HEVC_PictMngr_UpdateRecInfo(&pCtx->PictMngr, pSlice->pSPS, pAUP->ePicStruct);
   }
 
   bool bLastSlice = *iNumSlice >= pCtx->pChanParam->iMaxSlices;

@@ -261,7 +261,7 @@ void AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlic
 }
 
 /*****************************************************************************/
-void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_TDecPicParam* pPP)
+void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_EPicStruct ePicStruct)
 {
   // update cropping information
   AL_TCropInfo cropInfo =
@@ -296,7 +296,7 @@ void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS
   }
 
   AL_PictMngr_UpdateDisplayBufferCrop(pCtx, pCtx->uRecID, cropInfo);
-  AL_PictMngr_UpdateDisplayBufferPicStruct(pCtx, pCtx->uRecID, pPP->ePicStruct);
+  AL_PictMngr_UpdateDisplayBufferPicStruct(pCtx, pCtx->uRecID, ePicStruct);
 }
 
 /***************************************************************************/

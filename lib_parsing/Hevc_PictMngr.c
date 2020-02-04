@@ -99,7 +99,7 @@ static void AL_HEVC_sBuildWPCoeff(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pSlic
 /***************************************************************************/
 
 /*****************************************************************************/
-void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, AL_TDecPicParam* pPP)
+void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, AL_EPicStruct ePicStruct)
 {
   // update cropping information
   AL_TCropInfo cropInfo =
@@ -134,7 +134,7 @@ void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, AL
   }
 
   AL_PictMngr_UpdateDisplayBufferCrop(pCtx, pCtx->uRecID, cropInfo);
-  AL_PictMngr_UpdateDisplayBufferPicStruct(pCtx, pCtx->uRecID, pPP->ePicStruct);
+  AL_PictMngr_UpdateDisplayBufferPicStruct(pCtx, pCtx->uRecID, ePicStruct);
 }
 
 /*****************************************************************************/

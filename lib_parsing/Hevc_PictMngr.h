@@ -52,9 +52,9 @@
    \brief This function updates the reconstructed resolution information
    \param[in] pCtx Pointer to a Picture manager context object
    \param[in] pSPS Pointer to a HECV SPS structure
-   \param[in] pPP  Pointer to the current picture parameters
+   \param[in] ePicStruct Picture structure (frame/field, top/Bottom) of the current frame buffer
 *****************************************************************************/
-void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, AL_TDecPicParam* pPP);
+void AL_HEVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_THevcSps* pSPS, AL_EPicStruct ePicStruct);
 
 /*************************************************************************//*!
    \brief Remove from the DPB all unused pictures(non-reference and not needed for output

@@ -60,9 +60,9 @@ void AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlic
    \brief This function updates the reconstructed resolution information
    \param[in] pCtx Pointer to a Picture manager context object
    \param[in] pSPS Pointer to a ACV SPS structure
-   \param[in] pPP  Pointer to the current picture parameters
+   \param[in] ePicStruct Picture structure (frame/field, top/Bottom) of the current frame buffer
 *****************************************************************************/
-void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_TDecPicParam* pPP);
+void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_EPicStruct ePicStruct);
 
 /*************************************************************************//*!
    \brief This function updates the Picture Manager context each time a picture have been parsed.
