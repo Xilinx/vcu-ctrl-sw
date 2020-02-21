@@ -565,7 +565,7 @@ static AL_TEncChanParam* TransferChannelParameters(AL_TEncSettings const* pSetti
   {
     pChParamOut->eEncOptions |= AL_OPT_ENABLE_AUTO_QP;
 
-    if(pSettings->eQpCtrlMode == AL_QP_CTRL_ADAPTIVE_AUTO)
+    if(pSettings->eQpCtrlMode == AL_QP_CTRL_AUTO)
       pChParamOut->eEncOptions |= AL_OPT_ADAPT_AUTO_QP;
   }
 
