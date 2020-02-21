@@ -435,6 +435,7 @@ static void updatePictManager(AL_TPictMngrCtx* pCtx, AL_ENut eNUT, AL_TDecPicPar
   pCtx->iPrevFrameNum = pSlice->frame_num;
   pCtx->bLastIsIDR = bClearRef;
 
+  AL_AVC_PictMngr_UpdateRecInfo(pCtx, pSlice->pSPS, pPP);
   AL_AVC_PictMngr_EndParsing(pCtx, bClearRef, eMarkingFlag);
 
   if(pSlice->nal_ref_idc)
@@ -672,7 +673,6 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     if(!avcInitFrameBuffers(pCtx, pSlice->pSPS, &pAUP->tHDRSEIs, pPP, pBufs))
       return;
     *bBeginFrameIsValid = true;
-    AL_AVC_PictMngr_UpdateRecInfo(&pCtx->PictMngr, pSlice->pSPS, pPP);
   }
 
   bool bLastSlice = *iNumSlice >= pCtx->pChanParam->iMaxSlices;
