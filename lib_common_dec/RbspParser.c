@@ -267,7 +267,7 @@ bool rbsp_trailing_bits(AL_TRbspParser* pRP)
 /*****************************************************************************/
 uint8_t getbyte(AL_TRbspParser* pRP)
 {
-  AL_Assert(pRP->iTotalBitIndex % 8 == 0);
+  AL_Assert(byte_aligned(pRP));
 
   int byte_offset = (int)(pRP->iTotalBitIndex >> 3);
 

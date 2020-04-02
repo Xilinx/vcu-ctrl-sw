@@ -662,6 +662,9 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB_
     uint32_t payload_size = 0;
 
     // get payload type
+    if(!byte_aligned(pRP))
+      return false;
+
     uint8_t byte = getbyte(pRP);
 
     while(byte == 0xff)
