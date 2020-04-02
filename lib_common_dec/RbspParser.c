@@ -444,7 +444,13 @@ uint32_t ue(AL_TRbspParser* pRP)
   }
 
   if(n)
-    return (1 << n) - 1 + u(pRP, n);
+  {
+    /* Concealment */
+    if(n >= 32)
+      return 0;
+
+    return (1u << n) - 1 + u(pRP, n);
+  }
 
   return 0;
 }

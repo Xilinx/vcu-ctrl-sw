@@ -434,6 +434,9 @@ AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_TRbspParser* pRP, AL_THevcSps* pSPS)
   u(pRP, 16); // Skip NUT + temporal_id
 
   int vps_id = u(pRP, 4);
+
+  COMPLY(vps_id < AL_MAX_VPS);
+
   int max_sub_layers = Clip3(u(pRP, 3), 0, MAX_SUB_LAYER - 1);
   int temp_id_nesting_flag = u(pRP, 1);
 
@@ -723,6 +726,10 @@ void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   u(pRP, 16); // Skip NUT + temporal_id
 
   int vps_id = u(pRP, 4);
+
+  if(vps_id >= AL_MAX_VPS)
+    return;
+
   pVPS = &pIAup->hevcAup.pVPS[vps_id];
   pVPS->vps_video_parameter_set_id = vps_id;
 
@@ -970,6 +977,9 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB
     {
       uint8_t uSpsId;
       PARSE_OR_SKIP(sei_active_parameter_sets(pRP, aup, &uSpsId));
+
+      if(uSpsId >= AL_HEVC_MAX_SPS)
+        return false;
 
       if(!aup->pSPS[uSpsId].bConceal)
         aup->pActiveSPS = &aup->pSPS[uSpsId];

@@ -340,6 +340,9 @@ void hevc_hrd_parameters(AL_THrdParam* pHrdParam, bool bInfoFlag, int iMaxSubLay
     if(!pHrdParam->low_delay_hrd_flag[i])
       pHrdParam->cpb_cnt_minus1[i] = ue(pRP);
 
+    /* Concealment: E.2.2 : cpb_cnt_minus1 shall be in the range of 0 to 31, inclusive */
+    pHrdParam->cpb_cnt_minus1[i] = UnsignedMin(pHrdParam->cpb_cnt_minus1[i], 31);
+
     if(pHrdParam->nal_hrd_parameters_present_flag)
       sub_hrd_parameters(&pHrdParam->nal_sub_hrd_param, pHrdParam->cpb_cnt_minus1[i], pHrdParam->sub_pic_hrd_params_present_flag, pRP);
 

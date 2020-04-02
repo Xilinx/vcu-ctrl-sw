@@ -932,6 +932,9 @@ static AL_PARSE_RESULT parsePPSandUpdateConcealment(AL_TAup* IAup, AL_TRbspParse
   uint16_t PpsId;
   AL_HEVC_ParsePPS(IAup, rp, &PpsId);
 
+  if(PpsId >= AL_HEVC_MAX_PPS)
+    return AL_UNSUPPORTED;
+
   AL_THevcAup* aup = &IAup->hevcAup;
 
   if(!aup->pPPS[PpsId].bConceal)
@@ -960,6 +963,9 @@ static AL_PARSE_RESULT parseAndApplySPS(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_
 {
   AL_THevcSps tNewSPS;
   AL_PARSE_RESULT eParseResult = AL_HEVC_ParseSPS(pRP, &tNewSPS);
+
+  if(tNewSPS.sps_seq_parameter_set_id >= AL_HEVC_MAX_SPS)
+    return AL_UNSUPPORTED;
 
   if(eParseResult == AL_OK)
   {
