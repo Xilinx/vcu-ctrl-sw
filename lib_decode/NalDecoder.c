@@ -66,7 +66,7 @@ void AL_DecodeOneNal(AL_NonVclNuts nuts, AL_NalParser parser, AL_TAup* pAUP, AL_
     return;
   }
 
-  if((nut == nuts.seiPrefix || nut == nuts.seiSuffix) && parser.parseSei)
+  if((nut == nuts.seiPrefix || (nut == nuts.seiSuffix && pCtx->bIsBuffersAllocated)) && parser.parseSei)
   {
     bool bIsPrefix = (nut == nuts.seiPrefix);
     AL_TSeiMetaData* pMeta = GetSeiMetaData(pCtx);

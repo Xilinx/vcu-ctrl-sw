@@ -84,6 +84,9 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
   u(pRP, 16); // Skip NUT + temporal_id
 
   pps_id = ue(pRP);
+
+  if(pps_id >= AL_HEVC_MAX_PPS)
+    return;
   pPPS = &aup->pPPS[pps_id];
 
   if(pPpsId)
@@ -92,8 +95,6 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
   // default values
   initPps(pPPS);
 
-  if(pps_id >= AL_HEVC_MAX_PPS)
-    return;
 
   pPPS->pps_pic_parameter_set_id = pps_id;
   pPPS->pps_seq_parameter_set_id = ue(pRP);
