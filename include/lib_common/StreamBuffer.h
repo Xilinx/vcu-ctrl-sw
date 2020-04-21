@@ -42,7 +42,7 @@
  **************************************************************************/
 #pragma once
 
-#define AL_ENC_MAX_SEI_SIZE (2 * 1024)
+#define AL_ENC_MAX_SEI_SIZE (10 * 1024)
 #define AL_ENC_MAX_CONFIG_HEADER_SIZE (2 * 1024)
 #define AL_ENC_MAX_HEADER_SIZE (AL_ENC_MAX_CONFIG_HEADER_SIZE + AL_ENC_MAX_SEI_SIZE)
 
