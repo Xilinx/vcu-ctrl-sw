@@ -43,6 +43,7 @@
 #include <cstring>
 #include <sstream>
 #include <fstream>
+#include <algorithm>
 
 extern "C"
 {
@@ -164,9 +165,9 @@ void Generate_RandomQP(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBy
 /****************************************************************************/
 void Generate_BorderQP(uint8_t* pQPs, int iNumLCUs, int iLCUWidth, int iLCUHeight, int iNumQPPerLCU, int iNumBytesPerLCU, int iMaxQP, int16_t iSliceQP, bool bRelative)
 {
-  int iQP0 = bRelative ? 0 : iSliceQP;
-  int iQP2 = iQP0 + 2;
-  int iQP1;
+  const int iQP0 = bRelative ? 0 : iSliceQP;
+  const int iQP2 = min(iQP0 + 2, iMaxQP);
+  const int iQP1 = min(iQP0 + 1, iMaxQP);
 
   const int iFirstX2 = 0;
   const int iFirstX1 = 1;
@@ -178,22 +179,15 @@ void Generate_BorderQP(uint8_t* pQPs, int iNumLCUs, int iLCUWidth, int iLCUHeigh
   const int iLastY2 = iLCUHeight - 1;
   const int iLastY1 = iLCUHeight - 2;
 
-  int iFirstLCU = 0;
-  int iLastLCU = iNumLCUs - 1;
-
-  if(iQP2 > iMaxQP)
-    iQP2 = iMaxQP;
-  iQP1 = iQP0 + 1;
-
-  if(iQP1 > iMaxQP)
-    iQP1 = iMaxQP;
+  const int iFirstLCU = 0;
+  const int iLastLCU = iNumLCUs - 1;
 
   for(int iLCU = iFirstLCU; iLCU <= iLastLCU; iLCU++)
   {
-    int X = iLCU % iLCUWidth;
-    int Y = iLCU / iLCUWidth;
+    const int X = iLCU % iLCUWidth;
+    const int Y = iLCU / iLCUWidth;
 
-    int iFirst = iNumBytesPerLCU * iLCU;
+    const int iFirst = iNumBytesPerLCU * iLCU;
 
     if(X == iFirstX2 || Y == iFirstY2 || X == iLastX2 || Y >= iLastY2)
       pQPs[iFirst] = iQP2;
@@ -210,12 +204,12 @@ void Generate_BorderQP(uint8_t* pQPs, int iNumLCUs, int iLCUWidth, int iLCUHeigh
 /****************************************************************************/
 void Generate_BorderQP_VP9(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, int iLCUWidth, int iLCUHeight, int iMaxQP, int16_t iSliceQP, bool bRelative)
 {
-  int iQP0 = bRelative ? 0 : iSliceQP;
-  int iQP2 = iQP0 + 10;
-  int iQP1;
+  const int iQP0 = bRelative ? 0 : iSliceQP;
+  const int iQP2 = min(iQP0 + 10, iMaxQP);
+  const int iQP1 = min(iQP0 + 5, iMaxQP);
 
-  int iFirstLCU = 0;
-  int iLastLCU = iNumLCUs - 1;
+  const int iFirstLCU = 0;
+  const int iLastLCU = iNumLCUs - 1;
 
   const int iFirstX2 = 0;
   const int iFirstX1 = 1;
@@ -228,13 +222,6 @@ void Generate_BorderQP_VP9(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, int iLCU
   const int iLastY1 = iLCUHeight - 2;
   int16_t* pSeg = (int16_t*)pSegs;
 
-  if(iQP2 > iMaxQP)
-    iQP2 = iMaxQP;
-  iQP1 = iQP0 + 5;
-
-  if(iQP1 > iMaxQP)
-    iQP1 = iMaxQP;
-
   Rtos_Memset(pSeg, 0, 8 * sizeof(int16_t));
   pSeg[0] = iQP0;
   pSeg[1] = iQP1;
@@ -243,8 +230,8 @@ void Generate_BorderQP_VP9(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, int iLCU
   // write Map
   for(int iLCU = iFirstLCU; iLCU <= iLastLCU; iLCU++)
   {
-    int X = iLCU % iLCUWidth;
-    int Y = iLCU / iLCUWidth;
+    const int X = iLCU % iLCUWidth;
+    const int Y = iLCU / iLCUWidth;
 
     if(X == iFirstX2 || Y == iFirstY2 || X == iLastX2 || Y >= iLastY2)
       pQPs[iLCU] = 2;

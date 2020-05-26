@@ -112,11 +112,12 @@ bool AL_TwoPassMngr_HasLookAhead(AL_TEncSettings const& settings)
 }
 
 /***************************************************************************/
-static void setPass1RateControlSettings(AL_TRCParam& rc)
+static void setPass1RateControlSettings(AL_TEncChanParam& channel)
 {
-  rc.eRCMode = AL_RC_CONST_QP;
-  rc.iInitialQP = AL_RC_FIRSTPASS_QP;
-  rc.eOptions = static_cast<AL_ERateCtrlOption>(rc.eOptions & (~AL_RC_OPT_ENABLE_SKIP));
+  channel.tRCParam.eRCMode = AL_RC_CONST_QP;
+  channel.tRCParam.iInitialQP = AL_RC_FIRSTPASS_QP;
+
+  channel.tRCParam.eOptions = static_cast<AL_ERateCtrlOption>(channel.tRCParam.eOptions & (~AL_RC_OPT_ENABLE_SKIP));
 }
 
 /***************************************************************************/
@@ -126,6 +127,12 @@ static void setPass1GopSettings(AL_TGopParam& gop)
   gop.eMode = AL_GOP_MODE_LOW_DELAY_P;
   gop.uGopLength = 0;
   gop.uNumB = 0;
+}
+
+/***************************************************************************/
+void AL_TwoPassMngr_SetGlobalSettings(AL_TEncSettings& settings)
+{
+  (void)settings;
 }
 
 /***************************************************************************/
@@ -143,7 +150,7 @@ void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings, AL_HANDLE hBaseH
     channel.uNumSlices = 1;
   }
 
-  setPass1RateControlSettings(channel.tRCParam);
+  setPass1RateControlSettings(channel);
   setPass1GopSettings(channel.tGopParam);
 }
 

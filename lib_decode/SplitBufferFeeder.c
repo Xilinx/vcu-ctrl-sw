@@ -43,6 +43,7 @@
 #include "lib_common/StreamSection.h"
 #include "lib_common/BufferStreamMeta.h"
 #include "lib_assert/al_assert.h"
+#include "lib_decode/WorkPool.h"
 
 UNIT_ERROR AL_Decoder_TryDecodeOneUnit(AL_HDecoder hDec, AL_TBuffer* pBuf);
 void AL_Decoder_InternalFlush(AL_HDecoder hDec);
@@ -52,13 +53,15 @@ typedef struct al_t_SplitBufferFeeder
   const AL_TFeederVtable* vtable;
   AL_HANDLE hDec;
   AL_TFifo inputFifo;
-  AL_TFifo workFifo;
+  WorkPool workPool;
 
   AL_EVENT incomingWorkEvent;
   AL_THREAD process;
+  int32_t numInputBuf;
   int32_t keepGoing;
   AL_MUTEX lock;
   bool eos;
+  bool stopped;
   AL_TBuffer* pEOSBuffer;
 }AL_TSplitBufferFeeder;
 
@@ -71,8 +74,23 @@ static bool enqueueBuffer(AL_TSplitBufferFeeder* this, AL_TBuffer* pBuf)
     AL_Buffer_Unref(pBuf);
     return false;
   }
-  Rtos_AtomicIncrement(&this->keepGoing);
+  Rtos_AtomicIncrement(&this->numInputBuf);
   return true;
+}
+
+static void freeBuf(AL_TFeeder* hFeeder, AL_TBuffer* pBuf)
+{
+  AL_Assert(pBuf);
+  AL_TSplitBufferFeeder* this = (AL_TSplitBufferFeeder*)hFeeder;
+  AL_WorkPool_Remove(&this->workPool, pBuf);
+  AL_Buffer_Unref(pBuf);
+}
+
+static bool HasInputBuffer(AL_TSplitBufferFeeder* this)
+{
+  int32_t numInputBuf = Rtos_AtomicDecrement(&this->numInputBuf);
+  Rtos_AtomicIncrement(&this->numInputBuf);
+  return numInputBuf >= 0;
 }
 
 static bool shouldKeepGoing(AL_TSplitBufferFeeder* this)
@@ -100,44 +118,40 @@ static void Process(AL_TSplitBufferFeeder* this)
   if(!workBuf)
     return;
 
-  Rtos_AtomicDecrement(&this->keepGoing);
+  Rtos_AtomicDecrement(&this->numInputBuf);
 
   AL_HANDLE hDec = this->hDec;
+
+  AL_WorkPool_PushBack(&this->workPool, workBuf);
 
   UNIT_ERROR err = AL_Decoder_TryDecodeOneUnit(hDec, workBuf);
   signal((AL_TFeeder*)this);
 
-  if(!IsSuccess(err))
+  AL_TCircMetaData* pMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(workBuf, AL_META_TYPE_CIRCULAR);
+
+  if(pMeta && pMeta->bLastBuffer)
   {
-    AL_Buffer_Unref(workBuf);
-    return;
+    // There won't be a callback for the eos buffer as it doesn't contain a frame / slice
+    // so we free it here.
+    freeBuf((AL_TFeeder*)this, workBuf);
+    this->stopped = true;
+    AL_Decoder_InternalFlush(this->hDec);
   }
-  AL_Fifo_Queue(&this->workFifo, workBuf, AL_WAIT_FOREVER);
-}
-
-static bool IsEndOfStream(AL_TSplitBufferFeeder* this)
-{
-  Rtos_GetMutex(this->lock);
-  bool bRet = this->eos;
-  Rtos_ReleaseMutex(this->lock);
-  return bRet;
-}
-
-static void freeBuf(AL_TFeeder* hFeeder, AL_TBuffer* pBuf)
-{
-  AL_Assert(pBuf);
-  AL_TSplitBufferFeeder* this = (AL_TSplitBufferFeeder*)hFeeder;
-  AL_TBuffer* workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_WAIT_FOREVER);
-
-  while(workBuf)
+  else
   {
-    if(workBuf == pBuf)
+    if(this->stopped)
     {
-      AL_Buffer_Unref(workBuf);
+      this->stopped = false;
+      Rtos_GetMutex(this->lock);
+      this->eos = false;
+      Rtos_ReleaseMutex(this->lock);
+    }
+
+    if(!IsSuccess(err))
+    {
+      freeBuf((AL_TFeeder*)this, workBuf);
       return;
     }
-    AL_Buffer_Unref(workBuf);
-    workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_WAIT_FOREVER);
   }
 }
 
@@ -150,14 +164,11 @@ static void* Process_EntryPoint(void* userParam)
   {
     Rtos_WaitEvent(this->incomingWorkEvent, AL_WAIT_FOREVER);
 
-    if(!shouldKeepGoing(this) && IsEndOfStream(this))
+    // if we still have input buffers, we want to handle them before exiting
+    if(!shouldKeepGoing(this) && !HasInputBuffer(this))
     {
-      /* Ensure in subframe latency that even if the user doesn't send a full frame at the end of the stream, we can finish sent slices */
-      AL_Buffer_Ref(this->pEOSBuffer);
-      AL_Fifo_Queue(&this->workFifo, this->pEOSBuffer, AL_WAIT_FOREVER);
-      AL_Decoder_TryDecodeOneUnit(this->hDec, this->pEOSBuffer);
-      AL_Decoder_InternalFlush(this->hDec);
-      freeBuf((AL_TFeeder*)this, this->pEOSBuffer);
+      if(!this->stopped)
+        AL_Decoder_InternalFlush(this->hDec);
       break;
     }
 
@@ -208,33 +219,54 @@ static bool pushBuffer(AL_TFeeder* hFeeder, AL_TBuffer* pBuf, size_t uSize, bool
   return true;
 }
 
+static void pushEOS(AL_TFeeder* hFeeder)
+{
+  AL_TSplitBufferFeeder* this = (AL_TSplitBufferFeeder*)hFeeder;
+
+  /* Ensure in subframe latency that even if the user doesn't send a full frame at the end of the stream, we can finish sent slices */
+  if(this->pEOSBuffer)
+    pushBuffer(hFeeder, this->pEOSBuffer, AL_Buffer_GetSize(this->pEOSBuffer), true);
+  signal(hFeeder);
+}
+
 static void flush(AL_TFeeder* hFeeder)
 {
   AL_TSplitBufferFeeder* this = (AL_TSplitBufferFeeder*)hFeeder;
   Rtos_GetMutex(this->lock);
   this->eos = true;
   Rtos_ReleaseMutex(this->lock);
-  signal(hFeeder);
+  pushEOS(hFeeder);
 }
 
 static void destroy_process(AL_TFeeder* hFeeder)
 {
   AL_TSplitBufferFeeder* this = (AL_TSplitBufferFeeder*)hFeeder;
 
-  if(!this->eos)
+  Rtos_GetMutex(this->lock);
+  // if you flushed and didn't send another buffer after that, you asked for eos
+  // and we will process all the previous buffers.
+  bool eos = this->eos;
+  Rtos_ReleaseMutex(this->lock);
+
+  // we weren't asked to flush, just drop all the remaining buffers.
+  if(!eos)
   {
     AL_TBuffer* workBuf = AL_Fifo_Dequeue(&this->inputFifo, AL_NO_WAIT);
 
     while(workBuf)
     {
-      Rtos_AtomicDecrement(&this->keepGoing);
+      Rtos_AtomicDecrement(&this->numInputBuf);
 
       AL_Buffer_Unref(workBuf);
       workBuf = AL_Fifo_Dequeue(&this->inputFifo, AL_NO_WAIT);
     }
 
-    flush(hFeeder);
+    pushEOS(hFeeder);
   }
+
+  Rtos_AtomicDecrement(&this->keepGoing);
+  Rtos_SetEvent(this->incomingWorkEvent);
+
   Rtos_JoinThread(this->process);
   Rtos_DeleteThread(this->process);
 }
@@ -246,10 +278,9 @@ static void destroy(AL_TFeeder* hFeeder)
   if(this->process)
     destroy_process(hFeeder);
 
-  AL_TBuffer* workBuf = AL_Fifo_Dequeue(&this->workFifo, AL_NO_WAIT);
-  AL_Assert(!workBuf);
+  AL_Assert(this->workPool.size == 0);
 
-  AL_Fifo_Deinit(&this->workFifo);
+  AL_WorkPool_Deinit(&this->workPool);
   AL_Fifo_Deinit(&this->inputFifo);
 
   Rtos_DeleteMutex(this->lock);
@@ -332,12 +363,14 @@ AL_TFeeder* AL_SplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TBuff
   this->hDec = hDec;
   this->eos = false;
   this->pEOSBuffer = pEOSBuffer;
-  this->keepGoing = 0;
+  this->numInputBuf = 0;
+  this->keepGoing = 1;
+  this->stopped = true;
 
   if(iMaxBufNum <= 0 || !AL_Fifo_Init(&this->inputFifo, iMaxBufNum))
     goto fail_queue_allocation;
 
-  if(iMaxBufNum <= 0 || !AL_Fifo_Init(&this->workFifo, iMaxBufNum))
+  if(iMaxBufNum <= 0 || !AL_WorkPool_Init(&this->workPool, iMaxBufNum))
     goto fail_work_queue_allocation;
 
   this->incomingWorkEvent = Rtos_CreateEvent(false);
@@ -360,7 +393,7 @@ AL_TFeeder* AL_SplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TBuff
   fail_mutex:
   Rtos_DeleteEvent(this->incomingWorkEvent);
   fail_event:
-  AL_Fifo_Deinit(&this->workFifo);
+  AL_WorkPool_Deinit(&this->workPool);
   fail_work_queue_allocation:
   AL_Fifo_Deinit(&this->inputFifo);
   fail_queue_allocation:

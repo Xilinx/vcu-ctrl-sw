@@ -14,6 +14,7 @@ LIB_COMMON_SRC:=\
   lib_common/BufferLookAheadMeta.c\
   lib_common/BufferHandleMeta.c\
   lib_common/BufferSeiMeta.c\
+	lib_common/BufferStatisticsMeta.c\
   lib_common/Fifo.c\
   lib_common/LevelLimit.c\
   lib_common/StreamBuffer.c\

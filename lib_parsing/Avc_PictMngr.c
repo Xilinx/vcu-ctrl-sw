@@ -188,7 +188,7 @@ static void AL_sGetPocType2(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 static void AL_AVC_sFillWPCoeff(AL_VADDR pDataWP, AL_TAvcSliceHdr* pSlice, uint8_t uL0L1)
 {
   uint8_t uNumRefIdx = (uL0L1 ? pSlice->num_ref_idx_l1_active_minus1 : pSlice->num_ref_idx_l0_active_minus1) + 1;
-  uint32_t* pWP = (uint32_t*)(pDataWP + (uL0L1 * 8));
+  uint32_t* pWP = (uint32_t*)(pDataWP + (uL0L1 * WP_ONE_SET_SIZE));
 
   AL_TWPCoeff* pWpCoeff = &pSlice->pred_weight_table.tWpCoeff[uL0L1];
 
@@ -206,7 +206,7 @@ static void AL_AVC_sFillWPCoeff(AL_VADDR pDataWP, AL_TAvcSliceHdr* pSlice, uint8
              ((pSlice->pred_weight_table.chroma_log2_weight_denom & 0x07) << 28) |
              ((pWpCoeff->chroma_weight_flag[i] & 0x01u) << 31);
 
-    pWP += 4;
+    pWP += 2 * WP_ONE_SET_SIZE / 4;
   }
 }
 

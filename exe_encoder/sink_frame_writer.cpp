@@ -36,10 +36,14 @@
 ******************************************************************************/
 
 #include "sink_frame_writer.h"
+
+#include <cassert>
+
 #include "CodecUtils.h"
 #include "YuvIO.h"
+
+#include "lib_app/convert.h"
 #include "lib_app/utils.h"
-#include <cassert>
 
 extern "C"
 {
@@ -47,142 +51,162 @@ extern "C"
 #include "lib_common/PixMapBuffer.h"
 #include "lib_common_enc/IpEncFourCC.h"
 }
-#include "lib_app/convert.h"
+
+using namespace std;
 
 /****************************************************************************/
 void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tYuvFourCC)
 {
   TFourCC tRecFourCC = AL_PixMapBuffer_GetFourCC(pRec);
 
-  if(tRecFourCC == FOURCC(Y800))
+  assert(AL_IsTiled(tRecFourCC));
+  switch(tRecFourCC)
   {
-    if(tYuvFourCC == FOURCC(I420))
-      Y800_To_I420(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(IYUV))
-      Y800_To_IYUV(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(YV12))
-      Y800_To_YV12(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(NV12))
-      Y800_To_NV12(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(Y800))
-      CopyPixMapBuffer(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(P010))
-      Y800_To_P010(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(I0AL))
-      Y800_To_I0AL(pRec, pYuv);
-    // else if(tYuvFourCC == FOURCC(Y010)) Y800_To_Y010(pRec, pYuv);
-    else
-      assert(0);
-  }
-  else if(tRecFourCC == FOURCC(T60A))
+  case FOURCC(T6m8):
   {
-    if(tYuvFourCC == FOURCC(Y800))
-      T60A_To_Y800(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(I420))
-      T60A_To_I420(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(IYUV))
-      T60A_To_IYUV(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(YV12))
-      T60A_To_YV12(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(NV12))
-      T60A_To_NV12(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(P010))
-      T60A_To_P010(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(I0AL))
-      T60A_To_I0AL(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(Y010))
-      T60A_To_Y010(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(XV15))
-      T60A_To_XV15(pRec, pYuv);
-  }
-  else if(tRecFourCC == FOURCC(T62A))
-  {
-    if(tYuvFourCC == FOURCC(Y800))
-      T62A_To_Y800(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(Y010))
-      T62A_To_Y010(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(I422))
-      T62A_To_I422(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(NV16))
-      T62A_To_NV16(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(I2AL))
-      T62A_To_I2AL(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(P210))
-      T62A_To_P210(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(Y010))
-      T62A_To_Y010(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(XV20))
-      T62A_To_XV20(pRec, pYuv);
-    else
-      assert(0);
-  }
-  else if(tRecFourCC == FOURCC(T608))
-  {
-    if(tYuvFourCC == FOURCC(Y800))
-      T608_To_Y800(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(Y010))
-      T608_To_Y010(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(I420))
-      T608_To_I420(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(IYUV))
-      T608_To_IYUV(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(YV12))
-      T608_To_YV12(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(NV12))
-      T608_To_NV12(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(P010))
-      T608_To_P010(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(I0AL))
-      T608_To_I0AL(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(Y010))
-      T608_To_Y010(pRec, pYuv);
-  }
-  else if(tRecFourCC == FOURCC(T628))
-  {
-    if(tYuvFourCC == FOURCC(Y800))
-      T628_To_Y800(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(Y010))
-      T628_To_Y010(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(I422))
-      T628_To_I422(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(NV16))
-      T628_To_NV16(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(I2AL))
-      T628_To_I2AL(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(P210))
-      T628_To_P210(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(Y010))
-      T628_To_Y010(pRec, pYuv);
-    else
-      assert(0);
-  }
-  else if(tRecFourCC == FOURCC(T6m8))
-  {
-    if(tYuvFourCC == FOURCC(Y800))
-      T608_To_Y800(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(Y010))
-      T608_To_Y010(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(I420))
-      T6m8_To_I420(pRec, pYuv);
-    else
-      assert(0);
-  }
-  else if(tRecFourCC == FOURCC(T6mA))
-  {
-    if(tYuvFourCC == FOURCC(Y800))
-      T60A_To_Y800(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(Y010))
-      T60A_To_Y010(pRec, pYuv);
-    else if(tYuvFourCC == FOURCC(XV10))
-      T60A_To_XV10(pRec, pYuv);
-    else
-      assert(0);
-  }
-  else
-    assert(0);
-}
+    switch(tYuvFourCC)
+    {
+    case FOURCC(Y800): return T608_To_Y800(pRec, pYuv);
+    case FOURCC(Y010): return T608_To_Y010(pRec, pYuv);
+    case FOURCC(I420): return T6m8_To_I420(pRec, pYuv);
+    default: assert(false && "Unknown tile conversion");
+    }
 
-using namespace std;
+    break;
+  }
+  case FOURCC(T6mA):
+  {
+    switch(tYuvFourCC)
+    {
+    case FOURCC(Y800): return T60A_To_Y800(pRec, pYuv);
+    case FOURCC(Y010): return T60A_To_Y010(pRec, pYuv);
+    case FOURCC(XV10): return T60A_To_XV10(pRec, pYuv);
+    default: assert(false && "Unknown tile conversion");
+    }
+
+    break;
+  }
+  case FOURCC(T608):
+  {
+    switch(tYuvFourCC)
+    {
+    case FOURCC(Y800): return T608_To_Y800(pRec, pYuv);
+    case FOURCC(Y010): return T608_To_Y010(pRec, pYuv);
+    case FOURCC(I420): return T608_To_I420(pRec, pYuv);
+    case FOURCC(IYUV): return T608_To_IYUV(pRec, pYuv);
+    case FOURCC(YV12): return T608_To_YV12(pRec, pYuv);
+    case FOURCC(NV12): return T608_To_NV12(pRec, pYuv);
+    case FOURCC(P010): return T608_To_P010(pRec, pYuv);
+    case FOURCC(I0AL): return T608_To_I0AL(pRec, pYuv);
+    default: assert(false && "Unknown tile conversion");
+    }
+
+    break;
+  }
+  case FOURCC(T628):
+  {
+    switch(tYuvFourCC)
+    {
+    case FOURCC(Y800): return T628_To_Y800(pRec, pYuv);
+    case FOURCC(Y010): return T628_To_Y010(pRec, pYuv);
+    case FOURCC(I422): return T628_To_I422(pRec, pYuv);
+    case FOURCC(NV16): return T628_To_NV16(pRec, pYuv);
+    case FOURCC(I2AL): return T628_To_I2AL(pRec, pYuv);
+    case FOURCC(P210): return T628_To_P210(pRec, pYuv);
+    default: assert(false && "Unknown tile conversion");
+    }
+
+    break;
+  }
+  case FOURCC(T648):
+  {
+    switch(tYuvFourCC)
+    {
+    case FOURCC(I444): return T648_To_I444(pRec, pYuv);
+    default: assert(false && "Unknown tile conversion");
+    }
+
+    break;
+  }
+  case FOURCC(T60A):
+  {
+    switch(tYuvFourCC)
+    {
+    case FOURCC(Y800): return T60A_To_Y800(pRec, pYuv);
+    case FOURCC(I420): return T60A_To_I420(pRec, pYuv);
+    case FOURCC(IYUV): return T60A_To_IYUV(pRec, pYuv);
+    case FOURCC(YV12): return T60A_To_YV12(pRec, pYuv);
+    case FOURCC(NV12): return T60A_To_NV12(pRec, pYuv);
+    case FOURCC(P010): return T60A_To_P010(pRec, pYuv);
+    case FOURCC(I0AL): return T60A_To_I0AL(pRec, pYuv);
+    case FOURCC(Y010): return T60A_To_Y010(pRec, pYuv);
+    case FOURCC(XV15): return T60A_To_XV15(pRec, pYuv);
+    default: assert(false && "Unknown tile conversion");
+    }
+
+    break;
+  }
+
+  case FOURCC(T62A):
+  {
+    switch(tYuvFourCC)
+    {
+    case FOURCC(Y800): return T62A_To_Y800(pRec, pYuv);
+    case FOURCC(Y010): return T62A_To_Y010(pRec, pYuv);
+    case FOURCC(I422): return T62A_To_I422(pRec, pYuv);
+    case FOURCC(NV16): return T62A_To_NV16(pRec, pYuv);
+    case FOURCC(I2AL): return T62A_To_I2AL(pRec, pYuv);
+    case FOURCC(P210): return T62A_To_P210(pRec, pYuv);
+    case FOURCC(XV20): return T62A_To_XV20(pRec, pYuv);
+    default: assert(false && "Unknown tile conversion");
+    }
+
+    break;
+  }
+
+  case FOURCC(T64A):
+  {
+    switch(tYuvFourCC)
+    {
+    default: assert(false && "Unknown tile conversion");
+    }
+
+    break;
+  }
+
+  case FOURCC(T60C):
+  {
+    switch(tYuvFourCC)
+    {
+    case FOURCC(Y800): return T60C_To_Y800(pRec, pYuv);
+    case FOURCC(I420): return T60C_To_I420(pRec, pYuv);
+    case FOURCC(I0AL): return T60C_To_I0AL(pRec, pYuv);
+    case FOURCC(I0CL): return T60C_To_I0CL(pRec, pYuv);
+    case FOURCC(Y010): return T60C_To_Y010(pRec, pYuv);
+    default: assert(false && "Unknown tile conversion");
+    }
+
+    break;
+  }
+
+  case FOURCC(T62C):
+  {
+    switch(tYuvFourCC)
+    {
+    case FOURCC(Y800): return T62C_To_Y800(pRec, pYuv);
+    case FOURCC(Y012): return T62C_To_Y012(pRec, pYuv);
+    case FOURCC(I422): return T62C_To_I422(pRec, pYuv);
+    case FOURCC(I2CL): return T62C_To_I2CL(pRec, pYuv);
+    case FOURCC(P212): return T62C_To_P212(pRec, pYuv);
+    default: assert(false && "Unknown tile conversion");
+    }
+
+    break;
+  }
+  default:
+    assert(false && "Unknown tile format");
+  }
+}
 
 class FrameWriter : public IFrameSink
 {

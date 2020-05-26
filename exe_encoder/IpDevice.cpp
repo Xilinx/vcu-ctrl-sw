@@ -87,7 +87,9 @@ static shared_ptr<CIpDevice> createMcuIpDevice()
   if(!pAllocator)
     throw runtime_error("Can't open DMA allocator");
 
-  pScheduler = AL_SchedulerMcu_Create(AL_GetHardwareDriver(), pAllocator, g_EncDevicePath.c_str());
+  /* We lost the Linux Dma Allocator type before in an upcast,
+   * but it is needed for the scheduler mcu as we need the GetFd api in it. */
+  pScheduler = AL_SchedulerMcu_Create(AL_GetHardwareDriver(), (AL_TLinuxDmaAllocator*)pAllocator, g_EncDevicePath.c_str());
 
   if(!pScheduler)
     throw std::runtime_error("Failed to create MCU scheduler");

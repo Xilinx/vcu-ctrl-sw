@@ -45,7 +45,10 @@ static bool SrcMeta_Destroy(AL_TMetaData* pMeta)
   return true;
 }
 
-static AL_EPlaneId const tPlanes[] = { AL_PLANE_Y, AL_PLANE_UV, AL_PLANE_MAP_Y, AL_PLANE_MAP_UV };
+static AL_EPlaneId const tPlanes[] =
+{
+  AL_PLANE_Y, AL_PLANE_UV, AL_PLANE_MAP_Y, AL_PLANE_MAP_UV,
+};
 static int const iPlanesSize = (sizeof(tPlanes) / sizeof(tPlanes[0]));
 
 AL_TPixMapMetaData* AL_PixMapMetaData_Clone(AL_TPixMapMetaData* pMeta)

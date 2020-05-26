@@ -66,6 +66,9 @@ typedef struct AL_t_RefInfo
   uint8_t uRefIdxA;
   uint8_t uRefIdxB;
 
+  AL_EPicStruct ePicStructA;
+  AL_EPicStruct ePicStructB;
+
   bool bMergeLTL0; /*!< RefIdx0 L0 Picture Marking */
   bool bMergeLTL1; /*!< RefIdx0 L1 Picture Marking */
 

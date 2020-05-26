@@ -18,7 +18,6 @@ EXE_DECODER_OBJ:=$(EXE_DECODER_SRC:%=$(BIN)/%.o)
 $(BIN)/AL_Decoder.exe: $(EXE_DECODER_OBJ) $(LIB_REFDEC_A) $(LIB_REFALLOC_A) $(LIB_DECODER_A)
 
 $(BIN)/$(THIS_EXE_DECODER)/%.o: CFLAGS+=-pthread
-$(BIN)/$(THIS_EXE_DECODER)/%.o: LDFLAGS+=-lpthread
 
 $(BIN)/$(THIS_EXE_DECODER)/CodecUtils.cpp.o: CFLAGS+=$(SCM_REV)
 $(BIN)/$(THIS_EXE_DECODER)/CodecUtils.cpp.o: CFLAGS+=$(SCM_BRANCH)

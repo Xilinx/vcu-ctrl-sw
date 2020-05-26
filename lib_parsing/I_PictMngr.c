@@ -830,8 +830,7 @@ static void sFrmBufPool_GetInfoDecode(AL_TFrmBufPool* pPool, int iFrameID, AL_TI
   pInfo->ePicStruct = pPool->array[iFrameID].ePicStruct;
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
   AL_Assert(tFourCC != 0);
-  AL_EChromaMode eChromaMode = AL_GetChromaMode(tFourCC);
-  pInfo->bChroma = (eChromaMode != AL_CHROMA_MONO);
+  pInfo->eChromaMode = AL_GetChromaMode(tFourCC);
 }
 
 /***************************************************************************/

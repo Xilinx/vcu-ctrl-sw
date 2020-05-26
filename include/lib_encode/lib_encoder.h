@@ -97,7 +97,7 @@ typedef struct
 AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, AL_IEncScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings, AL_CB_EndEncoding callback);
 
 /*************************************************************************//*!
-   \brief Releases all allocated and/or owned ressources
+   \brief Releases all allocated and/or owned resources
    \param[in] hEnc Handle to Encoder object previously created with CreateEncoder
    \see AL_Encoder_Create
 *****************************************************************************/

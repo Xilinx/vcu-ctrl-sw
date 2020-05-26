@@ -35,45 +35,21 @@
 *
 ******************************************************************************/
 
-#include "lib_common_enc/EncRecBuffer.h"
-#include "lib_common_enc/EncBuffers.h"
-#include "lib_common_enc/EncBuffersInternal.h"
-#include "lib_common/Utils.h"
+#pragma once
+#include "lib_rtos/lib_rtos.h"
+#include "lib_common/BufferAPI.h"
 
-/****************************************************************************/
-uint32_t AL_GetRecPitch(uint32_t uBitDepth, uint32_t uWidth)
+typedef struct
 {
-  int iTileWidth = 64;
-  int iTileHeight = 4;
+  AL_TBuffer** bufs;
+  AL_MUTEX lock;
+  AL_EVENT spaceAvailable;
+  int head;
+  int size;
+  int capacity;
+}WorkPool;
 
-  if(uBitDepth == 8)
-    return UnsignedRoundUp(uWidth, iTileWidth) * iTileHeight;
-
-  return UnsignedRoundUp(uWidth, iTileWidth) * iTileHeight * uBitDepth / 8;
-}
-
-static int GetChromaRecPitch(int iBitDepth, int32_t iWidth)
-{
-  int iPitchY = AL_GetRecPitch(iBitDepth, iWidth);
-  return iPitchY;
-}
-
-void AL_EncRecBuffer_FillPlaneDesc(AL_TPlaneDescription* pPlaneDesc, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bIsAvc)
-{
-  (void)eChromaMode, (void)bIsAvc; // if no fbc support
-  switch(pPlaneDesc->ePlaneId)
-  {
-  case AL_PLANE_Y:
-    pPlaneDesc->iOffset = 0;
-    pPlaneDesc->iPitch = AL_GetRecPitch(uBitDepth, tDim.iWidth);
-    break;
-  case AL_PLANE_UV:
-    pPlaneDesc->iOffset = AL_GetAllocSize_EncReference(tDim, uBitDepth, AL_CHROMA_MONO, false);
-    pPlaneDesc->iPitch = GetChromaRecPitch(uBitDepth, tDim.iWidth);
-    break;
-  default:
-    assert(0);
-    break;
-  }
-}
-
+bool AL_WorkPool_Init(WorkPool* pool, int iMaxBufNum);
+void AL_WorkPool_Deinit(WorkPool* pool);
+void AL_WorkPool_Remove(WorkPool* pool, AL_TBuffer* pBuf);
+void AL_WorkPool_PushBack(WorkPool* pool, AL_TBuffer* pBuf);

@@ -50,18 +50,18 @@ static void write(struct al5_params* msg, void* data, int size)
 
 void setChannelParam(struct al5_params* msg, TMemDesc* pMDChParam, TMemDesc* pEP1)
 {
-  uint32_t uVirtAddr;
-  static_assert(2 * sizeof(uVirtAddr) <= sizeof(msg->opaque_params), "Driver channel_param struct is too small");
+  uint32_t uMcuVirtAddr;
+  static_assert(2 * sizeof(uMcuVirtAddr) <= sizeof(msg->opaque_params), "Driver channel_param struct is too small");
   msg->size = 0;
 
-  uVirtAddr = pMDChParam->uPhysicalAddr + DCACHE_OFFSET;
-  write(msg, &uVirtAddr, sizeof(uVirtAddr));
+  uMcuVirtAddr = pMDChParam->uPhysicalAddr + DCACHE_OFFSET;
+  write(msg, &uMcuVirtAddr, sizeof(uMcuVirtAddr));
 
   if(pEP1)
-    uVirtAddr = pEP1->uPhysicalAddr + DCACHE_OFFSET;
+    uMcuVirtAddr = pEP1->uPhysicalAddr + DCACHE_OFFSET;
   else
-    uVirtAddr = 0;
-  write(msg, &uVirtAddr, sizeof(uVirtAddr));
+    uMcuVirtAddr = 0;
+  write(msg, &uMcuVirtAddr, sizeof(uMcuVirtAddr));
 }
 
 static void setPicParam(struct al5_params* msg, AL_TEncInfo* encInfo, AL_TEncRequestInfo* reqInfo)

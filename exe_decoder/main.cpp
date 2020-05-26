@@ -138,7 +138,7 @@ AL_TDecSettings getDefaultDecSettings()
   settings.eCodec = AL_CODEC_HEVC;
   settings.eBufferOutputMode = AL_OUTPUT_INTERNAL;
   settings.bUseIFramesAsSyncPoint = false;
-  settings.bSplitInput = false;
+  settings.eInputMode = AL_DEC_UNSPLIT_INPUT;
   return settings;
 }
 
@@ -332,7 +332,7 @@ static Config ParseCommandLine(int argc, char* argv[])
 
   opt.addInt("-fps", &fps, "force framerate");
   opt.addCustom("-clk", &Config.tDecSettings.uClkRatio, &IntWithOffset<1000>, "Set clock ratio, (0 for 1000, 1 for 1001)", "number");
-  opt.addInt("-bd", &Config.tDecSettings.iBitDepth, "Output YUV bitdepth (0:auto, 8, 10)");
+  opt.addInt("-bd", &Config.tDecSettings.iBitDepth, "Output YUV bitdepth (0:auto, 8, 10, 12)");
   opt.addFlag("--sync-i-frames", &Config.tDecSettings.bUseIFramesAsSyncPoint,
               "Allow decoder to sync on I frames if configurations' nals are presents",
               true);
@@ -348,13 +348,14 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addFlag("-framelat", &Config.tDecSettings.eDecUnit,
               "Specify decoder latency (default: Frame Latency)",
               AL_AU_UNIT);
+
   opt.addFlag("--no-reordering", &Config.tDecSettings.eDpbMode,
               "Indicates to decoder that the stream doesn't contain B-frame & reference must be at best 1",
               AL_DPB_NO_REORDERING);
 
-  opt.addFlag("--split-input", &Config.tDecSettings.bSplitInput,
+  opt.addFlag("--split-input", &Config.tDecSettings.eInputMode,
               "Send stream by decoding unit",
-              true);
+              AL_DEC_SPLIT_INPUT);
 
   opt.addString("--sei-file", &Config.seiFile, "File in which the SEI decoded by the decoder will be dumped");
   opt.addString("--hdr-file", &Config.hdrFile, "Parse and dump HDR data in the specified file");
@@ -495,19 +496,21 @@ AL_TO_IP Bind(AL_TO_IP_SCALE* convertFunc, int horzScale, int vertScale)
   return conversion;
 }
 
+#define GetConvFormat(ChromaMode, iBdIn, iBdOut) ((ChromaMode) | ((iBdIn) << 8) | ((iBdOut) << 16))
+
 AL_TO_IP Get8BitsConversionFunction(int iPicFmt)
 {
-  auto constexpr AL_CHROMA_MONO_8bitTo8bit = 0x00080800;
-  auto constexpr AL_CHROMA_MONO_8bitTo10bit = 0x000A0800;
+  auto constexpr AL_CHROMA_MONO_8bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_0_0, 8, 8);
+  auto constexpr AL_CHROMA_MONO_8bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_0_0, 8, 10);
 
-  auto constexpr AL_CHROMA_420_8bitTo8bit = 0x00080801;
-  auto constexpr AL_CHROMA_420_8bitTo10bit = 0x000A0801;
+  auto constexpr AL_CHROMA_420_8bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_0, 8, 8);
+  auto constexpr AL_CHROMA_420_8bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_0, 8, 10);
 
-  auto constexpr AL_CHROMA_422_8bitTo8bit = 0x00080802;
-  auto constexpr AL_CHROMA_422_8bitTo10bit = 0x000A0802;
+  auto constexpr AL_CHROMA_422_8bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 8, 8);
+  auto constexpr AL_CHROMA_422_8bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 8, 10);
 
-  auto const AL_CHROMA_444_8bitTo8bit = 0x00080803;
-  auto const AL_CHROMA_444_8bitTo10bit = 0x000A0803;
+  auto constexpr AL_CHROMA_444_8bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 8, 8);
+  auto constexpr AL_CHROMA_444_8bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 8, 10);
   switch(iPicFmt)
   {
   case AL_CHROMA_420_8bitTo8bit:
@@ -534,17 +537,17 @@ AL_TO_IP Get8BitsConversionFunction(int iPicFmt)
 
 AL_TO_IP Get10BitsConversionFunction(int iPicFmt)
 {
-  auto const AL_CHROMA_MONO_10bitTo10bit = 0x000A0A00;
-  auto const AL_CHROMA_MONO_10bitTo8bit = 0x00080A00;
+  auto const AL_CHROMA_MONO_10bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_0_0, 10, 10);
+  auto const AL_CHROMA_MONO_10bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_0_0, 10, 8);
 
-  auto const AL_CHROMA_420_10bitTo10bit = 0x000A0A01;
-  auto const AL_CHROMA_420_10bitTo8bit = 0x00080A01;
+  auto const AL_CHROMA_420_10bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_0, 10, 10);
+  auto const AL_CHROMA_420_10bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_0, 10, 8);
 
-  auto const AL_CHROMA_422_10bitTo10bit = 0x000A0A02;
-  auto const AL_CHROMA_422_10bitTo8bit = 0x00080A02;
+  auto const AL_CHROMA_422_10bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 10, 10);
+  auto const AL_CHROMA_422_10bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 10, 8);
 
-  auto const AL_CHROMA_444_10bitTo10bit = 0x000A0A03;
-  auto const AL_CHROMA_444_10bitTo8bit = 0x00080A03;
+  auto const AL_CHROMA_444_10bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 10, 10);
+  auto const AL_CHROMA_444_10bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 10, 8);
   switch(iPicFmt)
   {
   case AL_CHROMA_420_10bitTo10bit:
@@ -572,55 +575,130 @@ AL_TO_IP Get10BitsConversionFunction(int iPicFmt)
   }
 }
 
-AL_TO_IP GetTileConversionFunction(int iPicFmt)
+AL_TO_IP Get12BitsConversionFunction(int iPicFmt)
 {
-  auto const AL_CHROMA_MONO_8bitTo8bit = 0x00080800;
-  auto const AL_CHROMA_MONO_8bitTo10bit = 0x000A0800;
+  auto const AL_CHROMA_MONO_12bitTo12bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_0_0, 12, 12);
+  auto const AL_CHROMA_MONO_12bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_0_0, 12, 10);
+  auto const AL_CHROMA_MONO_12bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_0_0, 12, 8);
 
-  auto const AL_CHROMA_420_8bitTo8bit = 0x00080801;
-  auto const AL_CHROMA_420_8bitTo10bit = 0x000A0801;
+  auto const AL_CHROMA_420_12bitTo12bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_0, 12, 12);
+  auto const AL_CHROMA_420_12bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_0, 12, 10);
+  auto const AL_CHROMA_420_12bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_0, 12, 8);
 
-  auto const AL_CHROMA_422_8bitTo8bit = 0x00080802;
-  auto const AL_CHROMA_422_8bitTo10bit = 0x000A0802;
+  auto const AL_CHROMA_422_12bitTo12bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 12, 12);
+  auto const AL_CHROMA_422_12bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 12, 10);
+  auto const AL_CHROMA_422_12bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 12, 8);
 
-  auto const AL_CHROMA_MONO_10bitTo10bit = 0x000A0A00;
-  auto const AL_CHROMA_MONO_10bitTo8bit = 0x00080A00;
-
-  auto const AL_CHROMA_420_10bitTo10bit = 0x000A0A01;
-  auto const AL_CHROMA_420_10bitTo8bit = 0x00080A01;
-
-  auto const AL_CHROMA_422_10bitTo10bit = 0x000A0A02;
-  auto const AL_CHROMA_422_10bitTo8bit = 0x00080A02;
+  auto const AL_CHROMA_444_12bitTo12bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 12, 12);
+  auto const AL_CHROMA_444_12bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 12, 10);
+  auto const AL_CHROMA_444_12bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 12, 8);
   switch(iPicFmt)
   {
-  case AL_CHROMA_420_8bitTo8bit:
-    return T608_To_I420;
-  case AL_CHROMA_420_8bitTo10bit:
-    return T608_To_I0AL;
-  case AL_CHROMA_422_8bitTo8bit:
-    return T628_To_I422;
-  case AL_CHROMA_422_8bitTo10bit:
-    return T628_To_I2AL;
-  case AL_CHROMA_MONO_8bitTo8bit:
-    return T608_To_Y800;
-  case AL_CHROMA_MONO_8bitTo10bit:
-    return T608_To_Y010;
+  case AL_CHROMA_420_12bitTo12bit:
+    return P012_To_I0CL;
+  case AL_CHROMA_420_12bitTo10bit:
+    return P012_To_I0AL;
+  case AL_CHROMA_420_12bitTo8bit:
+    return P012_To_I420;
 
-  case AL_CHROMA_420_10bitTo10bit:
-    return T60A_To_I0AL;
-  case AL_CHROMA_420_10bitTo8bit:
-    return T60A_To_I420;
-  case AL_CHROMA_422_10bitTo10bit:
-    return T62A_To_I2AL;
-  case AL_CHROMA_422_10bitTo8bit:
-    return T62A_To_I422;
-  case AL_CHROMA_MONO_10bitTo10bit:
-    return T60A_To_Y010;
-  case AL_CHROMA_MONO_10bitTo8bit:
-    return T60A_To_Y800;
+  case AL_CHROMA_422_12bitTo12bit:
+    return P212_To_I2CL;
+  case AL_CHROMA_422_12bitTo10bit:
+    return P212_To_I2AL;
+  case AL_CHROMA_422_12bitTo8bit:
+    return P212_To_I422;
+
+  case AL_CHROMA_444_12bitTo12bit:
+    return CopyPixMapBuffer;
+  case AL_CHROMA_444_12bitTo10bit:
+    return I4CL_To_I4AL;
+  case AL_CHROMA_444_12bitTo8bit:
+    return I4CL_To_I444;
+
+  case AL_CHROMA_MONO_12bitTo12bit:
+    return CopyPixMapBuffer;
+  case AL_CHROMA_MONO_12bitTo10bit:
+    return Y012_To_Y010;
+  case AL_CHROMA_MONO_12bitTo8bit:
+    return Y012_To_Y800;
+
   default:
     assert(0);
     return nullptr;
+  }
+}
+
+AL_TO_IP GetTileConversionFunction(int iPicFmt)
+{
+  auto const AL_CHROMA_MONO_8bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_MONO, 8, 8);
+  auto const AL_CHROMA_MONO_8bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_MONO, 8, 10);
+
+  auto const AL_CHROMA_420_8bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_0, 8, 8);
+  auto const AL_CHROMA_420_8bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_0, 8, 10);
+
+  auto const AL_CHROMA_422_8bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 8, 8);
+  auto const AL_CHROMA_422_8bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 8, 10);
+
+  auto const AL_CHROMA_444_8bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 8, 8);
+
+  auto const AL_CHROMA_MONO_10bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_MONO, 10, 10);
+  auto const AL_CHROMA_MONO_10bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_MONO, 10, 8);
+
+  auto const AL_CHROMA_420_10bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_0, 10, 10);
+  auto const AL_CHROMA_420_10bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_0, 10, 8);
+
+  auto const AL_CHROMA_422_10bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 10, 10);
+  auto const AL_CHROMA_422_10bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 10, 8);
+
+  auto const AL_CHROMA_MONO_12bitTo12bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_MONO, 12, 12);
+  auto const AL_CHROMA_MONO_12bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_MONO, 12, 10);
+  auto const AL_CHROMA_MONO_12bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_MONO, 12, 8);
+
+  auto const AL_CHROMA_420_12bitTo12bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_0, 12, 12);
+  auto const AL_CHROMA_420_12bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_0, 12, 10);
+  auto const AL_CHROMA_420_12bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_0, 12, 8);
+
+  auto const AL_CHROMA_422_12bitTo12bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 12, 12);
+  auto const AL_CHROMA_422_12bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 12, 10);
+  auto const AL_CHROMA_422_12bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 12, 8);
+  switch(iPicFmt)
+  {
+  case AL_CHROMA_420_8bitTo8bit: return T608_To_I420;
+  case AL_CHROMA_422_8bitTo8bit: return T628_To_I422;
+  case AL_CHROMA_444_8bitTo8bit: return T648_To_I444;
+
+  case AL_CHROMA_420_8bitTo10bit: return T608_To_I0AL;
+  case AL_CHROMA_422_8bitTo10bit: return T628_To_I2AL;
+
+  case AL_CHROMA_MONO_8bitTo8bit: return T608_To_Y800;
+  case AL_CHROMA_MONO_8bitTo10bit: return T608_To_Y010;
+
+  case AL_CHROMA_420_10bitTo10bit: return T60A_To_I0AL;
+  case AL_CHROMA_420_10bitTo8bit: return T60A_To_I420;
+
+  case AL_CHROMA_422_10bitTo10bit: return T62A_To_I2AL;
+  case AL_CHROMA_422_10bitTo8bit: return T62A_To_I422;
+
+  case AL_CHROMA_MONO_10bitTo10bit: return T60A_To_Y010;
+  case AL_CHROMA_MONO_10bitTo8bit: return T60A_To_Y800;
+
+  case AL_CHROMA_MONO_12bitTo12bit: return T60C_To_Y012;
+  case AL_CHROMA_MONO_12bitTo10bit: return T60C_To_Y010;
+  case AL_CHROMA_MONO_12bitTo8bit: return T60C_To_Y800;
+
+  case AL_CHROMA_420_12bitTo12bit: return T60C_To_I0CL;
+  case AL_CHROMA_420_12bitTo10bit: return T60C_To_I0AL;
+  case AL_CHROMA_420_12bitTo8bit: return T60C_To_I420;
+
+  case AL_CHROMA_422_12bitTo12bit: return T62C_To_I2CL;
+  case AL_CHROMA_422_12bitTo10bit: return T62C_To_I2AL;
+  case AL_CHROMA_422_12bitTo8bit: return T62C_To_I422;
+
+  default:
+  {
+    assert(0 && "Unknown picture format");
+    return nullptr;
+  }
   }
 }
 
@@ -628,24 +706,22 @@ AL_TO_IP GetConversionFunction(TFourCC input, int iBdOut)
 {
   auto const eChromaMode = AL_GetChromaMode(input);
   auto const iBdIn = AL_GetBitDepth(input);
-
-#define GetConvFormat(ChromaMode, iBdIn, iBdOut) ((ChromaMode) | ((iBdIn) << 8) | ((iBdOut) << 16))
-
   int iPicFmt = GetConvFormat(eChromaMode, iBdIn, iBdOut);
 
   if(AL_IsTiled(input))
     return GetTileConversionFunction(iPicFmt);
   else if(iBdIn == 8)
     return Get8BitsConversionFunction(iPicFmt);
-  else
+  else if(iBdIn == 10)
     return Get10BitsConversionFunction(iPicFmt);
+  else
+    return Get12BitsConversionFunction(iPicFmt);
 }
 
 static void ConvertFrameBuffer(AL_TBuffer& input, int iBdIn, AL_TBuffer*& pOutput, int iBdOut)
 {
   TFourCC tRecFourCC = AL_PixMapBuffer_GetFourCC(&input);
   AL_TPicFormat tRecPicFormat = AL_GetDecPicFormat(AL_GetChromaMode(tRecFourCC), iBdIn, AL_GetStorageMode(tRecFourCC), AL_IsCompressed(tRecFourCC));
-
   AL_TDimension tRecDim = AL_PixMapBuffer_GetDimension(&input);
 
   if(pOutput != NULL)
@@ -740,6 +816,7 @@ public:
 private:
   ofstream CertCrcFile; // Cert crc only computed for uncompressed output
   AL_TBuffer* YuvBuffer = NULL;
+  int convertBitDepthToEven(int iBd) const;
 };
 
 UncompressedOutputWriter::~UncompressedOutputWriter()
@@ -760,49 +837,49 @@ UncompressedOutputWriter::UncompressedOutputWriter(const string& sYuvFileName, c
   }
 }
 
+int UncompressedOutputWriter::convertBitDepthToEven(int iBd) const
+{
+  return ((iBd % 2) != 0) ? iBd + 1 : iBd;
+}
+
 void UncompressedOutputWriter::ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut)
 {
-  if(YuvFile.is_open() || CertCrcFile.is_open())
+  if(!(YuvFile.is_open() || CertCrcFile.is_open()))
+    return;
+  int iBdIn = max(info.uBitDepthY, info.uBitDepthC);
+  iBdIn = convertBitDepthToEven(iBdIn);
+  iBdOut = convertBitDepthToEven(iBdOut);
+
+  ConvertFrameBuffer(tRecBuf, iBdIn, YuvBuffer, iBdOut);
+
+  auto const iSizePix = (iBdOut + 7) >> 3;
+
+  if(info.tCrop.bCropping)
+    CropFrame(YuvBuffer, iSizePix, info.tCrop.uCropOffsetLeft, info.tCrop.uCropOffsetRight, info.tCrop.uCropOffsetTop, info.tCrop.uCropOffsetBottom);
+
+  TFourCC tRecFourCC = AL_PixMapBuffer_GetFourCC(&tRecBuf);
+
+  int sx = 1, sy = 1;
+  AL_GetSubsampling(tRecFourCC, &sx, &sy);
+  AL_TDimension tYuvDim = AL_PixMapBuffer_GetDimension(YuvBuffer);
+  int const iNumPix = tYuvDim.iHeight * tYuvDim.iWidth;
+  int const iNumPixC = AL_GetChromaMode(tRecFourCC) == AL_CHROMA_MONO ? 0 : (iNumPix / sx / sy);
+
+  if(CertCrcFile.is_open())
   {
-    int iBdIn = max(info.uBitDepthY, info.uBitDepthC);
+    // compute crc
+    auto eChromaMode = AL_GetChromaMode(tRecFourCC);
 
-    if(iBdIn > 8)
-      iBdIn = 10;
+    uint8_t* pBuf = AL_PixMapBuffer_GetPlaneAddress(YuvBuffer, AL_PLANE_Y);
 
-    if(iBdOut > 8)
-      iBdOut = 10;
-
-    ConvertFrameBuffer(tRecBuf, iBdIn, YuvBuffer, iBdOut);
-
-    auto const iSizePix = (iBdOut + 7) >> 3;
-
-    if(info.tCrop.bCropping)
-      CropFrame(YuvBuffer, iSizePix, info.tCrop.uCropOffsetLeft, info.tCrop.uCropOffsetRight, info.tCrop.uCropOffsetTop, info.tCrop.uCropOffsetBottom);
-
-    TFourCC tRecFourCC = AL_PixMapBuffer_GetFourCC(&tRecBuf);
-
-    int sx = 1, sy = 1;
-    AL_GetSubsampling(tRecFourCC, &sx, &sy);
-    AL_TDimension tYuvDim = AL_PixMapBuffer_GetDimension(YuvBuffer);
-    int const iNumPix = tYuvDim.iHeight * tYuvDim.iWidth;
-    int const iNumPixC = AL_GetChromaMode(tRecFourCC) == AL_CHROMA_MONO ? 0 : (iNumPix / sx / sy);
-
-    if(CertCrcFile.is_open())
-    {
-      // compute crc
-      auto eChromaMode = AL_GetChromaMode(tRecFourCC);
-
-      uint8_t* pBuf = AL_PixMapBuffer_GetPlaneAddress(YuvBuffer, AL_PLANE_Y);
-
-      if(iBdOut == 8)
-        Compute_CRC(info.uBitDepthY, info.uBitDepthC, iBdOut, iNumPix, iNumPixC, eChromaMode, pBuf, CertCrcFile);
-      else
-        Compute_CRC(info.uBitDepthY, info.uBitDepthC, iBdOut, iNumPix, iNumPixC, eChromaMode, (uint16_t*)pBuf, CertCrcFile);
-    }
-
-    if(YuvFile.is_open())
-      YuvFile.write((const char*)AL_PixMapBuffer_GetPlaneAddress(YuvBuffer, AL_PLANE_Y), (iNumPix + 2 * iNumPixC) * iSizePix);
+    if(iBdOut == 8)
+      Compute_CRC(info.uBitDepthY, info.uBitDepthC, iBdOut, iNumPix, iNumPixC, eChromaMode, pBuf, CertCrcFile);
+    else
+      Compute_CRC(info.uBitDepthY, info.uBitDepthC, iBdOut, iNumPix, iNumPixC, eChromaMode, (uint16_t*)pBuf, CertCrcFile);
   }
+
+  if(YuvFile.is_open())
+    YuvFile.write((const char*)AL_PixMapBuffer_GetPlaneAddress(YuvBuffer, AL_PLANE_Y), (iNumPix + 2 * iNumPixC) * iSizePix);
 }
 
 /******************************************************************************/
@@ -955,7 +1032,7 @@ static void WriteSyncSei(AL_TBuffer* pDecodedFrame, ofstream* seiOut)
 }
 
 /******************************************************************************/
-static void sInputParsed(AL_TBuffer* pParsedFrame, void* pUserParam)
+static void sInputParsed(AL_TBuffer* pParsedFrame, void* pUserParam, int iParsingID)
 {
   (void)pUserParam;
 
@@ -969,26 +1046,26 @@ static void sInputParsed(AL_TBuffer* pParsedFrame, void* pUserParam)
  */
 
   int numHandles = AL_HandleMetaData_GetNumHandles(pHandlesMeta);
+  assert(iParsingID < numHandles);
 
-  for(int handle = numHandles - 1; handle >= 0; handle--)
+  AL_TDecMetaHandle* pDecMetaHandle = (AL_TDecMetaHandle*)AL_HandleMetaData_GetHandle(pHandlesMeta, iParsingID);
+
+  if(pDecMetaHandle->eState == AL_DEC_HANDLE_STATE_PROCESSED)
   {
-    AL_TDecMetaHandle* pDecMetaHandle = (AL_TDecMetaHandle*)AL_HandleMetaData_GetHandle(pHandlesMeta, handle);
-
-    if(pDecMetaHandle->eState == AL_DEC_HANDLE_STATE_PROCESSED)
-    {
-      AL_TBuffer* pStream = pDecMetaHandle->pHandle;
-      AL_Buffer_Ref(pStream);
-      return;
-    }
+    AL_TBuffer* pStream = pDecMetaHandle->pHandle;
+    AL_Buffer_Ref(pStream);
+    return;
   }
 
-  assert(0);
+  AL_Assert(0);
 }
 
 /******************************************************************************/
 static void sFrameDecoded(AL_TBuffer* pDecodedFrame, void* pUserParam)
 {
   auto pParam = static_cast<DecodeParam*>(pUserParam);
+
+  pParam->decodedFrames++;
 
   if(!pDecodedFrame)
   {
@@ -1009,11 +1086,11 @@ static void sFrameDecoded(AL_TBuffer* pDecodedFrame, void* pUserParam)
     for(int handle = 0; handle < numHandles; handle++)
     {
       AL_TDecMetaHandle* pDecMetaHandle = (AL_TDecMetaHandle*)AL_HandleMetaData_GetHandle(pMeta, handle);
-      AL_Buffer_Unref(pDecMetaHandle->pHandle);
+
+      if(pDecMetaHandle->eState == AL_DEC_HANDLE_STATE_PROCESSED)
+        AL_Buffer_Unref(pDecMetaHandle->pHandle);
     }
   }
-
-  pParam->decodedFrames++;
 }
 
 /******************************************************************************/
@@ -1166,7 +1243,8 @@ void AddHDRMetaData(AL_TBuffer* pBufStream)
 
 static int sConfigureDecBufPool(PixMapBufPool& SrcBufPool, AL_TPicFormat tPicFormat, AL_TDimension tDim, int iPitchY)
 {
-  SrcBufPool.SetFormat(tDim, AL_GetDecFourCC(tPicFormat));
+  auto const tFourCC = AL_GetDecFourCC(tPicFormat);
+  SrcBufPool.SetFormat(tDim, tFourCC);
 
   std::vector<AL_TPlaneDescription> vPlaneDesc;
   int iDecSize = 0;
@@ -1182,7 +1260,8 @@ static int sConfigureDecBufPool(PixMapBufPool& SrcBufPool, AL_TPicFormat tPicFor
     iDecSize = 0;
   }
 
-  vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_UV, iDecSize, iPitchY });
+  auto iPitchUV = AL_GetChromaPitch(tFourCC, iPitchY);
+  vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_UV, iDecSize, iPitchUV });
   iDecSize += AL_DecGetAllocSize_Frame_UV(tPicFormat.eStorageMode, tDim, iPitchY, tPicFormat.eChromaMode);
 
   SrcBufPool.AddChunk(iDecSize, vPlaneDesc);
@@ -1347,7 +1426,7 @@ void SafeMain(int argc, char** argv)
   {
     OpenOutput(seiOutput, Config.seiFile);
 
-    if(Config.tDecSettings.bSplitInput)
+    if(Config.tDecSettings.eInputMode == AL_DEC_SPLIT_INPUT)
       OpenOutput(seiSyncOutput, Config.seiFile + "_sync.txt");
   }
 
@@ -1370,7 +1449,6 @@ void SafeMain(int argc, char** argv)
   param.bTrackDma = Config.trackDma;
   param.uNumCore = Config.tDecSettings.uNumCore;
   param.iHangers = Config.hangers;
-
   auto pIpDevice = CreateIpDevice(param, wrapIpCtrl);
 
   bool bUseBoard = (param.iDeviceType == DEVICE_TYPE_BOARD); // retrieve auto-detected device type
@@ -1388,7 +1466,7 @@ void SafeMain(int argc, char** argv)
     AL_TMetaData* meta = nullptr;
     auto pBufPoolAllocator = AL_GetDefaultAllocator();
 
-    if(Config.tDecSettings.bSplitInput)
+    if(Config.tDecSettings.eInputMode == AL_DEC_SPLIT_INPUT)
     {
       meta = (AL_TMetaData*)AL_StreamMetaData_Create(1);
       pBufPoolAllocator = pIpDevice->m_pAllocator.get();
@@ -1478,16 +1556,20 @@ void SafeMain(int argc, char** argv)
 
   for(int iLoop = 0; iLoop < Config.iLoop; ++iLoop)
   {
+    bufPool.Commit();
+
     if(iLoop > 0)
       LogVerbose(CC_GREY, "  Looping\n");
 
-    AsyncFileInput producer(hDec, Config.sIn, bufPool, Config.tDecSettings.bSplitInput, eCodec, Config.tDecSettings.eDecUnit == AL_VCL_NAL_UNIT);
+    AsyncFileInput producer(hDec, Config.sIn, bufPool, Config.tDecSettings.eInputMode == AL_DEC_SPLIT_INPUT, eCodec, Config.tDecSettings.eDecUnit == AL_VCL_NAL_UNIT);
 
     auto const maxWait = Config.iTimeoutInSeconds * 1000;
     auto const timeout = maxWait >= 0 ? maxWait : AL_WAIT_FOREVER;
 
     if(!Rtos_WaitEvent(display.hExitMain, timeout))
+    {
       timeoutOccured = true;
+    }
     bufPool.Decommit();
   }
 

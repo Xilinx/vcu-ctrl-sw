@@ -41,36 +41,35 @@
 #include "IP_EncoderCtx.h"
 
 /****************************************************************************/
-static void fillScalingList(AL_TEncSettings const* pSettings, AL_TAvcSps* pSPS, int iSizeId, int iMatrixId, int iDir, uint8_t* uSLpresentFlag)
+static int getScalingListPresentId(int iSizeId, int iIntraInter, int iYCbCr)
 {
+  return iSizeId == 0 ? ((iIntraInter * 3) + iYCbCr) : (6 + iIntraInter + iYCbCr * 2);
+}
+
+/****************************************************************************/
+static void fillScalingList(AL_TEncSettings const* pSettings, AL_TAvcSps* pSPS, int iSizeId, int iIntraInter, int iYCbCr)
+{
+  int iMatrixId = (3 * iIntraInter) + iYCbCr;
+  int iMatrixSize = iSizeId == 0 ? 16 : 64;
   uint8_t* pSL = pSPS->scaling_list_param.ScalingList[iSizeId][iMatrixId];
+  int iSLPresentId = getScalingListPresentId(iSizeId, iIntraInter, iYCbCr);
 
   if(pSettings->SclFlag[iSizeId][iMatrixId] != 0)
   {
-    *uSLpresentFlag = 1; // scaling list present in file
-    Rtos_Memcpy(pSL, pSettings->ScalingList[iSizeId][iMatrixId], iSizeId == 0 ? 16 : 64);
+    pSPS->seq_scaling_list_present_flag[iSLPresentId] = 1; // scaling list present in file
+    Rtos_Memcpy(pSL, pSettings->ScalingList[iSizeId][iMatrixId], iMatrixSize);
     return;
   }
 
-  *uSLpresentFlag = 0;
+  pSPS->seq_scaling_list_present_flag[iSLPresentId] = 0;
 
-  if(iSizeId == 0)
-  {
-    if(iMatrixId == 0 || iMatrixId == 3)
-      Rtos_Memcpy(pSL, AL_AVC_DefaultScalingLists4x4[iDir], 16);
-    else
-    {
-      if(&pSPS->seq_scaling_list_present_flag[iMatrixId - 1])
-      {
-        *uSLpresentFlag = 1;
-        Rtos_Memcpy(pSL, pSPS->scaling_list_param.ScalingList[iSizeId][iMatrixId - 1], 16);
-      }
-      else
-        Rtos_Memcpy(pSL, AL_AVC_DefaultScalingLists4x4[iDir], 16);
-    }
-  }
+  if(iYCbCr == 0 || !pSPS->seq_scaling_list_present_flag[getScalingListPresentId(iSizeId, iIntraInter, iYCbCr - 1)])
+    Rtos_Memcpy(pSL, iSizeId == 0 ? AL_AVC_DefaultScalingLists4x4[iIntraInter] : AL_AVC_DefaultScalingLists8x8[iIntraInter], iMatrixSize);
   else
-    Rtos_Memcpy(pSL, AL_AVC_DefaultScalingLists8x8[iDir], 64);
+  {
+    pSPS->seq_scaling_list_present_flag[iSLPresentId] = 1;
+    Rtos_Memcpy(pSL, pSPS->scaling_list_param.ScalingList[iSizeId][iMatrixId - 1], iMatrixSize);
+  }
 }
 
 /****************************************************************************/
@@ -81,11 +80,13 @@ void AL_AVC_SelectScalingList(AL_TSps* pISPS, AL_TEncSettings const* pSettings)
 
   assert(eScalingList != AL_SCL_MAX_ENUM);
 
+  static const int iMaxScalingList = 12;
+
   if(eScalingList == AL_SCL_FLAT)
   {
     pSPS->seq_scaling_matrix_present_flag = 0;
 
-    for(int i = 0; i < 8; i++)
+    for(int i = 0; i < iMaxScalingList; i++)
       pSPS->seq_scaling_list_present_flag[i] = 0;
 
     return;
@@ -102,38 +103,42 @@ void AL_AVC_SelectScalingList(AL_TSps* pISPS, AL_TEncSettings const* pSettings)
     pSPS->seq_scaling_matrix_present_flag = 0;
   }
 
+  int iNb8x8SCL = AL_GET_CHROMA_MODE(pSettings->tChParam[0].ePicFormat) == AL_CHROMA_4_4_4 ? 3 : 1;
+
   if(eScalingList == AL_SCL_CUSTOM)
   {
-    for(int iDir = 0; iDir < 2; ++iDir)
+    for(int iIntraInter = 0; iIntraInter < 2; ++iIntraInter)
     {
-      fillScalingList(pSettings, pSPS, 1, iDir * 3, iDir, &pSPS->seq_scaling_list_present_flag[iDir + 6]);
-      fillScalingList(pSettings, pSPS, 0, iDir * 3, iDir, &pSPS->seq_scaling_list_present_flag[iDir * 3]);
-      fillScalingList(pSettings, pSPS, 0, iDir * 3 + 1, iDir, &pSPS->seq_scaling_list_present_flag[iDir * 3 + 1]);
-      fillScalingList(pSettings, pSPS, 0, iDir * 3 + 2, iDir, &pSPS->seq_scaling_list_present_flag[iDir * 3 + 2]);
+      for(int iYCbCr = 0; iYCbCr < 3; iYCbCr++)
+        fillScalingList(pSettings, pSPS, 0, iIntraInter, iYCbCr);
+
+      for(int iYCbCr = 0; iYCbCr < iNb8x8SCL; iYCbCr++)
+        fillScalingList(pSettings, pSPS, 1, iIntraInter, iYCbCr);
     }
   }
   else if(eScalingList == AL_SCL_DEFAULT)
   {
-    for(int i = 0; i < 8; i++)
+    for(int i = 0; i < iMaxScalingList; i++)
       pSPS->seq_scaling_list_present_flag[i] = 0;
 
-    for(int iDir = 0; iDir < 2; ++iDir)
+    for(int iIntraInter = 0; iIntraInter < 2; ++iIntraInter)
     {
-      Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[1][3 * iDir], AL_AVC_DefaultScalingLists8x8[iDir], 64);
-      Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[0][3 * iDir], AL_AVC_DefaultScalingLists4x4[iDir], 16);
-      Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[0][(3 * iDir) + 1], AL_AVC_DefaultScalingLists4x4[iDir], 16);
-      Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[0][(3 * iDir) + 2], AL_AVC_DefaultScalingLists4x4[iDir], 16);
+      for(int iYCbCr = 0; iYCbCr < 3; iYCbCr++)
+        Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[0][(3 * iIntraInter) + iYCbCr], AL_AVC_DefaultScalingLists4x4[iIntraInter], 16);
+
+      for(int iYCbCr = 0; iYCbCr < iNb8x8SCL; iYCbCr++)
+        Rtos_Memcpy(pSPS->scaling_list_param.ScalingList[1][(3 * iIntraInter) + iYCbCr], AL_AVC_DefaultScalingLists8x8[iIntraInter], 64);
     }
   }
 }
 
 /****************************************************************************/
-void AL_AVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufEP)
+void AL_AVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, uint8_t chroma_format_idc, TBufferEP* pBufEP)
 {
   AL_THwScalingList HwSclLst;
 
-  AL_AVC_GenerateHwScalingList(pSclLst, &HwSclLst);
-  AL_AVC_WriteEncHwScalingList(pSclLst, (AL_THwScalingList const*)&HwSclLst, pBufEP->tMD.pVirtualAddr + EP1_BUF_SCL_LST.Offset);
+  AL_AVC_GenerateHwScalingList(pSclLst, chroma_format_idc, &HwSclLst);
+  AL_AVC_WriteEncHwScalingList(pSclLst, (AL_THwScalingList const*)&HwSclLst, chroma_format_idc, pBufEP->tMD.pVirtualAddr + EP1_BUF_SCL_LST.Offset);
 
   pBufEP->uFlags |= EP1_BUF_SCL_LST.Flag;
 }
@@ -211,6 +216,7 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   pSPS->constraint_set4_flag = (uCSFlags >> 4) & 1;
   pSPS->constraint_set5_flag = (uCSFlags >> 5) & 1;
   pSPS->chroma_format_idc = eChromaMode;
+  pSPS->separate_colour_plane_flag = 0;
   pSPS->bit_depth_luma_minus8 = AL_GET_BITDEPTH_LUMA(pChannel->ePicFormat) - 8;
   pSPS->bit_depth_chroma_minus8 = AL_GET_BITDEPTH_CHROMA(pChannel->ePicFormat) - 8;
   pSPS->qpprime_y_zero_transform_bypass_flag = 0;
@@ -241,7 +247,7 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   // - must be set to 1 in Baseline (sec. A.2.1), or for certain levels (Table A-4).
 
   // m_SPS.frame_mbs_only_flag = ((cp.iProfile == 66) || (cp.iLevel <= 20) || (cp.iLevel >= 42)) ? 1 : 0;
-  pSPS->frame_mbs_only_flag = 1;// (bFrameOnly) ? 1 : 0;
+  pSPS->frame_mbs_only_flag = 1;
 
   // direct_8x8_inference_flag:
   // - is set to 1 whenever possible.
@@ -288,13 +294,7 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   pSPS->vui_param.matrix_coefficients = pSettings->eColourMatrixCoeffs;
 
   // Timing information
-  // When fixed_frame_rate_flag = 1, num_units_in_tick/time_scale should be equal to
-  // a duration of one field both for progressive and interlaced sequences.
-  pSPS->vui_param.vui_timing_info_present_flag = 1;
-  pSPS->vui_param.vui_num_units_in_tick = pChannel->tRCParam.uClkRatio;
-  pSPS->vui_param.vui_time_scale = pChannel->tRCParam.uFrameRate * 1000 * 2;
-
-  AL_Reduction(&pSPS->vui_param.vui_time_scale, &pSPS->vui_param.vui_num_units_in_tick);
+  AL_UpdateVuiTimingInfo(&pSPS->vui_param, 0, &pSettings->tChParam[0].tRCParam, 2);
 
   pSPS->vui_param.fixed_frame_rate_flag = 0;
 
@@ -334,7 +334,7 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
 }
 
 /****************************************************************************/
-void AL_AVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, int iMaxRef, AL_TSps const* pSPS)
+void AL_AVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TSps const* pSPS)
 {
   AL_TAvcPps* pPPS = (AL_TAvcPps*)pIPPS;
   AL_TEncChanParam const* pChannel = &pSettings->tChParam[0];
@@ -346,8 +346,10 @@ void AL_AVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, int iM
   pPPS->bottom_field_pic_order_in_frame_present_flag = 0;
 
   pPPS->num_slice_groups_minus1 = 0;
-  pPPS->num_ref_idx_l0_active_minus1 = iMaxRef - 1;
-  pPPS->num_ref_idx_l1_active_minus1 = iMaxRef - 1;
+  int iNumRef = 1;
+
+  pPPS->num_ref_idx_l0_active_minus1 = iNumRef - 1;
+  pPPS->num_ref_idx_l1_active_minus1 = iNumRef - 1;
 
   pPPS->weighted_pred_flag = (pChannel->eWPMode == AL_WP_EXPLICIT) ? 1 : 0;
   pPPS->weighted_bipred_idc = pChannel->eWPMode;

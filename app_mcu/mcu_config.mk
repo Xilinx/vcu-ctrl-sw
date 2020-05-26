@@ -20,6 +20,8 @@ CFLAGS+=\
   -fdata-sections\
   -mlittle-endian\
 
+include compiler.mk
+
 # Debug flags
 #CFLAGS+=-g3
 #LDFLAGS+=-g3
@@ -32,8 +34,9 @@ CFLAGS+=-Wall -Wextra
 # microblaze compiler has trouble with field initializers
 CFLAGS+=-Wno-missing-field-initializers -Wno-missing-braces
 #CFLAGS+=-Werror
-CFLAGS+=-Os
-
-LDFLAGS=-nostdlib -Wl,--no-relax -Wl,--gc-sections -lgcc
+LDFLAGS+=-nostdlib -Wl,--gc-sections -lgcc
 LDFLAGS+=-g0
+# To make it possible to check the final firmware even if the section overlap
+# We already have an external script checking the sections for overlap on good configurations.
+LDFLAGS+=-Wl,--no-check-sections
 

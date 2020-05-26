@@ -57,6 +57,7 @@ struct CommandLineParser
     std::function<void(std::string)> parser;
     std::string desc; /* full formatted description with the name of the option */
     std::string desc_; /* description provided by the user verbatim */
+    bool repeat = false;
   };
 
   void parse(int argc, char* argv[])
@@ -83,7 +84,9 @@ struct CommandLineParser
           throw std::runtime_error("Too many positional arguments. Can't interpret '" + word + "', use -h to get help");
         auto& positional = positionals.front();
         positional.parser(word);
-        positionals.pop_front();
+
+        if(!positional.repeat)
+          positionals.pop_front();
       }
     }
   }
@@ -277,6 +280,22 @@ struct CommandLineParser
                  else
                    *value = word;
                };
+    insertOption(name, o);
+  }
+
+  void addStringVector(std::string name, std::vector<std::string>* vec, std::string desc_)
+  {
+    Option o;
+    o.desc_ = desc_;
+    o.desc = makeDescription(name, "string (+)", desc_);
+    o.parser = [=](std::string word)
+               {
+                 if(isOption(word))
+                   vec->push_back(popWord());
+                 else
+                   vec->push_back(word);
+               };
+    o.repeat = true;
     insertOption(name, o);
   }
 

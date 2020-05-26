@@ -44,18 +44,16 @@ extern "C"
 #include "lib_common_enc/EncChanParam.h"
 }
 
-class IConvSrc
+struct IConvSrc
 {
-public:
-  virtual ~IConvSrc() {};
+  virtual ~IConvSrc() = default;
 
   virtual void ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut) = 0;
 };
 
 struct TFrameInfo
 {
-  int iWidth;
-  int iHeight;
+  AL_TDimension tDimension;
   uint8_t iBitDepth;
   AL_EChromaMode eCMode;
 };

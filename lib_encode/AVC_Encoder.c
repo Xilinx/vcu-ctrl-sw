@@ -42,6 +42,7 @@
 
 static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_HLSInfo const* pHLSInfo, AL_TBuffer* pStream, int iLayerID)
 {
+  AL_UpdateVuiTimingInfo(&pCtx->tLayerCtx[iLayerID].sps.AvcSPS.vui_param, iLayerID, &pCtx->pSettings->tChParam[iLayerID].tRCParam, 2);
   AL_AVC_UpdateSPS(&pCtx->tLayerCtx[iLayerID].sps, pCtx->pSettings, pPicStatus, pHLSInfo);
   bool bForceWritePPS = AL_AVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, pPicStatus, pHLSInfo);
   AVC_GenerateSections(pCtx, pStream, pPicStatus, bForceWritePPS);
@@ -112,7 +113,7 @@ static void generateNals(AL_TEncCtx* pCtx, int iLayerID, bool bWriteVps)
 
   uint32_t uCpbBitSize = (uint32_t)((uint64_t)pChParam->tRCParam.uCPBSize * (uint64_t)pChParam->tRCParam.uMaxBitRate / 90000LL);
   AL_AVC_GenerateSPS(&pCtx->tLayerCtx[0].sps, pCtx->pSettings, pCtx->iMaxNumRef, uCpbBitSize);
-  AL_AVC_GeneratePPS(&pCtx->tLayerCtx[0].pps, pCtx->pSettings, pCtx->iMaxNumRef, &pCtx->tLayerCtx[0].sps);
+  AL_AVC_GeneratePPS(&pCtx->tLayerCtx[0].pps, pCtx->pSettings, &pCtx->tLayerCtx[0].sps);
 }
 
 static void ConfigureChannel(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TEncSettings const* pSettings)
@@ -130,7 +131,7 @@ static void ConfigureChannel(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TE
 static void preprocessEp1(AL_TEncCtx* pCtx, TBufferEP* pEp1)
 {
   if(pCtx->pSettings->eScalingList != AL_SCL_FLAT)
-    AL_AVC_PreprocessScalingList(&pCtx->tLayerCtx[0].sps.AvcSPS.scaling_list_param, pEp1);
+    AL_AVC_PreprocessScalingList(&pCtx->tLayerCtx[0].sps.AvcSPS.scaling_list_param, pCtx->tLayerCtx[0].sps.AvcSPS.chroma_format_idc, pEp1);
 }
 
 void AL_CreateAvcEncoder(HighLevelEncoder* pCtx)

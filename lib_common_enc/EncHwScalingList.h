@@ -149,14 +149,23 @@ static const int AL_AVC_ENC_SCL_ORDER_4x4[16] =
 };
 
 /*************************************************************************//*!
-   \brief Dump Hardware formated encoder scaling list into buffer of bytes
+   \brief Dump HEVC hardware formated encoder scaling list into buffer of bytes
    \param[in]  pSclLst Pointer to the inverse scaling list coefficients
    \param[in]  pHwSclLst Pointer to the forward scaling list coefficients
    \param[out] pBuf Pointer to buffer that receives the scaling list
    matrices data
 *****************************************************************************/
 extern void AL_HEVC_WriteEncHwScalingList(AL_TSCLParam const* pSclLst, AL_THwScalingList* pHwSclLst, uint8_t* pBuf);
-extern void AL_AVC_WriteEncHwScalingList(AL_TSCLParam const* pSclLst, AL_THwScalingList const* pHwSclLst, uint8_t* pBuf);
+
+/*************************************************************************//*!
+   \brief Dump AVC hardware formated encoder scaling list into buffer of bytes
+   \param[in]  pSclLst Pointer to the inverse scaling list coefficients
+   \param[in]  pHwSclLst Pointer to the forward scaling list coefficients
+   \param[in]  chroma_format_idc chroma mode id
+   \param[out] pBuf Pointer to buffer that receives the scaling list
+   matrices data
+*****************************************************************************/
+extern void AL_AVC_WriteEncHwScalingList(AL_TSCLParam const* pSclLst, AL_THwScalingList const* pHwSclLst, uint8_t chroma_format_idc, uint8_t* pBuf);
 
 /*@}*/
 

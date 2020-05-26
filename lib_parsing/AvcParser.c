@@ -44,29 +44,55 @@
 
 static void initPps(AL_TAvcPps* pPPS)
 {
-  Rtos_Memset(pPPS->UseDefaultScalingMatrix4x4Flag, 0, 6);
-  Rtos_Memset(pPPS->UseDefaultScalingMatrix8x8Flag, 0, 2);
+  Rtos_Memset(pPPS->UseDefaultScalingMatrix4x4Flag, 0, sizeof(pPPS->UseDefaultScalingMatrix4x4Flag));
+  Rtos_Memset(pPPS->UseDefaultScalingMatrix8x8Flag, 0, sizeof(pPPS->UseDefaultScalingMatrix8x8Flag));
   pPPS->transform_8x8_mode_flag = 0;
   pPPS->pic_scaling_matrix_present_flag = 0;
   pPPS->bConceal = true;
 }
 
+static void propagate_scaling_list(int iSclID, uint8_t* Default4x4Flag, uint8_t* Default8x8Flag, uint8_t ScalingList4x4[][16], uint8_t ScalingList8x8[][64])
+{
+  if(iSclID < 6)
+  {
+    if(iSclID == 0 || iSclID == 3)
+      Default4x4Flag[iSclID] = 1;
+    else
+    {
+      if(Default4x4Flag[iSclID - 1])
+        Default4x4Flag[iSclID] = 1;
+      else
+        Rtos_Memcpy(ScalingList4x4[iSclID], ScalingList4x4[iSclID - 1], 16);
+    }
+  }
+  else
+  {
+    if(iSclID < 8)
+      Default8x8Flag[iSclID - 6] = 1;
+    else
+    {
+      if(Default8x8Flag[iSclID - 8])
+        Default8x8Flag[iSclID - 6] = 1;
+      else
+        Rtos_Memcpy(ScalingList8x8[iSclID - 6], ScalingList8x8[iSclID - 8], 64);
+    }
+  }
+}
+
 AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
 {
-  uint16_t pps_id, QpBdOffset;
-  AL_TAvcPps tempPPS;
-
   skipAllZerosAndTheNextByte(pRP);
 
   u(pRP, 8); // Skip NUT
 
-  pps_id = ue(pRP);
+  uint16_t pps_id = ue(pRP);
 
   COMPLY(pps_id < AL_AVC_MAX_PPS);
 
   if(pPpsId)
     *pPpsId = pps_id;
 
+  AL_TAvcPps tempPPS;
   initPps(&tempPPS);
 
   tempPPS.pic_parameter_set_id = pps_id;
@@ -127,7 +153,7 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* p
   tempPPS.weighted_pred_flag = u(pRP, 1);
   tempPPS.weighted_bipred_idc = Clip3(u(pRP, 2), 0, AL_MAX_WP_IDC);
 
-  QpBdOffset = 6 * tempPPS.pSPS->bit_depth_luma_minus8;
+  uint16_t QpBdOffset = 6 * tempPPS.pSPS->bit_depth_luma_minus8;
   tempPPS.pic_init_qp_minus26 = Clip3(se(pRP), -(26 + QpBdOffset), AL_MAX_INIT_QP);
   tempPPS.pic_init_qs_minus26 = Clip3(se(pRP), AL_MIN_INIT_QP, AL_MAX_INIT_QP);
 
@@ -146,7 +172,7 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* p
 
     if(tempPPS.pic_scaling_matrix_present_flag)
     {
-      for(int i = 0; i < 6 + 2 * tempPPS.transform_8x8_mode_flag; i++)
+      for(int i = 0; i < 6 + (tempPPS.pSPS->chroma_format_idc != 3 ? 2 : 6) * tempPPS.transform_8x8_mode_flag; i++)
       {
         if(i < 6)
           tempPPS.UseDefaultScalingMatrix4x4Flag[i] = 0;
@@ -165,22 +191,7 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* p
         else
         {
           if(!tempPPS.pSPS->seq_scaling_matrix_present_flag)
-          {
-            if(i < 6)
-            {
-              if(i == 0 || i == 3)
-                tempPPS.UseDefaultScalingMatrix4x4Flag[i] = 1;
-              else
-              {
-                if(tempPPS.UseDefaultScalingMatrix4x4Flag[i - 1])
-                  tempPPS.UseDefaultScalingMatrix4x4Flag[i] = 1;
-                else
-                  Rtos_Memcpy(tempPPS.ScalingList4x4[i], tempPPS.ScalingList4x4[i - 1], 16);
-              }
-            }
-            else
-              tempPPS.UseDefaultScalingMatrix8x8Flag[i - 6] = 1;
-          }
+            propagate_scaling_list(i, tempPPS.UseDefaultScalingMatrix4x4Flag, tempPPS.UseDefaultScalingMatrix8x8Flag, tempPPS.ScalingList4x4, tempPPS.ScalingList8x8);
           else
           {
             if(i < 6)
@@ -202,10 +213,20 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* p
             }
             else
             {
-              if(tempPPS.pSPS->UseDefaultScalingMatrix8x8Flag[i - 6])
-                tempPPS.UseDefaultScalingMatrix8x8Flag[i - 6] = 1;
+              if(i < 8)
+              {
+                if(tempPPS.pSPS->UseDefaultScalingMatrix8x8Flag[i - 6])
+                  tempPPS.UseDefaultScalingMatrix8x8Flag[i - 6] = 1;
+                else
+                  Rtos_Memcpy(tempPPS.ScalingList8x8[i - 6], tempPPS.pSPS->ScalingList8x8[i - 6], 64);
+              }
               else
-                Rtos_Memcpy(tempPPS.ScalingList8x8[i - 6], tempPPS.pSPS->ScalingList8x8[i - 6], 64);
+              {
+                if(tempPPS.UseDefaultScalingMatrix8x8Flag[i - 8])
+                  tempPPS.UseDefaultScalingMatrix8x8Flag[i - 6] = 1;
+                else
+                  Rtos_Memcpy(tempPPS.ScalingList8x8[i - 6], tempPPS.ScalingList8x8[i - 8], 64);
+              }
             }
           }
         }
@@ -213,7 +234,7 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* p
     }
     else if(tempPPS.pSPS)
     {
-      for(int i = 0; i < 8; ++i)
+      for(int i = 0; i < (tempPPS.pSPS->chroma_format_idc != 3 ? 8 : 12); ++i)
       {
         if(i < 6)
         {
@@ -236,7 +257,7 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* p
   }
   else
   {
-    for(int i = 0; i < 8; ++i)
+    for(int i = 0; i < (tempPPS.pSPS->chroma_format_idc != 3 ? 8 : 12); ++i)
     {
       if(i < 6)
       {
@@ -257,8 +278,10 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* p
 
   /*dummy information to ensure there's no zero value in scaling list structure (div by zero prevention)*/
   if(!tempPPS.transform_8x8_mode_flag)
-    tempPPS.UseDefaultScalingMatrix8x8Flag[0] =
-      tempPPS.UseDefaultScalingMatrix8x8Flag[1] = 1;
+  {
+    for(int i = 0; i < 6; ++i)
+      tempPPS.UseDefaultScalingMatrix8x8Flag[i] = 1;
+  }
 
   tempPPS.bConceal = rbsp_trailing_bits(pRP) ? false : true;
 
@@ -275,8 +298,8 @@ static void initSps(AL_TAvcSps* pSPS)
   pSPS->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 = 23;
   pSPS->vui_param.hrd_param.dpb_output_delay_length_minus1 = 23;
 
-  Rtos_Memset(pSPS->UseDefaultScalingMatrix4x4Flag, 0, 6);
-  Rtos_Memset(pSPS->UseDefaultScalingMatrix8x8Flag, 0, 2);
+  Rtos_Memset(pSPS->UseDefaultScalingMatrix4x4Flag, 0, sizeof(pSPS->UseDefaultScalingMatrix4x4Flag));
+  Rtos_Memset(pSPS->UseDefaultScalingMatrix8x8Flag, 0, sizeof(pSPS->UseDefaultScalingMatrix8x8Flag));
 
   pSPS->mb_adaptive_frame_field_flag = 0;
   pSPS->chroma_format_idc = 1;
@@ -317,8 +340,6 @@ static int fieldToFrameHeight(int iFieldHeight)
 
 AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TRbspParser* pRP, AL_TAvcSps* pSPS)
 {
-  Rtos_Memset(pSPS, 0, sizeof(AL_TAvcSps));
-
   skipAllZerosAndTheNextByte(pRP);
 
   u(pRP, 8); // Skip NUT
@@ -339,6 +360,7 @@ AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TRbspParser* pRP, AL_TAvcSps* pSPS)
 
   COMPLY(sps_id < AL_AVC_MAX_SPS);
 
+  Rtos_Memset(pSPS, 0, sizeof(AL_TAvcSps));
   initSps(pSPS);
 
   pSPS->profile_idc = profile_idc;
@@ -367,7 +389,7 @@ AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TRbspParser* pRP, AL_TAvcSps* pSPS)
 
     if(pSPS->seq_scaling_matrix_present_flag)
     {
-      for(int i = 0; i < 8; ++i)
+      for(int i = 0; i < (pSPS->chroma_format_idc != 3 ? 8 : 12); ++i)
       {
         pSPS->seq_scaling_list_present_flag[i] = u(pRP, 1);
 
@@ -379,27 +401,12 @@ AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TRbspParser* pRP, AL_TAvcSps* pSPS)
             avc_scaling_list_data(pSPS->ScalingList8x8[i - 6], pRP, 64, &pSPS->UseDefaultScalingMatrix8x8Flag[i - 6]);
         }
         else
-        {
-          if(i < 6)
-          {
-            if(i == 0 || i == 3)
-              pSPS->UseDefaultScalingMatrix4x4Flag[i] = 1;
-            else
-            {
-              if(pSPS->UseDefaultScalingMatrix4x4Flag[i - 1])
-                pSPS->UseDefaultScalingMatrix4x4Flag[i] = 1;
-              else
-                Rtos_Memcpy(pSPS->ScalingList4x4[i], pSPS->ScalingList4x4[i - 1], 16);
-            }
-          }
-          else
-            pSPS->UseDefaultScalingMatrix8x8Flag[i - 6] = 1;
-        }
+          propagate_scaling_list(i, pSPS->UseDefaultScalingMatrix4x4Flag, pSPS->UseDefaultScalingMatrix8x8Flag, pSPS->ScalingList4x4, pSPS->ScalingList8x8);
       }
     }
     else
     {
-      for(int i = 0; i < 8; ++i)
+      for(int i = 0; i < (pSPS->chroma_format_idc != 3 ? 8 : 12); ++i)
       {
         if(i < 6)
           Rtos_Memset(pSPS->ScalingList4x4[i], 16, 16);

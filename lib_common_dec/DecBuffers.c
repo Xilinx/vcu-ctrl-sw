@@ -172,7 +172,7 @@ AL_TMetaData* AL_CreateRecBufMetaData(AL_TDimension tDim, int iMinPitch, TFourCC
   AL_EFbStorageMode eStorageMode = AL_GetStorageMode(tFourCC);
   AL_TPlane tPlaneY = { 0, 0, iMinPitch };
   int iOffsetC = AL_DecGetAllocSize_Frame_Y(eStorageMode, tDim, iMinPitch);
-  AL_TPlane tPlaneUV = { 0, iOffsetC, iMinPitch };
+  AL_TPlane tPlaneUV = { 0, iOffsetC, AL_GetChromaPitch(tFourCC, iMinPitch) };
   AL_TPixMapMetaData* pSrcMeta = AL_PixMapMetaData_Create(tDim, tPlaneY, tPlaneUV, tFourCC);
 
   return (AL_TMetaData*)pSrcMeta;

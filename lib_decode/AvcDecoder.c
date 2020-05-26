@@ -206,7 +206,7 @@ static bool isSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, AL_TStream
 }
 
 /******************************************************************************/
-int AVC_GetMinOutputBuffersNeeded(int iDpbMaxBuf, int iStack);
+extern int AVC_GetMinOutputBuffersNeeded(int iDpbMaxBuf, int iStack);
 
 /******************************************************************************/
 static AL_TStreamSettings extractStreamSettings(AL_TAvcSps const* pSPS)
@@ -848,8 +848,7 @@ static AL_PARSE_RESULT parseAndApplySPS(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_
   return eParseResult;
 }
 
-/*****************************************************************************/
-void AL_AVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIsLastAUNal, int* iNumSlice)
+AL_NonVclNuts AL_AVC_GetNonVclNuts(void)
 {
   AL_NonVclNuts nuts =
   {
@@ -862,6 +861,13 @@ void AL_AVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIs
     AL_AVC_NUT_EOS,
     AL_AVC_NUT_EOB,
   };
+  return nuts;
+}
+
+/*****************************************************************************/
+void AL_AVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIsLastAUNal, int* iNumSlice)
+{
+  AL_NonVclNuts nuts = AL_AVC_GetNonVclNuts();
 
   AL_NalParser parser =
   {

@@ -5,7 +5,11 @@ LIB_RTOS_SRC:=\
 
 ifeq ($(findstring linux,$(TARGET)),linux)
   CFLAGS+=-pthread
-  LDFLAGS+=-lpthread
+  ifeq ($(ENABLE_STATIC), 1)
+	  LPTHREAD=-Wl,--whole-archive -lpthread -Wl,--no-whole-archive
+  else
+	  LPTHREAD=-lpthread
+  endif
 endif
 
 

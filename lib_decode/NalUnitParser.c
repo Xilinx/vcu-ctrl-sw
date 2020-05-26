@@ -143,13 +143,15 @@ uint32_t GetNonVclSize(TCircBuffer* pBufStream)
     ++uLengthNAL;
   }
 
-  return RoundUp(uLengthNAL, ANTI_EMUL_GRANULARITY);
+  return uLengthNAL;
 }
 
 /*****************************************************************************/
 static void InitNonVclBuf(AL_TDecCtx* pCtx)
 {
-  uint32_t uLengthNAL = GetNonVclSize(&pCtx->Stream);
+  // The anti emulation works on chunks of ANTI_EMUL_GRANULARITY size so we need
+  // the size to be aligned to that granularity.
+  uint32_t uLengthNAL = RoundUp(GetNonVclSize(&pCtx->Stream), ANTI_EMUL_GRANULARITY);
 
   if(uLengthNAL > pCtx->BufNoAE.tMD.uSize) /* should occurs only on long SEI message */
   {

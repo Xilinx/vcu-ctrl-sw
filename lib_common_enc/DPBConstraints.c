@@ -39,7 +39,7 @@
 #include "lib_common/Utils.h"
 
 /****************************************************************************/
-uint8_t AL_DPBConstraint_GetMaxRef_DefaultGopMngr(const AL_TGopParam* pGopParam, AL_ECodec eCodec)
+uint8_t AL_DPBConstraint_GetMaxRef_DefaultGopMngr(const AL_TGopParam* pGopParam, AL_ECodec eCodec, AL_EVideoMode eVideoMode)
 {
   int iNumRef = 0;
 
@@ -86,34 +86,49 @@ uint8_t AL_DPBConstraint_GetMaxRef_DefaultGopMngr(const AL_TGopParam* pGopParam,
   if(pGopParam->bEnableLT)
     ++iNumRef;
 
+  // The current buffer is used as reference when dealing with the second field
+  if(eCodec == AL_CODEC_AVC && eVideoMode != AL_VM_PROGRESSIVE)
+    ++iNumRef;
+
   return iNumRef;
 }
 
 #define NEXT_PYR_LEVEL_NUMB(uNumBForPyrLevel) (((uNumBForPyrLevel) << 1) + 1)
 /****************************************************************************/
-uint8_t AL_DPBConstraint_GetMaxRef_GopMngrCustom(const AL_TGopParam* pGopParam, AL_ECodec eCodec)
+uint8_t AL_DPBConstraint_GetMaxRef_GopMngrCustom(const AL_TGopParam* pGopParam, AL_ECodec eCodec, AL_EVideoMode eVideoMode)
 {
   uint8_t uNumRef;
 
-  uint8_t uPyrLevel = 0;
-  uint8_t uNumBForPyrLevel = 1;
-  uint8_t uNumBForNextPyrLevel = NEXT_PYR_LEVEL_NUMB(uNumBForPyrLevel);
-
-  while(pGopParam->uNumB >= uNumBForNextPyrLevel)
+  if(pGopParam->uNumB == 0)
   {
-    uNumBForPyrLevel = uNumBForNextPyrLevel;
-    uNumBForNextPyrLevel = NEXT_PYR_LEVEL_NUMB(uNumBForPyrLevel);
-    uPyrLevel++;
+    uNumRef = 1;
   }
+  else
+  {
+    uint8_t uPyrLevel = 0;
+    uint8_t uNumBForPyrLevel = 1;
+    uint8_t uNumBForNextPyrLevel = NEXT_PYR_LEVEL_NUMB(uNumBForPyrLevel);
 
-  uNumRef = uPyrLevel + 2; // Right B frames + 2 P frames
+    while(pGopParam->uNumB >= uNumBForNextPyrLevel)
+    {
+      uNumBForPyrLevel = uNumBForNextPyrLevel;
+      uNumBForNextPyrLevel = NEXT_PYR_LEVEL_NUMB(uNumBForPyrLevel);
+      uPyrLevel++;
+    }
 
-  /* Add 1 in AVC for the current frame */
-  if(eCodec == AL_CODEC_AVC)
-    uNumRef++;
+    uNumRef = uPyrLevel + 2; // Right B frames + 2 P frames
+
+    /* Add 1 in AVC for the current frame */
+    if(eCodec == AL_CODEC_AVC)
+      uNumRef++;
+  }
 
   if(pGopParam->bEnableLT)
     uNumRef++;
+
+  // The current buffer is used as reference when dealing with the second field
+  if(eCodec == AL_CODEC_AVC && eVideoMode != AL_VM_PROGRESSIVE)
+    ++uNumRef;
 
   return uNumRef;
 }
@@ -129,10 +144,10 @@ uint8_t AL_DPBConstraint_GetMaxDPBSize(const AL_TEncChanParam* pChParam)
   switch(eGopMngrType)
   {
   case AL_GOP_MNGR_DEFAULT:
-    uDPBSize = AL_DPBConstraint_GetMaxRef_DefaultGopMngr(&pChParam->tGopParam, eCodec);
+    uDPBSize = AL_DPBConstraint_GetMaxRef_DefaultGopMngr(&pChParam->tGopParam, eCodec, pChParam->eVideoMode);
     break;
   case AL_GOP_MNGR_CUSTOM:
-    uDPBSize = AL_DPBConstraint_GetMaxRef_GopMngrCustom(&pChParam->tGopParam, eCodec);
+    uDPBSize = AL_DPBConstraint_GetMaxRef_GopMngrCustom(&pChParam->tGopParam, eCodec, pChParam->eVideoMode);
     break;
   case AL_GOP_MNGR_MAX_ENUM:
     break;

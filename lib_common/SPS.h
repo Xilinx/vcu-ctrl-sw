@@ -47,7 +47,7 @@
 #include "lib_common/ScalingList.h"
 #include "lib_common/common_syntax_elements.h"
 
-#define MAX_BIT_DEPTH 2
+#define MAX_BIT_DEPTH 4
 #define MAX_POC_LSB 12
 
 /****************************************************************************/
@@ -82,9 +82,9 @@ typedef struct t_Avc_Sps
   uint8_t qpprime_y_zero_transform_bypass_flag;
 
   uint8_t seq_scaling_matrix_present_flag;
-  uint8_t seq_scaling_list_present_flag[8]; // we can define eight matrices: Sl_4x4_Intra_Y, Sl_4x4_Intra_Cb, Sl_4x4_Intra_Cr, Sl_4x4_Inter_Y, Sl_4x4_Inter_Cb, Sl_4x4_Inter_Cr, Sl_8x8_Intra_Y, Sl_8x8_Inter_Y.
+  uint8_t seq_scaling_list_present_flag[12]; // we can define eight matrices: Sl_4x4_Intra_Y, Sl_4x4_Intra_Cb, Sl_4x4_Intra_Cr, Sl_4x4_Inter_Y, Sl_4x4_Inter_Cb, Sl_4x4_Inter_Cr, Sl_8x8_Intra_Y, Sl_8x8_Inter_Y.
   uint8_t ScalingList4x4[6][16]; // use in decoding
-  uint8_t ScalingList8x8[2][64];
+  uint8_t ScalingList8x8[6][64];
   AL_TSCLParam scaling_list_param;  // use in encoding
 
   uint8_t log2_max_frame_num_minus4;
@@ -101,6 +101,8 @@ typedef struct t_Avc_Sps
   uint16_t pic_width_in_mbs_minus1;
   uint16_t pic_height_in_map_units_minus1;
   uint8_t frame_mbs_only_flag;
+  uint8_t field_pic_flag;
+  uint8_t bottom_field_flag;
   uint8_t mb_adaptive_frame_field_flag;
   uint8_t direct_8x8_inference_flag;
   uint8_t frame_cropping_flag;
@@ -114,7 +116,7 @@ typedef struct t_Avc_Sps
 
   int iCurrInitialCpbRemovalDelay; // Used in the current picture buffering_period
   uint8_t UseDefaultScalingMatrix4x4Flag[6];
-  uint8_t UseDefaultScalingMatrix8x8Flag[2];
+  uint8_t UseDefaultScalingMatrix8x8Flag[6];
   // TSpsExtMVC mvc_ext;
 
   // concealment flag

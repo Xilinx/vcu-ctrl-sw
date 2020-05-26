@@ -124,6 +124,7 @@ static TPaddingParams GetColumnPaddingParameters(TFourCC tFourCC, AL_TDimension 
 
     if(AL_Is10bitPacked(tFourCC))
     {
+      assert(AL_GetBitDepth(tFourCC) == 10);
       tPadParams.uPadValue = tPadParams.uPadValue | (tPadParams.uPadValue << 10) | (tPadParams.uPadValue << 20);
       switch(tDim.iWidth % 3)
       {
@@ -220,8 +221,8 @@ static uint32_t ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
   int iPitchUV = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_UV);
   char* pTmp = reinterpret_cast<char*>(AL_PixMapBuffer_GetPlaneAddress(pBuf, AL_PLANE_UV)) + uSubPlanOffset;
 
-  uint32_t uNumRowC = (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_0) ? uFileNumRow >> 1 : uFileNumRow;
-  uint32_t uRowSizeC = uFileRowSize >> 1;
+  uint32_t uNumRowC = (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_0) ? uFileNumRow / 2 : uFileNumRow;
+  uint32_t uRowSizeC = (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_4_4) ? uFileRowSize : uFileRowSize / 2;
 
   TPaddingParams tPadParams = GetColumnPaddingParameters(tFourCC, tDim, iPitchUV, uRowSizeC, false);
 
@@ -269,8 +270,9 @@ static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
   int iPitchUV = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_UV);
   char* pTmp = reinterpret_cast<char*>(AL_PixMapBuffer_GetPlaneAddress(pBuf, AL_PLANE_UV));
 
-  uint32_t uNumRowC = (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_0) ? uFileNumRow >> 1 : uFileNumRow;
-  TPaddingParams tPadParams = GetColumnPaddingParameters(tFourCC, tDim, iPitchUV, uFileRowSize, false);
+  uint32_t uNumRowC = (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_0) ? uFileNumRow / 2 : uFileNumRow;
+  uint32_t uRowSizeC = (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_4_4) ? uFileRowSize : uFileRowSize / 2;
+  TPaddingParams tPadParams = GetColumnPaddingParameters(tFourCC, tDim, iPitchUV, uRowSizeC, false);
 
   assert((uint32_t)iPitchUV >= uFileRowSize);
 
@@ -300,7 +302,7 @@ static void ReadFile(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSiz
   {
     ReadFileChromaSemiPlanar(File, pBuf, uFileRowSize, uFileNumRow);
   }
-  else if(AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_0 || AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_2)
+  else if((AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_0) || (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_2) || (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_4_4))
   {
     uint32_t uSubPlanOffset = ReadFileChromaPlanar(File, pBuf, 0, uFileRowSize, uFileNumRow); // Cb
     ReadFileChromaPlanar(File, pBuf, uSubPlanOffset, uFileRowSize, uFileNumRow); // Cr
@@ -369,24 +371,28 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf)
   // 1 Interleaved Chroma plane
   if(AL_IsSemiPlanar(tFourCC))
   {
-    int iHeightC = (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_0) ? tDim.iHeight >> 1 : tDim.iHeight;
+    int iHrzCScale = (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_4_4) ? 1 : 2;
+    int iVrtCScale = (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_0) ? 2 : 1;
+    int iHeightC = tDim.iHeight / iVrtCScale;
 
     if(iPitchUV == uRowSizeLuma)
-      File.write(pTmp, iHeightC * uRowSizeLuma);
+      File.write(pTmp, iHeightC * uRowSizeLuma * 2 / iHrzCScale);
     else
     {
       for(int h = 0; h < iHeightC; ++h)
       {
-        File.write(pTmp, uRowSizeLuma);
+        File.write(pTmp, uRowSizeLuma * 2 / iHrzCScale);
         pTmp += iPitchUV;
       }
     }
   }
   // 2 Separated chroma plane
-  else if(AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_0 || AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_2)
+  else if(AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_0 || AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_2 || AL_GetChromaMode(tFourCC) == AL_CHROMA_4_4_4)
   {
-    int iWidthC = tDim.iWidth >> 1;
-    int iHeightC = (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_0) ? tDim.iHeight >> 1 : tDim.iHeight;
+    int iHrzCScale = (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_4_4) ? 1 : 2;
+    int iVrtCScale = (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_0) ? 2 : 1;
+    int iWidthC = tDim.iWidth / iHrzCScale;
+    int iHeightC = tDim.iHeight / iVrtCScale;
 
     int iSizePix = AL_GetPixelSize(tFourCC);
 

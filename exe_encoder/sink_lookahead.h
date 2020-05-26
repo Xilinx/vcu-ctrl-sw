@@ -60,11 +60,16 @@ struct EncoderLookAheadSink : IFrameSink
     lookAheadMngr(cfg.Settings.LookAhead, cfg.Settings.bEnableFirstPassSceneChangeDetection)
   {
     (void)pBaseSink;
+
+    BitstreamOutput.reset(new NullFrameSink);
+    RecOutput.reset(new NullFrameSink);
+
     AL_CB_EndEncoding onEndEncoding = { &EncoderLookAheadSink::EndEncoding, this };
     AL_HANDLE hBaseHandle = nullptr;
     ConfigFile cfgLA = cfg;
 
     AL_TwoPassMngr_SetPass1Settings(cfgLA.Settings, hBaseHandle);
+
     AL_Settings_CheckCoherency(&cfgLA.Settings, &cfgLA.Settings.tChParam[0], cfgLA.MainInput.FileInfo.FourCC, NULL);
 
     AL_ERR errorCode = AL_Encoder_Create(&hEnc, pScheduler, pAllocator, &cfgLA.Settings, onEndEncoding);
@@ -133,6 +138,9 @@ struct EncoderLookAheadSink : IFrameSink
 
   AL_HEncoder hEnc;
   IFrameSink* next;
+  std::shared_ptr<AL_TBuffer> RecYuv;
+  std::unique_ptr<IFrameSink> BitstreamOutput;
+  std::unique_ptr<IFrameSink> RecOutput;
 
 private:
   int m_picCount = 0;
@@ -170,6 +178,7 @@ private:
 
   void processOutputLookAhead(AL_TBuffer* pStream)
   {
+    BitstreamOutput->ProcessFrame(pStream);
     AL_ERR eErr = AL_Encoder_GetLastError(hEnc);
 
     if(AL_IS_ERROR_CODE(eErr))
@@ -190,7 +199,10 @@ private:
     AL_TRecPic RecPic;
 
     while(AL_Encoder_GetRecPicture(hEnc, &RecPic))
+    {
+      RecOutput->ProcessFrame(RecPic.pBuf);
       AL_Encoder_ReleaseRecPicture(hEnc, &RecPic);
+    }
   }
 
   bool AddFifo(AL_TBuffer* pSrc)

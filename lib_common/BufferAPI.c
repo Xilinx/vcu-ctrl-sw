@@ -272,8 +272,9 @@ AL_TMetaData* AL_Buffer_GetMetaData(AL_TBuffer const* hBuf, AL_EMetaType eType)
   {
     if(pBuf->pMeta[i]->eType == eType)
     {
+      AL_TMetaData* pMeta = pBuf->pMeta[i];
       Rtos_ReleaseMutex(pBuf->pLock);
-      return pBuf->pMeta[i];
+      return pMeta;
     }
   }
 

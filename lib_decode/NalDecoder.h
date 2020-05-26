@@ -40,18 +40,6 @@
 
 typedef struct
 {
-  AL_ENut seiPrefix;
-  AL_ENut seiSuffix;
-  AL_ENut sps;
-  AL_ENut pps;
-  AL_ENut vps;
-  AL_ENut fd;
-  AL_ENut eos;
-  AL_ENut eob;
-}AL_NonVclNuts;
-
-typedef struct
-{
   AL_PARSE_RESULT (* parseSps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
   AL_PARSE_RESULT (* parsePps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
   void (* parseVps)(AL_TAup*, AL_TRbspParser*);

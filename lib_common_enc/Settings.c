@@ -79,10 +79,13 @@ static bool AL_sSettings_CheckProfile(AL_EProfile eProfile)
   case AL_PROFILE_AVC_HIGH:
   case AL_PROFILE_AVC_HIGH10:
   case AL_PROFILE_AVC_HIGH_422:
+  case AL_PROFILE_AVC_HIGH_444_PRED:
   case AL_PROFILE_AVC_C_HIGH:
   case AL_PROFILE_AVC_PROG_HIGH:
   case AL_PROFILE_AVC_HIGH10_INTRA:
   case AL_PROFILE_AVC_HIGH_422_INTRA:
+  case AL_PROFILE_AVC_HIGH_444_INTRA:
+  case AL_PROFILE_AVC_CAVLC_444:
   case AL_PROFILE_XAVC_HIGH10_INTRA_CBG:
   case AL_PROFILE_XAVC_HIGH10_INTRA_VBR:
   case AL_PROFILE_XAVC_HIGH_422_INTRA_CBG:
@@ -93,15 +96,22 @@ static bool AL_sSettings_CheckProfile(AL_EProfile eProfile)
   case AL_PROFILE_XAVC_LONG_GOP_HIGH_422_MXF:
   case AL_PROFILE_HEVC_MAIN:
   case AL_PROFILE_HEVC_MAIN10:
+  case AL_PROFILE_HEVC_MAIN12:
   case AL_PROFILE_HEVC_MAIN_STILL:
   case AL_PROFILE_HEVC_MONO:
   case AL_PROFILE_HEVC_MONO10:
   case AL_PROFILE_HEVC_MAIN_422:
   case AL_PROFILE_HEVC_MAIN_422_10:
+  case AL_PROFILE_HEVC_MAIN_422_12:
+  case AL_PROFILE_HEVC_MAIN_444:
+  case AL_PROFILE_HEVC_MAIN_444_10:
   case AL_PROFILE_HEVC_MAIN_INTRA:
   case AL_PROFILE_HEVC_MAIN10_INTRA:
   case AL_PROFILE_HEVC_MAIN_422_INTRA:
   case AL_PROFILE_HEVC_MAIN_422_10_INTRA:
+  case AL_PROFILE_HEVC_MAIN_444_INTRA:
+  case AL_PROFILE_HEVC_MAIN_444_10_INTRA:
+  case AL_PROFILE_HEVC_MAIN_444_STILL:
     return true;
   default:
     return false;
@@ -130,7 +140,10 @@ static int AL_sSettings_GetCpbVclFactor(AL_EProfile eProfile)
   case AL_PROFILE_AVC_EXTENDED: return 1000;
   case AL_PROFILE_AVC_HIGH: return 1250;
   case AL_PROFILE_AVC_HIGH10: return 3000;
-  case AL_PROFILE_AVC_HIGH_422: return 4000;
+  case AL_PROFILE_AVC_HIGH_422:
+  case AL_PROFILE_AVC_CAVLC_444:
+  case AL_PROFILE_AVC_HIGH_444_INTRA:
+  case AL_PROFILE_AVC_HIGH_444_PRED: return 4000;
   case AL_PROFILE_HEVC_MONO: return 667;
   case AL_PROFILE_HEVC_MONO12: return 1000;
   case AL_PROFILE_HEVC_MONO16: return 1333;
@@ -460,6 +473,7 @@ void AL_Settings_SetDefaultRCParam(AL_TRCParam* pRCParam)
   pRCParam->pMaxPictureSize[AL_SLICE_I] = 0;
   pRCParam->pMaxPictureSize[AL_SLICE_P] = 0;
   pRCParam->pMaxPictureSize[AL_SLICE_B] = 0;
+  pRCParam->uMaxConsecSkip = UINT32_MAX;
 }
 
 /***************************************************************************/
@@ -491,7 +505,9 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pGop->eMode = AL_GOP_MODE_DEFAULT;
   pGop->uFreqIDR = INT32_MAX;
   pGop->uGopLength = 30;
-  Rtos_Memset(pGop->tempDQP, 0, sizeof(pGop->tempDQP));
+
+  for(int8_t i = 0; i < 4; ++i)
+    pGop->tempDQP[i] = i + 1;
 
   pGop->eGdrMode = AL_GDR_OFF;
 
@@ -588,10 +604,18 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     MSG("The hardware IP doesn't support 10-bit encoding");
   }
 
-  if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == AL_CHROMA_4_4_4)
+  if(AL_IS_12BIT_PROFILE(pChParam->eProfile) && (AL_GET_BITDEPTH(pChParam->ePicFormat) > 10) && (HW_IP_BIT_DEPTH < 12))
   {
     ++err;
-    MSG("The specified ChromaMode is not supported by the IP");
+    MSG("The hardware IP doesn't support 12-bit encoding");
+  }
+
+  if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) > HW_IP_CHROMA_IDC)
+  {
+    {
+      ++err;
+      MSG("The specified ChromaMode is not supported by the IP");
+    }
   }
 
   if(pChParam->uSrcWidth != pChParam->uEncWidth || pChParam->uSrcHeight != pChParam->uEncHeight)
@@ -898,43 +922,41 @@ static uint32_t GetHevcMaxTileRow(uint8_t uLevel)
 }
 
 /***************************************************************************/
-bool checkProfileCoherency(int iBitDepth, AL_EChromaMode eChroma, AL_EProfile eProfile)
+bool checkBitDepthCoherency(int iBitDepth, AL_EProfile eProfile)
 {
   switch(iBitDepth)
   {
-  case 8: break;  // 8 bits is supported by all profiles
-  case 10:
-  {
-    if(!AL_IS_10BIT_PROFILE(eProfile))
-      return false;
-    break;
-  }
-  default: return false;
-  }
-  switch(eChroma)
-  {
-  case AL_CHROMA_4_0_0:
-  {
-    if(!AL_IS_MONO_PROFILE(eProfile))
-      return false;
-    break;
-  }
-  case AL_CHROMA_4_2_0:
-  {
-    if(!AL_IS_420_PROFILE(eProfile))
-      return false;
-    break;
-  }
-  case AL_CHROMA_4_2_2:
-  {
-    if(!AL_IS_422_PROFILE(eProfile))
-      return false;
-    break;
-  }
+  case 8: return true;  // 8 bits is supported by all profile
+  case 10: return AL_IS_10BIT_PROFILE(eProfile);
+  case 12: return AL_IS_12BIT_PROFILE(eProfile);
   default: return false;
   }
 
-  return true;
+  return false;
+}
+
+/***************************************************************************/
+bool checkChromaCoherency(AL_EChromaMode eChroma, AL_EProfile eProfile)
+{
+  switch(eChroma)
+  {
+  case AL_CHROMA_4_0_0: return AL_IS_MONO_PROFILE(eProfile);
+  case AL_CHROMA_4_2_0: return AL_IS_420_PROFILE(eProfile);
+  case AL_CHROMA_4_2_2: return AL_IS_422_PROFILE(eProfile);
+  case AL_CHROMA_4_4_4: return AL_IS_444_PROFILE(eProfile);
+  default: return false;
+  }
+
+  return false;
+}
+
+/***************************************************************************/
+bool checkProfileCoherency(int iBitDepth, AL_EChromaMode eChroma, AL_EProfile eProfile)
+{
+  if(!checkBitDepthCoherency(iBitDepth, eProfile))
+    return false;
+
+  return checkChromaCoherency(eChroma, eProfile);
 }
 
 /***************************************************************************/
@@ -949,8 +971,11 @@ AL_EProfile getHevcMinimumProfile(int iBitDepth, AL_EChromaMode eChroma)
     case AL_CHROMA_4_0_0: return AL_PROFILE_HEVC_MONO;
     case AL_CHROMA_4_2_0: return AL_PROFILE_HEVC_MAIN;
     case AL_CHROMA_4_2_2: return AL_PROFILE_HEVC_MAIN_422;
+    case AL_CHROMA_4_4_4: return AL_PROFILE_HEVC_MAIN_444;
     default: AL_Assert(0);
     }
+
+    break;
   }
   case 10:
     switch(eChroma)
@@ -958,8 +983,23 @@ AL_EProfile getHevcMinimumProfile(int iBitDepth, AL_EChromaMode eChroma)
     case AL_CHROMA_4_0_0: return AL_PROFILE_HEVC_MONO10;
     case AL_CHROMA_4_2_0: return AL_PROFILE_HEVC_MAIN10;
     case AL_CHROMA_4_2_2: return AL_PROFILE_HEVC_MAIN_422_10;
+    case AL_CHROMA_4_4_4: return AL_PROFILE_HEVC_MAIN_444_10;
     default: AL_Assert(0);
     }
+
+    break;
+
+  case 12:
+    switch(eChroma)
+    {
+    // case AL_CHROMA_4_0_0: return AL_PROFILE_HEVC_MONO12;
+    case AL_CHROMA_4_2_0: return AL_PROFILE_HEVC_MAIN12;
+    case AL_CHROMA_4_2_2: return AL_PROFILE_HEVC_MAIN_422_12;
+    // case AL_CHROMA_4_4_4: return AL_PROFILE_HEVC_MAIN_444_12;
+    default: AL_Assert(0);
+    }
+
+    break;
 
   default:
     AL_Assert(0);
@@ -980,8 +1020,11 @@ AL_EProfile getAvcMinimumProfile(int iBitDepth, AL_EChromaMode eChroma)
     case AL_CHROMA_4_0_0: return AL_PROFILE_AVC_HIGH;
     case AL_CHROMA_4_2_0: return AL_PROFILE_AVC_C_BASELINE;
     case AL_CHROMA_4_2_2: return AL_PROFILE_AVC_HIGH_422;
+    case AL_CHROMA_4_4_4: return AL_PROFILE_AVC_HIGH_444_PRED;
     default: AL_Assert(0);
     }
+
+    break;
   }
   case 10:
   {
@@ -990,8 +1033,11 @@ AL_EProfile getAvcMinimumProfile(int iBitDepth, AL_EChromaMode eChroma)
     case AL_CHROMA_4_0_0: return AL_PROFILE_AVC_HIGH10;
     case AL_CHROMA_4_2_0: return AL_PROFILE_AVC_HIGH10;
     case AL_CHROMA_4_2_2: return AL_PROFILE_AVC_HIGH_422;
+    case AL_CHROMA_4_4_4: return AL_PROFILE_AVC_HIGH_444_PRED;
     default: AL_Assert(0);
     }
+
+    break;
   }
   default:
     AL_Assert(0);
@@ -1147,7 +1193,8 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     if(pChParam->eEncTools & AL_OPT_WPP)
       pChParam->eEncTools &= ~AL_OPT_WPP;
 
-    if(AL_GET_PROFILE_IDC(pChParam->eProfile) < AL_GET_PROFILE_IDC(AL_PROFILE_AVC_HIGH))
+    if((pChParam->eProfile != AL_PROFILE_AVC_CAVLC_444) &&
+       (AL_GET_PROFILE_IDC(pChParam->eProfile) < AL_GET_PROFILE_IDC(AL_PROFILE_AVC_HIGH)))
     {
       if(pChParam->uMaxTuSize != 2)
       {
@@ -1177,12 +1224,13 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
       }
     }
 
-    if(AL_GET_PROFILE_IDC(pChParam->eProfile) == AL_GET_PROFILE_IDC(AL_PROFILE_AVC_BASELINE))
+    if((pChParam->eProfile == AL_PROFILE_AVC_CAVLC_444) ||
+       (AL_GET_PROFILE_IDC(pChParam->eProfile) == AL_GET_PROFILE_IDC(AL_PROFILE_AVC_BASELINE)))
     {
       if(pChParam->eEntropyMode == AL_MODE_CABAC)
       {
         pChParam->eEntropyMode = AL_MODE_CAVLC;
-        MSG("!! CABAC encoding is not allowed in baseline profile; CAVLC will be used instead !!");
+        MSG("!! CABAC encoding is not allowed with this profile; CAVLC will be used instead !!");
         ++numIncoherency;
       }
     }
@@ -1205,6 +1253,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
       pChParam->uCuQPDeltaDepth = 0;
       ++numIncoherency;
     }
+
   }
 
   int const MAX_LOW_DELAY_B_GOP_LENGTH = 4;

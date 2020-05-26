@@ -39,7 +39,7 @@
 
 
 #ifndef AL_ENABLE_ENC_WATCHDOG
-#define AL_ENABLE_ENC_WATCHDOG 0
+#define AL_ENABLE_ENC_WATCHDOG 1
 #endif
 #ifndef AVC_MAX_HORIZONTAL_RANGE_P
 #define AVC_MAX_HORIZONTAL_RANGE_P 16
@@ -86,6 +86,9 @@
 #ifndef HW_IP_BIT_DEPTH
 #define HW_IP_BIT_DEPTH 10
 #endif
+#ifndef HW_IP_CHROMA_IDC
+#define HW_IP_CHROMA_IDC 2
+#endif
 #ifndef AL_ENC_CORE_MAX_WIDTH
 #define AL_ENC_CORE_MAX_WIDTH 4096
 #endif
@@ -102,6 +105,6 @@
 
 #define AL_CONFIGURE_COMMANDLINE "./configure --config-blob customers/Xilinx/config.ini"
 #define AL_VERSION_MAJOR 0
-#define AL_VERSION_MINOR 20
+#define AL_VERSION_MINOR 21
 #define AL_VERSION_STEP 0
 

@@ -117,15 +117,11 @@ static uint32_t GetChromaAllocSize(AL_EChromaMode eChromaMode, uint32_t uAllocSi
 {
   switch(eChromaMode)
   {
-  case AL_CHROMA_MONO:
-    return 0;
-  case AL_CHROMA_4_2_0:
-    return uAllocSizeY >> 1;
-  case AL_CHROMA_4_2_2:
-    return uAllocSizeY;
-  default:
-    AL_Assert(0);
-    break;
+  case AL_CHROMA_MONO: return 0;
+  case AL_CHROMA_4_2_0: return uAllocSizeY / 2;
+  case AL_CHROMA_4_2_2: return uAllocSizeY;
+  case AL_CHROMA_4_4_4: return uAllocSizeY * 2;
+  default: AL_Assert(0);
   }
 
   return 0;
@@ -205,22 +201,31 @@ static uint32_t GetRasterFrameSize(AL_TDimension tDim, uint8_t uBitDepth, AL_ECh
   uint32_t uSizeDiv = 1;
   switch(eChromaMode)
   {
-  case AL_CHROMA_MONO:
-    break;
+  case AL_CHROMA_MONO: break;
   case AL_CHROMA_4_2_0:
+  {
     uSize *= 3;
     uSizeDiv *= 2;
     break;
+  }
   case AL_CHROMA_4_2_2:
+  {
     uSize *= 2;
     break;
+  }
+  case AL_CHROMA_4_4_4:
+  {
+    uSize *= 3;
+    break;
+  }
   default:
     AL_Assert(0);
   }
 
   if(uBitDepth > 8)
   {
-    uSize *= 10;
+    assert((uBitDepth <= 12) && "Support bitpdeth > 12");
+    uSize *= uBitDepth;
     uSizeDiv *= 8;
   }
 

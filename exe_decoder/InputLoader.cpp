@@ -88,6 +88,7 @@ struct HevcParser final : public INalParser
   {
     return eNut == AL_HEVC_NUT_FD;
   }
+
 };
 
 /****************************************************************************/
@@ -114,6 +115,7 @@ struct AvcParser final : public INalParser
   {
     return eNut == AL_AVC_NUT_FD;
   }
+
 };
 
 /****************************************************************************/
@@ -247,6 +249,7 @@ void AddSeiMetaData(AL_TBuffer* pBufStream)
 /******************************************************************************/
 uint32_t SplitInput::ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream)
 {
+
   size_t iNalAudSize = 0;
   uint8_t const* pAUD = NULL;
   uint8_t const AVC_AUD[] = { 0, 0, 1, 0x09, 0x80 };

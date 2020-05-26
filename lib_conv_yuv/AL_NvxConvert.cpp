@@ -35,10 +35,14 @@
 *
 ******************************************************************************/
 
+#include "AL_NvxConvert.h"
+
 #include <cassert>
 #include <iostream>
+#include <sstream>
+#include <string>
 
-#include "AL_NvxConvert.h"
+#include "lib_app/convert.h"
 
 extern "C"
 {
@@ -47,19 +51,15 @@ extern "C"
 #include "lib_common_enc/IpEncFourCC.h"
 }
 
-#include "lib_app/convert.h"
-
 using namespace std;
 
 /*****************************************************************************/
-CNvxConv::CNvxConv(TFrameInfo const& FrameInfo) : m_FrameInfo(FrameInfo)
+CNvxConv::CNvxConv(TFrameInfo const& FrameInfo) :
+  m_FrameInfo(FrameInfo)
 {
 }
 
 /*****************************************************************************/
-#include <sstream>
-#include <string>
-
 static string FourCCToString(TFourCC tFourCC)
 {
   stringstream ss;
@@ -67,6 +67,14 @@ static string FourCCToString(TFourCC tFourCC)
   return ss.str();
 }
 
+/*****************************************************************************/
+static void NoConversionFound(TFourCC tFourCC)
+{
+  cout << "No conversion known to " << FourCCToString(tFourCC) << endl;
+  assert(0);
+}
+
+/*****************************************************************************/
 static void convertToY010(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
@@ -75,149 +83,102 @@ static void convertToY010(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(I2AL):
   case FOURCC(P010):
   case FOURCC(P210):
-    I0AL_To_Y010(pSrcIn, pSrcOut);
-    break;
-
+    return I0AL_To_Y010(pSrcIn, pSrcOut);
   case FOURCC(I420):
   case FOURCC(I422):
   case FOURCC(NV12):
   case FOURCC(NV16):
   case FOURCC(Y800):
-    Y800_To_Y010(pSrcIn, pSrcOut);
-    break;
-
-  default:
-    cout << "No conversion known from " << FourCCToString(inFourCC) << endl;
-    assert(0);
+    return Y800_To_Y010(pSrcIn, pSrcOut);
+  default: return NoConversionFound(inFourCC);
   }
 }
 
+/*****************************************************************************/
 static void convertToY800(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
   {
-  case FOURCC(I0AL):
-    I0AL_To_Y800(pSrcIn, pSrcOut);
-    break;
+  case FOURCC(I0AL): return I0AL_To_Y800(pSrcIn, pSrcOut);
   case FOURCC(I420):
   case FOURCC(I422):
-    I420_To_Y800(pSrcIn, pSrcOut);
-    break;
-  default:
-    cout << "No conversion known from " << FourCCToString(inFourCC) << endl;
-    assert(0);
+    return I420_To_Y800(pSrcIn, pSrcOut);
+  default: return NoConversionFound(inFourCC);
   }
 }
 
+/*****************************************************************************/
 static void convertToNV12(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
   {
-  case FOURCC(Y800):
-    Y800_To_NV12(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(I420):
-    I420_To_NV12(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(IYUV):
-    IYUV_To_NV12(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(YV12):
-    YV12_To_NV12(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(NV12):
-    CopyPixMapBuffer(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(P010):
-    P010_To_NV12(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(I0AL):
-    I0AL_To_NV12(pSrcIn, pSrcOut);
-    break;
-  default:
-    cout << "No conversion known from " << FourCCToString(inFourCC) << endl;
-    assert(0);
+  case FOURCC(Y800): return Y800_To_NV12(pSrcIn, pSrcOut);
+  case FOURCC(I420): return I420_To_NV12(pSrcIn, pSrcOut);
+  case FOURCC(IYUV): return IYUV_To_NV12(pSrcIn, pSrcOut);
+  case FOURCC(YV12): return YV12_To_NV12(pSrcIn, pSrcOut);
+  case FOURCC(NV12): return CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(P010): return P010_To_NV12(pSrcIn, pSrcOut);
+  case FOURCC(I0AL): return I0AL_To_NV12(pSrcIn, pSrcOut);
+  default: return NoConversionFound(inFourCC);
   }
 }
 
+/*****************************************************************************/
 static void convertToNV16(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
   {
-  case FOURCC(I422):
-    I422_To_NV16(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(YV16):
-    I422_To_NV16(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(NV16):
-    CopyPixMapBuffer(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(I2AL):
-    I2AL_To_NV16(pSrcIn, pSrcOut);
-    break;
-  default:
-    cout << "No conversion known from " << FourCCToString(inFourCC) << endl;
-    assert(0);
+  case FOURCC(I422): return I422_To_NV16(pSrcIn, pSrcOut);
+  case FOURCC(YV16): return I422_To_NV16(pSrcIn, pSrcOut);
+  case FOURCC(NV16): return CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(I2AL): return I2AL_To_NV16(pSrcIn, pSrcOut);
+  default: return NoConversionFound(inFourCC);
   }
 }
 
+/*****************************************************************************/
+static void convertToNV24(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+{
+  switch(inFourCC)
+  {
+  case FOURCC(I444): return I444_To_NV24(pSrcIn, pSrcOut);
+  case FOURCC(I4AL): return I4AL_To_NV24(pSrcIn, pSrcOut);
+  case FOURCC(NV24): return CopyPixMapBuffer(pSrcIn, pSrcOut);
+  default: return NoConversionFound(inFourCC);
+  }
+}
+
+/*****************************************************************************/
 static void convertToXV15(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
   {
-  case FOURCC(Y800):
-    Y800_To_XV15(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(I420):
-    I420_To_XV15(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(IYUV):
-    IYUV_To_XV15(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(YV12):
-    YV12_To_XV15(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(NV12):
-    NV12_To_XV15(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(P010):
-    P010_To_XV15(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(I0AL):
-    I0AL_To_XV15(pSrcIn, pSrcOut);
-    break;
-  default:
-    cout << "No conversion known from " << FourCCToString(inFourCC) << endl;
-    assert(0);
+  case FOURCC(Y800): return Y800_To_XV15(pSrcIn, pSrcOut);
+  case FOURCC(I420): return I420_To_XV15(pSrcIn, pSrcOut);
+  case FOURCC(IYUV): return IYUV_To_XV15(pSrcIn, pSrcOut);
+  case FOURCC(YV12): return YV12_To_XV15(pSrcIn, pSrcOut);
+  case FOURCC(NV12): return NV12_To_XV15(pSrcIn, pSrcOut);
+  case FOURCC(P010): return P010_To_XV15(pSrcIn, pSrcOut);
+  case FOURCC(I0AL): return I0AL_To_XV15(pSrcIn, pSrcOut);
+  default: return NoConversionFound(inFourCC);
   }
 }
 
+/*****************************************************************************/
 static void convertToXV20(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
   {
-  case FOURCC(I422):
-    I422_To_XV20(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(YV16):
-    I422_To_XV20(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(NV16):
-    NV16_To_XV20(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(I2AL):
-    I2AL_To_XV20(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(P210):
-    P210_To_XV20(pSrcIn, pSrcOut);
-    break;
-  default:
-    cout << "No conversion known from " << FourCCToString(inFourCC) << endl;
-    assert(0);
+  case FOURCC(I422): return I422_To_XV20(pSrcIn, pSrcOut);
+  case FOURCC(YV16): return I422_To_XV20(pSrcIn, pSrcOut);
+  case FOURCC(NV16): return NV16_To_XV20(pSrcIn, pSrcOut);
+  case FOURCC(I2AL): return I2AL_To_XV20(pSrcIn, pSrcOut);
+  case FOURCC(P210): return P210_To_XV20(pSrcIn, pSrcOut);
+  default: return NoConversionFound(inFourCC);
   }
 }
 
+/*****************************************************************************/
 static void convertToXV10(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
@@ -227,76 +188,79 @@ static void convertToXV10(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(I2AL):
   case FOURCC(P010):
   case FOURCC(P210):
-    Y010_To_XV10(pSrcIn, pSrcOut);
-    break;
-
+    return Y010_To_XV10(pSrcIn, pSrcOut);
   case FOURCC(Y800):
   case FOURCC(I420):
   case FOURCC(I422):
   case FOURCC(NV12):
   case FOURCC(NV16):
-    Y800_To_XV10(pSrcIn, pSrcOut);
-    break;
-
-  default:
-    cout << "No conversion known from " << FourCCToString(inFourCC) << endl;
-    assert(0);
+    return Y800_To_XV10(pSrcIn, pSrcOut);
+  default: return NoConversionFound(inFourCC);
   }
 }
 
+/*****************************************************************************/
 static void convertToP010(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
   {
-  case FOURCC(Y800):
-    Y800_To_P010(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(I420):
-    I420_To_P010(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(IYUV):
-    IYUV_To_P010(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(YV12):
-    YV12_To_P010(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(NV12):
-    NV12_To_P010(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(P010):
-    CopyPixMapBuffer(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(I0AL):
-    I0AL_To_P010(pSrcIn, pSrcOut);
-    break;
-  default:
-    cout << "No conversion known from " << FourCCToString(inFourCC) << endl;
-    assert(0);
+  case FOURCC(Y800): return Y800_To_P010(pSrcIn, pSrcOut);
+  case FOURCC(I420): return I420_To_P010(pSrcIn, pSrcOut);
+  case FOURCC(IYUV): return IYUV_To_P010(pSrcIn, pSrcOut);
+  case FOURCC(YV12): return YV12_To_P010(pSrcIn, pSrcOut);
+  case FOURCC(NV12): return NV12_To_P010(pSrcIn, pSrcOut);
+  case FOURCC(P010): return CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(I0AL): return I0AL_To_P010(pSrcIn, pSrcOut);
+  default: return NoConversionFound(inFourCC);
   }
 }
 
+/*****************************************************************************/
+static void convertToP012(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+{
+  switch(inFourCC)
+  {
+  case FOURCC(P012): return CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(I0CL): return I0CL_To_P012(pSrcIn, pSrcOut);
+  default: return NoConversionFound(inFourCC);
+  }
+}
+
+/*****************************************************************************/
 static void convertToP210(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
   {
-  case FOURCC(I422):
-    I422_To_P210(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(YV16):
-    I422_To_P210(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(P210):
-    CopyPixMapBuffer(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(I2AL):
-    I2AL_To_P210(pSrcIn, pSrcOut);
-    break;
-  case FOURCC(NV16):
-    NV16_To_P210(pSrcIn, pSrcOut);
-    break;
-  default:
-    cout << "No conversion known from " << FourCCToString(inFourCC) << endl;
-    assert(0);
+  case FOURCC(I422): return I422_To_P210(pSrcIn, pSrcOut);
+  case FOURCC(YV16): return I422_To_P210(pSrcIn, pSrcOut);
+  case FOURCC(P210): return CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(I2AL): return I2AL_To_P210(pSrcIn, pSrcOut);
+  case FOURCC(NV16): return NV16_To_P210(pSrcIn, pSrcOut);
+  default: return NoConversionFound(inFourCC);
+  }
+}
+
+/*****************************************************************************/
+static void convertToP212(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+{
+  switch(inFourCC)
+  {
+  case FOURCC(I2CL): return I2CL_To_P212(pSrcIn, pSrcOut);
+  case FOURCC(P212): return CopyPixMapBuffer(pSrcIn, pSrcOut);
+  default: return NoConversionFound(inFourCC);
+  }
+}
+
+/*****************************************************************************/
+static void convertToP410(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+{
+  switch(inFourCC)
+  {
+  case FOURCC(NV24): return NV24_To_P410(pSrcIn, pSrcOut);
+  case FOURCC(I444): return I444_To_P410(pSrcIn, pSrcOut);
+  case FOURCC(I4AL): return I4AL_To_P410(pSrcIn, pSrcOut);
+  case FOURCC(P410): return CopyPixMapBuffer(pSrcIn, pSrcOut);
+  default: return NoConversionFound(inFourCC);
   }
 }
 
@@ -305,48 +269,23 @@ void CNvxConv::ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBu
 {
   TFourCC tFourCCIn = AL_PixMapBuffer_GetFourCC(pSrcIn);
   auto const picFmt = AL_EncGetSrcPicFormat(m_FrameInfo.eCMode, uBitDepth, AL_FB_RASTER, false);
-  TFourCC tSrcFourCC = AL_GetFourCC(picFmt);
-  switch(tSrcFourCC)
+  TFourCC tSrcOutFourCC = AL_GetFourCC(picFmt);
+  switch(tSrcOutFourCC)
   {
-  case FOURCC(Y010):
-    convertToY010(pSrcIn, tFourCCIn, pSrcOut);
-    break;
-
-  case FOURCC(Y800):
-    convertToY800(pSrcIn, tFourCCIn, pSrcOut);
-    break;
-
-  case FOURCC(NV12):
-    convertToNV12(pSrcIn, tFourCCIn, pSrcOut);
-    break;
-
-  case FOURCC(NV16):
-    convertToNV16(pSrcIn, tFourCCIn, pSrcOut);
-    break;
-
-  case FOURCC(XV15):
-    convertToXV15(pSrcIn, tFourCCIn, pSrcOut);
-    break;
-
-  case FOURCC(XV20):
-    convertToXV20(pSrcIn, tFourCCIn, pSrcOut);
-    break;
-
-  case FOURCC(XV10):
-    convertToXV10(pSrcIn, tFourCCIn, pSrcOut);
-    break;
-
-  case FOURCC(P010):
-    convertToP010(pSrcIn, tFourCCIn, pSrcOut);
-    break;
-
-  case FOURCC(P210):
-    convertToP210(pSrcIn, tFourCCIn, pSrcOut);
-    break;
-
-  default:
-    cout << "No conversion known to " << FourCCToString(tSrcFourCC) << endl;
-    assert(0);
+  case FOURCC(Y800): return convertToY800(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(Y010): return convertToY010(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(NV12): return convertToNV12(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(NV16): return convertToNV16(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(NV24): return convertToNV24(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(XV10): return convertToXV10(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(XV15): return convertToXV15(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(XV20): return convertToXV20(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(P010): return convertToP010(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(P012): return convertToP012(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(P210): return convertToP210(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(P212): return convertToP212(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(P410): return convertToP410(pSrcIn, tFourCCIn, pSrcOut);
+  default: return NoConversionFound(tSrcOutFourCC);
   }
 }
 

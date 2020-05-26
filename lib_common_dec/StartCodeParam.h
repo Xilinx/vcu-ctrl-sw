@@ -45,13 +45,14 @@
 #pragma once
 
 #include "lib_rtos/types.h"
+#include "lib_common/Profiles.h"
 
 /*************************************************************************//*!
    \brief Start Code Detector Parameters : Mimics structure for IP registers
 *****************************************************************************/
 typedef struct AL_t_SCParam
 {
-  int AVC;             /*!< Specifies whether the ES is AVC(non-zero) or HEVC(zero) */
+  AL_ECodec eCodec;    /*!< Specifies the stream format */
   uint8_t StopParam;   /*!< Parameter used to stop the start code detecting >!*/
   uint8_t StopCondIdc; /*!< Specifies the start code detector stopping mode :
                           0 -> no condition

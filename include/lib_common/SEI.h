@@ -62,13 +62,13 @@ typedef enum e_SeiFlag
 /****************************************************************************/
 static AL_INLINE bool AL_HAS_SEI_SUFFIX(AL_ESeiFlag seiFlag)
 {
-  return seiFlag & 0xFFFF0000;
+  return (seiFlag & 0xFFFF0000) != 0;
 }
 
 /****************************************************************************/
 static AL_INLINE bool AL_HAS_SEI_PREFIX(AL_ESeiFlag seiFlag)
 {
-  return seiFlag & 0x0000FFFF;
+  return (seiFlag & 0x0000FFFF) != 0;
 }
 
 /****************************************************************************/

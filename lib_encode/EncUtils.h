@@ -147,12 +147,14 @@ bool AL_IsGdrEnabled(AL_TEncSettings const* pSettings);
 
 AL_TBuffer* AL_GetSrcBufferFromStatus(AL_TEncPicStatus const* pPicStatus);
 
+void AL_UpdateVuiTimingInfo(AL_TVuiParam* pVUI, int iLayerId, AL_TRCParam const* pRCParam, int iTimeScaleFactor);
+
 /****************************************************************************/
-void AL_AVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufEP);
+void AL_AVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, uint8_t chroma_format_idc, TBufferEP* pBufEP);
 
 void AL_AVC_GenerateSPS(AL_TSps* pSPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize);
 void AL_AVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo);
-void AL_AVC_GeneratePPS(AL_TPps* pPPS, AL_TEncSettings const* pSettings, int iMaxRef, AL_TSps const* pSPS);
+void AL_AVC_GeneratePPS(AL_TPps* pPPS, AL_TEncSettings const* pSettings, AL_TSps const* pSPS);
 
 bool AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo);
 

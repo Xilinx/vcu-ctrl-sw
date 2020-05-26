@@ -41,4 +41,6 @@ ifneq ($(ENABLE_ELASTIC),0)
   LIB_CPR_A=./extra/cpr/build/libcpr.a
 endif
 
+LDFLAGS+=$(LPTHREAD)
+
 REF_LDFLAGS+=$(LDFLAGS)

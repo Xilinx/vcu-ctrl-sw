@@ -1,10 +1,6 @@
 LIB_ENCODER_A=$(BIN)/liballegro_encode.a
 LIB_ENCODER_DLL=$(BIN)/liballegro_encode.so
 
-ifneq ($(findstring mingw,$(TARGET)),mingw)
-	CFLAGS+=-fPIC
-endif
-
 LIB_ENCODE_SRC+=\
 	lib_encode/Com_Encoder.c\
 	lib_encode/Sections.c\

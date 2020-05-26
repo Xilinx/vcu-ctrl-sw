@@ -38,8 +38,9 @@
 #pragma once
 
 #include "lib_common/Allocator.h"
+#include "lib_fpga/DmaAllocLinux.h"
 
 typedef struct AL_t_driver AL_TDriver;
 typedef struct AL_i_EncScheduler AL_IEncScheduler;
 
-AL_IEncScheduler* AL_SchedulerMcu_Create(AL_TDriver* driver, AL_TAllocator* pDmaAllocator, char const* deviceFile);
+AL_IEncScheduler* AL_SchedulerMcu_Create(AL_TDriver* driver, AL_TLinuxDmaAllocator* pDmaAllocator, char const* deviceFile);

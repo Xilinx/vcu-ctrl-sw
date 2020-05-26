@@ -121,7 +121,6 @@ AL_INTROSPECT(category = "debug") struct ConfigFile
 
   // \brief Name of the file that reads/writes video statistics for TwoPassMode
   std::string sTwoPassFileName;
-
   // \brief Name of the file specifying HDR SEI contents
   std::string sHDRFileName;
 

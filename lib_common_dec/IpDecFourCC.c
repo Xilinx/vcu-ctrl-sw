@@ -54,10 +54,15 @@ AL_TPicFormat AL_GetDecPicFormat(AL_EChromaMode eChromaMode, uint8_t uBitDepth, 
   bool b10bPacked = false;
   b10bPacked = AL_FB_RASTER == eStorageMode && 10 == uBitDepth;
 
-  AL_TPicFormat picFormat = { eChromaMode, uBitDepth, eStorageMode, eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : AL_C_ORDER_SEMIPLANAR, bIsCompressed, b10bPacked };
-
-  if(eChromaMode == AL_CHROMA_4_4_4)
-    picFormat.eChromaOrder = AL_C_ORDER_U_V;
+  AL_TPicFormat picFormat =
+  {
+    eChromaMode,
+    uBitDepth,
+    eStorageMode,
+    eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : (eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR),
+    bIsCompressed,
+    b10bPacked
+  };
   return picFormat;
 }
 

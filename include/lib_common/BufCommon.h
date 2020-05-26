@@ -44,6 +44,7 @@
 
 #include "lib_rtos/types.h"
 #include "lib_common/SliceConsts.h"
+#include "lib_common/FourCC.h"
 
 /*************************************************************************//*!
    If the framebuffer is stored in raster, the pitch represents the number of bytes
@@ -55,6 +56,13 @@
    \return Number of lines in the pitch
 *****************************************************************************/
 int AL_GetNumLinesInPitch(AL_EFbStorageMode eFrameBufferStorageMode);
+
+/*************************************************************************//*!
+   \param[in] tFourCC FourCC of a framebuffer
+   \param[in] iLumaPitch Pitch of luma plane
+   \return pitch of chroma plane
+*****************************************************************************/
+int AL_GetChromaPitch(TFourCC tFourCC, int iLumaPitch);
 
 /****************************************************************************/
 /* Useful for traces */

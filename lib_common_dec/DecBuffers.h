@@ -58,8 +58,10 @@
 #define SCD_SIZE 128 /*!< size of start code detector output                */
 
 #define MAX_NAL_UNIT 4096/*!< Maximum nal unit within an access unit supported  */
-#define NON_VCL_NAL_SIZE 2048/*!< Init size of the Deanti-emulated buffer used by the software to parse the high level syntax data  */
-#define WP_SLICE_SIZE 256
+#define NON_VCL_NAL_SIZE 5248 /*!< Init size of the Deanti-emulated buffer used by the software to parse the high level syntax data  */
+
+#define WP_ONE_SET_SIZE 8
+#define WP_SLICE_SIZE 16 * 2 * WP_ONE_SET_SIZE // WP coefficient per slice (num_ref_idx * number_of_list * 16 bytes = 16 * 2 * 16)
 
 static const int HEVC_LCU_CMP_SIZE[4] =
 {

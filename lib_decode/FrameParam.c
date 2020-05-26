@@ -116,13 +116,13 @@ void AL_AVC_FillPictParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx* 
   // Reg 0x10
   if(!pSps->seq_scaling_matrix_present_flag && !pPps->pic_scaling_matrix_present_flag)
   {
-    AL_SET_DEC_OPT(pPP, EnableSC, 0);
-    AL_SET_DEC_OPT(pPP, LoadSC, 0);
+    AL_SET_DEC_OPT(pPP, EnableSclLst, 0);
+    AL_SET_DEC_OPT(pPP, LoadSclLst, 0);
   }
   else
   {
-    AL_SET_DEC_OPT(pPP, EnableSC, 1);
-    AL_SET_DEC_OPT(pPP, LoadSC, 1);
+    AL_SET_DEC_OPT(pPP, EnableSclLst, 1);
+    AL_SET_DEC_OPT(pPP, LoadSclLst, 1);
   }
   AL_SET_DEC_OPT(pPP, ConstrainedIntraPred, pPps->constrained_intra_pred_flag);
 
@@ -276,6 +276,9 @@ void AL_HEVC_FillPictParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx
   AL_SET_DEC_OPT(pPP, LossLess, pPps->transquant_bypass_enabled_flag);
   AL_SET_DEC_OPT(pPP, SkipTransfo, pPps->transform_skip_enabled_flag);
 
+  pPP->log2_sao_offset_scale_luma = pPps->log2_sao_offset_scale_luma;
+  pPP->log2_sao_offset_scale_chroma = pPps->log2_sao_offset_scale_chroma;
+
   // Reg 3
   pPP->QpOffLstSize = pPps->chroma_qp_offset_list_enabled_flag ? pPps->chroma_qp_offset_list_len_minus1 : 0;
   AL_SET_DEC_OPT(pPP, WaveFront, pPps->entropy_coding_sync_enabled_flag);
@@ -289,8 +292,8 @@ void AL_HEVC_FillPictParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx
 
   // Reg D
   AL_SET_DEC_OPT(pPP, IntraSmoothDisable, pSps->intra_smoothing_disabled_flag);
-  AL_SET_DEC_OPT(pPP, EnableSC, pSps->scaling_list_enabled_flag);
-  AL_SET_DEC_OPT(pPP, LoadSC, pSps->scaling_list_enabled_flag);
+  AL_SET_DEC_OPT(pPP, EnableSclLst, pSps->scaling_list_enabled_flag);
+  AL_SET_DEC_OPT(pPP, LoadSclLst, pSps->scaling_list_enabled_flag);
 
   // Reg E
   AL_SET_DEC_OPT(pPP, XTileLoopFilter, pPps->loop_filter_across_tiles_enabled_flag);

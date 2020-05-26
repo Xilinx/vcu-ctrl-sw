@@ -142,6 +142,7 @@ bool AL_BufPool_AddMetaData(AL_TBufPool* pBufPool, AL_TMetaData* pMeta);
    \param[in] pBufPool Pointer to an AL_TBufPool.
 *****************************************************************************/
 void AL_BufPool_Decommit(AL_TBufPool* pBufPool);
+void AL_BufPool_Commit(AL_TBufPool* pBufPool);
 
 /*****************************************************************************/
 
@@ -183,6 +184,11 @@ struct BaseBufPool
   void Decommit()
   {
     AL_BufPool_Decommit(&m_pool);
+  }
+
+  void Commit()
+  {
+    AL_BufPool_Commit(&m_pool);
   }
 
   AL_TBufPool m_pool {};

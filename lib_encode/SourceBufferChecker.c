@@ -40,6 +40,7 @@
 #include "lib_common_enc/EncBuffers.h"
 #include "lib_common_enc/IpEncFourCC.h"
 #include "lib_common/Utils.h"
+#include "lib_assert/al_assert.h"
 
 void AL_SrcBuffersChecker_Init(AL_TSrcBufferChecker* pCtx, AL_TEncChanParam const* pChParam)
 {
@@ -64,6 +65,20 @@ bool AL_SrcBuffersChecker_UpdateResolution(AL_TSrcBufferChecker* pCtx, AL_TDimen
 static bool CheckMetaData(AL_TBuffer* pBuf)
 {
   return AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_PIXMAP) != NULL;
+}
+
+static int GetChromaPlanesPitch(int iPitchY, TFourCC tFourCC)
+{
+  switch(AL_GetChromaMode(tFourCC))
+  {
+  case AL_CHROMA_4_4_4: return AL_IsSemiPlanar(tFourCC) ? iPitchY * 2 : iPitchY;
+  case AL_CHROMA_4_2_2: return AL_IsSemiPlanar(tFourCC) ? iPitchY : iPitchY / 2;
+  case AL_CHROMA_4_2_0: return AL_IsSemiPlanar(tFourCC) ? iPitchY : iPitchY / 2;
+  case AL_CHROMA_4_0_0: return 0;
+  default: AL_Assert(false && "Unknown chroma mode");
+  }
+
+  return 0;
 }
 
 static bool CheckPlanes(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf)
@@ -95,7 +110,7 @@ static bool CheckPlanes(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf)
   {
     int iPitchUV = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_UV);
 
-    if(iPitchUV != iPitchY)
+    if(iPitchUV != GetChromaPlanesPitch(iPitchY, tFourCC))
       return false;
   }
 
@@ -107,12 +122,10 @@ static uint32_t GetSrcPlaneSize(AL_TDimension tDim, AL_EChromaMode eChromaMode, 
   (void)tDim;
   switch(ePlaneId)
   {
-  case AL_PLANE_Y:
-    return AL_GetAllocSizeSrc_Y(eSrcFmt, iPitchY, iStrideHeight);
-  case AL_PLANE_UV:
-    return AL_GetAllocSizeSrc_UV(eSrcFmt, iPitchY, iStrideHeight, eChromaMode);
+  case AL_PLANE_Y: return AL_GetAllocSizeSrc_Y(eSrcFmt, iPitchY, iStrideHeight);
+  case AL_PLANE_UV: return AL_GetAllocSizeSrc_UV(eSrcFmt, iPitchY, iStrideHeight, eChromaMode);
   default:
-    assert(0);
+    AL_Assert(false);
   }
 
   return 0;

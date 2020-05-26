@@ -76,8 +76,8 @@ void AL_DecodeOneNal(AL_NonVclNuts nuts, AL_NalParser parser, AL_TAup* pAUP, AL_
       AL_Default_Decoder_SetError(pCtx, AL_WARN_SEI_OVERFLOW, pCtx->uCurPocLsb);
       return;
     }
-    AL_TRbspParser rp = pMeta ? getParserOnNonVclNal(pCtx, AL_SeiMetaData_GetBuffer(pMeta))
-                        : getParserOnNonVclNalInternalBuf(pCtx);
+
+    AL_TRbspParser rp = pMeta ? getParserOnNonVclNal(pCtx, AL_SeiMetaData_GetBuffer(pMeta)) : getParserOnNonVclNalInternalBuf(pCtx);
 
     if(!parser.parseSei(pAUP, &rp, bIsPrefix, &pCtx->parsedSeiCB, pMeta))
       AL_Default_Decoder_SetError(pCtx, AL_WARN_SEI_OVERFLOW, pCtx->uCurPocLsb);
@@ -101,7 +101,7 @@ void AL_DecodeOneNal(AL_NonVclNuts nuts, AL_NalParser parser, AL_TAup* pAUP, AL_
     parser.parseVps(pAUP, &rp);
   }
 
-  if((nut == nuts.eos) || (nut == nuts.eob) || ((nut == nuts.fd) && pCtx->bSplitInput))
+  if((nut == nuts.eos) || (nut == nuts.eob) || ((nut == nuts.fd) && pCtx->eInputMode == AL_DEC_SPLIT_INPUT))
   {
     if(pCtx->bFirstIsValid && pCtx->bFirstSliceInFrameIsValid)
       parser.finishPendingRequest(pCtx);

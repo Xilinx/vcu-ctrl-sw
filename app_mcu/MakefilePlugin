@@ -18,6 +18,11 @@ INCLUDES+=-I$(SOFT)/extra/include
 INCLUDES+=-I$(SOFT)
 INCLUDES+=-I$(SOFT)/include
 
+CONFIG?=$(SOFT)/include/config.h
+ifneq ($(CONFIG),)
+CFLAGS+=-include $(CONFIG)
+endif
+
 include base.mk
 include $(PLUGIN)/plugin.mk
 

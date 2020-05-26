@@ -80,8 +80,8 @@ typedef struct t_CropInfo
  ***************************************************************************/
 typedef struct t_InfoDecode
 {
-  bool bChroma; /*!< Does the current framebuffer hold a chroma component or not (monochrome)*/
   AL_TDimension tDim; /*!< Dimensions of the current framebuffer */
+  AL_EChromaMode eChromaMode; /*!< Chroma sub-sampling mode of the current frame*/
   uint8_t uBitDepthY; /*!< Luma bitdepth of the current framebuffer */
   uint8_t uBitDepthC; /*!< Chroma bitdepth of the current framebuffer */
   AL_TCropInfo tCrop; /*!< Crop information of the current framebuffer */
@@ -100,24 +100,24 @@ bool AL_NeedsCropping(AL_TCropInfo const* pInfo);
 /*************************************************************************//*!
    \brief Returns the minimum number of output buffers required to decode
    the AVC stream in the specified dpb mode
-   \param[in] tStreamSettings Settings describing the stream to decode
+   \param[in] pStreamSettings Settings describing the stream to decode
    \param[in] iStack Number of requests that should be stacked inside the decoder
    at the same time (affects performances)
    \return Returns the minimum number of output buffers required to decode
    the AVC stream in the specified dpb mode
  ***************************************************************************/
-int AL_AVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iStack);
+int AL_AVC_GetMinOutputBuffersNeeded(AL_TStreamSettings const* pStreamSettings, int iStack);
 
 /*************************************************************************//*!
    \brief Returns the minimum number of output buffers required to decode
    the HEVC stream in the specified dpb mode
-   \param[in] tStreamSettings Settings describing the stream to decode
+   \param[in] pStreamSettings Settings describing the stream to decode
    \param[in] iStack Number of requests that should be stacked inside the decoder
    at the same time (affects performances)
    \return Returns the minimum number of output buffers required to decode
    the HEVC stream in the specified dpb mode
  ***************************************************************************/
-int AL_HEVC_GetMinOutputBuffersNeeded(AL_TStreamSettings tStreamSettings, int iStack);
+int AL_HEVC_GetMinOutputBuffersNeeded(AL_TStreamSettings const* pStreamSettings, int iStack);
 
 /*@}*/
 

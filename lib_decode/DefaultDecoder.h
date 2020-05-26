@@ -54,6 +54,18 @@
 
 typedef struct
 {
+  AL_ENut seiPrefix;
+  AL_ENut seiSuffix;
+  AL_ENut sps;
+  AL_ENut pps;
+  AL_ENut vps;
+  AL_ENut fd;
+  AL_ENut eos;
+  AL_ENut eob;
+}AL_NonVclNuts;
+
+typedef struct
+{
   AL_TDecCtx ctx;
 }AL_TDecoder;
 
@@ -71,8 +83,9 @@ UNIT_ERROR AL_Default_Decoder_TryDecodeOneUnit(AL_TDecoder* pAbsDec, AL_TBuffer*
    \brief This function signal that a buffer as been fully parsed
    \param[in] pUserParam filled with the decoder context
    \param[in] iFrameID frame id for the picture manager
+   \param[in] iParsingID stream input id in the split input case.
 *****************************************************************************/
-void AL_Default_Decoder_EndParsing(void* pUserParam, int iFrameID);
+void AL_Default_Decoder_EndParsing(void* pUserParam, int iFrameID, int iParsingID);
 
 /*************************************************************************//*!
    \brief This function performs DPB operations after frames decoding

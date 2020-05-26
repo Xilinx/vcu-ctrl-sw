@@ -21,6 +21,9 @@ $ dmesg
 you should see traces in dmesg showing that the rate ctrl plugin was
 correctly called
 
+You can also use the OMX encoder with for example:
+$ ../allegro-vcu-omx-il/bin/omx_encoder.exe 144x144.nv12 --width 144 --height 144 --out stream.bin --fourcc nv12 --rate-control-type PLUGIN --dma-in
+
 Source Code
 ===========
 

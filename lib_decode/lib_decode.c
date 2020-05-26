@@ -58,6 +58,13 @@ AL_ERR AL_Decoder_Create(AL_HDecoder* hDec, AL_IDecScheduler* pScheduler, AL_TAl
 }
 
 /*****************************************************************************/
+static AL_ECodec getCodec(AL_HDecoder hDec)
+{
+  AL_TDecoder* pDec = (AL_TDecoder*)hDec;
+  return pDec->ctx.pChanParam ? pDec->ctx.pChanParam->eCodec : AL_CODEC_INVALID;
+}
+
+/*****************************************************************************/
 void AL_Decoder_Destroy(AL_HDecoder hDec)
 {
   AL_Default_Decoder_Destroy((AL_TDecoder*)hDec);
@@ -91,6 +98,12 @@ void AL_Decoder_PutDisplayPicture(AL_HDecoder hDec, AL_TBuffer* pDisplay)
 int AL_Decoder_GetMaxBD(AL_HDecoder hDec)
 {
   return AL_Default_Decoder_GetMaxBD((AL_TDecoder*)hDec);
+}
+
+/*****************************************************************************/
+AL_ECodec AL_Decoder_GetCodec(AL_HDecoder hDec)
+{
+  return getCodec(hDec);
 }
 
 /*****************************************************************************/

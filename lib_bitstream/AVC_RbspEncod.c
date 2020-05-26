@@ -88,37 +88,28 @@ static void writeScalingMatrix(AL_TBitStreamLite* pBS, uint8_t isScalingMatrixPr
   if(isScalingMatrixPresent == 0)
     return;
 
-  for(int i = 0; i < 8; i++)
+  int iNbScalingList = pSps->chroma_format_idc != 3 ? 8 : 12;
+
+  for(int i = 0; i < iNbScalingList; i++)
   {
     AL_BitStreamLite_PutU(pBS, 1, pSps->seq_scaling_list_present_flag[i]);
 
     if(pSps->seq_scaling_list_present_flag[i] == 0)
       continue;
 
-    int row = i < 6 ? 0 : 1;
-    int size = i < 6 ? 16 : 64;
+    int row, size, column;
 
-    int column = 0;
-    switch(i)
+    if(i < 6)
     {
-    case 0:
-    case 1:
-    case 2:
-      column = 3 * AL_SL_INTRA + i;
-      break;
-    case 3:
-    case 4:
-    case 5:
-      column = 3 * AL_SL_INTER + (i - 3);
-      break;
-    case 6:
-      column = 3 * AL_SL_INTRA;
-      break;
-    case 7:
-      column = 3 * AL_SL_INTER;
-      break;
-    default:
-      AL_Assert(0);
+      row = 0;
+      size = 16;
+      column = i;
+    }
+    else
+    {
+      row = 1;
+      size = 64;
+      column = (i % 2) * 3 + ((i - 6) / 2);
     }
 
     writeScalingList(pBS, pSps->scaling_list_param.ScalingList[row][column], size);
@@ -174,7 +165,9 @@ static void writeSpsData(AL_TBitStreamLite* pBS, AL_TAvcSps const* pSps)
     )
   {
     AL_BitStreamLite_PutUE(pBS, pSps->chroma_format_idc);
-    AL_Assert(pSps->chroma_format_idc != 3);
+
+    if(pSps->chroma_format_idc == 3)
+      AL_BitStreamLite_PutBit(pBS, pSps->separate_colour_plane_flag);
     AL_BitStreamLite_PutUE(pBS, pSps->bit_depth_luma_minus8);
     AL_BitStreamLite_PutUE(pBS, pSps->bit_depth_chroma_minus8);
     AL_BitStreamLite_PutU(pBS, 1, pSps->qpprime_y_zero_transform_bypass_flag);

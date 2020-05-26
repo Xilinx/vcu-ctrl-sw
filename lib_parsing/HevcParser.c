@@ -65,7 +65,7 @@ static void initPps(AL_THevcPps* pPPS)
   pPPS->cross_component_prediction_enabled_flag = 0;
   pPPS->diff_cu_chroma_qp_offset_depth = 0;
   pPPS->chroma_qp_offset_list_enabled_flag = 0;
-  pPPS->log2_sao_offset_scale_chroma = 0;
+  pPPS->log2_sao_offset_scale_luma = 0;
   pPPS->log2_sao_offset_scale_chroma = 0;
 
   pPPS->bConceal = true;
@@ -74,27 +74,23 @@ static void initPps(AL_THevcPps* pPPS)
 /*****************************************************************************/
 void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
 {
-  AL_THevcAup* aup = &pIAup->hevcAup;
-  uint16_t pps_id, QpBdOffset;
-  uint16_t uLCUWidth, uLCUHeight;
-  AL_THevcPps* pPPS;
-
   skipAllZerosAndTheNextByte(pRP);
 
   u(pRP, 16); // Skip NUT + temporal_id
 
-  pps_id = ue(pRP);
+  uint16_t pps_id = ue(pRP);
 
   if(pps_id >= AL_HEVC_MAX_PPS)
     return;
-  pPPS = &aup->pPPS[pps_id];
+
+  AL_THevcAup* aup = &pIAup->hevcAup;
+  AL_THevcPps* pPPS = &aup->pPPS[pps_id];
 
   if(pPpsId)
     *pPpsId = pps_id;
 
   // default values
   initPps(pPPS);
-
 
   pPPS->pps_pic_parameter_set_id = pps_id;
   pPPS->pps_seq_parameter_set_id = ue(pRP);
@@ -107,8 +103,8 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
   if(pPPS->pSPS->bConceal)
     return;
 
-  uLCUWidth = pPPS->pSPS->PicWidthInCtbs;
-  uLCUHeight = pPPS->pSPS->PicHeightInCtbs;
+  uint16_t uLCUWidth = pPPS->pSPS->PicWidthInCtbs;
+  uint16_t uLCUHeight = pPPS->pSPS->PicHeightInCtbs;
 
   pPPS->dependent_slice_segments_enabled_flag = u(pRP, 1);
   pPPS->output_flag_present_flag = u(pRP, 1);
@@ -119,7 +115,7 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
   pPPS->num_ref_idx_l0_default_active_minus1 = Clip3(ue(pRP), 0, AL_HEVC_MAX_REF_IDX);
   pPPS->num_ref_idx_l1_default_active_minus1 = Clip3(ue(pRP), 0, AL_HEVC_MAX_REF_IDX);
 
-  QpBdOffset = 6 * pPPS->pSPS->bit_depth_luma_minus8;
+  uint16_t QpBdOffset = 6 * pPPS->pSPS->bit_depth_luma_minus8;
   pPPS->init_qp_minus26 = Clip3(se(pRP), -(26 + QpBdOffset), AL_MAX_INIT_QP);
 
   pPPS->constrained_intra_pred_flag = u(pRP, 1);
@@ -409,14 +405,47 @@ static void initSps(AL_THevcSps* pSPS)
   pSPS->persistent_rice_adaptation_enabled_flag = 0;
   pSPS->cabac_bypass_alignment_enabled_flag = 0;
 
+  pSPS->vui_param.aspect_ratio_info_present_flag = 0;
+  pSPS->vui_param.aspect_ratio_idc = 0;
+  pSPS->vui_param.sar_width = 0;
+  pSPS->vui_param.sar_height = 0;
+  pSPS->vui_param.overscan_info_present_flag = 0;
+  pSPS->vui_param.video_signal_type_present_flag = 0;
+  pSPS->vui_param.video_format = 5;
+  pSPS->vui_param.video_full_range_flag = 0;
+  pSPS->vui_param.colour_description_present_flag = 0;
+  pSPS->vui_param.colour_primaries = 2;
+  pSPS->vui_param.transfer_characteristics = 2;
+  pSPS->vui_param.matrix_coefficients = 0;
+  pSPS->vui_param.chroma_loc_info_present_flag = 0;
+
+  pSPS->vui_param.chroma_sample_loc_type_top_field = 0;
+  pSPS->vui_param.chroma_sample_loc_type_bottom_field = 0;
+
+  pSPS->vui_param.neutral_chroma_indication_flag = 0;
+  pSPS->vui_param.field_seq_flag = 0;
+  pSPS->vui_param.frame_field_info_present_flag = (pSPS->profile_and_level.general_progressive_source_flag && pSPS->profile_and_level.general_interlaced_source_flag) ? 1 : 0;
+
+  pSPS->vui_param.default_display_window_flag = 0;
+  pSPS->vui_param.def_disp_win_left_offset = 0;
+  pSPS->vui_param.def_disp_win_right_offset = 0;
+  pSPS->vui_param.def_disp_win_top_offset = 0;
+  pSPS->vui_param.def_disp_win_bottom_offset = 0;
+
+  pSPS->vui_param.min_spatial_segmentation_idc = 0;
+  pSPS->vui_param.max_bytes_per_pic_denom = 2;
+  pSPS->vui_param.max_bits_per_min_cu_denom = 1;
+  pSPS->vui_param.log2_max_mv_length_horizontal = 15;
+  pSPS->vui_param.log2_max_mv_length_vertical = 15;
+
   pSPS->vui_param.hrd_param.du_cpb_removal_delay_increment_length_minus1 = 23;
   pSPS->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 = 23;
   pSPS->vui_param.hrd_param.dpb_output_delay_length_minus1 = 23;
 
   pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag = 0;
   pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag = 0;
-
   pSPS->vui_param.hrd_param.sub_pic_hrd_params_present_flag = 0;
+
   Rtos_Memset(pSPS->sps_max_dec_pic_buffering_minus1, 0, sizeof(pSPS->sps_max_dec_pic_buffering_minus1));
   Rtos_Memset(pSPS->sps_num_reorder_pics, 0, sizeof(pSPS->sps_num_reorder_pics));
   Rtos_Memset(pSPS->sps_max_latency_increase_plus1, 0, sizeof(pSPS->sps_max_latency_increase_plus1));

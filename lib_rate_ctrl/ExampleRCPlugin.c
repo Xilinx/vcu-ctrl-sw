@@ -35,29 +35,66 @@
 *
 ******************************************************************************/
 
-#include "PluginInterface.h"
+#include "lib_rate_ctrl/PluginInterface.h"
 
 struct RCExampleCtx
 {
-  Mcu_DebugExport_Vtable* pDebug;
+  Mcu_Export_Vtable* pMcu;
+  AL_HANDLE hAllocBuf;
+  uint32_t zDmaSize;
+  AL_TAllocator* pAllocator;
   Plugin_RCParam rcParam;
   Plugin_GopParam gopParam;
+  AL_VADDR pDmaCtx;
   int iWidth;
   int iHeight;
 };
+
+/* string must have at least 5 char allocated */
+static void intXToString(uint32_t n, char* string, uint32_t size)
+{
+  for(uint32_t j = 0; j < size; ++j)
+    string[j] = '0';
+
+  int i = size - 1;
+
+  while(n > 0)
+  {
+    uint32_t digit = n % 16;
+
+    if(digit >= 10)
+    {
+      digit += 'a' - 10;
+    }
+    else
+    {
+      digit += '0';
+    }
+    n /= 16;
+    string[i] = digit;
+    --i;
+  }
+
+  string[size] = 0;
+}
+
+static void int32ToString(uint32_t n, char* string)
+{
+  intXToString(n, string, 8);
+}
 
 static void rcPlugin_setStreamInfo(void* pHandle, int iWidth, int iHeight)
 {
   struct RCExampleCtx* pCtx = (struct RCExampleCtx*)pHandle;
   pCtx->iWidth = iWidth;
   pCtx->iHeight = iHeight;
-  pCtx->pDebug->trace("setStreamInfo", 20);
+  pCtx->pMcu->trace("setStreamInfo", 20);
 }
 
 static void rcPlugin_setRateControlParameters(void* pHandle, Plugin_RCParam const* pRCParam, Plugin_GopParam const* pGopParam)
 {
   struct RCExampleCtx* pCtx = (struct RCExampleCtx*)pHandle;
-  pCtx->pDebug->trace("setrcparam", 20);
+  pCtx->pMcu->trace("setrcparam", 20);
   pCtx->rcParam = *pRCParam;
   pCtx->gopParam = *pGopParam;
 }
@@ -66,7 +103,7 @@ static void rcPlugin_checkCompliance(void* pHandle, Plugin_PictureInfo* pPicInfo
 {
   (void)pPicInfo, (void)pStats, (void)iPictureSize;
   struct RCExampleCtx* pCtx = (struct RCExampleCtx*)pHandle;
-  pCtx->pDebug->trace("checkcompliance", 20);
+  pCtx->pMcu->trace("checkcompliance", 20);
   // no underflow / overflow
   *pFillOrSkip = 0;
 }
@@ -75,42 +112,49 @@ static void rcPlugin_update(void* pHandle, Plugin_PictureInfo const* pPicInfo, P
 {
   (void)pPicInfo, (void)pStatus, (void)iPictureSize, (void)bSkipped, (void)iFillerSize;
   struct RCExampleCtx* pCtx = (struct RCExampleCtx*)pHandle;
-  pCtx->pDebug->trace("update", 20);
+  pCtx->pMcu->trace("update", 20);
+}
+
+static void invalidateCache(struct RCExampleCtx* pCtx, AL_VADDR memory, uint32_t size)
+{
+  pCtx->pMcu->invalidateCache((uint32_t)(uintptr_t)memory, size);
 }
 
 static void rcPlugin_choosePictureQP(void* pHandle, Plugin_PictureInfo const* pPicInfo, int16_t* pQP)
 {
   (void)pPicInfo;
   struct RCExampleCtx* pCtx = (struct RCExampleCtx*)pHandle;
-  pCtx->pDebug->trace("choosepictureqp", 20);
   // chosen qp
-  *pQP = 31;
+  uint32_t* dma = (uint32_t*)pCtx->pDmaCtx;
+  char tr[] = "XXXXXXXX";
+  int32ToString((uint32_t)(uintptr_t)pCtx->pDmaCtx, tr);
+  pCtx->pMcu->trace(tr, sizeof(tr));
+  invalidateCache(pCtx, pCtx->pDmaCtx, pCtx->zDmaSize);
+  *pQP = dma[0];
+  char msg[] = "choosepictureqp: qp:0xXXXXXXXX size:0xXXXXXXXX";
+  int32ToString(*pQP, msg + 22);
+  msg[22 + 8] = ' ';
+  int32ToString(pCtx->zDmaSize, msg + 38);
+  pCtx->pMcu->trace(msg, sizeof(msg));
 }
 
 static void rcPlugin_getRemovalDelay(void* pHandle, int* pDelay)
 {
   struct RCExampleCtx* pCtx = (struct RCExampleCtx*)pHandle;
-  pCtx->pDebug->trace("getremovaldelay", 20);
+  pCtx->pMcu->trace("getremovaldelay", 20);
   *pDelay = 0;
 }
 
-struct RCPluginCtx
-{
-  AL_HANDLE hAllocBuf;
-  AL_TAllocator* pAllocator;
-  struct RCExampleCtx* pCtx;
-};
-
-struct RCPluginCtx g_RCPlugin;
-
 static void rcPlugin_deinit(void* pHandle)
 {
-  (void)pHandle;
-  AL_Allocator_Free(g_RCPlugin.pAllocator, g_RCPlugin.hAllocBuf);
+  struct RCExampleCtx* rcPlugin = (struct RCExampleCtx*)pHandle;
+  AL_Allocator_Free(rcPlugin->pAllocator, rcPlugin->hAllocBuf);
 }
 
+#include <assert.h>
+
 // should be at 0x80080000 (extension start address)
-void* RC_Plugin_Init(RC_Plugin_Vtable* pRcPlugin, Mcu_DebugExport_Vtable* pDebug, AL_TAllocator* pAllocator)
+void* RC_Plugin_Init(RC_Plugin_Vtable* pRcPlugin, Mcu_Export_Vtable* pMcu, AL_TAllocator* pAllocator, AL_VADDR pDmaContext, uint32_t zDmaSize)
 {
   pRcPlugin->setStreamInfo = &rcPlugin_setStreamInfo;
   pRcPlugin->setRateControlParameters = &rcPlugin_setRateControlParameters;
@@ -120,14 +164,17 @@ void* RC_Plugin_Init(RC_Plugin_Vtable* pRcPlugin, Mcu_DebugExport_Vtable* pDebug
   pRcPlugin->getRemovalDelay = &rcPlugin_getRemovalDelay;
   pRcPlugin->deinit = &rcPlugin_deinit;
 
-  g_RCPlugin.hAllocBuf = AL_Allocator_Alloc(pAllocator, sizeof(struct RCExampleCtx));
-  g_RCPlugin.pAllocator = pAllocator;
+  AL_HANDLE hAllocBuf = AL_Allocator_Alloc(pAllocator, sizeof(struct RCExampleCtx));
 
-  if(!g_RCPlugin.hAllocBuf)
+  if(!hAllocBuf)
     return NULL;
 
-  g_RCPlugin.pCtx = (struct RCExampleCtx*)AL_Allocator_GetVirtualAddr(pAllocator, g_RCPlugin.hAllocBuf);
-  g_RCPlugin.pCtx->pDebug = pDebug;
-  return g_RCPlugin.pCtx;
+  struct RCExampleCtx* rcPlugin = (struct RCExampleCtx*)AL_Allocator_GetVirtualAddr(pAllocator, hAllocBuf);
+  rcPlugin->pAllocator = pAllocator;
+  rcPlugin->hAllocBuf = hAllocBuf;
+  rcPlugin->zDmaSize = zDmaSize;
+  rcPlugin->pMcu = pMcu;
+  rcPlugin->pDmaCtx = pDmaContext;
+  return rcPlugin;
 }
 

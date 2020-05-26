@@ -50,6 +50,7 @@
 #include "lib_common/BufferLookAheadMeta.h"
 #include "lib_common_enc/RateCtrlMeta.h"
 #include "lib_common_enc/IpEncFourCC.h"
+#include "lib_common_enc/DPBConstraints.h"
 #include "lib_common_enc/ParamConstraints.h"
 
 #define DEBUG_PATH "."
@@ -436,7 +437,7 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
   AL_TEncChanParam* pChParam = &pCtx->pSettings->tChParam[iLayerID];
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pFrame);
 
-  addresses.tSrcInfo.bIs10bits = (AL_GetBitDepth(tFourCC) > 8);
+  addresses.tSrcInfo.uBitDepth = AL_GetBitDepth(tFourCC);
   addresses.tSrcInfo.uFormat = AL_GET_SRC_FMT(pChParam->eSrcMode);
 
   AL_Buffer_Ref(pFrame);
@@ -477,7 +478,10 @@ AL_ERR AL_Common_Encoder_GetLastError(AL_TEncoder* pEnc)
 
 static void setMaxNumRef(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
 {
-  pCtx->iMaxNumRef = AL_GetNumberOfRef(pChParam->uPpsParam);
+  if(AL_IS_AVC(pChParam->eProfile))
+    pCtx->iMaxNumRef = AL_DPBConstraint_GetMaxDPBSize(pChParam);
+  else
+    pCtx->iMaxNumRef = AL_GetNumberOfRef(pChParam->uPpsParam);
 }
 
 void AL_Common_Encoder_SetHlsParam(AL_TEncChanParam* pChParam)
@@ -631,7 +635,8 @@ void AL_Common_Encoder_ComputeRCParam(int iCbOffset, int iCrOffset, int iTableId
     pChParam->tRCParam.iInitialQP = iInitQP;
   }
 
-  if(pChParam->tRCParam.eRCMode != AL_RC_CONST_QP && pChParam->tRCParam.iMinQP < 10)
+  if(pChParam->tRCParam.eRCMode != AL_RC_CONST_QP && pChParam->tRCParam.iMinQP < 10
+     )
     pChParam->tRCParam.iMinQP = 10;
 
   if(pChParam->tRCParam.iMaxQP < pChParam->tRCParam.iMinQP)
@@ -930,12 +935,18 @@ bool AL_Common_Encoder_SetFrameRate(AL_TEncoder* pEnc, uint16_t uFrameRate, uint
   if(uFrameRate > pCtx->uInitialFrameRate)
     AL_RETURN_ERROR(AL_ERR_INVALID_CMD_VALUE);
 
+  Rtos_GetMutex(pCtx->Mutex);
+
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
   {
     pCtx->pSettings->tChParam[i].tRCParam.uFrameRate = uFrameRate;
     pCtx->pSettings->tChParam[i].tRCParam.uClkRatio = uClkRatio;
-    setNewParams(pCtx, i);
   }
+
+  Rtos_ReleaseMutex(pCtx->Mutex);
+
+  for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
+    setNewParams(pCtx, i);
 
   return true;
 }
@@ -1029,6 +1040,8 @@ bool AL_Common_Encoder_SetInputResolution(AL_TEncoder* pEnc, AL_TDimension tDim)
 {
   AL_TEncCtx* pCtx = pEnc->pCtx;
 
+  Rtos_GetMutex(pCtx->Mutex);
+
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
   {
     AL_TEncChanParam* pChanParam = &pCtx->pSettings->tChParam[i];
@@ -1039,10 +1052,16 @@ bool AL_Common_Encoder_SetInputResolution(AL_TEncoder* pEnc, AL_TDimension tDim)
 
     AL_TEncRequestInfo* pReqInfo = getCurrentCommands(pLayerCtx);
     pReqInfo->eReqOptions |= AL_OPT_SET_INPUT_RESOLUTION;
-    pReqInfo->eReqOptions |= AL_OPT_RESTART_GOP;
+
+    {
+      pReqInfo->eReqOptions |= AL_OPT_RESTART_GOP;
+    }
+
     pReqInfo->dynResParams.tInputResolution = tDim;
     pReqInfo->dynResParams.uNewNalsId = GetNalID(pCtx, tDim.iWidth, tDim.iHeight);
   }
+
+  Rtos_ReleaseMutex(pCtx->Mutex);
 
   return true;
 }
@@ -1178,7 +1197,11 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
   pHLSInfo = &pFI->tHLSUpdateInfo;
 
   if(!AL_IS_ERROR_CODE(pPicStatus->eErrorCode))
+  {
+    Rtos_GetMutex(pCtx->Mutex);
     pCtx->encoder.updateHlsAndWriteSections(pCtx, pPicStatus, pHLSInfo, pStream, iLayerID);
+    Rtos_ReleaseMutex(pCtx->Mutex);
+  }
 
   AL_TPictureMetaData* pPictureMeta = (AL_TPictureMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_PICTURE);
 
@@ -1290,7 +1313,9 @@ AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncoder* pEnc, AL_IEncScheduler* pSch
   if(!PreprocessEncoderParam(pCtx, pEP1, pEP4, 0))
     goto fail;
 
-  errorCode = AL_IEncScheduler_CreateChannel(&pCtx->tLayerCtx[0].hChannel, pCtx->pScheduler, &pCtx->tLayerCtx[0].tMDChParam, &pEP1->tMD, &CBs);
+  AL_HANDLE hRcPluginDmaContext = NULL;
+  hRcPluginDmaContext = pCtx->pSettings->hRcPluginDmaContext;
+  errorCode = AL_IEncScheduler_CreateChannel(&pCtx->tLayerCtx[0].hChannel, pCtx->pScheduler, &pCtx->tLayerCtx[0].tMDChParam, &pEP1->tMD, hRcPluginDmaContext, &CBs);
 
   if(AL_IS_ERROR_CODE(errorCode))
     goto fail;

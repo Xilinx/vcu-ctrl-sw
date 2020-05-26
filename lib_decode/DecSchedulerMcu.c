@@ -214,11 +214,13 @@ static void processStatusMsg(Channel* channel, struct al5_params* msg)
   if(msg->opaque[0] == DEC_1)
   {
     uint32_t uFrameID;
+    uint32_t uParsingID;
     int iOffset = (sizeof(DEC_1) / sizeof(*msg->opaque));
     Rtos_Memcpy(&uFrameID, msg->opaque + iOffset, msg->size - iOffset);
+    Rtos_Memcpy(&uParsingID, msg->opaque + iOffset + 4, msg->size - iOffset - 4);
 
     if(channel->endParsingCB.func)
-      channel->endParsingCB.func(channel->endParsingCB.userParam, uFrameID);
+      channel->endParsingCB.func(channel->endParsingCB.userParam, uFrameID, uParsingID);
     return;
   }
 

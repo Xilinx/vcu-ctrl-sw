@@ -109,6 +109,10 @@ typedef enum __AL_ALIGNED__ (4) AL_e_PictFormat
   AL_420_10BITS = 0x01AA,
   AL_422_10BITS = 0x02AA,
   AL_444_10BITS = 0x03AA,
+  AL_400_12BITS = 0x00CC,
+  AL_420_12BITS = 0x01CC,
+  AL_422_12BITS = 0x02CC,
+  AL_444_12BITS = 0x03CC,
 } AL_EPicFormat;
 
 static AL_INLINE int AL_GET_BITDEPTH_LUMA(AL_EPicFormat ePicFormat)
@@ -344,6 +348,7 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_RCPara
   uint16_t uClkRatio;
   uint32_t uTargetBitRate;
   uint32_t uMaxBitRate;
+  uint32_t uMaxConsecSkip;
   int16_t iInitialQP;
   int16_t iMinQP;
   int16_t iMaxQP;
@@ -542,6 +547,8 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   int LdaFactors[6];
 
   int8_t MaxNumMergeCand;
+  uint32_t zRcPluginDmaSize; /* for scheduler use */
+  AL_64U pRcPluginDmaContext; /* For scheduler use */
 } AL_TEncChanParam;
 
 /***************************************************************************/
@@ -560,8 +567,7 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
 /****************************************************************************/
 static AL_INLINE bool AL_IS_CBR(AL_ERateCtrlMode eRcMode)
 {
-  return eRcMode == AL_RC_CBR
-  ;
+  return eRcMode == AL_RC_CBR;
 }
 
 /*@}*/

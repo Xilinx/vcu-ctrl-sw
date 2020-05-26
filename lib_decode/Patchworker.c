@@ -129,10 +129,13 @@ size_t AL_Patchworker_CopyBuffer(AL_TPatchworker* this, AL_TBuffer* pBuf, size_t
   {
     updateConsumedSpaceInBuffer(pBuf, zCopiedSize, zNotCopiedSize);
   }
-  else if(zNotCopiedSize == 0 && pMeta)
+  else if(pMeta)
   {
     if(pMeta->bLastBuffer)
-      this->endOfOutput = true;
+    {
+      AL_TCircMetaData* pOutMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(this->outputCirc, AL_META_TYPE_CIRCULAR);
+      pOutMeta->bLastBuffer = true;
+    }
     AL_TMetaData* m = (AL_TMetaData*)pMeta;
     AL_Buffer_RemoveMetaData(pBuf, m);
     AL_MetaData_Destroy(m);
@@ -146,7 +149,6 @@ size_t AL_Patchworker_CopyBuffer(AL_TPatchworker* this, AL_TBuffer* pBuf, size_t
 bool AL_Patchworker_Init(AL_TPatchworker* this, AL_TBuffer* stream, AL_TFifo* pInputFifo)
 {
   this->endOfInput = false;
-  this->endOfOutput = false;
   this->lock = Rtos_CreateMutex();
   this->workBuf = NULL;
   this->inputFifo = pInputFifo;
@@ -202,16 +204,15 @@ size_t AL_Patchworker_Transfer(AL_TPatchworker* this)
 
   size_t zCopiedSize = 0;
   size_t zNotCopiedSize = AL_Patchworker_CopyBuffer(this, this->workBuf, &zCopiedSize);
-  size_t zTotalSize = zCopiedSize;
 
-  if(zNotCopiedSize != 0)
-    return zTotalSize; /* no more free space in circular buffer */
+  if(zNotCopiedSize == 0)
+  {
+    /* buffer is totally copied to the circular buffer and isn't needed anymore */
+    AL_Buffer_Unref(this->workBuf);
+    this->workBuf = NULL;
+  }
 
-  /* buffer is totally copied to the circular buffer and isn't needed anymore */
-  AL_Buffer_Unref(this->workBuf);
-  this->workBuf = NULL;
-
-  return zTotalSize;
+  return zCopiedSize;
 }
 
 void AL_Patchworker_NotifyEndOfInput(AL_TPatchworker* this)
@@ -231,7 +232,8 @@ bool AL_Patchworker_IsEndOfInput(AL_TPatchworker* this)
 
 bool AL_Patchworker_IsAllDataTransfered(AL_TPatchworker* this)
 {
-  return this->endOfOutput;
+  AL_TCircMetaData* pMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(this->outputCirc, AL_META_TYPE_CIRCULAR);
+  return pMeta->bLastBuffer;
 }
 
 void AL_Patchworker_Drop(AL_TPatchworker* this)
@@ -252,12 +254,12 @@ void AL_Patchworker_Drop(AL_TPatchworker* this)
 void AL_Patchworker_Reset(AL_TPatchworker* this)
 {
   Rtos_GetMutex(this->lock);
-  this->endOfOutput = false;
   this->endOfInput = false;
   AL_Patchworker_Drop(this);
   AL_TCircMetaData* pMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(this->outputCirc, AL_META_TYPE_CIRCULAR);
   pMeta->iOffset = 0;
   pMeta->iAvailSize = 0;
+  pMeta->bLastBuffer = false;
   Rtos_ReleaseMutex(this->lock);
 }
 

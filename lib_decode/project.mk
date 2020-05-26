@@ -1,10 +1,6 @@
 LIB_DECODER_A=$(BIN)/liballegro_decode.a
 LIB_DECODER_DLL=$(BIN)/liballegro_decode.so
 
-ifneq ($(findstring mingw,$(TARGET)),mingw)
-	CFLAGS+=-fPIC
-endif
-
 LIB_DECODE_SRC+=\
 		lib_decode/NalUnitParser.c\
 		lib_decode/NalDecoder.c\
@@ -17,6 +13,7 @@ LIB_DECODE_SRC+=\
 		lib_decode/DecoderFeeder.c\
 		lib_decode/SplitBufferFeeder.c\
     lib_decode/I_DecScheduler.c\
+    lib_decode/WorkPool.c\
 
 
 ifneq ($(ENABLE_MCU),0)
@@ -32,6 +29,7 @@ ifneq ($(ENABLE_HEVC),0)
 endif
 
 
+
 LIB_DECODER_SRC:=\
   $(LIB_RTOS_SRC)\
   $(LIB_COMMON_SRC)\
@@ -42,6 +40,7 @@ LIB_DECODER_SRC:=\
   $(LIB_SCHEDULER_DEC_SRC)\
   $(LIB_SCHEDULER_SRC)\
   $(LIB_PERFS_SRC)\
+
 
 
 LIB_DECODER_OBJ:=$(LIB_DECODER_SRC:%=$(BIN)/%.o)

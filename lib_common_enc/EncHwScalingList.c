@@ -80,7 +80,7 @@ static void AL_sWriteInvCoeff(const uint8_t* pSrc, const int* pScan, int iSize, 
 }
 
 /******************************************************************************/
-void AL_AVC_WriteEncHwScalingList(AL_TSCLParam const* pSclLst, AL_THwScalingList const* pHwSclLst, uint8_t* pBuf)
+void AL_AVC_WriteEncHwScalingList(AL_TSCLParam const* pSclLst, AL_THwScalingList const* pHwSclLst, uint8_t chroma_format_idc, uint8_t* pBuf)
 {
   uint8_t const* pSrcInv;
   uint32_t const* pSrcFwd;
@@ -94,9 +94,31 @@ void AL_AVC_WriteEncHwScalingList(AL_TSCLParam const* pSclLst, AL_THwScalingList
   pSrcInv = pSclLst->ScalingList[1][0];
   AL_sWriteInvCoeff(pSrcInv, pSCL_AVC_8x8_ORDER, 64, &pBuf32);
 
+  if(chroma_format_idc == 3)
+  {
+    // 8x8 Cb Intra
+    pSrcInv = pSclLst->ScalingList[1][1];
+    AL_sWriteInvCoeff(pSrcInv, pSCL_AVC_8x8_ORDER, 64, &pBuf32);
+
+    // 8x8 Cr Intra
+    pSrcInv = pSclLst->ScalingList[1][2];
+    AL_sWriteInvCoeff(pSrcInv, pSCL_AVC_8x8_ORDER, 64, &pBuf32);
+  }
+
   // 8x8 luma Inter
   pSrcInv = pSclLst->ScalingList[1][3];
   AL_sWriteInvCoeff(pSrcInv, pSCL_AVC_8x8_ORDER, 64, &pBuf32);
+
+  if(chroma_format_idc == 3)
+  {
+    // 8x8 Cb Inter
+    pSrcInv = pSclLst->ScalingList[1][4];
+    AL_sWriteInvCoeff(pSrcInv, pSCL_AVC_8x8_ORDER, 64, &pBuf32);
+
+    // 8x8 Cr Inter
+    pSrcInv = pSclLst->ScalingList[1][5];
+    AL_sWriteInvCoeff(pSrcInv, pSCL_AVC_8x8_ORDER, 64, &pBuf32);
+  }
 
   // 4x4 Luma Intra
   pSrcInv = pSclLst->ScalingList[0][0];
@@ -130,6 +152,15 @@ void AL_AVC_WriteEncHwScalingList(AL_TSCLParam const* pSclLst, AL_THwScalingList
     {
       pSrcFwd = (*pHwSclLst)[m][q].t8x8Y;
       AL_sWriteFwdCoeffs(&pBuf32, pSrcFwd, 16, pSCL_AVC_8x8_ORDER);
+
+      if(chroma_format_idc == 3)
+      {
+        pSrcFwd = (*pHwSclLst)[m][q].t8x8Cb;
+        AL_sWriteFwdCoeffs(&pBuf32, pSrcFwd, 16, pSCL_AVC_8x8_ORDER);
+
+        pSrcFwd = (*pHwSclLst)[m][q].t8x8Cr;
+        AL_sWriteFwdCoeffs(&pBuf32, pSrcFwd, 16, pSCL_AVC_8x8_ORDER);
+      }
     }
   }
 

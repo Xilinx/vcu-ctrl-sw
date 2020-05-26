@@ -248,3 +248,15 @@ AL_TBuffer* AL_GetSrcBufferFromStatus(AL_TEncPicStatus const* pPicStatus)
 {
   return (AL_TBuffer*)(uintptr_t)pPicStatus->SrcHandle;
 }
+
+/****************************************************************************/
+void AL_UpdateVuiTimingInfo(AL_TVuiParam* pVUI, int iLayerId, AL_TRCParam const* pRCParam, int iTimeScalefactor)
+{
+  // When fixed_frame_rate_flag = 1, num_units_in_tick/time_scale should be equal to
+  // a duration of one field both for progressive and interlaced sequences.
+  pVUI->vui_timing_info_present_flag = (iLayerId == 0) ? 1 : 0;
+  pVUI->vui_num_units_in_tick = pRCParam->uClkRatio;
+  pVUI->vui_time_scale = pRCParam->uFrameRate * 1000 * iTimeScalefactor;
+
+  AL_Reduction(&pVUI->vui_time_scale, &pVUI->vui_num_units_in_tick);
+}

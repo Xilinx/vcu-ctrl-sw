@@ -69,8 +69,9 @@ typedef struct
 *****************************************************************************/
 typedef struct AL_t_RecInfo
 {
-  bool bIs10bits;
-  uint32_t uPitch;
+  uint8_t uBitDepth;
+  uint32_t uPitchY;
+  uint32_t uPitchC;
 }AL_TRecInfo;
 
 typedef struct AL_t_EncPicBufAddrsFull

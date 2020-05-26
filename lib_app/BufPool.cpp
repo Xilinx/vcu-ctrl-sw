@@ -49,6 +49,7 @@ static void Fifo_Deinit(App_Fifo* pFifo);
 static bool Fifo_Queue(App_Fifo* pFifo, void* pElem, uint32_t uWait);
 static void* Fifo_Dequeue(App_Fifo* pFifo, uint32_t uWait);
 static void Fifo_Decommit(App_Fifo* pFifo);
+static void Fifo_Commit(App_Fifo* pFifo);
 static size_t Fifo_GetMaxElements(App_Fifo* pFifo);
 
 /****************************************************************************/
@@ -216,6 +217,11 @@ void AL_BufPool_Decommit(AL_TBufPool* pBufPool)
   Fifo_Decommit(&pBufPool->fifo);
 }
 
+void AL_BufPool_Commit(AL_TBufPool* pBufPool)
+{
+  Fifo_Commit(&pBufPool->fifo);
+}
+
 static bool Fifo_Init(App_Fifo* pFifo, size_t zMaxElem)
 {
   pFifo->m_zMaxElem = zMaxElem + 1;
@@ -316,6 +322,16 @@ static void Fifo_Decommit(App_Fifo* pFifo)
   Rtos_GetMutex(pFifo->hMutex);
   pFifo->m_isDecommited = true;
   Rtos_SetEvent(pFifo->hEvent);
+  Rtos_ReleaseMutex(pFifo->hMutex);
+}
+
+/* Protected by mutex, but to be really useful, you need to know that you already
+ * used the decommit feature successfuly and you want to reuse the bufpool again
+ * after that. */
+static void Fifo_Commit(App_Fifo* pFifo)
+{
+  Rtos_GetMutex(pFifo->hMutex);
+  pFifo->m_isDecommited = false;
   Rtos_ReleaseMutex(pFifo->hMutex);
 }
 

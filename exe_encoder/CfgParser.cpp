@@ -255,11 +255,7 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
   }, MaxPicSizeEnums, "Specifies a coarse size (in Kbits) for B-frame that shouldn't be exceeded");
   parser.addFlag(curSection, "EnableSkip", RCParam.eOptions, AL_RC_OPT_ENABLE_SKIP);
   parser.addFlag(curSection, "SCPrevention", RCParam.eOptions, AL_RC_OPT_SC_PREVENTION, "Enable Scene Change Prevention");
-
-#if AL_ENABLE_CUTREE // Disable for quality models delivery for now
-  parser.addBool(curSection, "CuTree", RCParam.bEnableCuTree, "Enable the CU Tree");
-  parser.addArith(curSection, "CuTree.Strength", RCParam.iCuTreeStrength, "Strength of the CU Tree algorithm");
-#endif
+  parser.addArith(curSection, "MaxConsecutiveSkip", RCParam.uMaxConsecSkip, "Maximum consecutive skip pictures allowed");
 }
 
 static void populateRateControlSection(ConfigParser& parser, ConfigFile& cfg)
@@ -308,13 +304,20 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
 
   profiles["HEVC_MONO10"] = AL_PROFILE_HEVC_MONO10;
   profiles["HEVC_MONO"] = AL_PROFILE_HEVC_MONO;
+  profiles["HEVC_MAIN_444_STILL"] = AL_PROFILE_HEVC_MAIN_444_STILL;
+  profiles["HEVC_MAIN_444_10_INTRA"] = AL_PROFILE_HEVC_MAIN_444_10_INTRA;
+  profiles["HEVC_MAIN_444_INTRA"] = AL_PROFILE_HEVC_MAIN_444_INTRA;
+  profiles["HEVC_MAIN_444_10"] = AL_PROFILE_HEVC_MAIN_444_10;
+  profiles["HEVC_MAIN_444"] = AL_PROFILE_HEVC_MAIN_444;
   profiles["HEVC_MAIN_422_10_INTRA"] = AL_PROFILE_HEVC_MAIN_422_10_INTRA;
   profiles["HEVC_MAIN_422_10"] = AL_PROFILE_HEVC_MAIN_422_10;
+  profiles["HEVC_MAIN_422_12"] = AL_PROFILE_HEVC_MAIN_422_12;
   profiles["HEVC_MAIN_422"] = AL_PROFILE_HEVC_MAIN_422;
   profiles["HEVC_MAIN_INTRA"] = AL_PROFILE_HEVC_MAIN_INTRA;
   profiles["HEVC_MAIN_STILL"] = AL_PROFILE_HEVC_MAIN_STILL;
   profiles["HEVC_MAIN10_INTRA"] = AL_PROFILE_HEVC_MAIN10_INTRA;
   profiles["HEVC_MAIN10"] = AL_PROFILE_HEVC_MAIN10;
+  profiles["HEVC_MAIN12"] = AL_PROFILE_HEVC_MAIN12;
   profiles["HEVC_MAIN"] = AL_PROFILE_HEVC_MAIN;
   /* Baseline is mapped to Constrained_Baseline */
   profiles["AVC_BASELINE"] = AL_PROFILE_AVC_C_BASELINE;
@@ -327,6 +330,9 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   profiles["AVC_HIGH"] = AL_PROFILE_AVC_HIGH;
   profiles["AVC_C_HIGH"] = AL_PROFILE_AVC_C_HIGH;
   profiles["AVC_PROG_HIGH"] = AL_PROFILE_AVC_PROG_HIGH;
+  profiles["AVC_CAVLC_444"] = AL_PROFILE_AVC_CAVLC_444;
+  profiles["AVC_HIGH_444_INTRA"] = AL_PROFILE_AVC_HIGH_444_INTRA;
+  profiles["AVC_HIGH_444_PRED"] = AL_PROFILE_AVC_HIGH_444_PRED;
   profiles["XAVC_HIGH10_INTRA_CBG"] = AL_PROFILE_XAVC_HIGH10_INTRA_CBG;
   profiles["XAVC_HIGH10_INTRA_VBR"] = AL_PROFILE_XAVC_HIGH10_INTRA_VBR;
   profiles["XAVC_HIGH_422_INTRA_CBG"] = AL_PROFILE_XAVC_HIGH_422_INTRA_CBG;
@@ -714,8 +720,6 @@ static string chomp(string sLine)
   return sLine;
 }
 
-static uint8_t ISAVCModeAllowed[SL_ERR] = { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
 #define KEYWORD(T) (!sLine.compare(0, sizeof(T) - 1, T))
 static bool ParseScalingListMode(string& sLine, ESLMode& Mode)
 {
@@ -765,6 +769,17 @@ static bool ParseScalingListMode(string& sLine, ESLMode& Mode)
     return false;
 
   return true;
+}
+
+static bool IsScalingListModeAllowed(AL_EProfile eProfile, AL_EPicFormat ePicFormat, ESLMode eMode)
+{
+  if(!AL_IS_AVC(eProfile))
+    return true;
+
+  if(AL_GET_CHROMA_MODE(ePicFormat) == AL_CHROMA_4_4_4)
+    return eMode < SL_16x16_Y_INTRA;
+
+  return (eMode <= SL_8x8_Y_INTRA) || (eMode == SL_8x8_Y_INTER);
 }
 
 static bool ParseMatrice(std::ifstream& SLFile, string& sLine, int& iLine, AL_TEncSettings& Settings, ESLMode Mode)
@@ -877,7 +892,7 @@ static bool ParseScalingListFile(const string& sSLFileName, AL_TEncSettings& Set
     }
     else if(sLine[0] == '[') // Mode select
     {
-      if(!ParseScalingListMode(sLine, eMode) || (AL_IS_AVC(Settings.tChParam[0].eProfile) && !ISAVCModeAllowed[eMode]))
+      if(!ParseScalingListMode(sLine, eMode) || !IsScalingListModeAllowed(Settings.tChParam[0].eProfile, Settings.tChParam[0].ePicFormat, eMode))
       {
         warnstream << iLine << " => Invalid command line in Scaling list file, using Default" << endl;
         return false;

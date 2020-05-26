@@ -49,6 +49,10 @@ include lib_app/project.mk
 -include lib_perfs/project.mk
 
 
+BUILD_LIB_FBC=0
+BUILD_EXE_FBC=0
+BUILD_EXE_FBD=0
+
 ifneq ($(ENABLE_ENCODER),0)
 -include lib_common_enc/project.mk
 -include lib_buf_mngt/project.mk
@@ -56,12 +60,15 @@ ifneq ($(ENABLE_ENCODER),0)
 -include lib_bitstream/project.mk
 -include lib_scheduler_enc/project.mk
 -include lib_encode/project.mk
--include lib_conv_yuv/project.mk
+endif
+
+ifneq ($(BUILD_LIB_FBC),0)
+  -include lib_fbc_standalone/project.mk
 endif
 
 BUILD_LIB_COM_DEC=0
 ifneq ($(ENABLE_DECODER),0)
-  BUILD_LIB_COM_DEC= 
+  BUILD_LIB_COM_DEC=1
 endif
 ifneq ($(BUILD_LIB_COM_DEC),0)
   -include lib_common_dec/project.mk
@@ -80,10 +87,19 @@ endif
 
 ifneq ($(ENABLE_ENCODER),0)
   # AL_Encoder
-  -include exe_encoder/project.mk
+  -include lib_conv_yuv/project.mk
+  include exe_encoder/project.mk
 endif
 
-
+ifneq ($(BUILD_EXE_FBC),0)
+  # AL_Compress
+  -include exe_compress/project.mk
+endif
+ifneq ($(BUILD_EXE_FBD),0)
+  # AL_Decompress
+  -include lib_fbd_standalone/project.mk
+  -include exe_decompress/project.mk
+endif
 
 
 
@@ -100,13 +116,6 @@ endif
 endif
 
 
-# Unit tests
--include test/project.mk
-
-# Environment tests
--include exe_test_env/project.mk
--include app_mcu/integration_tests.mk
--include exe_vip/project.mk
 
 INSTALL ?= install -c
 PREFIX ?= /usr
@@ -124,6 +133,12 @@ install_headers:
 		$(INSTALL) $(HDR_INSTALL_OPT) "$(INCLUDE_DIR)/$$dirname"/*.h "$(INSTALL_HDR_PATH)/$$dirname"; \
 	done; \
 	$(INSTALL) $(HDR_INSTALL_OPT) "$(INCLUDE_DIR)"/*.h "$(INSTALL_HDR_PATH)/";
+
+pack_includes:
+	@echo $(PACK_INCLUDES)
+
+pack_defines:
+	@echo $(PACK_DEFINES)
 
 true_all: $(TARGETS)
 

@@ -57,7 +57,7 @@
 /****************************************************************************/
 typedef struct
 {
-  void (* func)(void* pUserParam, int iFrameID);
+  void (* func)(void* pUserParam, int iFrameID, int iSliceID);
   void* userParam;
 }AL_TDecScheduler_CB_EndParsing;
 

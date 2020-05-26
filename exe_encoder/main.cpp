@@ -488,6 +488,8 @@ void ValidateConfig(ConfigFile& cfg)
       throw runtime_error("Fatal coherency error in settings");
   }
 
+  AL_TwoPassMngr_SetGlobalSettings(cfg.Settings);
+
   if(cfg.Settings.TwoPass == 1)
     AL_TwoPassMngr_SetPass1Settings(cfg.Settings, NULL);
 
@@ -521,9 +523,18 @@ void SetMoreDefaults(ConfigFile& cfg)
   }
 }
 
-static int GetCPlanePitch(int iPitchY, TFourCC fourCC)
+static int GetCPlanePitch(int iPitchY, TFourCC tFourCC)
 {
-  return AL_IsSemiPlanar(fourCC) ? iPitchY : iPitchY / 2;
+  switch(AL_GetChromaMode(tFourCC))
+  {
+  case AL_CHROMA_4_4_4: return AL_IsSemiPlanar(tFourCC) ? iPitchY * 2 : iPitchY;
+  case AL_CHROMA_4_2_2: return AL_IsSemiPlanar(tFourCC) ? iPitchY : iPitchY / 2;
+  case AL_CHROMA_4_2_0: return AL_IsSemiPlanar(tFourCC) ? iPitchY : iPitchY / 2;
+  case AL_CHROMA_4_0_0: return 0;
+  default: assert(false && "Unknown chroma mode");
+  }
+
+  return 0;
 }
 
 /*****************************************************************************/
@@ -543,17 +554,35 @@ shared_ptr<AL_TBuffer> AllocateConversionBuffer(int iWidth, int iHeight, TFourCC
   std::vector<AL_TPlaneDescription> vPlaneDesc;
   int iSrcSize = 0;
 
-  /* we want to read from /write to a file, so no alignement is necessary */
+  /* we want to read from /write to a file, so no alignment is necessary */
   int const iWidthInBytes = GetIOLumaRowSize(tFourCC, static_cast<uint32_t>(iWidth));
   vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_Y, 0, iWidthInBytes });
   iSrcSize += iWidthInBytes * iHeight;
 
   AL_EChromaMode eChromaMode = AL_GetChromaMode(tFourCC);
-
-  if(eChromaMode != AL_CHROMA_MONO)
+  switch(eChromaMode)
+  {
+  case AL_CHROMA_MONO: break;
+  case AL_CHROMA_4_2_0:
   {
     vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_UV, iSrcSize, GetCPlanePitch(iWidthInBytes, tFourCC) });
-    iSrcSize += eChromaMode == AL_CHROMA_4_2_0 ? iSrcSize / 2 : iSrcSize;
+    iSrcSize += (iSrcSize / 2);
+    break;
+  }
+  case AL_CHROMA_4_2_2:
+  {
+    vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_UV, iSrcSize, GetCPlanePitch(iWidthInBytes, tFourCC) });
+    iSrcSize += iSrcSize;
+    break;
+  }
+  case AL_CHROMA_4_4_4:
+  {
+    vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_UV, iSrcSize, GetCPlanePitch(iWidthInBytes, tFourCC) });
+    iSrcSize += iSrcSize * 2;
+    break;
+  }
+  default:
+    assert(0 && "Unknown chroma mode");
   }
 
   if(!AL_PixMapBuffer_Allocate_And_AddPlanes(pBuf, iSrcSize, &vPlaneDesc[0], vPlaneDesc.size()))
@@ -675,7 +704,7 @@ unique_ptr<IConvSrc> CreateSrcConverter(TFrameInfo const& FrameInfo, AL_ESrcMode
 }
 
 /*****************************************************************************/
-function<AL_TIpCtrl* (AL_TIpCtrl*)> GetIpCtrlWrapper(TCfgRunInfo& RunInfo)
+function<AL_TIpCtrl* (AL_TIpCtrl*)> GetIpCtrlWrapper(TCfgRunInfo& RunInfo, void* pTraceHook)
 {
   function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl;
   switch(RunInfo.ipCtrlMode)
@@ -721,12 +750,11 @@ static void ConfigureSrcBufPool(PixMapBufPool& SrcBufPool, TFrameInfo& FrameInfo
 {
   auto const tPictFormat = AL_EncGetSrcPicFormat(FrameInfo.eCMode, FrameInfo.iBitDepth, AL_GetSrcStorageMode(eSrcMode), AL_IsSrcCompressed(eSrcMode));
   TFourCC FourCC = AL_GetFourCC(tPictFormat);
-  AL_TDimension tDim = { FrameInfo.iWidth, FrameInfo.iHeight };
 
-  SrcBufPool.SetFormat(tDim, FourCC);
+  SrcBufPool.SetFormat(FrameInfo.tDimension, FourCC);
 
-  int iPitchY = ComputeYPitch(FrameInfo.iWidth, FourCC);
-  int iStrideHeight = g_StrideHeight != -1 ? g_StrideHeight : RoundUp(FrameInfo.iHeight, 8);
+  int iPitchY = ComputeYPitch(FrameInfo.tDimension.iWidth, FourCC);
+  int iStrideHeight = g_StrideHeight != -1 ? g_StrideHeight : RoundUp(FrameInfo.tDimension.iHeight, 8);
 
   std::vector<AL_TPlaneDescription> vPlaneDesc;
   int iSrcSize = 0;
@@ -748,10 +776,17 @@ static void ConfigureSrcBufPool(PixMapBufPool& SrcBufPool, TFrameInfo& FrameInfo
 }
 
 /*****************************************************************************/
+static uint8_t GetNumBufForGop(AL_TEncSettings Settings)
+{
+  int uNumFields = 1;
+  return uNumFields * Settings.tChParam[0].tGopParam.uNumB;
+}
+
+/*****************************************************************************/
 static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, int iLayerID)
 {
   int smoothingStream = 2;
-  auto numStreams = g_defaultMinBuffers + smoothingStream + Settings.tChParam[0].tGopParam.uNumB;
+  auto numStreams = g_defaultMinBuffers + smoothingStream + GetNumBufForGop(Settings);
   AL_TDimension dim = { Settings.tChParam[iLayerID].uEncWidth, Settings.tChParam[iLayerID].uEncHeight };
   auto streamSize = AL_GetMitigatedMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat));
 
@@ -784,8 +819,7 @@ static TFrameInfo GetFrameInfo(AL_TEncChanParam& tChParam)
 {
   TFrameInfo tFrameInfo;
 
-  tFrameInfo.iWidth = AL_GetSrcWidth(tChParam);
-  tFrameInfo.iHeight = AL_GetSrcHeight(tChParam);
+  tFrameInfo.tDimension = { AL_GetSrcWidth(tChParam), AL_GetSrcHeight(tChParam) };
   tFrameInfo.iBitDepth = tChParam.uSrcBitDepth;
   tFrameInfo.eCMode = AL_GET_CHROMA_MODE(tChParam.ePicFormat);
 
@@ -998,6 +1032,26 @@ void LayerRessources::ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hE
   }
 }
 
+void InitRCPluginContext(AL_TEncSettings* pSettings, AL_TEncChanParam* pChParam, AL_TAllocator* pDmaAllocator)
+{
+  pSettings->hRcPluginDmaContext = NULL;
+  pChParam->pRcPluginDmaContext = 0;
+  pChParam->zRcPluginDmaSize = 0;
+
+  if(pChParam->tRCParam.eRCMode == AL_RC_PLUGIN)
+  {
+    pChParam->zRcPluginDmaSize = sizeof(uint32_t);
+    pSettings->hRcPluginDmaContext = AL_Allocator_Alloc(pDmaAllocator, pChParam->zRcPluginDmaSize);
+
+    if(pSettings->hRcPluginDmaContext == NULL)
+      throw std::runtime_error("Couldn't allocate RC Plugin Context");
+
+    uint32_t* pAddr = (uint32_t*)AL_Allocator_GetVirtualAddr(pDmaAllocator, pSettings->hRcPluginDmaContext);
+    // Set the qp to 0x30.
+    *pAddr = 0x30;
+  }
+}
+
 /*****************************************************************************/
 void SafeMain(int argc, char** argv)
 {
@@ -1040,7 +1094,10 @@ void SafeMain(int argc, char** argv)
     PrintConfig(cfg);
   }
 
-  function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl = GetIpCtrlWrapper(RunInfo);
+  /* null if not supported */
+  void* pTraceHook = nullptr;
+
+  function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl = GetIpCtrlWrapper(RunInfo, pTraceHook);
 
   CIpDeviceParam param;
   param.iSchedulerType = RunInfo.iSchedulerType;
@@ -1062,14 +1119,22 @@ void SafeMain(int argc, char** argv)
   auto pAllocator = pIpDevice->m_pAllocator.get();
   auto pScheduler = pIpDevice->m_pScheduler;
 
+  InitRCPluginContext(&cfg.Settings, &cfg.Settings.tChParam[0], pAllocator);
+  auto ReleaseRcPlugin = scopeExit([&]()
+  {
+    AL_Allocator_Free(pAllocator, cfg.Settings.hRcPluginDmaContext);
+  });
+
   // --------------------------------------------------------------------------------
   // Allocate Layers resources
-  int frameBuffersCount = g_defaultMinBuffers + Settings.tChParam[0].tGopParam.uNumB;
+  int frameBuffersCount = g_defaultMinBuffers + GetNumBufForGop(Settings);
 
   // the LookAhead needs LookAheadSize source buffers to work
   if(AL_TwoPassMngr_HasLookAhead(Settings))
   {
-    frameBuffersCount += Settings.LookAhead + (Settings.tChParam[0].tGopParam.uNumB * 2);
+    int LANum = Settings.LookAhead;
+
+    frameBuffersCount += LANum + (GetNumBufForGop(Settings) * 2);
   }
 
   int srcBuffersCount = g_numFrameToRepeat == 0 ? frameBuffersCount : max(frameBuffersCount, g_numFrameToRepeat);
@@ -1088,6 +1153,7 @@ void SafeMain(int argc, char** argv)
   {
     encFirstPassLA.reset(new EncoderLookAheadSink(cfg, enc.get(), pScheduler, pAllocator
                                                   ));
+
     encFirstPassLA->next = firstSink;
     firstSink = encFirstPassLA.get();
   }

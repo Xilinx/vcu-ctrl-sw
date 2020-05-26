@@ -72,6 +72,12 @@ typedef enum
   AL_DEC_HANDLE_STATE_MAX_ENUM, /* sentinel */
 }AL_EDecHandleState;
 
+typedef enum
+{
+  AL_DEC_UNSPLIT_INPUT, /*!<The input is fed to the decoder without delimitations and the decoder find the decoding unit in the data by himself.*/
+  AL_DEC_SPLIT_INPUT, /*!<The input is fed to the decoder with buffers containing one decoding unit each. */
+}AL_EDecInputMode;
+
 typedef struct
 {
   AL_EDecHandleState eState;
@@ -81,11 +87,13 @@ typedef struct
 /*************************************************************************//*!
    \brief Parsing callback definition.
    It is called every time an input buffer as been parsed by the hardware
-   If bSplitInput is disable, pParsedFrame should not have AL_THandleMetaData
+   If eInputMode is AL_DEC_UNSPLIT_INPUT, pParsedFrame should not have AL_THandleMetaData
+   The iParsingID corresponds to the id in the AL_HandleMetaData associated with
+   the buffer.
 *****************************************************************************/
 typedef struct
 {
-  void (* func)(AL_TBuffer* pParsedFrame, void* pUserParam);
+  void (* func)(AL_TBuffer* pParsedFrame, void* pUserParam, int iParsingID);
   void* userParam;
 }AL_CB_EndParsing;
 
@@ -168,7 +176,7 @@ typedef struct
   AL_EBufferOutputMode eBufferOutputMode; /*!< Reconstructed buffers output mode */
   bool bUseIFramesAsSyncPoint; /*!< Allow decoder to sync on I frames if configurations' nals are presents */
   bool bUseEarlyCallback; /*< Lowlat phase 2. This only makes sense with special support for hw synchro */
-  bool bSplitInput; /* Send stream data by decoding unit */
+  AL_EDecInputMode eInputMode; /* Send stream data by decoding unit or feed the library enough data and let it find the units. */
 }AL_TDecSettings;
 
 /*************************************************************************//*!
@@ -228,6 +236,12 @@ void AL_Decoder_Flush(AL_HDecoder hDec);
    \param[in] pDisplay Pointer to the decoded picture buffer
 *****************************************************************************/
 void AL_Decoder_PutDisplayPicture(AL_HDecoder hDec, AL_TBuffer* pDisplay);
+
+/*************************************************************************//*!
+   \brief Retrieves the codec of the specified decoder instance
+   \param[in] hDec   Handle to a decoder object.
+*****************************************************************************/
+AL_ECodec AL_Decoder_GetCodec(AL_HDecoder hDec);
 
 /*************************************************************************//*!
    \brief Retrieves the maximum bitdepth allowed by the stream profile

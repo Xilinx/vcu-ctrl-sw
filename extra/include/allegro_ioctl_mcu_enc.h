@@ -86,6 +86,7 @@ struct al5_channel_config
 {
 	struct al5_params param;
 	struct al5_channel_status status;
+	__u32 rc_plugin_fd;
 };
 
 struct al5_encode_msg {

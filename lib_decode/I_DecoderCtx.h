@@ -69,7 +69,7 @@ typedef enum AL_e_ChanState
 typedef struct t_Dec_Ctx
 {
   AL_TFeeder* Feeder;
-  bool bSplitInput;
+  AL_EDecInputMode eInputMode;
 
   TBuffer BufNoAE;            // Deanti-Emulated buffer used for high level syntax parsing
   TCircBuffer Stream;             // Input stream buffer
@@ -84,8 +84,8 @@ typedef struct t_Dec_Ctx
 
   AL_EChanState eChanState;
 
-  AL_CB_EndParsing parseCB;
-  AL_CB_EndDecoding decodeCB;
+  AL_CB_EndParsing endParsingCB;
+  AL_CB_EndDecoding endDecodingCB;
   AL_CB_Display displayCB;
   AL_CB_ResolutionFound resolutionFoundCB;
   AL_CB_ParsedSei parsedSeiCB;
@@ -128,7 +128,6 @@ typedef struct t_Dec_Ctx
   // Trace stuff
   int iTraceFirstFrame;
   int iTraceLastFrame;
-  int iTracePreviousFrmNum;
   int iTraceCounter;
   bool shouldPrintFrameDelimiter;
 

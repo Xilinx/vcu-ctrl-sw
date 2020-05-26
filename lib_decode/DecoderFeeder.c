@@ -45,10 +45,10 @@
 void AL_Default_Decoder_WaitFrameSent(AL_HDecoder hDec);
 void AL_Default_Decoder_ReleaseFrames(AL_HDecoder hDec);
 
-UNIT_ERROR AL_Decoder_TryDecodeOneUnit(AL_HDecoder hDec, AL_TBuffer* pBufStream);
-int AL_Decoder_GetStrOffset(AL_HANDLE hDec);
-void AL_Decoder_FlushInput(AL_HDecoder hDec);
-void AL_Decoder_InternalFlush(AL_HDecoder hDec);
+extern UNIT_ERROR AL_Decoder_TryDecodeOneUnit(AL_HDecoder hDec, AL_TBuffer* pBufStream);
+extern int AL_Decoder_GetStrOffset(AL_HANDLE hDec);
+extern void AL_Decoder_FlushInput(AL_HDecoder hDec);
+extern void AL_Decoder_InternalFlush(AL_HDecoder hDec);
 
 typedef struct AL_TDecoderFeederS
 {
@@ -89,32 +89,26 @@ static bool Slave_Process(DecoderFeederSlave* slave, AL_TBuffer* startCodeStream
 
   CircBuffer_ConsumeUpToOffset(slave->patchworker->outputCirc, uNewOffset);
 
-  size_t transferedBytes = AL_Patchworker_Transfer(slave->patchworker);
+  uint32_t uTransferedBytes = AL_Patchworker_Transfer(slave->patchworker);
 
-  if(transferedBytes)
+  if(uTransferedBytes)
     Rtos_SetEvent(slave->incomingWorkEvent);
 
   AL_TCircMetaData* pMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(startCodeStreamView, AL_META_TYPE_CIRCULAR);
-  pMeta->iAvailSize += transferedBytes;
+  pMeta->iAvailSize += uTransferedBytes;
+  pMeta->bLastBuffer = AL_Patchworker_IsAllDataTransfered(slave->patchworker);
 
-  // Decode Max AU as possible with this data
-  UNIT_ERROR eErr = SUCCESS_ACCESS_UNIT;
+  // Decode
+  UNIT_ERROR eErr = AL_Decoder_TryDecodeOneUnit(hDec, startCodeStreamView);
 
-  while(eErr != ERR_UNIT_NOT_FOUND && shouldKeepGoing(slave))
+  if(eErr == ERR_UNIT_INVALID_CHANNEL || eErr == ERR_UNIT_DYNAMIC_ALLOC)
+    return false;
+
+  if(eErr == SUCCESS_ACCESS_UNIT || eErr == SUCCESS_NAL_UNIT)
   {
-    eErr = AL_Decoder_TryDecodeOneUnit(hDec, startCodeStreamView);
-
-    if(eErr == SUCCESS_ACCESS_UNIT)
-      slave->endWithAccessUnit = true;
-
-    if(eErr == SUCCESS_NAL_UNIT)
-      slave->endWithAccessUnit = false;
-
-    if(eErr != ERR_UNIT_NOT_FOUND)
-      slave->stopped = false;
-
-    if(eErr == ERR_UNIT_INVALID_CHANNEL || eErr == ERR_UNIT_DYNAMIC_ALLOC)
-      return false;
+    slave->stopped = false;
+    slave->endWithAccessUnit = (eErr == SUCCESS_ACCESS_UNIT);
+    Rtos_SetEvent(slave->incomingWorkEvent);
   }
 
   if(CircBuffer_IsFull(slave->patchworker->outputCirc))
@@ -126,8 +120,7 @@ static bool Slave_Process(DecoderFeederSlave* slave, AL_TBuffer* startCodeStream
 
     if(CircBuffer_IsFull(slave->patchworker->outputCirc))
     {
-      // no more AU to get from a full circular buffer:
-      // empty it to avoid a stall
+      // No more AU to get from a full circular buffer -> empty it to avoid a stall
       AL_Decoder_FlushInput(hDec);
     }
 
@@ -136,7 +129,7 @@ static bool Slave_Process(DecoderFeederSlave* slave, AL_TBuffer* startCodeStream
   }
 
   // Leave when end of input [all the data were processed in the previous TryDecodeOneUnit]
-  if(AL_Patchworker_IsAllDataTransfered(slave->patchworker))
+  if(eErr == ERR_UNIT_NOT_FOUND && AL_Patchworker_IsAllDataTransfered(slave->patchworker))
   {
     AL_Decoder_InternalFlush(slave->hDec);
     slave->stopped = true;
@@ -221,6 +214,7 @@ void AL_DecoderFeeder_Reset(AL_TDecoderFeeder* this)
   AL_TCircMetaData* pMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(this->startCodeStreamView, AL_META_TYPE_CIRCULAR);
   pMeta->iOffset = 0;
   pMeta->iAvailSize = 0;
+  pMeta->bLastBuffer = false;
 }
 
 AL_TDecoderFeeder* AL_DecoderFeeder_Create(AL_TBuffer* stream, AL_HANDLE hDec, AL_TPatchworker* patchworker, AL_CB_Error* errorCallback)

@@ -77,7 +77,7 @@ typedef struct AL_i_EncScheduler
 typedef struct AL_i_EncSchedulerVtable
 {
   void (* destroy)(AL_IEncScheduler* pScheduler);
-  AL_ERR (* createChannel)(AL_HANDLE* hChannel, AL_IEncScheduler* pScheduler, TMemDesc* pMDChParam, TMemDesc* pEP1, AL_TEncScheduler_CB_EndEncoding* pCBs);
+  AL_ERR (* createChannel)(AL_HANDLE* hChannel, AL_IEncScheduler* pScheduler, TMemDesc* pMDChParam, TMemDesc* pEP1, AL_HANDLE hRcPluginDmaCtx, AL_TEncScheduler_CB_EndEncoding* pCBs);
   bool (* destroyChannel)(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel);
   bool (* encodeOneFrame)(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel, AL_TEncInfo* pEncInfo, AL_TEncRequestInfo* pReqInfo, AL_TEncPicBufAddrs* pBufferAddrs);
   void (* putStreamBuffer)(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuffer* pStream, AL_64U streamUserPtr, uint32_t uOffset);
@@ -97,9 +97,9 @@ void AL_IEncScheduler_Destroy(AL_IEncScheduler* pScheduler);
    \return errorcode explaining why the channel creation failed
 *****************************************************************************/
 static AL_INLINE
-AL_ERR AL_IEncScheduler_CreateChannel(AL_HANDLE* hChannel, AL_IEncScheduler* pScheduler, TMemDesc* pMDChParam, TMemDesc* pEP1, AL_TEncScheduler_CB_EndEncoding* pCBs)
+AL_ERR AL_IEncScheduler_CreateChannel(AL_HANDLE* hChannel, AL_IEncScheduler* pScheduler, TMemDesc* pMDChParam, TMemDesc* pEP1, AL_HANDLE hRcPluginDmaCtx, AL_TEncScheduler_CB_EndEncoding* pCBs)
 {
-  return pScheduler->vtable->createChannel(hChannel, pScheduler, pMDChParam, pEP1, pCBs);
+  return pScheduler->vtable->createChannel(hChannel, pScheduler, pMDChParam, pEP1, hRcPluginDmaCtx, pCBs);
 }
 
 /*************************************************************************//*!

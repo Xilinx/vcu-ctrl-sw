@@ -432,15 +432,22 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   pSPS->vui_param.transfer_characteristics = pSettings->eTransferCharacteristics;
   pSPS->vui_param.matrix_coefficients = pSettings->eColourMatrixCoeffs;
 
-  // Timing information
-  // When fixed_frame_rate_flag = 1, num_units_in_tick/time_scale should be equal to
-  // a duration of one field both for progressive and interlaced sequences.
-  bool bWriteTimingInfo = (iLayerId == 0);
-  pSPS->vui_param.vui_timing_info_present_flag = bWriteTimingInfo ? 1 : 0;
-  pSPS->vui_param.vui_num_units_in_tick = pChParam->tRCParam.uClkRatio;
-  pSPS->vui_param.vui_time_scale = pChParam->tRCParam.uFrameRate * 1000;
+  if(pSPS->vui_param.matrix_coefficients == 0)
+  {
+    bool bEnsureSpecification = ((pSPS->bit_depth_chroma_minus8 == pSPS->bit_depth_luma_minus8) || (pSPS->chroma_format_idc == 3));
+    AL_Assert(bEnsureSpecification);
+  }
 
-  AL_Reduction(&pSPS->vui_param.vui_time_scale, &pSPS->vui_param.vui_num_units_in_tick);
+  if(pSPS->vui_param.matrix_coefficients == 8)
+  {
+    bool bEnsureSpecification = (pSPS->bit_depth_chroma_minus8 == pSPS->bit_depth_luma_minus8);
+    bEnsureSpecification |= ((pSPS->bit_depth_chroma_minus8 == (pSPS->bit_depth_luma_minus8 + 1)) && (pSPS->chroma_format_idc == 3));
+    AL_Assert(bEnsureSpecification);
+  }
+
+  // Timing information
+  AL_UpdateVuiTimingInfo(&pSPS->vui_param, iLayerId, &pChParam->tRCParam, 1);
+
   pSPS->vui_param.vui_poc_proportional_to_timing_flag = 0;
 
   // HRD
@@ -556,15 +563,24 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
   pPPS->lists_modification_present_flag = AL_GET_PPS_ENABLE_REORDERING(pChParam->uPpsParam);
   pPPS->log2_parallel_merge_level_minus2 = 0; // parallel merge at 16x16 granularity
   pPPS->slice_segment_header_extension_present_flag = 0;
-  pPPS->pps_extension_present_flag = iLayerId ? 1 : 0;
+
+  bool bSaoScaleNeeded = false;
+
+  pPPS->pps_extension_present_flag = iLayerId || bSaoScaleNeeded ? 1 : 0;
 
   if(pPPS->pps_extension_present_flag)
   {
-    pPPS->pps_range_extension_flag = 0;
-    pPPS->pps_multilayer_extension_flag = 1;
+    pPPS->pps_range_extension_flag = bSaoScaleNeeded;
+    pPPS->pps_multilayer_extension_flag = iLayerId;
     pPPS->pps_3d_extension_flag = 0;
     pPPS->pps_scc_extension_flag = 0;
     pPPS->pps_extension_4bits = 0;
+  }
+
+  if(pPPS->pps_range_extension_flag)
+  {
+    pPPS->log2_sao_offset_scale_luma = 2;
+    pPPS->log2_sao_offset_scale_chroma = 2;
   }
 
   if(pPPS->pps_multilayer_extension_flag)

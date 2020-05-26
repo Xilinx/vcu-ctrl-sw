@@ -58,7 +58,15 @@ AL_TPicFormat AL_EncGetSrcPicFormat(AL_EChromaMode eChromaMode, uint8_t uBitDept
   bool b10bPacked = false;
   b10bPacked = AL_FB_RASTER == eStorageMode && 10 == uBitDepth;
 
-  AL_TPicFormat picFormat = { eChromaMode, uBitDepth, eStorageMode, eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : AL_C_ORDER_SEMIPLANAR, bIsCompressed, b10bPacked };
+  AL_TPicFormat picFormat =
+  {
+    eChromaMode,
+    uBitDepth,
+    eStorageMode,
+    eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : (eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR),
+    bIsCompressed,
+    b10bPacked
+  };
   return picFormat;
 }
 
@@ -72,7 +80,15 @@ TFourCC AL_GetRecFourCC(AL_TPicFormat const picFmt)
 /****************************************************************************/
 AL_TPicFormat AL_EncGetRecPicFormat(AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bIsCompressed)
 {
-  AL_TPicFormat picFmt = { eChromaMode, uBitDepth, AL_FB_TILE_64x4, eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : AL_C_ORDER_SEMIPLANAR, bIsCompressed, false };
+  AL_TPicFormat picFmt =
+  {
+    eChromaMode,
+    uBitDepth,
+    AL_FB_TILE_64x4,
+    eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : (eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR),
+    bIsCompressed,
+    false
+  };
   return picFmt;
 }
 

@@ -49,14 +49,14 @@ int AL_GetNumLinesInPitch(AL_EFbStorageMode eFrameBufferStorageMode)
 {
   switch(eFrameBufferStorageMode)
   {
-  case AL_FB_RASTER:
-    return 1;
+  case AL_FB_RASTER: return 1;
   case AL_FB_TILE_32x4:
-  case AL_FB_TILE_64x4:
-    return 4;
+  case AL_FB_TILE_64x4: return 4;
   default:
+  {
     AL_Assert(false);
     return 0;
+  }
   }
 }
 
@@ -65,15 +65,14 @@ static AL_INLINE int GetWidthRound(AL_EFbStorageMode eStorageMode)
 {
   switch(eStorageMode)
   {
-  case AL_FB_RASTER:
-    return 1;
-  case AL_FB_TILE_64x4:
-    return 64;
-  case AL_FB_TILE_32x4:
-    return 32;
+  case AL_FB_RASTER: return 1;
+  case AL_FB_TILE_64x4: return 64;
+  case AL_FB_TILE_32x4: return 32;
   default:
+  {
     AL_Assert(false);
     return 0;
+  }
   }
 }
 
@@ -97,8 +96,8 @@ int32_t ComputeRndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFr
   case AL_FB_TILE_32x4:
   case AL_FB_TILE_64x4:
   {
-    int const uDepth = uBitDepth > 8 ? 10 : 8;
-    iVal = iRndWidth * AL_GetNumLinesInPitch(eFrameBufferStorageMode) * uDepth / 8;
+    uBitDepth = (uBitDepth + 1) & 0xFE; // Prevent 9 and 11 bitdepth -> 10/12
+    iVal = iRndWidth * AL_GetNumLinesInPitch(eFrameBufferStorageMode) * uBitDepth / 8;
     break;
   }
   default:
@@ -108,6 +107,17 @@ int32_t ComputeRndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFr
   AL_Assert(iBurstAlignment > 0);
   AL_Assert((iBurstAlignment % HW_IP_BURST_ALIGNMENT) == 0);
   return RoundUp(iVal, iBurstAlignment);
+}
+
+/****************************************************************************/
+int AL_GetChromaPitch(TFourCC tFourCC, int iLumaPitch)
+{
+  if(AL_IsMonochrome(tFourCC))
+    return 0;
+
+  int iNumPlanes = AL_IsSemiPlanar(tFourCC) ? 2 : 1;
+  int iHrzScale = AL_GetChromaMode(tFourCC) == AL_CHROMA_4_4_4 ? 1 : 2;
+  return iLumaPitch / iHrzScale * iNumPlanes;
 }
 
 /****************************************************************************/

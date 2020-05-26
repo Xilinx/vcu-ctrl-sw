@@ -193,7 +193,7 @@ typedef struct AL_t_EncPicStatus
 *****************************************************************************/
 typedef struct AL_t_SrcInfo
 {
-  bool bIs10bits;
+  uint8_t uBitDepth;
   uint32_t uPitch;
   uint8_t uFormat;
 }AL_TSrcInfo;

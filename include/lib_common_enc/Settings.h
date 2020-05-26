@@ -142,6 +142,7 @@ typedef AL_INTROSPECT (category = "debug") struct t_EncSettings
   int LookAhead; /*!< Enables the lookahead encoding mode (not zero) and specifies the number of frame ahead. This option is exclusive with TwoPass and bEnableFirstPassSceneChangeDetection. */
   int TwoPass; /*! Enables the dual-pass encoding mode (not zero) and specifies the current pass (1 or 2). This option is exclusive with LookAhead and bEnableFirstPassSceneChangeDetection. */
   bool bEnableFirstPassSceneChangeDetection; /*!< Enables the quick firstpass mode for scene change detection only. This option is exclusive with LookAhead and TwoPass. */
+  AL_HANDLE hRcPluginDmaContext; /* For lib_encode use */
 }AL_TEncSettings;
 
 /*************************************************************************//*!

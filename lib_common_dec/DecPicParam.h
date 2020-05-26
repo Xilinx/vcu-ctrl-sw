@@ -49,8 +49,8 @@
 #include "lib_common/SliceConsts.h"
 
 /*****************************************************************************/
-#define AL_DEC_OPT_EnableSC 0x00000001
-#define AL_DEC_OPT_LoadSC 0x00000002
+#define AL_DEC_OPT_EnableSclLst 0x00000001
+#define AL_DEC_OPT_LoadSclLst 0x00000002
 #define AL_DEC_OPT_SignHiding 0x00000004
 #define AL_DEC_OPT_TransfoSkipCtx 0x00000008
 #define AL_DEC_OPT_TransfoSkipRot 0x00000010
@@ -142,6 +142,9 @@ typedef struct AL_t_DecPictParam
 
   int32_t iFrmNum;
   AL_64U UserParam;
+
+  uint8_t log2_sao_offset_scale_luma;
+  uint8_t log2_sao_offset_scale_chroma;
 
 }AL_TDecPicParam;
 

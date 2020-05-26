@@ -104,8 +104,21 @@ static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecP
   uint16_t uPitch = AL_PixMapBuffer_GetPlanePitch(pRec, AL_PLANE_Y);
   AL_Assert(uPitch != 0);
 
-  uint32_t const u10BitsFlag = (iMaxBitDepth == 8) ? 0x00000000 : 0x80000000;
-  pBufs->uPitch = uPitch | u10BitsFlag;
+  // The first version supported only 8 or 10 bit with a flag at pos 31.
+  // For backward compatibility, the bit 30 is used to set 12 bits output picture bitdepth
+  uint32_t uPictureBitDepth;
+  switch(iMaxBitDepth)
+  {
+  case 8: uPictureBitDepth = 0x00000000;
+    break;
+  case 10: uPictureBitDepth = 0x80000000;
+    break;
+  case 12: uPictureBitDepth = 0x40000000;
+    break;
+  default: assert(false);
+  }
+
+  pBufs->uPitch = uPitch | uPictureBitDepth;
 
   pBufs->tRecY.tMD.uPhysicalAddr = AL_PixMapBuffer_GetPlanePhysicalAddress(pRec, AL_PLANE_Y);
   pBufs->tRecY.tMD.pVirtualAddr = AL_PixMapBuffer_GetPlaneAddress(pRec, AL_PLANE_Y);
@@ -117,6 +130,7 @@ static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecP
 
   pBufs->tMV.tMD.uPhysicalAddr = pCtx->MV.tMD.uPhysicalAddr;
   pBufs->tMV.tMD.pVirtualAddr = pCtx->MV.tMD.pVirtualAddr;
+
 }
 
 /*****************************************************************************/
@@ -130,7 +144,6 @@ static AL_TDecPicBufferAddrs AL_SetBufferAddrs(AL_TDecCtx* pCtx)
 {
   AL_TDecPicBuffers* pPictBuffers = &pCtx->PoolPB[pCtx->uToggle];
   AL_TDecPicBufferAddrs BufAddrs;
-
   BufAddrs.pCompData = pPictBuffers->tCompData.tMD.uPhysicalAddr;
   BufAddrs.pCompMap = pPictBuffers->tCompMap.tMD.uPhysicalAddr;
   BufAddrs.pListRef = pPictBuffers->tListRef.tMD.uPhysicalAddr;
@@ -189,6 +202,9 @@ static void decodeOneSlice(AL_TDecCtx* pCtx, uint16_t uSliceID, AL_TDecPicBuffer
   TMemDesc SliceParam;
   SliceParam.pVirtualAddr = (AL_VADDR)pSP_v;
   SliceParam.uPhysicalAddr = pSP_p;
+  // The HandleMetaData handle order should be the same as the slice order
+  // as we add them each time we send one.
+  pSP_v->uParsingId = uSliceID;
   AL_IDecScheduler_DecodeOneSlice(pCtx->pScheduler, pCtx->hChannel, &pCtx->PoolPP[pCtx->uToggle], pBufAddrs, &SliceParam);
 }
 
@@ -230,6 +246,8 @@ void AL_LaunchFrameDecoding(AL_TDecCtx* pCtx)
 
   UpdateStreamOffset(pCtx);
   SetBufferHandleMetaData(pCtx);
+  AL_TDecSliceParam* pSP = (AL_TDecSliceParam*)&pCtx->PoolSP[pCtx->uToggle].tMD.pVirtualAddr;
+  pSP->uParsingId = 0;
 
   AL_IDecScheduler_DecodeOneFrame(pCtx->pScheduler, pCtx->hChannel, &pCtx->PoolPP[pCtx->uToggle], &BufAddrs, &pCtx->PoolSP[pCtx->uToggle].tMD);
 
@@ -269,8 +287,10 @@ static void AL_InitRefBuffers(AL_TDecCtx* pCtx, AL_TDecPicBuffers* pBufs)
 
   // prepare buffers
   AL_sGetToggleBuffers(pCtx, pBufs);
-  AL_CleanupMemory(pBufs->tCompData.tMD.pVirtualAddr, pBufs->tCompData.tMD.uSize);
-  AL_CleanupMemory(pBufs->tCompMap.tMD.pVirtualAddr, pBufs->tCompMap.tMD.uSize);
+  {
+    AL_CleanupMemory(pBufs->tCompData.tMD.pVirtualAddr, pBufs->tCompData.tMD.uSize);
+    AL_CleanupMemory(pBufs->tCompMap.tMD.pVirtualAddr, pBufs->tCompMap.tMD.uSize);
+  }
 }
 
 /*****************************************************************************/
@@ -369,7 +389,7 @@ void AL_AVC_PrepareCommand(AL_TDecCtx* pCtx, AL_TScl* pSCL, AL_TDecPicParam* pPP
     pSP->ColocPicID = pPrevSP->ColocPicID;
 
   if(!pSlice->first_mb_in_slice)
-    AL_AVC_WriteDecHwScalingList((AL_TScl const*)pSCL, pBufs->tScl.tMD.pVirtualAddr);
+    AL_AVC_WriteDecHwScalingList((AL_TScl const*)pSCL, pPP->ChromaMode, pBufs->tScl.tMD.pVirtualAddr);
   AL_AVC_PictMngr_GetBuffers(&pCtx->PictMngr, pSP, pSlice, &pCtx->ListRef, &pBufs->tListVirtRef, &pBufs->tListRef, &pCtx->POC, &pCtx->MV, &pBufs->tWP, &pCtx->pRecs);
 
   // stock command registers in memory

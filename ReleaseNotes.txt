@@ -502,3 +502,20 @@
 
   Fixes:
     -- Several minors bugs
+
+2020-05-26 (v1.0.56)
+-------------------
+  Added Features:
+    -- Add max consecutive skipped frames
+    -- RC Plugin extension (support external)
+
+  API:
+    -- Version of the API is now 0.21.0
+    -- Modify 'bSplitInput' -> 'eInputMode' at decoder side. Enums values: AL_DEC_UNSPLIT_INPUT, AL_DEC_SPLIT_INPUT
+    -- Add zRcPluginDmaSize and pRcPluginDmaContext at encoder side
+    -- Add PluginInterface in API
+    -- AL_CB_EndParsing now retrieve the iParsingID. The iParsingID corresponds to the id in the AL_HandleMetaData associated with the buffer.
+
+  Fixes:
+    -- Potential race condition at scheduler level (especially with eInputMode == AL_DEC_SPLIT_INPUT)
+    -- Several minors bugs

@@ -116,6 +116,7 @@ typedef struct AL_t_DecSliceParam
   uint32_t uCompOffset;
   uint32_t uStrOffset;
   uint32_t entry_point_offset[AL_MAX_ENTRY_POINT + 1];
+  uint32_t uParsingId;
 
 }AL_TDecSliceParam;
 

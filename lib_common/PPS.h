@@ -98,11 +98,11 @@ typedef struct t_Avc_Pps
   uint8_t transform_8x8_mode_flag;
 
   uint8_t pic_scaling_matrix_present_flag;
-  uint8_t pic_scaling_list_present_flag[8];
+  uint8_t pic_scaling_list_present_flag[12];
   uint8_t ScalingList4x4[6][16];
-  uint8_t ScalingList8x8[2][64];
+  uint8_t ScalingList8x8[6][64];
   uint8_t UseDefaultScalingMatrix4x4Flag[6];
-  uint8_t UseDefaultScalingMatrix8x8Flag[2];
+  uint8_t UseDefaultScalingMatrix8x8Flag[6];
 
   AL_TAvcSps* pSPS;
 

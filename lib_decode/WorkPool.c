@@ -35,45 +35,90 @@
 *
 ******************************************************************************/
 
-#include "lib_common_enc/EncRecBuffer.h"
-#include "lib_common_enc/EncBuffers.h"
-#include "lib_common_enc/EncBuffersInternal.h"
-#include "lib_common/Utils.h"
+#include "lib_decode/WorkPool.h"
+#include "lib_assert/al_assert.h"
 
-/****************************************************************************/
-uint32_t AL_GetRecPitch(uint32_t uBitDepth, uint32_t uWidth)
+bool AL_WorkPool_Init(WorkPool* pool, int iMaxBufNum)
 {
-  int iTileWidth = 64;
-  int iTileHeight = 4;
+  pool->bufs = Rtos_Malloc(sizeof(AL_TBuffer*) * iMaxBufNum);
+  Rtos_Memset(pool->bufs, 0, sizeof(AL_TBuffer*) * iMaxBufNum);
 
-  if(uBitDepth == 8)
-    return UnsignedRoundUp(uWidth, iTileWidth) * iTileHeight;
+  if(!pool->bufs)
+    return false;
 
-  return UnsignedRoundUp(uWidth, iTileWidth) * iTileHeight * uBitDepth / 8;
-}
+  pool->lock = Rtos_CreateMutex();
 
-static int GetChromaRecPitch(int iBitDepth, int32_t iWidth)
-{
-  int iPitchY = AL_GetRecPitch(iBitDepth, iWidth);
-  return iPitchY;
-}
-
-void AL_EncRecBuffer_FillPlaneDesc(AL_TPlaneDescription* pPlaneDesc, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bIsAvc)
-{
-  (void)eChromaMode, (void)bIsAvc; // if no fbc support
-  switch(pPlaneDesc->ePlaneId)
+  if(!pool->lock)
   {
-  case AL_PLANE_Y:
-    pPlaneDesc->iOffset = 0;
-    pPlaneDesc->iPitch = AL_GetRecPitch(uBitDepth, tDim.iWidth);
-    break;
-  case AL_PLANE_UV:
-    pPlaneDesc->iOffset = AL_GetAllocSize_EncReference(tDim, uBitDepth, AL_CHROMA_MONO, false);
-    pPlaneDesc->iPitch = GetChromaRecPitch(uBitDepth, tDim.iWidth);
-    break;
-  default:
-    assert(0);
-    break;
+    Rtos_Free(pool->bufs);
+    return false;
   }
+
+  pool->spaceAvailable = Rtos_CreateEvent(false);
+
+  if(!pool->spaceAvailable)
+  {
+    Rtos_Free(pool->bufs);
+    Rtos_DeleteMutex(pool->bufs);
+    return false;
+  }
+  pool->capacity = iMaxBufNum;
+  pool->size = 0;
+  pool->head = 0;
+  return true;
 }
 
+void AL_WorkPool_Deinit(WorkPool* pool)
+{
+  Rtos_Free(pool->bufs);
+  Rtos_DeleteMutex(pool->lock);
+  Rtos_DeleteEvent(pool->spaceAvailable);
+}
+
+void AL_WorkPool_Remove(WorkPool* pool, AL_TBuffer* pBuf)
+{
+  Rtos_GetMutex(pool->lock);
+  int i;
+
+  for(i = pool->head; i < pool->head + pool->size; ++i)
+  {
+    if(pool->bufs[i % pool->capacity] == pBuf)
+    {
+      pool->bufs[i % pool->capacity] = NULL;
+      break;
+    }
+  }
+
+  AL_Assert(i < pool->head + pool->size);
+
+  AL_TBuffer* curBuf = pool->bufs[pool->head];
+
+  while(curBuf == NULL && pool->size != 0)
+  {
+    pool->head = (pool->head + 1) % pool->capacity;
+    --pool->size;
+    curBuf = pool->bufs[pool->head];
+  }
+
+  if(pool->size != pool->capacity)
+    Rtos_SetEvent(pool->spaceAvailable);
+
+  Rtos_ReleaseMutex(pool->lock);
+}
+
+void AL_WorkPool_PushBack(WorkPool* pool, AL_TBuffer* pBuf)
+{
+  Rtos_GetMutex(pool->lock);
+
+  while(pool->size == pool->capacity)
+  {
+    Rtos_ReleaseMutex(pool->lock);
+    Rtos_WaitEvent(pool->spaceAvailable, AL_WAIT_FOREVER);
+    Rtos_GetMutex(pool->lock);
+  }
+
+  int index = (pool->head + pool->size) % pool->capacity;
+  pool->bufs[index] = pBuf;
+  ++pool->size;
+  Rtos_ReleaseMutex(pool->lock);
+}

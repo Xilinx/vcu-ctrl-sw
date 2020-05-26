@@ -245,7 +245,7 @@ static AL_TStreamSettings extractStreamSettings(AL_THevcSps const* pSPS)
 }
 
 /*****************************************************************************/
-int HEVC_GetMinOutputBuffersNeeded(int iDpbMaxBuf, int iStack);
+extern int HEVC_GetMinOutputBuffersNeeded(int iDpbMaxBuf, int iStack);
 
 /*****************************************************************************/
 static AL_ERR resolutionFound(AL_TDecCtx* pCtx, AL_TStreamSettings const* pSpsSettings, AL_TCropInfo const* pCropInfo)
@@ -967,25 +967,25 @@ static AL_PARSE_RESULT parseAndApplySPS(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_
   if(tNewSPS.sps_seq_parameter_set_id >= AL_HEVC_MAX_SPS)
     return AL_UNSUPPORTED;
 
-  if(eParseResult == AL_OK)
+  if(eParseResult != AL_OK)
   {
-    if(HasOngoingFrame(pCtx) && isActiveSPSChanging(&tNewSPS, pIAup->hevcAup.pActiveSPS))
-    {
-      // An active SPS should not be modified unless it is the end of the CVS (spec 7.4.2.4).
-      // So we consider we received the full frame.
-      finishPreviousFrame(pCtx);
-    }
-
-    pIAup->hevcAup.pSPS[tNewSPS.sps_seq_parameter_set_id] = tNewSPS;
-  }
-  else
     pIAup->hevcAup.pSPS[tNewSPS.sps_seq_parameter_set_id].bConceal = true;
+    return eParseResult;
+  }
+
+  if(HasOngoingFrame(pCtx) && isActiveSPSChanging(&tNewSPS, pIAup->hevcAup.pActiveSPS))
+  {
+    // An active SPS should not be modified unless it is the end of the CVS (spec 7.4.2.4).
+    // So we consider we received the full frame.
+    finishPreviousFrame(pCtx);
+  }
+
+  pIAup->hevcAup.pSPS[tNewSPS.sps_seq_parameter_set_id] = tNewSPS;
 
   return eParseResult;
 }
 
-/*****************************************************************************/
-void AL_HEVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIsLastAUNal, int* iNumSlice)
+AL_NonVclNuts AL_HEVC_GetNonVclNuts(void)
 {
   AL_NonVclNuts nuts =
   {
@@ -998,6 +998,13 @@ void AL_HEVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bI
     AL_HEVC_NUT_EOS,
     AL_HEVC_NUT_EOB,
   };
+  return nuts;
+}
+
+/*****************************************************************************/
+void AL_HEVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIsLastAUNal, int* iNumSlice)
+{
+  AL_NonVclNuts nuts = AL_HEVC_GetNonVclNuts();
 
   AL_NalParser parser =
   {

@@ -92,11 +92,11 @@ typedef struct t_RC_Plugin_Vtable
   void (* deinit)(void* pHandle);
 }RC_Plugin_Vtable;
 
-typedef struct t_Mcu_DebugExport_Vtable
+typedef struct t_Mcu_Export_Vtable
 {
   void (* trace)(char*, size_t);
-}Mcu_DebugExport_Vtable;
+  void (* invalidateCache)(uint32_t memoryBaseAddr, uint32_t memorySize);
+}Mcu_Export_Vtable;
 
 // should be at 0x80080000 (extension start address)
-void* RC_Plugin_Init(RC_Plugin_Vtable* pRcPlugin, Mcu_DebugExport_Vtable* pDebug, AL_TAllocator* pAllocator) __attribute__((section(".text_plugin")));
-
+void* RC_Plugin_Init(RC_Plugin_Vtable* pRcPlugin, Mcu_Export_Vtable* pDebug, AL_TAllocator* pAllocator, AL_VADDR pDmaContext, uint32_t zDmaSize) __attribute__((section(".text_plugin")));

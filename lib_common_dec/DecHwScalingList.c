@@ -50,7 +50,7 @@ static void AL_sWriteWord(const uint8_t* pSrc, int iSize, uint32_t* pBuf, const 
 }
 
 /******************************************************************************/
-void AL_AVC_WriteDecHwScalingList(AL_TScl const* pSclLst, uint8_t* pBuf)
+void AL_AVC_WriteDecHwScalingList(AL_TScl const* pSclLst, AL_EChromaMode eCMode, uint8_t* pBuf)
 {
   uint32_t* pBuf32 = (uint32_t*)pBuf;
 
@@ -62,6 +62,17 @@ void AL_AVC_WriteDecHwScalingList(AL_TScl const* pSclLst, uint8_t* pBuf)
     uint8_t const* pSrc = (*pSclLst)[m].t8x8Y;
     AL_sWriteWord(pSrc, 16, pBuf32, AL_AVC_DEC_SCL_ORDER_8x8);
     pBuf32 += 16;
+
+    if(eCMode == AL_CHROMA_4_4_4)
+    {
+      pSrc = (*pSclLst)[m].t8x8Cb;
+      AL_sWriteWord(pSrc, 16, pBuf32, AL_AVC_DEC_SCL_ORDER_8x8);
+      pBuf32 += 16;
+
+      pSrc = (*pSclLst)[m].t8x8Cr;
+      AL_sWriteWord(pSrc, 16, pBuf32, AL_AVC_DEC_SCL_ORDER_8x8);
+      pBuf32 += 16;
+    }
 
     // 4x4 Luma
     pSrc = (*pSclLst)[m].t4x4Y;
