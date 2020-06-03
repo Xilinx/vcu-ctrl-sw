@@ -37,6 +37,20 @@
 
 #include "lib_rate_ctrl/PluginInterface.h"
 
+// Example RC Plugin structure given to us by the user
+// This needs to be validated as the data is coming from user space
+// Your internal state shouldn't be directly inside this buffer
+// It should be used to communicate with the userspace.
+
+struct RCPlugin
+{
+  uint32_t capacity;
+  uint32_t qpFifo[32];
+  uint32_t head;
+  uint32_t tail;
+  uint32_t curQp;
+};
+
 struct RCExampleCtx
 {
   Mcu_Export_Vtable* pMcu;
@@ -48,6 +62,9 @@ struct RCExampleCtx
   AL_VADDR pDmaCtx;
   int iWidth;
   int iHeight;
+
+  uint32_t tail;
+  uint32_t capacity;
 };
 
 /* string must have at least 5 char allocated */
@@ -125,12 +142,14 @@ static void rcPlugin_choosePictureQP(void* pHandle, Plugin_PictureInfo const* pP
   (void)pPicInfo;
   struct RCExampleCtx* pCtx = (struct RCExampleCtx*)pHandle;
   // chosen qp
-  uint32_t* dma = (uint32_t*)pCtx->pDmaCtx;
+  struct RCPlugin* rc = (struct RCPlugin*)pCtx->pDmaCtx;
   char tr[] = "XXXXXXXX";
   int32ToString((uint32_t)(uintptr_t)pCtx->pDmaCtx, tr);
   pCtx->pMcu->trace(tr, sizeof(tr));
   invalidateCache(pCtx, pCtx->pDmaCtx, pCtx->zDmaSize);
-  *pQP = dma[0];
+  *pQP = rc->qpFifo[pCtx->tail];
+  pCtx->tail = (pCtx->tail + 1) % pCtx->capacity; // update internal state
+  rc->tail = pCtx->tail; // show the internal state of the rc plugin to the user for debug purpose
   char msg[] = "choosepictureqp: qp:0xXXXXXXXX size:0xXXXXXXXX";
   int32ToString(*pQP, msg + 22);
   msg[22 + 8] = ' ';
@@ -156,6 +175,9 @@ static void rcPlugin_deinit(void* pHandle)
 // should be at 0x80080000 (extension start address)
 void* RC_Plugin_Init(RC_Plugin_Vtable* pRcPlugin, Mcu_Export_Vtable* pMcu, AL_TAllocator* pAllocator, AL_VADDR pDmaContext, uint32_t zDmaSize)
 {
+  if(zDmaSize < sizeof(struct RCPlugin))
+    return NULL;
+
   pRcPlugin->setStreamInfo = &rcPlugin_setStreamInfo;
   pRcPlugin->setRateControlParameters = &rcPlugin_setRateControlParameters;
   pRcPlugin->checkCompliance = &rcPlugin_checkCompliance;
@@ -175,6 +197,15 @@ void* RC_Plugin_Init(RC_Plugin_Vtable* pRcPlugin, Mcu_Export_Vtable* pMcu, AL_TA
   rcPlugin->zDmaSize = zDmaSize;
   rcPlugin->pMcu = pMcu;
   rcPlugin->pDmaCtx = pDmaContext;
+  rcPlugin->tail = 0;
+
+  struct RCPlugin* rc = (struct RCPlugin*)pDmaContext;
+
+  if(rc->capacity <= 32)
+    rcPlugin->capacity = rc->capacity;
+  else
+    rcPlugin->capacity = 32;
+
   return rcPlugin;
 }
 

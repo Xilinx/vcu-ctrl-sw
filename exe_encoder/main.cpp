@@ -91,6 +91,8 @@ extern "C"
 #include "sink_repeater.h"
 #include "QPGenerator.h"
 
+#include "RCPlugin.h"
+
 static int g_numFrameToRepeat;
 static int g_StrideHeight = -1;
 static int g_Stride = -1;
@@ -1032,26 +1034,6 @@ void LayerRessources::ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hE
   }
 }
 
-void InitRCPluginContext(AL_TEncSettings* pSettings, AL_TEncChanParam* pChParam, AL_TAllocator* pDmaAllocator)
-{
-  pSettings->hRcPluginDmaContext = NULL;
-  pChParam->pRcPluginDmaContext = 0;
-  pChParam->zRcPluginDmaSize = 0;
-
-  if(pChParam->tRCParam.eRCMode == AL_RC_PLUGIN)
-  {
-    pChParam->zRcPluginDmaSize = sizeof(uint32_t);
-    pSettings->hRcPluginDmaContext = AL_Allocator_Alloc(pDmaAllocator, pChParam->zRcPluginDmaSize);
-
-    if(pSettings->hRcPluginDmaContext == NULL)
-      throw std::runtime_error("Couldn't allocate RC Plugin Context");
-
-    uint32_t* pAddr = (uint32_t*)AL_Allocator_GetVirtualAddr(pDmaAllocator, pSettings->hRcPluginDmaContext);
-    // Set the qp to 0x30.
-    *pAddr = 0x30;
-  }
-}
-
 /*****************************************************************************/
 void SafeMain(int argc, char** argv)
 {
@@ -1119,7 +1101,7 @@ void SafeMain(int argc, char** argv)
   auto pAllocator = pIpDevice->m_pAllocator.get();
   auto pScheduler = pIpDevice->m_pScheduler;
 
-  InitRCPluginContext(&cfg.Settings, &cfg.Settings.tChParam[0], pAllocator);
+  RCPlugin_Init(&cfg.Settings, &cfg.Settings.tChParam[0], pAllocator);
   auto ReleaseRcPlugin = scopeExit([&]()
   {
     AL_Allocator_Free(pAllocator, cfg.Settings.hRcPluginDmaContext);

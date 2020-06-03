@@ -36,7 +36,6 @@
 ******************************************************************************/
 
 #pragma once
-
 #include "lib_app/timing.h"
 #include "QPGenerator.h"
 #include "EncCmdMngr.h"
@@ -52,6 +51,8 @@
 #include <fstream>
 #include <stdexcept>
 #include <map>
+
+#include "RCPlugin.h"
 
 static std::string PictTypeToString(AL_ESliceType type)
 {
@@ -219,7 +220,9 @@ struct EncoderSink : IFrameSink
     EncCmd(CmdFile.fp, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
     twoPassMngr(cfg.sTwoPassFileName, cfg.Settings.TwoPass, cfg.Settings.bEnableFirstPassSceneChangeDetection, cfg.Settings.tChParam[0].tGopParam.uGopLength,
                 cfg.Settings.tChParam[0].tRCParam.uCPBSize / 90, cfg.Settings.tChParam[0].tRCParam.uInitialRemDelay / 90, cfg.MainInput.FileInfo.FrameRate),
-    qpBuffers{cfg.Settings, cfg.RunInfo.eGenerateQpMode}
+    qpBuffers{cfg.Settings, cfg.RunInfo.eGenerateQpMode},
+    pAllocator{pAllocator},
+    pSettings{&cfg.Settings}
   {
     AL_CB_EndEncoding onEndEncoding = { &EncoderSink::EndEncoding, this };
 
@@ -313,6 +316,9 @@ struct EncoderSink : IFrameSink
 
     std::shared_ptr<AL_TBuffer> QpBufShared(QpBuf, [&](AL_TBuffer* pBuf) { qpBuffers.releaseBuffer(pBuf); });
 
+    if(pSettings->hRcPluginDmaContext != NULL)
+      RCPlugin_SetNextFrameQP(pSettings, pAllocator);
+
     if(!AL_Encoder_Process(hEnc, Src, QpBuf))
       throw std::runtime_error("Failed");
 
@@ -335,6 +341,8 @@ private:
   TwoPassMngr twoPassMngr;
   QPBuffers qpBuffers;
   std::unique_ptr<CommandsSender> commandsSender;
+  AL_TAllocator* pAllocator;
+  AL_TEncSettings const* pSettings;
 
   static inline bool isStreamReleased(AL_TBuffer* pStream, AL_TBuffer const* pSrc)
   {

@@ -845,7 +845,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     MSG("!! Invalid parameter: VideoMode");
   }
 
-  if(pChParam->eVideoMode != AL_VM_PROGRESSIVE && !AL_IS_HEVC(pChParam->eProfile))
+  if(pChParam->eVideoMode != AL_VM_PROGRESSIVE && (!AL_IS_HEVC(pChParam->eProfile) && !AL_IS_AVC(pChParam->eProfile)))
   {
     ++err;
     MSG("!! Interlaced Video mode is not supported in this profile !!");
