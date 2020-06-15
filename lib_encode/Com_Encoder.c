@@ -1148,7 +1148,7 @@ AL_TNalsData AL_ExtractNalsData(AL_TEncCtx* pCtx, int iLayerID)
   data.pps = &pCtx->tLayerCtx[iLayerID].pps;
 
   AL_TEncSettings const* pSettings = pCtx->pSettings;
-  data.shouldWriteAud = pSettings->bEnableAUD && isBaseLayer(iLayerID);
+  data.bMustWriteAud = pSettings->bEnableAUD && isBaseLayer(iLayerID);
   data.fillerCtrlMode = pSettings->eEnableFillerData;
   data.seiFlags = (AL_ESeiFlag)pSettings->uEnableSEI;
 

@@ -162,6 +162,10 @@ static void populateOutputSection(ConfigParser& parser, ConfigFile& cfg)
     cfg.RecFourCC = GetFourCCValue(tokens[0].text);
   }, [&]() { return FourCCToString(cfg.MainInput.FileInfo.FourCC); }, "Specifies Reconstructed YUV output format, if not set, the output format is the same than in the INPUT section");
 
+  parser.addArith(curSection, "CropPosX", cfg.Settings.tChParam[0].uOutputCropPosX, "Abscissa of the first pixel for output Crop. This crop information will be added to the stream header and will be applied by the decoder.");
+  parser.addArith(curSection, "CropPosY", cfg.Settings.tChParam[0].uOutputCropPosY, "Ordinate of the first pixel for output Crop. This crop information will be added to the stream header and will be applied by the decoder.");
+  parser.addArith(curSection, "CropWidth", cfg.Settings.tChParam[0].uOutputCropWidth, "with of the output crop region. This crop information will be added to the stream header and will be applied by the decoder.");
+  parser.addArith(curSection, "CropHeight", cfg.Settings.tChParam[0].uOutputCropHeight, "height of the outpu crop region. This crop information will be added to the stream header and will be applied by the decoder.");
 }
 
 static void SetFpsAndClkRatio(int value, uint16_t& iFps, uint16_t& iClkRatio)
@@ -404,6 +408,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   std::map<string, int> transferCharacteristics;
   transferCharacteristics["TRANSFER_UNSPECIFIED"] = AL_TRANSFER_CHARAC_UNSPECIFIED;
   transferCharacteristics["TRANSFER_BT_2100_PQ"] = AL_TRANSFER_CHARAC_BT_2100_PQ;
+  transferCharacteristics["TRANSFER_BT_2100_HLG"] = AL_TRANSFER_CHARAC_BT_2100_HLG;
   parser.addEnum(curSection, "TransferCharac", cfg.Settings.eTransferCharacteristics, transferCharacteristics, "Specifies the reference opto-electronic transfer characteristic function (HDR setting)");
   std::map<string, int> colourMatrices;
   colourMatrices["COLOUR_MAT_UNSPECIFIED"] = AL_COLOUR_MAT_COEFF_UNSPECIFIED;

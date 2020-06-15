@@ -72,6 +72,7 @@ typedef enum e_TransferCharacteristics
 {
   AL_TRANSFER_CHARAC_UNSPECIFIED = 2,
   AL_TRANSFER_CHARAC_BT_2100_PQ = 16,
+  AL_TRANSFER_CHARAC_BT_2100_HLG = 18,
   AL_TRANSFER_CHARAC_MAX_ENUM,
 }AL_ETransferCharacteristics;
 

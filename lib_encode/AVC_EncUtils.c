@@ -166,15 +166,29 @@ static void AL_AVC_UpdateHrdParameters(AL_TAvcSps* pSPS, AL_TSubHrdParam* pSubHr
 }
 
 /****************************************************************************/
-static void AL_AVC_GenerateSPS_Resolution(AL_TAvcSps* pSPS, uint16_t uWidth, uint16_t uHeight, uint8_t uMaxCuSize, AL_EPicFormat ePicFormat, AL_EAspectRatio eAspectRatio)
+static void AL_AVC_GenerateSPS_Resolution(AL_TAvcSps* pSPS, uint16_t uWidth, uint16_t uHeight, AL_TEncSettings const* pSettings)
 {
+  uint8_t uMaxCuSize = pSettings->tChParam->uMaxCuSize;
+
   int iMBWidth = ROUND_UP_POWER_OF_TWO(uWidth, uMaxCuSize);
   int iMBHeight = ROUND_UP_POWER_OF_TWO(uHeight, uMaxCuSize);
 
-  int iWidthDiff = (iMBWidth << uMaxCuSize) - uWidth;
-  int iHeightDiff = (iMBHeight << uMaxCuSize) - uHeight;
+  int iCropLeft = 0;
+  int iCropTop = 0;
 
-  AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(ePicFormat);
+  iCropLeft = pSettings->tChParam->uOutputCropPosX;
+  iCropTop = pSettings->tChParam->uOutputCropPosY;
+
+  if(pSettings->tChParam->uOutputCropWidth)
+    uWidth = pSettings->tChParam->uOutputCropWidth;
+
+  if(pSettings->tChParam->uOutputCropHeight)
+    uHeight = pSettings->tChParam->uOutputCropHeight;
+
+  int iCropRight = (iMBWidth << uMaxCuSize) - (iCropLeft + uWidth);
+  int iCropBottom = (iMBHeight << uMaxCuSize) - (iCropTop + uHeight);
+
+  AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pSettings->tChParam->ePicFormat);
 
   int iCropUnitX = eChromaMode == AL_CHROMA_4_2_0 || eChromaMode == AL_CHROMA_4_2_2 ? 2 : 1;
   int iCropUnitY = eChromaMode == AL_CHROMA_4_2_0 ? 2 : 1;
@@ -186,14 +200,14 @@ static void AL_AVC_GenerateSPS_Resolution(AL_TAvcSps* pSPS, uint16_t uWidth, uin
   // (see spec sec.7.4.2.1 and eq.7-15)
   pSPS->pic_height_in_map_units_minus1 = iMBHeight - 1;
 
-  pSPS->frame_crop_left_offset = 0;
-  pSPS->frame_crop_right_offset = iWidthDiff / iCropUnitX;
-  pSPS->frame_crop_top_offset = 0;
-  pSPS->frame_crop_bottom_offset = iHeightDiff / iCropUnitY;
-  pSPS->frame_cropping_flag = ((pSPS->frame_crop_right_offset > 0)
-                               || (pSPS->frame_crop_bottom_offset > 0)) ? 1 : 0;
+  pSPS->frame_crop_left_offset = iCropLeft / iCropUnitX;
+  pSPS->frame_crop_right_offset = iCropRight / iCropUnitX;
+  pSPS->frame_crop_top_offset = iCropTop / iCropUnitY;
+  pSPS->frame_crop_bottom_offset = iCropBottom / iCropUnitY;
+  pSPS->frame_cropping_flag = (pSPS->frame_crop_left_offset || pSPS->frame_crop_right_offset
+                               || pSPS->frame_crop_top_offset || pSPS->frame_crop_bottom_offset) ? 1 : 0;
 
-  AL_UpdateAspectRatio(&pSPS->vui_param, uWidth, uHeight, eAspectRatio);
+  AL_UpdateAspectRatio(&pSPS->vui_param, uWidth, uHeight, pSettings->eAspectRatio);
 }
 
 /****************************************************************************/
@@ -268,7 +282,7 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   pSPS->vui_param.chroma_sample_loc_type_top_field = 0;
   pSPS->vui_param.chroma_sample_loc_type_bottom_field = 0;
 
-  AL_AVC_GenerateSPS_Resolution(pSPS, pChannel->uEncWidth, pChannel->uEncHeight, pChannel->uMaxCuSize, pChannel->ePicFormat, pSettings->eAspectRatio);
+  AL_AVC_GenerateSPS_Resolution(pSPS, pChannel->uEncWidth, pChannel->uEncHeight, pSettings);
 
   pSPS->vui_param.overscan_info_present_flag = 0;
 
@@ -389,7 +403,7 @@ void AL_AVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncP
   AL_TBuffer* pBuf = AL_GetSrcBufferFromStatus(pPicStatus);
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
 
-  AL_AVC_GenerateSPS_Resolution(pSPS, tDim.iWidth, tDim.iHeight, pSettings->tChParam[0].uMaxCuSize, pSettings->tChParam[0].ePicFormat, pSettings->eAspectRatio);
+  AL_AVC_GenerateSPS_Resolution(pSPS, tDim.iWidth, tDim.iHeight, pSettings);
 
   pSPS->seq_parameter_set_id = pHLSInfo->uNalID;
 }
@@ -398,7 +412,7 @@ void AL_AVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncP
 bool AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo)
 {
   AL_TAvcPps* pPPS = (AL_TAvcPps*)pIPPS;
-  bool bForceWritePPS = false;
+  bool bMustWritePPS = false;
 
   pPPS->pic_init_qp_minus26 = pPicStatus->iPpsQP - 26;
 
@@ -406,8 +420,8 @@ bool AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, AL_HLS
   {
     pPPS->pic_parameter_set_id = pHLSInfo->uNalID;
     pPPS->seq_parameter_set_id = pHLSInfo->uNalID;
-    bForceWritePPS = true;
+    bMustWritePPS = true;
   }
 
-  return bForceWritePPS;
+  return bMustWritePPS;
 }

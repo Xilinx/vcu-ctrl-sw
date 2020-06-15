@@ -561,6 +561,11 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pChan->eVideoMode = AL_VM_PROGRESSIVE;
 
   pChan->MaxNumMergeCand = 5;
+
+  pChan->uOutputCropPosX = 0;
+  pChan->uOutputCropPosY = 0;
+  pChan->uOutputCropWidth = 0;
+  pChan->uOutputCropHeight = 0;
 }
 
 /***************************************************************************/
@@ -885,6 +890,26 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   {
     ++err;
     MSG("!! Shouldn't have FirstPassSceneChangeDetection enabled without LookAhead !!");
+  }
+
+  int iCropMaskX = (eChromaMode == AL_CHROMA_4_2_0 || eChromaMode == AL_CHROMA_4_2_2) ? 1 : 0;
+  int iCropMaskY = (eChromaMode == AL_CHROMA_4_2_0) ? 1 : 0;
+
+  if((pChParam->uOutputCropPosX & iCropMaskX) || (pChParam->uOutputCropWidth & iCropMaskX)
+     || (pChParam->uOutputCropPosY & iCropMaskY) || (pChParam->uOutputCropHeight & iCropMaskY))
+  {
+    ++err;
+    MSG("Invalid Output crop parameter for this chroma subsampling mode.");
+  }
+
+  int iCropWidth = pChParam->uOutputCropWidth ? pChParam->uOutputCropWidth : pChParam->uEncWidth;
+  int iCropHeight = pChParam->uOutputCropHeight ? pChParam->uOutputCropHeight : pChParam->uEncHeight;
+
+  if(pChParam->uOutputCropPosX + iCropWidth > pChParam->uEncWidth
+     || pChParam->uOutputCropPosY + iCropHeight > pChParam->uEncHeight)
+  {
+    ++err;
+    MSG("Output crop region shall fit within the encoded picture");
   }
 
   return err;

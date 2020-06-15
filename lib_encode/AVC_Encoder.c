@@ -44,8 +44,8 @@ static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicSt
 {
   AL_UpdateVuiTimingInfo(&pCtx->tLayerCtx[iLayerID].sps.AvcSPS.vui_param, iLayerID, &pCtx->pSettings->tChParam[iLayerID].tRCParam, 2);
   AL_AVC_UpdateSPS(&pCtx->tLayerCtx[iLayerID].sps, pCtx->pSettings, pPicStatus, pHLSInfo);
-  bool bForceWritePPS = AL_AVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, pPicStatus, pHLSInfo);
-  AVC_GenerateSections(pCtx, pStream, pPicStatus, bForceWritePPS);
+  bool bMustWritePPS = AL_AVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, pPicStatus, pHLSInfo);
+  AVC_GenerateSections(pCtx, pStream, pPicStatus, bMustWritePPS);
 
   if(pPicStatus->eType == AL_SLICE_I)
     pCtx->seiData.cpbRemovalDelay = 0;

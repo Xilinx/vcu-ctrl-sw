@@ -67,9 +67,9 @@ typedef struct
   AL_THevcVps* vps;
   AL_TSps* sps;
   AL_TPps* pps;
-  bool shouldWriteAud;
+  bool bMustWriteAud;
   AL_EFillerCtrlMode fillerCtrlMode;
-  bool forceWritePPS;
+  bool bMustWritePPS;
   AL_TSeiData* seiData;
   AL_ESeiFlag seiFlags;
 }AL_TNalsData;

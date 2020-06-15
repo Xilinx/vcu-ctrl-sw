@@ -549,6 +549,12 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   int8_t MaxNumMergeCand;
   uint32_t zRcPluginDmaSize; /* for scheduler use */
   AL_64U pRcPluginDmaContext; /* For scheduler use */
+
+  bool bEnableOutputCrop;
+  uint16_t uOutputCropWidth;
+  uint16_t uOutputCropHeight;
+  uint16_t uOutputCropPosX;
+  uint16_t uOutputCropPosY;
 } AL_TEncChanParam;
 
 /***************************************************************************/

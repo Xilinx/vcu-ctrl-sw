@@ -285,7 +285,7 @@ static void InitHEVC_Sps(AL_THevcSps* pSPS)
 }
 
 /****************************************************************************/
-void AL_HEVC_GenerateSPS_Format(AL_THevcSps* pSPS, AL_EChromaMode eChromaMode, uint8_t uBdLuma, uint8_t uBdChroma, uint16_t uWidth, uint16_t uHeight, bool bMultiLayerExtSpsFlag)
+void AL_HEVC_GenerateSPS_Format(AL_THevcSps* pSPS, AL_EChromaMode eChromaMode, uint8_t uBdLuma, uint8_t uBdChroma, uint16_t uWidth, uint16_t uHeight, bool bMultiLayerExtSpsFlag, AL_TEncChanParam const* pChParam)
 {
   if(bMultiLayerExtSpsFlag)
   {
@@ -299,20 +299,32 @@ void AL_HEVC_GenerateSPS_Format(AL_THevcSps* pSPS, AL_EChromaMode eChromaMode, u
   pSPS->separate_colour_plane_flag = 0;
   pSPS->pic_width_in_luma_samples = RoundUp(uWidth, 8);
   pSPS->pic_height_in_luma_samples = RoundUp(uHeight, 8);
-  pSPS->conformance_window_flag = (pSPS->pic_width_in_luma_samples != uWidth) || (pSPS->pic_height_in_luma_samples != uHeight) ? 1 : 0;
+
+  int iCropLeft = 0;
+  int iCropTop = 0;
+  iCropLeft = pChParam->uOutputCropPosX;
+  iCropTop = pChParam->uOutputCropPosY;
+
+  if(pChParam->uOutputCropWidth)
+    uWidth = pChParam->uOutputCropWidth;
+
+  if(pChParam->uOutputCropHeight)
+    uHeight = pChParam->uOutputCropHeight;
+
+  pSPS->conformance_window_flag = (iCropLeft || iCropTop || (pSPS->pic_width_in_luma_samples != uWidth) || (pSPS->pic_height_in_luma_samples != uHeight)) ? 1 : 0;
 
   if(pSPS->conformance_window_flag)
   {
-    int iWidthDiff = pSPS->pic_width_in_luma_samples - uWidth;
-    int iHeightDiff = pSPS->pic_height_in_luma_samples - uHeight;
+    int iCropRight = pSPS->pic_width_in_luma_samples - (iCropLeft + uWidth);
+    int iCropBottom = pSPS->pic_height_in_luma_samples - (iCropTop + uHeight);
 
     int iCropUnitX = eChromaMode == AL_CHROMA_4_2_0 || eChromaMode == AL_CHROMA_4_2_2 ? 2 : 1;
     int iCropUnitY = eChromaMode == AL_CHROMA_4_2_0 ? 2 : 1;
 
-    pSPS->conf_win_left_offset = 0;
-    pSPS->conf_win_right_offset = iWidthDiff / iCropUnitX;
-    pSPS->conf_win_top_offset = 0;
-    pSPS->conf_win_bottom_offset = iHeightDiff / iCropUnitY;
+    pSPS->conf_win_left_offset = iCropLeft / iCropUnitX;
+    pSPS->conf_win_right_offset = iCropRight / iCropUnitX;
+    pSPS->conf_win_top_offset = iCropTop / iCropUnitY;
+    pSPS->conf_win_bottom_offset = iCropBottom / iCropUnitY;
   }
 
   pSPS->bit_depth_luma_minus8 = uBdLuma - 8;
@@ -350,7 +362,7 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   pSPS->sps_seq_parameter_set_id = iLayerId;
 
   AL_HEVC_GenerateSPS_Format(pSPS, AL_GET_CHROMA_MODE(pChParam->ePicFormat), AL_GET_BITDEPTH_LUMA(pChParam->ePicFormat),
-                             AL_GET_BITDEPTH_CHROMA(pChParam->ePicFormat), pChParam->uEncWidth, pChParam->uEncHeight, MultiLayerExtSpsFlag);
+                             AL_GET_BITDEPTH_CHROMA(pChParam->ePicFormat), pChParam->uEncWidth, pChParam->uEncHeight, MultiLayerExtSpsFlag, pChParam);
 
   pSPS->log2_max_slice_pic_order_cnt_lsb_minus4 = AL_GET_SPS_LOG2_MAX_POC(pChParam->uSpsParam) - 4;
 
@@ -593,7 +605,7 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
 }
 
 /***************************************************************************/
-void AL_HEVC_UpdateSPS(AL_TSps* pISPS, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, int iLayerId)
+void AL_HEVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, int iLayerId)
 {
   if(!pHLSInfo->bResolutionChanged)
     return;
@@ -606,7 +618,7 @@ void AL_HEVC_UpdateSPS(AL_TSps* pISPS, AL_TEncPicStatus const* pPicStatus, AL_HL
   uint8_t uBitDepth = AL_GetBitDepth(tFourCC);
 
   int MultiLayerExtSpsFlag = AL_HEVC_MultiLayerExtSpsFlag(pSPS, iLayerId);
-  AL_HEVC_GenerateSPS_Format(pSPS, AL_GetChromaMode(tFourCC), uBitDepth, uBitDepth, tDim.iWidth, tDim.iHeight, MultiLayerExtSpsFlag);
+  AL_HEVC_GenerateSPS_Format(pSPS, AL_GetChromaMode(tFourCC), uBitDepth, uBitDepth, tDim.iWidth, tDim.iHeight, MultiLayerExtSpsFlag, &pSettings->tChParam[iLayerId]);
   pSPS->sps_seq_parameter_set_id = pHLSInfo->uNalID;
 }
 
@@ -616,7 +628,7 @@ bool AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TEnc
   AL_THevcPps* pPPS = (AL_THevcPps*)pIPPS;
   AL_TEncChanParam const* pChParam = &pSettings->tChParam[iLayerId];
 
-  bool bForceWritePPS = false;
+  bool bMustWritePPS = false;
 
   pPPS->init_qp_minus26 = pPicStatus->iPpsQP - 26;
   int32_t const iNumClmn = pPicStatus->uNumClmn;
@@ -645,7 +657,7 @@ bool AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TEnc
   {
     pPPS->pps_pic_parameter_set_id = pHLSInfo->uNalID;
     pPPS->pps_seq_parameter_set_id = pHLSInfo->uNalID;
-    bForceWritePPS = true;
+    bMustWritePPS = true;
   }
 
   // For LF offsets, the PPS is updated directly, but we don't force PPS update now (offsets overwriten in slice headers).
@@ -658,5 +670,5 @@ bool AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TEnc
     AL_HEVC_GenerateFilterParam(pPPS, bIsGdr, pChParam->eEncTools, pChParam->uPpsParam, pHLSInfo->iLFBetaOffset, pHLSInfo->iLFTcOffset);
   }
 
-  return bForceWritePPS;
+  return bMustWritePPS;
 }

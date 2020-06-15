@@ -173,7 +173,7 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, const AL_TNalsData* pN
     uint32_t nalsFlags[9];
     int nalsCount = 0;
 
-    if(pNalsData->shouldWriteAud)
+    if(pNalsData->bMustWriteAud)
     {
       nals[nalsCount] = AL_CreateAud(nuts.audNut, pPicStatus->eType, pPicStatus->uTempId);
       nalsFlags[nalsCount++] = AL_SECTION_CONFIG_FLAG;
@@ -197,7 +197,7 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, const AL_TNalsData* pN
       nalsFlags[nalsCount++] = AL_SECTION_CONFIG_FLAG;
     }
 
-    bool bWritePPS = bRandomAccessPoint || pNalsData->forceWritePPS;
+    bool bWritePPS = bRandomAccessPoint || pNalsData->bMustWritePPS;
 
     if(bWritePPS)
     {
@@ -208,7 +208,7 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, const AL_TNalsData* pN
     AL_TSeiPrefixAPSCtx seiPrefixAPSCtx;
     AL_TSeiPrefixCtx seiPrefixCtx;
 
-    if(pNalsData != NULL && AL_HAS_SEI_PREFIX(pNalsData->seiFlags))
+    if(AL_HAS_SEI_PREFIX(pNalsData->seiFlags))
     {
       AL_Assert(pNalsData->seiFlags != AL_SEI_NONE);
 

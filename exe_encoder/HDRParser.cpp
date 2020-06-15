@@ -48,6 +48,9 @@ bool HDRParser::ReadHDRSEIs(AL_THDRSEIs& tHDRSEIs)
 {
   AL_HDRSEIs_Reset(&tHDRSEIs);
 
+  if(!ifs.is_open())
+    return false;
+
   while(!ifs.eof())
   {
     string sSEIID;

@@ -130,11 +130,11 @@ static void padSeiPrefix(AL_TBuffer* pStream, AL_TEncChanParam const* pChannel)
   pLastSeiSection->uLength += iPaddingSize;
 }
 
-void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, bool bForceWritePPS)
+void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, bool bMustWritePPS)
 {
   AL_TNuts nuts = CreateAvcNuts();
   AL_TNalsData nalsData = AL_ExtractNalsData(pCtx, 0);
-  nalsData.forceWritePPS = bForceWritePPS;
+  nalsData.bMustWritePPS = bMustWritePPS;
   AL_TEncChanParam const* pChannel = &pCtx->pSettings->tChParam[0];
   GenerateSections(AL_GetAvcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, 0, pChannel->uNumSlices, pChannel->bSubframeLatency);
 
