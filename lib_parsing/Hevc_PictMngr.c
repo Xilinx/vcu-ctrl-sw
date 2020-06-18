@@ -359,6 +359,16 @@ void AL_HEVC_PictMngr_InitRefPictSet(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pS
   for(int i = 0; i < pSlice->NumPocStFoll; ++i)
     pCtx->RefPicSetStFoll[i] = AL_Dpb_SearchPOC(&pCtx->DPB, pCtx->PocStFoll[i]);
 
+  int iNumRefAfterUpdate = pSlice->NumPocLtCurr
+                           + pSlice->NumPocLtFoll
+                           + pSlice->NumPocStCurrBefore
+                           + pSlice->NumPocStCurrAfter
+                           + pSlice->NumPocStFoll;
+
+  // Error Concealment : do not change anything if there is no reference after RPS update
+  if(pSlice->slice_type != AL_SLICE_I && iNumRefAfterUpdate == 0)
+    return;
+
   // reset picture marking on all the picture in the dbp
   uint8_t uNode = AL_Dpb_GetHeadPOC(&pCtx->DPB);
 
