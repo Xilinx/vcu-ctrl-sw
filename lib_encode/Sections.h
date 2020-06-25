@@ -59,7 +59,7 @@ typedef struct
 {
   int initialCpbRemovalDelay;
   int cpbRemovalDelay;
-  AL_THDRSEIs tHDRSEIs;
+  AL_THDRSEIs* pHDRSEIs;
 }AL_TSeiData;
 
 typedef struct
@@ -70,8 +70,9 @@ typedef struct
   bool bMustWriteAud;
   AL_EFillerCtrlMode fillerCtrlMode;
   bool bMustWritePPS;
-  AL_TSeiData* seiData;
+  bool bMustWriteDynHDR;
   AL_ESeiFlag seiFlags;
+  AL_TSeiData seiData;
 }AL_TNalsData;
 
 void GenerateSections(IRbspWriter* writer, AL_TNuts Nuts, const AL_TNalsData* pNalsData, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayerID, int iNumSlices, bool bSubframeLatency);

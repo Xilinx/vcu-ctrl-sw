@@ -150,6 +150,15 @@ AL_TBuffer* AL_Buffer_CreateEmpty(AL_TAllocator* pAllocator, PFN_RefCount_CallBa
    \brief Allocate and bind a new memory chunk to the buffer
    \param[in] pBuf Pointer to an AL_TBuffer
    \param[in] zSize Size of the chunk to allocate
+   \param[in] name Name of the chunk (for debug purpose and allocation tracking)
+   \return Returns the chunk index if succeeded, BAD_CHUNK_INDEX otherwise
+*****************************************************************************/
+int AL_Buffer_AllocateChunkNamed(AL_TBuffer* pBuf, size_t zSize, char const* name);
+
+/*************************************************************************//*!
+   \brief Allocate and bind a new memory chunk to the buffer
+   \param[in] pBuf Pointer to an AL_TBuffer
+   \param[in] zSize Size of the chunk to allocate
    \return Returns the chunk index if succeeded, BAD_CHUNK_INDEX otherwise
 *****************************************************************************/
 int AL_Buffer_AllocateChunk(AL_TBuffer* pBuf, size_t zSize);

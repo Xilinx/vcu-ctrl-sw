@@ -124,9 +124,16 @@ void CommandsSender::setLFTcOffset(int iTcOffset)
   CHECK(AL_Encoder_SetLoopFilterTcOffset(hEnc, iTcOffset));
 }
 
+void CommandsSender::setHDRIndex(int iHDRIdx)
+{
+  bHDRChanged = true;
+  this->iHDRIdx = iHDRIdx;
+}
+
 void CommandsSender::Reset()
 {
   bInputChanged = false;
+  bHDRChanged = false;
 }
 
 bool CommandsSender::HasInputChanged(int& iInputIdx)
@@ -135,3 +142,8 @@ bool CommandsSender::HasInputChanged(int& iInputIdx)
   return bInputChanged;
 }
 
+bool CommandsSender::HasHDRChanged(int& iHDRIdx)
+{
+  iHDRIdx = this->iHDRIdx;
+  return bHDRChanged;
+}

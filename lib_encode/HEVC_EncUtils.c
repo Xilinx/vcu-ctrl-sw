@@ -625,6 +625,7 @@ void AL_HEVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEnc
 /***************************************************************************/
 bool AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, int iLayerId)
 {
+  (void)pHLSInfo;
   AL_THevcPps* pPPS = (AL_THevcPps*)pIPPS;
   AL_TEncChanParam const* pChParam = &pSettings->tChParam[iLayerId];
 

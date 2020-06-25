@@ -118,9 +118,17 @@ static AL_TSeiPrefixAPSCtx createSeiPrefixAPSCtx(AL_TSps* sps, AL_THevcVps* vps)
   return ctx;
 }
 
-static AL_TSeiPrefixCtx createSeiPrefixCtx(AL_TSps* sps, int initialCpbRemovalDelay, int cpbRemovalDelay, AL_TEncPicStatus const* pPicStatus, AL_THDRSEIs* pHDRSEIs, uint32_t uFlags)
+static AL_TSeiPrefixCtx createSeiPrefixCtx(const AL_TNalsData* pNalsData, AL_TEncPicStatus const* pPicStatus, uint32_t uFlags)
 {
-  AL_TSeiPrefixCtx ctx = { sps, initialCpbRemovalDelay, cpbRemovalDelay, uFlags, pPicStatus, pHDRSEIs };
+  AL_TSeiPrefixCtx ctx =
+  {
+    pNalsData->sps,
+    pNalsData->seiData.initialCpbRemovalDelay,
+    pNalsData->seiData.cpbRemovalDelay,
+    uFlags,
+    pPicStatus
+    , pNalsData->seiData.pHDRSEIs
+  };
   return ctx;
 }
 
@@ -142,7 +150,7 @@ static int getOffsetAfterLastSection(AL_TStreamMetaData* pMeta)
   return lastSection.uOffset + lastSection.uLength;
 }
 
-static uint32_t generateSeiFlags(AL_TEncPicStatus const* pPicStatus, bool bWriteSPS)
+static uint32_t generateSeiFlags(AL_TEncPicStatus const* pPicStatus)
 {
   uint32_t uFlags = AL_SEI_PT;
 
@@ -156,8 +164,20 @@ static uint32_t generateSeiFlags(AL_TEncPicStatus const* pPicStatus, bool bWrite
   else if(pPicStatus->iRecoveryCnt)
     uFlags |= AL_SEI_RP;
 
+  return uFlags;
+}
+
+static uint32_t generateHDRSeiFlags(bool bWriteSPS, bool bMustWriteDynHDR)
+{
+  uint32_t uFlags = 0;
+
   if(bWriteSPS)
     uFlags |= AL_SEI_MDCV | AL_SEI_CLL;
+
+  uFlags |= AL_SEI_ST2094_10;
+
+  if(bWriteSPS || bMustWriteDynHDR)
+    uFlags |= AL_SEI_ST2094_40;
 
   return uFlags;
 }
@@ -212,7 +232,10 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, const AL_TNalsData* pN
     {
       AL_Assert(pNalsData->seiFlags != AL_SEI_NONE);
 
-      uint32_t const uFlags = generateSeiFlags(pPicStatus, bWriteSPS) & pNalsData->seiFlags;
+      uint32_t uFlags = generateSeiFlags(pPicStatus);
+      uFlags |= generateHDRSeiFlags(bWriteSPS, pNalsData->bMustWriteDynHDR);
+      uFlags &= pNalsData->seiFlags;
+
       bool bIsBufferingPeriodOrPictureTiming = ((uFlags & (AL_SEI_BP | AL_SEI_PT)) != 0);
 
       if(bIsBufferingPeriodOrPictureTiming && writer->WriteSEI_ActiveParameterSets)
@@ -224,7 +247,7 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, const AL_TNalsData* pN
 
       if(uFlags)
       {
-        seiPrefixCtx = createSeiPrefixCtx(pNalsData->sps, pNalsData->seiData->initialCpbRemovalDelay, pNalsData->seiData->cpbRemovalDelay, pPicStatus, &pNalsData->seiData->tHDRSEIs, uFlags);
+        seiPrefixCtx = createSeiPrefixCtx(pNalsData, pPicStatus, uFlags);
         nals[nalsCount] = AL_CreateSeiPrefix(&seiPrefixCtx, nuts.seiPrefixNut, pPicStatus->uTempId);
         nalsFlags[nalsCount++] = AL_SECTION_SEI_PREFIX_FLAG;
       }

@@ -154,5 +154,167 @@ void AL_RbspEncoding_WriteContentLightLevel(AL_TBitStreamLite* pBS, AL_TContentL
   AL_RbspEncoding_EndSEI(pBS, bookmark);
 }
 
+/******************************************************************************/
+void AL_RbspEncoding_WriteST2094_10(AL_TBitStreamLite* pBS, AL_TDynamicMeta_ST2094_10* pST2094_10)
+{
+  int const bookmark = AL_RbspEncoding_BeginSEI(pBS, 4);
+
+  AL_BitStreamLite_PutU(pBS, 8, 0xB5);
+  AL_BitStreamLite_PutU(pBS, 16, 0x3B);
+  AL_BitStreamLite_PutU(pBS, 32, 0x00);
+  AL_BitStreamLite_PutU(pBS, 8, 0x09);
+
+  AL_BitStreamLite_PutUE(pBS, 1);
+  AL_BitStreamLite_PutUE(pBS, pST2094_10->application_version);
+
+  AL_BitStreamLite_PutBit(pBS, 1);
+
+  uint32_t num_ext_blocks = pST2094_10->num_manual_adjustments + 1;
+
+  if(pST2094_10->processing_window_flag)
+    num_ext_blocks++;
+
+  AL_BitStreamLite_PutUE(pBS, num_ext_blocks);
+
+  AL_BitStreamLite_AlignWithBits(pBS, 0);
+
+  // Image Characteristics
+  AL_BitStreamLite_PutUE(pBS, 5);
+  AL_BitStreamLite_PutU(pBS, 8, 1);
+  AL_BitStreamLite_PutU(pBS, 12, pST2094_10->image_characteristics.min_pq);
+  AL_BitStreamLite_PutU(pBS, 12, pST2094_10->image_characteristics.max_pq);
+  AL_BitStreamLite_PutU(pBS, 12, pST2094_10->image_characteristics.avg_pq);
+  AL_BitStreamLite_PutU(pBS, 4, 0);
+
+  // Manual Adjustments
+  for(int i = 0; i < pST2094_10->num_manual_adjustments; i++)
+  {
+    AL_BitStreamLite_PutUE(pBS, 11);
+    AL_BitStreamLite_PutU(pBS, 8, 2);
+    AL_BitStreamLite_PutU(pBS, 12, pST2094_10->manual_adjustments[i].target_max_pq);
+    AL_BitStreamLite_PutU(pBS, 12, pST2094_10->manual_adjustments[i].trim_slope);
+    AL_BitStreamLite_PutU(pBS, 12, pST2094_10->manual_adjustments[i].trim_offset);
+    AL_BitStreamLite_PutU(pBS, 12, pST2094_10->manual_adjustments[i].trim_power);
+    AL_BitStreamLite_PutU(pBS, 12, pST2094_10->manual_adjustments[i].trim_chroma_weight);
+    AL_BitStreamLite_PutU(pBS, 12, pST2094_10->manual_adjustments[i].trim_saturation_gain);
+    AL_BitStreamLite_PutI(pBS, 13, pST2094_10->manual_adjustments[i].ms_weight);
+    AL_BitStreamLite_PutU(pBS, 3, 0);
+  }
+
+  // Processing Window
+  if(pST2094_10->processing_window_flag)
+  {
+    AL_BitStreamLite_PutUE(pBS, 7);
+    AL_BitStreamLite_PutU(pBS, 8, 5);
+    AL_BitStreamLite_PutU(pBS, 13, pST2094_10->processing_window.active_area_left_offset);
+    AL_BitStreamLite_PutU(pBS, 13, pST2094_10->processing_window.active_area_right_offset);
+    AL_BitStreamLite_PutU(pBS, 13, pST2094_10->processing_window.active_area_top_offset);
+    AL_BitStreamLite_PutU(pBS, 13, pST2094_10->processing_window.active_area_bottom_offset);
+    AL_BitStreamLite_PutU(pBS, 4, 0);
+  }
+
+  AL_BitStreamLite_AlignWithBits(pBS, 0);
+  AL_BitStreamLite_PutU(pBS, 8, 0xFF);
+
+  AL_BitStreamLite_EndOfSEIPayload(pBS);
+  AL_RbspEncoding_EndSEI(pBS, bookmark);
+}
+
+/******************************************************************************/
+void WriteST2094_40_PeakLuminance(AL_TBitStreamLite* pBS, AL_TDisplayPeakLuminance_ST2094_40* pPeakLuminance)
+{
+  AL_BitStreamLite_PutBit(pBS, pPeakLuminance->actual_peak_luminance_flag);
+
+  if(pPeakLuminance->actual_peak_luminance_flag)
+  {
+    AL_BitStreamLite_PutU(pBS, 5, pPeakLuminance->num_rows_actual_peak_luminance);
+    AL_BitStreamLite_PutU(pBS, 5, pPeakLuminance->num_cols_actual_peak_luminance);
+
+    for(int i = 0; i < pPeakLuminance->num_rows_actual_peak_luminance; i++)
+      for(int j = 0; j < pPeakLuminance->num_cols_actual_peak_luminance; j++)
+        AL_BitStreamLite_PutU(pBS, 4, pPeakLuminance->actual_peak_luminance[i][j]);
+  }
+}
+
+void AL_RbspEncoding_WriteST2094_40(AL_TBitStreamLite* pBS, AL_TDynamicMeta_ST2094_40* pST2094_40)
+{
+  int const bookmark = AL_RbspEncoding_BeginSEI(pBS, 4);
+
+  AL_BitStreamLite_PutU(pBS, 8, 0xB5);
+  AL_BitStreamLite_PutU(pBS, 16, 0x3C);
+  AL_BitStreamLite_PutU(pBS, 16, 0x01);
+
+  AL_BitStreamLite_PutU(pBS, 8, 4);
+  AL_BitStreamLite_PutU(pBS, 8, pST2094_40->application_version);
+
+  AL_BitStreamLite_PutU(pBS, 2, pST2094_40->num_windows);
+
+  for(int iWin = 0; iWin < pST2094_40->num_windows - 1; iWin++)
+  {
+    AL_TProcessingWindow_ST2094_40* pWin = &pST2094_40->processing_windows[iWin];
+    AL_BitStreamLite_PutU(pBS, 16, pWin->base_processing_window.upper_left_corner_x);
+    AL_BitStreamLite_PutU(pBS, 16, pWin->base_processing_window.upper_left_corner_y);
+    AL_BitStreamLite_PutU(pBS, 16, pWin->base_processing_window.lower_right_corner_x);
+    AL_BitStreamLite_PutU(pBS, 16, pWin->base_processing_window.lower_right_corner_y);
+    AL_BitStreamLite_PutU(pBS, 16, pWin->center_of_ellipse_x);
+    AL_BitStreamLite_PutU(pBS, 16, pWin->center_of_ellipse_y);
+    AL_BitStreamLite_PutU(pBS, 8, pWin->rotation_angle);
+    AL_BitStreamLite_PutU(pBS, 16, pWin->semimajor_axis_internal_ellipse);
+    AL_BitStreamLite_PutU(pBS, 16, pWin->semimajor_axis_external_ellipse);
+    AL_BitStreamLite_PutU(pBS, 16, pWin->semiminor_axis_external_ellipse);
+    AL_BitStreamLite_PutU(pBS, 1, pWin->overlap_process_option);
+  }
+
+  AL_BitStreamLite_PutU(pBS, 27, pST2094_40->targeted_system_display.maximum_luminance);
+  WriteST2094_40_PeakLuminance(pBS, &pST2094_40->targeted_system_display.peak_luminance);
+
+  for(int iWin = 0; iWin < pST2094_40->num_windows; iWin++)
+  {
+    AL_TProcessingWindowTransform_ST2094_40* pWinTransfo = &pST2094_40->processing_window_transforms[iWin];
+
+    for(int i = 0; i < 3; i++)
+      AL_BitStreamLite_PutU(pBS, 17, pWinTransfo->maxscl[i]);
+
+    AL_BitStreamLite_PutU(pBS, 17, pWinTransfo->average_maxrgb);
+    AL_BitStreamLite_PutU(pBS, 4, pWinTransfo->num_distribution_maxrgb_percentiles);
+
+    for(int i = 0; i < pWinTransfo->num_distribution_maxrgb_percentiles; i++)
+    {
+      AL_BitStreamLite_PutU(pBS, 7, pWinTransfo->distribution_maxrgb_percentages[i]);
+      AL_BitStreamLite_PutU(pBS, 17, pWinTransfo->distribution_maxrgb_percentiles[i]);
+    }
+
+    AL_BitStreamLite_PutU(pBS, 10, pWinTransfo->fraction_bright_pixels);
+  }
+
+  WriteST2094_40_PeakLuminance(pBS, &pST2094_40->mastering_display_peak_luminance);
+
+  for(int iWin = 0; iWin < pST2094_40->num_windows; iWin++)
+  {
+    AL_TProcessingWindowTransform_ST2094_40* pWinTransfo = &pST2094_40->processing_window_transforms[iWin];
+
+    AL_TToneMapping_ST2094_40* pToneMapping = &pWinTransfo->tone_mapping;
+    AL_BitStreamLite_PutBit(pBS, pToneMapping->tone_mapping_flag);
+
+    if(pToneMapping->tone_mapping_flag)
+    {
+      AL_BitStreamLite_PutU(pBS, 12, pToneMapping->knee_point_x);
+      AL_BitStreamLite_PutU(pBS, 12, pToneMapping->knee_point_y);
+      AL_BitStreamLite_PutU(pBS, 4, pToneMapping->num_bezier_curve_anchors);
+
+      for(int i = 0; i < pToneMapping->num_bezier_curve_anchors; i++)
+        AL_BitStreamLite_PutU(pBS, 10, pToneMapping->bezier_curve_anchors[i]);
+    }
+
+    AL_BitStreamLite_PutBit(pBS, pWinTransfo->color_saturation_mapping_flag);
+
+    if(pWinTransfo->color_saturation_mapping_flag)
+      AL_BitStreamLite_PutU(pBS, 6, pWinTransfo->color_saturation_weight);
+  }
+
+  AL_BitStreamLite_EndOfSEIPayload(pBS);
+  AL_RbspEncoding_EndSEI(pBS, bookmark);
+}
+
 /*@}*/
 

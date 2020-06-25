@@ -54,6 +54,8 @@ typedef enum e_SeiFlag
   AL_SEI_RP = 0x00000004, // Recovery Point
   AL_SEI_MDCV = 0x0000008, // Mastering Display Colour Volume (HDR)
   AL_SEI_CLL = 0x00000010,  // Content Light Level (HDR)
+  AL_SEI_ST2094_10 = 0x00000020,  // ST2094_10 (Dynamic HDR)
+  AL_SEI_ST2094_40 = 0x00000040,  // ST2094_40 (Dynamic HDR)
   // suffix (16 MSBs)
 
   AL_SEI_ALL = 0xFFFFFFFF, // All supported SEI

@@ -294,11 +294,11 @@ static void AL_InitRefBuffers(AL_TDecCtx* pCtx, AL_TDecPicBuffers* pBufs)
 }
 
 /*****************************************************************************/
-bool AL_InitFrameBuffers(AL_TDecCtx* pCtx, AL_TDecPicBuffers* pBufs, AL_TDimension tDim, AL_TDecPicParam* pPP)
+bool AL_InitFrameBuffers(AL_TDecCtx* pCtx, AL_TDecPicBuffers* pBufs, bool bStartsNewCVS, AL_TDimension tDim, AL_TDecPicParam* pPP)
 {
   Rtos_GetSemaphore(pCtx->Sem, AL_WAIT_FOREVER);
 
-  if(!AL_PictMngr_BeginFrame(&pCtx->PictMngr, tDim))
+  if(!AL_PictMngr_BeginFrame(&pCtx->PictMngr, bStartsNewCVS, tDim))
   {
     pCtx->eChanState = CHAN_DESTROYING;
     Rtos_ReleaseSemaphore(pCtx->Sem);

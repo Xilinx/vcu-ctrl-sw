@@ -243,19 +243,18 @@ struct EncoderSink : IFrameSink
 
     m_pictureType = cfg.RunInfo.printPictureType ? AL_SLICE_MAX_ENUM : -1;
 
-    InitHDR(cfg.sHDRFileName);
+    if(!cfg.sHDRFileName.empty())
+    {
+      hdrParser.reset(new HDRParser(cfg.sHDRFileName));
+      ReadHDR(0);
+    }
   }
 
-  void InitHDR(const std::string& sHDRFile)
+  void ReadHDR(int iHDRIdx)
   {
-    if(sHDRFile.empty())
-      return;
-
     AL_THDRSEIs tHDRSEIs;
 
-    HDRParser hdrParser(sHDRFile);
-
-    if(!hdrParser.ReadHDRSEIs(tHDRSEIs))
+    if(!hdrParser->ReadHDRSEIs(tHDRSEIs, iHDRIdx))
       throw std::runtime_error("Failed to parse HDR File.");
 
     AL_Encoder_SetHDRSEIs(hEnc, &tHDRSEIs);
@@ -280,12 +279,16 @@ struct EncoderSink : IFrameSink
 
   void PreprocessFrame() override
   {
-    int iInputIdx;
     commandsSender->Reset();
     EncCmd.Process(commandsSender.get(), m_picCount);
 
-    if(commandsSender->HasInputChanged(iInputIdx))
-      m_InputChanged(iInputIdx, 0);
+    int iIdx;
+
+    if(commandsSender->HasInputChanged(iIdx))
+      m_InputChanged(iIdx, 0);
+
+    if(commandsSender->HasHDRChanged(iIdx))
+      ReadHDR(iIdx);
   }
 
   void ProcessFrame(AL_TBuffer* Src) override
@@ -341,6 +344,8 @@ private:
   TwoPassMngr twoPassMngr;
   QPBuffers qpBuffers;
   std::unique_ptr<CommandsSender> commandsSender;
+  std::unique_ptr<HDRParser> hdrParser;
+
   AL_TAllocator* pAllocator;
   AL_TEncSettings const* pSettings;
 

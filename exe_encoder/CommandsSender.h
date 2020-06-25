@@ -67,13 +67,17 @@ public:
   void setDynamicInput(int iInputIdx) override;
   void setLFBetaOffset(int iBetaOffset) override;
   void setLFTcOffset(int iTcOffset) override;
+  void setHDRIndex(int iHDRIdx) override;
 
   void Reset();
   bool HasInputChanged(int& iInputIdx);
+  bool HasHDRChanged(int& iHDRIdx);
 
 private:
   AL_HEncoder hEnc;
   bool bInputChanged;
   int iInputIdx;
+  bool bHDRChanged;
+  int iHDRIdx;
 };
 

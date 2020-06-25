@@ -59,7 +59,7 @@ struct PixMapBufPool : public BaseBufPool
 
   void AddChunk(size_t zSize, const std::vector<AL_TPlaneDescription>& vPlDescriptions);
 
-  int Init(AL_TAllocator* pAllocator, uint32_t uNumBuf);
+  int Init(AL_TAllocator* pAllocator, uint32_t uNumBuf, char const* name);
 
 private:
   struct PlaneChunk
@@ -72,5 +72,5 @@ private:
   AL_TDimension tDim;
   TFourCC tFourCC;
 
-  AL_TBuffer* CreateBuffer(AL_TAllocator* pAllocator, PFN_RefCount_CallBack pBufCallback);
+  AL_TBuffer* CreateBuffer(AL_TAllocator* pAllocator, PFN_RefCount_CallBack pBufCallback, char const* name);
 };

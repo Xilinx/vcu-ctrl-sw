@@ -208,6 +208,20 @@ bool byte_aligned(AL_TRbspParser* pRP)
 }
 
 /*****************************************************************************/
+bool simple_byte_alignment(AL_TRbspParser* pRP, uint8_t expected_bit)
+{
+  while(!byte_aligned(pRP))
+  {
+    uint8_t alignment_bit = u(pRP, 1);
+
+    if(alignment_bit != expected_bit)
+      return false;
+  }
+
+  return true;
+}
+
+/*****************************************************************************/
 bool byte_alignment(AL_TRbspParser* pRP)
 {
   uint8_t bit_equal_to_one = u(pRP, 1);
@@ -215,15 +229,7 @@ bool byte_alignment(AL_TRbspParser* pRP)
   if(!bit_equal_to_one)
     return false;
 
-  while(!byte_aligned(pRP))
-  {
-    uint8_t bit_equal_to_zero = u(pRP, 1);
-
-    if(bit_equal_to_zero)
-      return false;
-  }
-
-  return true;
+  return simple_byte_alignment(pRP, 0);
 }
 
 /*****************************************************************************/
@@ -405,7 +411,7 @@ int32_t i(AL_TRbspParser* pRP, uint8_t iNumBits)
   int abs_val = val_u & mask;
 
   if(val_u & ~mask)
-    return -abs_val;
+    return -((((~val_u) & mask)) + 1);
 
   return abs_val;
 }

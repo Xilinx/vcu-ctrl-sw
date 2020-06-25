@@ -121,6 +121,15 @@ void AL_BitStreamLite_EndOfSEIPayload(AL_TBitStreamLite* pBS);
 void AL_BitStreamLite_PutU(AL_TBitStreamLite* pBS, int iNumBits, uint32_t uValue);
 
 /*************************************************************************//*!
+   \brief Puts signed integer to the BitStream using the specified number of
+   bits
+   \param[in] pBS Pointer to a TBitStreamLite object
+   \param[in] iNumBits Number of bits used to encode uValue
+   \param[in] uValue Value to put in the bitstream
+ *************************************************************************/
+void AL_BitStreamLite_PutI(AL_TBitStreamLite* pBS, int iNumBits, int32_t iValue);
+
+/*************************************************************************//*!
    \brief Puts unsigned integer Exp-Golomb-coded in the BitStream
    \param[in] pBS Pointer to a TBitStreamLite object
    \param[in] uValue Unsigned value to put in the bitstream

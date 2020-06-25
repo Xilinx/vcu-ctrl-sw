@@ -72,6 +72,7 @@ typedef struct
     AL_THevcAup hevcAup;
   };
   int iRecoveryCnt;
-  AL_THDRSEIs tHDRSEIs; // Holds only the currently active HDR SEIs
+  AL_THDRSEIs tParsedHDRSEIs; // The last parsed HDR SEIs
+  AL_THDRSEIs tActiveHDRSEIs; // The active HDR SEIs in display order
 }AL_TAup;
 

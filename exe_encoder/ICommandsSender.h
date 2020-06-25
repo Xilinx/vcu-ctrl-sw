@@ -56,5 +56,6 @@ struct ICommandsSender
   virtual void setDynamicInput(int iInputIdx) = 0;
   virtual void setLFBetaOffset(int iBetaOffset) = 0;
   virtual void setLFTcOffset(int iTcOffset) = 0;
+  virtual void setHDRIndex(int iHDRIdx) = 0;
 };
 

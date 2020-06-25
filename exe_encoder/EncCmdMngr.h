@@ -90,6 +90,8 @@ private:
     int iLFBetaOffset;
     bool bSetLFTcOffset = false;
     int iLFTcOffset;
+    bool bChangeHDR = false;
+    int iHDRIdx = 0;
   };
 
   std::list<TFrmCmd> m_Cmds;

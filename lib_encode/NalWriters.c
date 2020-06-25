@@ -39,6 +39,7 @@
 #include "lib_common/Nuts.h"
 #include "lib_common/SEI.h"
 #include "lib_bitstream/RbspEncod.h"
+#include "lib_assert/al_assert.h"
 
 static void audWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param, int layerId)
 {
@@ -139,13 +140,27 @@ static void seiPrefixWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, vo
     }
     else if(uFlags & AL_SEI_MDCV)
     {
+      AL_Assert(pCtx->pHDRSEIs);
       writer->WriteSEI_MasteringDisplayColourVolume(bitstream, &pCtx->pHDRSEIs->tMDCV);
       uFlags &= ~AL_SEI_MDCV;
     }
     else if(uFlags & AL_SEI_CLL)
     {
+      AL_Assert(pCtx->pHDRSEIs);
       writer->WriteSEI_ContentLightLevel(bitstream, &pCtx->pHDRSEIs->tCLL);
       uFlags &= ~AL_SEI_CLL;
+    }
+    else if(uFlags & AL_SEI_ST2094_10)
+    {
+      AL_Assert(pCtx->pHDRSEIs);
+      writer->WriteSEI_ST2094_10(bitstream, &pCtx->pHDRSEIs->tST2094_10);
+      uFlags &= ~AL_SEI_ST2094_10;
+    }
+    else if(uFlags & AL_SEI_ST2094_40)
+    {
+      AL_Assert(pCtx->pHDRSEIs);
+      writer->WriteSEI_ST2094_40(bitstream, &pCtx->pHDRSEIs->tST2094_40);
+      uFlags &= ~AL_SEI_ST2094_40;
     }
 
     if(!uFlags)

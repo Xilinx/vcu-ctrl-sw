@@ -40,17 +40,20 @@
 #include "lib_common/Utils.h"
 #include "lib_common/Error.h"
 
-static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_HLSInfo const* pHLSInfo, AL_TBuffer* pStream, int iLayerID)
+static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_TBuffer* pStream, int iLayerID, int iPicID)
 {
   AL_UpdateVuiTimingInfo(&pCtx->tLayerCtx[iLayerID].sps.AvcSPS.vui_param, iLayerID, &pCtx->pSettings->tChParam[iLayerID].tRCParam, 2);
+
+  AL_HLSInfo* pHLSInfo = NULL;
+  pHLSInfo = AL_GetHLSInfo(pCtx, iPicID);
   AL_AVC_UpdateSPS(&pCtx->tLayerCtx[iLayerID].sps, pCtx->pSettings, pPicStatus, pHLSInfo);
   bool bMustWritePPS = AL_AVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, pPicStatus, pHLSInfo);
-  AVC_GenerateSections(pCtx, pStream, pPicStatus, bMustWritePPS);
+  AVC_GenerateSections(pCtx, pStream, pPicStatus, iPicID, bMustWritePPS);
 
   if(pPicStatus->eType == AL_SLICE_I)
-    pCtx->seiData.cpbRemovalDelay = 0;
+    pCtx->cpbRemovalDelay = 0;
 
-  pCtx->seiData.cpbRemovalDelay += PicStructToFieldNumber[pPicStatus->ePicStruct];
+  pCtx->cpbRemovalDelay += PicStructToFieldNumber[pPicStatus->ePicStruct];
 }
 
 static bool shouldReleaseSource(AL_TEncPicStatus* p)

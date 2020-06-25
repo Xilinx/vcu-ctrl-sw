@@ -167,6 +167,29 @@ void AL_BitStreamLite_PutU(AL_TBitStreamLite* pBS, int iNumBits, uint32_t uValue
 }
 
 /******************************************************************************/
+void AL_BitStreamLite_PutI(AL_TBitStreamLite* pBS, int iNumBits, int32_t iValue)
+{
+  uint32_t uValue;
+
+  if(iValue >= 0)
+    uValue = iValue;
+  else
+  {
+    uValue = -iValue;
+    AL_Assert(iNumBits == 32 || ((uValue - 1) >> iNumBits) == 0);
+    uValue = ~uValue + 1;
+
+    if(iNumBits != 32)
+    {
+      uint32_t uMask = (1 << iNumBits) - 1;
+      uValue &= uMask;
+    }
+  }
+
+  AL_BitStreamLite_PutBits(pBS, iNumBits, uValue);
+}
+
+/******************************************************************************/
 static void putVclBits(AL_TBitStreamLite* pBS, uint32_t uCodeLength, uint32_t uValue)
 {
   if(uCodeLength == 1)

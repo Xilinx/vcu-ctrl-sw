@@ -411,6 +411,7 @@ void AL_AVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncP
 /***************************************************************************/
 bool AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo)
 {
+  (void)pHLSInfo;
   AL_TAvcPps* pPPS = (AL_TAvcPps*)pIPPS;
   bool bMustWritePPS = false;
 

@@ -87,7 +87,7 @@ typedef enum e_ColourMatrixCoefficients
 }AL_EColourMatrixCoefficients;
 
 /*******************************************************************************//*!
-   \brief Normalized x and y chromaticity coordinates (CIE 1931 definition of x and y as specified in ISO 11664-1)
+   \brief Normalized x and y chromaticity coordinates
 ***********************************************************************************/
 typedef struct AL_t_ChromaCoordinates
 {
@@ -100,9 +100,17 @@ typedef struct AL_t_ChromaCoordinates
 *****************************************************************************/
 typedef struct AL_t_MasteringDisplayColourVolume
 {
+  /* RGB chromaticity coordinates (CIE 1931 definition of x and y as specified in ISO 11664 - 1)
+     in increments of 0.00002.
+     Allowed values: [0;50000] */
   AL_TChromaCoordinates display_primaries[3];
+  /* White point chromaticity coordinates (CIE 1931 definition of x and y as specified in ISO
+     11664 - 1) in increments of 0.00002.
+     Allowed values: [0;50000] */
   AL_TChromaCoordinates white_point;
+  /* Maximum display luminance in units of 0.0001 cd/m2 */
   uint32_t max_display_mastering_luminance;
+  /* Minimum display luminance in units of 0.0001 cd/m2 */
   uint32_t min_display_mastering_luminance;
 }AL_TMasteringDisplayColourVolume;
 
@@ -116,6 +124,125 @@ typedef struct AL_t_ContentLightLevel
 }AL_TContentLightLevel;
 
 /*************************************************************************//*!
+   \brief Mimics structure for dynamic metadata for color volume transform specified
+   in SMPTE ST 2094-10 and carried under the ETSI TS 103 572 V1.1.1 specification
+*****************************************************************************/
+#define AL_MAX_MANUAL_ADJUSTMENT_ST2094_10 16
+
+typedef struct AL_t_ProcessingWindow_ST2094_10
+{
+  uint16_t active_area_left_offset;
+  uint16_t active_area_right_offset;
+  uint16_t active_area_top_offset;
+  uint16_t active_area_bottom_offset;
+}AL_TProcessingWindow_ST2094_10;
+
+typedef struct AL_t_TImageCharacteristics_ST2094_10
+{
+  uint16_t min_pq;
+  uint16_t max_pq;
+  uint16_t avg_pq;
+}AL_TImageCharacteristics_ST2094_10;
+
+typedef struct AL_t_ManualAdjustment_ST2094_10
+{
+  uint16_t target_max_pq;
+  uint16_t trim_slope;
+  uint16_t trim_offset;
+  uint16_t trim_power;
+  uint16_t trim_chroma_weight;
+  uint16_t trim_saturation_gain;
+  int16_t ms_weight;
+}AL_TManualAdjustment_ST2094_10;
+
+typedef struct AL_t_DynamicMeta_ST2094_10
+{
+  uint8_t application_version; /* = 0 */
+  bool processing_window_flag;
+  AL_TProcessingWindow_ST2094_10 processing_window;
+  AL_TImageCharacteristics_ST2094_10 image_characteristics;
+  uint8_t num_manual_adjustments;
+  AL_TManualAdjustment_ST2094_10 manual_adjustments[AL_MAX_MANUAL_ADJUSTMENT_ST2094_10];
+}AL_TDynamicMeta_ST2094_10;
+
+/*************************************************************************//*!
+   \brief Mimics structure for dynamic metadata for color volume transform specified
+   in SMPTE ST 2094-40 and carried under CTA-861 interface
+*****************************************************************************/
+#define AL_MIN_WINDOW_ST2094_40 1
+#define AL_MAX_WINDOW_ST2094_40 3
+#define AL_MAX_MAXRGB_PERCENTILES_ST2094_40 15
+#define AL_MAX_BEZIER_CURVE_ANCHORS_ST2094_40 15
+#define AL_MAX_ROW_ACTUAL_PEAK_LUMINANCE_ST2094_40 25
+#define AL_MAX_COL_ACTUAL_PEAK_LUMINANCE_ST2094_40 25
+
+typedef struct AL_t_ProcessingWindow_ST2094_1
+{
+  uint16_t upper_left_corner_x;
+  uint16_t upper_left_corner_y;
+  uint16_t lower_right_corner_x;
+  uint16_t lower_right_corner_y;
+}AL_TProcessingWindow_ST2094_1;
+
+typedef struct AL_t_ProcessingWindow_ST2094_40
+{
+  AL_TProcessingWindow_ST2094_1 base_processing_window;
+  uint16_t center_of_ellipse_x;
+  uint16_t center_of_ellipse_y;
+  uint8_t rotation_angle;
+  uint16_t semimajor_axis_internal_ellipse;
+  uint16_t semimajor_axis_external_ellipse;
+  uint16_t semiminor_axis_external_ellipse;
+  uint8_t overlap_process_option;
+}AL_TProcessingWindow_ST2094_40;
+
+typedef struct AL_t_DisplayPeakLuminance_ST2094_40
+{
+  bool actual_peak_luminance_flag;
+  uint8_t num_rows_actual_peak_luminance;
+  uint8_t num_cols_actual_peak_luminance;
+  uint8_t actual_peak_luminance[AL_MAX_ROW_ACTUAL_PEAK_LUMINANCE_ST2094_40][AL_MAX_COL_ACTUAL_PEAK_LUMINANCE_ST2094_40];
+}AL_TDisplayPeakLuminance_ST2094_40;
+
+typedef struct AL_t_TargetedSystemDisplay_ST2094_40
+{
+  uint32_t maximum_luminance;
+  AL_TDisplayPeakLuminance_ST2094_40 peak_luminance;
+}AL_TTargetedSystemDisplay_ST2094_40;
+
+typedef struct AL_t_ToneMapping_ST2094_40
+{
+  bool tone_mapping_flag;
+  uint16_t knee_point_x;
+  uint16_t knee_point_y;
+  uint8_t num_bezier_curve_anchors;
+  uint16_t bezier_curve_anchors[AL_MAX_BEZIER_CURVE_ANCHORS_ST2094_40];
+}AL_TToneMapping_ST2094_40;
+
+typedef struct AL_t_ProcessingWindowTransform_ST2094_40
+{
+  uint32_t maxscl[3];
+  uint32_t average_maxrgb;
+  uint8_t num_distribution_maxrgb_percentiles;
+  uint8_t distribution_maxrgb_percentages[AL_MAX_MAXRGB_PERCENTILES_ST2094_40];
+  uint32_t distribution_maxrgb_percentiles[AL_MAX_MAXRGB_PERCENTILES_ST2094_40];
+  uint8_t fraction_bright_pixels;
+  AL_TToneMapping_ST2094_40 tone_mapping;
+  bool color_saturation_mapping_flag;
+  uint8_t color_saturation_weight;
+}AL_TProcessingWindowTransform_ST2094_40;
+
+typedef struct AL_t_DynamicMeta_ST2094_40
+{
+  uint8_t application_version;
+  uint8_t num_windows;
+  AL_TProcessingWindow_ST2094_40 processing_windows[AL_MAX_WINDOW_ST2094_40 - 1];
+  AL_TTargetedSystemDisplay_ST2094_40 targeted_system_display;
+  AL_TDisplayPeakLuminance_ST2094_40 mastering_display_peak_luminance;
+  AL_TProcessingWindowTransform_ST2094_40 processing_window_transforms[AL_MAX_WINDOW_ST2094_40];
+}AL_TDynamicMeta_ST2094_40;
+
+/*************************************************************************//*!
    \brief Mimics structure containing HDR Related SEIs
 *****************************************************************************/
 typedef struct AL_t_HDRSEIs
@@ -125,6 +252,12 @@ typedef struct AL_t_HDRSEIs
 
   bool bHasCLL;
   AL_TContentLightLevel tCLL;
+
+  bool bHasST2094_10;
+  AL_TDynamicMeta_ST2094_10 tST2094_10;
+
+  bool bHasST2094_40;
+  AL_TDynamicMeta_ST2094_40 tST2094_40;
 }AL_THDRSEIs;
 
 /*************************************************************************//*!
@@ -132,6 +265,13 @@ typedef struct AL_t_HDRSEIs
    \param[in] pHDRSEIs Pointer to the HDR SEIs
 *****************************************************************************/
 void AL_HDRSEIs_Reset(AL_THDRSEIs* pHDRSEIs);
+
+/*************************************************************************//*!
+   \brief Copy HDR SEIs
+   \param[in] pHDRSEIsSrc Pointer to the source HDR SEIs
+   \param[out] pHDRSEIsDst Pointer to the destination HDR SEIs
+*****************************************************************************/
+void AL_HDRSEIs_Copy(AL_THDRSEIs* pHDRSEIsSrc, AL_THDRSEIs* pHDRSEIsDst);
 
 /*@}*/
 

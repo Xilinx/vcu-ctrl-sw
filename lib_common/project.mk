@@ -14,13 +14,12 @@ LIB_COMMON_SRC:=\
   lib_common/BufferLookAheadMeta.c\
   lib_common/BufferHandleMeta.c\
   lib_common/BufferSeiMeta.c\
-	lib_common/BufferStatisticsMeta.c\
+  lib_common/BufferStatisticsMeta.c\
   lib_common/Fifo.c\
   lib_common/LevelLimit.c\
   lib_common/StreamBuffer.c\
   lib_common/FourCC.c\
   lib_common/HardwareDriver.c\
-  lib_common/HDR.c\
   lib_common/PixMapBuffer.c\
   lib_common/SyntaxConversion.c\
   lib_common/IntVector.c\
@@ -36,5 +35,8 @@ ifneq ($(ENABLE_HEVC),0)
   LIB_COMMON_SRC+=lib_common/HevcUtils.c
 endif
 
+ifneq ($(ENABLE_HIGH_DYNAMIC_RANGE),0)
+  LIB_COMMON_SRC+=lib_common/HDR.c
+endif
 
 

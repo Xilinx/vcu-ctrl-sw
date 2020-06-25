@@ -67,6 +67,7 @@
 #include "lib_parsing/I_PictMngr.h"
 #include "lib_decode/I_DecScheduler.h"
 #include "lib_common_dec/DecHook.h"
+#include "lib_common_dec/HDRMeta.h"
 
 #include "lib_assert/al_assert.h"
 
@@ -280,21 +281,97 @@ static void AL_sDecoder_CallDecode(AL_TDecCtx* pCtx, int iFrameID)
 }
 
 /*****************************************************************************/
+static void BuildCurrentHRD(AL_TDecCtx* pCtx, AL_TBuffer* pFrameToDisplay, bool bStartsNewCVS)
+{
+  AL_THDRMetaData* pMeta = (AL_THDRMetaData*)AL_Buffer_GetMetaData(pFrameToDisplay, AL_META_TYPE_HDR);
+
+  if(pMeta != NULL)
+  {
+    if(bStartsNewCVS)
+    {
+      pCtx->aup.tActiveHDRSEIs.bHasMDCV = false;
+      pCtx->aup.tActiveHDRSEIs.bHasCLL = false;
+      pCtx->aup.tActiveHDRSEIs.bHasST2094_10 = false;
+    }
+
+    if(pMeta->tHDRSEIs.bHasMDCV)
+    {
+      pCtx->aup.tActiveHDRSEIs.bHasMDCV = true;
+      pCtx->aup.tActiveHDRSEIs.tMDCV = pMeta->tHDRSEIs.tMDCV;
+    }
+    else if(pCtx->aup.tActiveHDRSEIs.bHasMDCV)
+    {
+      pMeta->tHDRSEIs.bHasMDCV = true;
+      pMeta->tHDRSEIs.tMDCV = pCtx->aup.tActiveHDRSEIs.tMDCV;
+    }
+
+    if(pMeta->tHDRSEIs.bHasCLL)
+    {
+      pCtx->aup.tActiveHDRSEIs.bHasCLL = true;
+      pCtx->aup.tActiveHDRSEIs.tCLL = pMeta->tHDRSEIs.tCLL;
+    }
+    else if(pCtx->aup.tActiveHDRSEIs.bHasCLL)
+    {
+      pMeta->tHDRSEIs.bHasCLL = true;
+      pMeta->tHDRSEIs.tCLL = pCtx->aup.tActiveHDRSEIs.tCLL;
+    }
+
+    if(pMeta->tHDRSEIs.bHasST2094_10)
+    {
+      pCtx->aup.tActiveHDRSEIs.bHasST2094_10 = true;
+      pCtx->aup.tActiveHDRSEIs.tST2094_10 = pMeta->tHDRSEIs.tST2094_10;
+    }
+    else if(pCtx->aup.tActiveHDRSEIs.bHasST2094_10)
+    {
+      pMeta->tHDRSEIs.bHasST2094_10 = true;
+      pMeta->tHDRSEIs.tST2094_10 = pCtx->aup.tActiveHDRSEIs.tST2094_10;
+    }
+
+    if(pMeta->tHDRSEIs.bHasST2094_40)
+    {
+      pCtx->aup.tActiveHDRSEIs.bHasST2094_40 = true;
+      pCtx->aup.tActiveHDRSEIs.tST2094_40 = pMeta->tHDRSEIs.tST2094_40;
+    }
+    else if(pCtx->aup.tActiveHDRSEIs.bHasST2094_40)
+    {
+      pMeta->tHDRSEIs.bHasST2094_40 = true;
+      pMeta->tHDRSEIs.tST2094_40 = pCtx->aup.tActiveHDRSEIs.tST2094_40;
+    }
+  }
+}
+
+/*****************************************************************************/
+static bool AL_sDecoder_TryDisplayOneFrame(AL_TDecCtx* pCtx, int iFrameID)
+{
+  bool bEarlyDisplay = iFrameID != -1;
+  AL_TInfoDecode tInfo = { 0 };
+  bool bStartsNewCVS = false;
+  AL_TBuffer* pFrameToDisplay = NULL;
+
+  if(bEarlyDisplay)
+    pFrameToDisplay = AL_PictMngr_ForceDisplayBuffer(&pCtx->PictMngr, &tInfo, &bStartsNewCVS, iFrameID);
+  else
+    pFrameToDisplay = AL_PictMngr_GetDisplayBuffer(&pCtx->PictMngr, &tInfo, &bStartsNewCVS);
+
+  if(pFrameToDisplay == NULL)
+    return false;
+
+  AL_Assert(AL_Buffer_GetData(pFrameToDisplay));
+
+  BuildCurrentHRD(pCtx, pFrameToDisplay, bStartsNewCVS);
+
+  if(bEarlyDisplay || !pCtx->pChanParam->bUseEarlyCallback)
+    pCtx->displayCB.func(pFrameToDisplay, &tInfo, pCtx->displayCB.userParam);
+  AL_PictMngr_SignalCallbackDisplayIsDone(&pCtx->PictMngr);
+
+  return true;
+}
+
+/*****************************************************************************/
 static void AL_sDecoder_CallDisplay(AL_TDecCtx* pCtx)
 {
-  while(1)
+  while(AL_sDecoder_TryDisplayOneFrame(pCtx, -1))
   {
-    AL_TInfoDecode pInfo = { 0 };
-    AL_TBuffer* pFrameToDisplay = AL_PictMngr_GetDisplayBuffer(&pCtx->PictMngr, &pInfo);
-
-    if(!pFrameToDisplay)
-      break;
-
-    AL_Assert(AL_Buffer_GetData(pFrameToDisplay));
-
-    if(!pCtx->pChanParam->bUseEarlyCallback)
-      pCtx->displayCB.func(pFrameToDisplay, &pInfo, pCtx->displayCB.userParam);
-    AL_PictMngr_SignalCallbackDisplayIsDone(&pCtx->PictMngr);
   }
 }
 
@@ -339,11 +416,7 @@ void AL_Default_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus)
     AL_TBuffer* pDecodedFrame = AL_PictMngr_GetDisplayBufferFromID(&pCtx->PictMngr, iFrameID);
     AL_Assert(pDecodedFrame);
     pCtx->endDecodingCB.func(pDecodedFrame, pCtx->endDecodingCB.userParam);
-    AL_TInfoDecode info = { 0 };
-    AL_TBuffer* pFrameToDisplay = AL_PictMngr_ForceDisplayBuffer(&pCtx->PictMngr, &info, iFrameID);
-    AL_Assert(pFrameToDisplay);
-    pCtx->displayCB.func(pFrameToDisplay, &info, pCtx->displayCB.userParam);
-    AL_PictMngr_SignalCallbackDisplayIsDone(&pCtx->PictMngr);
+    AL_Assert(AL_sDecoder_TryDisplayOneFrame(pCtx, iFrameID));
     return;
   }
 
@@ -558,18 +631,6 @@ static bool isPrefixSei(AL_ECodec eCodec, AL_ENut eNut)
 }
 
 /*****************************************************************************/
-static bool isIRAP(AL_ECodec eCodec, AL_ENut eNut)
-{
-
-  if(isAVC(eCodec))
-    return eNut == AL_AVC_NUT_VCL_IDR;
-
-  if(isHEVC(eCodec))
-    return eNut == AL_HEVC_NUT_BLA_W_LP || eNut == AL_HEVC_NUT_BLA_W_RADL || eNut == AL_HEVC_NUT_BLA_N_LP || eNut == AL_HEVC_NUT_IDR_W_RADL || eNut == AL_HEVC_NUT_IDR_N_LP || eNut == AL_HEVC_NUT_CRA;
-  return false;
-}
-
-/*****************************************************************************/
 static bool checkSeiUUID(uint8_t* pBufs, AL_TNal* pNal, AL_ECodec codec, int iTotalSize)
 {
   int const iTotalUUIDSize = isAVC(codec) ? 25 : 26;
@@ -667,7 +728,7 @@ static bool isFirstSliceNAL(AL_TNal* pNal, AL_TBuffer* pStream, AL_ECodec eCodec
 }
 
 /*****************************************************************************/
-static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* pLastStartCodeInDecodingUnit, int* iLastVclNalInDecodingUnit, bool* pNewCVSStarts)
+static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* pLastStartCodeInDecodingUnit, int* iLastVclNalInDecodingUnit)
 {
   if(!enoughStartCode(pCtx->uNumSC))
     return false;
@@ -678,7 +739,6 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* p
   int iNalFound = 0;
   AL_ECodec const eCodec = pCtx->pChanParam->eCodec;
   int const iNalCount = (int)pCtx->uNumSC;
-  *pNewCVSStarts = false;
 
   for(int iNal = 0; iNal < iNalCount; ++iNal)
   {
@@ -746,9 +806,6 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* p
             return true;
           }
         }
-
-        if(bIsFirstSlice && isIRAP(eCodec, eNUT))
-          *pNewCVSStarts = true;
       }
 
       bVCLNalSeen = true;
@@ -804,12 +861,6 @@ static AL_NonVclNuts AL_GetNonVclNuts(AL_TDecCtx* pCtx)
   AL_Assert(false && "Unsupported codec");
   AL_NonVclNuts wrongNuts;
   return wrongNuts;
-}
-
-/*****************************************************************************/
-static void StartNewCVS(AL_TDecCtx* pCtx)
-{
-  AL_HDRSEIs_Reset(&pCtx->aup.tHDRSEIs);
 }
 
 /*****************************************************************************/
@@ -912,11 +963,11 @@ static bool RefillStartCodes(AL_TDecCtx* pCtx, AL_TBuffer* pStream)
 }
 
 /*****************************************************************************/
-static int FindNextDecodingUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* iLastVclNalInAU, bool* pNewCVSStarts)
+static int FindNextDecodingUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* iLastVclNalInAU)
 {
   int iLastStartCodeIdx = 0;
 
-  while(!SearchNextDecodingUnit(pCtx, pStream, &iLastStartCodeIdx, iLastVclNalInAU, pNewCVSStarts))
+  while(!SearchNextDecodingUnit(pCtx, pStream, &iLastStartCodeIdx, iLastVclNalInAU))
   {
     if(!canStoreMoreStartCodes(pCtx))
     {
@@ -933,11 +984,9 @@ static int FindNextDecodingUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* iLas
 }
 
 /*****************************************************************************/
-static int FillNalInfo(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* iLastVclNalInAU, bool* pNewCVSStarts)
+static int FillNalInfo(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* iLastVclNalInAU)
 {
   pCtx->pInputBuffer = pStream;
-
-  *pNewCVSStarts = false;
 
   while(RefillStartCodes(pCtx, pStream) != false)
     ;
@@ -973,8 +1022,6 @@ static int FillNalInfo(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* iLastVclNalIn
 
       if(isFirstSliceNAL(pNal, pStream, eCodec))
       {
-        if(isIRAP(eCodec, eNUT))
-          *pNewCVSStarts = true;
         break;
       }
     }
@@ -1035,7 +1082,7 @@ static void GetNalOrder(AL_TDecCtx* pCtx, AL_TNal* nals, int iNalCount, int iLas
 }
 
 /*****************************************************************************/
-static UNIT_ERROR DecodeOneUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int iNalCount, int iLastVclNalInAU, bool bNewCVSStarts)
+static UNIT_ERROR DecodeOneUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int iNalCount, int iLastVclNalInAU)
 {
   AL_TNal* nals = (AL_TNal*)pCtx->SCTable.tMD.pVirtualAddr;
 
@@ -1049,9 +1096,6 @@ static UNIT_ERROR DecodeOneUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int iNalC
 
   int iNumSlice = 0;
   bool bIsEndOfFrame = false;
-
-  if(bNewCVSStarts)
-    StartNewCVS(pCtx);
 
   // In split input, after we sent the last vcl nal, we can get the end parsing
   // for the current buffer, which will release it. This means accessing that
@@ -1127,15 +1171,14 @@ UNIT_ERROR AL_Default_Decoder_TryDecodeOneUnit(AL_TDecoder* pAbsDec, AL_TBuffer*
 {
   AL_TDecCtx* pCtx = AL_sGetContext(pAbsDec);
 
-  bool bNewCVSStarts = false;
   int iLastVclNalInAU = -1;
-  int iNalCount = pCtx->eInputMode == AL_DEC_SPLIT_INPUT ? FillNalInfo(pCtx, pStream, &iLastVclNalInAU, &bNewCVSStarts)
-                  : FindNextDecodingUnit(pCtx, pStream, &iLastVclNalInAU, &bNewCVSStarts);
+  int iNalCount = pCtx->eInputMode == AL_DEC_SPLIT_INPUT ? FillNalInfo(pCtx, pStream, &iLastVclNalInAU)
+                  : FindNextDecodingUnit(pCtx, pStream, &iLastVclNalInAU);
 
   if(iNalCount == 0)
     return ERR_UNIT_NOT_FOUND;
 
-  return DecodeOneUnit(pCtx, pStream, iNalCount, iLastVclNalInAU, bNewCVSStarts);
+  return DecodeOneUnit(pCtx, pStream, iNalCount, iLastVclNalInAU);
 }
 
 /*****************************************************************************/
@@ -1619,6 +1662,9 @@ static void InitAUP(AL_TDecCtx* pCtx)
 
   if(isHEVC(pCtx->pChanParam->eCodec))
     AL_HEVC_InitAUP(&pCtx->aup.hevcAup);
+
+  AL_HDRSEIs_Reset(&pCtx->aup.tParsedHDRSEIs);
+  AL_HDRSEIs_Reset(&pCtx->aup.tActiveHDRSEIs);
 }
 
 /*****************************************************************************/

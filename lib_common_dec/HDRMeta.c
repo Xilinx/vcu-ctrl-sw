@@ -78,6 +78,7 @@ AL_THDRMetaData* AL_HDRMetaData_Create(void)
 
 void AL_HDRMetaData_Reset(AL_THDRMetaData* pMeta)
 {
+  pMeta->eColourDescription = AL_COLOUR_DESC_UNSPECIFIED;
   pMeta->eTransferCharacteristics = AL_TRANSFER_CHARAC_UNSPECIFIED;
   pMeta->eColourMatrixCoeffs = AL_COLOUR_MAT_COEFF_UNSPECIFIED;
   AL_HDRSEIs_Reset(&pMeta->tHDRSEIs);

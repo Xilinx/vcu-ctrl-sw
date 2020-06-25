@@ -48,7 +48,7 @@ void PixMapBufPool::AddChunk(size_t zSize, const std::vector<AL_TPlaneDescriptio
   vPlaneChunks.push_back(PlaneChunk { zSize, vPlDescriptions });
 }
 
-AL_TBuffer* PixMapBufPool::CreateBuffer(AL_TAllocator* pAllocator, PFN_RefCount_CallBack pBufCallback)
+AL_TBuffer* PixMapBufPool::CreateBuffer(AL_TAllocator* pAllocator, PFN_RefCount_CallBack pBufCallback, char const* name)
 {
   AL_TBuffer* pBuf = AL_PixMapBuffer_Create(pAllocator, pBufCallback, tDim, tFourCC);
 
@@ -57,7 +57,7 @@ AL_TBuffer* PixMapBufPool::CreateBuffer(AL_TAllocator* pAllocator, PFN_RefCount_
 
   for(auto curChunk = vPlaneChunks.begin(); curChunk != vPlaneChunks.end(); curChunk++)
   {
-    if(!AL_PixMapBuffer_Allocate_And_AddPlanes(pBuf, curChunk->zSize, &curChunk->vPlDescriptions[0], curChunk->vPlDescriptions.size()))
+    if(!AL_PixMapBuffer_Allocate_And_AddPlanes(pBuf, curChunk->zSize, &curChunk->vPlDescriptions[0], curChunk->vPlDescriptions.size(), name))
     {
       AL_Buffer_Destroy(pBuf);
       return NULL;
@@ -67,7 +67,7 @@ AL_TBuffer* PixMapBufPool::CreateBuffer(AL_TAllocator* pAllocator, PFN_RefCount_
   return pBuf;
 }
 
-int PixMapBufPool::Init(AL_TAllocator* pAllocator, uint32_t uNumBuf)
+int PixMapBufPool::Init(AL_TAllocator* pAllocator, uint32_t uNumBuf, const char* name)
 {
   size_t zBufSize = 0;
 
@@ -80,7 +80,7 @@ int PixMapBufPool::Init(AL_TAllocator* pAllocator, uint32_t uNumBuf)
   // Create uMin free buffers
   while(m_pool.uNumBuf < uNumBuf)
   {
-    AL_TBuffer* pBuf = CreateBuffer(pAllocator, BaseBufPool::FreeBufInPool);
+    AL_TBuffer* pBuf = CreateBuffer(pAllocator, BaseBufPool::FreeBufInPool, name);
 
     if(!AddBuf(pBuf))
     {

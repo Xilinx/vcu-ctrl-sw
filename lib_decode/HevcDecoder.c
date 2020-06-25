@@ -661,11 +661,12 @@ static bool isValidSyncPoint(AL_TDecCtx* pCtx, AL_ENut eNUT, AL_ESliceType ePicT
 }
 
 /*****************************************************************************/
-static bool hevcInitFrameBuffers(AL_TDecCtx* pCtx, const AL_THevcSps* pSPS, AL_THDRSEIs* pHDRSEIs, AL_TDecPicParam* pPP, AL_TDecPicBuffers* pBufs)
+static bool hevcInitFrameBuffers(AL_TDecCtx* pCtx, bool bStartsNewCVS, const AL_THevcSps* pSPS, AL_TDecPicParam* pPP, AL_TDecPicBuffers* pBufs)
 {
+  (void)bStartsNewCVS;
   AL_TDimension const tDim = { pSPS->pic_width_in_luma_samples, pSPS->pic_height_in_luma_samples };
 
-  if(!AL_InitFrameBuffers(pCtx, pBufs, tDim, pPP))
+  if(!AL_InitFrameBuffers(pCtx, pBufs, bStartsNewCVS, tDim, pPP))
     return false;
 
   AL_TBuffer* pDispBuf = AL_PictMngr_GetDisplayBufferFromID(&pCtx->PictMngr, pPP->tBufIDs.FrmID);
@@ -673,10 +674,12 @@ static bool hevcInitFrameBuffers(AL_TDecCtx* pCtx, const AL_THevcSps* pSPS, AL_T
 
   if(pMeta != NULL)
   {
+    AL_THDRSEIs* pHDRSEIs = &pCtx->aup.tParsedHDRSEIs;
     pMeta->eColourDescription = AL_H273_ColourPrimariesToColourDesc(pSPS->vui_param.colour_primaries);
     pMeta->eTransferCharacteristics = pSPS->vui_param.transfer_characteristics;
     pMeta->eColourMatrixCoeffs = pSPS->vui_param.matrix_coefficients;
-    pMeta->tHDRSEIs = *pHDRSEIs;
+    AL_HDRSEIs_Copy(pHDRSEIs, &pMeta->tHDRSEIs);
+    AL_HDRSEIs_Reset(pHDRSEIs);
   }
 
   return true;
@@ -817,7 +820,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
 
   if(!(*bBeginFrameIsValid) && pSlice->pSPS)
   {
-    if(!hevcInitFrameBuffers(pCtx, pSlice->pSPS, &pIAUP->tHDRSEIs, pPP, pBufs))
+    if(!hevcInitFrameBuffers(pCtx, bIsRAP, pSlice->pSPS, pPP, pBufs))
       return;
     *bBeginFrameIsValid = true;
     AL_HEVC_PictMngr_UpdateRecInfo(&pCtx->PictMngr, pSlice->pSPS, pAUP->ePicStruct);

@@ -69,10 +69,11 @@ void AL_LaunchSliceDecoding(AL_TDecCtx* pCtx, bool bIsLastAUNal, bool hasPreviou
    \brief The AL_InitFrameBuffers function intializes the frame buffers needed to process the current frame decoding
    \param[in]  pCtx              Pointer to a decoder context object
    \param[in]  pBufs             Pointer to the current picture buffers
+   \param[in]  bStartsNewCVS     True if the next frame starts a new CVS, false otherwise
    \param[in]  tDim              Picture dimension (width, height) in pixel unit
    \param[in]  pPP               Pointer to the current picture parameters
 *****************************************************************************/
-bool AL_InitFrameBuffers(AL_TDecCtx* pCtx, AL_TDecPicBuffers* pBufs, AL_TDimension tDim, AL_TDecPicParam* pPP);
+bool AL_InitFrameBuffers(AL_TDecCtx* pCtx, AL_TDecPicBuffers* pBufs, bool bStartsNewCVS, AL_TDimension tDim, AL_TDecPicParam* pPP);
 
 /*************************************************************************//*!
    \brief The AL_CancelFrameBuffers function reverts the frame buffers initialization done by AL_InitFrameBuffers in case of late error detection

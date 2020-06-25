@@ -293,6 +293,11 @@ bool CEncCmdMngr::ParseCmd(std::string sLine, TFrmCmd& Cmd, bool bSameFrame)
       Cmd.bSetLFTcOffset = true;
       Cmd.iLFTcOffset = int(Tok.GetValue());
     }
+    else if(Tok == "HDRIndex")
+    {
+      Cmd.bChangeHDR = true;
+      Cmd.iHDRIdx = int(Tok.GetValue());
+    }
   }
 
   return true;
@@ -366,6 +371,9 @@ void CEncCmdMngr::Process(ICommandsSender* sender, int iFrame)
 
       if(m_Cmds.front().bSetLFTcOffset)
         sender->setLFTcOffset(m_Cmds.front().iLFTcOffset);
+
+      if(m_Cmds.front().bChangeHDR)
+        sender->setHDRIndex(m_Cmds.front().iHDRIdx);
     }
 
     if(bRefill)

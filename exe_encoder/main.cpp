@@ -587,7 +587,7 @@ shared_ptr<AL_TBuffer> AllocateConversionBuffer(int iWidth, int iHeight, TFourCC
     assert(0 && "Unknown chroma mode");
   }
 
-  if(!AL_PixMapBuffer_Allocate_And_AddPlanes(pBuf, iSrcSize, &vPlaneDesc[0], vPlaneDesc.size()))
+  if(!AL_PixMapBuffer_Allocate_And_AddPlanes(pBuf, iSrcSize, &vPlaneDesc[0], vPlaneDesc.size(), "conversion frame buffer"))
     return nullptr;
 
   return sharedBuf;
@@ -832,7 +832,7 @@ static TFrameInfo GetFrameInfo(AL_TEncChanParam& tChParam)
 static void InitSrcBufPool(AL_TAllocator* pAllocator, bool shouldConvert, unique_ptr<IConvSrc>& pSrcConv, TFrameInfo& FrameInfo, AL_ESrcMode eSrcMode, int frameBuffersCount, PixMapBufPool& SrcBufPool)
 {
   ConfigureSrcBufPool(SrcBufPool, FrameInfo, eSrcMode);
-  bool ret = SrcBufPool.Init(pAllocator, frameBuffersCount);
+  bool ret = SrcBufPool.Init(pAllocator, frameBuffersCount, "input");
   assert(ret);
 
   if(!shouldConvert)

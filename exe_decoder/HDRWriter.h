@@ -35,28 +35,43 @@
 *
 ******************************************************************************/
 
+/****************************************************************************
+   -----------------------------------------------------------------------------
+ **************************************************************************//*!
+   \addtogroup ExeDecoder
+   @{
+   \file
+ *****************************************************************************/
 #pragma once
 
-#include "BitStreamLite.h"
-#include "lib_common/SPS.h"
-#include "lib_common/PPS.h"
-#include "lib_common/HDR.h"
+#include <fstream>
+#include <string>
+#include "lib_app/JsonFile.h"
 
-typedef struct rbspWriter
+extern "C"
 {
-  AL_ECodec (* GetCodec)(void);
-  void (* WriteAUD)(AL_TBitStreamLite* writer, AL_ESliceType eSliceType);
-  void (* WriteVPS)(AL_TBitStreamLite* writer, AL_THevcVps const* pVps);
-  void (* WriteSPS)(AL_TBitStreamLite* writer, AL_TSps const* pSps, int iLayerId);
-  void (* WritePPS)(AL_TBitStreamLite* writer, AL_TPps const* pPps);
-  void (* WriteSEI_ActiveParameterSets)(AL_TBitStreamLite* writer, AL_THevcVps const* pVps, AL_TSps const* pISps);
-  void (* WriteSEI_BufferingPeriod)(AL_TBitStreamLite* writer, AL_TSps const* pISps, int iInitialCpbRemovalDelay, int iInitialCpbRemovalOffset);
-  void (* WriteSEI_RecoveryPoint)(AL_TBitStreamLite* writer, int iRecoveryFrameCount);
-  void (* WriteSEI_PictureTiming)(AL_TBitStreamLite* writer, AL_TSps const* pISps, int iAuCpbRemovalDelay, int iPicDpbOutputDelay, int iPicStruct);
-  void (* WriteSEI_MasteringDisplayColourVolume)(AL_TBitStreamLite* writer, AL_TMasteringDisplayColourVolume* pMDCV);
-  void (* WriteSEI_ContentLightLevel)(AL_TBitStreamLite* writer, AL_TContentLightLevel* pCLL);
-  void (* WriteSEI_ST2094_10)(AL_TBitStreamLite* writer, AL_TDynamicMeta_ST2094_10* pST2094_10);
-  void (* WriteSEI_ST2094_40)(AL_TBitStreamLite* writer, AL_TDynamicMeta_ST2094_40* pST2094_40);
-  void (* WriteSEI_UserDataUnregistered)(AL_TBitStreamLite* writer, uint8_t uuid[16], int8_t numSlices);
-}IRbspWriter;
+#include "lib_common/HDR.h"
+}
 
+/*************************************************************************//*!
+   \brief HDR SEI file writer
+*****************************************************************************/
+class HDRWriter
+{
+public:
+  explicit HDRWriter(const std::string& sHDRFile);
+
+  bool WriteHDRSEIs(AL_EColourDescription eColourDesc, AL_ETransferCharacteristics eTransferCharacteristics, AL_EColourMatrixCoefficients eMatrixCoeffs, AL_THDRSEIs& tHDRSEIs);
+
+private:
+  CJsonWriter jsonWriter;
+
+  void BuildJson(AL_EColourDescription eColourDesc, AL_ETransferCharacteristics eTransferCharacteristics, AL_EColourMatrixCoefficients eMatrixCoeffs, AL_THDRSEIs& tHDRSEIs, TJsonValue& tSEIRoot);
+  void BuildSEIs(AL_THDRSEIs& tHDRSEIs, TJsonValue& tSEIRoot);
+  void BuildMasteringDisplayColorVolume(AL_TMasteringDisplayColourVolume& tMDCV, TJsonValue& tSEIObject);
+  void BuildContentLightLevel(AL_TContentLightLevel& tCLL, TJsonValue& tSEIObject);
+  void BuildST2094_10(AL_TDynamicMeta_ST2094_10& tST2094_10, TJsonValue& tSEIObject);
+  void BuildST2094_40(AL_TDynamicMeta_ST2094_40& tST2094_40, TJsonValue& tSEIObject);
+  void BuildST2094_40ProcessingWindow(AL_TDynamicMeta_ST2094_40& tST2094_40, int iWindow, TJsonValue& tPWObject);
+  void BuildST2094_40PeakLuminance(AL_TDisplayPeakLuminance_ST2094_40& tPeakLuminance, TJsonValue& tPLRootObject, std::string sKey);
+};

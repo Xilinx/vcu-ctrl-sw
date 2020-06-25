@@ -57,8 +57,6 @@
 
 #include "lib_assert/al_assert.h"
 
-static const AL_HLSInfo DEFAULT_HLS_INFO = { 0 };
-
 /***************************************************************************/
 static bool shouldUseDynamicLambda(AL_TEncChanParam const* pChParam)
 {
@@ -115,13 +113,12 @@ static void releaseSource(AL_TEncCtx* pCtx, AL_TBuffer* pSrc, AL_TFrameInfo* pFI
 }
 
 /****************************************************************************/
-static bool AL_Common_Encoder_InitBuffers(AL_TEncCtx* pCtx, AL_TAllocator* pAllocator, TBufferEP* pBufEP1, TBufferEP* pBufEP4)
+static bool AL_Common_Encoder_InitBuffers(AL_TAllocator* pAllocator, TBufferEP* pBufEP1, TBufferEP* pBufEP4)
 {
   (void)pBufEP4;
   bool bRet = MemDesc_AllocNamed(&pBufEP1->tMD, pAllocator, AL_GetAllocSizeEP1(), "ep1");
 
   pBufEP1->uFlags = 0;
-  pCtx->iCurPool = 0;
   return bRet;
 }
 
@@ -131,7 +128,7 @@ static bool init(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TAllocator* pA
   TBufferEP* pEP1 = &pCtx->tLayerCtx[0].tBufEP1;
   TBufferEP* pEP4 = NULL;
 
-  if(!AL_Common_Encoder_InitBuffers(pCtx, pAllocator, pEP1, pEP4))
+  if(!AL_Common_Encoder_InitBuffers(pAllocator, pEP1, pEP4))
     return false;
 
   AL_SrcBuffersChecker_Init(&pCtx->tLayerCtx[0].srcBufferChecker, pChParam);
@@ -141,9 +138,8 @@ static bool init(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TAllocator* pA
   for(int iLayer = 0; iLayer < MAX_NUM_LAYER; iLayer++)
     pCtx->bEndOfStreamReceived[iLayer] = false;
 
-  pCtx->seiData.initialCpbRemovalDelay = pChParam->tRCParam.uInitialRemDelay;
-  pCtx->seiData.cpbRemovalDelay = 0;
-  AL_HDRSEIs_Reset(&pCtx->seiData.tHDRSEIs);
+  pCtx->initialCpbRemovalDelay = pChParam->tRCParam.uInitialRemDelay;
+  pCtx->cpbRemovalDelay = 0;
 
   pCtx->tLayerCtx[0].iCurStreamSent = 0;
   pCtx->tLayerCtx[0].iCurStreamRecv = 0;
@@ -151,7 +147,7 @@ static bool init(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TAllocator* pA
 
   pCtx->eError = AL_SUCCESS;
 
-  Rtos_Memset(pCtx->Pool, 0, sizeof pCtx->Pool);
+  Rtos_Memset(pCtx->tFrameInfoPool.FrameInfos, 0, sizeof(pCtx->tFrameInfoPool.FrameInfos));
   Rtos_Memset(pCtx->SourceSent, 0, sizeof(pCtx->SourceSent));
 
   pCtx->Mutex = Rtos_CreateMutex();
@@ -247,35 +243,80 @@ void AL_Common_Encoder_ReleaseRecPicture(AL_TEncoder* pEnc, AL_TRecPic* pRecPic,
 
 void AL_Common_Encoder_ConfigureZapper(AL_TEncCtx* pCtx, AL_TEncInfo* pEncInfo);
 
-/* +1 / -1 business is needed as 0 == NULL is the error value of the fifo
- * this also means that GetNextPoolId returns -1 on error */
-
-static int GetNextPoolId(AL_TFifo* poolIds)
+/***************************************************************************/
+static bool GetNextPoolId(AL_TIDPool* pPool)
 {
-  return (int)((intptr_t)AL_Fifo_Dequeue(poolIds, AL_NO_WAIT)) - 1;
+  /* +1 / -1 business is needed as 0 == NULL is the error value of the fifo
+   * this also means that GetNextPoolId returns -1 on error */
+  pPool->iCurID = (int)((intptr_t)AL_Fifo_Dequeue(&pPool->tFreeIDs, AL_NO_WAIT)) - 1;
+  return pPool->iCurID != INVALID_POOL_ID;
 }
 
-static void GiveIdBackToPool(AL_TFifo* poolIds, int iPoolID)
+static void GiveIdBackToPool(AL_TIDPool* pPool, int iPoolID)
 {
-  AL_Fifo_Queue(poolIds, (void*)((intptr_t)(iPoolID + 1)), AL_NO_WAIT);
+  AL_Fifo_Queue(&pPool->tFreeIDs, (void*)((intptr_t)(iPoolID + 1)), AL_NO_WAIT);
 }
 
-static void DeinitPoolIds(AL_TEncCtx* pCtx)
+static void DeinitIDPool(AL_TIDPool* pPool)
 {
-  AL_Fifo_Deinit(&pCtx->iPoolIds);
+  pPool->iCurID = INVALID_POOL_ID;
+  AL_Fifo_Deinit(&pPool->tFreeIDs);
 }
 
-static bool InitPoolIds(AL_TEncCtx* pCtx)
+static bool InitIDPool(AL_TIDPool* pPool, int iPoolSize)
 {
-  if(!AL_Fifo_Init(&pCtx->iPoolIds, MAX_NUM_LAYER * ENC_MAX_CMD))
+  pPool->iCurID = INVALID_POOL_ID;
+
+  if(!AL_Fifo_Init(&pPool->tFreeIDs, iPoolSize))
     return false;
 
-  for(int i = 0; i < MAX_NUM_LAYER * ENC_MAX_CMD; ++i)
-    GiveIdBackToPool(&pCtx->iPoolIds, i);
+  for(int i = 0; i < iPoolSize; ++i)
+    GiveIdBackToPool(pPool, i);
 
   return true;
 }
 
+/***************************************************************************/
+static AL_TFrameInfo* GetNextFrameInfo(AL_TFrameInfoPool* pFrameInfoPool)
+{
+  AL_Assert(GetNextPoolId(&pFrameInfoPool->tIDPool));
+  return &pFrameInfoPool->FrameInfos[pFrameInfoPool->tIDPool.iCurID];
+}
+
+/***************************************************************************/
+static void IncrCurrentRefCount(AL_THDRPool* pHDRPool)
+{
+  pHDRPool->uRefCount[pHDRPool->tIDPool.iCurID]++;
+}
+
+static void DecrRefCount(AL_THDRPool* pHDRPool, int iID)
+{
+  AL_Assert(iID != INVALID_POOL_ID);
+  pHDRPool->uRefCount[iID]--;
+
+  if(pHDRPool->uRefCount[iID] == 0)
+    GiveIdBackToPool(&pHDRPool->tIDPool, iID);
+}
+
+static AL_THDRSEIs* GetHDRSEIs(AL_THDRPool* pHDRPool, int iID)
+{
+  if(iID == INVALID_POOL_ID)
+    return NULL;
+
+  return &pHDRPool->HDRSEIs[iID];
+}
+
+static AL_THDRSEIs* GetNextHDRSEIs(AL_THDRPool* pHDRPool)
+{
+  if(pHDRPool->tIDPool.iCurID != INVALID_POOL_ID)
+    DecrRefCount(pHDRPool, pHDRPool->tIDPool.iCurID);
+
+  AL_Assert(GetNextPoolId(&pHDRPool->tIDPool));
+  pHDRPool->uRefCount[pHDRPool->tIDPool.iCurID] = 1;
+  return GetHDRSEIs(pHDRPool, pHDRPool->tIDPool.iCurID);
+}
+
+/***************************************************************************/
 static bool EndOfStream(AL_TEncoder* pEnc, int iLayerID)
 {
   AL_TEncCtx* pCtx = pEnc->pCtx;
@@ -353,10 +394,15 @@ static bool CheckQPTable(AL_TEncCtx* pCtx, AL_TBuffer* pQpTable)
   return true;
 }
 
+#if AL_HAS_HLS_DYNAMIC_INFO
 /***************************************************************************/
-static void SetHLSInfos(AL_TEncRequestInfo* pReqInfo, AL_TFrameInfo* pFI)
+static void SetHLSInfos(AL_TEncCtx* pCtx, AL_TEncRequestInfo* pReqInfo, AL_TFrameInfo* pFI)
 {
-  pFI->tHLSUpdateInfo = DEFAULT_HLS_INFO;
+  (void)pCtx;
+  (void)pReqInfo;
+  pFI->tHLSUpdateInfo = (const AL_HLSInfo) {
+    0
+  };
 
   if(pReqInfo->eReqOptions & AL_OPT_SET_INPUT_RESOLUTION)
   {
@@ -370,7 +416,20 @@ static void SetHLSInfos(AL_TEncRequestInfo* pReqInfo, AL_TFrameInfo* pFI)
     pFI->tHLSUpdateInfo.iLFBetaOffset = pReqInfo->smartParams.iLFBetaOffset;
     pFI->tHLSUpdateInfo.iLFTcOffset = pReqInfo->smartParams.iLFTcOffset;
   }
+
+  pFI->tHLSUpdateInfo.bHDRChanged = pCtx->tHDRPool.bHDRChanged;
+  pFI->tHLSUpdateInfo.iHDRID = pCtx->tHDRPool.tIDPool.iCurID;
+
+  if(pFI->tHLSUpdateInfo.iHDRID != INVALID_POOL_ID)
+  {
+    Rtos_GetMutex(pCtx->Mutex);
+    IncrCurrentRefCount(&pCtx->tHDRPool);
+    Rtos_ReleaseMutex(pCtx->Mutex);
+    pCtx->tHDRPool.bHDRChanged = false;
+  }
 }
+
+#endif
 
 /***************************************************************************/
 bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer* pQpTable, int iLayerID)
@@ -403,14 +462,13 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
     return false;
 
   AL_Common_Encoder_WaitReadiness(pCtx);
-  pCtx->iCurPool = GetNextPoolId(&pCtx->iPoolIds);
 
   const int AL_DEFAULT_PPS_QP_26 = 26;
-  AL_TFrameInfo* pFI = &pCtx->Pool[pCtx->iCurPool];
+  AL_TFrameInfo* pFI = GetNextFrameInfo(&pCtx->tFrameInfoPool);
   AL_TEncInfo* pEI = &pFI->tEncInfo;
   AL_TEncPicBufAddrs addresses = { 0 };
 
-  pEI->UserParam = pCtx->iCurPool;
+  pEI->UserParam = pCtx->tFrameInfoPool.tIDPool.iCurID;
   pEI->iPpsQP = AL_DEFAULT_PPS_QP_26;
 
   AL_Common_Encoder_SetEncodingOptions(pCtx, pFI, iLayerID);
@@ -449,7 +507,9 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
   if(pCtx->pSettings->LookAhead > 0 || pCtx->pSettings->TwoPass == 2)
     AL_Common_Encoder_ProcessLookAheadParam(pEnc, pEI, pFrame);
 
-  SetHLSInfos(pReqInfo, pFI);
+#if AL_HAS_HLS_DYNAMIC_INFO
+  SetHLSInfos(pCtx, pReqInfo, pFI);
+#endif
 
   if(!pCtx->bEncodingStarted)
     pCtx->bEncodingStarted = true;
@@ -780,7 +840,8 @@ static void destroyChannels(AL_TEncCtx* pCtx)
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
     DeinitBuffers(&pCtx->tLayerCtx[i]);
 
-  DeinitPoolIds(pCtx);
+  DeinitIDPool(&pCtx->tFrameInfoPool.tIDPool);
+  DeinitIDPool(&pCtx->tHDRPool.tIDPool);
 
   ResetSettings(pCtx);
 }
@@ -1105,29 +1166,27 @@ bool AL_Common_Encoder_SetLoopFilterTcOffset(AL_TEncoder* pEnc, int8_t iTcOffset
 bool AL_Common_Encoder_SetHDRSEIs(AL_TEncoder* pEnc, AL_THDRSEIs* pHDRSEIs)
 {
   AL_TEncCtx* pCtx = pEnc->pCtx;
-  bool bValidCmd = false;
 
-  if(!pCtx->bEncodingStarted)
-  {
-    if(pCtx->pSettings->uEnableSEI & AL_SEI_MDCV)
-    {
-      pCtx->seiData.tHDRSEIs.bHasMDCV = pHDRSEIs->bHasMDCV;
-      pCtx->seiData.tHDRSEIs.tMDCV = pHDRSEIs->tMDCV;
-      bValidCmd = true;
-    }
-
-    if(pCtx->pSettings->uEnableSEI & AL_SEI_CLL)
-    {
-      pCtx->seiData.tHDRSEIs.bHasCLL = pHDRSEIs->bHasCLL;
-      pCtx->seiData.tHDRSEIs.tCLL = pHDRSEIs->tCLL;
-      bValidCmd = true;
-    }
-  }
-
-  if(!bValidCmd)
+  if((pHDRSEIs->bHasMDCV && !(pCtx->pSettings->uEnableSEI & AL_SEI_MDCV)) ||
+     (pHDRSEIs->bHasCLL && !(pCtx->pSettings->uEnableSEI & AL_SEI_CLL)) ||
+     (pHDRSEIs->bHasST2094_10 && !(pCtx->pSettings->uEnableSEI & AL_SEI_ST2094_10)) ||
+     (pHDRSEIs->bHasST2094_40 && !(pCtx->pSettings->uEnableSEI & AL_SEI_ST2094_40)))
     AL_RETURN_ERROR(AL_ERR_CMD_NOT_ALLOWED);
 
+  Rtos_GetMutex(pCtx->Mutex);
+  AL_THDRSEIs* pPoolSEIs = GetNextHDRSEIs(&pCtx->tHDRPool);
+  Rtos_ReleaseMutex(pCtx->Mutex);
+
+  AL_HDRSEIs_Copy(pHDRSEIs, pPoolSEIs);
+  pCtx->tHDRPool.bHDRChanged = true;
+
   return true;
+}
+
+/****************************************************************************/
+AL_HLSInfo* AL_GetHLSInfo(AL_TEncCtx* pCtx, int iPicID)
+{
+  return &pCtx->tFrameInfoPool.FrameInfos[iPicID].tHLSUpdateInfo;
 }
 
 static bool isSeiEnable(AL_ESeiFlag eFlags)
@@ -1140,8 +1199,9 @@ static bool isBaseLayer(int iLayer)
   return iLayer == 0;
 }
 
-AL_TNalsData AL_ExtractNalsData(AL_TEncCtx* pCtx, int iLayerID)
+AL_TNalsData AL_ExtractNalsData(AL_TEncCtx* pCtx, int iLayerID, int iPicID)
 {
+  (void)iPicID;
   AL_TNalsData data = { 0 };
   data.vps = &pCtx->vps;
   data.sps = &pCtx->tLayerCtx[iLayerID].sps;
@@ -1155,14 +1215,29 @@ AL_TNalsData AL_ExtractNalsData(AL_TEncCtx* pCtx, int iLayerID)
   if(pSettings->tChParam[0].bSubframeLatency)
     data.fillerCtrlMode = AL_FILLER_ENC;
 
-  if(!pCtx->seiData.tHDRSEIs.bHasMDCV)
+  AL_TFrameInfo* pFI = &pCtx->tFrameInfoPool.FrameInfos[iPicID];
+  AL_THDRSEIs* pHDRSEIs = GetHDRSEIs(&pCtx->tHDRPool, pFI->tHLSUpdateInfo.iHDRID);
+
+  data.seiData.pHDRSEIs = pHDRSEIs;
+  data.bMustWriteDynHDR = pFI->tHLSUpdateInfo.bHDRChanged;
+
+  if(pHDRSEIs == NULL || !pHDRSEIs->bHasMDCV)
     data.seiFlags &= ~AL_SEI_MDCV;
 
-  if(!pCtx->seiData.tHDRSEIs.bHasCLL)
+  if(pHDRSEIs == NULL || !pHDRSEIs->bHasCLL)
     data.seiFlags &= ~AL_SEI_CLL;
 
+  if(pHDRSEIs == NULL || !pHDRSEIs->bHasST2094_10)
+    data.seiFlags &= ~AL_SEI_ST2094_10;
+
+  if(pHDRSEIs == NULL || !pHDRSEIs->bHasST2094_40)
+    data.seiFlags &= ~AL_SEI_ST2094_40;
+
   if(isSeiEnable(data.seiFlags))
-    data.seiData = &pCtx->seiData;
+  {
+    data.seiData.initialCpbRemovalDelay = pCtx->initialCpbRemovalDelay;
+    data.seiData.cpbRemovalDelay = pCtx->cpbRemovalDelay;
+  }
 
   return data;
 }
@@ -1192,14 +1267,12 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
   AL_TBuffer* pStream = pCtx->tLayerCtx[iLayerID].StreamSent[streamId];
 
   int iPoolID = pPicStatus->UserParam;
-  AL_TFrameInfo* pFI = &pCtx->Pool[iPoolID];
-  AL_HLSInfo const* pHLSInfo = &DEFAULT_HLS_INFO;
-  pHLSInfo = &pFI->tHLSUpdateInfo;
+  AL_TFrameInfo* pFI = &pCtx->tFrameInfoPool.FrameInfos[iPoolID];
 
   if(!AL_IS_ERROR_CODE(pPicStatus->eErrorCode))
   {
     Rtos_GetMutex(pCtx->Mutex);
-    pCtx->encoder.updateHlsAndWriteSections(pCtx, pPicStatus, pHLSInfo, pStream, iLayerID);
+    pCtx->encoder.updateHlsAndWriteSections(pCtx, pPicStatus, pStream, iLayerID, iPoolID);
     Rtos_ReleaseMutex(pCtx->Mutex);
   }
 
@@ -1252,7 +1325,12 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
     ++pCtx->iFrameCountDone;
 
     if(pCtx->encoder.shouldReleaseSource(pPicStatus))
-      GiveIdBackToPool(&pCtx->iPoolIds, iPoolID);
+    {
+
+      if(pFI->tHLSUpdateInfo.iHDRID != INVALID_POOL_ID)
+        DecrRefCount(&pCtx->tHDRPool, pFI->tHLSUpdateInfo.iHDRID);
+      GiveIdBackToPool(&pCtx->tFrameInfoPool.tIDPool, iPoolID);
+    }
     Rtos_ReleaseMutex(pCtx->Mutex);
 
     Rtos_ReleaseSemaphore(pCtx->PendingEncodings);
@@ -1284,7 +1362,13 @@ AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncoder* pEnc, AL_IEncScheduler* pSch
     goto fail;
   }
 
-  if(!InitPoolIds(pCtx))
+  if(!InitIDPool(&pCtx->tFrameInfoPool.tIDPool, MAX_NUM_LAYER * ENC_MAX_CMD))
+  {
+    errorCode = AL_ERR_NO_MEMORY;
+    goto fail;
+  }
+
+  if(!InitIDPool(&pCtx->tHDRPool.tIDPool, ENC_MAX_CMD))
   {
     errorCode = AL_ERR_NO_MEMORY;
     goto fail;

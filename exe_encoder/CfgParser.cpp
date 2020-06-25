@@ -164,8 +164,8 @@ static void populateOutputSection(ConfigParser& parser, ConfigFile& cfg)
 
   parser.addArith(curSection, "CropPosX", cfg.Settings.tChParam[0].uOutputCropPosX, "Abscissa of the first pixel for output Crop. This crop information will be added to the stream header and will be applied by the decoder.");
   parser.addArith(curSection, "CropPosY", cfg.Settings.tChParam[0].uOutputCropPosY, "Ordinate of the first pixel for output Crop. This crop information will be added to the stream header and will be applied by the decoder.");
-  parser.addArith(curSection, "CropWidth", cfg.Settings.tChParam[0].uOutputCropWidth, "with of the output crop region. This crop information will be added to the stream header and will be applied by the decoder.");
-  parser.addArith(curSection, "CropHeight", cfg.Settings.tChParam[0].uOutputCropHeight, "height of the outpu crop region. This crop information will be added to the stream header and will be applied by the decoder.");
+  parser.addArith(curSection, "CropWidth", cfg.Settings.tChParam[0].uOutputCropWidth, "Width of the output crop region. This crop information will be added to the stream header and will be applied by the decoder.");
+  parser.addArith(curSection, "CropHeight", cfg.Settings.tChParam[0].uOutputCropHeight, "Height of the output crop region. This crop information will be added to the stream header and will be applied by the decoder.");
 }
 
 static void SetFpsAndClkRatio(int value, uint16_t& iFps, uint16_t& iClkRatio)
@@ -373,6 +373,8 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   seis["SEI_RP"] = AL_SEI_RP;
   seis["SEI_MDCV"] = AL_SEI_MDCV;
   seis["SEI_CLL"] = AL_SEI_CLL;
+  seis["SEI_ST2094_10"] = AL_SEI_ST2094_10;
+  seis["SEI_ST2094_40"] = AL_SEI_ST2094_40;
   seis["SEI_ALL"] = AL_SEI_ALL;
   parser.addEnum(curSection, "EnableSEI", cfg.Settings.uEnableSEI, seis, "Determines which Supplemental Enhancement Information are sent with the stream");
   parser.addBool(curSection, "EnableAUD", cfg.Settings.bEnableAUD, "Determines if Access Unit Delimiter are added to the stream or not");

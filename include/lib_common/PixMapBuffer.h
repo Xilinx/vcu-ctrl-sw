@@ -74,10 +74,11 @@ AL_TBuffer* AL_PixMapBuffer_Create(AL_TAllocator* pAllocator, PFN_RefCount_CallB
    \param[in] zSize The size of the memory chunk to allocate
    \param[in] pPlDescriptions Pointer to a list a planes description
    \param[in] iNbPlanes Number of planes of the list
+   \param[in] name The name of the buffer (For debug and allocation tracking purpose)
    \return Return true if memory has been allocated and planes added, false
    otherwise
 *****************************************************************************/
-bool AL_PixMapBuffer_Allocate_And_AddPlanes(AL_TBuffer* pBuf, size_t zSize, AL_TPlaneDescription* pPlDescriptions, int iNbPlanes);
+bool AL_PixMapBuffer_Allocate_And_AddPlanes(AL_TBuffer* pBuf, size_t zSize, AL_TPlaneDescription* pPlDescriptions, int iNbPlanes, const char* name);
 
 /*************************************************************************//*!
    \brief Add an already allocated memory chunk to store planes, and add the

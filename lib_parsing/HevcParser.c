@@ -925,9 +925,8 @@ static bool sei_recovery_point(AL_TRbspParser* pRP, AL_TRecoveryPoint* pRecovery
 
 #define SEI_PTYPE_ACTIVE_PARAMETER_SETS 129
 
-#define PARSE_OR_SKIP(ParseCmd) \
-  uint32_t uOffset = offset(pRP); \
-  bool bRet = ParseCmd; \
+#define CONTIUE_PARSE_OR_SKIP(ParseCmd) \
+  bRet = ParseCmd; \
   if(!bRet) \
   { \
     uOffset = offset(pRP) - uOffset; \
@@ -936,6 +935,11 @@ static bool sei_recovery_point(AL_TRbspParser* pRP, AL_TRecoveryPoint* pRecovery
     skip(pRP, (payload_size << 3) - uOffset); \
     break; \
   }
+
+#define PARSE_OR_SKIP(ParseCmd) \
+  uint32_t uOffset = offset(pRP); \
+  bool bRet; \
+  CONTIUE_PARSE_OR_SKIP(ParseCmd)
 
 /*****************************************************************************/
 bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB_ParsedSei* cb, AL_TSeiMetaData* pMeta)
@@ -1019,15 +1023,43 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB
     }
     case SEI_PTYPE_MASTERING_DISPLAY_COLOUR_VOLUME:
     {
-      PARSE_OR_SKIP(sei_mastering_display_colour_volume(&pIAup->tHDRSEIs.tMDCV, pRP));
-      pIAup->tHDRSEIs.bHasMDCV = true;
+      PARSE_OR_SKIP(sei_mastering_display_colour_volume(&pIAup->tParsedHDRSEIs.tMDCV, pRP));
+      pIAup->tParsedHDRSEIs.bHasMDCV = true;
       bCBAndSEIMeta = false;
       break;
     }
     case SEI_PTYPE_CONTENT_LIGHT_LEVEL:
     {
-      PARSE_OR_SKIP(sei_content_light_level(&pIAup->tHDRSEIs.tCLL, pRP));
-      pIAup->tHDRSEIs.bHasCLL = true;
+      PARSE_OR_SKIP(sei_content_light_level(&pIAup->tParsedHDRSEIs.tCLL, pRP));
+      pIAup->tParsedHDRSEIs.bHasCLL = true;
+      bCBAndSEIMeta = false;
+      break;
+    }
+    case SEI_PTYPE_USER_DATA_REGISTERED:
+    {
+      AL_EUserDataRegisterSEIType eSEIType;
+      PARSE_OR_SKIP((eSEIType = sei_user_data_registered(pRP)) != AL_UDR_SEI_UNKNOWN);
+      switch(eSEIType)
+      {
+      case AL_UDR_SEI_ST2094_10:
+      {
+        CONTIUE_PARSE_OR_SKIP(sei_st2094_10(&pIAup->tParsedHDRSEIs.tST2094_10, pRP));
+        pIAup->tParsedHDRSEIs.bHasST2094_10 = true;
+        break;
+      }
+      case AL_UDR_SEI_ST2094_40:
+      {
+        CONTIUE_PARSE_OR_SKIP(sei_st2094_40(&pIAup->tParsedHDRSEIs.tST2094_40, pRP));
+        pIAup->tParsedHDRSEIs.bHasST2094_40 = true;
+        break;
+      }
+      default:
+      {
+        AL_Assert(0);
+        break;
+      }
+      }
+
       bCBAndSEIMeta = false;
       break;
     }

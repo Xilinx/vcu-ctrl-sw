@@ -519,3 +519,20 @@
   Fixes:
     -- Potential race condition at scheduler level (especially with eInputMode == AL_DEC_SPLIT_INPUT)
     -- Several minors bugs
+
+2020-06-25 (v1.0.57)
+-------------------
+  Added Features:
+    -- HDR: added support of HLG, HDR10+ and DolbyVision metadata in encoder and decoder
+
+  API:
+    -- Version of the API is now 0.22.0
+    -- Add AL_Buffer_AllocateChunkNamed: Allocate and bind a new memory chunk to the buffer
+    -- Modify AL_PixMapBuffer_Allocate_And_AddPlanes: Add the name of the buffer (for debug and allocation tracking purpose)
+    -- Add AL_TRANSFER_CHARAC_BT_2100_HLG transfer characteristics
+    -- Add AL_TDynamicMeta_ST2094_10 dynamic SEI in AL_THDRSEIs structure
+    -- Add AL_TDynamicMeta_ST2094_40 dynamic SEI in AL_THDRSEIs structure
+    -- Function AL_Encoder_SetHDRSEIs can be called dynamically to change the value of ST2094_10 and ST2094_40 SEIs
+
+  Fixes:
+    -- Several minors bugs

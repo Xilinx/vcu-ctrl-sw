@@ -68,6 +68,7 @@ typedef struct
 
   int iNext;
   int iAccessCnt;
+  bool bStartsNewCVS;
   bool bWillBeOutputed;
   bool bOutEarly;
   uint32_t uCRC;
@@ -235,10 +236,11 @@ int32_t AL_PictMngr_GetCurrentPOC(AL_TPictMngrCtx* pCtx);
 /*************************************************************************//*!
    \brief This function prepares the Picture Manager context to new frame
        encoding; it shall be called before of each frame encoding.
-   \param[in] pCtx    Pointer to a Picture manager context object
-   \param[in] tDim    Picture dimension (width, height) in pixel unit
+   \param[in] pCtx          Pointer to a Picture manager context object
+   \param[in] bStartsNewCVS True if the next frame starts a new CVS, false otherwise
+   \param[in] tDim          Picture dimension (width, height) in pixel unit
 *****************************************************************************/
-bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, AL_TDimension tDim);
+bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, bool bStartsNewCVS, AL_TDimension tDim);
 
 /*************************************************************************//*!
    \brief This function prepares the Picture Manager context to new frame
@@ -291,13 +293,14 @@ void AL_PictMngr_EndDecoding(AL_TPictMngrCtx* pCtx, int iFrameID);
 
 /*************************************************************************//*!
    \brief This function returns the next picture buffer to be displayed
-   \param[in]  pCtx      Pointer to a Picture manager context object
-   \param[out] pInfo     Pointer to retrieve information about the decoded frame
+   \param[in]  pCtx           Pointer to a Picture manager context object
+   \param[out] pInfo          Pointer to retrieve information about the decoded frame
+   \param[out] pStartsNewCVS  True if next display picture starts a new CVS, false otherwise
    \return Pointer on the picture buffer to be displayed if it exists
    NULL otherwise
 *****************************************************************************/
-AL_TBuffer* AL_PictMngr_GetDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo);
-AL_TBuffer* AL_PictMngr_ForceDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo, int iFrameID);
+AL_TBuffer* AL_PictMngr_GetDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo, bool* pStartsNewCVS);
+AL_TBuffer* AL_PictMngr_ForceDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo, bool* pStartsNewCVS, int iFrameID);
 
 /*************************************************************************//*!
    \brief This function add a display frame buffer in the picture manager

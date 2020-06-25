@@ -10,6 +10,10 @@ EXE_DECODER_SRC:=\
   $(LIB_APP_SRC)\
 
 
+ifneq ($(ENABLE_HIGH_DYNAMIC_RANGE),0)
+  EXE_DECODER_SRC+=$(THIS_EXE_DECODER)/HDRWriter.cpp
+endif
+
 -include $(THIS_EXE_DECODER)/site.mk
 
 EXE_DECODER_OBJ:=$(EXE_DECODER_SRC:%=$(BIN)/%.o)

@@ -666,7 +666,7 @@ int32_t AL_PictMngr_GetCurrentPOC(AL_TPictMngrCtx* pCtx)
 }
 
 /***************************************************************************/
-bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, AL_TDimension tDim)
+bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, bool bStartsNewCVS, AL_TDimension tDim)
 {
   pCtx->uRecID = sFrmBufPoolFifo_Pop(&pCtx->FrmBufPool);
 
@@ -679,6 +679,8 @@ bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, AL_TDimension tDim)
   AL_TRecBuffers tBuffers = sFrmBufPool_GetBufferFromID(&pCtx->FrmBufPool, pCtx->uRecID);
 
   AL_PixMapBuffer_SetDimension(tBuffers.pFrame, tDim);
+
+  pCtx->FrmBufPool.array[pCtx->uRecID].bStartsNewCVS = bStartsNewCVS;
 
   return true;
 }
@@ -813,7 +815,7 @@ void AL_PictMngr_UnlockID(AL_TPictMngrCtx* pCtx, int iFrameID, int iMotionVector
 }
 
 /***************************************************************************/
-static void sFrmBufPool_GetInfoDecode(AL_TFrmBufPool* pPool, int iFrameID, AL_TInfoDecode* pInfo, AL_EFbStorageMode eFbStorageMode, int iBitdepth, bool bDisplayInfo)
+static void sFrmBufPool_GetInfoDecode(AL_TFrmBufPool* pPool, int iFrameID, AL_TInfoDecode* pInfo, bool* pStartsNewCVS, AL_EFbStorageMode eFbStorageMode, int iBitdepth, bool bDisplayInfo)
 {
   AL_Assert(pInfo);
 
@@ -831,10 +833,13 @@ static void sFrmBufPool_GetInfoDecode(AL_TFrmBufPool* pPool, int iFrameID, AL_TI
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
   AL_Assert(tFourCC != 0);
   pInfo->eChromaMode = AL_GetChromaMode(tFourCC);
+
+  if(pStartsNewCVS)
+    *pStartsNewCVS = pPool->array[iFrameID].bStartsNewCVS;
 }
 
 /***************************************************************************/
-static AL_TBuffer* AL_PictMngr_GetDisplayBuffer2(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo, int iFrameID)
+static AL_TBuffer* AL_PictMngr_GetDisplayBuffer2(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo, bool* pStartsNewCVS, int iFrameID)
 {
   if(iFrameID == UndefID)
     return NULL;
@@ -842,7 +847,7 @@ static AL_TBuffer* AL_PictMngr_GetDisplayBuffer2(AL_TPictMngrCtx* pCtx, AL_TInfo
   AL_EFbStorageMode eOutputStorageMode = pCtx->eFbStorageMode;
 
   if(pInfo)
-    sFrmBufPool_GetInfoDecode(&pCtx->FrmBufPool, iFrameID, pInfo, eOutputStorageMode, pCtx->iBitdepth, true);
+    sFrmBufPool_GetInfoDecode(&pCtx->FrmBufPool, iFrameID, pInfo, pStartsNewCVS, eOutputStorageMode, pCtx->iBitdepth, true);
 
   AL_TRecBuffers tRecBuffers = sFrmBufPool_GetBufferFromID(&pCtx->FrmBufPool, iFrameID);
 
@@ -850,7 +855,7 @@ static AL_TBuffer* AL_PictMngr_GetDisplayBuffer2(AL_TPictMngrCtx* pCtx, AL_TInfo
 }
 
 /***************************************************************************/
-AL_TBuffer* AL_PictMngr_ForceDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo, int iFrameID)
+AL_TBuffer* AL_PictMngr_ForceDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo, bool* pStartsNewCVS, int iFrameID)
 {
   AL_Assert(pCtx->bForceOutput);
   AL_TFrmBufPool* pPool = &pCtx->FrmBufPool;
@@ -858,16 +863,16 @@ AL_TBuffer* AL_PictMngr_ForceDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode
   AL_TFrameFifo* pFrame = &pPool->array[iFrameID];
   pFrame->bOutEarly = true;
   Rtos_ReleaseMutex(pPool->Mutex);
-  return AL_PictMngr_GetDisplayBuffer2(pCtx, pInfo, iFrameID);
+  return AL_PictMngr_GetDisplayBuffer2(pCtx, pInfo, pStartsNewCVS, iFrameID);
 }
 
 /*************************************************************************/
-AL_TBuffer* AL_PictMngr_GetDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo)
+AL_TBuffer* AL_PictMngr_GetDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo, bool* pStartsNewCVS)
 {
   if(!pCtx->bFirstInit)
     return NULL;
 
-  return AL_PictMngr_GetDisplayBuffer2(pCtx, pInfo, AL_Dpb_GetDisplayBuffer(&pCtx->DPB));
+  return AL_PictMngr_GetDisplayBuffer2(pCtx, pInfo, pStartsNewCVS, AL_Dpb_GetDisplayBuffer(&pCtx->DPB));
 }
 
 /*************************************************************************/
@@ -959,7 +964,7 @@ AL_TBuffer* AL_PictMngr_GetRecBufferFromDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_
   if(pInfo != NULL && pRecBuf != NULL)
   {
     AL_EFbStorageMode eOutputStorageMode = pCtx->eFbStorageMode;
-    sFrmBufPool_GetInfoDecode(&pCtx->FrmBufPool, iFrameID, pInfo, eOutputStorageMode, pCtx->iBitdepth, false);
+    sFrmBufPool_GetInfoDecode(&pCtx->FrmBufPool, iFrameID, pInfo, NULL, eOutputStorageMode, pCtx->iBitdepth, false);
   }
 
   return pRecBuf;

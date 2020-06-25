@@ -141,16 +141,21 @@ AL_TBuffer* AL_Buffer_CreateEmpty(AL_TAllocator* pAllocator, PFN_RefCount_CallBa
   return createEmptyBuffer(pAllocator, pCallBack);
 }
 
-int AL_Buffer_AllocateChunk(AL_TBuffer* hBuf, size_t zSize)
+int AL_Buffer_AllocateChunkNamed(AL_TBuffer* hBuf, size_t zSize, char const* name)
 {
   AL_TBufferImpl* pBuf = (AL_TBufferImpl*)hBuf;
 
   if(isMaxChunkReached(pBuf))
     return AL_BUFFER_BAD_CHUNK;
 
-  AL_HANDLE hChunk = AL_Allocator_AllocNamed(pBuf->buf.pAllocator, zSize, "unknown");
+  AL_HANDLE hChunk = AL_Allocator_AllocNamed(pBuf->buf.pAllocator, zSize, name);
 
   return addBufferChunk(pBuf, hChunk, zSize);
+}
+
+int AL_Buffer_AllocateChunk(AL_TBuffer* hBuf, size_t zSize)
+{
+  return AL_Buffer_AllocateChunkNamed(hBuf, zSize, "unknown");
 }
 
 int AL_Buffer_AddChunk(AL_TBuffer* hBuf, AL_HANDLE hChunk, size_t zSize)

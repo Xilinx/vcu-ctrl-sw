@@ -64,10 +64,10 @@ AL_TNuts CreateHevcNuts(void)
   return nuts;
 }
 
-void HEVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayerID, bool bMustWritePPS)
+void HEVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayerID, int iPicID, bool bMustWritePPS)
 {
   AL_TNuts nuts = CreateHevcNuts();
-  AL_TNalsData nalsData = AL_ExtractNalsData(pCtx, iLayerID);
+  AL_TNalsData nalsData = AL_ExtractNalsData(pCtx, iLayerID, iPicID);
   nalsData.bMustWritePPS = bMustWritePPS;
   AL_TEncChanParam const* pChannel = &pCtx->pSettings->tChParam[0];
   GenerateSections(AL_GetHevcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, iLayerID, pChannel->uNumSlices, pChannel->bSubframeLatency);

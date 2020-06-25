@@ -79,6 +79,7 @@ extern "C"
 #include "CodecUtils.h"
 #include "crc.h"
 #include "InputLoader.h"
+#include "HDRWriter.h"
 
 using namespace std;
 
@@ -124,6 +125,9 @@ AL_TDecSettings getDefaultDecSettings()
   settings.iStackSize = 2;
   settings.iBitDepth = -1;
   settings.uNumCore = NUMCORE_AUTO;
+#if AL_ENBLE_SITE
+  settings.uFirstCoreID = -1;
+#endif
   settings.uFrameRate = 60000;
   settings.uClkRatio = 1000;
   settings.uDDRWidth = 32;
@@ -358,6 +362,7 @@ static Config ParseCommandLine(int argc, char* argv[])
               AL_DEC_SPLIT_INPUT);
 
   opt.addString("--sei-file", &Config.seiFile, "File in which the SEI decoded by the decoder will be dumped");
+
   opt.addString("--hdr-file", &Config.hdrFile, "Parse and dump HDR data in the specified file");
 
   string preAllocArgs = "";
@@ -388,7 +393,7 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addInt("-num", &Config.iNumberTrace, "Number of frames to trace");
 
   opt.addFlag("--use-early-callback", &Config.tDecSettings.bUseEarlyCallback, "Low latency phase 2. Call end decoding at decoding launch. This only makes sense with special support for hardware synchronization");
-  opt.addInt("-core", &Config.tDecSettings.uNumCore, "number of hevc_decoder cores");
+  opt.addInt("-core", &Config.tDecSettings.uNumCore, "number of decoder cores");
   opt.addInt("-ddrwidth", &Config.tDecSettings.uDDRWidth, "Width of DDR requests (16, 32, 64) (default: 32)");
   opt.addFlag("-nocache", &Config.tDecSettings.bDisableCache, "Inactivate the cache");
 
@@ -759,7 +764,7 @@ static void ConvertFrameBuffer(AL_TBuffer& input, int iBdIn, AL_TBuffer*& pOutpu
     if(tRecPicFormat.eChromaMode != AL_CHROMA_MONO)
       uSize += (uSize * 2) / (sx * sy);
 
-    if(!AL_PixMapBuffer_Allocate_And_AddPlanes(pOutput, uSize, &tPlaneDesc[0], tRecPicFormat.eChromaMode == AL_CHROMA_MONO ? 1 : 2))
+    if(!AL_PixMapBuffer_Allocate_And_AddPlanes(pOutput, uSize, &tPlaneDesc[0], tRecPicFormat.eChromaMode == AL_CHROMA_MONO ? 1 : 2, "conversion frame buffer"))
       throw runtime_error("Couldn't allocate YuvBuffer planes");
   }
 
@@ -910,7 +915,7 @@ struct Display
   unsigned int FirstFrame = 0;
   mutex hMutex;
   int iNumFrameConceal = 0;
-  ofstream hdrOutput;
+  std::shared_ptr<HDRWriter> pHDRWriter;
 };
 
 struct ResChgParam
@@ -979,31 +984,6 @@ static void writeSei(bool bIsPrefix, int iPayloadType, uint8_t* pPayload, int iP
           << "raw:" << endl;
   printHexdump(seiOut, pPayload, iPayloadSize);
   *seiOut << endl << endl;
-}
-
-static void writeHDR(AL_EColourDescription eColourDesc, AL_ETransferCharacteristics eTransferCharacteristics, AL_EColourMatrixCoefficients eMatrixCoeffs, AL_THDRSEIs& hdrSEIs, ostream& hdrOut)
-{
-  if(!hdrOut)
-    return;
-
-  hdrOut << "colour_primaries: " << eColourDesc << endl;
-  hdrOut << "transfer_characteristics: " << eTransferCharacteristics << endl;
-  hdrOut << "matrix_coefficients: " << eMatrixCoeffs << endl;
-
-  if(hdrSEIs.bHasMDCV)
-  {
-    hdrOut << "mastering_display_colour_volume: ";
-
-    for(int i = 0; i < 3; i++)
-      hdrOut << hdrSEIs.tMDCV.display_primaries[i].x << " " << hdrSEIs.tMDCV.display_primaries[i].y << " ";
-
-    hdrOut << hdrSEIs.tMDCV.white_point.x << " " << hdrSEIs.tMDCV.white_point.y << " " << hdrSEIs.tMDCV.max_display_mastering_luminance << " " << hdrSEIs.tMDCV.min_display_mastering_luminance << endl;
-  }
-
-  if(hdrSEIs.bHasCLL)
-    hdrOut << "content_light_level_info: " << hdrSEIs.tCLL.max_content_light_level << " " << hdrSEIs.tCLL.max_pic_average_light_level << " " << endl;
-
-  hdrOut << endl << endl;
 }
 
 /******************************************************************************/
@@ -1152,12 +1132,12 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
 
   if(pInfo->eFbStorageMode == eMainOutputStorageMode)
   {
-    AL_Decoder_PutDisplayPicture(hDec, pFrame);
-
     auto pHDR = (AL_THDRMetaData*)AL_Buffer_GetMetaData(pFrame, AL_META_TYPE_HDR);
 
-    if(pHDR)
-      writeHDR(pHDR->eColourDescription, pHDR->eTransferCharacteristics, pHDR->eColourMatrixCoeffs, pHDR->tHDRSEIs, hdrOutput);
+    if(pHDR != nullptr && pHDRWriter != nullptr)
+      pHDRWriter->WriteHDRSEIs(pHDR->eColourDescription, pHDR->eTransferCharacteristics, pHDR->eColourMatrixCoeffs, pHDR->tHDRSEIs);
+
+    AL_Decoder_PutDisplayPicture(hDec, pFrame);
 
     // TODO: increase only when last frame
     DisplayFrameStatus(NumFrames);
@@ -1305,7 +1285,7 @@ static AL_ERR sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSe
 
   int iNumBuf = BufferNumber + uDefaultNumBuffersHeldByNextComponent;
 
-  if(!p->bufPool.Init(p->pAllocator, iNumBuf))
+  if(!p->bufPool.Init(p->pAllocator, iNumBuf, "decoded picture buffer"))
     return AL_ERR_NO_MEMORY;
 
   p->bPoolIsInit = true;
@@ -1499,7 +1479,7 @@ void SafeMain(int argc, char** argv)
   display.MaxFrames = Config.iMaxFrames;
 
   if(!Config.hdrFile.empty())
-    OpenOutput(display.hdrOutput, Config.hdrFile);
+    display.pHDRWriter = shared_ptr<HDRWriter>(new HDRWriter(Config.hdrFile));
 
   AL_TDecSettings Settings = Config.tDecSettings;
 
@@ -1507,7 +1487,7 @@ void SafeMain(int argc, char** argv)
   ResolutionFoundParam.pAllocator = pAllocator;
   ResolutionFoundParam.bPoolIsInit = false;
   ResolutionFoundParam.pDecSettings = &Settings;
-  ResolutionFoundParam.bAddHDRMetaData = display.hdrOutput.is_open();
+  ResolutionFoundParam.bAddHDRMetaData = display.pHDRWriter != nullptr;
 
   DecodeParam tDecodeParam {};
   tDecodeParam.hExitMain = display.hExitMain;

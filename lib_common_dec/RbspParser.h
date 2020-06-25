@@ -96,7 +96,18 @@ uint8_t read_bit(AL_TRbspParser* pRP, uint32_t bit_index);
 bool byte_aligned(AL_TRbspParser* pRP);
 
 /*************************************************************************//*!
-   \brief The byte_alignment function set the current bitstream offset to the next byte boundary
+   \brief The simple_byte_alignment function set the current bitstream offset to
+   the next byte boundary, checking all bits are set to a specified value
+   \param[in] pRP Pointer to NAL parser
+   \param[in] expected_bit Expected value for the aligment bits
+   \return return true if the bit value conditions are met
+   false otherwise
+*****************************************************************************/
+bool simple_byte_alignment(AL_TRbspParser* pRP, uint8_t expected_bit);
+
+/*************************************************************************//*!
+   \brief The byte_alignment function set the current bitstream offset to the
+   next byte boundary, checking the first bit is 1 followed by 0
    \param[in] pRP Pointer to NAL parser
    \return return true if the bit value conditions are met
                 false otherwise

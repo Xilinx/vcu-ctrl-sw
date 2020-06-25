@@ -19,7 +19,6 @@ EXE_ENCODER_SRCS:=\
   $(THIS_EXE_ENCODER)/EncCmdMngr.cpp\
   $(THIS_EXE_ENCODER)/QPGenerator.cpp\
   $(THIS_EXE_ENCODER)/CommandsSender.cpp\
-  $(THIS_EXE_ENCODER)/HDRParser.cpp\
   $(PARSER_SRCS)\
   $(LIB_CONV_SRC)\
   $(LIB_APP_SRC)\
@@ -31,6 +30,10 @@ endif
 
 ifneq ($(ENABLE_TWOPASS),0)
   EXE_ENCODER_SRCS+=$(THIS_EXE_ENCODER)/TwoPassMngr.cpp
+endif
+
+ifneq ($(ENABLE_HIGH_DYNAMIC_RANGE),0)
+  EXE_ENCODER_SRCS+=$(THIS_EXE_ENCODER)/HDRParser.cpp
 endif
 
 -include $(THIS_EXE_ENCODER)/site.mk

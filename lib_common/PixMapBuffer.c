@@ -74,14 +74,14 @@ static void AddPlanesToMeta(AL_TPixMapMetaData* pMeta, int iChunkIdx, AL_TPlaneD
   }
 }
 
-bool AL_PixMapBuffer_Allocate_And_AddPlanes(AL_TBuffer* pBuf, size_t zSize, AL_TPlaneDescription* pPlDesc, int iNbPlanes)
+bool AL_PixMapBuffer_Allocate_And_AddPlanes(AL_TBuffer* pBuf, size_t zSize, AL_TPlaneDescription* pPlDesc, int iNbPlanes, char const* name)
 {
   AL_TPixMapMetaData* pMeta = (AL_TPixMapMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_PIXMAP);
 
   if(pMeta == NULL)
     return false;
 
-  int iChunkIdx = AL_Buffer_AllocateChunk(pBuf, zSize);
+  int iChunkIdx = AL_Buffer_AllocateChunkNamed(pBuf, zSize, name);
 
   if(iChunkIdx == AL_BUFFER_BAD_CHUNK)
     return false;

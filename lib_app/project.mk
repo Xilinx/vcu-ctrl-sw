@@ -6,6 +6,10 @@ LIB_APP_SRC:=lib_app/utils.cpp\
 
 
 
+ifneq ($(ENABLE_HIGH_DYNAMIC_RANGE),0)
+  LIB_APP_SRC+=lib_app/JsonFile.cpp
+endif
+
 ifeq ($(findstring mingw,$(TARGET)),mingw)
   LIB_APP_SRC+=lib_app/plateform_windows.cpp
 else
