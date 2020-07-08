@@ -48,7 +48,7 @@ $(BIN)/%.a:
 	$(Q)$(AR) cr $@ $^
 	@echo "AR $@"
 
-$(BIN)/%:
+$(BIN)/%.exe:
 	@mkdir -p $(dir $@)
 	$(Q)$(CXX) -o $@ $(call filter_out_dyn_lib, $^) $(LINK_COMPAT) $(LDFLAGS) $(call add_dyn_lib_link, $^)
 	@echo "CXX $@"
