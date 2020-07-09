@@ -19,7 +19,7 @@
 #define AL_ENCODER_FILE_DESCR AL_ENCODER_COMPANY " - " AL_ENCODER_PRODUCT_NAME
 #define AL_ENCODER_INTERNAL_NAME AL_ENCODER_NAME " Encoder"
 #define AL_ENCODER_COPYRIGHT "Copyright (C) 2008-2020"
-#define AL_ENCODER_ORIGINAL_NAME "AL_Encoder.exe"
+#define AL_ENCODER_ORIGINAL_NAME "ctrlsw_encoder"
 
 // Next default values for new objects
 //
