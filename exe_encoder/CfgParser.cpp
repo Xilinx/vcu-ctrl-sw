@@ -422,6 +422,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   chromaModes["CHROMA_4_0_0"] = AL_CHROMA_4_0_0;
   chromaModes["CHROMA_4_2_0"] = AL_CHROMA_4_2_0;
   chromaModes["CHROMA_4_2_2"] = AL_CHROMA_4_2_2;
+  chromaModes["CHROMA_4_4_4"] = AL_CHROMA_4_4_4;
 
   parser.addCustom(curSection, "ChromaMode", [chromaModes, &cfg](std::deque<Token>& tokens)
   {

@@ -2429,23 +2429,6 @@ void T628_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 }
 
 /****************************************************************************/
-void T648_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
-{
-  // Luma
-  T64_Untile_Component(pSrc, pDst, AL_PLANE_Y, 0, 0);
-
-  // Chroma
-  T64_Untile_Component(pSrc, pDst, AL_PLANE_UV, 0, 0);
-
-  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pDst);
-  int iOffsetSrcV = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_UV) * ((tDim.iHeight + 3) / 4);
-  int iOffsetDstV = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_UV) * tDim.iHeight;
-  T64_Untile_Component(pSrc, pDst, AL_PLANE_UV, iOffsetSrcV, iOffsetDstV);
-
-  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I444));
-}
-
-/****************************************************************************/
 template<typename TUntiled, typename FConvert>
 static void Untile4x4Block10b(uint16_t* pTiled4x4, TUntiled* pUntiled, int iUntiledPitch, FConvert convert)
 {
@@ -2591,17 +2574,17 @@ static void Untile4x4ChromaBlock12bToPlanar12b(uint16_t* pTiled4x4, uint16_t* pU
 
 /****************************************************************************/
 template<typename DstType>
-static void T60X_To_Y(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t bdIn, uint8_t bdOut)
+static void T64_Untile_Component_HighBD(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t bdIn, uint8_t bdOut, AL_EPlaneId ePlaneId, int iOffsetSrc, int iOffsetDst)
 {
   // Luma
   const int iTileW = 64;
   const int iTileH = 4;
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pSrc);
 
-  int iPitchSrc = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_Y) / sizeof(uint16_t);
-  int iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_Y) / sizeof(DstType);
-  uint16_t* pSrcData = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_Y);
-  DstType* pDstData = (DstType*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_Y);
+  uint16_t* pSrcData = (uint16_t*)(AL_PixMapBuffer_GetPlaneAddress(pSrc, ePlaneId) + iOffsetSrc);
+  DstType* pDstData = (DstType*)(AL_PixMapBuffer_GetPlaneAddress(pDst, ePlaneId) + iOffsetDst);
+  int iPitchSrc = AL_PixMapBuffer_GetPlanePitch(pSrc, ePlaneId) / sizeof(uint16_t);
+  int iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, ePlaneId) / sizeof(DstType);
 
   for(int H = 0; H < tDim.iHeight; H += iTileH)
   {
@@ -2649,46 +2632,41 @@ static void T60X_To_Y(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t bdIn, ui
       pInY += iCropH * iTileW * bdIn / 2 / 4 / sizeof(uint16_t);
     }
   }
-
-  TFourCC fcc;
-
-  if(bdOut == 12)
-    fcc = FOURCC(Y012);
-  else if(bdOut == 10)
-    fcc = FOURCC(Y010);
-  else
-    fcc = FOURCC(Y800);
-  AL_PixMapBuffer_SetFourCC(pDst, fcc);
 }
 
 /****************************************************************************/
 void T60A_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 {
-  T60X_To_Y<uint8_t>(pSrc, pDst, 10, 8);
+  T64_Untile_Component_HighBD<uint8_t>(pSrc, pDst, 10, 8, AL_PLANE_Y, 0, 0);
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(Y800));
 }
 
 /****************************************************************************/
 void T60C_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 {
-  T60X_To_Y<uint8_t>(pSrc, pDst, 12, 8);
+  T64_Untile_Component_HighBD<uint8_t>(pSrc, pDst, 12, 8, AL_PLANE_Y, 0, 0);
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(Y800));
 }
 
 /****************************************************************************/
 void T60A_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 {
-  T60X_To_Y<uint16_t>(pSrc, pDst, 10, 10);
+  T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 10, 10, AL_PLANE_Y, 0, 0);
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(Y010));
 }
 
 /****************************************************************************/
 void T60C_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 {
-  T60X_To_Y<uint16_t>(pSrc, pDst, 12, 10);
+  T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 12, 10, AL_PLANE_Y, 0, 0);
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(Y010));
 }
 
 /****************************************************************************/
 void T60C_To_Y012(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 {
-  T60X_To_Y<uint16_t>(pSrc, pDst, 12, 12);
+  T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 12, 12, AL_PLANE_Y, 0, 0);
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(Y012));
 }
 
 /****************************************************************************/
@@ -2696,7 +2674,7 @@ template<typename DstType>
 static void T6XX_To_4XX(AL_TBuffer const* pSrc, AL_TBuffer* pDst, bool bDstUFirst, uint8_t bdIn, uint8_t bdOut, int iHScale, int iVScale)
 {
   // Luma
-  T60X_To_Y<DstType>(pSrc, pDst, bdIn, bdOut);
+  T64_Untile_Component_HighBD<DstType>(pSrc, pDst, bdIn, bdOut, AL_PLANE_Y, 0, 0);
 
   // Chroma
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pSrc);
@@ -3032,7 +3010,7 @@ void T62A_To_NV16(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 void T62X_To_P21X(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uBd)
 {
   // Luma
-  T60X_To_Y<uint16_t>(pSrc, pDst, uBd, uBd);
+  T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, uBd, uBd, AL_PLANE_Y, 0, 0);
 
   // Chroma
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pSrc);
@@ -3068,6 +3046,57 @@ void T62A_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 void T62C_To_P212(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 {
   T62X_To_P21X(pSrc, pDst, 12);
+}
+
+/****************************************************************************/
+void T648_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  // Luma
+  T64_Untile_Component(pSrc, pDst, AL_PLANE_Y, 0, 0);
+
+  // Chroma
+  T64_Untile_Component(pSrc, pDst, AL_PLANE_UV, 0, 0);
+
+  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pDst);
+  int iOffsetSrcV = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_UV) * ((tDim.iHeight + 3) / 4);
+  int iOffsetDstV = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_UV) * tDim.iHeight;
+  T64_Untile_Component(pSrc, pDst, AL_PLANE_UV, iOffsetSrcV, iOffsetDstV);
+
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I444));
+}
+
+/****************************************************************************/
+void T64A_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  // Luma
+  T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 10, 10, AL_PLANE_Y, 0, 0);
+
+  // Chroma
+  T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 10, 10, AL_PLANE_UV, 0, 0);
+
+  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pDst);
+  int iOffsetSrcV = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_UV) * ((tDim.iHeight + 3) / 4);
+  int iOffsetDstV = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_UV) * tDim.iHeight;
+  T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 10, 10, AL_PLANE_UV, iOffsetSrcV, iOffsetDstV);
+
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I4AL));
+}
+
+/****************************************************************************/
+void T64C_To_I4CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  // Luma
+  T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 12, 12, AL_PLANE_Y, 0, 0);
+
+  // Chroma
+  T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 12, 12, AL_PLANE_UV, 0, 0);
+
+  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pDst);
+  int iOffsetSrcV = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_UV) * ((tDim.iHeight + 3) / 4);
+  int iOffsetDstV = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_UV) * tDim.iHeight;
+  T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 12, 12, AL_PLANE_UV, iOffsetSrcV, iOffsetDstV);
+
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I4CL));
 }
 
 /****************************************************************************/

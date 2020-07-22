@@ -747,17 +747,19 @@ static void writeSeiBufferingPeriod(AL_TBitStreamLite* pBS, AL_TSps const* pISps
   uint32_t iInitialAltCpbRemovalDelay = 0;
   uint32_t iInitialAltCpbRemovalOffset = 0;
 
+  int iInitialCpbLength = pSps->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 + 1;
+
   if(pSps->vui_param.hrd_param.nal_hrd_parameters_present_flag)
   {
     for(int i = 0; i <= (int)pSps->vui_param.hrd_param.cpb_cnt_minus1[0]; ++i)
     {
-      AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 + 1, iInitialCpbRemovalDelay);
-      AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 + 1, iInitialCpbRemovalOffset);
+      AL_BitStreamLite_PutU(pBS, iInitialCpbLength, iInitialCpbRemovalDelay);
+      AL_BitStreamLite_PutU(pBS, iInitialCpbLength, iInitialCpbRemovalOffset);
 
       if(pSps->vui_param.hrd_param.sub_pic_hrd_params_present_flag || uIRAPCpbParamsPresentFLag)
       {
-        AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 + 1, iInitialAltCpbRemovalDelay);
-        AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 + 1, iInitialAltCpbRemovalOffset);
+        AL_BitStreamLite_PutU(pBS, iInitialCpbLength, iInitialAltCpbRemovalDelay);
+        AL_BitStreamLite_PutU(pBS, iInitialCpbLength, iInitialAltCpbRemovalOffset);
       }
     }
   }
@@ -766,13 +768,13 @@ static void writeSeiBufferingPeriod(AL_TBitStreamLite* pBS, AL_TSps const* pISps
   {
     for(int i = 0; i <= (int)pSps->vui_param.hrd_param.cpb_cnt_minus1[0]; ++i)
     {
-      AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 + 1, iInitialCpbRemovalDelay);
-      AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 + 1, iInitialCpbRemovalOffset);
+      AL_BitStreamLite_PutU(pBS, iInitialCpbLength, iInitialCpbRemovalDelay);
+      AL_BitStreamLite_PutU(pBS, iInitialCpbLength, iInitialCpbRemovalOffset);
 
       if(pSps->vui_param.hrd_param.sub_pic_hrd_params_present_flag || uIRAPCpbParamsPresentFLag)
       {
-        AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 + 1, iInitialAltCpbRemovalDelay);
-        AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 + 1, iInitialAltCpbRemovalOffset);
+        AL_BitStreamLite_PutU(pBS, iInitialCpbLength, iInitialAltCpbRemovalDelay);
+        AL_BitStreamLite_PutU(pBS, iInitialCpbLength, iInitialAltCpbRemovalOffset);
       }
     }
   }

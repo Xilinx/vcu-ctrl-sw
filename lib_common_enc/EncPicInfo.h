@@ -198,12 +198,16 @@ typedef struct AL_t_SrcInfo
   uint8_t uFormat;
 }AL_TSrcInfo;
 
+typedef struct AL_t_SrcAddrs
+{
+  AL_PADDR pY;
+  AL_PADDR pC1;
+}AL_TSrcAddrs;
+
 typedef struct AL_t_EncPicBufAddrs
 {
-  AL_PADDR pSrc_Y;
-  AL_PADDR pSrc_UV;
+  AL_TSrcAddrs tSrcAddrs;
   AL_TSrcInfo tSrcInfo;
-
   AL_PADDR pEP2;
   AL_PTR64 pEP2_v;
 }AL_TEncPicBufAddrs;

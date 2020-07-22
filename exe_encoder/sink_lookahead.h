@@ -171,7 +171,7 @@ private:
     if(isStreamReleased(pStream, pSrc) || isSourceReleased(pStream, pSrc))
       return;
 
-    pThis->AddFifo((AL_TBuffer*)pSrc);
+    pThis->AddFifo(const_cast<AL_TBuffer*>(pSrc), pStream);
 
     pThis->processOutputLookAhead(pStream);
   }
@@ -205,19 +205,28 @@ private:
     }
   }
 
-  bool AddFifo(AL_TBuffer* pSrc)
+  void AddFifo(AL_TBuffer* pSrc, AL_TBuffer* pStream)
   {
-    bool bRet = true;
-
-    if(pSrc)
+    if(!pSrc)
     {
-      AL_Buffer_Ref(pSrc);
-      lookAheadMngr.m_fifo.push_back(pSrc);
-      ProcessFifo(false);
-    }
-    else
       Rtos_SetEvent(EOSFinished);
-    return bRet;
+      return;
+    }
+
+    if(!pStream)
+      return;
+
+    bool bIsRepeat = false;
+    AL_TPictureMetaData* pPictureMeta = (AL_TPictureMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_PICTURE);
+    assert(pPictureMeta);
+    bIsRepeat = pPictureMeta->eType == AL_SLICE_REPEAT;
+
+    if(bIsRepeat)
+      return;
+
+    AL_Buffer_Ref(pSrc);
+    lookAheadMngr.m_fifo.push_back(pSrc);
+    ProcessFifo(false);
   }
 
   AL_TBuffer* GetSrcBuffer()

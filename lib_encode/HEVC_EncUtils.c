@@ -287,6 +287,8 @@ static void InitHEVC_Sps(AL_THevcSps* pSPS)
 /****************************************************************************/
 void AL_HEVC_GenerateSPS_Format(AL_THevcSps* pSPS, AL_EChromaMode eChromaMode, uint8_t uBdLuma, uint8_t uBdChroma, uint16_t uWidth, uint16_t uHeight, bool bMultiLayerExtSpsFlag, AL_TEncChanParam const* pChParam)
 {
+  (void)pChParam;
+
   if(bMultiLayerExtSpsFlag)
   {
     pSPS->update_rep_format_flag = 0;

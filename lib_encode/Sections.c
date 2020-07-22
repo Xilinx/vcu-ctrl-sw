@@ -150,7 +150,7 @@ static int getOffsetAfterLastSection(AL_TStreamMetaData* pMeta)
   return lastSection.uOffset + lastSection.uLength;
 }
 
-static uint32_t generateSeiFlags(AL_TEncPicStatus const* pPicStatus)
+static uint32_t generateSeiFlags(AL_TEncPicStatus const* pPicStatus, bool bForceSEIRecoveryPointOnIDR)
 {
   uint32_t uFlags = AL_SEI_PT;
 
@@ -158,7 +158,9 @@ static uint32_t generateSeiFlags(AL_TEncPicStatus const* pPicStatus)
   {
     uFlags |= AL_SEI_BP;
 
-    if(!pPicStatus->bIsIDR)
+    bool bShouldUseSEIReconveryPoint = (!pPicStatus->bIsIDR || bForceSEIRecoveryPointOnIDR);
+
+    if(bShouldUseSEIReconveryPoint)
       uFlags |= AL_SEI_RP;
   }
   else if(pPicStatus->iRecoveryCnt)
@@ -182,9 +184,8 @@ static uint32_t generateHDRSeiFlags(bool bWriteSPS, bool bMustWriteDynHDR)
   return uFlags;
 }
 
-void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, const AL_TNalsData* pNalsData, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayerID, int iNumSlices, bool bSubframeLatency)
+void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, AL_TNalsData const* pNalsData, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayerID, int iNumSlices, bool bSubframeLatency, bool bForceSEIRecoveryPointOnIDR)
 {
-  (void)iNumSlices;
   AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
 
   if(pPicStatus->bIsFirstSlice)
@@ -232,7 +233,7 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, const AL_TNalsData* pN
     {
       AL_Assert(pNalsData->seiFlags != AL_SEI_NONE);
 
-      uint32_t uFlags = generateSeiFlags(pPicStatus);
+      uint32_t uFlags = generateSeiFlags(pPicStatus, bForceSEIRecoveryPointOnIDR);
       uFlags |= generateHDRSeiFlags(bWriteSPS, pNalsData->bMustWriteDynHDR);
       uFlags &= pNalsData->seiFlags;
 

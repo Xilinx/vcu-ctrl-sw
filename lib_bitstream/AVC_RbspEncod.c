@@ -339,9 +339,25 @@ static void writeSeiBufferingPeriod(AL_TBitStreamLite* pBS, AL_TSps const* pISps
 
   AL_BitStreamLite_PutUE(pBS, pSps->seq_parameter_set_id);
 
-  int iIniCPBLength = pSps->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 + 1;
-  AL_BitStreamLite_PutU(pBS, iIniCPBLength, iCpbInitialDelay);
-  AL_BitStreamLite_PutU(pBS, iIniCPBLength, 0); // offset
+  int iInitialCpbLength = pSps->vui_param.hrd_param.initial_cpb_removal_delay_length_minus1 + 1;
+
+  if(pSps->vui_param.hrd_param.nal_hrd_parameters_present_flag)
+  {
+    for(int i = 0; i <= (int)pSps->vui_param.hrd_param.cpb_cnt_minus1[0]; ++i)
+    {
+      AL_BitStreamLite_PutU(pBS, iInitialCpbLength, iCpbInitialDelay);
+      AL_BitStreamLite_PutU(pBS, iInitialCpbLength, iCpbInitialOffset);
+    }
+  }
+
+  if(pSps->vui_param.hrd_param.vcl_hrd_parameters_present_flag)
+  {
+    for(int i = 0; i <= (int)pSps->vui_param.hrd_param.cpb_cnt_minus1[0]; ++i)
+    {
+      AL_BitStreamLite_PutU(pBS, iInitialCpbLength, iCpbInitialDelay);
+      AL_BitStreamLite_PutU(pBS, iInitialCpbLength, iCpbInitialOffset);
+    }
+  }
 
   AL_BitStreamLite_EndOfSEIPayload(pBS);
 

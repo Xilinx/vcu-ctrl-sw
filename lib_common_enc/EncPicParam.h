@@ -74,22 +74,22 @@ typedef struct AL_t_RecInfo
   uint32_t uPitchC;
 }AL_TRecInfo;
 
+typedef struct AL_t_RecAddrs
+{
+  AL_PADDR pY;
+  AL_PADDR pMapY;
+  AL_PADDR pC1;
+  AL_PADDR pMapC1;
+}AL_TRecAddrs;
+
 typedef struct AL_t_EncPicBufAddrsFull
 {
   AL_TEncPicBufAddrs tBasic;
 
-  AL_PADDR pRefA_Y;
-  AL_PADDR pRefA_UV;
-  AL_PADDR pRefA_MapY;
-  AL_PADDR pRefA_MapUV;
-  AL_PADDR pRefB_Y;
-  AL_PADDR pRefB_UV;
-  AL_PADDR pRefB_MapY;
-  AL_PADDR pRefB_MapUV;
-  AL_PADDR pRec_Y;
-  AL_PADDR pRec_UV;
-  AL_PADDR pRec_MapY;
-  AL_PADDR pRec_MapUV;
+  AL_TRecAddrs tRefAAddrs;
+  AL_TRecAddrs tRefBAddrs;
+  AL_TRecAddrs tRecAddrs;
+
   AL_PADDR pColoc;
   AL_PADDR pMV;
   AL_PADDR pWPP;

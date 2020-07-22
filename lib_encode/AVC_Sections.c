@@ -136,16 +136,18 @@ void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatu
   AL_TNalsData nalsData = AL_ExtractNalsData(pCtx, 0, iPicID);
   nalsData.bMustWritePPS = bMustWritePPS;
   AL_TEncChanParam const* pChannel = &pCtx->pSettings->tChParam[0];
-  GenerateSections(AL_GetAvcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, 0, pChannel->uNumSlices, pChannel->bSubframeLatency);
+  bool bForceSEIRecoveryPointOnIDR = false;
+
+  if(AL_IS_XAVC(pChannel->eProfile) && !AL_IS_INTRA_PROFILE(pChannel->eProfile))
+    bForceSEIRecoveryPointOnIDR = true;
+  GenerateSections(AL_GetAvcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, 0, pChannel->uNumSlices, pChannel->bSubframeLatency, bForceSEIRecoveryPointOnIDR);
 
   if(AL_IS_XAVC_CBG(pChannel->eProfile) && AL_IS_INTRA_PROFILE(pChannel->eProfile))
   {
     padConfig(pStream);
 
     if(pPicStatus->bIsFirstSlice)
-    {
       padSeiPrefix(pStream, pChannel);
-    }
   }
 }
 

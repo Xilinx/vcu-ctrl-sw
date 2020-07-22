@@ -906,7 +906,12 @@ void LayerRessources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffer
   StreamBufPoolConfig = GetStreamBufPoolConfig(Settings, iLayerID);
   StreamBufPool.Init(pAllocator, StreamBufPoolConfig);
 
-  if(iLayerID == 0 && cfg.RunInfo.printPictureType)
+  bool bUsePictureMeta = false;
+  bUsePictureMeta |= cfg.RunInfo.printPictureType;
+
+  bUsePictureMeta |= AL_TwoPassMngr_HasLookAhead(Settings);
+
+  if(iLayerID == 0 && bUsePictureMeta)
   {
     AL_TMetaData* pMeta = (AL_TMetaData*)AL_PictureMetaData_Create();
     assert(pMeta);

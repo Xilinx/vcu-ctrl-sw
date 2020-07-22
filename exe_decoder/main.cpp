@@ -645,6 +645,8 @@ AL_TO_IP GetTileConversionFunction(int iPicFmt)
   auto const AL_CHROMA_422_8bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 8, 10);
 
   auto const AL_CHROMA_444_8bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 8, 8);
+  auto const AL_CHROMA_444_10bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 10, 10);
+  auto const AL_CHROMA_444_12bitTo12bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 12, 12);
 
   auto const AL_CHROMA_MONO_10bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_MONO, 10, 10);
   auto const AL_CHROMA_MONO_10bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_MONO, 10, 8);
@@ -684,6 +686,8 @@ AL_TO_IP GetTileConversionFunction(int iPicFmt)
   case AL_CHROMA_422_10bitTo10bit: return T62A_To_I2AL;
   case AL_CHROMA_422_10bitTo8bit: return T62A_To_I422;
 
+  case AL_CHROMA_444_10bitTo10bit: return T64A_To_I4AL;
+
   case AL_CHROMA_MONO_10bitTo10bit: return T60A_To_Y010;
   case AL_CHROMA_MONO_10bitTo8bit: return T60A_To_Y800;
 
@@ -698,6 +702,8 @@ AL_TO_IP GetTileConversionFunction(int iPicFmt)
   case AL_CHROMA_422_12bitTo12bit: return T62C_To_I2CL;
   case AL_CHROMA_422_12bitTo10bit: return T62C_To_I2AL;
   case AL_CHROMA_422_12bitTo8bit: return T62C_To_I422;
+
+  case AL_CHROMA_444_12bitTo12bit: return T64C_To_I4CL;
 
   default:
   {
@@ -1387,17 +1393,45 @@ private:
   thread m_thread;
 };
 
-/******************************************************************************/
-void SafeMain(int argc, char** argv)
+constexpr int MAX_CHANNELS = 1;
+
+int GetChannelsArgv(vector<char*>* argvChannels, int argc, char** argv)
 {
-  InitializePlateform();
+  int curChan = 0;
 
-  auto const Config = ParseCommandLine(argc, argv);
+  for(int i = 0; i < argc; ++i)
+  {
+    if(string(argv[i]) == "--next-chan")
+    {
+      ++curChan;
 
-  if(Config.help)
-    return;
+      if(curChan >= MAX_CHANNELS)
+        throw runtime_error("Too many channels");
 
-  DisplayVersionInfo();
+      argvChannels[curChan].push_back(argv[0]);
+      continue;
+    }
+
+    argvChannels[curChan].push_back(argv[i]);
+  }
+
+  return curChan;
+}
+
+struct WorkerConfig
+{
+  Config* pConfig;
+  CIpDevice* pIpDevice;
+  bool bUseBoard;
+};
+
+void SafeChannelMain(WorkerConfig& w)
+{
+  auto pAllocator = w.pIpDevice->m_pAllocator.get();
+  auto pScheduler = w.pIpDevice->m_pScheduler;
+  auto& Config = *w.pConfig;
+  auto pIpDevice = w.pIpDevice;
+  bool bUseBoard = w.bUseBoard;
 
   ofstream seiOutput;
   ofstream seiSyncOutput;
@@ -1409,32 +1443,6 @@ void SafeMain(int argc, char** argv)
     if(Config.tDecSettings.eInputMode == AL_DEC_SPLIT_INPUT)
       OpenOutput(seiSyncOutput, Config.seiFile + "_sync.txt");
   }
-
-  // IP Device ------------------------------------------------------------
-
-  function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl;
-  switch(Config.ipCtrlMode)
-  {
-  default:
-    wrapIpCtrl = [](AL_TIpCtrl* ipCtrl) -> AL_TIpCtrl*
-                 {
-                   return ipCtrl;
-                 };
-    break;
-  }
-
-  CIpDeviceParam param;
-  param.iSchedulerType = Config.iSchedulerType;
-  param.iDeviceType = Config.iDeviceType;
-  param.bTrackDma = Config.trackDma;
-  param.uNumCore = Config.tDecSettings.uNumCore;
-  param.iHangers = Config.hangers;
-  auto pIpDevice = CreateIpDevice(param, wrapIpCtrl);
-
-  bool bUseBoard = (param.iDeviceType == DEVICE_TYPE_BOARD); // retrieve auto-detected device type
-
-  auto pAllocator = pIpDevice->m_pAllocator.get();
-  auto pScheduler = pIpDevice->m_pScheduler;
 
   BufPool bufPool;
 
@@ -1566,6 +1574,96 @@ void SafeMain(int argc, char** argv)
 
   auto const duration = (uEnd - uBegin) / 1000.0;
   ShowStatistics(duration, display.iNumFrameConceal, tDecodeParam.decodedFrames, timeoutOccured);
+}
+
+static void ChannelMain(WorkerConfig& w, std::exception_ptr& exception)
+{
+  try
+  {
+    SafeChannelMain(w);
+    exception = nullptr;
+    return;
+  }
+  catch(codec_error const& error)
+  {
+    exception = std::current_exception();
+  }
+  catch(runtime_error const& error)
+  {
+    exception = std::current_exception();
+  }
+}
+
+/******************************************************************************/
+void SafeMain(int argc, char** argv)
+{
+  InitializePlateform();
+
+  vector<char*> argvChannels[MAX_CHANNELS] {};
+  int const maxChan = GetChannelsArgv(argvChannels, argc, argv);
+
+  Config cfgChannels[MAX_CHANNELS];
+  std::exception_ptr errorChannels[MAX_CHANNELS] {};
+  WorkerConfig workerConfigs[MAX_CHANNELS];
+  std::thread worker[MAX_CHANNELS];
+
+  for(int chan = 0; chan <= maxChan; ++chan)
+    cfgChannels[chan] = ParseCommandLine(argvChannels[chan].size(), argvChannels[chan].data());
+
+  // Use first channel to configure the ip device
+  auto Config = cfgChannels[0];
+
+  if(Config.help)
+    return;
+
+  DisplayVersionInfo();
+
+  // IP Device ------------------------------------------------------------
+
+  function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl;
+  switch(Config.ipCtrlMode)
+  {
+  default:
+    wrapIpCtrl = [](AL_TIpCtrl* ipCtrl) -> AL_TIpCtrl*
+                 {
+                   return ipCtrl;
+                 };
+    break;
+  }
+
+  CIpDeviceParam param;
+  param.iSchedulerType = Config.iSchedulerType;
+  param.iDeviceType = Config.iDeviceType;
+  param.bTrackDma = Config.trackDma;
+  param.uNumCore = Config.tDecSettings.uNumCore;
+  param.iHangers = Config.hangers;
+  auto pIpDevice = CreateIpDevice(param, wrapIpCtrl);
+
+  bool bUseBoard = (param.iDeviceType == DEVICE_TYPE_BOARD); // retrieve auto-detected device type
+
+  if(!pIpDevice)
+    throw runtime_error("Can't create IpDevice");
+
+  // mono channel case
+  if(maxChan == 0)
+  {
+    WorkerConfig w
+    {
+      &cfgChannels[maxChan],
+      pIpDevice.get(),
+      bUseBoard,
+    };
+
+    workerConfigs[maxChan] = w;
+    ChannelMain(workerConfigs[maxChan], errorChannels[maxChan]);
+
+    if(errorChannels[maxChan])
+      std::rethrow_exception(errorChannels[maxChan]);
+  }
+  else
+  {
+    throw std::runtime_error("Local multichannel isn't supported in this configuration");
+  }
 }
 
 template<typename T, typename U, typename V>

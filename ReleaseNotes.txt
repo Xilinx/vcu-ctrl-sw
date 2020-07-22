@@ -536,3 +536,21 @@
 
   Fixes:
     -- Several minors bugs
+
+2020-07-13 (v1.0.58)
+-------------------
+  Added Features:
+    -- Reviewed how slice-lat is handled:
+        - In AVC slice-lat (multicore or old single core), wait for both (enc1 and enc2) all interrupts instead of just all enc2
+        - Generate only one end-request at a time, otherwise we can erase end-requests that haven't been outputted (queue size in only 3!). End-requests now generated either at interrupt-callbacks, or when user output an end-request from the channel manager
+    -- Force SEI in XAVC
+
+  API:
+    -- Version of the API is now 0.23.0
+
+  Fixes:
+    -- AVC Buffering Period SEI
+    -- XAVC (long gop):
+        - close GOP
+        - Recovery Point SEI
+    -- Several minors bugs

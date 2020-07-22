@@ -40,8 +40,8 @@
 #include "lib_common/BufCommonInternal.h"
 #include "EncEPBuffer.h"
 #include "lib_common_enc/Lambdas.h"
-
-#define ENC_MAX_CMD (AL_MAX_NUM_B_PICT + 3)
+#define AL_MAX_LAWINDOWSIZE 0
+#define ENC_MAX_CMD (AL_MAX_NUM_B_PICT + 3 + AL_MAX_LAWINDOWSIZE)
 
 /*************************************************************************//*!
    \brief Retrieves the maximum size of one NAL unit

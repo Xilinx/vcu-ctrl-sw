@@ -36,7 +36,6 @@
 ******************************************************************************/
 
 #include "HDRWriter.h"
-
 #include "lib_app/JsonFile.h"
 
 HDRWriter::HDRWriter(const string& sHDRFile) :

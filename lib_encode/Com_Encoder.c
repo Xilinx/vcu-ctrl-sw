@@ -488,12 +488,13 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
     addresses.pEP2 = 0;
   }
 
-  addresses.pSrc_Y = AL_PixMapBuffer_GetPlanePhysicalAddress(pFrame, AL_PLANE_Y);
-  addresses.pSrc_UV = AL_PixMapBuffer_GetPlanePhysicalAddress(pFrame, AL_PLANE_UV);
-  addresses.tSrcInfo.uPitch = AL_PixMapBuffer_GetPlanePitch(pFrame, AL_PLANE_Y);
-
   AL_TEncChanParam* pChParam = &pCtx->pSettings->tChParam[iLayerID];
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pFrame);
+  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pFrame);
+
+  addresses.tSrcAddrs.pY = AL_PixMapBuffer_GetPlanePhysicalAddress(pFrame, AL_PLANE_Y);
+  addresses.tSrcAddrs.pC1 = AL_PixMapBuffer_GetPlanePhysicalAddress(pFrame, AL_PLANE_UV);
+  addresses.tSrcInfo.uPitch = AL_PixMapBuffer_GetPlanePitch(pFrame, AL_PLANE_Y);
 
   addresses.tSrcInfo.uBitDepth = AL_GetBitDepth(tFourCC);
   addresses.tSrcInfo.uFormat = AL_GET_SRC_FMT(pChParam->eSrcMode);
@@ -539,7 +540,7 @@ AL_ERR AL_Common_Encoder_GetLastError(AL_TEncoder* pEnc)
 static void setMaxNumRef(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
 {
   if(AL_IS_AVC(pChParam->eProfile))
-    pCtx->iMaxNumRef = AL_DPBConstraint_GetMaxDPBSize(pChParam);
+    pCtx->iMaxNumRef = AL_IS_INTRA_PROFILE(pChParam->eProfile) ? 0 : AL_DPBConstraint_GetMaxDPBSize(pChParam);
   else
     pCtx->iMaxNumRef = AL_GetNumberOfRef(pChParam->uPpsParam);
 }

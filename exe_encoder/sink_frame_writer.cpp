@@ -168,6 +168,7 @@ void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tYuvFourCC)
   {
     switch(tYuvFourCC)
     {
+    case FOURCC(I4AL): return T64A_To_I4AL(pRec, pYuv);
     default: assert(false && "Unknown tile conversion");
     }
 
@@ -203,6 +204,18 @@ void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tYuvFourCC)
 
     break;
   }
+
+  case FOURCC(T64C):
+  {
+    switch(tYuvFourCC)
+    {
+    case FOURCC(I4CL): return T64C_To_I4CL(pRec, pYuv);
+    default: assert(false && "Unknown tile conversion");
+    }
+
+    break;
+  }
+
   default:
     assert(false && "Unknown tile format");
   }

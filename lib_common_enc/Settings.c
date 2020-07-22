@@ -360,6 +360,9 @@ static void XAVC_CheckCoherency(AL_TEncSettings* pSettings)
 {
   pSettings->bEnableAUD = true;
   pSettings->eEnableFillerData = AL_FILLER_DISABLE;
+  pSettings->uEnableSEI |= AL_SEI_PT;
+  pSettings->uEnableSEI |= AL_SEI_BP;
+  pSettings->uEnableSEI |= AL_SEI_RP;
   pSettings->eAspectRatio = AL_ASPECT_RATIO_1_1;
   AL_TEncChanParam* pChannel = &pSettings->tChParam[0];
   pChannel->eEncTools &= (~AL_OPT_LF_X_TILE);
@@ -409,15 +412,13 @@ static void XAVC_CheckCoherency(AL_TEncSettings* pSettings)
     pChannel->uSrcBitDepth = 10;
   }
 
-  if(AL_IS_XAVC_MP4(pChannel->eProfile))
-  {
-    int const iMaxTimeBetween2ConsecutiveIDRInSeconds = 5;
-    AL_TRCParam* pRateControl = &pChannel->tRCParam;
-    int iFramesPerMaxTime = iMaxTimeBetween2ConsecutiveIDRInSeconds * ((pRateControl->uFrameRate * pRateControl->uClkRatio) / 1001);
-    AL_TGopParam* pGop = &pChannel->tGopParam;
-    int iGopPerMaxTime = iFramesPerMaxTime / pGop->uGopLength;
-    pGop->uFreqIDR = Min(iGopPerMaxTime * pGop->uGopLength, pGop->uFreqIDR);
-  }
+  int const iMaxTimeBetween2ConsecutiveIDRInSeconds = 5;
+  AL_TRCParam* pRateControl = &pChannel->tRCParam;
+  int iFramesPerMaxTime = iMaxTimeBetween2ConsecutiveIDRInSeconds * ((pRateControl->uFrameRate * pRateControl->uClkRatio) / 1001);
+  AL_TGopParam* pGop = &pChannel->tGopParam;
+  int iGopPerMaxTime = iFramesPerMaxTime / pGop->uGopLength;
+  pGop->uFreqIDR = Min(iGopPerMaxTime * pGop->uGopLength, pGop->uFreqIDR);
+  pGop->uFreqIDR = Min(pGop->uGopLength, pGop->uFreqIDR);
 }
 
 /***************************************************************************/

@@ -70,6 +70,6 @@ void HEVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStat
   AL_TNalsData nalsData = AL_ExtractNalsData(pCtx, iLayerID, iPicID);
   nalsData.bMustWritePPS = bMustWritePPS;
   AL_TEncChanParam const* pChannel = &pCtx->pSettings->tChParam[0];
-  GenerateSections(AL_GetHevcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, iLayerID, pChannel->uNumSlices, pChannel->bSubframeLatency);
+  GenerateSections(AL_GetHevcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, iLayerID, pChannel->uNumSlices, pChannel->bSubframeLatency, false);
 }
 
