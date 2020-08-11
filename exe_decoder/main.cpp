@@ -125,9 +125,6 @@ AL_TDecSettings getDefaultDecSettings()
   settings.iStackSize = 2;
   settings.iBitDepth = -1;
   settings.uNumCore = NUMCORE_AUTO;
-#if AL_ENBLE_SITE
-  settings.uFirstCoreID = -1;
-#endif
   settings.uFrameRate = 60000;
   settings.uClkRatio = 1000;
   settings.uDDRWidth = 32;
