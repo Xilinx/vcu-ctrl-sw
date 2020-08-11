@@ -73,14 +73,14 @@ void AL_DecodeOneNal(AL_NonVclNuts nuts, AL_NalParser parser, AL_TAup* pAUP, AL_
 
     if(pMeta && !CheckAvailSpace(pCtx, pMeta))
     {
-      AL_Default_Decoder_SetError(pCtx, AL_WARN_SEI_OVERFLOW, pCtx->uCurPocLsb);
+      AL_Default_Decoder_SetError(pCtx, AL_WARN_SEI_OVERFLOW, -1);
       return;
     }
 
     AL_TRbspParser rp = pMeta ? getParserOnNonVclNal(pCtx, AL_SeiMetaData_GetBuffer(pMeta)) : getParserOnNonVclNalInternalBuf(pCtx);
 
     if(!parser.parseSei(pAUP, &rp, bIsPrefix, &pCtx->parsedSeiCB, pMeta))
-      AL_Default_Decoder_SetError(pCtx, AL_WARN_SEI_OVERFLOW, pCtx->uCurPocLsb);
+      AL_Default_Decoder_SetError(pCtx, AL_WARN_SEI_OVERFLOW, -1);
   }
 
   if(nut == nuts.sps)

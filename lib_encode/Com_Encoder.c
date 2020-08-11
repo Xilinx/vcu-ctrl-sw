@@ -489,14 +489,18 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
   }
 
   AL_TEncChanParam* pChParam = &pCtx->pSettings->tChParam[iLayerID];
-  TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pFrame);
-  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pFrame);
+  AL_TPicFormat tPicFormat;
+  AL_Assert(AL_GetPicFormat(AL_PixMapBuffer_GetFourCC(pFrame), &tPicFormat));
 
   addresses.tSrcAddrs.pY = AL_PixMapBuffer_GetPlanePhysicalAddress(pFrame, AL_PLANE_Y);
-  addresses.tSrcAddrs.pC1 = AL_PixMapBuffer_GetPlanePhysicalAddress(pFrame, AL_PLANE_UV);
+  addresses.tSrcAddrs.pC1 = 0;
+
+  if(tPicFormat.eChromaOrder == AL_C_ORDER_SEMIPLANAR)
+    addresses.tSrcAddrs.pC1 = AL_PixMapBuffer_GetPlanePhysicalAddress(pFrame, AL_PLANE_UV);
+
   addresses.tSrcInfo.uPitch = AL_PixMapBuffer_GetPlanePitch(pFrame, AL_PLANE_Y);
 
-  addresses.tSrcInfo.uBitDepth = AL_GetBitDepth(tFourCC);
+  addresses.tSrcInfo.uBitDepth = tPicFormat.uBitDepth;
   addresses.tSrcInfo.uFormat = AL_GET_SRC_FMT(pChParam->eSrcMode);
 
   AL_Buffer_Ref(pFrame);

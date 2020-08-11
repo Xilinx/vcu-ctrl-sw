@@ -744,7 +744,7 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB_
     case SEI_PTYPE_USER_DATA_REGISTERED:
     {
       AL_EUserDataRegisterSEIType eSEIType;
-      PARSE_OR_SKIP((eSEIType = sei_user_data_registered(pRP)) != AL_UDR_SEI_UNKNOWN);
+      PARSE_OR_SKIP((eSEIType = sei_user_data_registered(pRP, payload_size)) != AL_UDR_SEI_UNKNOWN);
       switch(eSEIType)
       {
       case AL_UDR_SEI_ST2094_10:

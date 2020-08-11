@@ -62,32 +62,13 @@ bool AL_SrcBuffersChecker_UpdateResolution(AL_TSrcBufferChecker* pCtx, AL_TDimen
   return true;
 }
 
-static bool CheckMetaData(AL_TBuffer* pBuf)
+static bool CheckMetaData(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf)
 {
-  return AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_PIXMAP) != NULL;
-}
+  if(AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_PIXMAP) == NULL)
+    return false;
 
-static int GetChromaPlanesPitch(int iPitchY, TFourCC tFourCC)
-{
-  switch(AL_GetChromaMode(tFourCC))
-  {
-  case AL_CHROMA_4_4_4: return AL_IsSemiPlanar(tFourCC) ? iPitchY * 2 : iPitchY;
-  case AL_CHROMA_4_2_2: return AL_IsSemiPlanar(tFourCC) ? iPitchY : iPitchY / 2;
-  case AL_CHROMA_4_2_0: return AL_IsSemiPlanar(tFourCC) ? iPitchY : iPitchY / 2;
-  case AL_CHROMA_4_0_0: return 0;
-  default: AL_Assert(false && "Unknown chroma mode");
-  }
-
-  return 0;
-}
-
-static bool CheckPlanes(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf)
-{
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
-  AL_EChromaMode eChromaMode = AL_GetChromaMode(tFourCC);
-
-  int iPitchY = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_Y);
 
   if(tDim.iWidth != pCtx->currentDim.iWidth)
     return false;
@@ -98,57 +79,55 @@ static bool CheckPlanes(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf)
   if(tFourCC != pCtx->fourCC)
     return false;
 
-  int iMinPitchY = AL_EncGetMinPitch(tDim.iWidth, AL_GetBitDepth(tFourCC), AL_GetStorageMode(tFourCC));
-
-  if(iPitchY < iMinPitchY)
-    return false;
-
-  if(iPitchY % HW_IP_BURST_ALIGNMENT)
-    return false;
-
-  if(eChromaMode != AL_CHROMA_MONO)
-  {
-    int iPitchUV = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_UV);
-
-    if(iPitchUV != GetChromaPlanesPitch(iPitchY, tFourCC))
-      return false;
-  }
-
   return true;
 }
 
 static uint32_t GetSrcPlaneSize(AL_TDimension tDim, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt, int iPitchY, int iStrideHeight, AL_EPlaneId ePlaneId)
 {
   (void)tDim;
-  switch(ePlaneId)
-  {
-  case AL_PLANE_Y: return AL_GetAllocSizeSrc_Y(eSrcFmt, iPitchY, iStrideHeight);
-  case AL_PLANE_UV: return AL_GetAllocSizeSrc_UV(eSrcFmt, iPitchY, iStrideHeight, eChromaMode);
-  default:
-    AL_Assert(false);
-  }
+
+  if(AL_Plane_IsPixelPlane(ePlaneId))
+    return AL_GetAllocSizeSrc_PixPlane(eSrcFmt, iPitchY, iStrideHeight, eChromaMode, ePlaneId);
 
   return 0;
 }
 
-static bool CheckSize(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf)
+static bool CheckPlanes(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf)
 {
+  TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
-  int const iPitchY = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_Y);
+
+  const int iMinPitch = AL_EncGetMinPitch(tDim.iWidth, AL_GetBitDepth(tFourCC), AL_GetStorageMode(tFourCC));
   int const iMinStrideHeight = RoundUp(tDim.iHeight, 8);
 
-  TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
-  AL_EChromaMode eChromaMode = AL_GetChromaMode(tFourCC);
+  int const iPitchY = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_Y);
+
+  if(iPitchY < iMinPitch || (iPitchY % HW_IP_BURST_ALIGNMENT != 0))
+    return false;
 
   uint32_t uChunkSizes[AL_BUFFER_MAX_CHUNK] = { 0 };
 
-  for(int iPlane = 0; iPlane < (int)AL_PLANE_MAX_ENUM; iPlane++)
-  {
-    AL_EPlaneId ePlaneId = (AL_EPlaneId)iPlane;
-    int iChunkIdx = AL_PixMapBuffer_GetPlaneChunkIdx(pBuf, ePlaneId);
+  AL_TPicFormat tPicFormat;
+  AL_Assert(AL_GetPicFormat(tFourCC, &tPicFormat));
+  AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES];
+  int iNbPlanes = AL_Plane_GetBufferPixelPlanes(tPicFormat.eChromaOrder, usedPlanes);
 
-    if(iChunkIdx != AL_BUFFER_BAD_CHUNK)
-      uChunkSizes[iChunkIdx] += GetSrcPlaneSize(tDim, eChromaMode, pCtx->srcMode, iPitchY, iMinStrideHeight, ePlaneId);
+  for(int iPlane = 0; iPlane < iNbPlanes; iPlane++)
+  {
+    AL_EPlaneId ePlaneId = usedPlanes[iPlane];
+
+    int iChunkIdx = AL_PixMapBuffer_GetPlaneChunkIdx(pBuf, ePlaneId);
+    AL_Assert(iChunkIdx != AL_BUFFER_BAD_CHUNK);
+
+    if(AL_Plane_IsPixelPlane(ePlaneId) && ePlaneId != AL_PLANE_Y)
+    {
+      int const iPitch = AL_PixMapBuffer_GetPlanePitch(pBuf, ePlaneId);
+
+      if(iPitch != AL_GetChromaPitch(tFourCC, iPitchY))
+        return false;
+    }
+
+    uChunkSizes[iChunkIdx] += GetSrcPlaneSize(tDim, tPicFormat.eChromaMode, pCtx->srcMode, iPitchY, iMinStrideHeight, ePlaneId);
   }
 
   for(int i = 0; i < AL_BUFFER_MAX_CHUNK; i++)
@@ -165,12 +144,9 @@ bool AL_SrcBuffersChecker_CanBeUsed(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf
   if(pBuf == NULL)
     return false;
 
-  if(!CheckMetaData(pBuf))
+  if(!CheckMetaData(pCtx, pBuf))
     return false;
 
-  if(!CheckPlanes(pCtx, pBuf))
-    return false;
-
-  return CheckSize(pCtx, pBuf);
+  return CheckPlanes(pCtx, pBuf);
 }
 

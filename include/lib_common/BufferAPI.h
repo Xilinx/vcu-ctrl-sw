@@ -51,7 +51,7 @@
 #include "lib_common/BufferMeta.h"
 #include "lib_common/Allocator.h"
 
-#define AL_BUFFER_MAX_CHUNK 3
+#define AL_BUFFER_MAX_CHUNK 6
 #define AL_BUFFER_BAD_CHUNK -1
 
 /*************************************************************************//*!

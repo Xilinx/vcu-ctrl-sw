@@ -116,9 +116,9 @@ static void rcPlugin_setRateControlParameters(void* pHandle, Plugin_RCParam cons
   pCtx->gopParam = *pGopParam;
 }
 
-static void rcPlugin_checkCompliance(void* pHandle, Plugin_PictureInfo* pPicInfo, Plugin_Statistics* pStats, int iPictureSize, int* pFillOrSkip)
+static void rcPlugin_checkCompliance(void* pHandle, Plugin_Statistics* pStats, int iPictureSize, bool bCheckSkip, int* pFillOrSkip)
 {
-  (void)pPicInfo, (void)pStats, (void)iPictureSize;
+  (void)pStats, (void)iPictureSize, (void)bCheckSkip;
   struct RCExampleCtx* pCtx = (struct RCExampleCtx*)pHandle;
   pCtx->pMcu->trace("checkcompliance", 20);
   // no underflow / overflow

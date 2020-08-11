@@ -65,6 +65,5 @@ typedef struct t_RecPic
 
 uint32_t AL_GetRecPitch(uint32_t uBitDepth, uint32_t uWidth);
 void AL_EncRecBuffer_FillPlaneDesc(AL_TPlaneDescription* pPlaneDesc, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bIsAvc);
-
 /*@}*/
 

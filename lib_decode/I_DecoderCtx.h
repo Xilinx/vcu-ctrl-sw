@@ -120,16 +120,15 @@ typedef struct t_Dec_Ctx
 
   AL_TDecChanParam* pChanParam;
   AL_EDpbMode eDpbMode;
-  bool bUseBoard;
-  bool bConceal;
   int iStackSize;
   bool bForceFrameRate;
 
   // Trace stuff
+  char sTracePrefix[8];
   int iTraceFirstFrame;
   int iTraceLastFrame;
   int iTraceCounter;
-  bool shouldPrintFrameDelimiter;
+  bool bShouldPrintFrameDelimiter;
 
   // stream context status
   bool bFirstIsValid;
@@ -138,6 +137,7 @@ typedef struct t_Dec_Ctx
   bool bIsFirstPicture;
   int iStreamOffset[MAX_STACK_SIZE];
   int iCurOffset;
+  int iCurNalStreamOffset;
   uint32_t uCurPocLsb;
   uint8_t uNoRaslOutputFlag;
   uint8_t uFrameIDRefList[MAX_STACK_SIZE][AL_MAX_NUM_REF];

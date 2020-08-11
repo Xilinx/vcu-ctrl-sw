@@ -48,9 +48,11 @@ extern "C"
 #include "lib_app/InputFiles.h"
 
 /*****************************************************************************/
-uint32_t GetIOLumaRowSize(TFourCC fourCC, uint32_t uWidth);
+AL_TBuffer* AllocateDefaultYuvIOBuffer(AL_TDimension const& tDimension, TFourCC tFourCC);
+
 /*****************************************************************************/
 void GotoFirstPicture(TYUVFileInfo const& FI, std::ifstream& File, unsigned int iFirstPict = 0);
+
 /*****************************************************************************/
 int GotoNextPicture(TYUVFileInfo const& FI, std::ifstream& File, int iEncFrameRate, int iEncPictCount, int iFilePictCount);
 

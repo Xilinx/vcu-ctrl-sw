@@ -188,6 +188,13 @@ AL_EChromaMode AL_GetChromaMode(TFourCC tFourCC)
 }
 
 /****************************************************************************/
+AL_EChromaOrder AL_GetChromaOrder(TFourCC tFourCC)
+{
+  AL_TPicFormat tPicFormat;
+  return AL_GetPicFormat(tFourCC, &tPicFormat) ? tPicFormat.eChromaOrder : (AL_EChromaOrder) - 1;
+}
+
+/****************************************************************************/
 uint8_t AL_GetBitDepth(TFourCC tFourCC)
 {
   AL_TPicFormat tPicFormat;

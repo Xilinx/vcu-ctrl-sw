@@ -39,14 +39,17 @@
 #include <stdexcept>
 #include <cstdlib>
 #include <cstdarg>
+#include <mutex>
 #include "utils.h"
 
 using namespace std;
 
 int g_Verbosity = 10;
+static std::mutex s_LogMutex;
 
-void Message(EConColor Color, const char* sMsg, va_list args)
+static void Message(EConColor Color, const char* sMsg, va_list args)
 {
+  std::lock_guard<std::mutex> guard(s_LogMutex);
   SetConsoleColor(Color);
   vprintf(sMsg, args);
   fflush(stdout);

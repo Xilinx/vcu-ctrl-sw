@@ -198,6 +198,21 @@ static int calculatePOC(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pSlice, uint8_t
 }
 
 /*****************************************************************************/
+static AL_ESequenceMode GetSequenceModeFromScanType(uint8_t source_scan_type)
+{
+  switch(source_scan_type)
+  {
+  case 0: return AL_SM_INTERLACED;
+  case 1: return AL_SM_PROGRESSIVE;
+
+  case 2:
+  case 3: return AL_SM_UNKNOWN;
+
+  default: return AL_SM_MAX_ENUM;
+  }
+}
+
+/*****************************************************************************/
 static AL_ESequenceMode getSequenceMode(AL_THevcSps const* pSPS)
 {
   AL_TProfilevel const* pProfileLevel = &pSPS->profile_and_level;
@@ -223,7 +238,7 @@ static AL_ESequenceMode getSequenceMode(AL_THevcSps const* pSPS)
     return AL_SM_INTERLACED;
 
   if(pProfileLevel->general_progressive_source_flag && pProfileLevel->general_interlaced_source_flag)
-    return AL_SM_MAX_ENUM;
+    return GetSequenceModeFromScanType(pSPS->sei_source_scan_type);
 
   return AL_SM_MAX_ENUM;
 }

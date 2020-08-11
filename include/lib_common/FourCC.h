@@ -69,8 +69,9 @@ typedef enum e_ChromaOrder
   AL_C_ORDER_SEMIPLANAR
 }AL_EChromaOrder;
 
-/***************************************************************************/
-
+/*************************************************************************//*!
+   \brief FourCC interpretation
+*****************************************************************************/
 typedef struct AL_t_PicFormat
 {
   AL_EChromaMode eChromaMode;
@@ -87,6 +88,13 @@ typedef struct AL_t_PicFormat
    \return return the ChomaMode according to the tFourCC parameter
 *****************************************************************************/
 AL_EChromaMode AL_GetChromaMode(TFourCC tFourCC);
+
+/*************************************************************************//*!
+   \brief Returns the ChromaOrder identifier according to the tFourCC parameter
+   \param[in] tFourCC FourCC format of the current picture
+   \return return the ChromaOrder according to the tFourCC parameter
+*****************************************************************************/
+AL_EChromaOrder AL_GetChromaOrder(TFourCC tFourCC);
 
 /*************************************************************************//*!
    \brief Returns the bitDepth according to the tFourCC parameter

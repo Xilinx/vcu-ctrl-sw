@@ -49,6 +49,7 @@
 
 #include "lib_common/SliceConsts.h"
 #include "lib_common/BufCommon.h"
+#include "lib_common/BufferPixMapMeta.h"
 
 #include "lib_common_enc/EncChanParam.h"
 
@@ -97,23 +98,15 @@ uint32_t AL_GetAllocSize_Src(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMo
 uint32_t AL_GetAllocSizeSrc(AL_TDimension tDim, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight);
 
 /*************************************************************************//*!
-   \brief Retrieves the size of the luma component of a YUV frame buffer
-   \param[in] eSrcFmt Source format used by the HW IP
-   \param[in] iPitch Pitch / stride of the source frame buffer
-   \param[in] iStrideHeight The height used for buffer allocation
-   \return maximum size (in bytes) needed for the luma component
-*****************************************************************************/
-uint32_t AL_GetAllocSizeSrc_Y(AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight);
-
-/*************************************************************************//*!
-   \brief Retrieves the size of the choma component of a YUV frame buffer
+   \brief Retrieves the size of one pixel component of a YUV frame buffer
    \param[in] eSrcFmt Source format used by the HW IP
    \param[in] iPitch Pitch / stride of the source frame buffer
    \param[in] iStrideHeight The height used for buffer allocation
    \param[in] eChromaMode Chroma Mode
-   \return maximum size (in bytes) needed for the chroma component
+   \param[in] ePlaneId The pixel plane type. Must not be a map plane.
+   \return maximum size (in bytes) needed for the component
 *****************************************************************************/
-uint32_t AL_GetAllocSizeSrc_UV(AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight, AL_EChromaMode eChromaMode);
+uint32_t AL_GetAllocSizeSrc_PixPlane(AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight, AL_EChromaMode eChromaMode, AL_EPlaneId ePlaneId);
 
 /*************************************************************************//*!
    \brief Retrieves the minimal pitch value supported by the ip depending
@@ -124,9 +117,6 @@ uint32_t AL_GetAllocSizeSrc_UV(AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeigh
    \return pitch value in bytes
 *****************************************************************************/
 int AL_EncGetMinPitch(int iWidth, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode);
-
-AL_DEPRECATED("Renamed as AL_EncGetMinPitch, Will be removed in 0.9")
-int AL_CalculatePitchValue(int iWidth, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode);
 
 /*************************************************************************//*!
    \brief Retrieves the Source frame buffer storage mode depending on Source mode
@@ -141,6 +131,14 @@ AL_EFbStorageMode AL_GetSrcStorageMode(AL_ESrcMode eSrcMode);
    \return Source Storage Mode
 *****************************************************************************/
 bool AL_IsSrcCompressed(AL_ESrcMode eSrcMode);
+
+AL_DEPRECATED("Renamed as AL_EncGetMinPitch, Will be removed in 0.9")
+int AL_CalculatePitchValue(int iWidth, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode);
+
+AL_DEPRECATED("Use AL_GetAllocSizeSrc_PixPlane.")
+uint32_t AL_GetAllocSizeSrc_Y(AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight);
+AL_DEPRECATED("Use AL_GetAllocSizeSrc_PixPlane.")
+uint32_t AL_GetAllocSizeSrc_UV(AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight, AL_EChromaMode eChromaMode);
 
 /*@}*/
 

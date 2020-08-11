@@ -163,16 +163,33 @@ bool AL_IsSrcCompressed(AL_ESrcMode eSrcMode)
 }
 
 /****************************************************************************/
+uint32_t AL_GetAllocSizeSrc_PixPlane(AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight, AL_EChromaMode eChromaMode, AL_EPlaneId ePlaneId)
+{
+  AL_EChromaOrder eChromaOrder = eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA :
+                                 (eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR);
+
+  if(!AL_Plane_Exists(eChromaOrder, false, ePlaneId))
+    return 0;
+
+  AL_EFbStorageMode const eSrcStorageMode = AL_GetSrcStorageMode(eSrcFmt);
+  int iSize = iStrideHeight * iPitch / AL_GetNumLinesInPitch(eSrcStorageMode);
+
+  if(ePlaneId == AL_PLANE_UV)
+    iSize = GetChromaAllocSize(eChromaMode, iSize);
+
+  return iSize;
+}
+
+/****************************************************************************/
 uint32_t AL_GetAllocSizeSrc_Y(AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight)
 {
-  AL_EFbStorageMode const eSrcStorageMode = AL_GetSrcStorageMode(eSrcFmt);
-  return iStrideHeight * iPitch / AL_GetNumLinesInPitch(eSrcStorageMode);
+  return AL_GetAllocSizeSrc_PixPlane(eSrcFmt, iPitch, iStrideHeight, AL_CHROMA_MONO, AL_PLANE_Y);
 }
 
 /****************************************************************************/
 uint32_t AL_GetAllocSizeSrc_UV(AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight, AL_EChromaMode eChromaMode)
 {
-  return GetChromaAllocSize(eChromaMode, AL_GetAllocSizeSrc_Y(eSrcFmt, iPitch, iStrideHeight));
+  return AL_GetAllocSizeSrc_PixPlane(eSrcFmt, iPitch, iStrideHeight, eChromaMode, AL_PLANE_UV);
 }
 
 /****************************************************************************/
@@ -188,7 +205,8 @@ uint32_t AL_GetAllocSize_Src(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMo
 uint32_t AL_GetAllocSizeSrc(AL_TDimension tDim, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight)
 {
   (void)tDim;
-  uint32_t uAllocSizeY = AL_GetAllocSizeSrc_Y(eSrcFmt, iPitch, iStrideHeight);
+
+  uint32_t uAllocSizeY = AL_GetAllocSizeSrc_PixPlane(eSrcFmt, iPitch, iStrideHeight, AL_CHROMA_MONO, AL_PLANE_Y);
   uint32_t uSize = uAllocSizeY + GetChromaAllocSize(eChromaMode, uAllocSizeY);
 
   return uSize;

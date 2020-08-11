@@ -137,15 +137,32 @@ static int GetChromaAllocSize(AL_EChromaMode eChromaMode, int iAllocSizeY)
 }
 
 /*****************************************************************************/
+int AL_DecGetAllocSize_Frame_PixPlane(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode, AL_EPlaneId ePlaneId)
+{
+  AL_EChromaOrder eChromaOrder = eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA :
+                                 (eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR);
+
+  if(!AL_Plane_Exists(eChromaOrder, false, ePlaneId))
+    return 0;
+
+  int iSize = iPitch * RndHeight(tDim.iHeight) / AL_GetNumLinesInPitch(eFbStorage);
+
+  if(ePlaneId == AL_PLANE_UV)
+    iSize = GetChromaAllocSize(eChromaMode, iSize);
+
+  return iSize;
+}
+
+/*****************************************************************************/
 int AL_DecGetAllocSize_Frame_Y(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch)
 {
-  return iPitch * RndHeight(tDim.iHeight) / AL_GetNumLinesInPitch(eFbStorage);
+  return AL_DecGetAllocSize_Frame_PixPlane(eFbStorage, tDim, iPitch, AL_CHROMA_MONO, AL_PLANE_Y);
 }
 
 /*****************************************************************************/
 int AL_DecGetAllocSize_Frame_UV(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode)
 {
-  return GetChromaAllocSize(eChromaMode, AL_DecGetAllocSize_Frame_Y(eFbStorage, tDim, iPitch));
+  return AL_DecGetAllocSize_Frame_PixPlane(eFbStorage, tDim, iPitch, eChromaMode, AL_PLANE_UV);
 }
 
 /*****************************************************************************/
@@ -153,7 +170,7 @@ int AL_DecGetAllocSize_Frame(AL_TDimension tDim, int iPitch, AL_EChromaMode eChr
 {
   (void)bFbCompression;
 
-  uint32_t uAllocSizeY = AL_DecGetAllocSize_Frame_Y(eFbStorageMode, tDim, iPitch);
+  uint32_t uAllocSizeY = AL_DecGetAllocSize_Frame_PixPlane(eFbStorageMode, tDim, iPitch, eChromaMode, AL_PLANE_Y);
   uint32_t uSize = uAllocSizeY + GetChromaAllocSize(eChromaMode, uAllocSizeY);
 
   return uSize;
@@ -169,11 +186,23 @@ int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_
 /*****************************************************************************/
 AL_TMetaData* AL_CreateRecBufMetaData(AL_TDimension tDim, int iMinPitch, TFourCC tFourCC)
 {
-  AL_EFbStorageMode eStorageMode = AL_GetStorageMode(tFourCC);
-  AL_TPlane tPlaneY = { 0, 0, iMinPitch };
-  int iOffsetC = AL_DecGetAllocSize_Frame_Y(eStorageMode, tDim, iMinPitch);
-  AL_TPlane tPlaneUV = { 0, iOffsetC, AL_GetChromaPitch(tFourCC, iMinPitch) };
-  AL_TPixMapMetaData* pSrcMeta = AL_PixMapMetaData_Create(tDim, tPlaneY, tPlaneUV, tFourCC);
+  AL_TPixMapMetaData* pSrcMeta = AL_PixMapMetaData_CreateEmpty(tFourCC);
+  pSrcMeta->tDim = tDim;
+
+  AL_TPicFormat tPicFormat;
+  AL_Assert(AL_GetPicFormat(tFourCC, &tPicFormat));
+
+  int iOffset = 0;
+
+  AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES];
+  int iNbPlanes = AL_Plane_GetBufferPixelPlanes(tPicFormat.eChromaOrder, usedPlanes);
+
+  for(int iPlane = 0; iPlane < iNbPlanes; iPlane++)
+  {
+    int iPitch = usedPlanes[iPlane] == AL_PLANE_Y ? iMinPitch : AL_GetChromaPitch(tFourCC, iMinPitch);
+    AL_PixMapMetaData_AddPlane(pSrcMeta, (AL_TPlane) {0, iOffset, iPitch }, usedPlanes[iPlane]);
+    iOffset += AL_DecGetAllocSize_Frame_PixPlane(tPicFormat.eStorageMode, tDim, iPitch, tPicFormat.eChromaMode, usedPlanes[iPlane]);
+  }
 
   return (AL_TMetaData*)pSrcMeta;
 }

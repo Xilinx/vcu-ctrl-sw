@@ -60,18 +60,17 @@ void SetRecPic(AL_TRecPic* pRecPic, AL_TAllocator* pAllocator, AL_HANDLE hRecBuf
 {
   pRecPic->pBuf = AL_PixMapBuffer_Create(pAllocator, NULL, pRecInfo->tPicDim, pChanInfo->RecFourCC);
 
-  AL_EChromaMode eChromaMode = AL_GetChromaMode(pChanInfo->RecFourCC);
-  uint8_t uBitDepth = AL_GetBitDepth(pChanInfo->RecFourCC);
-  bool bIsComp = AL_IsCompressed(pChanInfo->RecFourCC);
+  AL_TPicFormat tPicFormat;
+  AL_Assert(AL_GetPicFormat(pChanInfo->RecFourCC, &tPicFormat));
 
-  // Following code assumes continuous AL_EPlaneId enum. Also, monochrome should be properly handled.
   AL_TPlaneDescription tPlanesDesc[AL_PLANE_MAX_ENUM];
-  int iNbPlanes = (int)(bIsComp ? AL_PLANE_MAP_UV : AL_PLANE_UV) + 1;
+  AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES];
+  int iNbPlanes = AL_Plane_GetBufferPlanes(tPicFormat.eChromaOrder, tPicFormat.bCompressed, usedPlanes);
 
-  for(int iCurrentPlane = 0; iCurrentPlane < iNbPlanes; iCurrentPlane++)
+  for(int iPlane = 0; iPlane < iNbPlanes; iPlane++)
   {
-    tPlanesDesc[iCurrentPlane].ePlaneId = (AL_EPlaneId)iCurrentPlane;
-    AL_EncRecBuffer_FillPlaneDesc(&tPlanesDesc[iCurrentPlane], pRecInfo->tPicDim, eChromaMode, uBitDepth, pChanInfo->bIsAvc);
+    tPlanesDesc[iPlane].ePlaneId = usedPlanes[iPlane];
+    AL_EncRecBuffer_FillPlaneDesc(&tPlanesDesc[iPlane], pRecInfo->tPicDim, tPicFormat.eChromaMode, tPicFormat.uBitDepth, pChanInfo->bIsAvc);
   }
 
   AL_PixMapBuffer_AddPlanes(pRecPic->pBuf, hRecBuf, pChanInfo->uRecSize, &tPlanesDesc[0], iNbPlanes);

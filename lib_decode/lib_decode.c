@@ -71,9 +71,9 @@ void AL_Decoder_Destroy(AL_HDecoder hDec)
 }
 
 /*****************************************************************************/
-void AL_Decoder_SetParam(AL_HDecoder hDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm, bool bForceCleanBuffers, bool shouldPrintFrameDelimiter)
+void AL_Decoder_SetParam(AL_HDecoder hDec, const char* sPrefix, int iFrmID, int iNumFrm, bool bForceCleanBuffers, bool bShouldPrintFrameDelimiter)
 {
-  AL_Default_Decoder_SetParam((AL_TDecoder*)hDec, bConceal, bUseBoard, iFrmID, iNumFrm, bForceCleanBuffers, shouldPrintFrameDelimiter);
+  AL_Default_Decoder_SetParam((AL_TDecoder*)hDec, sPrefix, iFrmID, iNumFrm, bForceCleanBuffers, bShouldPrintFrameDelimiter);
 }
 
 /*****************************************************************************/
@@ -156,9 +156,15 @@ UNIT_ERROR AL_Decoder_TryDecodeOneUnit(AL_HDecoder hDec, AL_TBuffer* pBufStream)
 }
 
 /*****************************************************************************/
-int AL_Decoder_GetStrOffset(AL_HDecoder hDec)
+int AL_Decoder_GetDecodedStrOffset(AL_HDecoder hDec)
 {
   return AL_Default_Decoder_GetStrOffset((AL_TDecoder*)hDec);
+}
+
+/*****************************************************************************/
+int AL_Decoder_SkipParsedUnits(AL_HDecoder hDec)
+{
+  return AL_Default_Decoder_SkipParsedNals((AL_TDecoder*)hDec);
 }
 
 /*****************************************************************************/

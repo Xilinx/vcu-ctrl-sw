@@ -377,6 +377,9 @@ static void XAVC_CheckCoherency(AL_TEncSettings* pSettings)
     pChannel->uSrcBitDepth = 10;
     pChannel->uNumSlices = 8;
 
+    AL_TRCParam* pRateControl = &pChannel->tRCParam;
+    pRateControl->eRCMode = AL_RC_VBR;
+
     AL_TGopParam* pGop = &pChannel->tGopParam;
     pGop->uGopLength = 0;
     pGop->uFreqIDR = 0;
@@ -395,8 +398,11 @@ static void XAVC_CheckCoherency(AL_TEncSettings* pSettings)
       pSettings->SclFlag[1][0] = 1;
       Rtos_Memcpy(pSettings->ScalingList[1][0], (pChannel->uEncWidth == 1280) ? XAVC_1280x720_DefaultScalingLists8x8[0] : (pChannel->uEncWidth == 1440) ? XAVC_1440x1080_DefaultScalingLists8x8[0] : XAVC_1920x1080_DefaultScalingLists8x8[0], 64);
       pSettings->SclFlag[1][1] = 0;
+
       pChannel->iCbPicQpOffset = (pChannel->uEncWidth == 1920) ? 3 : 4;
       pChannel->iCrPicQpOffset = (pChannel->uEncWidth == 1920) ? 3 : 4;
+
+      pRateControl->eRCMode = AL_RC_CBR;
     }
     return;
   }

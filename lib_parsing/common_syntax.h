@@ -132,9 +132,10 @@ bool sei_content_light_level(AL_TContentLightLevel* pCLL, AL_TRbspParser* pRP);
    \brief Parse the first bytes of user_data_registered_itu_t_t35 sei to determine
    the type of the SEI
    \param[in]  pRP       Pointer to NAL parser
+   \param[in]  payload_size sei message length
    return the known type of SEI, or AL_UDR_SEI_UNKNOWN if SEI not recognized
 *****************************************************************************/
-AL_EUserDataRegisterSEIType sei_user_data_registered(AL_TRbspParser* pRP);
+AL_EUserDataRegisterSEIType sei_user_data_registered(AL_TRbspParser* pRP, uint32_t payload_size);
 
 /*************************************************************************//*!
    \brief The sei_st2094_10 parsing

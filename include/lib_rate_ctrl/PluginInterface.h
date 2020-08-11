@@ -85,7 +85,7 @@ typedef struct t_RC_Plugin_Vtable
 {
   void (* setStreamInfo)(void* pHandle, int iWidth, int iHeight);
   void (* setRateControlParameters)(void* pHandle, Plugin_RCParam const* pRCParam, Plugin_GopParam const* pGopParam);
-  void (* checkCompliance)(void* pHandle, Plugin_PictureInfo* pPicInfo, Plugin_Statistics* pStatus, int iPictureSize, int* pFillOrSkip);
+  void (* checkCompliance)(void* pHandle, Plugin_Statistics* pStatus, int iPictureSize, bool bCheckSkip, int* pFillOrSkip);
   void (* update)(void* pHandle, Plugin_PictureInfo const* pPicInfo, Plugin_Statistics const* pStatus, int iPictureSize, bool bSkipped, int iFillerSize);
   void (* choosePictureQP)(void* pHandle, Plugin_PictureInfo const* pPicInfo, int16_t* pQP);
   void (* getRemovalDelay)(void* pHandle, int* pDelay);

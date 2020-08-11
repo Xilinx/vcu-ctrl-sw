@@ -255,6 +255,8 @@ typedef struct t_Hevc_Sps
   /* picture order count variable */
   uint32_t MaxPicOrderCntLsb;
   uint8_t ChromaArrayType;
+
+  uint8_t sei_source_scan_type;
 }AL_THevcSps;
 
 /****************************************************************************/

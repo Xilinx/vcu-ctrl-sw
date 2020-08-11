@@ -525,72 +525,14 @@ void SetMoreDefaults(ConfigFile& cfg)
   }
 }
 
-static int GetCPlanePitch(int iPitchY, TFourCC tFourCC)
-{
-  switch(AL_GetChromaMode(tFourCC))
-  {
-  case AL_CHROMA_4_4_4: return AL_IsSemiPlanar(tFourCC) ? iPitchY * 2 : iPitchY;
-  case AL_CHROMA_4_2_2: return AL_IsSemiPlanar(tFourCC) ? iPitchY : iPitchY / 2;
-  case AL_CHROMA_4_2_0: return AL_IsSemiPlanar(tFourCC) ? iPitchY : iPitchY / 2;
-  case AL_CHROMA_4_0_0: return 0;
-  default: assert(false && "Unknown chroma mode");
-  }
-
-  return 0;
-}
-
 /*****************************************************************************/
-static
-shared_ptr<AL_TBuffer> AllocateConversionBuffer(int iWidth, int iHeight, TFourCC tFourCC)
+static shared_ptr<AL_TBuffer> AllocateConversionBuffer(int iWidth, int iHeight, TFourCC tFourCC)
 {
-  assert(AL_IsCompressed(tFourCC) == false);
+  AL_TBuffer* pYuv = AllocateDefaultYuvIOBuffer(AL_TDimension { iWidth, iHeight }, tFourCC);
 
-  AL_TDimension tDimension = { iWidth, iHeight };
-  AL_TBuffer* pBuf = AL_PixMapBuffer_Create(AL_GetDefaultAllocator(), NULL, tDimension, tFourCC);
-
-  if(pBuf == nullptr)
+  if(pYuv == nullptr)
     return nullptr;
-
-  auto sharedBuf = shared_ptr<AL_TBuffer>(pBuf, &AL_Buffer_Destroy);
-
-  std::vector<AL_TPlaneDescription> vPlaneDesc;
-  int iSrcSize = 0;
-
-  /* we want to read from /write to a file, so no alignment is necessary */
-  int const iWidthInBytes = GetIOLumaRowSize(tFourCC, static_cast<uint32_t>(iWidth));
-  vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_Y, 0, iWidthInBytes });
-  iSrcSize += iWidthInBytes * iHeight;
-
-  AL_EChromaMode eChromaMode = AL_GetChromaMode(tFourCC);
-  switch(eChromaMode)
-  {
-  case AL_CHROMA_MONO: break;
-  case AL_CHROMA_4_2_0:
-  {
-    vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_UV, iSrcSize, GetCPlanePitch(iWidthInBytes, tFourCC) });
-    iSrcSize += (iSrcSize / 2);
-    break;
-  }
-  case AL_CHROMA_4_2_2:
-  {
-    vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_UV, iSrcSize, GetCPlanePitch(iWidthInBytes, tFourCC) });
-    iSrcSize += iSrcSize;
-    break;
-  }
-  case AL_CHROMA_4_4_4:
-  {
-    vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_UV, iSrcSize, GetCPlanePitch(iWidthInBytes, tFourCC) });
-    iSrcSize += iSrcSize * 2;
-    break;
-  }
-  default:
-    assert(0 && "Unknown chroma mode");
-  }
-
-  if(!AL_PixMapBuffer_Allocate_And_AddPlanes(pBuf, iSrcSize, &vPlaneDesc[0], vPlaneDesc.size(), "conversion frame buffer"))
-    return nullptr;
-
-  return sharedBuf;
+  return shared_ptr<AL_TBuffer>(pYuv, &AL_Buffer_Destroy);
 }
 
 shared_ptr<AL_TBuffer> ReadSourceFrame(BaseBufPool* pBufPool, AL_TBuffer* conversionBuffer, ifstream& YuvFile, AL_TEncChanParam const& tChParam, ConfigFile const& cfg, IConvSrc* hConv)
@@ -750,31 +692,36 @@ static AL_TBufPoolConfig GetQpBufPoolConfig(AL_TEncSettings& Settings, AL_TEncCh
 /*****************************************************************************/
 static void ConfigureSrcBufPool(PixMapBufPool& SrcBufPool, TFrameInfo& FrameInfo, AL_ESrcMode eSrcMode)
 {
-  auto const tPictFormat = AL_EncGetSrcPicFormat(FrameInfo.eCMode, FrameInfo.iBitDepth, AL_GetSrcStorageMode(eSrcMode), AL_IsSrcCompressed(eSrcMode));
-  TFourCC FourCC = AL_GetFourCC(tPictFormat);
+  auto const tPicFormat = AL_EncGetSrcPicFormat(FrameInfo.eCMode, FrameInfo.iBitDepth, AL_GetSrcStorageMode(eSrcMode), AL_IsSrcCompressed(eSrcMode));
+  TFourCC tFourCC = AL_GetFourCC(tPicFormat);
 
-  SrcBufPool.SetFormat(FrameInfo.tDimension, FourCC);
+  SrcBufPool.SetFormat(FrameInfo.tDimension, tFourCC);
 
-  int iPitchY = ComputeYPitch(FrameInfo.tDimension.iWidth, FourCC);
+  int iPitchY = ComputeYPitch(FrameInfo.tDimension.iWidth, tFourCC);
   int iStrideHeight = g_StrideHeight != -1 ? g_StrideHeight : RoundUp(FrameInfo.tDimension.iHeight, 8);
 
   std::vector<AL_TPlaneDescription> vPlaneDesc;
-  int iSrcSize = 0;
+  int iOffset = 0;
 
-  vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_Y, 0, iPitchY });
-  iSrcSize += AL_GetAllocSizeSrc_Y(eSrcMode, iPitchY, iStrideHeight);
+  AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES];
+  int iNbPlanes = AL_Plane_GetBufferPixelPlanes(tPicFormat.eChromaOrder, usedPlanes);
 
-  if(g_MultiChunk)
+  for(int iPlane = 0; iPlane < iNbPlanes; iPlane++)
   {
-    SrcBufPool.AddChunk(iSrcSize, vPlaneDesc);
-    vPlaneDesc.clear();
-    iSrcSize = 0;
+    int iPitch = usedPlanes[iPlane] == AL_PLANE_Y ? iPitchY : AL_GetChromaPitch(tFourCC, iPitchY);
+    vPlaneDesc.push_back(AL_TPlaneDescription { usedPlanes[iPlane], iOffset, iPitch });
+    iOffset += AL_GetAllocSizeSrc_PixPlane(eSrcMode, iPitchY, iStrideHeight, FrameInfo.eCMode, usedPlanes[iPlane]);
+
+    if(g_MultiChunk)
+    {
+      SrcBufPool.AddChunk(iOffset, vPlaneDesc);
+      vPlaneDesc.clear();
+      iOffset = 0;
+    }
   }
 
-  vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_UV, iSrcSize, GetCPlanePitch(iPitchY, FourCC) });
-  iSrcSize += AL_GetAllocSizeSrc_UV(eSrcMode, iPitchY, iStrideHeight, FrameInfo.eCMode);
-
-  SrcBufPool.AddChunk(iSrcSize, vPlaneDesc);
+  if(!g_MultiChunk)
+    SrcBufPool.AddChunk(iOffset, vPlaneDesc);
 }
 
 /*****************************************************************************/
@@ -840,6 +787,8 @@ static void InitSrcBufPool(AL_TAllocator* pAllocator, bool shouldConvert, unique
 }
 
 /*****************************************************************************/
+
+/*****************************************************************************/
 struct LayerRessources
 {
   ~LayerRessources()
@@ -847,7 +796,7 @@ struct LayerRessources
     Rtos_DeleteEvent(hFinished);
   }
 
-  void Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffersCount, int iLayerID, AL_TAllocator* pAllocator);
+  void Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffersCount, int iLayerID, CIpDevice* pDevices);
 
   void PushRessources(ConfigFile& cfg, EncoderSink* enc
                       , EncoderLookAheadSink* encFirstPassLA
@@ -892,7 +841,7 @@ struct LayerRessources
   AL_EVENT hFinished = NULL;
 };
 
-void LayerRessources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffersCount, int iLayerID, AL_TAllocator* pAllocator)
+void LayerRessources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffersCount, int iLayerID, CIpDevice* pDevices)
 {
   AL_TEncSettings& Settings = cfg.Settings;
 
@@ -902,7 +851,7 @@ void LayerRessources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffer
   layerInputs.insert(layerInputs.end(), cfg.DynamicInputs.begin(), cfg.DynamicInputs.end());
 
   hFinished = Rtos_CreateEvent(false);
-
+  AL_TAllocator* pAllocator = pDevices->m_pAllocator.get();
   StreamBufPoolConfig = GetStreamBufPoolConfig(Settings, iLayerID);
   StreamBufPool.Init(pAllocator, StreamBufPoolConfig);
 
@@ -1014,6 +963,7 @@ void LayerRessources::OpenInput(ConfigFile& cfg, AL_HEncoder hEnc)
 bool LayerRessources::SendInput(ConfigFile& cfg, IFrameSink* firstSink)
 {
   firstSink->PreprocessFrame();
+
   return sendInputFileTo(YuvFile, SrcBufPool, SrcYuv.get(), cfg, layerInputs[iInputIdx].FileInfo, pSrcConv.get(), firstSink, iPictCount, iReadCount);
 }
 
@@ -1127,7 +1077,7 @@ void SafeMain(int argc, char** argv)
   int srcBuffersCount = g_numFrameToRepeat == 0 ? frameBuffersCount : max(frameBuffersCount, g_numFrameToRepeat);
 
   for(size_t i = 0; i < layerRessources.size(); i++)
-    layerRessources[i].Init(cfg, frameBuffersCount, srcBuffersCount, i, pAllocator);
+    layerRessources[i].Init(cfg, frameBuffersCount, srcBuffersCount, i, pIpDevice.get());
 
   // --------------------------------------------------------------------------------
   // Create Encoder

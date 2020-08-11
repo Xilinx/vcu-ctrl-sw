@@ -868,6 +868,7 @@ static bool sei_pic_timing(AL_TRbspParser* pRP, AL_THevcSps* pSPS, AL_THevcPicTi
     pPicTiming->pic_struct = u(pRP, 4);
     pPicTiming->source_scan_type = u(pRP, 2);
     pPicTiming->duplicate_flag = u(pRP, 1);
+    pSPS->sei_source_scan_type = pPicTiming->source_scan_type;
   }
 
   bool CpbDpbDelaysPresentFlag = pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag
@@ -1038,7 +1039,7 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB
     case SEI_PTYPE_USER_DATA_REGISTERED:
     {
       AL_EUserDataRegisterSEIType eSEIType;
-      PARSE_OR_SKIP((eSEIType = sei_user_data_registered(pRP)) != AL_UDR_SEI_UNKNOWN);
+      PARSE_OR_SKIP((eSEIType = sei_user_data_registered(pRP, payload_size)) != AL_UDR_SEI_UNKNOWN);
       switch(eSEIType)
       {
       case AL_UDR_SEI_ST2094_10:

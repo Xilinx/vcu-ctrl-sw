@@ -1132,6 +1132,10 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam* pSP, TBuff
     FillPocAndLongtermLists(&pCtx->DPB, pPOC, pSP, pListRef);
   }
 
+  TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pRecs->pFrame);
+  AL_EChromaOrder eChromaOrder = AL_GetChromaOrder(tFourCC);
+  AL_EPlaneId eFirstCPlane = eChromaOrder == AL_C_ORDER_U_V ? AL_PLANE_U : AL_PLANE_UV;
+
   if(pListAddr && pListAddr->tMD.pVirtualAddr)
   {
     AL_PADDR* pAddr = (AL_PADDR*)pListAddr->tMD.pVirtualAddr;
@@ -1157,7 +1161,6 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam* pSP, TBuff
         uint8_t uMvID = AL_Dpb_GetMvID_FromNode(&pCtx->DPB, uNodeID);
         AL_TRecBuffers pBufs = sFrmBufPool_GetBufferFromID(&pCtx->FrmBufPool, iFrameID);
         pRefBuf = pBufs.pFrame;
-
         pColocMvList[i] = pCtx->MvBufPool.pMvBufs[uMvID].tMD.uPhysicalAddr;
         pColocPocList[i] = pCtx->MvBufPool.pPocBufs[uMvID].tMD.uPhysicalAddr;
 
@@ -1172,7 +1175,8 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam* pSP, TBuff
       }
 
       pAddr[i] = AL_PixMapBuffer_GetPlanePhysicalAddress(pRefBuf, AL_PLANE_Y);
-      pAddr[PIC_ID_POOL_SIZE + i] = AL_PixMapBuffer_GetPlanePhysicalAddress(pRefBuf, AL_PLANE_UV);
+      pAddr[PIC_ID_POOL_SIZE + i] = AL_PixMapBuffer_GetPlanePhysicalAddress(pRefBuf, eFirstCPlane);
+
       pFbcList[i] = 0;
       pFbcList[PIC_ID_POOL_SIZE + i] = 0;
     }

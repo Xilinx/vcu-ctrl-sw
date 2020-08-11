@@ -61,8 +61,8 @@ typedef struct AL_t_PlaneDescription
    \param[in] pCallBack is called after the buffer reference count reaches zero
    and the buffer can safely be reused.
    \param[in] tDim Dimension of the picture (width and height in pixels)
-   \param[in] tFourCC FourCC of the framebuffer
-   \return Return a pointer the AL_TBuffer created if successfull, false
+   \param[in] tFourCC FourCC of the frame buffer
+   \return Return a pointer the AL_TBuffer created if successful, false
    otherwise
 *****************************************************************************/
 AL_TBuffer* AL_PixMapBuffer_Create(AL_TAllocator* pAllocator, PFN_RefCount_CallBack pCallBack, AL_TDimension tDim, TFourCC tFourCC);
@@ -78,7 +78,7 @@ AL_TBuffer* AL_PixMapBuffer_Create(AL_TAllocator* pAllocator, PFN_RefCount_CallB
    \return Return true if memory has been allocated and planes added, false
    otherwise
 *****************************************************************************/
-bool AL_PixMapBuffer_Allocate_And_AddPlanes(AL_TBuffer* pBuf, size_t zSize, AL_TPlaneDescription* pPlDescriptions, int iNbPlanes, const char* name);
+bool AL_PixMapBuffer_Allocate_And_AddPlanes(AL_TBuffer* pBuf, size_t zSize, const AL_TPlaneDescription* pPlDescriptions, int iNbPlanes, const char* name);
 
 /*************************************************************************//*!
    \brief Add an already allocated memory chunk to store planes, and add the
@@ -91,13 +91,13 @@ bool AL_PixMapBuffer_Allocate_And_AddPlanes(AL_TBuffer* pBuf, size_t zSize, AL_T
    \return Return true if memory chunk and associated planes have been added
    successfully, false otherwise
 *****************************************************************************/
-bool AL_PixMapBuffer_AddPlanes(AL_TBuffer* pBuf, AL_HANDLE hChunk, size_t zSize, AL_TPlaneDescription* pPlDescriptions, int iNbPlanes);
+bool AL_PixMapBuffer_AddPlanes(AL_TBuffer* pBuf, AL_HANDLE hChunk, size_t zSize, const AL_TPlaneDescription* pPlDescriptions, int iNbPlanes);
 
 /*************************************************************************//*!
    \brief Get the virtual address of a plane of a AL_TBuffer
    \param[in] pBuf Pointer to the AL_TBuffer
    \param[in] ePlaneId Type of plane
-   \return Returns a pointer to the specified plane if successfull, NULL otherwise
+   \return Returns a pointer to the specified plane if successful, NULL otherwise
 *****************************************************************************/
 uint8_t* AL_PixMapBuffer_GetPlaneAddress(AL_TBuffer const* pBuf, AL_EPlaneId ePlaneId);
 
@@ -105,14 +105,14 @@ uint8_t* AL_PixMapBuffer_GetPlaneAddress(AL_TBuffer const* pBuf, AL_EPlaneId ePl
    \brief Get the pitch of a plane of a AL_TBuffer
    \param[in] pBuf Pointer to the AL_TBuffer
    \param[in] ePlaneId Type of plane
-   \return Returns the pitch of the specified plane if successfull, 0 otherwise
+   \return Returns the pitch of the specified plane if successful, 0 otherwise
 *****************************************************************************/
 int AL_PixMapBuffer_GetPlanePitch(AL_TBuffer const* pBuf, AL_EPlaneId ePlaneId);
 
 /*************************************************************************//*!
    \brief Get the dimension of the frame stored in the AL_TBuffer
    \param[in] pBuf Pointer to the AL_TBuffer
-   \return Returns the dimension of the frame if successfull, null dimension
+   \return Returns the dimension of the frame if successful, null dimension
    otherwise
 *****************************************************************************/
 AL_TDimension AL_PixMapBuffer_GetDimension(AL_TBuffer const* pBuf);
@@ -128,7 +128,7 @@ bool AL_PixMapBuffer_SetDimension(AL_TBuffer* pBuf, AL_TDimension tDim);
 /*************************************************************************//*!
    \brief Get the FourCC of the frame stored in the AL_TBuffer
    \param[in] pBuf Pointer to the AL_TBuffer
-   \return Returns the FourCC of the frame if successfull, 0 otherwise
+   \return Returns the FourCC of the frame if successful, 0 otherwise
 *****************************************************************************/
 TFourCC AL_PixMapBuffer_GetFourCC(AL_TBuffer const* pBuf);
 

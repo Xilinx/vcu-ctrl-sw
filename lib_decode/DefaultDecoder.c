@@ -71,21 +71,28 @@
 
 #include "lib_assert/al_assert.h"
 
-#define TraceRecordEnd(pTraceHooks, unit, frameId) \
+#define TraceRecordEnd(pTraceHooks, unit, frameId, coreId, modId) \
   do { \
     if(pTraceHooks && pTraceHooks->RecordEnd) \
-      pTraceHooks->RecordEnd(pTraceHooks->pUserParam, unit, frameId); \
+      pTraceHooks->RecordEnd(pTraceHooks->pUserParam, unit, frameId, coreId, modId); \
   } while(0) \
 
-#define TraceRecordStart(pTraceHooks, unit, frameId) \
+#define TraceRecordStart(pTraceHooks, unit, frameId, coreId, modId) \
   do { \
     if(pTraceHooks && pTraceHooks->RecordStart) \
-      pTraceHooks->RecordStart(pTraceHooks->pUserParam, unit, frameId); \
+      pTraceHooks->RecordStart(pTraceHooks->pUserParam, unit, frameId, coreId, modId); \
+  } while(0) \
+
+#define SetActiveWorker(pTraceHooks, unit, coreId, modId) \
+  do { \
+    if(pTraceHooks && pTraceHooks->SetActiveWorker) \
+      pTraceHooks->SetActiveWorker(pTraceHooks->pUserParam, unit, coreId, modId); \
   } while(0) \
 
 
 static int const AVC_NAL_HDR_SIZE = 4;
 static int const HEVC_NAL_HDR_SIZE = 5;
+static int const LAST_VCL_NAL_IN_AU_NOT_PRESENT = -1;
 
 /*****************************************************************************/
 static bool isAVC(AL_ECodec eCodec)
@@ -566,17 +573,19 @@ void AL_Default_Decoder_Destroy(AL_TDecoder* pAbsDec)
 }
 
 /*****************************************************************************/
-void AL_Default_Decoder_SetParam(AL_TDecoder* pAbsDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm, bool bForceCleanBuffers, bool shouldPrintFrameDelimiter)
+void AL_Default_Decoder_SetParam(AL_TDecoder* pAbsDec, const char* sPrefix, int iFrmID, int iNumFrm, bool bForceCleanBuffers, bool bShouldPrintFrameDelimiter)
 {
   AL_TDecoder* pDec = (AL_TDecoder*)pAbsDec;
   AL_TDecCtx* pCtx = &pDec->ctx;
 
-  pCtx->bConceal = bConceal;
-  pCtx->bUseBoard = bUseBoard;
+  for(size_t i = 0; i < sizeof(pCtx->sTracePrefix) && sPrefix[i]; ++i)
+    pCtx->sTracePrefix[i] = sPrefix[i];
+
+  pCtx->sTracePrefix[sizeof(pCtx->sTracePrefix) - 1] = '\000';
 
   pCtx->iTraceFirstFrame = iFrmID;
   pCtx->iTraceLastFrame = iFrmID + iNumFrm;
-  pCtx->shouldPrintFrameDelimiter = shouldPrintFrameDelimiter;
+  pCtx->bShouldPrintFrameDelimiter = bShouldPrintFrameDelimiter;
 
   if(iNumFrm > 0 || bForceCleanBuffers)
     AL_CLEAN_BUFFERS = 1;
@@ -1035,6 +1044,9 @@ static void ConsumeNals(AL_TDecCtx* pCtx, int iNumNal)
 {
   AL_TNal* nals = (AL_TNal*)pCtx->SCTable.tMD.pVirtualAddr;
 
+  if(iNumNal)
+    pCtx->iCurNalStreamOffset = (nals[iNumNal - 1].tStartCode.uPosition + nals[iNumNal - 1].uSize) % pCtx->Stream.tMD.uSize;
+
   pCtx->uNumSC -= iNumNal;
   Rtos_Memmove(nals, nals + iNumNal, pCtx->uNumSC * sizeof(AL_TNal));
 }
@@ -1046,38 +1058,62 @@ static void ResetValidFlags(AL_TDecCtx* pCtx)
   pCtx->bBeginFrameIsValid = false;
 }
 
-static void GetNalOrder(AL_TDecCtx* pCtx, AL_TNal* nals, int iNalCount, int iLastVclNalInAU, int* nalOrder)
+/*****************************************************************************/
+static void GetNextNal(AL_TDecCtx* pCtx, AL_TNal* nals, int iNalCount, int iLastVclNalInAU, int* iNal, int* iStep)
 {
-  if(pCtx->eInputMode == AL_DEC_SPLIT_INPUT && iLastVclNalInAU != -1)
+  if((pCtx->eInputMode != AL_DEC_SPLIT_INPUT) || (iLastVclNalInAU == LAST_VCL_NAL_IN_AU_NOT_PRESENT))
   {
-    AL_NonVclNuts nuts = AL_GetNonVclNuts(pCtx);
-
-    int iCurNal = 0;
-
-    for(int iNal = 0; iNal < iLastVclNalInAU; ++iNal)
-      nalOrder[iCurNal++] = iNal;
-
-    for(int iNal = iLastVclNalInAU + 1; iNal < iNalCount; ++iNal)
-    {
-      if(nals[iNal].tStartCode.uNUT == nuts.seiSuffix)
-        nalOrder[iCurNal++] = iNal;
-    }
-
-    nalOrder[iCurNal++] = iLastVclNalInAU;
-
-    for(int iNal = iLastVclNalInAU + 1; iNal < iNalCount; ++iNal)
-    {
-      if(nals[iNal].tStartCode.uNUT != nuts.seiSuffix)
-      {
-        assert(nals[iNal].tStartCode.uNUT == nuts.fd);
-        nalOrder[iCurNal++] = iNal;
-      }
-    }
+    (*iNal)++;
+    return;
   }
-  else
+  AL_NonVclNuts nuts = AL_GetNonVclNuts(pCtx);
+
+  while(true)
   {
-    for(int iNal = 0; iNal < iNalCount; ++iNal)
-      nalOrder[iNal] = iNal;
+    switch(*iStep)
+    {
+    case 0:
+    {
+      (*iNal)++;
+
+      if(*iNal < iLastVclNalInAU)
+        return;
+
+      (*iStep)++;
+      continue;
+    }
+    case 1:
+    {
+      do
+        (*iNal)++;
+      while(*iNal < iNalCount && nals[*iNal].tStartCode.uNUT != nuts.seiSuffix);
+
+      if(*iNal >= iNalCount)
+      {
+        (*iNal) = iLastVclNalInAU;
+        (*iStep)++;
+      }
+      return;
+    }
+    case 2:
+    {
+      do
+        (*iNal)++;
+      while(*iNal < iNalCount && nals[*iNal].tStartCode.uNUT == nuts.seiSuffix);
+
+      if(*iNal < iNalCount)
+      {
+        AL_Assert(nals[*iNal].tStartCode.uNUT == nuts.fd);
+      }
+
+      return;
+    }
+    default:
+    {
+      AL_Assert(0);
+      break;
+    }
+    }
   }
 }
 
@@ -1114,12 +1150,13 @@ static UNIT_ERROR DecodeOneUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int iNalC
   uint32_t const StreamSize = AL_Buffer_GetSize(pStream);
 
   AL_Assert(iNalCount < MAX_NAL_UNIT);
-  int nalOrder[MAX_NAL_UNIT];
-  GetNalOrder(pCtx, nals, iNalCount, iLastVclNalInAU, nalOrder);
+  int iNal = -1;
+  int iStep = 0;
 
   for(int iNalIdx = 0; iNalIdx < iNalCount; ++iNalIdx)
   {
-    int iNal = nalOrder[iNalIdx];
+    GetNextNal(pCtx, nals, iNalCount, iLastVclNalInAU, &iNal, &iStep);
+    AL_Assert(iNal < iNalCount);
     AL_TNal CurrentNal = nals[iNal];
     AL_TStartCode CurrentStartCode = CurrentNal.tStartCode;
     AL_TStartCode NextStartCode;
@@ -1171,7 +1208,7 @@ UNIT_ERROR AL_Default_Decoder_TryDecodeOneUnit(AL_TDecoder* pAbsDec, AL_TBuffer*
 {
   AL_TDecCtx* pCtx = AL_sGetContext(pAbsDec);
 
-  int iLastVclNalInAU = -1;
+  int iLastVclNalInAU = LAST_VCL_NAL_IN_AU_NOT_PRESENT;
   int iNalCount = pCtx->eInputMode == AL_DEC_SPLIT_INPUT ? FillNalInfo(pCtx, pStream, &iLastVclNalInAU)
                   : FindNextDecodingUnit(pCtx, pStream, &iLastVclNalInAU);
 
@@ -1225,6 +1262,7 @@ void AL_Default_Decoder_FlushInput(AL_TDecoder* pAbsDec)
   ResetStartCodes(pCtx);
   Rtos_GetMutex(pCtx->DecMutex);
   pCtx->iCurOffset = 0;
+  pCtx->iCurNalStreamOffset = 0;
   Rtos_ReleaseMutex(pCtx->DecMutex);
   AL_Feeder_Reset(pCtx->Feeder);
 }
@@ -1257,19 +1295,28 @@ static void CheckDisplayBufferCanBeUsed(AL_TDecCtx* pCtx, AL_TBuffer* pBuf)
   AL_Assert(pBuf);
 
   int iPitchY = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_Y);
-  int iPitchUV = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_UV);
 
-  /* decoder only output semiplanar */
-  AL_Assert((iPitchY != 0) && ((iPitchY == iPitchUV) || (iPitchUV == 2 * iPitchY) || (iPitchUV == 0)));
+  AL_Assert(iPitchY != 0);
 
   AL_TStreamSettings* pSettings = &pCtx->tStreamSettings;
-
   bool bEnableDisplayCompression;
   AL_EFbStorageMode eDisplayStorageMode = AL_Default_Decoder_GetDisplayStorageMode(pCtx, &bEnableDisplayCompression);
 
   AL_Assert(iPitchY >= (int)AL_Decoder_GetMinPitch(pSettings->tDim.iWidth, pSettings->iBitDepth, eDisplayStorageMode));
 
   AL_Assert(iPitchY % 64 == 0);
+
+  if(pCtx->tStreamSettings.eChroma == AL_CHROMA_4_4_4)
+  {
+    int iPitchU = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_U);
+    int iPitchV = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_V);
+    AL_Assert((iPitchY == iPitchU) && (iPitchU == iPitchV));
+  }
+  else if(pCtx->tStreamSettings.eChroma != AL_CHROMA_MONO)
+  {
+    int iPitchUV = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_UV);
+    AL_Assert(iPitchY == iPitchUV);
+  }
 }
 
 /*****************************************************************************/
@@ -1309,6 +1356,17 @@ int AL_Default_Decoder_GetStrOffset(AL_TDecoder* pAbsDec)
   AL_TDecoder* pDec = (AL_TDecoder*)pAbsDec;
   AL_TDecCtx* pCtx = AL_sGetContext(pDec);
   return Secure_GetStrOffset(pCtx);
+}
+
+/*****************************************************************************/
+int AL_Default_Decoder_SkipParsedNals(AL_TDecoder* pAbsDec)
+{
+  AL_TDecoder* pDec = (AL_TDecoder*)pAbsDec;
+  AL_TDecCtx* pCtx = AL_sGetContext(pDec);
+  Rtos_GetMutex(pCtx->DecMutex);
+  pCtx->iCurOffset = pCtx->iCurNalStreamOffset;
+  Rtos_ReleaseMutex(pCtx->DecMutex);
+  return pCtx->iCurNalStreamOffset;
 }
 
 /*****************************************************************************/
@@ -1715,7 +1773,7 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler,
   pCtx->ScDetectionComplete = Rtos_CreateEvent(0);
   pCtx->DecMutex = Rtos_CreateMutex();
 
-  AL_Default_Decoder_SetParam((AL_TDecoder*)pDec, false, false, 0, 0, false, false);
+  AL_Default_Decoder_SetParam((AL_TDecoder*)pDec, "Ref", 0, 0, false, false);
 
   // initialize decoder context
   pCtx->bFirstIsValid = false;
@@ -1736,6 +1794,7 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler,
   pCtx->iNumFrmBlk1 = 0;
   pCtx->iNumFrmBlk2 = 0;
   pCtx->iCurOffset = 0;
+  pCtx->iCurNalStreamOffset = 0;
   pCtx->iTraceCounter = 0;
   pCtx->eChanState = CHAN_UNINITIALIZED;
 

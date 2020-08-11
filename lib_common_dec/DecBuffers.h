@@ -72,10 +72,11 @@ static const int AVC_LCU_CMP_SIZE[4] =
   800, 1120, 1408, 2016
 }; /*!< AVC  LCU compressed max size*/
 
-static const int POCOL_LIST_OFFSET = 32; // in number of list entry
-static const int MVCOL_LIST_OFFSET = 48; // in number of list entry
-static const int FBC_LIST_OFFSET = 64; // in number of list entry
-static const int REF_LIST_SIZE = 96; // in number of list entry
+#define NB_REF_PLANE 2
+#define POCOL_LIST_OFFSET (16 * NB_REF_PLANE) // in number of list entry
+#define MVCOL_LIST_OFFSET (POCOL_LIST_OFFSET + 16) // in number of list entry
+#define FBC_LIST_OFFSET (MVCOL_LIST_OFFSET + 16) // in number of list entry
+#define REF_LIST_SIZE (FBC_LIST_OFFSET + 16 * NB_REF_PLANE) // in number of list entry
 
 static const int SCLST_SIZE_DEC = 12288;
 

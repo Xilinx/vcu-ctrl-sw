@@ -46,7 +46,8 @@ void AL_Default_Decoder_WaitFrameSent(AL_HDecoder hDec);
 void AL_Default_Decoder_ReleaseFrames(AL_HDecoder hDec);
 
 extern UNIT_ERROR AL_Decoder_TryDecodeOneUnit(AL_HDecoder hDec, AL_TBuffer* pBufStream);
-extern int AL_Decoder_GetStrOffset(AL_HANDLE hDec);
+extern int AL_Decoder_GetDecodedStrOffset(AL_HANDLE hDec);
+extern int AL_Decoder_SkipParsedUnits(AL_HANDLE hDec);
 extern void AL_Decoder_FlushInput(AL_HDecoder hDec);
 extern void AL_Decoder_InternalFlush(AL_HDecoder hDec);
 
@@ -85,7 +86,7 @@ static bool Slave_Process(DecoderFeederSlave* slave, AL_TBuffer* startCodeStream
 {
   AL_HANDLE hDec = slave->hDec;
 
-  uint32_t uNewOffset = AL_Decoder_GetStrOffset(hDec);
+  uint32_t uNewOffset = AL_Decoder_GetDecodedStrOffset(hDec);
 
   CircBuffer_ConsumeUpToOffset(slave->patchworker->outputCirc, uNewOffset);
 
@@ -111,28 +112,38 @@ static bool Slave_Process(DecoderFeederSlave* slave, AL_TBuffer* startCodeStream
     Rtos_SetEvent(slave->incomingWorkEvent);
   }
 
-  if(CircBuffer_IsFull(slave->patchworker->outputCirc))
+  if(eErr == ERR_UNIT_NOT_FOUND)
   {
-    AL_Default_Decoder_WaitFrameSent(hDec);
-
-    uint32_t uNewOffset = AL_Decoder_GetStrOffset(hDec);
-    CircBuffer_ConsumeUpToOffset(slave->patchworker->outputCirc, uNewOffset);
-
     if(CircBuffer_IsFull(slave->patchworker->outputCirc))
     {
-      // No more AU to get from a full circular buffer -> empty it to avoid a stall
-      AL_Decoder_FlushInput(hDec);
+      AL_Default_Decoder_WaitFrameSent(hDec);
+
+      uNewOffset = AL_Decoder_GetDecodedStrOffset(hDec);
+      CircBuffer_ConsumeUpToOffset(slave->patchworker->outputCirc, uNewOffset);
+
+      if(CircBuffer_IsFull(slave->patchworker->outputCirc))
+      {
+        // No more on-going unit -> consume up to first unprocessed NAL
+        uNewOffset = AL_Decoder_SkipParsedUnits(hDec);
+        CircBuffer_ConsumeUpToOffset(slave->patchworker->outputCirc, uNewOffset);
+
+        if(CircBuffer_IsFull(slave->patchworker->outputCirc))
+        {
+          // No more AU to get from a full circular buffer -> empty it to avoid a stall
+          AL_Decoder_FlushInput(hDec);
+        }
+      }
+
+      AL_Default_Decoder_ReleaseFrames(hDec);
+      Rtos_SetEvent(slave->incomingWorkEvent);
     }
 
-    AL_Default_Decoder_ReleaseFrames(hDec);
-    Rtos_SetEvent(slave->incomingWorkEvent);
-  }
-
-  // Leave when end of input [all the data were processed in the previous TryDecodeOneUnit]
-  if(eErr == ERR_UNIT_NOT_FOUND && AL_Patchworker_IsAllDataTransfered(slave->patchworker))
-  {
-    AL_Decoder_InternalFlush(slave->hDec);
-    slave->stopped = true;
+    // Leave when end of input [all the data were processed in the previous TryDecodeOneUnit]
+    if(AL_Patchworker_IsAllDataTransfered(slave->patchworker))
+    {
+      AL_Decoder_InternalFlush(slave->hDec);
+      slave->stopped = true;
+    }
   }
 
   return true;

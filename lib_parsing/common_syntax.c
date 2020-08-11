@@ -48,6 +48,8 @@
 #include "common_syntax.h"
 #include <string.h>
 
+#define MIN_SEI_USER_DATA_SIZE 3
+
 /*****************************************************************************/
 void profile_tier_level(AL_TProfilevel* pPrfLvl, int iMaxSubLayers, AL_TRbspParser* pRP)
 {
@@ -575,9 +577,9 @@ bool sei_content_light_level(AL_TContentLightLevel* pCLL, AL_TRbspParser* pRP)
 }
 
 /*****************************************************************************/
-AL_EUserDataRegisterSEIType sei_user_data_registered(AL_TRbspParser* pRP)
+AL_EUserDataRegisterSEIType sei_user_data_registered(AL_TRbspParser* pRP, uint32_t payload_size)
 {
-  if(u(pRP, 8) != 0xB5)
+  if(u(pRP, 8) != 0xB5 || payload_size < MIN_SEI_USER_DATA_SIZE)
     return AL_UDR_SEI_UNKNOWN;
 
   uint16_t itu_t_t35_terminal_provider_code = u(pRP, 16);

@@ -236,26 +236,10 @@ bool AL_Patchworker_IsAllDataTransfered(AL_TPatchworker* this)
   return pMeta->bLastBuffer;
 }
 
-void AL_Patchworker_Drop(AL_TPatchworker* this)
-{
-  if(!this->workBuf)
-    this->workBuf = AL_Fifo_Dequeue(this->inputFifo, AL_NO_WAIT);
-
-  if(!this->workBuf)
-    return;
-
-  while(this->workBuf)
-  {
-    AL_Buffer_Unref(this->workBuf);
-    this->workBuf = AL_Fifo_Dequeue(this->inputFifo, AL_NO_WAIT);
-  }
-}
-
 void AL_Patchworker_Reset(AL_TPatchworker* this)
 {
   Rtos_GetMutex(this->lock);
   this->endOfInput = false;
-  AL_Patchworker_Drop(this);
   AL_TCircMetaData* pMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(this->outputCirc, AL_META_TYPE_CIRCULAR);
   pMeta->iOffset = 0;
   pMeta->iAvailSize = 0;

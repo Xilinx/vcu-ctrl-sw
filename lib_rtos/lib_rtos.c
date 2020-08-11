@@ -492,14 +492,14 @@ bool Rtos_WaitEvent(AL_EVENT Event, uint32_t Wait)
   if(!pEvt)
     return false;
 
-  bool bRet = true;
+  bool reachedDeadline = false;
 
   pthread_mutex_lock(&pEvt->Mutex);
 
   if(Wait == AL_WAIT_FOREVER)
   {
-    while(bRet && !pEvt->bSignaled)
-      bRet = (pthread_cond_wait(&pEvt->Cond, &pEvt->Mutex) == 0);
+    while(!pEvt->bSignaled)
+      pthread_cond_wait(&pEvt->Cond, &pEvt->Mutex);
   }
   else
   {
@@ -510,14 +510,15 @@ bool Rtos_WaitEvent(AL_EVENT Event, uint32_t Wait)
     deadline.tv_sec = now.tv_sec + Wait / 1000;
     deadline.tv_nsec = (now.tv_usec + 1000UL * (Wait % 1000)) * 1000UL;
 
-    while(bRet && !pEvt->bSignaled)
-      bRet = (pthread_cond_timedwait(&pEvt->Cond, &pEvt->Mutex, &deadline) == 0);
+    while(!reachedDeadline && !pEvt->bSignaled)
+      reachedDeadline = (pthread_cond_timedwait(&pEvt->Cond, &pEvt->Mutex, &deadline) == ETIMEDOUT);
   }
 
-  if(bRet)
+  if(!reachedDeadline)
     pEvt->bSignaled = false;
+
   pthread_mutex_unlock(&pEvt->Mutex);
-  return bRet;
+  return !reachedDeadline;
 }
 
 /****************************************************************************/

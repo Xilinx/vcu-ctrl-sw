@@ -157,9 +157,9 @@ typedef struct AL_t_PictBuffers
   TBuffer tListRef;
   TBuffer tListVirtRef; // only used for traces
   TBuffer tRecY;
-  TBuffer tRecC;
+  TBuffer tRecC1;
   TBuffer tRecFbcMapY;
-  TBuffer tRecFbcMapC;
+  TBuffer tRecFbcMapC1;
   TBuffer tScl;
   TBuffer tPoc;
   TBuffer tMV;
@@ -178,9 +178,9 @@ typedef struct AL_t_DecPicBufferAddrs
   AL_PADDR pStream;
   uint32_t uStreamSize;
   AL_PADDR pRecY;
-  AL_PADDR pRecC;
+  AL_PADDR pRecC1;
   AL_PADDR pRecFbcMapY;
-  AL_PADDR pRecFbcMapC;
+  AL_PADDR pRecFbcMapC1;
   uint32_t uPitch;
   AL_PADDR pScl;
   AL_PADDR pPoc;

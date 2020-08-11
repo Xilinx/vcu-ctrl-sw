@@ -112,12 +112,26 @@ int32_t ComputeRndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFr
 /****************************************************************************/
 int AL_GetChromaPitch(TFourCC tFourCC, int iLumaPitch)
 {
-  if(AL_IsMonochrome(tFourCC))
+  AL_TPicFormat tPicFormat;
+  AL_Assert(AL_GetPicFormat(tFourCC, &tPicFormat));
+
+  if(tPicFormat.eChromaMode == AL_CHROMA_MONO)
     return 0;
 
-  int iNumPlanes = AL_IsSemiPlanar(tFourCC) ? 2 : 1;
-  int iHrzScale = AL_GetChromaMode(tFourCC) == AL_CHROMA_4_4_4 ? 1 : 2;
+  int iNumPlanes = tPicFormat.eChromaOrder == AL_C_ORDER_SEMIPLANAR ? 2 : 1;
+  int iHrzScale = tPicFormat.eChromaMode == AL_CHROMA_4_4_4 ? 1 : 2;
   return iLumaPitch / iHrzScale * iNumPlanes;
+}
+
+/****************************************************************************/
+int AL_GetChromaHeight(TFourCC tFourCC, int iLumaHeight)
+{
+  AL_EChromaMode eChromaMode = AL_GetChromaMode(tFourCC);
+
+  if(eChromaMode == AL_CHROMA_MONO)
+    return 0;
+
+  return eChromaMode == AL_CHROMA_4_2_0 ? iLumaHeight / 2 : iLumaHeight;
 }
 
 /****************************************************************************/

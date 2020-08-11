@@ -37,6 +37,7 @@
 
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/BufferPixMapMeta.h"
+#include "lib_common/BufCommon.h"
 #include "lib_assert/al_assert.h"
 
 static bool SrcMeta_Destroy(AL_TMetaData* pMeta)
@@ -45,18 +46,17 @@ static bool SrcMeta_Destroy(AL_TMetaData* pMeta)
   return true;
 }
 
-static AL_EPlaneId const tPlanes[] =
-{
-  AL_PLANE_Y, AL_PLANE_UV, AL_PLANE_MAP_Y, AL_PLANE_MAP_UV,
-};
-static int const iPlanesSize = (sizeof(tPlanes) / sizeof(tPlanes[0]));
-
 AL_TPixMapMetaData* AL_PixMapMetaData_Clone(AL_TPixMapMetaData* pMeta)
 {
-  AL_TPixMapMetaData* pClone = AL_PixMapMetaData_Create(pMeta->tDim, pMeta->tPlanes[AL_PLANE_Y], pMeta->tPlanes[AL_PLANE_UV], pMeta->tFourCC);
+  AL_TPixMapMetaData* pClone = AL_PixMapMetaData_CreateEmpty(pMeta->tFourCC);
 
-  for(int iPlaneID = 0; iPlaneID < iPlanesSize; iPlaneID++)
-    AL_PixMapMetaData_AddPlane(pClone, pMeta->tPlanes[iPlaneID], tPlanes[iPlaneID]);
+  if(!pMeta)
+    return NULL;
+
+  pClone->tDim = pMeta->tDim;
+
+  for(int iPlane = 0; iPlane < AL_PLANE_MAX_ENUM; iPlane++)
+    pClone->tPlanes[iPlane] = pMeta->tPlanes[iPlane];
 
   return pClone;
 }
@@ -66,9 +66,17 @@ static AL_TMetaData* SrcMeta_Clone(AL_TMetaData* pMeta)
   return (AL_TMetaData*)AL_PixMapMetaData_Clone((AL_TPixMapMetaData*)pMeta);
 }
 
-void AL_PixMapMetaData_AddPlane(AL_TPixMapMetaData* pMeta, AL_TPlane tPlane, AL_EPlaneId ePlaneId)
+bool AL_PixMapMetaData_AddPlane(AL_TPixMapMetaData* pMeta, AL_TPlane tPlane, AL_EPlaneId ePlaneId)
 {
+  AL_TPicFormat tPicFormat;
+  AL_Assert(AL_GetPicFormat(pMeta->tFourCC, &tPicFormat));
+
+  if(!AL_Plane_Exists(tPicFormat.eChromaOrder, tPicFormat.bCompressed, ePlaneId))
+    return false;
+
   pMeta->tPlanes[ePlaneId] = tPlane;
+
+  return true;
 }
 
 AL_TPixMapMetaData* AL_PixMapMetaData_CreateEmpty(TFourCC tFourCC)
@@ -87,8 +95,8 @@ AL_TPixMapMetaData* AL_PixMapMetaData_CreateEmpty(TFourCC tFourCC)
 
   AL_TPlane tEmptyPlane = { -1, 0, 0 };
 
-  for(int iPlaneID = 0; iPlaneID < iPlanesSize; iPlaneID++)
-    AL_PixMapMetaData_AddPlane(pMeta, tEmptyPlane, tPlanes[iPlaneID]);
+  for(int iPlane = 0; iPlane < AL_PLANE_MAX_ENUM; iPlane++)
+    pMeta->tPlanes[iPlane] = tEmptyPlane;
 
   pMeta->tFourCC = tFourCC;
 
@@ -104,24 +112,29 @@ AL_TPixMapMetaData* AL_PixMapMetaData_Create(AL_TDimension tDim, AL_TPlane tYPla
 
   pMeta->tDim = tDim;
 
-  AL_PixMapMetaData_AddPlane(pMeta, tYPlane, AL_PLANE_Y);
-  AL_PixMapMetaData_AddPlane(pMeta, tUVPlane, AL_PLANE_UV);
+  if(!AL_PixMapMetaData_AddPlane(pMeta, tYPlane, AL_PLANE_Y) ||
+     !AL_PixMapMetaData_AddPlane(pMeta, tUVPlane, AL_PLANE_UV))
+  {
+    AL_MetaData_Destroy((AL_TMetaData*)pMeta);
+    return NULL;
+  }
 
   return pMeta;
 }
 
+int AL_PixMapMetaData_GetOffset(AL_TPixMapMetaData* pMeta, AL_EPlaneId ePlaneId)
+{
+  return pMeta->tPlanes[ePlaneId].iOffset;
+}
+
 int AL_PixMapMetaData_GetOffsetY(AL_TPixMapMetaData* pMeta)
 {
-  AL_Assert(pMeta->tPlanes[AL_PLANE_Y].iOffset <= pMeta->tPlanes[AL_PLANE_UV].iOffset);
-  return pMeta->tPlanes[AL_PLANE_Y].iOffset;
+  return AL_PixMapMetaData_GetOffset(pMeta, AL_PLANE_Y);
 }
 
 int AL_PixMapMetaData_GetOffsetUV(AL_TPixMapMetaData* pMeta)
 {
-  AL_Assert(pMeta->tPlanes[AL_PLANE_Y].iPitch * pMeta->tDim.iHeight <= pMeta->tPlanes[AL_PLANE_UV].iOffset ||
-            (AL_IsTiled(pMeta->tFourCC) &&
-             (pMeta->tPlanes[AL_PLANE_Y].iPitch * pMeta->tDim.iHeight / 4 <= pMeta->tPlanes[AL_PLANE_UV].iOffset)));
-  return pMeta->tPlanes[AL_PLANE_UV].iOffset;
+  return AL_PixMapMetaData_GetOffset(pMeta, AL_PLANE_UV);
 }
 
 int AL_PixMapMetaData_GetLumaSize(AL_TPixMapMetaData* pMeta)
@@ -138,7 +151,7 @@ int AL_PixMapMetaData_GetChromaSize(AL_TPixMapMetaData* pMeta)
   if(eCMode == AL_CHROMA_MONO)
     return 0;
 
-  int const iHeightC = (eCMode == AL_CHROMA_4_2_0) ? pMeta->tDim.iHeight / 2 : pMeta->tDim.iHeight;
+  int const iHeightC = AL_GetChromaHeight(eCMode, pMeta->tDim.iHeight);
 
   if(AL_IsTiled(pMeta->tFourCC))
     return pMeta->tPlanes[AL_PLANE_UV].iPitch * iHeightC / 4;

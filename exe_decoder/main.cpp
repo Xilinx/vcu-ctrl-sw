@@ -531,7 +531,7 @@ AL_TO_IP Get8BitsConversionFunction(int iPicFmt)
   case AL_CHROMA_444_8bitTo10bit:
     return I444_To_I4AL;
   case AL_CHROMA_MONO_8bitTo8bit:
-    return Y800_To_Y800;
+    return CopyPixMapBuffer;
   case AL_CHROMA_MONO_8bitTo10bit:
     return Y800_To_Y010;
   default:
@@ -571,9 +571,9 @@ AL_TO_IP Get10BitsConversionFunction(int iPicFmt)
     return I4AL_To_I444;
 
   case AL_CHROMA_MONO_10bitTo10bit:
-    return XV15_To_Y010;
+    return XV10_To_Y010;
   case AL_CHROMA_MONO_10bitTo8bit:
-    return XV15_To_Y800;
+    return XV10_To_Y800;
   default:
     assert(0);
     return nullptr;
@@ -729,10 +729,9 @@ AL_TO_IP GetConversionFunction(TFourCC input, int iBdOut)
     return Get12BitsConversionFunction(iPicFmt);
 }
 
-static void ConvertFrameBuffer(AL_TBuffer& input, int iBdIn, AL_TBuffer*& pOutput, int iBdOut)
+static void ConvertFrameBuffer(AL_TBuffer& input, AL_TBuffer*& pOutput, int iBdOut)
 {
   TFourCC tRecFourCC = AL_PixMapBuffer_GetFourCC(&input);
-  AL_TPicFormat tRecPicFormat = AL_GetDecPicFormat(AL_GetChromaMode(tRecFourCC), iBdIn, AL_GetStorageMode(tRecFourCC), AL_IsCompressed(tRecFourCC));
   AL_TDimension tRecDim = AL_PixMapBuffer_GetDimension(&input);
 
   if(pOutput != NULL)
@@ -748,29 +747,39 @@ static void ConvertFrameBuffer(AL_TBuffer& input, int iBdIn, AL_TBuffer*& pOutpu
 
   if(pOutput == NULL)
   {
-    pOutput = AL_PixMapBuffer_Create(AL_GetDefaultAllocator(), NULL, tRecDim, 0);
+    AL_EChromaMode eChromaMode = AL_GetChromaMode(tRecFourCC);
+    AL_TPicFormat tConvPicFormat = AL_TPicFormat {
+      eChromaMode, static_cast<uint8_t>(iBdOut), AL_FB_RASTER,
+      eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : AL_C_ORDER_U_V, false, false
+    };
+    TFourCC tConvFourCC = AL_GetFourCC(tConvPicFormat);
+    pOutput = AL_PixMapBuffer_Create(AL_GetDefaultAllocator(), NULL, tRecDim, tConvFourCC);
 
     if(pOutput == NULL)
       throw runtime_error("Couldn't allocate YuvBuffer");
 
-    auto const iSizePix = (iBdOut + 7) >> 3;
-    int iPitchY = iSizePix * tRecDim.iWidth;
-
     int sx = 1, sy = 1;
-    AL_GetSubsampling(tRecFourCC, &sx, &sy);
+    AL_GetSubsampling(tConvFourCC, &sx, &sy);
 
-    AL_TPlaneDescription tPlaneDesc[2] =
+    auto const iSizePix = (iBdOut + 7) >> 3;
+    auto const iPitchY = iSizePix * tRecDim.iWidth;
+    auto const iPitchC = (iPitchY + sx - 1) / sx;
+    auto const iSizeY = iPitchY * tRecDim.iHeight;
+    auto const iSizeC = iPitchC * ((tRecDim.iHeight + sy - 1) / sy);
+
+    AL_TPlaneDescription tPlaneDesc[3] =
     {
       { AL_PLANE_Y, 0, iPitchY },
-      { AL_PLANE_UV, iPitchY * tRecDim.iHeight, iPitchY / sx }
+      { AL_PLANE_U, iSizeY, iPitchC },
+      { AL_PLANE_V, iSizeY + iSizeC, iPitchC }
     };
 
-    uint32_t uSize = tPlaneDesc[1].iOffset;
+    uint32_t uSize = iSizeY;
 
-    if(tRecPicFormat.eChromaMode != AL_CHROMA_MONO)
-      uSize += (uSize * 2) / (sx * sy);
+    if(tConvPicFormat.eChromaMode != AL_CHROMA_MONO)
+      uSize += 2 * iSizeC;
 
-    if(!AL_PixMapBuffer_Allocate_And_AddPlanes(pOutput, uSize, &tPlaneDesc[0], tRecPicFormat.eChromaMode == AL_CHROMA_MONO ? 1 : 2, "conversion frame buffer"))
+    if(!AL_PixMapBuffer_Allocate_And_AddPlanes(pOutput, uSize, &tPlaneDesc[0], tConvPicFormat.eChromaMode == AL_CHROMA_MONO ? 1 : 3, "conversion frame buffer"))
       throw runtime_error("Couldn't allocate YuvBuffer planes");
   }
 
@@ -857,11 +866,9 @@ void UncompressedOutputWriter::ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode 
 {
   if(!(YuvFile.is_open() || CertCrcFile.is_open()))
     return;
-  int iBdIn = max(info.uBitDepthY, info.uBitDepthC);
-  iBdIn = convertBitDepthToEven(iBdIn);
   iBdOut = convertBitDepthToEven(iBdOut);
 
-  ConvertFrameBuffer(tRecBuf, iBdIn, YuvBuffer, iBdOut);
+  ConvertFrameBuffer(tRecBuf, YuvBuffer, iBdOut);
 
   auto const iSizePix = (iBdOut + 7) >> 3;
 
@@ -874,7 +881,7 @@ void UncompressedOutputWriter::ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode 
   AL_GetSubsampling(tRecFourCC, &sx, &sy);
   AL_TDimension tYuvDim = AL_PixMapBuffer_GetDimension(YuvBuffer);
   int const iNumPix = tYuvDim.iHeight * tYuvDim.iWidth;
-  int const iNumPixC = AL_GetChromaMode(tRecFourCC) == AL_CHROMA_MONO ? 0 : (iNumPix / sx / sy);
+  int const iNumPixC = AL_GetChromaMode(tRecFourCC) == AL_CHROMA_MONO ? 0 : ((tYuvDim.iWidth + sx - 1) / sx) * ((tYuvDim.iHeight + sy - 1) / sy);
 
   if(CertCrcFile.is_open())
   {
@@ -1233,26 +1240,29 @@ static int sConfigureDecBufPool(PixMapBufPool& SrcBufPool, AL_TPicFormat tPicFor
   SrcBufPool.SetFormat(tDim, tFourCC);
 
   std::vector<AL_TPlaneDescription> vPlaneDesc;
-  int iDecSize = 0;
+  int iOffset = 0;
 
-  vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_Y, 0, iPitchY });
-  int iDecSizeLuma = AL_DecGetAllocSize_Frame_Y(tPicFormat.eStorageMode, tDim, iPitchY);
-  iDecSize = iDecSizeLuma;
+  AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES];
+  int iNbPlanes = AL_Plane_GetBufferPixelPlanes(tPicFormat.eChromaOrder, usedPlanes);
 
-  if(g_MultiChunk)
+  for(int iPlane = 0; iPlane < iNbPlanes; iPlane++)
   {
-    SrcBufPool.AddChunk(iDecSize, vPlaneDesc);
-    vPlaneDesc.clear();
-    iDecSize = 0;
+    int iPitch = usedPlanes[iPlane] == AL_PLANE_Y ? iPitchY : AL_GetChromaPitch(tFourCC, iPitchY);
+    vPlaneDesc.push_back(AL_TPlaneDescription { usedPlanes[iPlane], iOffset, iPitch });
+    iOffset += AL_DecGetAllocSize_Frame_PixPlane(tPicFormat.eStorageMode, tDim, iPitch, tPicFormat.eChromaMode, usedPlanes[iPlane]);
+
+    if(g_MultiChunk)
+    {
+      SrcBufPool.AddChunk(iOffset, vPlaneDesc);
+      vPlaneDesc.clear();
+      iOffset = 0;
+    }
   }
 
-  auto iPitchUV = AL_GetChromaPitch(tFourCC, iPitchY);
-  vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_UV, iDecSize, iPitchUV });
-  iDecSize += AL_DecGetAllocSize_Frame_UV(tPicFormat.eStorageMode, tDim, iPitchY, tPicFormat.eChromaMode);
+  if(!g_MultiChunk)
+    SrcBufPool.AddChunk(iOffset, vPlaneDesc);
 
-  SrcBufPool.AddChunk(iDecSize, vPlaneDesc);
-
-  return iDecSize + (g_MultiChunk ? iDecSizeLuma : 0);
+  return iOffset;
 }
 
 static AL_ERR sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSettings const* pSettings, AL_TCropInfo const* pCropInfo, void* pUserParam)
@@ -1529,7 +1539,7 @@ void SafeChannelMain(WorkerConfig& w)
   tDecodeParam.hDec = hDec;
   ResolutionFoundParam.hDec = hDec;
 
-  AL_Decoder_SetParam(hDec, Config.bConceal, bUseBoard, Config.iNumTrace, Config.iNumberTrace, Config.bForceCleanBuffers, Config.ipCtrlMode == IPCTRL_MODE_TRACE);
+  AL_Decoder_SetParam(hDec, bUseBoard ? "Fpga" : "Ref", Config.iNumTrace, Config.iNumberTrace, Config.bForceCleanBuffers, Config.ipCtrlMode == IPCTRL_MODE_TRACE);
 
   if(!invalidPreallocSettings(Config.tDecSettings.tStream))
   {

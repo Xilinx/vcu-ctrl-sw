@@ -554,3 +554,23 @@
         - close GOP
         - Recovery Point SEI
     -- Several minors bugs
+
+2020-08-06 (v1.0.59)
+-------------------
+  Added Features:
+    -- Add Plane-U and Plane-V in the CtrlSW API
+
+  API:
+    -- Version of the API is now 0.24.0
+    -- Decoder: Remove unused bConceal parameter/member and replace bUseBoard by more generic sPrefix (similar to the encoder API)
+    -- New chroma planes in CtrlSW API changes are:
+        - Planar buffers must me allocated with Plane-U/Plane-V (Plane-UV usage restricted to semiplanar)
+        - In the decoder, AL_DecGetAllocSize_Frame_Y/AL_DecGetAllocSize_Frame_UV replaced by AL_DecGetAllocSize_Frame_PixPlane
+        - In the encoder, AL_GetAllocSizeSrc_Y/AL_GetAllocSizeSrc_UV replaced by AL_GetAllocSizeSrc_PixPlane
+        - Required planes for a FourCC can be obtained with AL_Plane_GetBufferPixelPlanes/AL_Plane_GetBufferPlanes
+
+  Fixes:
+    -- Force Picture Timing SEI dpb_output_delay = 0, on intra only profile
+    -- Fix max consecutive skip
+    -- Fix Rtos_WaitEvent on system where pthread_cond_wait wan return EINTR
+    -- Several minors bugs

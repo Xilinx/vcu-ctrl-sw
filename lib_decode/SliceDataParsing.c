@@ -120,10 +120,14 @@ static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecP
 
   pBufs->uPitch = uPitch | uPictureBitDepth;
 
+  TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pRec);
+  AL_EChromaOrder eChromaOrder = AL_GetChromaOrder(tFourCC);
+
+  AL_EPlaneId eFirstCPlane = eChromaOrder == AL_C_ORDER_U_V ? AL_PLANE_U : AL_PLANE_UV;
   pBufs->tRecY.tMD.uPhysicalAddr = AL_PixMapBuffer_GetPlanePhysicalAddress(pRec, AL_PLANE_Y);
   pBufs->tRecY.tMD.pVirtualAddr = AL_PixMapBuffer_GetPlaneAddress(pRec, AL_PLANE_Y);
-  pBufs->tRecC.tMD.uPhysicalAddr = AL_PixMapBuffer_GetPlanePhysicalAddress(pRec, AL_PLANE_UV);
-  pBufs->tRecC.tMD.pVirtualAddr = AL_PixMapBuffer_GetPlaneAddress(pRec, AL_PLANE_UV);
+  pBufs->tRecC1.tMD.uPhysicalAddr = AL_PixMapBuffer_GetPlanePhysicalAddress(pRec, eFirstCPlane);
+  pBufs->tRecC1.tMD.pVirtualAddr = AL_PixMapBuffer_GetPlaneAddress(pRec, eFirstCPlane);
 
   pBufs->tPoc.tMD.uPhysicalAddr = pCtx->POC.tMD.uPhysicalAddr;
   pBufs->tPoc.tMD.pVirtualAddr = pCtx->POC.tMD.pVirtualAddr;
@@ -150,9 +154,9 @@ static AL_TDecPicBufferAddrs AL_SetBufferAddrs(AL_TDecCtx* pCtx)
   BufAddrs.pMV = pPictBuffers->tMV.tMD.uPhysicalAddr;
   BufAddrs.pPoc = pPictBuffers->tPoc.tMD.uPhysicalAddr;
   BufAddrs.pRecY = pPictBuffers->tRecY.tMD.uPhysicalAddr;
-  BufAddrs.pRecC = pPictBuffers->tRecC.tMD.uPhysicalAddr;
+  BufAddrs.pRecC1 = pPictBuffers->tRecC1.tMD.uPhysicalAddr;
   BufAddrs.pRecFbcMapY = pCtx->pChanParam->bFrameBufferCompression ? pPictBuffers->tRecFbcMapY.tMD.uPhysicalAddr : 0;
-  BufAddrs.pRecFbcMapC = pCtx->pChanParam->bFrameBufferCompression ? pPictBuffers->tRecFbcMapC.tMD.uPhysicalAddr : 0;
+  BufAddrs.pRecFbcMapC1 = pCtx->pChanParam->bFrameBufferCompression ? pPictBuffers->tRecFbcMapC1.tMD.uPhysicalAddr : 0;
   BufAddrs.pScl = pPictBuffers->tScl.tMD.uPhysicalAddr;
   BufAddrs.pWP = pPictBuffers->tWP.tMD.uPhysicalAddr;
   BufAddrs.pStream = pPictBuffers->tStream.tMD.uPhysicalAddr;

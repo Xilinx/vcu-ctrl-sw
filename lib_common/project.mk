@@ -23,6 +23,7 @@ LIB_COMMON_SRC:=\
   lib_common/PixMapBuffer.c\
   lib_common/SyntaxConversion.c\
   lib_common/IntVector.c\
+  lib_common/Planes.c\
 
 
 ifneq ($(ENABLE_AVC),0)

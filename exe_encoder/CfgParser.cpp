@@ -530,7 +530,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   std::map<string, int> numCoreEnums;
   numCoreEnums["AUTO"] = 0;
   parser.addArithOrEnum(curSection, "NumCore", cfg.Settings.tChParam[0].uNumCore, numCoreEnums, "Number of core to use for this encoding");
-  parser.addFlag(curSection, "CostMode", cfg.Settings.tChParam[0].eEncOptions, AL_OPT_RDO_COST_MODE);
+  parser.addFlag(curSection, "CostMode", cfg.Settings.tChParam[0].eEncOptions, AL_OPT_RDO_COST_MODE, "This parameter allows to reinforce the influence of the chrominance in the RDO choice. Useful to improve the visual quality of video sequences with low saturation.");
   std::map<string, int> videoModes;
   videoModes["PROGRESSIVE"] = AL_VM_PROGRESSIVE;
   videoModes["INTERLACED_TOP"] = AL_VM_INTERLACED_TOP;

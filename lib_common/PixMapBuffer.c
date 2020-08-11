@@ -65,7 +65,7 @@ AL_TBuffer* AL_PixMapBuffer_Create(AL_TAllocator* pAllocator, PFN_RefCount_CallB
   return NULL;
 }
 
-static void AddPlanesToMeta(AL_TPixMapMetaData* pMeta, int iChunkIdx, AL_TPlaneDescription* pPlDesc, int iNbPlanes)
+static void AddPlanesToMeta(AL_TPixMapMetaData* pMeta, int iChunkIdx, const AL_TPlaneDescription* pPlDesc, int iNbPlanes)
 {
   for(int i = 0; i < iNbPlanes; i++, pPlDesc++)
   {
@@ -74,7 +74,7 @@ static void AddPlanesToMeta(AL_TPixMapMetaData* pMeta, int iChunkIdx, AL_TPlaneD
   }
 }
 
-bool AL_PixMapBuffer_Allocate_And_AddPlanes(AL_TBuffer* pBuf, size_t zSize, AL_TPlaneDescription* pPlDesc, int iNbPlanes, char const* name)
+bool AL_PixMapBuffer_Allocate_And_AddPlanes(AL_TBuffer* pBuf, size_t zSize, const AL_TPlaneDescription* pPlDesc, int iNbPlanes, char const* name)
 {
   AL_TPixMapMetaData* pMeta = (AL_TPixMapMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_PIXMAP);
 
@@ -91,7 +91,7 @@ bool AL_PixMapBuffer_Allocate_And_AddPlanes(AL_TBuffer* pBuf, size_t zSize, AL_T
   return true;
 }
 
-bool AL_PixMapBuffer_AddPlanes(AL_TBuffer* pBuf, AL_HANDLE hChunk, size_t zSize, AL_TPlaneDescription* pPlDesc, int iNbPlanes)
+bool AL_PixMapBuffer_AddPlanes(AL_TBuffer* pBuf, AL_HANDLE hChunk, size_t zSize, const AL_TPlaneDescription* pPlDesc, int iNbPlanes)
 {
   AL_TPixMapMetaData* pMeta = (AL_TPixMapMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_PIXMAP);
 

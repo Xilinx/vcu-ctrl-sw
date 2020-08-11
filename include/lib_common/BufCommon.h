@@ -60,9 +60,16 @@ int AL_GetNumLinesInPitch(AL_EFbStorageMode eFrameBufferStorageMode);
 /*************************************************************************//*!
    \param[in] tFourCC FourCC of a framebuffer
    \param[in] iLumaPitch Pitch of luma plane
-   \return pitch of chroma plane
+   \return pitch of a chroma plane
 *****************************************************************************/
 int AL_GetChromaPitch(TFourCC tFourCC, int iLumaPitch);
+
+/*************************************************************************//*!
+   \param[in] tFourCC FourCC of a framebuffer
+   \param[in] iLumaHeight Height of luma plane
+   \return height of a chroma plane
+*****************************************************************************/
+int AL_GetChromaHeight(TFourCC tFourCC, int iLumaHeight);
 
 /****************************************************************************/
 /* Useful for traces */

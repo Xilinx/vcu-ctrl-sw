@@ -56,7 +56,7 @@
 
 #include "lib_common/BufferAPI.h"
 #include "lib_common/Error.h"
-#include "lib_common/FourCC.h"
+#include "lib_common/Planes.h"
 
 #include "lib_common_dec/DecInfo.h"
 #include "lib_common_dec/DecDpbMode.h"
@@ -212,7 +212,7 @@ void AL_Decoder_Destroy(AL_HDecoder hDec);
 
 /****************************************************************************/
 /* internal. Used for traces */
-void AL_Decoder_SetParam(AL_HDecoder hDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm, bool bForceCleanBuffers, bool shouldPrintFrameDelimiter);
+void AL_Decoder_SetParam(AL_HDecoder hDec, const char* sPrefix, int iFrmID, int iNumFrm, bool bForceCleanBuffers, bool bShouldPrintFrameDelimiter);
 
 /*************************************************************************//*!
    \brief Pushes a buffer to the decoder queue. It will be decoded when possible
@@ -310,23 +310,15 @@ uint32_t AL_Decoder_GetMinStrideHeight(uint32_t uHeight);
 int AL_DecGetAllocSize_Frame(AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode, bool bFrameBufferCompression, AL_EFbStorageMode eFbStorage);
 
 /*************************************************************************//*!
-   \brief Give the size of the luma component of a reconstructed picture buffer
+   \brief Give the size of one pixel component of a reconstructed picture buffer
    \param[in] eFbStorage frame buffer storage mode
    \param[in] tDim dimensions of the picture
-   \param[in] iPitch luma pitch in bytes of the picture
-   \return return the size of the luma component of the reconstruct
-*****************************************************************************/
-int AL_DecGetAllocSize_Frame_Y(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch);
-
-/*************************************************************************//*!
-   \brief Give the size of the chroma component of a reconstructed picture buffer
-   \param[in] eFbStorage frame buffer storage mode
-   \param[in] tDim dimensions of the picture
-   \param[in] iPitch luma pitch in bytes of the picture
+   \param[in] iPitch component pitch in bytes of the picture
    \param[in] eChromaMode Chroma Mode
-   \return return the size of the chroma component of the reconstruct
+   \param[in] ePlaneId The pixel plane type. Must not be a map plane.
+   \return return the size of the pixel component of the reconstruct
 *****************************************************************************/
-int AL_DecGetAllocSize_Frame_UV(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode);
+int AL_DecGetAllocSize_Frame_PixPlane(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode, AL_EPlaneId ePlaneId);
 
 /*@}*/
 
@@ -336,4 +328,8 @@ AL_DEPRECATED("Renamed. Use AL_Decoder_GetMinStrideHeight. Will be deleted in 0.
 uint32_t AL_Decoder_RoundHeight(uint32_t uHeight);
 // AL_DEPRECATED("Use AL_DecGetAllocSize_Frame. This function doesn't take the stride of the allocated buffer in consideration. Will be deleted in 0.9")
 int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bFrameBufferCompression, AL_EFbStorageMode eFbStorage);
+AL_DEPRECATED("Use AL_DecGetAllocSize_Frame_PixPlane.")
+int AL_DecGetAllocSize_Frame_Y(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch);
+AL_DEPRECATED("Use AL_DecGetAllocSize_Frame_PixPlane.")
+int AL_DecGetAllocSize_Frame_UV(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode);
 

@@ -146,7 +146,7 @@ void AL_Default_Decoder_SetError(AL_TDecCtx* pCtx, AL_ERR eError, int iFrameID);
 AL_EFbStorageMode AL_Default_Decoder_GetDisplayStorageMode(AL_TDecCtx* pCtx, bool* pEnableCompression);
 
 void AL_Default_Decoder_Destroy(AL_TDecoder* pAbsDec);
-void AL_Default_Decoder_SetParam(AL_TDecoder* pAbsDec, bool bConceal, bool bUseBoard, int iFrmID, int iNumFrm, bool bForceCleanBuffers, bool shouldPrintFrameDelimiter);
+void AL_Default_Decoder_SetParam(AL_TDecoder* pAbsDec, const char* sPrefix, int iFrmID, int iNumFrm, bool bForceCleanBuffers, bool bShouldPrintFrameDelimiter);
 bool AL_Default_Decoder_PushBuffer(AL_TDecoder* pAbsDec, AL_TBuffer* pBuf, size_t uSize);
 void AL_Default_Decoder_Flush(AL_TDecoder* pAbsDec);
 void AL_Default_Decoder_PutDecPict(AL_TDecoder* pAbsDec, AL_TBuffer* pDecPict);
@@ -156,6 +156,7 @@ AL_ERR AL_Default_Decoder_GetFrameError(AL_TDecoder* pAbsDec, AL_TBuffer* pBuf);
 bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec);
 
 int AL_Default_Decoder_GetStrOffset(AL_TDecoder* pAbsDec);
+int AL_Default_Decoder_SkipParsedNals(AL_TDecoder* pAbsDec);
 void AL_Default_Decoder_InternalFlush(AL_TDecoder* pAbsDec);
 void AL_Default_Decoder_FlushInput(AL_TDecoder* pAbsDec);
 

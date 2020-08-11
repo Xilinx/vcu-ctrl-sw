@@ -124,6 +124,7 @@ typedef struct
 {
   AL_THREAD thread;
   AL_EventQueue queue;
+  int fd;
 }StartCodeChannel;
 
 struct DecSchedulerMcuCtx
@@ -275,7 +276,10 @@ static void processScStatusMsg(SCMsg* pMsg, struct al5_scstatus* StatusMsg)
 bool isSCReady(void* p)
 {
   AL_EventQueue* pCtx = p;
-  return !AL_ListEmpty(&pCtx->List);
+  pthread_mutex_lock(&pCtx->Lock);
+  bool isReady = !AL_ListEmpty(&pCtx->List);
+  pthread_mutex_unlock(&pCtx->Lock);
+  return isReady;
 }
 
 static void* ScNotificationThread(void* p)
@@ -300,7 +304,6 @@ static void* ScNotificationThread(void* p)
     if(getScStatusMsg(pMsg, &StatusMsg))
       processScStatusMsg(pMsg, &StatusMsg);
 
-    AL_Driver_Close(pMsg->driver, pMsg->fd);
     Rtos_Free(pMsg);
   }
 
@@ -316,7 +319,7 @@ static void API_Destroy(AL_IDecScheduler* pScheduler)
 
 static AL_ERR API_CreateStartCodeChannel(AL_HANDLE* hStartCodeChannel, AL_IDecScheduler* pScheduler)
 {
-  (void)pScheduler;
+  struct DecSchedulerMcuCtx* scheduler = (struct DecSchedulerMcuCtx*)pScheduler;
   AL_ERR errorCode = AL_ERROR;
 
   StartCodeChannel* scChan = Rtos_Malloc(sizeof(*scChan));
@@ -326,6 +329,8 @@ static AL_ERR API_CreateStartCodeChannel(AL_HANDLE* hStartCodeChannel, AL_IDecSc
     errorCode = AL_ERR_NO_MEMORY;
     goto channel_creation_fail;
   }
+
+  scChan->fd = AL_Driver_Open(scheduler->driver, scheduler->deviceFile);
 
   AL_EventQueue_Init(&scChan->queue);
   scChan->thread = Rtos_CreateThread(&ScNotificationThread, &scChan->queue);
@@ -386,6 +391,7 @@ static AL_ERR API_DestroyStartCodeChannel(AL_IDecScheduler* pScheduler, AL_HANDL
 
   Rtos_DeleteThread(scChan->thread);
   AL_EventQueue_Deinit(pEventQueue);
+  AL_Driver_Close(scheduler->driver, scChan->fd);
   Rtos_Free(scChan);
 
   return AL_SUCCESS;
@@ -527,7 +533,7 @@ static void API_SearchSC(AL_IDecScheduler* pScheduler, AL_HANDLE hStartCodeChann
   pMsg->bEnded = false;
   pMsg->endStartCodeCB = endStartCodeCB;
   pMsg->driver = scheduler->driver;
-  pMsg->fd = AL_Driver_Open(pMsg->driver, scheduler->deviceFile);
+  pMsg->fd = scChan->fd;
 
   if(pMsg->fd < 0)
   {
