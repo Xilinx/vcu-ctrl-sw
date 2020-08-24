@@ -219,14 +219,32 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
   {
     return std::max(std::min((uint16_t)((value + 28.0) * 100), (uint16_t)4800), (uint16_t)2800);
   }, [](uint16_t value) { return (double)value / 100 - 28.0; });
-  std::map<string, int> MaxPicSizeEnums;
-  MaxPicSizeEnums["DISABLE"] = 0;
+  std::map<string, int> MaxPictureSizeEnums;
+  MaxPictureSizeEnums["DISABLE"] = 0;
+  parser.addCustom(curSection, "MaxPictureSizeInBits", [&](std::deque<Token>& tokens)
+  {
+    int size = 0;
+
+    if(hasOnlyOneIdentifier(tokens))
+      size = parseEnum(tokens, MaxPictureSizeEnums);
+    else
+      size = parseArithmetic<int>(tokens);
+
+    for(auto& picSize :  RCParam.pMaxPictureSize)
+      picSize = size;
+  }, [&]()
+  {
+    return "";
+  }, "Specifies a coarse picture size in bits that shouldn't be exceeded. Available Values: <Arithmetic expression> or DISABLE to not constrain the picture size");
+  parser.addArithOrEnum(curSection, "MaxPictureSizeInBits.I", RCParam.pMaxPictureSize[AL_SLICE_I], MaxPictureSizeEnums, "Specifies a coarse size (in bits) for I-frame that shouldn't be exceeded");
+  parser.addArithOrEnum(curSection, "MaxPictureSizeInBits.P", RCParam.pMaxPictureSize[AL_SLICE_P], MaxPictureSizeEnums, "Specifies a coarse size (in bits) for P-frame that shouldn't be exceeded");
+  parser.addArithOrEnum(curSection, "MaxPictureSizeInBits.B", RCParam.pMaxPictureSize[AL_SLICE_B], MaxPictureSizeEnums, "Specifies a coarse size (in bits) for B-frame that shouldn't be exceeded");
   parser.addCustom(curSection, "MaxPictureSize", [&](std::deque<Token>& tokens)
   {
     int size = 0;
 
     if(hasOnlyOneIdentifier(tokens))
-      size = parseEnum(tokens, MaxPicSizeEnums);
+      size = parseEnum(tokens, MaxPictureSizeEnums);
     else
       size = parseArithmetic<int>(tokens) * 1000;
 
@@ -235,28 +253,28 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
   }, [&]()
   {
     return "";
-  }, "Specifies a coarse picture size in Kbits that shouldn't be exceeded. Available Values: <Arithmetic expression> or DISABLE to not contrain the picture size");
+  }, "Specifies a coarse picture size in Kbits that shouldn't be exceeded. Available Values: <Arithmetic expression> or DISABLE to not constrain the picture size");
   parser.addArithFuncOrEnum(curSection, "MaxPictureSize.I", RCParam.pMaxPictureSize[AL_SLICE_I], [](int size)
   {
     return size * 1000;
   }, [](uint32_t size)
   {
     return size / 1000;
-  }, MaxPicSizeEnums, "Specifies a coarse size (in Kbits) for I-frame that shouldn't be exceeded");
+  }, MaxPictureSizeEnums, "Specifies a coarse size (in Kbits) for I-frame that shouldn't be exceeded");
   parser.addArithFuncOrEnum(curSection, "MaxPictureSize.P", RCParam.pMaxPictureSize[AL_SLICE_P], [](int size)
   {
     return size * 1000;
   }, [](uint32_t size)
   {
     return size / 1000;
-  }, MaxPicSizeEnums, "Specifies a coarse size (in Kbits) for P-frame that shouldn't be exceeded");
+  }, MaxPictureSizeEnums, "Specifies a coarse size (in Kbits) for P-frame that shouldn't be exceeded");
   parser.addArithFuncOrEnum(curSection, "MaxPictureSize.B", RCParam.pMaxPictureSize[AL_SLICE_B], [](int size)
   {
     return size * 1000;
   }, [](uint32_t size)
   {
     return size / 1000;
-  }, MaxPicSizeEnums, "Specifies a coarse size (in Kbits) for B-frame that shouldn't be exceeded");
+  }, MaxPictureSizeEnums, "Specifies a coarse size (in Kbits) for B-frame that shouldn't be exceeded");
   parser.addFlag(curSection, "EnableSkip", RCParam.eOptions, AL_RC_OPT_ENABLE_SKIP);
   parser.addFlag(curSection, "SCPrevention", RCParam.eOptions, AL_RC_OPT_SC_PREVENTION, "Enable Scene Change Prevention");
   parser.addArith(curSection, "MaxConsecutiveSkip", RCParam.uMaxConsecSkip, "Maximum consecutive skip pictures allowed");
@@ -433,7 +451,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
     AL_EChromaMode mode = AL_GET_CHROMA_MODE(cfg.Settings.tChParam[0].ePicFormat);
     return getDefaultEnumValue(mode, chromaModes);
   },
-                   "Set the expected chroma mode of the encoder. Depending on the input fourcc, this might lead to a conversion. Together with the BitDepth, these options determine the final FourCC the encoder is expecting.");
+                   "Set the expected chroma mode of the encoder. Depending on the input FourCC, this might lead to a conversion. Together with the BitDepth, these options determine the final FourCC the encoder is expecting.");
   std::map<string, int> entropymodes {};
   entropymodes["MODE_CAVLC"] = AL_MODE_CAVLC;
   entropymodes["MODE_CABAC"] = AL_MODE_CABAC;
@@ -833,34 +851,6 @@ static bool ParseMatrice(std::ifstream& SLFile, string& sLine, int& iLine, AL_TE
   else
     Settings.SclFlag[iSizeID][iMatrixID] = 1;
   return true;
-}
-
-static void RandomMatrice(AL_TEncSettings& Settings, ESLMode Mode)
-{
-  static int iRandMt = 0;
-  int iNumCoefW = (Mode < SL_8x8_Y_INTRA) ? 4 : 8;
-  int iNumCoefH = (Mode == SL_DC) ? 1 : iNumCoefW;
-
-  int iSizeID = (Mode < SL_8x8_Y_INTRA) ? 0 : (Mode < SL_16x16_Y_INTRA) ? 1 : (Mode < SL_32x32_Y_INTRA) ? 2 : 3;
-  int iMatrixID = (Mode < SL_32x32_Y_INTRA) ? Mode % 6 : (Mode == SL_32x32_Y_INTRA) ? 0 : 3;
-
-  uint8_t* pMatrix = (Mode == SL_DC) ? Settings.DcCoeff : Settings.ScalingList[iSizeID][iMatrixID];
-  uint32_t iRand = iRandMt++;
-
-  for(int i = 0; i < iNumCoefH; ++i)
-  {
-    for(int j = 0; j < iNumCoefW; ++j)
-    {
-      iRand = (1103515245 * iRand + 12345);   // Unix
-      pMatrix[j + i * iNumCoefH] = (iRand % 255) + 1;
-    }
-  }
-}
-
-static void GenerateMatrice(AL_TEncSettings& Settings)
-{
-  for(int iMode = 0; iMode < SL_ERR; ++iMode)
-    RandomMatrice(Settings, (ESLMode)iMode);
 }
 
 static bool ParseScalingListFile(const string& sSLFileName, AL_TEncSettings& Settings, std::ostream& warnstream)

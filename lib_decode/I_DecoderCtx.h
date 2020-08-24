@@ -139,7 +139,11 @@ typedef struct t_Dec_Ctx
   int iCurOffset;
   int iCurNalStreamOffset;
   uint32_t uCurPocLsb;
-  uint8_t uNoRaslOutputFlag;
+  union
+  {
+    uint8_t uNoRaslOutputFlag;
+    uint8_t uNoIncorrectPicOutputFlag;
+  };
   uint8_t uFrameIDRefList[MAX_STACK_SIZE][AL_MAX_NUM_REF];
   uint8_t uMvIDRefList[MAX_STACK_SIZE][AL_MAX_NUM_REF];
   uint8_t uNumRef[MAX_STACK_SIZE];
@@ -166,7 +170,7 @@ typedef struct t_Dec_Ctx
   AL_TAup aup;
   union
   {
-    AL_TAvcSliceHdr AvcSliceHdr[2]; // Slice header
+    AL_TAvcSliceHdr AvcSliceHdr[2]; // Slice headers
     AL_THevcSliceHdr HevcSliceHdr[2]; // Slice headers
   };
   AL_ERR error;

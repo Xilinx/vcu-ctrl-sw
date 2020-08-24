@@ -59,5 +59,5 @@ typedef struct
   int actualWidthInCtbPerCore; /* calculated without taking the alignement of the cores in consideration */
 }AL_NumCoreDiagnostic;
 
-bool AL_Constraint_NumCoreIsSane(int width, int numCore, int maxCuSize, AL_NumCoreDiagnostic* diagnostic);
+bool AL_Constraint_NumCoreIsSane(int width, int numCore, int log2MaxCuSize, AL_NumCoreDiagnostic* diagnostic);
 

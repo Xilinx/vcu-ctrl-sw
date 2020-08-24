@@ -738,6 +738,10 @@ static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, int i
   auto numStreams = g_defaultMinBuffers + smoothingStream + GetNumBufForGop(Settings);
   AL_TDimension dim = { Settings.tChParam[iLayerID].uEncWidth, Settings.tChParam[iLayerID].uEncHeight };
   auto streamSize = AL_GetMitigatedMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat));
+  bool bIsXAVCIntraCBG = AL_IS_XAVC_CBG(Settings.tChParam[0].eProfile) && AL_IS_INTRA_PROFILE(Settings.tChParam[0].eProfile);
+
+  if(bIsXAVCIntraCBG)
+    streamSize = AL_GetMaxNalSize(AL_GET_CODEC(Settings.tChParam[0].eProfile), dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat), Settings.tChParam[0].uLevel, AL_GET_PROFILE_IDC(Settings.tChParam[0].eProfile));
 
   if(AL_TwoPassMngr_HasLookAhead(Settings))
   {
@@ -872,7 +876,7 @@ void LayerRessources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffer
   if(cfg.RunInfo.printRateCtrlStat)
   {
     AL_TDimension tDim = { Settings.tChParam[iLayerID].uEncWidth, Settings.tChParam[iLayerID].uEncHeight };
-    AL_TMetaData* pMeta = (AL_TMetaData*)AL_RateCtrlMetaData_Create(pAllocator, tDim, Settings.tChParam[iLayerID].uMaxCuSize, AL_GET_CODEC(Settings.tChParam[iLayerID].eProfile));
+    AL_TMetaData* pMeta = (AL_TMetaData*)AL_RateCtrlMetaData_Create(pAllocator, tDim, Settings.tChParam[iLayerID].uLog2MaxCuSize, AL_GET_CODEC(Settings.tChParam[iLayerID].eProfile));
     assert(pMeta);
     bool bRet = StreamBufPool.AddMetaData(pMeta);
     assert(bRet);

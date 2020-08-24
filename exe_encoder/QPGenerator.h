@@ -94,8 +94,8 @@ static AL_INLINE bool AL_HasQpTable(AL_EGenerateQpMode eMode)
    \param[in]  iSliceQP   Slice QP value (in range [0..51])
    \param[in]  iMinQP     Minimum allowed QP value (in range [0..50])
    \param[in]  iMaxQP     Maximum allowed QP value (in range [1..51]).
-   \param[in]  iLCUWidth  Width in Lcu Unit of the picture
-   \param[in]  iLCUHeight Height in Lcu Unit of the picture
+   \param[in]  iLCUPicWidth  Width in Lcu Unit of the picture
+   \param[in]  iLCUPicHeight Height in Lcu Unit of the picture
    \param[in]  uLcuSize   Ctb maximum size
    \param[in]  eProf      Profile used for the encoding
    \param[in]  sQPTablesFolder In case QP are loaded from files, path to the folder
@@ -106,7 +106,7 @@ static AL_INLINE bool AL_HasQpTable(AL_EGenerateQpMode eMode)
    \note iMinQp <= iMaxQP
    \return true on success, false on error
 *****************************************************************************/
-bool GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, const std::string& sQPTablesFolder, int iFrameID, uint8_t* pQPs, uint8_t* pSegs);
+bool GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUPicWidth, int iLCUPicHeight, AL_EProfile eProf, const std::string& sQPTablesFolder, int iFrameID, uint8_t* pQPs, uint8_t* pSegs);
 
 /*************************************************************************//*!
    \brief Fill QP part of the buffer pointed to by pQP with a QP for each
@@ -114,12 +114,12 @@ bool GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP
    \param[in]  pRoiCtx    Pointer to the roi object holding roi information
    \param[in]  sRoiFileName path and file name of the ROI description
    \param[in]  eMode      Specifies the way QP values are computed. see EQpCtrlMode
-   \param[in]  iLCUWidth  Width in Lcu Unit of the picture
-   \param[in]  iLCUHeight Height in Lcu Unit of the picture
+   \param[in]  iLCUPicWidth  Width in Lcu Unit of the picture
+   \param[in]  iLCUPicHeight Height in Lcu Unit of the picture
    \param[in]  eProf      Profile used for the encoding
    \param[in]  iFrameID   Frame identifier
    \param[out] pQPs       Pointer to the buffer that receives the computed QPs
    \return true on success, false on error
 *****************************************************************************/
-bool GenerateROIBuffer(AL_TRoiMngrCtx* pRoiCtx, std::string const& sRoiFileName, int iLCUWidth, int iLCUHeight, AL_EProfile eProf, int iFrameID, uint8_t* pQPs);
+bool GenerateROIBuffer(AL_TRoiMngrCtx* pRoiCtx, std::string const& sRoiFileName, int iLCUPicWidth, int iLCUPicHeight, AL_EProfile eProf, int iFrameID, uint8_t* pQPs);
 

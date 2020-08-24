@@ -116,7 +116,7 @@ static void writeHrdParam(AL_TBitStreamLite* pBS, AL_THrdParam const* pHrd, uint
 }
 
 /******************************************************************************/
-static void writeProfileTierLevel(AL_TBitStreamLite* pBS, AL_TProfilevel const* pPTL, uint8_t MaxLayerMinus1, bool profilePresentFlag)
+static void writeProfileTierLevel(AL_TBitStreamLite* pBS, AL_THevcProfilevel const* pPTL, uint8_t MaxLayerMinus1, bool profilePresentFlag)
 {
   if(profilePresentFlag)
   {
@@ -491,7 +491,7 @@ static void writeSpsData(AL_TBitStreamLite* pBS, AL_THevcSps const* pSps, int iL
     for(int i = iLayerOffset; i <= pSps->sps_max_sub_layers_minus1; ++i)
     {
       AL_BitStreamLite_PutUE(pBS, pSps->sps_max_dec_pic_buffering_minus1[i]);
-      AL_BitStreamLite_PutUE(pBS, pSps->sps_num_reorder_pics[i]);
+      AL_BitStreamLite_PutUE(pBS, pSps->sps_max_num_reorder_pics[i]);
       AL_BitStreamLite_PutUE(pBS, pSps->sps_max_latency_increase_plus1[i]);
     }
   }

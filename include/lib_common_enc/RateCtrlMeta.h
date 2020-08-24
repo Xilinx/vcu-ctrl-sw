@@ -46,6 +46,7 @@
 #include "lib_common/BufferMeta.h"
 #include "lib_common/BufferAPI.h"
 #include "lib_common/SliceConsts.h"
+#include "lib_common/PicFormat.h"
 #include "lib_common_enc/RateCtrlStats.h"
 
 /*************************************************************************//*!

@@ -189,15 +189,30 @@ static bool isSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, AL_TStream
   AL_TDimension tSPSDim = extractDimension(pSPS);
 
   if((pStreamSettings->tDim.iWidth > 0) && (pStreamSettings->tDim.iWidth < (tSPSDim.iWidth - iSPSCropWidth)))
+  {
+    Rtos_Log(AL_LOG_ERROR, "Invalid Crop\n");
     return false;
+  }
 
-  if((pStreamSettings->tDim.iWidth > 0) && (tSPSDim.iWidth < AL_CORE_AVC_MIN_WIDTH))
+  if((pStreamSettings->tDim.iWidth > 0) && (tSPSDim.iWidth < AL_CORE_AVC_MIN_RES))
+  {
+    Rtos_Log(AL_LOG_ERROR, "Invalid resolution : Width too small\n");
     return false;
+  }
 
   int iSPSCropHeight = tSPSCropInfo.uCropOffsetTop + tSPSCropInfo.uCropOffsetBottom;
 
   if((pStreamSettings->tDim.iHeight > 0) && (pStreamSettings->tDim.iHeight < (tSPSDim.iHeight - iSPSCropHeight)))
+  {
+    Rtos_Log(AL_LOG_ERROR, "Invalid Crop\n");
     return false;
+  }
+
+  if((pStreamSettings->tDim.iHeight > 0) && (tSPSDim.iHeight < AL_CORE_AVC_MIN_RES))
+  {
+    Rtos_Log(AL_LOG_ERROR, "Invalid resolution : Height too small\n");
+    return false;
+  }
 
   if(((pStreamSettings->eSequenceMode != AL_SM_MAX_ENUM) && pStreamSettings->eSequenceMode != AL_SM_UNKNOWN) && (pStreamSettings->eSequenceMode != AL_SM_PROGRESSIVE))
     return false;
@@ -253,7 +268,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
   int iSizeCompMap = AL_GetAllocSize_DecCompMap(pCtx->tStreamSettings.tDim);
   AL_ERR error = AL_ERR_NO_MEMORY;
 
-  if(!AL_Default_Decoder_AllocPool(pCtx, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap))
+  if(!AL_Default_Decoder_AllocPool(pCtx, 0, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap))
     goto fail_alloc;
 
   int iDpbMaxBuf = getConcealedMaxDPBSize(pCtx->tStreamSettings.iLevel, pCtx->tStreamSettings.tDim.iWidth, pCtx->tStreamSettings.tDim.iHeight, pSPS->max_num_ref_frames);
@@ -345,6 +360,7 @@ static bool initSlice(AL_TDecCtx* pCtx, AL_TAvcSliceHdr* pSlice)
   {
     if(!isSPSCompatibleWithStreamSettings(pSlice->pSPS, &pCtx->tStreamSettings))
     {
+      Rtos_Log(AL_LOG_ERROR, "Cannot decode using the current allocated buffers\n");
       pSlice->pPPS = &aup->pPPS[pCtx->tConceal.iLastPPSId];
       pSlice->pSPS = pSlice->pPPS->pSPS;
       AL_Default_Decoder_SetError(pCtx, AL_WARN_SPS_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS, -1);
@@ -646,7 +662,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   pCtx->uCurID = (pCtx->uCurID + 1) & 1;
   AL_TDecSliceParam* pSP = &(((AL_TDecSliceParam*)pCtx->PoolSP[pCtx->uToggle].tMD.pVirtualAddr)[pCtx->PictMngr.uNumSlice]);
 
-  if(!(*bFirstSliceInFrameIsValid) && pSlice->first_mb_in_slice)
+  if(pCtx->bIsBuffersAllocated && !(*bFirstSliceInFrameIsValid) && pSlice->first_mb_in_slice)
   {
     if(!pSlice->pSPS)
       pSlice->pSPS = pAUP->pActiveSPS;
@@ -665,6 +681,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
 
     if(!isValid)
     {
+      Rtos_Log(AL_LOG_ERROR, "Cannot decode using the current allocated buffers\n");
       AL_Default_Decoder_SetError(pCtx, AL_WARN_SPS_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS, pPP->tBufIDs.FrmID);
       pSPS->bConceal = true;
     }
@@ -694,7 +711,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   if(isValid)
     AL_AVC_PictMngr_Fill_Gap_In_FrameNum(&pCtx->PictMngr, pSlice);
 
-  if(!(*bBeginFrameIsValid) && pSlice->pSPS)
+  if(pCtx->bIsBuffersAllocated && !(*bBeginFrameIsValid) && pSlice->pSPS)
   {
     if(!avcInitFrameBuffers(pCtx, isRandomAccessPoint(eNUT), pSlice->pSPS, pPP, pBufs))
       return;
@@ -747,7 +764,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     concealSlice(pCtx, pPP, pSP, pSlice, eNUT);
 
     if(bLastSlice)
-      pSP->NextSliceSegment = pPP->LcuWidth * pPP->LcuHeight;
+      pSP->NextSliceSegment = pPP->LcuPicWidth * pPP->LcuPicHeight;
   }
   else // skip slice
   {
@@ -855,12 +872,16 @@ AL_NonVclNuts AL_AVC_GetNonVclNuts(void)
 {
   AL_NonVclNuts nuts =
   {
-    AL_AVC_NUT_PREFIX_SEI,
-    AL_AVC_NUT_PREFIX_SEI, /* AVC doesn't distinguish between prefix and suffix */
+    AL_AVC_NUT_ERR, // NUT does not exist in AVC
+    AL_AVC_NUT_ERR, // NUT does not exist in AVC
     AL_AVC_NUT_SPS,
     AL_AVC_NUT_PPS,
-    0,
     AL_AVC_NUT_FD,
+    AL_AVC_NUT_ERR, // NUT does not exist in AVC
+    AL_AVC_NUT_ERR, // NUT does not exist in AVC
+    AL_AVC_NUT_ERR, // NUT does not exist in AVC
+    AL_AVC_NUT_PREFIX_SEI,
+    AL_AVC_NUT_PREFIX_SEI, /* AVC doesn't distinguish between prefix and suffix */
     AL_AVC_NUT_EOS,
     AL_AVC_NUT_EOB,
   };
@@ -874,8 +895,11 @@ void AL_AVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIs
 
   AL_NalParser parser =
   {
+    NULL,
+    NULL,
     parseAndApplySPS,
     parsePPSandUpdateConcealment,
+    NULL,
     NULL,
     AL_AVC_ParseSEI,
     decodeSliceData,

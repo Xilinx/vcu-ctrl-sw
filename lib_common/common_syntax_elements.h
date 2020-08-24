@@ -100,7 +100,7 @@ typedef struct t_Profilevel
   uint8_t sub_layer_lower_bit_rate_constraint_flag[8];
 
   uint8_t sub_layer_level_idc[8];
-}AL_TProfilevel;
+}AL_THevcProfilevel;
 
 /*************************************************************************//*!
    \brief Mimics structure to represent scaling list syntax elements

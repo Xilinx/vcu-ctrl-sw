@@ -81,9 +81,9 @@ int AL_CoreConstraint_GetMinCoresCount(AL_CoreConstraint* constraint, int width)
 static int getLcuCount(int width, int height)
 {
   /* Fixed LCU Size chosen for resources calculs */
-  int const lcuHeight = 32;
-  int const lcuWidth = 32;
-  return divideRoundUp(width, lcuWidth) * divideRoundUp(height, lcuHeight);
+  int const lcuPicHeight = 32;
+  int const lcuPicWidth = 32;
+  return divideRoundUp(width, lcuPicWidth) * divideRoundUp(height, lcuPicHeight);
 }
 
 int AL_GetResources(int width, int height, int frameRate, int clockRatio)
@@ -102,7 +102,7 @@ static int ToCtb(int val, int ctbSize)
   return divideRoundUp(val, ctbSize);
 }
 
-bool AL_Constraint_NumCoreIsSane(int width, int numCore, int maxCuSize, AL_NumCoreDiagnostic* diagnostic)
+bool AL_Constraint_NumCoreIsSane(int width, int numCore, int log2MaxCuSize, AL_NumCoreDiagnostic* diagnostic)
 {
   /*
    * Hardware limitation, for each core, we need at least:
@@ -113,8 +113,8 @@ bool AL_Constraint_NumCoreIsSane(int width, int numCore, int maxCuSize, AL_NumCo
    * Tiles are aligned on 64 bytes.
    */
 
-  int ctbSize = 1 << maxCuSize;
-  int const MIN_CTB_PER_CORE = 9 - maxCuSize;
+  int ctbSize = 1 << log2MaxCuSize;
+  int const MIN_CTB_PER_CORE = 9 - log2MaxCuSize;
   int widthPerCoreInCtb = ToCtb(width / numCore, ctbSize);
 
   int offset = 0;

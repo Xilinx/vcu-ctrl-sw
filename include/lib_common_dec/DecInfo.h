@@ -47,6 +47,7 @@
 #include "lib_rtos/lib_rtos.h"
 
 #include "lib_common/SliceConsts.h"
+#include "lib_common/PicFormat.h"
 #include "lib_common/VideoMode.h"
 #include "lib_common_dec/DecDpbMode.h"
 

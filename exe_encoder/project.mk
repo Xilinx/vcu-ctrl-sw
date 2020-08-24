@@ -36,6 +36,7 @@ ifneq ($(ENABLE_HIGH_DYNAMIC_RANGE),0)
   EXE_ENCODER_SRCS+=$(THIS_EXE_ENCODER)/HDRParser.cpp
 endif
 
+
 -include $(THIS_EXE_ENCODER)/site.mk
 
 

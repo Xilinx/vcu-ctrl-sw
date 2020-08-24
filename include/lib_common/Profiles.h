@@ -70,6 +70,7 @@ typedef enum AL_e_Codec
   AL_CODEC_AV1 = 2,
   AL_CODEC_VP9 = 3,
   AL_CODEC_JPEG = 4,
+  AL_CODEC_VVC = 5,
   AL_CODEC_INVALID, /* sentinel */
 }AL_ECodec;
 

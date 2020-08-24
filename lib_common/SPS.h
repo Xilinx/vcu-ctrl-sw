@@ -142,7 +142,7 @@ typedef struct t_Hevc_Sps
   uint8_t sps_max_sub_layers_minus1;
   uint8_t sps_ext_or_max_sub_layers_minus1;
   uint8_t sps_temporal_id_nesting_flag;
-  AL_TProfilevel profile_and_level;
+  AL_THevcProfilevel profile_and_level;
 
   uint8_t sps_seq_parameter_set_id;
   uint8_t update_rep_format_flag;
@@ -165,7 +165,7 @@ typedef struct t_Hevc_Sps
 
   uint8_t sps_sub_layer_ordering_info_present_flag;
   uint8_t sps_max_dec_pic_buffering_minus1[MAX_SUB_LAYER + 1];
-  uint8_t sps_num_reorder_pics[MAX_SUB_LAYER + 1];
+  uint8_t sps_max_num_reorder_pics[MAX_SUB_LAYER + 1];
   uint32_t sps_max_latency_increase_plus1[MAX_SUB_LAYER + 1];
 
   uint8_t log2_min_luma_coding_block_size_minus3;

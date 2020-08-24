@@ -41,10 +41,10 @@
 #include "IP_EncoderCtx.h"
 
 /****************************************************************************/
-static void AL_sUpdateProfileTierLevel(AL_TProfilevel* pPTL, AL_TEncChanParam const* pChParam, bool profilePresentFlag, int iLayerId)
+static void AL_sUpdateProfileTierLevel(AL_THevcProfilevel* pPTL, AL_TEncChanParam const* pChParam, bool profilePresentFlag, int iLayerId)
 {
   (void)iLayerId;
-  Rtos_Memset(pPTL, 0, sizeof(AL_TProfilevel));
+  Rtos_Memset(pPTL, 0, sizeof(AL_THevcProfilevel));
 
   if(profilePresentFlag)
   {
@@ -376,16 +376,16 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
     {
       int iNumRef = iMaxRef - (iNumTemporalLayer - 1 - i);
       pSPS->sps_max_dec_pic_buffering_minus1[i] = iNumRef;
-      pSPS->sps_num_reorder_pics[i] = iNumRef;
+      pSPS->sps_max_num_reorder_pics[i] = iNumRef;
     }
 
     pSPS->sps_max_latency_increase_plus1[0] = 0;
   }
 
-  pSPS->log2_min_luma_coding_block_size_minus3 = pChParam->uMinCuSize - 3;
-  pSPS->log2_diff_max_min_luma_coding_block_size = pChParam->uMaxCuSize - pChParam->uMinCuSize;
-  pSPS->log2_min_transform_block_size_minus2 = pChParam->uMinTuSize - 2;
-  pSPS->log2_diff_max_min_transform_block_size = pChParam->uMaxTuSize - pChParam->uMinTuSize;
+  pSPS->log2_min_luma_coding_block_size_minus3 = pChParam->uLog2MinCuSize - 3;
+  pSPS->log2_diff_max_min_luma_coding_block_size = pChParam->uLog2MaxCuSize - pChParam->uLog2MinCuSize;
+  pSPS->log2_min_transform_block_size_minus2 = pChParam->uLog2MinTuSize - 2;
+  pSPS->log2_diff_max_min_transform_block_size = pChParam->uLog2MaxTuSize - pChParam->uLog2MinTuSize;
   pSPS->max_transform_hierarchy_depth_inter = pChParam->uMaxTransfoDepthInter;
   pSPS->max_transform_hierarchy_depth_intra = pChParam->uMaxTransfoDepthIntra;
 
@@ -397,7 +397,7 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   {
     pSPS->pcm_sample_bit_depth_luma_minus1 = AL_GET_BITDEPTH_LUMA(pChParam->ePicFormat) - 1;
     pSPS->pcm_sample_bit_depth_chroma_minus1 = AL_GET_BITDEPTH_CHROMA(pChParam->ePicFormat) - 1;
-    pSPS->log2_min_pcm_luma_coding_block_size_minus3 = Min(pChParam->uMaxCuSize - 3, 2);
+    pSPS->log2_min_pcm_luma_coding_block_size_minus3 = Min(pChParam->uLog2MaxCuSize - 3, 2);
     pSPS->log2_diff_max_min_pcm_luma_coding_block_size = 0;
     pSPS->pcm_loop_filter_disabled_flag = (pChParam->eEncTools & AL_OPT_LF) ? 0 : 1;
   }
@@ -407,7 +407,7 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   pSPS->long_term_ref_pics_present_flag = AL_GET_SPS_LOG2_NUM_LONG_TERM_RPS(pChParam->uSpsParam) ? 1 : 0;
   pSPS->num_long_term_ref_pics_sps = 0;
   pSPS->sps_temporal_mvp_enabled_flag = 1;
-  pSPS->strong_intra_smoothing_enabled_flag = (pChParam->uMaxCuSize > 4) ? 1 : 0;
+  pSPS->strong_intra_smoothing_enabled_flag = (pChParam->uLog2MaxCuSize > 4) ? 1 : 0;
 
 #if __ANDROID_API__
   pSPS->vui_parameters_present_flag = 0;

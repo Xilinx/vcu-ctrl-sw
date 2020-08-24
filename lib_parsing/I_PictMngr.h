@@ -110,6 +110,25 @@ typedef struct t_MvBufPool
 }AL_TMvBufPool;
 
 /*************************************************************************//*!
+   \brief Reference Picture List Context
+*****************************************************************************/
+/* reference picture list contruction variables */
+typedef struct AL_t_HevcRefPicCtx
+{
+  int PocStCurrBefore[MAX_DPB_SIZE];
+  int PocStCurrAfter[MAX_DPB_SIZE];
+  int PocStFoll[MAX_DPB_SIZE];
+  int PocLtCurr[MAX_DPB_SIZE];
+  int PocLtFoll[MAX_DPB_SIZE];
+
+  uint8_t RefPicSetStCurrBefore[MAX_DPB_SIZE];
+  uint8_t RefPicSetStCurrAfter[MAX_DPB_SIZE];
+  uint8_t RefPicSetStFoll[MAX_DPB_SIZE];
+  uint8_t RefPicSetLtCurr[MAX_DPB_SIZE];
+  uint8_t RefPicSetLtFoll[MAX_DPB_SIZE];
+}AL_THevcRefPicCtx;
+
+/*************************************************************************//*!
    \brief Picture Manager Context
 *****************************************************************************/
 typedef struct t_PictMngrCtx
@@ -143,18 +162,10 @@ typedef struct t_PictMngrCtx
   int32_t iBotFieldOrderCnt;
   bool bLastIsIDR;
 
-  /* reference picture list contruction variables */
-  int PocStCurrBefore[MAX_DPB_SIZE];
-  int PocStCurrAfter[MAX_DPB_SIZE];
-  int PocStFoll[MAX_DPB_SIZE];
-  int PocLtCurr[MAX_DPB_SIZE];
-  int PocLtFoll[MAX_DPB_SIZE];
-
-  uint8_t RefPicSetStCurrBefore[MAX_DPB_SIZE];
-  uint8_t RefPicSetStCurrAfter[MAX_DPB_SIZE];
-  uint8_t RefPicSetStFoll[MAX_DPB_SIZE];
-  uint8_t RefPicSetLtCurr[MAX_DPB_SIZE];
-  uint8_t RefPicSetLtFoll[MAX_DPB_SIZE];
+  union
+  {
+    AL_THevcRefPicCtx HevcRef;
+  };
 
   AL_TAllocator* pAllocator;
 }AL_TPictMngrCtx;

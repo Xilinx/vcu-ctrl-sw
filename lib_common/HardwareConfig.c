@@ -35,24 +35,14 @@
 *
 ******************************************************************************/
 
-#pragma once
-#include "DefaultDecoder.h"
+#include "lib_common/HardwareConfig.h"
 
-typedef struct
+AL_EChromaMode AL_HWConfig_Enc_GetSupportedChromaMode(void)
 {
-  void (* parseDps)(AL_TAup*, AL_TRbspParser*);
-  void (* parseVps)(AL_TAup*, AL_TRbspParser*);
-  AL_PARSE_RESULT (* parseSps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
-  AL_PARSE_RESULT (* parsePps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
-  AL_PARSE_RESULT (* parseAps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
-  AL_PARSE_RESULT (* parsePh)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
-  bool (* parseSei)(AL_TAup*, AL_TRbspParser*, bool, AL_CB_ParsedSei*, AL_TSeiMetaData* pMeta);
-  void (* decodeSliceData)(AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
-  bool (* isSliceData)(AL_ENut nut);
-  void (* finishPendingRequest)(AL_TDecCtx*);
-}AL_NalParser;
+  return AL_CHROMA_4_2_2;
+}
 
-void AL_DecodeOneNal(AL_NonVclNuts, AL_NalParser, AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
-
-bool HasOngoingFrame(AL_TDecCtx* pCtx);
-
+AL_EChromaMode AL_HWConfig_Dec_GetSupportedChromaMode(void)
+{
+  return AL_CHROMA_4_2_2;
+}

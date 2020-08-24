@@ -47,6 +47,7 @@
 #define AL_ENC_MAX_HEADER_SIZE (AL_ENC_MAX_CONFIG_HEADER_SIZE + AL_ENC_MAX_SEI_SIZE)
 
 #include "lib_common/SliceConsts.h"
+#include "lib_common/PicFormat.h"
 
 /*************************************************************************//*!
    \brief Retrieves the maximum size of one VCL NAL unit

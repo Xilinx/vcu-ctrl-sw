@@ -44,6 +44,7 @@
 
 #include "lib_rtos/types.h"
 #include "lib_common/SliceConsts.h"
+#include "lib_common/PicFormat.h"
 #include "lib_common_dec/DecSynchro.h"
 
 /*************************************************************************//*!

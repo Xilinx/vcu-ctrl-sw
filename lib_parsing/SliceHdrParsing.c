@@ -358,6 +358,7 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
     {
       pSlice->bottom_field_flag = u(pRP, 1);
       /* We do not support field (alternate) pictures */
+      Rtos_Log(AL_LOG_ERROR, "Interlaced pictures are not supported\n");
       return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
     }
   }
@@ -450,8 +451,12 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
     }
   }
 
-  if(pPps->num_slice_groups_minus1 > 0 && pPps->slice_group_map_type >= 3 && pPps->slice_group_map_type <= 5)
-    AL_Assert(0);
+  if(pPps->num_slice_groups_minus1 != 0)
+  {
+    Rtos_Log(AL_LOG_ERROR, "ASO/FMO is not supported\n");
+    return false;
+  }
+
   pConceal->iFirstLCU = pSlice->first_mb_in_slice;
   return true;
 }
@@ -468,7 +473,7 @@ static void AL_HEVC_sSetDefaultSliceHeader(AL_THevcSliceHdr* pSlice)
   uint8_t pic_parameter_set_id = pSlice->slice_pic_parameter_set_id;
   uint8_t nal_unit_type = pSlice->nal_unit_type;
   uint8_t nuh_layer_id = pSlice->nuh_layer_id;
-  uint8_t temporal_id_plus1 = pSlice->temporal_id_plus1;
+  uint8_t nuh_temporal_id_plus1 = pSlice->nuh_temporal_id_plus1;
   uint8_t RapFlag = pSlice->RapPicFlag;
   uint8_t IdrFlag = pSlice->IdrPicFlag;
   const AL_THevcPps* pPPS = pSlice->pPPS;
@@ -482,7 +487,7 @@ static void AL_HEVC_sSetDefaultSliceHeader(AL_THevcSliceHdr* pSlice)
   pSlice->dependent_slice_segment_flag = 0;
   pSlice->nal_unit_type = nal_unit_type;
   pSlice->nuh_layer_id = nuh_layer_id;
-  pSlice->temporal_id_plus1 = temporal_id_plus1;
+  pSlice->nuh_temporal_id_plus1 = nuh_temporal_id_plus1;
   pSlice->RapPicFlag = RapFlag;
   pSlice->IdrPicFlag = IdrFlag;
   pSlice->pPPS = pPPS;
@@ -695,7 +700,7 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
   u(pRP, 1); // forbidden_zero_bit
   pSlice->nal_unit_type = u(pRP, 6);
   pSlice->nuh_layer_id = u(pRP, 6);
-  pSlice->temporal_id_plus1 = u(pRP, 3);
+  pSlice->nuh_temporal_id_plus1 = u(pRP, 3);
 
   pSlice->RapPicFlag = (pSlice->nal_unit_type >= AL_HEVC_NUT_BLA_W_LP && pSlice->nal_unit_type <= AL_HEVC_NUT_RSV_IRAP_VCL23) ? 1 : 0;
   pSlice->IdrPicFlag = isHevcIDR(pSlice->nal_unit_type) ? 1 : 0;

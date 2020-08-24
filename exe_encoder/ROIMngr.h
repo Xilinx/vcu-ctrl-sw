@@ -85,8 +85,8 @@ struct AL_TRoiMngrCtx
   int iPicWidth;
   int iPicHeight;
 
-  int iLcuWidth;
-  int iLcuHeight;
+  int iLcuPicWidth;
+  int iLcuPicHeight;
   int iNumLCUs;
   uint8_t uLcuSize;
 

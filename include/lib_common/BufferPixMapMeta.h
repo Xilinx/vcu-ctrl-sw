@@ -43,6 +43,7 @@
 #pragma once
 
 #include "lib_common/BufferMeta.h"
+#include "lib_common/FourCC.h"
 #include "lib_common/Planes.h"
 
 /*************************************************************************//*!

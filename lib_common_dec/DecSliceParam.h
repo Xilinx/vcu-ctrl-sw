@@ -57,7 +57,7 @@ typedef struct AL_t_DecSliceParam
   uint8_t CabacInitIdc;
   uint8_t ColocFromL0;
   uint8_t mvd_l1_zero_flag;
-  uint16_t WPTableID;
+  uint16_t SliceId;
   uint8_t NumRefIdxL1Minus1;
   uint8_t NumRefIdxL0Minus1;
   uint8_t WeightedPred;
@@ -104,14 +104,13 @@ typedef struct AL_t_DecSliceParam
   bool DependentSlice;
   bool SAOFilterChroma;
   bool SAOFilterLuma;
-  bool LoopFilter;
+  bool DisableLoopFilter;
   bool XSliceLoopFilter;
   bool CuChromaQpOffset;
   bool NextIsDependent;
   bool Tile;
 
   AL_ESliceType eSliceType;
-
   uint32_t uStrAvailSize;
   uint32_t uCompOffset;
   uint32_t uStrOffset;

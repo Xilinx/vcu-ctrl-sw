@@ -574,3 +574,21 @@
     -- Fix max consecutive skip
     -- Fix Rtos_WaitEvent on system where pthread_cond_wait wan return EINTR
     -- Several minors bugs
+
+2020-08-19 (v1.0.61)
+-------------------
+  Added Features:
+    -- cfg Arithmetic value can now handle (K, Ki, M, Mi, G, Gi) as prefix identifier. They are respectively 1000, 1024, 1000², 1024², 1000³, 1024³
+
+  API:
+    -- Version of the API is now 0.25.0
+    -- Cfg parser API add MaxPictureSizeInBits (I,P,B). Values are in bits instead of Kbits (MaxPictureSize)
+    -- Add new file lib_common/PicFormat.h (Picture's formats extracted from lib_common/SliceConsts.h)
+    -- Add new file lib_common/CodecHook.h to hook the code (it can helps user application)
+    -- Better handling of decoder register. They're now more generic
+
+  Fixes:
+    -- XAVC:
+        - User should set AspectRatio in order to follow the requirement of the profile
+        - User should set MaxPictureSizeInBits in order to pad Intra CBG profile
+    -- Several minors bugs

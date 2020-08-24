@@ -38,6 +38,7 @@
 #pragma once
 
 #include "lib_rtos/types.h"
+#include "lib_rtos/lib_rtos.h"
 
 typedef struct t_Conceal
 {
@@ -64,3 +65,12 @@ typedef enum
   } \
   while(0) \
 
+#define COMPLY_WITH_LOG(cond, log) \
+  do { \
+    if(!(cond)) \
+    { \
+      Rtos_Log(AL_LOG_ERROR, log); \
+      return AL_CONCEAL; \
+    } \
+  } \
+  while(0) \

@@ -106,7 +106,7 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* p
 
   tempPPS.entropy_coding_mode_flag = u(pRP, 1);
   tempPPS.bottom_field_pic_order_in_frame_present_flag = u(pRP, 1);
-  tempPPS.num_slice_groups_minus1 = ue(pRP); // num_slice_groups_minus1
+  tempPPS.num_slice_groups_minus1 = ue(pRP);
 
   if(tempPPS.num_slice_groups_minus1 > 0)
   {
@@ -285,8 +285,6 @@ AL_PARSE_RESULT AL_AVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* p
 
   tempPPS.bConceal = rbsp_trailing_bits(pRP) ? false : true;
 
-  COMPLY(tempPPS.num_slice_groups_minus1 == 0); // baseline profile only
-
   pIAup->avcAup.pPPS[pps_id] = tempPPS;
 
   return AL_OK;
@@ -319,7 +317,9 @@ static bool isProfileSupported(uint8_t profile_idc)
 {
   switch(profile_idc)
   {
-  case AVC_PROFILE_IDC_BASELINE:
+  case AVC_PROFILE_IDC_BASELINE: // We do not support FMO / ASO, however, we try to decode with concealment
+    return true;
+
   case AVC_PROFILE_IDC_MAIN:
   case AVC_PROFILE_IDC_HIGH:
     return true;
@@ -346,10 +346,13 @@ AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TRbspParser* pRP, AL_TAvcSps* pSPS)
 
   uint8_t profile_idc = u(pRP, 8);
   skip(pRP, 1); // constraint_set0_flag
-  uint8_t constr_set1_flag = u(pRP, 1); // constraint_set1_flag
+  uint8_t constr_set1_flag = u(pRP, 1);
 
   if(!isProfileSupported(profile_idc) && !constr_set1_flag)
+  {
+    Rtos_Log(AL_LOG_ERROR, "Unsupported profile\n");
     return AL_UNSUPPORTED;
+  }
   skip(pRP, 1); // constraint_set2_flag
   uint8_t constr_set3_flag = u(pRP, 1);
   skip(pRP, 1); // constraint_set4_flag
@@ -459,7 +462,10 @@ AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TRbspParser* pRP, AL_TAvcSps* pSPS)
     pSPS->mb_adaptive_frame_field_flag = u(pRP, 1);
 
     if(pSPS->mb_adaptive_frame_field_flag)
+    {
+      Rtos_Log(AL_LOG_ERROR, "MBAFF is not supported\n");
       return AL_UNSUPPORTED;
+    }
 
     pSPS->pic_height_in_map_units_minus1 = fieldToFrameHeight(pSPS->pic_height_in_map_units_minus1);
   }

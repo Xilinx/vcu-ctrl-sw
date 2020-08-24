@@ -46,7 +46,7 @@
 
 #include "lib_rtos/types.h"
 #include "lib_common/ScalingList.h"
-#include "lib_common/SliceConsts.h"
+#include "lib_common/PicFormat.h"
 
 /****************************************************************************/
 static const int AL_AVC_DEC_SCL_ORDER_8x8[64] =

@@ -46,7 +46,7 @@
 #include "lib_rtos/types.h"
 
 /*************************************************************************//*!
-   \brief Statistics usefull for rate-control algorithms
+   \brief Statistics useful for rate-control algorithms
 *****************************************************************************/
 typedef struct al_t_RateCtrl_Statistics
 {

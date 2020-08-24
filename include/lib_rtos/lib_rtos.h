@@ -72,6 +72,15 @@ void* Rtos_Memmove(void* pDst, void const* pSrc, size_t zSize);
 void* Rtos_Memset(void* pDst, int iVal, size_t zSize);
 int Rtos_Memcmp(void const* pBuf1, void const* pBuf2, size_t zSize);
 
+#define AL_LOG_CRITICAL 0
+#define AL_LOG_ERROR 1
+#define AL_LOG_WARNING 3
+#define AL_LOG_INFO 5
+#define AL_LOG_VERBOSE 7
+#define AL_LOG_DEBUG 20
+
+int Rtos_Log(int iLogLevel, char const* const _Format, ...);
+
 /****************************************************************************/
 /*  Clock */
 /****************************************************************************/

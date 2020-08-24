@@ -103,8 +103,8 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
   if(pPPS->pSPS->bConceal)
     return;
 
-  uint16_t uLCUWidth = pPPS->pSPS->PicWidthInCtbs;
-  uint16_t uLCUHeight = pPPS->pSPS->PicHeightInCtbs;
+  uint16_t uLCUPicWidth = pPPS->pSPS->PicWidthInCtbs;
+  uint16_t uLCUPicHeight = pPPS->pSPS->PicHeightInCtbs;
 
   pPPS->dependent_slice_segments_enabled_flag = u(pRP, 1);
   pPPS->output_flag_present_flag = u(pRP, 1);
@@ -147,7 +147,7 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
     pPPS->num_tile_rows_minus1 = ue(pRP);
     pPPS->uniform_spacing_flag = u(pRP, 1);
 
-    if(pPPS->num_tile_columns_minus1 >= uLCUWidth || pPPS->num_tile_rows_minus1 >= uLCUHeight ||
+    if(pPPS->num_tile_columns_minus1 >= uLCUPicWidth || pPPS->num_tile_rows_minus1 >= uLCUPicHeight ||
        pPPS->num_tile_columns_minus1 >= AL_MAX_COLUMNS_TILE || pPPS->num_tile_rows_minus1 >= AL_MAX_ROWS_TILE)
       return;
 
@@ -168,11 +168,11 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
         uLineOffset += pPPS->row_height[i];
       }
 
-      if(uClmnOffset >= uLCUWidth || uLineOffset >= uLCUHeight)
+      if(uClmnOffset >= uLCUPicWidth || uLineOffset >= uLCUPicHeight)
         return;
 
-      pPPS->column_width[pPPS->num_tile_columns_minus1] = uLCUWidth - uClmnOffset;
-      pPPS->row_height[pPPS->num_tile_rows_minus1] = uLCUHeight - uLineOffset;
+      pPPS->column_width[pPPS->num_tile_columns_minus1] = uLCUPicWidth - uClmnOffset;
+      pPPS->row_height[pPPS->num_tile_rows_minus1] = uLCUPicHeight - uLineOffset;
     }
     else /* tile of same size */
     {
@@ -180,10 +180,10 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
       uint16_t num_line = pPPS->num_tile_rows_minus1 + 1;
 
       for(uint8_t i = 0; i <= pPPS->num_tile_columns_minus1; ++i)
-        pPPS->column_width[i] = (((i + 1) * uLCUWidth) / num_clmn) - ((i * uLCUWidth) / num_clmn);
+        pPPS->column_width[i] = (((i + 1) * uLCUPicWidth) / num_clmn) - ((i * uLCUPicWidth) / num_clmn);
 
       for(uint8_t i = 0; i <= pPPS->num_tile_rows_minus1; ++i)
-        pPPS->row_height[i] = (((i + 1) * uLCUHeight) / num_line) - ((i * uLCUHeight) / num_line);
+        pPPS->row_height[i] = (((i + 1) * uLCUPicHeight) / num_line) - ((i * uLCUPicHeight) / num_line);
     }
 
     /* register tile topology within the frame */
@@ -202,7 +202,7 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
         while(clmn < j)
           uClmn += pPPS->column_width[clmn++];
 
-        pPPS->TileTopology[(i * (pPPS->num_tile_columns_minus1 + 1)) + j] = uLine * uLCUWidth + uClmn;
+        pPPS->TileTopology[(i * (pPPS->num_tile_columns_minus1 + 1)) + j] = uLine * uLCUPicWidth + uClmn;
       }
     }
 
@@ -447,7 +447,7 @@ static void initSps(AL_THevcSps* pSPS)
   pSPS->vui_param.hrd_param.sub_pic_hrd_params_present_flag = 0;
 
   Rtos_Memset(pSPS->sps_max_dec_pic_buffering_minus1, 0, sizeof(pSPS->sps_max_dec_pic_buffering_minus1));
-  Rtos_Memset(pSPS->sps_num_reorder_pics, 0, sizeof(pSPS->sps_num_reorder_pics));
+  Rtos_Memset(pSPS->sps_max_num_reorder_pics, 0, sizeof(pSPS->sps_max_num_reorder_pics));
   Rtos_Memset(pSPS->sps_max_latency_increase_plus1, 0, sizeof(pSPS->sps_max_latency_increase_plus1));
 
   Rtos_Memset(pSPS->scaling_list_param.UseDefaultScalingMatrixFlag, 0, 20);
@@ -464,12 +464,12 @@ AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_TRbspParser* pRP, AL_THevcSps* pSPS)
 
   int vps_id = u(pRP, 4);
 
-  COMPLY(vps_id < AL_MAX_VPS);
+  COMPLY(vps_id < AL_HEVC_MAX_VPS);
 
   int max_sub_layers = Clip3(u(pRP, 3), 0, MAX_SUB_LAYER - 1);
   int temp_id_nesting_flag = u(pRP, 1);
 
-  profile_tier_level(&pSPS->profile_and_level, max_sub_layers, pRP);
+  hevc_profile_tier_level(&pSPS->profile_and_level, max_sub_layers, pRP);
 
   if(pSPS->profile_and_level.general_level_idc == 0)
     pSPS->profile_and_level.general_level_idc = CONCEAL_LEVEL_IDC;
@@ -535,7 +535,7 @@ AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_TRbspParser* pRP, AL_THevcSps* pSPS)
   for(int i = layer_offset; i <= max_sub_layers; ++i)
   {
     pSPS->sps_max_dec_pic_buffering_minus1[i] = ue(pRP);
-    pSPS->sps_num_reorder_pics[i] = ue(pRP);
+    pSPS->sps_max_num_reorder_pics[i] = ue(pRP);
     pSPS->sps_max_latency_increase_plus1[i] = ue(pRP);
   }
 
@@ -672,13 +672,13 @@ AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_TRbspParser* pRP, AL_THevcSps* pSPS)
   pSPS->PicWidthInCtbs = (pSPS->pic_width_in_luma_samples + ((1 << pSPS->Log2CtbSize) - 1)) >> pSPS->Log2CtbSize;
   pSPS->PicHeightInCtbs = (pSPS->pic_height_in_luma_samples + ((1 << pSPS->Log2CtbSize) - 1)) >> pSPS->Log2CtbSize;
 
-  COMPLY(pSPS->PicWidthInCtbs > 1);
-  COMPLY(pSPS->PicHeightInCtbs > 1);
+  COMPLY_WITH_LOG(pSPS->PicWidthInCtbs >= 2, "SPS width less than 2 CTBs is not supported\n");
+  COMPLY_WITH_LOG(pSPS->PicHeightInCtbs >= 2, "SPS height less than 2 CTBs is not supported\n");
 
   pSPS->PicWidthInMinCbs = pSPS->pic_width_in_luma_samples >> pSPS->Log2MinCbSize;
   pSPS->PicHeightInMinCbs = pSPS->pic_height_in_luma_samples >> pSPS->Log2MinCbSize;
 
-  pSPS->SpsMaxLatency = pSPS->sps_max_latency_increase_plus1[max_sub_layers] ? pSPS->sps_num_reorder_pics[max_sub_layers] + pSPS->sps_max_latency_increase_plus1[max_sub_layers] - 1 : UINT32_MAX;
+  pSPS->SpsMaxLatency = pSPS->sps_max_latency_increase_plus1[max_sub_layers] ? pSPS->sps_max_num_reorder_pics[max_sub_layers] + pSPS->sps_max_latency_increase_plus1[max_sub_layers] - 1 : UINT32_MAX;
 
   pSPS->MaxPicOrderCntLsb = 1 << (pSPS->log2_max_slice_pic_order_cnt_lsb_minus4 + 4);
 
@@ -746,7 +746,7 @@ void AL_HEVC_short_term_ref_pic_set(AL_THevcSps* pSPS, uint8_t RefIdx, AL_TRbspP
 }
 
 /*****************************************************************************/
-void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
+void AL_HEVC_ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 {
   AL_THevcVps* pVPS;
 
@@ -756,7 +756,7 @@ void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 
   int vps_id = u(pRP, 4);
 
-  if(vps_id >= AL_MAX_VPS)
+  if(vps_id >= AL_HEVC_MAX_VPS)
     return;
 
   pVPS = &pIAup->hevcAup.pVPS[vps_id];
@@ -770,7 +770,7 @@ void ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   pVPS->vps_temporal_id_nesting_flag = u(pRP, 1);
   skip(pRP, 16); // vps_reserved_0xffff_16bits
 
-  profile_tier_level(&pVPS->profile_and_level[0], pVPS->vps_max_sub_layers_minus1, pRP);
+  hevc_profile_tier_level(&pVPS->profile_and_level[0], pVPS->vps_max_sub_layers_minus1, pRP);
 
   if(pVPS->profile_and_level[0].general_level_idc == 0)
     pVPS->profile_and_level[0].general_level_idc = CONCEAL_LEVEL_IDC;

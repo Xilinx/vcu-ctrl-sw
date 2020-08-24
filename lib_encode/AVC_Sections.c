@@ -39,6 +39,7 @@
 #include "lib_bitstream/AVC_RbspEncod.h"
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/Nuts.h"
+#include "lib_common/Utils.h"
 #include "lib_assert/al_assert.h"
 
 AL_TNalHeader GetNalHeaderAvc(uint8_t uNUT, uint8_t uNalRefIdc, uint8_t uLayerId, uint8_t uTempId)
@@ -130,6 +131,29 @@ static void padSeiPrefix(AL_TBuffer* pStream, AL_TEncChanParam const* pChannel)
   pLastSeiSection->uLength += iPaddingSize;
 }
 
+static void padCodedSliceData(int iCodedSliceSize, AL_TBuffer* pStream, AL_TEncChanParam const* pChannel)
+{
+  AL_TStreamMetaData* pStreamMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
+  int iTotalSize = 0;
+
+  for(int iSection = 0; iSection < pStreamMetaData->uNumSection; iSection++)
+    iTotalSize += pStreamMetaData->pSections[iSection].uLength;
+
+  int const iChunk = 512;
+  int const iSeiMandatorySize = (pChannel->uEncHeight <= 720) ? iChunk * 10 : iChunk * 18;
+  int const iConfigMandatorySize = 512;
+  int iPadding = (iCodedSliceSize + iSeiMandatorySize + iConfigMandatorySize) - iTotalSize;
+
+  if(iPadding > 0)
+  {
+    int iLastDataSection = AL_StreamMetaData_GetLastSectionOfFlag(pStreamMetaData, AL_SECTION_END_FRAME_FLAG) - 1;
+    int iOffset = pStreamMetaData->pSections[iLastDataSection].uOffset + pStreamMetaData->pSections[iLastDataSection].uLength + 1;
+    AL_Assert((size_t)iOffset + iPadding < AL_Buffer_GetSize(pStream));
+    Rtos_Memset(AL_Buffer_GetData(pStream) + iOffset, 0x00, iPadding);
+    pStreamMetaData->pSections[iLastDataSection].uLength += iPadding;
+  }
+}
+
 void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iPicID, bool bMustWritePPS)
 {
   AL_TNuts nuts = CreateAvcNuts();
@@ -148,6 +172,9 @@ void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatu
 
     if(pPicStatus->bIsFirstSlice)
       padSeiPrefix(pStream, pChannel);
+
+    if(pPicStatus->bIsLastSlice)
+      padCodedSliceData(BitsToBytes(pChannel->tRCParam.pMaxPictureSize[AL_SLICE_I]), pStream, pChannel);
   }
 }
 

@@ -53,14 +53,14 @@
    picture slice data
    \param[in] iWidth Encoded picture width
    \param[in] iHeight Encoded picture height
-   \param[in] uMaxCuSize Maximum coding unit Size
-   \param[in] uMinCuSize Minimum coding unit Size
+   \param[in] uLog2MaxCuSize Maximum coding unit Size
+   \param[in] uLog2MinCuSize Minimum coding unit Size
    \param[in] iTileColumns Number of tile columns in the picture
    \param[in] iTileRows Number of tile rows in the picture
    \param[in] pTileWidths Array with the tile column widths
    \param[in] pTileHeights Array of the tile row heights
 *****************************************************************************/
-extern bool AL_HEVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iWidth, int iHeight, uint8_t uMaxCuSize, uint8_t uMinCuSize, int iTileColumns, int iTileRows, uint16_t* pTileWidths, uint16_t* pTileHeights);
+extern bool AL_HEVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iWidth, int iHeight, uint8_t uLog2MaxCuSize, uint8_t uLog2MinCuSize, int iTileColumns, int iTileRows, uint16_t* pTileWidths, uint16_t* pTileHeights);
 
 /****************************************************************************/
 

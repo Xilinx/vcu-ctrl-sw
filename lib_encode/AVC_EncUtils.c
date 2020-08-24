@@ -168,10 +168,10 @@ static void AL_AVC_UpdateHrdParameters(AL_TAvcSps* pSPS, AL_TSubHrdParam* pSubHr
 /****************************************************************************/
 static void AL_AVC_GenerateSPS_Resolution(AL_TAvcSps* pSPS, uint16_t uWidth, uint16_t uHeight, AL_TEncSettings const* pSettings)
 {
-  uint8_t uMaxCuSize = pSettings->tChParam->uMaxCuSize;
+  uint8_t uLog2MaxCuSize = pSettings->tChParam->uLog2MaxCuSize;
 
-  int iMBWidth = ROUND_UP_POWER_OF_TWO(uWidth, uMaxCuSize);
-  int iMBHeight = ROUND_UP_POWER_OF_TWO(uHeight, uMaxCuSize);
+  int iMBWidth = ROUND_UP_POWER_OF_TWO(uWidth, uLog2MaxCuSize);
+  int iMBHeight = ROUND_UP_POWER_OF_TWO(uHeight, uLog2MaxCuSize);
 
   int iCropLeft = 0;
   int iCropTop = 0;
@@ -185,8 +185,8 @@ static void AL_AVC_GenerateSPS_Resolution(AL_TAvcSps* pSPS, uint16_t uWidth, uin
   if(pSettings->tChParam->uOutputCropHeight)
     uHeight = pSettings->tChParam->uOutputCropHeight;
 
-  int iCropRight = (iMBWidth << uMaxCuSize) - (iCropLeft + uWidth);
-  int iCropBottom = (iMBHeight << uMaxCuSize) - (iCropTop + uHeight);
+  int iCropRight = (iMBWidth << uLog2MaxCuSize) - (iCropLeft + uWidth);
+  int iCropBottom = (iMBHeight << uLog2MaxCuSize) - (iCropTop + uHeight);
 
   AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pSettings->tChParam->ePicFormat);
 
@@ -207,7 +207,14 @@ static void AL_AVC_GenerateSPS_Resolution(AL_TAvcSps* pSPS, uint16_t uWidth, uin
   pSPS->frame_cropping_flag = (pSPS->frame_crop_left_offset || pSPS->frame_crop_right_offset
                                || pSPS->frame_crop_top_offset || pSPS->frame_crop_bottom_offset) ? 1 : 0;
 
-  AL_UpdateAspectRatio(&pSPS->vui_param, uWidth, uHeight, pSettings->eAspectRatio);
+  AL_TEncChanParam const* pChannel = &pSettings->tChParam[0];
+
+  if(AL_IS_XAVC_CBG(pChannel->eProfile) && AL_IS_INTRA_PROFILE(pChannel->eProfile))
+    AL_UpdateSarAspectRatio(&pSPS->vui_param, uWidth, uHeight, pSettings->eAspectRatio);
+  else
+  {
+    AL_UpdateAspectRatio(&pSPS->vui_param, uWidth, uHeight, pSettings->eAspectRatio);
+  }
 }
 
 /****************************************************************************/
@@ -377,7 +384,7 @@ void AL_AVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TSp
 
   pPPS->constrained_intra_pred_flag = (pChannel->eEncTools & AL_OPT_CONST_INTRA_PRED) ? 1 : 0;
   pPPS->redundant_pic_cnt_present_flag = 0;
-  pPPS->transform_8x8_mode_flag = pChannel->uMaxTuSize > 2 ? 1 : 0;
+  pPPS->transform_8x8_mode_flag = pChannel->uLog2MaxTuSize > 2 ? 1 : 0;
   pPPS->pic_scaling_matrix_present_flag = 0;
 
   if(AL_IS_XAVC_VBR(pChannel->eProfile) && AL_IS_INTRA_PROFILE(pChannel->eProfile))

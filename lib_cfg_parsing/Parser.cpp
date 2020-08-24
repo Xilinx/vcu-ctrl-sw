@@ -167,6 +167,43 @@ static void tryTransformUnaryOp(TokenType tokenType, TokenType unaryTokenType, T
   }
 }
 
+std::string toIdentifierMultiplier(std::string identifier)
+{
+  if(identifier == "G")
+    return std::string {
+             "1000000000"
+    };
+
+  if(identifier == "Gi")
+    return std::string {
+             "1073741824"
+    };
+
+  if(identifier == "M")
+    return std::string {
+             "1000000"
+    };
+
+  if(identifier == "Mi")
+    return std::string {
+             "1048576"
+    };
+
+  if(identifier == "K")
+    return std::string {
+             "1000"
+    };
+
+  if(identifier == "Ki")
+    return std::string {
+             "1024"
+    };
+  return std::string {
+           ""
+  };
+}
+
+/* https://en.wikipedia.org/wiki/Shunting-yard_algorithm */
 std::deque<Token> toReversePolish(std::deque<Token>& tokens)
 {
   std::deque<Token> outputQueue;
@@ -188,7 +225,37 @@ std::deque<Token> toReversePolish(std::deque<Token>& tokens)
     tokens.pop_front();
 
     if(token.type == TokenType::Identifier)
-      throw TokenError(token, "arithmetic expression do not support identifiers");
+    {
+      std::string multiplier {
+        toIdentifierMultiplier(token.text)
+      };
+
+      if(multiplier.empty())
+        throw TokenError(token, "arithmetic expression do not support identifiers others than 'K', 'Ki', 'M', 'Mi', 'G', 'Gi'");
+
+      std::pair<int, int> position {
+        -1, -1
+      };
+      Token multiply {
+        TokenType::Multiply, std::string {
+          "*"
+        }, position
+      };
+      Token multiplierToken {
+        TokenType::Integral, multiplier, position
+      };
+
+      if(treatedInputQueue.empty())
+        throw TokenError(token, "arithmetic expression identifiers 'K', 'Ki', 'M', 'Mi', 'G', 'Gi' should be prefixed by a number");
+
+      auto const& lastToken = treatedInputQueue.back();
+
+      if(!isNumber(lastToken))
+        throw TokenError(token, "arithmetic expression do not support identifiers others than 'K', 'Ki', 'M', 'Mi', 'G', 'Gi'");
+
+      outputQueue.push_back(multiplierToken);
+      outputQueue.push_back(multiply);
+    }
 
     if(isNumber(token))
       outputQueue.push_back(token);

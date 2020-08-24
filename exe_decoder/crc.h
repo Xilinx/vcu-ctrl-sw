@@ -41,7 +41,7 @@
 
 extern "C"
 {
-#include "lib_common/SliceConsts.h" // EChromaMode
+#include "lib_common/PicFormat.h"
 }
 
 template<typename T>

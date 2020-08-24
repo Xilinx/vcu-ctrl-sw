@@ -100,10 +100,10 @@ typedef struct t_BufferRef
 /*************************************************************************//*!
    \brief Retrieves the number of LCU in the frame
    \param[in] tDim  Frame dimension (width, height) in pixel
-   \param[in] uLCUSize    Max Size of a Coding Unit
+   \param[in] uLog2LCUSize    Max Size of a Coding Unit
    \return number of LCU in the frame
 *****************************************************************************/
-int AL_GetNumLCU(AL_TDimension tDim, uint8_t uLCUSize);
+int AL_GetNumLCU(AL_TDimension tDim, uint8_t uLog2LCUSize);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a HEVC compressed buffer(LCU header + MVDs + Residuals)
@@ -131,14 +131,14 @@ int AL_GetAllocSize_DecCompMap(AL_TDimension tDim);
 /*************************************************************************//*!
    \brief Retrieves the size of a HEVC motion vector buffer
    \param[in] tDim  Frame dimension (width, height) in pixel
-   \return the size (in bytes) needed for the colocated frame buffer
+   \return the size (in bytes) needed for the collocated frame buffer
 *****************************************************************************/
 int AL_GetAllocSize_HevcMV(AL_TDimension tDim);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a AVC motion vector buffer
    \param[in] tDim  Frame dimension (width, height) in pixel
-   \return the size (in bytes) needed for the colocated frame buffer
+   \return the size (in bytes) needed for the collocated frame buffer
 *****************************************************************************/
 int AL_GetAllocSize_AvcMV(AL_TDimension tDim);
 

@@ -45,6 +45,7 @@
 #include "lib_rtos/types.h"
 #include "lib_common/SliceConsts.h"
 #include "lib_common/VideoMode.h"
+#include "lib_common/PicFormat.h"
 #include <assert.h>
 
 /*************************************************************************//*!
@@ -528,10 +529,10 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   int16_t pMeRange[2][2];  /*!< Allowed range for motion estimation */
 
   /* encoding block size */
-  uint8_t uMaxCuSize;
-  uint8_t uMinCuSize;
-  uint8_t uMaxTuSize;
-  uint8_t uMinTuSize;
+  uint8_t uLog2MaxCuSize;
+  uint8_t uLog2MinCuSize;
+  uint8_t uLog2MaxTuSize;
+  uint8_t uLog2MinTuSize;
   uint8_t uMaxTransfoDepthIntra;
   uint8_t uMaxTransfoDepthInter;
 
@@ -560,8 +561,8 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
 /***************************************************************************/
 #define ROUND_POWER_OF_TWO(value, n) (((value) + (1 << ((n) - 1))) >> (n))
 #define ROUND_UP_POWER_OF_TWO(value, n) (((value) + (1 << (n)) - 1) >> (n))
-#define AL_GetWidthInLCU(tChParam) (ROUND_UP_POWER_OF_TWO((tChParam).uEncWidth, (tChParam).uMaxCuSize))
-#define AL_GetHeightInLCU(tChParam) (ROUND_UP_POWER_OF_TWO((tChParam).uEncHeight, (tChParam).uMaxCuSize))
+#define AL_GetWidthInLCU(tChParam) (ROUND_UP_POWER_OF_TWO((tChParam).uEncWidth, (tChParam).uLog2MaxCuSize))
+#define AL_GetHeightInLCU(tChParam) (ROUND_UP_POWER_OF_TWO((tChParam).uEncHeight, (tChParam).uLog2MaxCuSize))
 
 #define AL_ENTCOMP(tChParam) false
 

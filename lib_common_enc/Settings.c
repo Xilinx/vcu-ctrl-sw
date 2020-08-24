@@ -58,6 +58,7 @@
 #include "lib_common_enc/DPBConstraints.h"
 #include "lib_common/SEI.h"
 #include "lib_common/ScalingList.h"
+#include "lib_common/HardwareConfig.h"
 #include "lib_common/AvcLevelsLimit.h"
 #include "lib_common/HevcLevelsLimit.h"
 
@@ -363,7 +364,6 @@ static void XAVC_CheckCoherency(AL_TEncSettings* pSettings)
   pSettings->uEnableSEI |= AL_SEI_PT;
   pSettings->uEnableSEI |= AL_SEI_BP;
   pSettings->uEnableSEI |= AL_SEI_RP;
-  pSettings->eAspectRatio = AL_ASPECT_RATIO_1_1;
   AL_TEncChanParam* pChannel = &pSettings->tChParam[0];
   pChannel->eEncTools &= (~AL_OPT_LF_X_TILE);
   pChannel->eEncTools &= (~AL_OPT_LF_X_SLICE);
@@ -379,6 +379,17 @@ static void XAVC_CheckCoherency(AL_TEncSettings* pSettings)
 
     AL_TRCParam* pRateControl = &pChannel->tRCParam;
     pRateControl->eRCMode = AL_RC_VBR;
+
+    AL_CoreConstraint constraint;
+    AL_CoreConstraint_Init(&constraint, ENCODER_CORE_FREQUENCY, ENCODER_CORE_FREQUENCY_MARGIN, ENCODER_CYCLES_FOR_BLK_32X32, 0, AL_ENC_CORE_MAX_WIDTH);
+    int iNumCore = AL_CoreConstraint_GetExpectedNumberOfCores(&constraint, pChannel->uEncWidth, pChannel->uEncHeight, pRateControl->uFrameRate * 1000, pRateControl->uClkRatio);
+
+    if(iNumCore > 1)
+    {
+      // AVC GEN1 multicore estimator overestimate bits
+      pRateControl->uTargetBitRate *= 0.85;
+      pRateControl->uMaxBitRate *= 0.85;
+    }
 
     AL_TGopParam* pGop = &pChannel->tGopParam;
     pGop->uGopLength = 0;
@@ -436,7 +447,7 @@ static void AL_sSettings_SetDefaultXAVCParam(AL_TEncSettings* pSettings)
 /***************************************************************************/
 static void AL_sSettings_SetDefaultAVCParam(AL_TEncSettings* pSettings)
 {
-  pSettings->tChParam[0].uMaxCuSize = AVC_MAX_CU_SIZE;
+  pSettings->tChParam[0].uLog2MaxCuSize = AVC_MAX_CU_SIZE;
 
   if(pSettings->eScalingList == AL_SCL_MAX_ENUM)
     pSettings->eScalingList = AL_SCL_FLAT;
@@ -547,10 +558,10 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pChan->pMeRange[AL_SLICE_P][1] = -1; // Vert
   pChan->pMeRange[AL_SLICE_B][0] = -1; // Horz
   pChan->pMeRange[AL_SLICE_B][1] = -1; // Vert
-  pChan->uMaxCuSize = HEVC_MAX_CTB_SIZE;
-  pChan->uMinCuSize = MIN_CU_SIZE;
-  pChan->uMaxTuSize = 5; // 32x32
-  pChan->uMinTuSize = 2; // 4x4
+  pChan->uLog2MaxCuSize = HEVC_MAX_CTB_SIZE;
+  pChan->uLog2MinCuSize = MIN_CU_SIZE;
+  pChan->uLog2MaxTuSize = 5; // 32x32
+  pChan->uLog2MinTuSize = 2; // 4x4
   pChan->uMaxTransfoDepthIntra = 1;
   pChan->uMaxTransfoDepthInter = 1;
 
@@ -622,7 +633,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     MSG("The hardware IP doesn't support 12-bit encoding");
   }
 
-  if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) > HW_IP_CHROMA_IDC)
+  if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) > AL_HWConfig_Enc_GetSupportedChromaMode())
   {
     {
       ++err;
@@ -648,31 +659,31 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     MSG("Pyramidal and IntraProfile is not supported");
   }
 
-  if(pChParam->uMinCuSize != MIN_CU_SIZE)
+  if(pChParam->uLog2MinCuSize != MIN_CU_SIZE)
   {
     ++err;
     MSG("Invalid parameter: MinCuSize");
   }
 
-  bool bHEVCCuSupported = pChParam->uMaxCuSize == HEVC_MIN_CTB_SIZE;
+  bool bHEVCCuSupported = pChParam->uLog2MaxCuSize == HEVC_MIN_CTB_SIZE;
 
   if(AL_IS_HEVC(pChParam->eProfile) && !bHEVCCuSupported)
   {
     ++err;
-    MSG("Invalid parameter: MaxCuSize");
+    MSG("Invalid parameter: Log2MaxCuSize");
   }
 
-  if(AL_IS_AVC(pChParam->eProfile) && (pChParam->uMaxCuSize != AVC_MAX_CU_SIZE))
+  if(AL_IS_AVC(pChParam->eProfile) && (pChParam->uLog2MaxCuSize != AVC_MAX_CU_SIZE))
   {
     ++err;
-    MSG("Invalid parameter: MaxCuSize");
+    MSG("Invalid parameter: Log2MaxCuSize");
   }
 
   if(pChParam->uNumCore != NUMCORE_AUTO)
   {
     AL_NumCoreDiagnostic diagnostic;
 
-    if(!AL_Constraint_NumCoreIsSane(pChParam->uEncWidth, pChParam->uNumCore, pChParam->uMaxCuSize, &diagnostic))
+    if(!AL_Constraint_NumCoreIsSane(pChParam->uEncWidth, pChParam->uNumCore, pChParam->uLog2MaxCuSize, &diagnostic))
     {
       ++err;
 
@@ -688,7 +699,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     }
   }
 
-  int const iCTBSize = (1 << pChParam->uMaxCuSize);
+  int const iCTBSize = (1 << pChParam->uLog2MaxCuSize);
 
   if(pChParam->uEncHeight <= iCTBSize)
   {
@@ -947,7 +958,7 @@ static uint32_t GetHevcMaxTileRow(uint8_t uLevel)
   case 62:
     return 22;
   default:
-    printf("level:%d\n", uLevel);
+    Rtos_Log(AL_LOG_CRITICAL, "level:%d\n", uLevel);
     AL_Assert(0);
     return 1;
   }
@@ -1129,11 +1140,11 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
   if(AL_IS_AUTO_OR_ADAPTIVE_QP_CTRL(pSettings->eQpCtrlMode) || AL_IS_QP_TABLE_REQUIRED(pSettings->eQpTableMode))
   {
-    if((pChParam->uMaxCuSize - pChParam->uCuQPDeltaDepth) < pChParam->uMinCuSize)
+    if((pChParam->uLog2MaxCuSize - pChParam->uCuQPDeltaDepth) < pChParam->uLog2MinCuSize)
     {
-      MSG("!! Warning : CuQpDeltaDepth doesn't match MinCUSize !!");
+      MSG("!! Warning : CuQpDeltaDepth doesn't match Log2MinCUSize !!");
       ++numIncoherency;
-      pChParam->uCuQPDeltaDepth = pChParam->uMaxCuSize - pChParam->uMinCuSize;
+      pChParam->uCuQPDeltaDepth = pChParam->uLog2MaxCuSize - pChParam->uLog2MinCuSize;
     }
 
     if(pChParam->uCuQPDeltaDepth > 2)
@@ -1219,7 +1230,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
   if(AL_IS_AVC(pChParam->eProfile))
   {
-    pChParam->uMaxTuSize = 3;
+    pChParam->uLog2MaxTuSize = 3;
     pChParam->iCbSliceQpOffset = pChParam->iCrSliceQpOffset = 0;
 
     if(pChParam->eEncTools & AL_OPT_WPP)
@@ -1228,10 +1239,10 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     if((pChParam->eProfile != AL_PROFILE_AVC_CAVLC_444) &&
        (AL_GET_PROFILE_IDC(pChParam->eProfile) < AL_GET_PROFILE_IDC(AL_PROFILE_AVC_HIGH)))
     {
-      if(pChParam->uMaxTuSize != 2)
+      if(pChParam->uLog2MaxTuSize != 2)
       {
         // cannot be set by cfg
-        pChParam->uMaxTuSize = 2;
+        pChParam->uLog2MaxTuSize = 2;
       }
 
       if(pChParam->iCrPicQpOffset != pChParam->iCbPicQpOffset)

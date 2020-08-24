@@ -62,11 +62,13 @@ static const TFourCCMapping FourCCMappings[] =
   , AL_FOURCC_MAPPING(FOURCC2('I', '4', '2', '2'), AL_CHROMA_4_2_2, 8, AL_FB_RASTER, AL_C_ORDER_U_V, false, false)
   , AL_FOURCC_MAPPING(FOURCC2('Y', 'V', '1', '6'), AL_CHROMA_4_2_2, 8, AL_FB_RASTER, AL_C_ORDER_V_U, false, false)
   , AL_FOURCC_MAPPING(FOURCC2('I', '4', '4', '4'), AL_CHROMA_4_4_4, 8, AL_FB_RASTER, AL_C_ORDER_U_V, false, false)
+  , AL_FOURCC_MAPPING(FOURCC2('Y', 'U', 'Y', '2'), AL_CHROMA_4_2_2, 8, AL_FB_RASTER, AL_C_ORDER_PACKED, false, false)
 
   // planar: 10b
   , AL_FOURCC_MAPPING(FOURCC2('I', '0', 'A', 'L'), AL_CHROMA_4_2_0, 10, AL_FB_RASTER, AL_C_ORDER_U_V, false, false)
   , AL_FOURCC_MAPPING(FOURCC2('I', '2', 'A', 'L'), AL_CHROMA_4_2_2, 10, AL_FB_RASTER, AL_C_ORDER_U_V, false, false)
   , AL_FOURCC_MAPPING(FOURCC2('I', '4', 'A', 'L'), AL_CHROMA_4_4_4, 10, AL_FB_RASTER, AL_C_ORDER_U_V, false, false)
+  , AL_FOURCC_MAPPING(FOURCC2('Y', 'U', 'V', 'P'), AL_CHROMA_4_2_2, 10, AL_FB_RASTER, AL_C_ORDER_PACKED, false, false)
 
   // planar: 12b
   , AL_FOURCC_MAPPING(FOURCC2('I', '0', 'C', 'L'), AL_CHROMA_4_2_0, 12, AL_FB_RASTER, AL_C_ORDER_U_V, false, false)

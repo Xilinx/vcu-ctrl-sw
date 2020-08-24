@@ -81,6 +81,42 @@ void AL_Reduction(uint32_t* pN, uint32_t* pD)
   }
 }
 
+void AL_UpdateSarAspectRatio(AL_TVuiParam* pVuiParam, uint32_t uWidth, uint32_t uHeight, AL_EAspectRatio eAspectRatio)
+{
+  uint32_t uW = uWidth;
+  uint32_t uH = uHeight;
+
+  pVuiParam->aspect_ratio_info_present_flag = 1;
+
+  if(eAspectRatio == AL_ASPECT_RATIO_1_1)
+  {
+    pVuiParam->aspect_ratio_idc = 1;
+    return;
+  }
+
+  if(eAspectRatio == AL_ASPECT_RATIO_4_3)
+  {
+    uW *= 3;
+    uH *= 4;
+  }
+  else if(eAspectRatio == AL_ASPECT_RATIO_16_9)
+  {
+    uW *= 9;
+    uH *= 16;
+  }
+
+  if(uH != uW)
+  {
+    AL_Reduction(&uW, &uH);
+
+    pVuiParam->sar_width = uH;
+    pVuiParam->sar_height = uW;
+    pVuiParam->aspect_ratio_idc = 255;
+  }
+  else
+    pVuiParam->aspect_ratio_idc = 1;
+}
+
 /****************************************************************************/
 void AL_UpdateAspectRatio(AL_TVuiParam* pVuiParam, uint32_t uWidth, uint32_t uHeight, AL_EAspectRatio eAspectRatio)
 {
@@ -201,39 +237,14 @@ void AL_UpdateAspectRatio(AL_TVuiParam* pVuiParam, uint32_t uWidth, uint32_t uHe
         pVuiParam->aspect_ratio_idc = 1;
     }
   }
-  else if(eAspectRatio == AL_ASPECT_RATIO_1_1)
-    pVuiParam->aspect_ratio_idc = 1;
 
   if((pVuiParam->aspect_ratio_idc == 0) && !bAuto)
+    AL_UpdateSarAspectRatio(pVuiParam, uWidth, uHeight, eAspectRatio);
+  else
   {
-    uint32_t uW = uWidth;
-    uint32_t uH = uHeight;
-
-    if(eAspectRatio == AL_ASPECT_RATIO_4_3)
-    {
-      uW *= 3;
-      uH *= 4;
-    }
-    else if(eAspectRatio == AL_ASPECT_RATIO_16_9)
-    {
-      uW *= 9;
-      uH *= 16;
-    }
-
-    if(uH != uW)
-    {
-      AL_Reduction(&uW, &uH);
-
-      pVuiParam->sar_width = uH;
-      pVuiParam->sar_height = uW;
-      pVuiParam->aspect_ratio_idc = 255;
-    }
-    else
-      pVuiParam->aspect_ratio_idc = 1;
+    if(pVuiParam->aspect_ratio_idc != 0)
+      pVuiParam->aspect_ratio_info_present_flag = 1;
   }
-
-  if(pVuiParam->aspect_ratio_idc)
-    pVuiParam->aspect_ratio_info_present_flag = 1;
 }
 
 /****************************************************************************/

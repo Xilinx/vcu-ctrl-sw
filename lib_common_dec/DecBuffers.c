@@ -67,9 +67,9 @@ int32_t RndHeight(int32_t iHeight)
 }
 
 /****************************************************************************/
-int AL_GetNumLCU(AL_TDimension tDim, uint8_t uLCUSize)
+int AL_GetNumLCU(AL_TDimension tDim, uint8_t uLog2LCUSize)
 {
-  switch(uLCUSize)
+  switch(uLog2LCUSize)
   {
   case 4: return GetBlk16x16(tDim);
   case 5: return GetBlk32x32(tDim);

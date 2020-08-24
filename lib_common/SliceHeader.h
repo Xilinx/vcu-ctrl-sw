@@ -141,7 +141,7 @@ typedef struct t_HevcSliceHeader
 {
   uint8_t nal_unit_type;
   uint8_t nuh_layer_id;
-  uint8_t temporal_id_plus1;
+  uint8_t nuh_temporal_id_plus1;
 
   uint8_t first_slice_segment_in_pic_flag;
   uint8_t no_output_of_prior_pics_flag;

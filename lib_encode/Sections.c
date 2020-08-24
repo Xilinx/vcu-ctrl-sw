@@ -294,7 +294,7 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, AL_TNalsData const* pN
     int iWritten = (AL_BitStreamLite_GetBitsCount(&bs) - iBookmark) / 8;
 
     if(iWritten < pPicStatus->iFiller)
-      printf("[WARNING] Filler data (%i) doesn't fit in the current buffer. Clip it to %i !\n", pPicStatus->iFiller, iWritten);
+      Rtos_Log(AL_LOG_CRITICAL, "[WARNING] Filler data (%i) doesn't fit in the current buffer. Clip it to %i !\n", pPicStatus->iFiller, iWritten);
 
     AddSection(pMetaData, offset, iWritten, bDontFill ? AL_SECTION_APP_FILLER_FLAG : AL_SECTION_FILLER_FLAG);
   }

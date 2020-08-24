@@ -39,6 +39,7 @@
 
 #include "lib_rtos/types.h"
 #include "lib_common/SliceConsts.h"
+#include "lib_common/PicFormat.h"
 
 #define RES_SIZE_16x16_AVC 832/*!< residuals size of a 16x16 LCU */
 #define RES_SIZE_16x16_HEVC 768/*!< residuals size of a 16x16 LCU */

@@ -910,7 +910,7 @@ struct Display
     Rtos_DeleteEvent(hExitMain);
   }
 
-  void AddOutputWriter(AL_e_FbStorageMode eFbStorageMode, bool bCompressionEnabled, const string& sYuvFileName, const string& sIPCrcFileName, const string& sCertCrcFileName, AL_ECodec eCodec);
+  void AddOutputWriter(AL_e_FbStorageMode eFbStorageMode, bool bCompressionEnabled, const string& sYuvFileName, const string& sIPCrcFileName, const string& sCertCrcFileName);
 
   void Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo);
   void ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut);
@@ -949,9 +949,8 @@ struct DecodeParam
 };
 
 /******************************************************************************/
-void Display::AddOutputWriter(AL_e_FbStorageMode eFbStorageMode, bool bCompressionEnabled, const string& sYuvFileName, const string& sIPCrcFileName, const string& sCertCrcFileName, AL_ECodec eCodec)
+void Display::AddOutputWriter(AL_e_FbStorageMode eFbStorageMode, bool bCompressionEnabled, const string& sYuvFileName, const string& sIPCrcFileName, const string& sCertCrcFileName)
 {
-  (void)eCodec;
   (void)bCompressionEnabled;
   {
     writers[eFbStorageMode] = std::shared_ptr<BaseOutputWriter>(new UncompressedOutputWriter(sYuvFileName, sIPCrcFileName, sCertCrcFileName));
@@ -1125,37 +1124,42 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
     return;
   }
 
-  if(err == AL_WARN_CONCEAL_DETECT)
-    iNumFrameConceal++;
-
   if(isReleaseFrame(pFrame, pInfo))
     return;
 
-  if(iBitDepth == 0)
-    iBitDepth = max(pInfo->uBitDepthY, pInfo->uBitDepthC);
-  else if(iBitDepth == -1)
-    iBitDepth = AL_Decoder_GetMaxBD(hDec);
+  if(NumFrames < MaxFrames)
+  {
+    if(err == AL_WARN_CONCEAL_DETECT)
+      iNumFrameConceal++;
 
-  assert(AL_Buffer_GetData(pFrame));
+    if(iBitDepth == 0)
+      iBitDepth = max(pInfo->uBitDepthY, pInfo->uBitDepthC);
+    else if(iBitDepth == -1)
+      iBitDepth = AL_Decoder_GetMaxBD(hDec);
 
-  ProcessFrame(*pFrame, *pInfo, iBitDepth);
+    assert(AL_Buffer_GetData(pFrame));
+
+    ProcessFrame(*pFrame, *pInfo, iBitDepth);
+
+    if(pInfo->eFbStorageMode == eMainOutputStorageMode)
+    {
+      auto pHDR = (AL_THDRMetaData*)AL_Buffer_GetMetaData(pFrame, AL_META_TYPE_HDR);
+
+      if(pHDR != nullptr && pHDRWriter != nullptr)
+        pHDRWriter->WriteHDRSEIs(pHDR->eColourDescription, pHDR->eTransferCharacteristics, pHDR->eColourMatrixCoeffs, pHDR->tHDRSEIs);
+      // TODO: increase only when last frame
+      DisplayFrameStatus(NumFrames);
+    }
+  }
 
   if(pInfo->eFbStorageMode == eMainOutputStorageMode)
   {
-    auto pHDR = (AL_THDRMetaData*)AL_Buffer_GetMetaData(pFrame, AL_META_TYPE_HDR);
-
-    if(pHDR != nullptr && pHDRWriter != nullptr)
-      pHDRWriter->WriteHDRSEIs(pHDR->eColourDescription, pHDR->eTransferCharacteristics, pHDR->eColourMatrixCoeffs, pHDR->tHDRSEIs);
-
     AL_Decoder_PutDisplayPicture(hDec, pFrame);
-
-    // TODO: increase only when last frame
-    DisplayFrameStatus(NumFrames);
     NumFrames++;
-
-    if(NumFrames > MaxFrames)
-      Rtos_SetEvent(hExitMain);
   }
+
+  if(NumFrames >= MaxFrames)
+    Rtos_SetEvent(hExitMain);
 }
 
 /******************************************************************************/
@@ -1480,13 +1484,12 @@ void SafeChannelMain(WorkerConfig& w)
   display.eMainOutputStorageMode = getMainOutputStorageMode(Config.tDecSettings, bMainOutputCompression);
 
   bool bHasOutput = Config.bEnableYUVOutput || bCertCRC || !Config.sCrc.empty();
-  const AL_ECodec eCodec = Config.tDecSettings.eCodec;
 
   if(bHasOutput)
   {
     const string sCertCrcFile = bCertCRC ? "crc_certif_res.hex" : "";
 
-    display.AddOutputWriter(display.eMainOutputStorageMode, bMainOutputCompression, Config.sMainOut, Config.sCrc, sCertCrcFile, eCodec);
+    display.AddOutputWriter(display.eMainOutputStorageMode, bMainOutputCompression, Config.sMainOut, Config.sCrc, sCertCrcFile);
 
   }
 
@@ -1544,6 +1547,8 @@ void SafeChannelMain(WorkerConfig& w)
       if(auto eErr = AL_Decoder_GetLastError(hDec))
         throw codec_error(eErr);
   }
+
+  const AL_ECodec eCodec = Config.tDecSettings.eCodec;
 
   // Initial stream buffer filling
   auto const uBegin = GetPerfTime();

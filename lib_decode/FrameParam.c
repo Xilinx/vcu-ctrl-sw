@@ -92,8 +92,8 @@ void AL_AVC_FillPictParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx* 
   pPP->num_tile_rows = 1;
 
   // Reg 0
-  pPP->MaxTUSize = pPps->transform_8x8_mode_flag ? 1 : 0; // log2 transfo_size - 2
-  pPP->MaxCUSize = 4;
+  pPP->Log2MaxTUSize = pPps->transform_8x8_mode_flag ? 3 : 2;
+  pPP->Log2MaxCUSize = 4;
   pPP->Codec = AL_CODEC_AVC;
 
   // Reg 1
@@ -110,8 +110,8 @@ void AL_AVC_FillPictParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx* 
   AL_SET_DEC_OPT(pPP, Direct8x8Infer, pSps->direct_8x8_inference_flag);
 
   // StandBy
-  pPP->LcuWidth = pSps->pic_width_in_mbs_minus1 + 1;
-  pPP->LcuHeight = pSps->pic_height_in_map_units_minus1 + 1;
+  pPP->LcuPicWidth = pSps->pic_width_in_mbs_minus1 + 1;
+  pPP->LcuPicHeight = pSps->pic_height_in_map_units_minus1 + 1;
 
   // Reg 0x10
   if(!pSps->seq_scaling_matrix_present_flag && !pPps->pic_scaling_matrix_present_flag)
@@ -157,10 +157,10 @@ void AL_AVC_FillSliceParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx*
   pSP->tc_offset_div2 = pSlice->slice_alpha_c0_offset_div2;
   pSP->beta_offset_div2 = pSlice->slice_beta_offset_div2;
   int const DEBLOCKING_FILTER_DISABLE = 0x1;
-  pSP->LoopFilter = (pSlice->disable_deblocking_filter_idc & DEBLOCKING_FILTER_DISABLE);
+  pSP->DisableLoopFilter = (pSlice->disable_deblocking_filter_idc & DEBLOCKING_FILTER_DISABLE);
   int const DEBLOCKING_FILTER_SLICE = 0x2;
   pSP->XSliceLoopFilter = !(pSlice->disable_deblocking_filter_idc & DEBLOCKING_FILTER_SLICE);
-  pSP->WPTableID = pCtx->PictMngr.uNumSlice;
+  pSP->SliceId = pCtx->PictMngr.uNumSlice;
 
   // Reg 5
   if(pSP->eSliceType == AL_SLICE_CONCEAL)
@@ -180,7 +180,7 @@ void AL_AVC_FillSliceParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx*
   pSP->NumRefIdxL1Minus1 = pSlice->num_ref_idx_l1_active_minus1;
 
   // Reg 6
-  pSP->NumLCU = pPP->LcuWidth * pPP->LcuHeight;
+  pSP->NumLCU = pPP->LcuPicWidth * pPP->LcuPicHeight;
   pSP->SliceHeaderLength = pSlice->slice_header_length;
 
   // Reg 0x11
@@ -241,13 +241,13 @@ void AL_HEVC_FillPictParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx
   pPP->MaxTransfoDepthInter = pSps->max_transform_hierarchy_depth_inter;
   pPP->num_tile_columns = pPps->num_tile_columns_minus1 + 1;
   pPP->num_tile_rows = pPps->num_tile_rows_minus1 + 1;
-  pPP->MaxTUSkipSize = pPps->log2_transform_skip_block_size_minus2;
-  pPP->MinTUSize = pSps->log2_min_transform_block_size_minus2;
-  pPP->MaxTUSize = pPP->MinTUSize + pSps->log2_diff_max_min_transform_block_size;
-  pPP->MinPCMSize = pSps->pcm_enabled_flag ? pSps->log2_min_pcm_luma_coding_block_size_minus3 + 3 : 0;
-  pPP->MaxPCMSize = pSps->pcm_enabled_flag ? pPP->MinPCMSize + pSps->log2_diff_max_min_pcm_luma_coding_block_size : 0;
-  pPP->MinCUSize = pSps->Log2MinCbSize;
-  pPP->MaxCUSize = pSps->Log2CtbSize;
+  pPP->Log2MaxTUSkipSize = pPps->log2_transform_skip_block_size_minus2 + 2;
+  pPP->Log2MinTUSize = pSps->log2_min_transform_block_size_minus2 + 2;
+  pPP->Log2MaxTUSize = pPP->Log2MinTUSize + pSps->log2_diff_max_min_transform_block_size;
+  pPP->Log2MinPCMSize = pSps->pcm_enabled_flag ? pSps->log2_min_pcm_luma_coding_block_size_minus3 + 3 : 0;
+  pPP->Log2MaxPCMSize = pSps->pcm_enabled_flag ? pPP->Log2MinPCMSize + pSps->log2_diff_max_min_pcm_luma_coding_block_size : 0;
+  pPP->Log2MinCUSize = pSps->Log2MinCbSize;
+  pPP->Log2MaxCUSize = pSps->Log2CtbSize;
   pPP->Codec = AL_CODEC_HEVC;
   AL_SET_DEC_OPT(pPP, Tile, pPps->tiles_enabled_flag);
 
@@ -287,8 +287,8 @@ void AL_HEVC_FillPictParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx
   pPP->ChromaQpOffsetDepth = pPps->chroma_qp_offset_list_enabled_flag ? pPps->diff_cu_chroma_qp_offset_depth : 0;
 
   // StandBy
-  pPP->LcuWidth = (pSps->pic_width_in_luma_samples + (1 << pPP->MaxCUSize) - 1) >> pPP->MaxCUSize;
-  pPP->LcuHeight = (pSps->pic_height_in_luma_samples + (1 << pPP->MaxCUSize) - 1) >> pPP->MaxCUSize;
+  pPP->LcuPicWidth = (pSps->pic_width_in_luma_samples + (1 << pPP->Log2MaxCUSize) - 1) >> pPP->Log2MaxCUSize;
+  pPP->LcuPicHeight = (pSps->pic_height_in_luma_samples + (1 << pPP->Log2MaxCUSize) - 1) >> pPP->Log2MaxCUSize;
 
   // Reg D
   AL_SET_DEC_OPT(pPP, IntraSmoothDisable, pSps->intra_smoothing_disabled_flag);
@@ -302,7 +302,7 @@ void AL_HEVC_FillPictParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx
   AL_SET_DEC_OPT(pPP, ConstrainedIntraPred, pPps->constrained_intra_pred_flag);
 
   // Reg F
-  pPP->ParallelMerge = pPps->log2_parallel_merge_level_minus2;
+  pPP->ParallelMerge = pPps->log2_parallel_merge_level_minus2 + 2;
   pPP->PicCbQpOffset = pPps->pps_cb_qp_offset;
   pPP->PicCrQpOffset = pPps->pps_cr_qp_offset;
   AL_SET_DEC_OPT(pPP, TransfoSkipRot, pSps->transform_skip_rotation_enabled_flag);
@@ -357,10 +357,10 @@ void AL_HEVC_FillSliceParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCt
   pSP->beta_offset_div2 = pSlice->slice_beta_offset_div2;
   pSP->SAOFilterLuma = (bool)pSlice->slice_sao_luma_flag;
   pSP->SAOFilterChroma = (bool)pSlice->slice_sao_chroma_flag;
-  pSP->LoopFilter = (bool)pSlice->slice_deblocking_filter_disabled_flag;
+  pSP->DisableLoopFilter = (bool)pSlice->slice_deblocking_filter_disabled_flag;
   pSP->XSliceLoopFilter = (bool)pSlice->slice_loop_filter_across_slices_enabled_flag;
   pSP->CuChromaQpOffset = (bool)pSlice->cu_chroma_qp_offset_enabled_flag;
-  pSP->WPTableID = pCtx->PictMngr.uNumSlice;
+  pSP->SliceId = pCtx->PictMngr.uNumSlice;
 
   // Reg 5
   pSP->NumRefIdxL0Minus1 = pSlice->num_ref_idx_l0_active_minus1;

@@ -41,14 +41,12 @@
 #include "lib_common/PPS.h"
 #include "lib_common/HDR.h"
 
-#define AL_MAX_VPS 16
-
 typedef struct
 {
   // Context
   AL_THevcPps pPPS[AL_HEVC_MAX_PPS]; // Holds received PPSs.
   AL_THevcSps pSPS[AL_HEVC_MAX_SPS]; // Holds received SPSs.
-  AL_THevcVps pVPS[AL_MAX_VPS];      // Holds received VPSs.
+  AL_THevcVps pVPS[AL_HEVC_MAX_VPS]; // Holds received VPSs.
   AL_THevcSps* pActiveSPS;           // Holds only the currently active SPS.
 
   AL_EPicStruct ePicStruct;

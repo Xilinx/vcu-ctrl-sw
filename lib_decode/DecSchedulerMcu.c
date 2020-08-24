@@ -217,8 +217,9 @@ static void processStatusMsg(Channel* channel, struct al5_params* msg)
     uint32_t uFrameID;
     uint32_t uParsingID;
     int iOffset = sizeof(DEC_1);
-    Rtos_Memcpy(&uFrameID, (uint8_t*)msg->opaque + iOffset, msg->size - iOffset);
-    Rtos_Memcpy(&uParsingID, (uint8_t*)msg->opaque + iOffset + sizeof(uint32_t), msg->size - iOffset - sizeof(uint32_t));
+    AL_Assert(msg->size >= iOffset + sizeof(uFrameID) + sizeof(uParsingID));
+    Rtos_Memcpy(&uFrameID, (uint8_t*)msg->opaque + iOffset, sizeof(uFrameID));
+    Rtos_Memcpy(&uParsingID, (uint8_t*)msg->opaque + iOffset + sizeof(uFrameID), sizeof(uParsingID));
 
     if(channel->endParsingCB.func)
       channel->endParsingCB.func(channel->endParsingCB.userParam, uFrameID, uParsingID);
@@ -231,7 +232,8 @@ static void processStatusMsg(Channel* channel, struct al5_params* msg)
   {
     AL_TDecPicStatus status;
     int iOffset = sizeof(DEC_2);
-    Rtos_Memcpy(&status, (uint8_t*)msg->opaque + iOffset, msg->size - iOffset);
+    AL_Assert(msg->size >= iOffset + sizeof(status));
+    Rtos_Memcpy(&status, (uint8_t*)msg->opaque + iOffset, sizeof(status));
 
     if(channel->endDecodingCB.func)
       channel->endDecodingCB.func(channel->endDecodingCB.userParam, &status);

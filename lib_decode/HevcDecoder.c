@@ -97,7 +97,7 @@ static AL_TCropInfo extractCropInfo(AL_THevcSps const* pSPS)
 }
 
 /*************************************************************************/
-static uint8_t getMaxRextBitDepth(AL_TProfilevel pf)
+static uint8_t getMaxRextBitDepth(AL_THevcProfilevel pf)
 {
   if(pf.general_max_8bit_constraint_flag)
     return 8;
@@ -111,7 +111,7 @@ static uint8_t getMaxRextBitDepth(AL_TProfilevel pf)
 }
 
 /*************************************************************************/
-static int getMaxBitDepthFromProfile(AL_TProfilevel pf)
+static int getMaxBitDepthFromProfile(AL_THevcProfilevel pf)
 {
   if(pf.general_profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_RExt))
     return getMaxRextBitDepth(pf);
@@ -188,7 +188,7 @@ static int calculatePOC(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pSlice, uint8_t
       POCMsb = pCtx->iPrevPocMSB;
   }
 
-  if(!(pSlice->temporal_id_plus1 - 1) && !AL_HEVC_IsRASL_RADL_SLNR(pSlice->nal_unit_type))
+  if(!(pSlice->nuh_temporal_id_plus1 - 1) && !AL_HEVC_IsRASL_RADL_SLNR(pSlice->nal_unit_type))
   {
     pCtx->uPrevPocLSB = pSlice->slice_pic_order_cnt_lsb;
     pCtx->iPrevPocMSB = POCMsb;
@@ -215,7 +215,7 @@ static AL_ESequenceMode GetSequenceModeFromScanType(uint8_t source_scan_type)
 /*****************************************************************************/
 static AL_ESequenceMode getSequenceMode(AL_THevcSps const* pSPS)
 {
-  AL_TProfilevel const* pProfileLevel = &pSPS->profile_and_level;
+  AL_THevcProfilevel const* pProfileLevel = &pSPS->profile_and_level;
 
   if(pSPS->vui_parameters_present_flag)
   {
@@ -314,15 +314,30 @@ static bool isSPSCompatibleWithStreamSettings(AL_THevcSps const* pSPS, AL_TStrea
   AL_TDimension tSPSDim = { pSPS->pic_width_in_luma_samples, pSPS->pic_height_in_luma_samples };
 
   if((pStreamSettings->tDim.iWidth > 0) && (pStreamSettings->tDim.iWidth < (tSPSDim.iWidth - iSPSCropWidth)))
+  {
+    Rtos_Log(AL_LOG_ERROR, "Invalid width or cropping\n");
     return false;
+  }
 
-  if((pStreamSettings->tDim.iWidth > 0) && (tSPSDim.iWidth < AL_CORE_HEVC_MIN_WIDTH))
+  if((pStreamSettings->tDim.iWidth > 0) && (tSPSDim.iWidth < AL_CORE_HEVC_MIN_RES))
+  {
+    Rtos_Log(AL_LOG_ERROR, "Invalid resolution: Width too small\n");
     return false;
+  }
 
   int iSPSCropHeight = tSPSCropInfo.uCropOffsetTop + tSPSCropInfo.uCropOffsetBottom;
 
   if((pStreamSettings->tDim.iHeight > 0) && (pStreamSettings->tDim.iHeight < (tSPSDim.iHeight - iSPSCropHeight)))
+  {
+    Rtos_Log(AL_LOG_ERROR, "Invalid height or cropping\n");
     return false;
+  }
+
+  if((pStreamSettings->tDim.iHeight > 0) && (tSPSDim.iHeight < AL_CORE_HEVC_MIN_RES))
+  {
+    Rtos_Log(AL_LOG_ERROR, "Invalid resolution: Height too small\n");
+    return false;
+  }
 
   AL_ESequenceMode sequenceMode = getSequenceMode(pSPS);
 
@@ -348,7 +363,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
   int iSizeCompMap = AL_GetAllocSize_DecCompMap(pCtx->tStreamSettings.tDim);
   AL_ERR error = AL_ERR_NO_MEMORY;
 
-  if(!AL_Default_Decoder_AllocPool(pCtx, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap))
+  if(!AL_Default_Decoder_AllocPool(pCtx, 0, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap))
     goto fail_alloc;
 
   int iDpbMaxBuf = AL_HEVC_GetMaxDPBSize(pCtx->tStreamSettings.iLevel, pCtx->tStreamSettings.tDim.iWidth, pCtx->tStreamSettings.tDim.iHeight);
@@ -439,6 +454,7 @@ static bool initSlice(AL_TDecCtx* pCtx, AL_THevcSliceHdr* pSlice)
   {
     if(!isSPSCompatibleWithStreamSettings(pSlice->pSPS, &pCtx->tStreamSettings))
     {
+      Rtos_Log(AL_LOG_ERROR, "Cannot decode using the current allocated buffers\n");
       pSlice->pPPS = &pAup->pPPS[pCtx->tConceal.iLastPPSId];
       pSlice->pSPS = pSlice->pPPS->pSPS;
       AL_Default_Decoder_SetError(pCtx, AL_WARN_SPS_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS, -1);
@@ -781,6 +797,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
 
     if(!isValid)
     {
+      Rtos_Log(AL_LOG_ERROR, "Cannot decode using the current allocated buffers\n");
       AL_Default_Decoder_SetError(pCtx, AL_WARN_SPS_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS, pPP->tBufIDs.FrmID);
       pSPS->bConceal = true;
     }
@@ -833,7 +850,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     *bFirstSliceInFrameIsValid = true;
   }
 
-  if(!(*bBeginFrameIsValid) && pSlice->pSPS)
+  if(pCtx->bIsBuffersAllocated && !(*bBeginFrameIsValid) && pSlice->pSPS)
   {
     if(!hevcInitFrameBuffers(pCtx, bIsRAP, pSlice->pSPS, pPP, pBufs))
       return;
@@ -885,7 +902,7 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     concealSlice(pCtx, pPP, pSP, pSlice, true);
 
     if(bLastSlice)
-      pSP->NextSliceSegment = pPP->LcuWidth * pPP->LcuHeight;
+      pSP->NextSliceSegment = pPP->LcuPicWidth * pPP->LcuPicHeight;
   }
   else // skip slice
   {
@@ -1007,12 +1024,16 @@ AL_NonVclNuts AL_HEVC_GetNonVclNuts(void)
 {
   AL_NonVclNuts nuts =
   {
-    AL_HEVC_NUT_PREFIX_SEI,
-    AL_HEVC_NUT_SUFFIX_SEI,
+    AL_HEVC_NUT_ERR, // NUT does not exist in HEVC
+    AL_HEVC_NUT_VPS,
     AL_HEVC_NUT_SPS,
     AL_HEVC_NUT_PPS,
-    AL_HEVC_NUT_VPS,
     AL_HEVC_NUT_FD,
+    AL_HEVC_NUT_ERR, // NUT does not exist in HEVC
+    AL_HEVC_NUT_ERR, // NUT does not exist in HEVC
+    AL_HEVC_NUT_ERR, // NUT does not exist in HEVC
+    AL_HEVC_NUT_PREFIX_SEI,
+    AL_HEVC_NUT_SUFFIX_SEI,
     AL_HEVC_NUT_EOS,
     AL_HEVC_NUT_EOB,
   };
@@ -1026,9 +1047,12 @@ void AL_HEVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bI
 
   AL_NalParser parser =
   {
+    NULL,
+    AL_HEVC_ParseVPS,
     parseAndApplySPS,
     parsePPSandUpdateConcealment,
-    ParseVPS,
+    NULL,
+    NULL,
     AL_HEVC_ParseSEI,
     decodeSliceData,
     isSliceData,

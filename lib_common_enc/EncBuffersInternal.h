@@ -47,10 +47,10 @@
    \brief Retrieves the maximum size of one NAL unit
    \param[in] uWidth Frame Width in pixel
    \param[in] uHeight Frame Height in pixel
-   \param[in] uMaxCuSize  Maximum Size of a Coding Unit
+   \param[in] uLog2MaxCuSize  Maximum Size of a Coding Unit
    \return maximum size of one NAL unit
 *****************************************************************************/
-uint32_t GetMaxLCU(uint16_t uWidth, uint16_t uHeight, uint8_t uMaxCuSize);
+uint32_t GetMaxLCU(uint16_t uWidth, uint16_t uHeight, uint8_t uLog2MaxCuSize);
 
 static const AL_TBufInfo EP1_BUF_SCL_LST =
 {
@@ -145,21 +145,21 @@ uint32_t AL_GetAllocSize_MV(AL_TDimension tDim, uint8_t uLcuSize, AL_ECodec Code
 
 /*************************************************************************//*!
    \brief Retrieves the size of an entry_points size buffer
-   \param[in] iLCUHeight Frame Height in pixel
+   \param[in] iLCUPicHeight Frame Height in pixel
    \param[in] iNumSlices Number of slices within the frame
    \param[in] uNumCore Number of used core
    \return the size (in bytes) needed for the entry_points size buffer
 *****************************************************************************/
-uint32_t AL_GetAllocSize_WPP(int iLCUHeight, int iNumSlices, uint8_t uNumCore);
+uint32_t AL_GetAllocSize_WPP(int iLCUPicHeight, int iNumSlices, uint8_t uNumCore);
 
-uint32_t AL_GetAllocSize_SliceSize(uint32_t uWidth, uint32_t uHeight, uint32_t uNumSlices, uint32_t uMaxCuSize);
+uint32_t AL_GetAllocSize_SliceSize(uint32_t uWidth, uint32_t uHeight, uint32_t uNumSlices, uint32_t uLog2MaxCuSize);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a stream part size buffer
-   \param[in] iLCUHeight Frame Height in pixel
+   \param[in] iLCUPicHeight Frame Height in pixel
    \param[in] iNumSlices Number of slices within the frame
    \param[in] iSliceSize Number of byte per slice or zero if not used
    \return the size (in bytes) needed for the entry_points size buffer
 *****************************************************************************/
-uint32_t GetAllocSize_StreamPart(int iLCUHeight, int iNumSlices, int iSliceSize);
+uint32_t GetAllocSize_StreamPart(int iLCUPicHeight, int iNumSlices, int iSliceSize);
 

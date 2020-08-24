@@ -56,10 +56,10 @@
 #include "lib_assert/al_assert.h"
 
 /****************************************************************************/
-uint32_t GetMaxLCU(uint16_t uWidth, uint16_t uHeight, uint8_t uMaxCuSize)
+uint32_t GetMaxLCU(uint16_t uWidth, uint16_t uHeight, uint8_t uLog2MaxCuSize)
 {
-  return ((uWidth + (1 << uMaxCuSize) - 1) >> uMaxCuSize)
-         * ((uHeight + (1 << uMaxCuSize) - 1) >> uMaxCuSize);
+  return ((uWidth + (1 << uLog2MaxCuSize) - 1) >> uLog2MaxCuSize)
+         * ((uHeight + (1 << uLog2MaxCuSize) - 1) >> uLog2MaxCuSize);
 }
 
 /****************************************************************************/
@@ -321,17 +321,17 @@ uint32_t AL_GetAllocSize_MV(AL_TDimension tDim, uint8_t uLCUSize, AL_ECodec Code
 }
 
 /*****************************************************************************/
-uint32_t AL_GetAllocSize_WPP(int iLCUHeight, int iNumSlices, uint8_t uNumCore)
+uint32_t AL_GetAllocSize_WPP(int iLCUPicHeight, int iNumSlices, uint8_t uNumCore)
 {
-  uint32_t uNumLinesPerCmd = (((iLCUHeight + iNumSlices - 1) / iNumSlices) + uNumCore - 1) / uNumCore;
+  uint32_t uNumLinesPerCmd = (((iLCUPicHeight + iNumSlices - 1) / iNumSlices) + uNumCore - 1) / uNumCore;
   uint32_t uAlignedSize = RoundUp(uNumLinesPerCmd * sizeof(uint32_t), 128) * uNumCore * iNumSlices;
   return uAlignedSize;
 }
 
-uint32_t AL_GetAllocSize_SliceSize(uint32_t uWidth, uint32_t uHeight, uint32_t uNumSlices, uint32_t uMaxCuSize)
+uint32_t AL_GetAllocSize_SliceSize(uint32_t uWidth, uint32_t uHeight, uint32_t uNumSlices, uint32_t uLog2MaxCuSize)
 {
-  int iWidthInLcu = (uWidth + ((1 << uMaxCuSize) - 1)) >> uMaxCuSize;
-  int iHeightInLcu = (uHeight + ((1 << uMaxCuSize) - 1)) >> uMaxCuSize;
+  int iWidthInLcu = (uWidth + ((1 << uLog2MaxCuSize) - 1)) >> uLog2MaxCuSize;
+  int iHeightInLcu = (uHeight + ((1 << uLog2MaxCuSize) - 1)) >> uLog2MaxCuSize;
   uint32_t uSize = (uint32_t)Max(iWidthInLcu * iHeightInLcu * 32, iWidthInLcu * iHeightInLcu * sizeof(uint32_t) + uNumSlices * AL_ENC_NUM_CORES * 128);
   uint32_t uAlignedSize = RoundUp(uSize, 32);
   return uAlignedSize;

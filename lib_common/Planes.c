@@ -39,7 +39,7 @@
 
 bool AL_Plane_IsPixelPlane(AL_EPlaneId ePlaneId)
 {
-  return ePlaneId <= (int)AL_PLANE_UV;
+  return ePlaneId < (int)AL_PLANE_MAP_Y;
 }
 
 bool AL_Plane_IsMapPlane(AL_EPlaneId ePlaneId)
@@ -56,6 +56,13 @@ static void AddPlane(AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES], int* iNbPlane
 int AL_Plane_GetBufferPixelPlanes(AL_EChromaOrder eChromaOrder, AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES])
 {
   int iNbPlanes = 0;
+
+  if(eChromaOrder == AL_C_ORDER_PACKED)
+  {
+    AddPlane(usedPlanes, &iNbPlanes, AL_PLANE_YUV);
+    return iNbPlanes;
+  }
+
   AddPlane(usedPlanes, &iNbPlanes, AL_PLANE_Y);
 
   if(eChromaOrder == AL_C_ORDER_SEMIPLANAR)
@@ -115,6 +122,8 @@ bool AL_Plane_Exists(AL_EChromaOrder eChromaOrder, bool bIsCompressed, AL_EPlane
   case AL_PLANE_MAP_U:
   case AL_PLANE_MAP_V:
     return eChromaOrder == AL_C_ORDER_U_V || eChromaOrder == AL_C_ORDER_V_U;
+  case AL_PLANE_YUV:
+    return (eChromaOrder == AL_C_ORDER_PACKED) && !bIsCompressed;
   default:
     return false;
   }

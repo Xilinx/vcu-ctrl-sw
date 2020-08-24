@@ -44,6 +44,8 @@
 
 #include <string.h>
 #include <malloc.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 /****************************************************************************/
 void* Rtos_Malloc(size_t zSize)
@@ -79,6 +81,21 @@ void* Rtos_Memset(void* pDst, int iVal, size_t zSize)
 int Rtos_Memcmp(void const* pBuf1, void const* pBuf2, size_t zSize)
 {
   return memcmp(pBuf1, pBuf2, zSize);
+}
+
+/****************************************************************************/
+int Rtos_Log(int iLogLevel, char const* const sMsg, ...)
+{
+  int iRes = 0;
+
+  if(iLogLevel <= AL_LOG_LEVEL)
+  {
+    va_list args;
+    va_start(args, sMsg);
+    iRes = vprintf(sMsg, args);
+    va_end(args);
+  }
+  return iRes;
 }
 
 #else

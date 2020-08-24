@@ -54,12 +54,16 @@
 
 typedef struct
 {
-  AL_ENut seiPrefix;
-  AL_ENut seiSuffix;
+  AL_ENut dps;
+  AL_ENut vps;
   AL_ENut sps;
   AL_ENut pps;
-  AL_ENut vps;
   AL_ENut fd;
+  AL_ENut apsPrefix;
+  AL_ENut apsSuffix;
+  AL_ENut ph;
+  AL_ENut seiPrefix;
+  AL_ENut seiSuffix;
   AL_ENut eos;
   AL_ENut eob;
 }AL_NonVclNuts;
@@ -109,6 +113,7 @@ bool AL_Default_Decoder_Alloc(AL_TDecCtx* pCtx, TMemDesc* pMD, uint32_t uSize, c
 /*************************************************************************//*!
    \brief This function allocate comp memory blocks used by the decoder
    \param[in] pCtx decoder context
+   \param[in] iALFSize Size of the ALF filter sets buffer
    \param[in] iWPSize Size of the weighted pred buffer
    \param[in] iSPSize Size of the slice param buffer
    \param[in] iCompDataSize Size of the comp data buffer
@@ -116,7 +121,7 @@ bool AL_Default_Decoder_Alloc(AL_TDecCtx* pCtx, TMemDesc* pMD, uint32_t uSize, c
    \return If the function succeeds the return value is nonzero (true)
          If the function fails the return value is zero (false)
 *****************************************************************************/
-bool AL_Default_Decoder_AllocPool(AL_TDecCtx* pCtx, int iWPSize, int iSPSize, int iCompDataSize, int iCompMapSize);
+bool AL_Default_Decoder_AllocPool(AL_TDecCtx* pCtx, int iALFSize, int iWPSize, int iSPSize, int iCompDataSize, int iCompMapSize);
 
 /*************************************************************************//*!
    \brief This function allocate comp memory blocks used by the decoder

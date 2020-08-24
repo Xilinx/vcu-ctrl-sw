@@ -66,7 +66,7 @@
 
 #include "lib_parsing/I_PictMngr.h"
 #include "lib_decode/I_DecScheduler.h"
-#include "lib_common_dec/DecHook.h"
+#include "lib_common/CodecHook.h"
 #include "lib_common_dec/HDRMeta.h"
 
 #include "lib_assert/al_assert.h"
@@ -90,8 +90,6 @@
   } while(0) \
 
 
-static int const AVC_NAL_HDR_SIZE = 4;
-static int const HEVC_NAL_HDR_SIZE = 5;
 static int const LAST_VCL_NAL_IN_AU_NOT_PRESENT = -1;
 
 /*****************************************************************************/
@@ -104,6 +102,34 @@ static bool isAVC(AL_ECodec eCodec)
 static bool isHEVC(AL_ECodec eCodec)
 {
   return eCodec == AL_CODEC_HEVC;
+}
+
+/*****************************************************************************/
+static bool isITU(AL_ECodec eCodec)
+{
+  bool bIsITU = false;
+  bIsITU |= isAVC(eCodec);
+  bIsITU |= isHEVC(eCodec);
+  return bIsITU;
+}
+
+/******************************************************************************/
+static int NalHeaderSize(AL_ECodec eCodec)
+{
+
+  if(isAVC(eCodec))
+  {
+    int const AVC_NAL_HDR_SIZE = 4;
+    return AVC_NAL_HDR_SIZE;
+  }
+
+  if(isHEVC(eCodec))
+  {
+    int const HEVC_NAL_HDR_SIZE = 5;
+    return HEVC_NAL_HDR_SIZE;
+  }
+
+  return -1;
 }
 
 /******************************************************************************/
@@ -408,7 +434,7 @@ void AL_Default_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus)
 {
   if(AL_DEC_IS_PIC_STATE_ENABLED(pStatus->tDecPicState, AL_DEC_PIC_STATE_CMD_INVALID))
   {
-    printf("\n***** /!\\ Error trying to conceal bitstream - ending decoding /!\\ *****\n");
+    Rtos_Log(AL_LOG_CRITICAL, "\n***** /!\\ Error trying to conceal bitstream - ending decoding /!\\ *****\n");
     AL_Assert(0);
   }
 
@@ -435,7 +461,7 @@ void AL_Default_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus)
   ++pCtx->iNumFrmBlk2;
 
   if(AL_DEC_IS_PIC_STATE_ENABLED(pStatus->tDecPicState, AL_DEC_PIC_STATE_HANGED))
-    printf("\n***** /!\\ Timeout - resetting the decoder /!\\ *****\n");
+    Rtos_Log(AL_LOG_CRITICAL, "\n***** /!\\ Timeout - resetting the decoder /!\\ *****\n");
 
   Rtos_ReleaseMutex(pCtx->DecMutex);
 
@@ -600,6 +626,7 @@ static bool isAud(AL_ECodec eCodec, AL_ENut eNut)
 
   if(isHEVC(eCodec))
     return eNut == AL_HEVC_NUT_AUD;
+
   return false;
 }
 
@@ -612,6 +639,7 @@ static bool isEosOrEob(AL_ECodec eCodec, AL_ENut eNut)
 
   if(isHEVC(eCodec))
     return (eNut == AL_HEVC_NUT_EOS) || (eNut == AL_HEVC_NUT_EOB);
+
   return false;
 }
 
@@ -636,6 +664,7 @@ static bool isPrefixSei(AL_ECodec eCodec, AL_ENut eNut)
 
   if(isHEVC(eCodec))
     return eNut == AL_HEVC_NUT_PREFIX_SEI;
+
   return false;
 }
 
@@ -688,13 +717,8 @@ static bool isStartCode(uint8_t* pBuf, uint32_t uSize, uint32_t uPos)
 /*****************************************************************************/
 static uint32_t skipNalHeader(uint32_t uPos, AL_ECodec eCodec, uint32_t uSize)
 {
-  int iNalHdrSize = 0;
-
-  if(isAVC(eCodec))
-    iNalHdrSize = AVC_NAL_HDR_SIZE;
-
-  if(isHEVC(eCodec))
-    iNalHdrSize = HEVC_NAL_HDR_SIZE;
+  int iNalHdrSize = NalHeaderSize(eCodec);
+  AL_Assert(iNalHdrSize);
   return (uPos + iNalHdrSize) % uSize; // skip start code + nal header
 }
 
@@ -790,7 +814,8 @@ static bool SearchNextDecodingUnit(AL_TDecCtx* pCtx, AL_TBuffer* pStream, int* p
 
     if(isVcl(eCodec, eNUT))
     {
-      int iNalHdrSize = isAVC(eCodec) ? AVC_NAL_HDR_SIZE : HEVC_NAL_HDR_SIZE;
+      int iNalHdrSize = NalHeaderSize(eCodec);
+      AL_Assert(iNalHdrSize > 0);
 
       if(isFirstSliceStatusAvailable(pNal->uSize, iNalHdrSize))
       {
@@ -940,7 +965,7 @@ static bool RefillStartCodes(AL_TDecCtx* pCtx, AL_TBuffer* pStream)
 
     if(pCtx->ScdStatus.uNumBytes == 0)
     {
-      printf("***** /!\\ Warning: Start code queue was full, degraded mode, retrying. /!\\ *****\n");
+      Rtos_Log(AL_LOG_CRITICAL, "***** /!\\ Warning: Start code queue was full, degraded mode, retrying. /!\\ *****\n");
       Rtos_Sleep(1);
     }
   }
@@ -1419,18 +1444,20 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
   }
 
   int iSPSMaxSlices = RoundUp(pCtx->pChanParam->iHeight, 16) / 16;
+  int iSizeALF = 0;
 
   if(isAVC(pCtx->pChanParam->eCodec))
     iSPSMaxSlices = AL_AVC_GetMaxNumberOfSlices(AVC_PROFILE_IDC_HIGH_422, 52, 1, 60, INT32_MAX); // FIXME : use real level
 
   if(isHEVC(pCtx->pChanParam->eCodec))
     iSPSMaxSlices = AL_HEVC_GetMaxNumberOfSlices(62); // FIXME : use real level
+
   int iSizeWP = iSPSMaxSlices * WP_SLICE_SIZE;
   int iSizeSP = iSPSMaxSlices * sizeof(AL_TDecSliceParam);
   int iSizeCompData = isAVC(pCtx->pChanParam->eCodec) ? AL_GetAllocSize_AvcCompData(tStreamSettings.tDim, tStreamSettings.eChroma) : AL_GetAllocSize_HevcCompData(tStreamSettings.tDim, tStreamSettings.eChroma);
   int iSizeCompMap = AL_GetAllocSize_DecCompMap(tStreamSettings.tDim);
 
-  if(!AL_Default_Decoder_AllocPool(pCtx, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap))
+  if(!AL_Default_Decoder_AllocPool(pCtx, iSizeALF, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap))
     goto fail_alloc;
 
   int iDpbMaxBuf = 0, iRecBuf = 0, iSizeMV = 0;
@@ -1448,6 +1475,7 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
     iRecBuf = 0;
     iSizeMV = AL_GetAllocSize_HevcMV(tStreamSettings.tDim);
   }
+
   int iConcealBuf = CONCEAL_BUF;
   int iMaxBuf = iDpbMaxBuf + pCtx->iStackSize + iRecBuf + iConcealBuf;
   int iSizePOC = POCBUFF_PL_SIZE;
@@ -1660,8 +1688,9 @@ static void errorHandler(void* pUserParam)
 }
 
 /*****************************************************************************/
-bool AL_Default_Decoder_AllocPool(AL_TDecCtx* pCtx, int iWPSize, int iSPSize, int iCompDataSize, int iCompMapSize)
+bool AL_Default_Decoder_AllocPool(AL_TDecCtx* pCtx, int iALFSize, int iWPSize, int iSPSize, int iCompDataSize, int iCompMapSize)
 {
+  (void)iALFSize;
 #define SAFE_POOL_ALLOC(pCtx, pMD, iSize, name) \
   do { \
     if(!AL_Decoder_Alloc(pCtx, pMD, iSize, name)) \
@@ -1807,7 +1836,7 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler,
 
   InitAUP(pCtx);
 
-  if((isAVC(pSettings->eCodec)) || (isHEVC(pSettings->eCodec)))
+  if(isITU(pSettings->eCodec))
   {
     // Alloc Start Code Detector buffer
     SAFE_ALLOC(pCtx, &pCtx->BufSCD.tMD, SCD_SIZE, "scd");

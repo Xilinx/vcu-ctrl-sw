@@ -95,16 +95,19 @@ static const AL_TDecBufIDs tEmptyBufIDs =
 *****************************************************************************/
 typedef struct AL_t_DecPictParam
 {
-  uint8_t Codec;
+  AL_ECodec Codec;
 
   AL_TDecBufIDs tBufIDs;
 
   uint8_t MaxTransfoDepthIntra;
   uint8_t MaxTransfoDepthInter;
-  uint8_t MinTUSize;
-  uint8_t MaxTUSize;
-  uint8_t MaxTUSkipSize;
-  uint8_t MaxCUSize;
+  uint8_t Log2MinTUSize;
+  uint8_t Log2MaxTUSize;
+  uint8_t Log2MaxTUSkipSize;
+  int8_t Log2MinPCMSize;
+  int8_t Log2MaxPCMSize;
+  int8_t Log2MinCUSize;
+  uint8_t Log2MaxCUSize;
   uint8_t PcmBitDepthY;
   uint8_t PcmBitDepthC;
   uint8_t BitDepthLuma;
@@ -118,15 +121,16 @@ typedef struct AL_t_DecPictParam
   int8_t PicCrQpOffset;
   int8_t CbQpOffLst[6];
   int8_t CrQpOffLst[6];
-  int8_t DeltaQPCUDepth;
-  int8_t MinPCMSize;
-  int8_t MaxPCMSize;
-  int8_t MinCUSize;
+  union
+  {
+    int8_t DeltaQPCUDepth;
+    int8_t DeltaQPCUSubdiv;
+  };
 
   uint16_t PicWidth;
   uint16_t PicHeight;
-  uint16_t LcuWidth;
-  uint16_t LcuHeight;
+  uint16_t LcuPicWidth;
+  uint16_t LcuPicHeight;
   uint16_t column_width[AL_MAX_COLUMNS_TILE];
   uint16_t row_height[AL_MAX_ROWS_TILE];
   uint16_t num_tile_columns;
@@ -136,6 +140,13 @@ typedef struct AL_t_DecPictParam
   AL_EPicStruct ePicStruct;
 
   uint32_t OptionFlags;
+
+  uint8_t NumLadfIntervals;
+  int8_t ladf_lowest_interval_qp_offset;
+  int8_t ladf_qp_offset[4];
+  uint16_t LadfDeltaThreshold[4];
+
+  uint8_t QpPrimeTsMin;
 
   AL_EChromaMode ChromaMode;
   AL_EEntropyMode eEntMode;

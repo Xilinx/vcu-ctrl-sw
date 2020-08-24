@@ -24,6 +24,7 @@ LIB_COMMON_SRC:=\
   lib_common/SyntaxConversion.c\
   lib_common/IntVector.c\
   lib_common/Planes.c\
+  lib_common/HardwareConfig.c\
 
 
 ifneq ($(ENABLE_AVC),0)
@@ -35,6 +36,7 @@ ifneq ($(ENABLE_HEVC),0)
   LIB_COMMON_SRC+=lib_common/HevcLevelsLimit.c
   LIB_COMMON_SRC+=lib_common/HevcUtils.c
 endif
+
 
 ifneq ($(ENABLE_HIGH_DYNAMIC_RANGE),0)
   LIB_COMMON_SRC+=lib_common/HDR.c

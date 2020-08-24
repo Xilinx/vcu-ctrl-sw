@@ -47,7 +47,7 @@
 #pragma once
 
 #include "lib_rtos/types.h"
-#include "lib_common/SliceConsts.h"
+#include "lib_common/PicFormat.h"
 
 /*************************************************************************//*!
    \brief FOURCC identifier type
@@ -58,29 +58,6 @@ typedef uint32_t TFourCC;
                              | ((uint32_t)((# A)[1]) << 8) \
                              | ((uint32_t)((# A)[2]) << 16) \
                              | ((uint32_t)((# A)[3]) << 24)))
-/*************************************************************************//*!
-   \brief Chroma order
-*****************************************************************************/
-typedef enum e_ChromaOrder
-{
-  AL_C_ORDER_NO_CHROMA,
-  AL_C_ORDER_U_V,
-  AL_C_ORDER_V_U,
-  AL_C_ORDER_SEMIPLANAR
-}AL_EChromaOrder;
-
-/*************************************************************************//*!
-   \brief FourCC interpretation
-*****************************************************************************/
-typedef struct AL_t_PicFormat
-{
-  AL_EChromaMode eChromaMode;
-  uint8_t uBitDepth;
-  AL_EFbStorageMode eStorageMode;
-  AL_EChromaOrder eChromaOrder;
-  bool bCompressed;
-  bool b10bPacked;
-}AL_TPicFormat;
 
 /*************************************************************************//*!
    \brief Returns the ChromaMode identifier according to the tFourCC parameter

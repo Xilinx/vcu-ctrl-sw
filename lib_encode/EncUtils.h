@@ -125,7 +125,7 @@ static const int AL_BitPerPixelQP[2][36][2] = /* x1000 */
 };
 
 /****************************************************************************/
-enum
+typedef enum
 {
   VIDEO_FORMAT_COMPONENT,
   VIDEO_FORMAT_PAL,
@@ -133,7 +133,7 @@ enum
   VIDEO_FORMAT_SECAM,
   VIDEO_FORMAT_MAC,
   VIDEO_FORMAT_UNSPECIFIED,
-} EVUIVideoFormat;
+}EVUIVideoFormat;
 
 /****************************************************************************/
 void AL_Decomposition(uint32_t* y, uint8_t* x);
@@ -142,6 +142,7 @@ void AL_Reduction(uint32_t* pN, uint32_t* pD);
 /****************************************************************************/
 int AL_H273_ColourDescToColourPrimaries(AL_EColourDescription colourDesc);
 void AL_UpdateAspectRatio(AL_TVuiParam* pVuiParam, uint32_t uWidth, uint32_t uHeight, AL_EAspectRatio eAspectRatio);
+void AL_UpdateSarAspectRatio(AL_TVuiParam* pVuiParam, uint32_t uWidth, uint32_t uHeight, AL_EAspectRatio eAspectRatio);
 
 bool AL_IsGdrEnabled(AL_TEncSettings const* pSettings);
 

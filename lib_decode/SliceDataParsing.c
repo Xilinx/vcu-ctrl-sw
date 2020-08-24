@@ -106,18 +106,21 @@ static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecP
 
   // The first version supported only 8 or 10 bit with a flag at pos 31.
   // For backward compatibility, the bit 30 is used to set 12 bits output picture bitdepth
-  uint32_t uPictureBitDepth;
+  uint32_t uPictureBitDepth = (iMaxBitDepth - 8);
+  int iDec2RecBitDepthOffset = 28;
+  iDec2RecBitDepthOffset = 30;
   switch(iMaxBitDepth)
   {
-  case 8: uPictureBitDepth = 0x00000000;
+  case 8: uPictureBitDepth = 0x0;
     break;
-  case 10: uPictureBitDepth = 0x80000000;
+  case 10: uPictureBitDepth = 0x2;
     break;
-  case 12: uPictureBitDepth = 0x40000000;
+  case 12: uPictureBitDepth = 0x1;
     break;
   default: assert(false);
   }
 
+  uPictureBitDepth <<= iDec2RecBitDepthOffset;
   pBufs->uPitch = uPitch | uPictureBitDepth;
 
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pRec);
@@ -331,7 +334,7 @@ static void AL_TerminateCurrentCommand(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, A
 {
   AL_TDecPicBuffers* pBufs = &pCtx->PoolPB[pCtx->uToggle];
 
-  pSP->NextSliceSegment = pPP->LcuWidth * pPP->LcuHeight;
+  pSP->NextSliceSegment = pPP->LcuPicWidth * pPP->LcuPicHeight;
   pSP->NextIsDependent = false;
 
   AL_sSaveCommandBlk2(pCtx, pPP, pBufs);
@@ -357,7 +360,7 @@ void AL_TerminatePreviousCommand(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDec
   AL_TDecSliceParam* pPrevSP = &(((AL_TDecSliceParam*)pCtx->PoolSP[pCtx->uToggle].tMD.pVirtualAddr)[pCtx->PictMngr.uNumSlice - 1]);
 
   if(bIsLastVclNalInAU)
-    pPrevSP->NextSliceSegment = pPP->LcuWidth * pPP->LcuHeight;
+    pPrevSP->NextSliceSegment = pPP->LcuPicWidth * pPP->LcuPicHeight;
   else
     pPrevSP->NextSliceSegment = pSP->FirstLcuSliceSegment;
 
