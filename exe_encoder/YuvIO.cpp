@@ -305,20 +305,20 @@ static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint
   char* pTmp = reinterpret_cast<char*>(AL_PixMapBuffer_GetPlaneAddress(pBuf, AL_PLANE_UV));
 
   uint32_t uNumRowC = (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_2_0) ? uFileNumRow / 2 : uFileNumRow;
-  uint32_t uRowSizeC = (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_4_4) ? uFileRowSize : uFileRowSize / 2;
+  uint32_t uRowSizeC = (AL_GetChromaMode(tFourCC) == AL_CHROMA_4_4_4) ? uFileRowSize * 2 : uFileRowSize;
   TPaddingParams tPadParams = GetColumnPaddingParameters(tFourCC, tDim, iPitchUV, uRowSizeC, false);
 
-  assert((uint32_t)iPitchUV >= uFileRowSize);
+  assert((uint32_t)iPitchUV >= uRowSizeC);
 
   if(0 == tPadParams.uNBByteToPad)
   {
-    File.read(pTmp, uFileRowSize * uNumRowC);
+    File.read(pTmp, uRowSizeC * uNumRowC);
   }
   else
   {
     for(uint32_t h = 0; h < uNumRowC; h++)
     {
-      File.read(pTmp, uFileRowSize);
+      File.read(pTmp, uRowSizeC);
       PadBuffer(pTmp + tPadParams.uPaddingOffset, tPadParams, tFourCC);
       pTmp += iPitchUV;
     }
