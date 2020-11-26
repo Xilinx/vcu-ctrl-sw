@@ -719,6 +719,10 @@ static void ConfigureSrcBufPool(PixMapBufPool& SrcBufPool, TFrameInfo& FrameInfo
 static uint8_t GetNumBufForGop(AL_TEncSettings Settings)
 {
   int uNumFields = 1;
+
+  if((Settings.tChParam[0].eVideoMode == AL_VM_INTERLACED_TOP) || (Settings.tChParam[0].eVideoMode==AL_VM_INTERLACED_BOTTOM))
+    uNumFields = 2;
+
   return uNumFields * Settings.tChParam[0].tGopParam.uNumB;
 }
 
