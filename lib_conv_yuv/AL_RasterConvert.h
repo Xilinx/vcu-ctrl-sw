@@ -39,14 +39,13 @@
 
 #include "ConvSrc.h"
 
-struct CNvxConv : public IConvSrc
+struct CRasterConv : public IConvSrc
 {
-  explicit CNvxConv(TFrameInfo const& FrameInfo);
-  virtual ~CNvxConv() override = default;
+  explicit CRasterConv(TFrameInfo const& FrameInfo);
+  virtual ~CRasterConv() override = default;
 
   virtual void ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut) override;
 
 protected:
   TFrameInfo const m_FrameInfo;
 };
-

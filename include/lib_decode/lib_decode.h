@@ -59,9 +59,15 @@
 #include "lib_common/Planes.h"
 
 #include "lib_common_dec/DecInfo.h"
+#include "lib_common_dec/DecCallbacks.h"
 #include "lib_common_dec/DecDpbMode.h"
 #include "lib_common_dec/DecSynchro.h"
 
+/*************************************************************************//*!
+    \brief Virtual interface used to access the scheduler of the Decoder IP.
+    If you want to create multiple channels in the same process that access the same IP, the AL_IDecScheduler should be shared between them.
+    \see AL_DecSchedulerCpu_Create and AL_DecSchedulerMcu_Create if available to get concrete implementations of this interface.
+*****************************************************************************/
 typedef struct AL_i_DecScheduler AL_IDecScheduler;
 void AL_IDecScheduler_Destroy(AL_IDecScheduler* pThis);
 
@@ -85,66 +91,6 @@ typedef struct
 }AL_TDecMetaHandle;
 
 /*************************************************************************//*!
-   \brief Parsing callback definition.
-   It is called every time an input buffer as been parsed by the hardware
-   If eInputMode is AL_DEC_UNSPLIT_INPUT, pParsedFrame should not have AL_THandleMetaData
-   The iParsingID corresponds to the id in the AL_HandleMetaData associated with
-   the buffer.
-*****************************************************************************/
-typedef struct
-{
-  void (* func)(AL_TBuffer* pParsedFrame, void* pUserParam, int iParsingID);
-  void* userParam;
-}AL_CB_EndParsing;
-
-/*************************************************************************//*!
-   \brief Decoded callback definition.
-   It is called every time a frame is decoded
-   A null frame indicates an error occured
-*****************************************************************************/
-typedef struct
-{
-  void (* func)(AL_TBuffer* pDecodedFrame, void* pUserParam);
-  void* userParam;
-}AL_CB_EndDecoding;
-
-/*************************************************************************//*!
-   \brief Display callback definition.
-   It is called every time a frame can be displayed
-   a null frame indicates the end of the stream
-*****************************************************************************/
-typedef struct
-{
-  void (* func)(AL_TBuffer* pDisplayedFrame, AL_TInfoDecode* pInfo, void* pUserParam);
-  void* userParam;
-}AL_CB_Display;
-
-/*************************************************************************//*!
-   \brief Resolution change callback definition.
-   It is called only once when the first decoding process occurs.
-   The decoder doesn't support a change of resolution inside a stream
-   Callback must return an error code that can be different from AL_SUCCESS
-   in case of memory allocation error
-*****************************************************************************/
-typedef struct
-{
-  AL_ERR (* func)(int BufferNumber, int BufferSize, AL_TStreamSettings const* pSettings, AL_TCropInfo const* pCropInfo, void* pUserParam);
-  void* userParam;
-}AL_CB_ResolutionFound;
-
-/*************************************************************************//*!
-   \brief Parsed SEI callback definition.
-   It is called when a SEI is parsed
-   Antiemulation has already been removed by the decoder from the payload.
-   See Annex D.3 of ITU-T for the sei_payload syntax
-*****************************************************************************/
-typedef struct
-{
-  void (* func)(bool bIsPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, void* pUserParam);
-  void* userParam;
-}AL_CB_ParsedSei;
-
-/*************************************************************************//*!
    \brief Handle to the decoder object.
    \see AL_Decoder_Create
    \see AL_Decoder_Destroy
@@ -158,7 +104,7 @@ typedef AL_HANDLE AL_HDecoder;
 typedef struct
 {
   int iStackSize;       /*!< Size of the command stack handled by the decoder */
-  int iBitDepth;        /*!< Output bitDepth */
+  int iStreamBufSize;   /*!< Size of the internal circular stream buffer (0 = default) */
   uint8_t uNumCore;     /*!< Number of core used for the decoding */
   uint32_t uFrameRate;  /*!< Frame rate value used if syntax element isn't present */
   uint32_t uClkRatio;   /*!< Clock ratio value used if syntax element isn't present */
@@ -296,40 +242,4 @@ uint32_t AL_Decoder_GetMinPitch(uint32_t uWidth, uint8_t uBitDepth, AL_EFbStorag
    \param[in] uHeight height of the picture in pixels
 *****************************************************************************/
 uint32_t AL_Decoder_GetMinStrideHeight(uint32_t uHeight);
-
-/*************************************************************************//*!
-   \brief Give the size of a reconstructed picture buffer
-   Restriction: The strideHeight is supposed to be the minimum stride height
-   \param[in] tDim dimensions of the picture
-   \param[in] iPitch luma pitch in bytes of the picture
-   \param[in] eChromaMode chroma mode of the picture
-   \param[in] bFrameBufferCompression will the frame buffer be compressed
-   \param[in] eFbStorage frame buffer storage mode
-   \return return the size of the reconstructed picture buffer
-*****************************************************************************/
-int AL_DecGetAllocSize_Frame(AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode, bool bFrameBufferCompression, AL_EFbStorageMode eFbStorage);
-
-/*************************************************************************//*!
-   \brief Give the size of one pixel component of a reconstructed picture buffer
-   \param[in] eFbStorage frame buffer storage mode
-   \param[in] tDim dimensions of the picture
-   \param[in] iPitch component pitch in bytes of the picture
-   \param[in] eChromaMode Chroma Mode
-   \param[in] ePlaneId The pixel plane type. Must not be a map plane.
-   \return return the size of the pixel component of the reconstruct
-*****************************************************************************/
-int AL_DecGetAllocSize_Frame_PixPlane(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode, AL_EPlaneId ePlaneId);
-
-/*@}*/
-
-AL_DEPRECATED("Renamed. Use AL_Decoder_GetMinPitch. Will be deleted in 0.9")
-uint32_t AL_Decoder_RoundPitch(uint32_t uWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode);
-AL_DEPRECATED("Renamed. Use AL_Decoder_GetMinStrideHeight. Will be deleted in 0.9")
-uint32_t AL_Decoder_RoundHeight(uint32_t uHeight);
-// AL_DEPRECATED("Use AL_DecGetAllocSize_Frame. This function doesn't take the stride of the allocated buffer in consideration. Will be deleted in 0.9")
-int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bFrameBufferCompression, AL_EFbStorageMode eFbStorage);
-AL_DEPRECATED("Use AL_DecGetAllocSize_Frame_PixPlane.")
-int AL_DecGetAllocSize_Frame_Y(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch);
-AL_DEPRECATED("Use AL_DecGetAllocSize_Frame_PixPlane.")
-int AL_DecGetAllocSize_Frame_UV(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode);
 

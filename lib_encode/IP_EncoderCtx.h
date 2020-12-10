@@ -189,7 +189,6 @@ typedef struct AL_t_EncCtx
 
   int iMaxNumRef;
 
-  bool bEncodingStarted;
   int iFrameCountDone;
   AL_ERR eError;
 

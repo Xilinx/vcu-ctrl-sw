@@ -36,27 +36,12 @@
 ******************************************************************************/
 
 #pragma once
-#include "lib_common/Utils.h"
-
-static const uint16_t AL_PCM_SIZE[4][3] =
-{
-  { 256, 1024, 4096 }, { 384, 1536, 6144 }, { 512, 2048, 8192 }, { 768, 3072, 12288 }
-};
 
 #define AL_MAX_SLICE_HEADER_SIZE 512
-
-/****************************************************************************/
-int GetMaxVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth);
 
 /****************************************************************************/
 int GetPcmVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth);
 
 /****************************************************************************/
-int GetBlk64x64(AL_TDimension tDim);
-
-/****************************************************************************/
-int GetBlk32x32(AL_TDimension tDim);
-
-/****************************************************************************/
-int GetBlk16x16(AL_TDimension tDim);
+int GetPCMSize(uint32_t uNumLCU, uint8_t uLog2MaxCuSize, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bIntermediateBuffer);
 

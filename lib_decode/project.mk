@@ -18,6 +18,8 @@ LIB_DECODE_SRC+=\
 
 ifneq ($(ENABLE_MCU),0)
   LIB_DECODE_SRC+=lib_decode/DecSchedulerMcu.c
+else
+	# the proxy mode also uses the mcu.
 endif
 
 ifneq ($(ENABLE_AVC),0)
@@ -27,6 +29,7 @@ endif
 ifneq ($(ENABLE_HEVC),0)
   LIB_DECODE_SRC+=lib_decode/HevcDecoder.c
 endif
+
 
 
 

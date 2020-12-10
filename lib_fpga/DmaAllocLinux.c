@@ -177,7 +177,7 @@ static size_t AlignToPageSize(size_t zSize)
 
   if((zSize % pagesize) == 0)
     return zSize;
-  return zSize + pagesize - (zSize % pagesize);
+  return zSize - (zSize % pagesize) + pagesize;
 }
 
 /* Get a dmabuf fd representing a buffer of size pInfo->size */

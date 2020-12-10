@@ -65,6 +65,6 @@ typedef struct AL_t_RateCtrlMetaData
    \brief Create a RateCtrl metadata.
    \return Pointer to a RateCtrl Metadata if success, NULL otherwise
 *****************************************************************************/
-AL_TRateCtrlMetaData* AL_RateCtrlMetaData_Create(AL_TAllocator* pAllocator, AL_TDimension tDim, uint8_t uLcuSize, AL_ECodec eCodec);
+AL_TRateCtrlMetaData* AL_RateCtrlMetaData_Create(AL_TAllocator* pAllocator, AL_TDimension tDim, uint8_t uLog2MaxCuSize, AL_ECodec eCodec);
 
 /*@}*/

@@ -70,8 +70,22 @@ typedef enum e_ColourDescription
 ****************************************/
 typedef enum e_TransferCharacteristics
 {
+  AL_TRANSFER_CHARAC_BT_709 = 1,
   AL_TRANSFER_CHARAC_UNSPECIFIED = 2,
+  AL_TRANSFER_CHARAC_BT_470_SYSTEM_M = 4,
+  AL_TRANSFER_CHARAC_BT_470_SYSTEM_B = 5,
+  AL_TRANSFER_CHARAC_BT_601 = 6,
+  AL_TRANSFER_CHARAC_SMPTE_240M = 7,
+  AL_TRANSFER_CHARAC_LINEAR = 8,
+  AL_TRANSFER_CHARAC_LOG = 9,
+  AL_TRANSFER_CHARAC_LOG_EXTENDED = 10,
+  AL_TRANSFER_CHARAC_IEC_61966_2_4 = 11,
+  AL_TRANSFER_CHARAC_BT_1361 = 12,
+  AL_TRANSFER_CHARAC_IEC_61966_2_1 = 13,
+  AL_TRANSFER_CHARAC_BT_2020_10B = 14,
+  AL_TRANSFER_CHARAC_BT_2020_12B = 15,
   AL_TRANSFER_CHARAC_BT_2100_PQ = 16,
+  AL_TRANSFER_CHARAC_SMPTE_428 = 17,
   AL_TRANSFER_CHARAC_BT_2100_HLG = 18,
   AL_TRANSFER_CHARAC_MAX_ENUM,
 }AL_ETransferCharacteristics;
@@ -81,8 +95,20 @@ typedef enum e_TransferCharacteristics
 ***********************************************************************************/
 typedef enum e_ColourMatrixCoefficients
 {
+  AL_COLOUR_MAT_COEFF_GBR = 0,
+  AL_COLOUR_MAT_COEFF_BT_709 = 1,
   AL_COLOUR_MAT_COEFF_UNSPECIFIED = 2,
+  AL_COLOUR_MAT_COEFF_USFCC_CFR = 4,
+  AL_COLOUR_MAT_COEFF_BT_601_625 = 5,
+  AL_COLOUR_MAT_COEFF_BT_601_525 = 6,
+  AL_COLOUR_MAT_COEFF_BT_SMPTE_240M = 7,
+  AL_COLOUR_MAT_COEFF_BT_YCGCO = 8,
   AL_COLOUR_MAT_COEFF_BT_2100_YCBCR = 9,
+  AL_COLOUR_MAT_COEFF_BT_2020_CLS = 10,
+  AL_COLOUR_MAT_COEFF_SMPTE_2085 = 11,
+  AL_COLOUR_MAT_COEFF_CHROMA_DERIVED_NCLS = 12,
+  AL_COLOUR_MAT_COEFF_CHROMA_DERIVED_CLS = 13,
+  AL_COLOUR_MAT_COEFF_BT_2100_ICTCP = 14,
   AL_COLOUR_MAT_COEFF_MAX_ENUM,
 }AL_EColourMatrixCoefficients;
 
@@ -122,6 +148,14 @@ typedef struct AL_t_ContentLightLevel
   uint16_t max_content_light_level;
   uint16_t max_pic_average_light_level;
 }AL_TContentLightLevel;
+
+/*************************************************************************//*!
+   \brief Mimics structure for alternative transfer characteristic information
+*****************************************************************************/
+typedef struct AL_t_AlternativeTransferCharacteristics
+{
+  AL_ETransferCharacteristics preferred_transfer_characteristics;
+}AL_TAlternativeTransferCharacteristics;
 
 /*************************************************************************//*!
    \brief Mimics structure for dynamic metadata for color volume transform specified
@@ -252,6 +286,9 @@ typedef struct AL_t_HDRSEIs
 
   bool bHasCLL;
   AL_TContentLightLevel tCLL;
+
+  bool bHasATC;
+  AL_TAlternativeTransferCharacteristics tATC;
 
   bool bHasST2094_10;
   AL_TDynamicMeta_ST2094_10 tST2094_10;

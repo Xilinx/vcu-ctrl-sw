@@ -44,10 +44,11 @@ typedef enum AL_e_CheckResolutionError
 {
   CRERROR_OK,
   CRERROR_WIDTHCHROMA,
-  CRERROR_HEIGHTCHROMA
+  CRERROR_HEIGHTCHROMA,
+  CRERROR_64x64_MIN_RES
 }ECheckResolutionError;
 
-ECheckResolutionError AL_ParamConstraints_CheckResolution(AL_EProfile eProfile, AL_EChromaMode eChromaMode, uint16_t uWidth, uint16_t uHeight);
+ECheckResolutionError AL_ParamConstraints_CheckResolution(AL_EProfile eProfile, AL_EChromaMode eChromaMode, uint8_t uLCUSize, uint16_t uWidth, uint16_t uHeight);
 
 bool AL_ParamConstraints_CheckLFBetaOffset(AL_EProfile eProfile, int8_t iBetaOffset);
 

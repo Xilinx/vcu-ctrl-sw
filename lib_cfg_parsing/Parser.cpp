@@ -422,6 +422,9 @@ std::string ConfigParser::nearestMatch(std::string const& wrong)
     {
       auto distance = levenshteinDistance(right.second.showName, wrong);
 
+      if(right.second.isAdvancedFeature && !showAdvancedFeature)
+        continue;
+
       if(distance < minDistance)
       {
         match = right.second.showName;

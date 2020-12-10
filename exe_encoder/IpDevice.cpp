@@ -36,7 +36,6 @@
 ******************************************************************************/
 
 #include <stdexcept>
-#include <memory>
 
 #include "IpDevice.h"
 #include "lib_app/console.h"
@@ -46,12 +45,8 @@
 extern "C"
 {
 #include "lib_fpga/DmaAlloc.h"
-#include "lib_encode/lib_encoder.h"
 #include "lib_perfs/Logger.h"
 }
-
-std::string g_EncDevicePath = "/dev/allegroIP";
-
 using namespace std;
 
 AL_TAllocator* createDmaAllocator(const char* deviceName)
@@ -69,52 +64,38 @@ extern "C"
 #include "lib_common/HardwareDriver.h"
 }
 
-static shared_ptr<CIpDevice> createMcuIpDevice()
+void CIpDevice::ConfigureMcu(CIpDeviceParam& param)
 {
-  AL_TAllocator* pAllocator = nullptr;
-  AL_IEncScheduler* pScheduler = nullptr;
+  m_pAllocator = createDmaAllocator(param.pCfgFile->RunInfo.encDevicePath.c_str());
 
-  auto atExit = scopeExit([&] {
-    if(pScheduler)
-      AL_IEncScheduler_Destroy(pScheduler);
-
-    if(pAllocator)
-      AL_Allocator_Destroy(pAllocator);
-  });
-
-  pAllocator = createDmaAllocator(g_EncDevicePath.c_str());
-
-  if(!pAllocator)
+  if(!m_pAllocator)
     throw runtime_error("Can't open DMA allocator");
 
   /* We lost the Linux Dma Allocator type before in an upcast,
    * but it is needed for the scheduler mcu as we need the GetFd api in it. */
-  pScheduler = AL_SchedulerMcu_Create(AL_GetHardwareDriver(), (AL_TLinuxDmaAllocator*)pAllocator, g_EncDevicePath.c_str());
+  m_pScheduler = AL_SchedulerMcu_Create(AL_GetHardwareDriver(), (AL_TLinuxDmaAllocator*)m_pAllocator, param.pCfgFile->RunInfo.encDevicePath.c_str());
 
-  if(!pScheduler)
+  if(!m_pScheduler)
     throw std::runtime_error("Failed to create MCU scheduler");
-
-  auto deleteDevice = [=](CIpDevice* device)
-                      {
-                        AL_IEncScheduler_Destroy(pScheduler);
-                        delete device;
-                      };
-
-  auto device = shared_ptr<CIpDevice>(new CIpDevice, deleteDevice);
-  device->m_pScheduler = pScheduler;
-  device->m_pAllocator = shared_ptr<AL_TAllocator>(pAllocator, &AL_Allocator_Destroy);
-
-  pAllocator = nullptr;
-  pScheduler = nullptr;
-
-  return device;
 }
 
-shared_ptr<CIpDevice> CreateIpDevice(CIpDeviceParam& param, std::function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl)
+CIpDevice::~CIpDevice()
+{
+  if(m_pScheduler)
+    AL_IEncScheduler_Destroy(m_pScheduler);
+
+  if(m_pAllocator)
+    AL_Allocator_Destroy(m_pAllocator);
+}
+
+void CIpDevice::Configure(CIpDeviceParam& param)
 {
 
   if(param.iSchedulerType == SCHEDULER_TYPE_MCU)
-    return createMcuIpDevice();
+  {
+    ConfigureMcu(param);
+    return;
+  }
 
   throw runtime_error("No support for this scheduling type");
 }

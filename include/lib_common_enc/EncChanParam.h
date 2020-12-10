@@ -49,13 +49,13 @@
 #include <assert.h>
 
 /*************************************************************************//*!
-   \brief Encoding parameters buffers info structure
+   \brief Encoding parameters buffers (EP1, EP2, EP3 and EP4 buffers) sub buffer information
 *****************************************************************************/
 typedef struct t_BufInfo
 {
-  uint32_t Flag;
-  size_t Size;
-  size_t Offset;
+  uint32_t Flag; /*!< Flag used as a bitfield bit position in an EP buffer to identify the sub buffer.*/
+  size_t Size; /*!< Size of the sub buffer */
+  size_t Offset; /*!< Offset of the sub buffer inside the EP buffer*/
 }AL_TBufInfo;
 
 /*************************************************************************//*!
@@ -86,15 +86,15 @@ static AL_INLINE bool AL_LdaIsSane(AL_ELdaCtrlMode lda)
 }
 
 /*************************************************************************//*!
-   \brief GDR Mode
+   \brief GDR (Gradual Decoding Refresh) Mode
 *****************************************************************************/
 typedef enum AL_e_GdrMode
 {
-  AL_GDR_OFF = 0x00,
-  AL_GDR_ON = 0x02,
-  AL_GDR_VERTICAL = AL_GDR_ON | 0x00,
-  AL_GDR_HORIZONTAL = AL_GDR_ON | 0x01,
-  AL_GDR_MAX_ENUM,
+  AL_GDR_OFF = 0x00,/*!< No GDR */
+  AL_GDR_ON = 0x02,/*!< GDR is selected */
+  AL_GDR_VERTICAL = AL_GDR_ON | 0x00,/*!< GDR is selected and the vertical intra refresh bar will move from left to right */
+  AL_GDR_HORIZONTAL = AL_GDR_ON | 0x01,/*!< GDR is selected and the horizontal intra refresh bar will move from top to bottom */
+  AL_GDR_MAX_ENUM, /* sentinel */
 }AL_EGdrMode;
 
 /*************************************************************************//*!
@@ -278,6 +278,7 @@ static AL_INLINE uint32_t AL_GetNumberOfRef(uint32_t HlsParam)
 *****************************************************************************/
 typedef enum __AL_ALIGNED__ (4) AL_e_ChEncOptions
 {
+  AL_OPT_NONE = 0x00000000,
   AL_OPT_QP_TAB_RELATIVE = 0x00000001,
   AL_OPT_FIX_PREDICTOR = 0x00000002,
   AL_OPT_CUSTOM_LDA = 0x00000004,
@@ -328,37 +329,39 @@ typedef enum __AL_ALIGNED__ (4) AL_e_RateCtrlMode
 *****************************************************************************/
 typedef enum __AL_ALIGNED__ (4) AL_e_RateCtrlOption
 {
-  AL_RC_OPT_NONE = 0x00000000,
-  AL_RC_OPT_SCN_CHG_RES = 0x00000001,
-  AL_RC_OPT_DELAYED = 0x00000002,
-  AL_RC_OPT_STATIC_SCENE = 0x00000004,
-  AL_RC_OPT_ENABLE_SKIP = 0x00000008,
-  AL_RC_OPT_SC_PREVENTION = 0x00000010,
+  AL_RC_OPT_NONE = 0x00000000, /*!< No Option */
+  AL_RC_OPT_SCN_CHG_RES = 0x00000001, /* internal */
+  AL_RC_OPT_DELAYED = 0x00000002, /*!< The rate control update is delayed by one frame (This happens in Gen1 AVC multicore). This means another frame will already have started before we get the size of the first one. */
+  AL_RC_OPT_STATIC_SCENE = 0x00000004, /* internal */
+  AL_RC_OPT_ENABLE_SKIP = 0x00000008, /*!< Show if pictures can be skipped or not */
+  AL_RC_OPT_SC_PREVENTION = 0x00000010, /* internal */
   AL_RC_OPT_MAX_ENUM,
 } AL_ERateCtrlOption;
 
 /*************************************************************************//*!
-   \brief Rate Control parameters structure
+    \brief Rate Control parameters.
+    Contains the user defined constraints on the stream in term of quality and bandwidth.
+    Also contains the hardware constraints that will affect the rate control (See AL_RC_OPT_DELAYED)
 *****************************************************************************/
 typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_RCParam
 {
   AL_ERateCtrlMode eRCMode;
-  uint32_t uInitialRemDelay;
-  uint32_t uCPBSize;
-  uint16_t uFrameRate;
-  uint16_t uClkRatio;
-  uint32_t uTargetBitRate;
-  uint32_t uMaxBitRate;
-  uint32_t uMaxConsecSkip;
-  int16_t iInitialQP;
-  int16_t iMinQP;
-  int16_t iMaxQP;
-  int16_t uIPDelta;
-  int16_t uPBDelta;
+  uint32_t uInitialRemDelay; /*!< Initial removal delay */
+  uint32_t uCPBSize; /*!< Size of the Codec Picture Buffer */
+  uint16_t uFrameRate; /*!< Number of frame per second */
+  uint16_t uClkRatio; /*!< Clock ratio (1000 or 1001). Typical formula to obtain the final framerate is uFrameRate * 1000 / uClkRatio */
+  uint32_t uTargetBitRate; /*!< The bitrate targeted by the user */
+  uint32_t uMaxBitRate; /*!< The maximum bitrate allowed by the user */
+  uint32_t uMaxConsecSkip; /*!< The maximum number of consecutive skip picture allowed */
+  int16_t iInitialQP; /*!< Quality parameter of the first frame (in the absence of more information) */
+  int16_t iMinQP; /*!< Minimum QP that can be used by the rate control implementation */
+  int16_t iMaxQP; /*!< Maximum QP that can be used by the rate control implementation */
+  int16_t uIPDelta; /*!< QP Delta that should be applied between I and P frames */
+  int16_t uPBDelta; /*!< QP Delta that should be applied between P and B frames */
   bool bUseGoldenRef;
   int16_t uPGoldenDelta;
   int16_t uGoldenRefFrequency;
-  AL_ERateCtrlOption eOptions;
+  AL_ERateCtrlOption eOptions; /*!< Options bitfield. \see AL_ERateCtrlOption for the available flags*/
   uint32_t uNumPel;
   uint16_t uMaxPSNR;
   uint16_t uMaxPelVal;
@@ -399,15 +402,15 @@ typedef enum __AL_ALIGNED__ (4) AL_e_GopCtrlMode
 } AL_EGopCtrlMode;
 
 /*************************************************************************//*!
-   \brief Gop parameters structure
+   \brief Group of Picture parameters.
 *****************************************************************************/
 typedef AL_INTROSPECT (category = "debug") struct AL_t_GopParam
 {
   AL_EGopCtrlMode eMode;
-  uint16_t uGopLength;
-  uint8_t uNumB;
+  uint16_t uGopLength; /*!< Length of the Group Of Picture in the encoded stream */
+  uint8_t uNumB; /*!< Number of B frames per Group of Picture in the encoded stream */
   uint8_t uFreqGoldenRef;
-  uint32_t uFreqIDR;
+  uint32_t uFreqIDR; /*!< Frequency of the Instantaneous Decoding Refresh Picture. This is also used to determine the GDR frequency */
   bool bEnableLT;
   uint32_t uFreqLT;
   AL_EGdrMode eGdrMode;
@@ -441,13 +444,15 @@ typedef enum e_MaxBurstSize
 *****************************************************************************/
 typedef enum e_SrcConvMode // [0] : CompMode | [3:1] : SourceFormat
 {
-  AL_SRC_NVX = 0x0,
+  AL_SRC_RASTER = 0x0,
   AL_SRC_TILE_64x4 = 0x4,
   AL_SRC_COMP_64x4 = 0x5,
   AL_SRC_TILE_32x4 = 0x6,
   AL_SRC_COMP_32x4 = 0x7,
   AL_SRC_MAX_ENUM,
 }AL_ESrcMode;
+
+AL_DEPRECATED_ENUM_VALUE(AL_ESrcMode, AL_SRC_NVX, AL_SRC_RASTER, "Renamed. Use AL_SRC_RASTER.");
 
 #define MASK_SRC_COMP 0x01
 #define MASK_SRC_FMT 0x0E
@@ -540,16 +545,17 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   AL_EEntropyMode eEntropyMode;
   AL_EWPMode eWPMode;
 
-  /* Gop & Rate control parameters */
-  AL_TRCParam tRCParam;
-  AL_TGopParam tGopParam;
+  AL_TRCParam tRCParam; /*!< Rate control parameters */
+  AL_TGopParam tGopParam; /*!< Group of Pictures parameters */
   bool bSubframeLatency;
   AL_ELdaCtrlMode eLdaCtrlMode;
   int LdaFactors[6];
 
+  uint16_t uMVVRange;
+
   int8_t MaxNumMergeCand;
-  uint32_t zRcPluginDmaSize; /* for scheduler use */
-  AL_64U pRcPluginDmaContext; /* For scheduler use */
+  uint32_t zRcPluginDmaSize; /*!< Size of the rate control plugin dma buffer (user defined data can be given using this buffer) */
+  AL_64U pRcPluginDmaContext; /*!< Physical address of the rate control plugin dma buffer (This is filled by the library, see AL_TEncSettings.hRcPluginDmaContext for the handle you need to allocate in dma) */
 
   bool bEnableOutputCrop;
   uint16_t uOutputCropWidth;

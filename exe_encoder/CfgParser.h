@@ -61,16 +61,19 @@ extern "C"
 *****************************************************************************/
 typedef AL_INTROSPECT (category = "debug") struct tCfgRunInfo
 {
+  std::string encDevicePath;
   DEVICE_TYPE iDeviceType;
   SCHEDULER_TYPE iSchedulerType;
   bool bLoop;
   int iMaxPict;
   unsigned int iFirstPict;
   unsigned int iScnChgLookAhead;
-  std::string sMd5Path;
+  std::string sRecMd5Path;
+  std::string sStreamMd5Path;
   int eVQDescr;
   IpCtrlMode ipCtrlMode;
   std::string logsFile = "";
+  std::string apbFile = "";
   bool trackDma = false;
   bool printPictureType = false;
   bool printRateCtrlStat = false;
@@ -149,8 +152,8 @@ AL_INTROSPECT(category = "debug") struct ConfigFile
 *****************************************************************************/
 void ParseConfigFile(std::string const& sCfgFileName, ConfigFile& cfg, std::ostream& warnStream = std::cerr, bool debug = false);
 void ParseConfig(std::string const& toParse, ConfigFile& cfg, std::ostream& warnStream = std::cerr, bool debug = false);
-void PrintConfigFileUsage(ConfigFile cfg = {});
-void PrintConfigFileUsageJson(ConfigFile cfg = {});
-void PrintConfig(ConfigFile cfg);
+void PrintConfigFileUsage(ConfigFile cfg = {}, bool showAdvancedFeature = true);
+void PrintConfigFileUsageJson(ConfigFile cfg = {}, bool showAdvancedFeature = true);
+void PrintConfig(ConfigFile cfg, bool showAdvancedFeature = true);
 /*@}*/
 

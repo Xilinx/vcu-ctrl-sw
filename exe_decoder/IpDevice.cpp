@@ -46,7 +46,6 @@ extern "C"
 {
 #include "lib_fpga/DmaAlloc.h"
 #include "lib_perfs/Logger.h"
-#include "lib_decode/lib_decode.h"
 }
 
 using namespace std;
@@ -67,51 +66,45 @@ extern "C"
 #include "lib_decode/DecSchedulerMcu.h"
 }
 
-static shared_ptr<CIpDevice> createMcuIpDevice()
+AL_TAllocator* CreateProxyAllocator(char const*)
 {
-  AL_TAllocator* pAllocator = nullptr;
-  AL_IDecScheduler* pScheduler = nullptr;
-
-  auto atExit = scopeExit([&]()
-  {
-    if(pAllocator)
-      AL_Allocator_Destroy(pAllocator);
-
-    if(pScheduler)
-      AL_IDecScheduler_Destroy(pScheduler);
-  });
-
-  pAllocator = createDmaAllocator(g_DecDevicePath.c_str());
-
-  if(!pAllocator)
-    throw runtime_error("Can't open DMA allocator");
-
-  pScheduler = AL_DecSchedulerMcu_Create(AL_GetHardwareDriver(), g_DecDevicePath.c_str());
-
-  if(!pScheduler)
-    throw runtime_error("Failed to create MCU scheduler");
-
-  auto deleteDevice = [=](CIpDevice* device)
-                      {
-                        AL_IDecScheduler_Destroy(pScheduler);
-                        delete device;
-                      };
-
-  auto device = shared_ptr<CIpDevice>(new CIpDevice, deleteDevice);
-  device->m_pScheduler = pScheduler;
-  device->m_pAllocator = shared_ptr<AL_TAllocator>(pAllocator, &AL_Allocator_Destroy);
-
-  pAllocator = nullptr;
-  pScheduler = nullptr;
-
-  return device;
+  // support for the proxy allocator isn't compiled in.
+  return nullptr;
 }
 
-std::shared_ptr<CIpDevice> CreateIpDevice(CIpDeviceParam& param, std::function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl)
+void CIpDevice::ConfigureMcu(AL_TDriver* driver, bool useProxy)
+{
+  if(useProxy)
+    m_pAllocator = CreateProxyAllocator(g_DecDevicePath.c_str());
+  else
+    m_pAllocator = createDmaAllocator(g_DecDevicePath.c_str());
+
+  if(!m_pAllocator)
+    throw runtime_error("Can't open DMA allocator");
+
+  m_pScheduler = AL_DecSchedulerMcu_Create(driver, g_DecDevicePath.c_str());
+
+  if(!m_pScheduler)
+    throw runtime_error("Failed to create MCU scheduler");
+}
+
+CIpDevice::~CIpDevice()
+{
+  if(m_pScheduler)
+    AL_IDecScheduler_Destroy(m_pScheduler);
+
+  if(m_pAllocator)
+    AL_Allocator_Destroy(m_pAllocator);
+}
+
+void CIpDevice::Configure(CIpDeviceParam& param)
 {
 
   if(param.iSchedulerType == SCHEDULER_TYPE_MCU)
-    return createMcuIpDevice();
+  {
+    ConfigureMcu(AL_GetHardwareDriver(), false);
+    return;
+  }
 
   throw runtime_error("No support for this scheduling type");
 }

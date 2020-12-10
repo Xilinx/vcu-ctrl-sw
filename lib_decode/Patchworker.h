@@ -41,7 +41,7 @@
 #include "lib_common/BufferCircMeta.h"
 #include "lib_common/Fifo.h"
 
-#include "lib_common_dec/DecBuffers.h"
+#include "lib_common_dec/DecBuffersInternal.h"
 
 typedef struct al_t_Patchworker
 {

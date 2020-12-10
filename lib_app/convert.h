@@ -35,13 +35,6 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \addtogroup lib_base
-   @{
-   \file
- *****************************************************************************/
 #pragma once
 
 extern "C" {
@@ -211,9 +204,13 @@ void T62C_To_I2CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T62C_To_P212(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void T648_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void T648_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
+void T64A_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T64A_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
+void T64C_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void T64C_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T64C_To_I4CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void XV10_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -241,6 +238,4 @@ void XV20_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
    compressed.
  */
 void CopyPixMapBuffer(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-
-/*@}*/
 

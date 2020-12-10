@@ -45,6 +45,7 @@
 
 #include "lib_common/SliceConsts.h"
 #include "lib_common/PixMapBuffer.h"
+#include "EncChanParam.h"
 
 /*************************************************************************//*!
    \brief Reconstructed picture information
@@ -64,6 +65,6 @@ typedef struct t_RecPic
 }AL_TRecPic;
 
 uint32_t AL_GetRecPitch(uint32_t uBitDepth, uint32_t uWidth);
-void AL_EncRecBuffer_FillPlaneDesc(AL_TPlaneDescription* pPlaneDesc, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bIsAvc);
+void AL_EncRecBuffer_FillPlaneDesc(AL_TPlaneDescription* pPlaneDesc, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bIsAvc, uint8_t uLCUSize, uint16_t uMVVRange, AL_EChEncOption eOptions);
 /*@}*/
 

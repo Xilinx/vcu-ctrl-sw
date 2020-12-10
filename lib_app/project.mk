@@ -3,6 +3,9 @@ LIB_APP_SRC:=lib_app/utils.cpp\
 	     lib_app/BufPool.cpp\
 	     lib_app/PixMapBufPool.cpp\
          lib_app/AllocatorTracker.cpp\
+         lib_app/YuvIO.cpp\
+         lib_app/JsonFile.cpp\
+
 
 
 

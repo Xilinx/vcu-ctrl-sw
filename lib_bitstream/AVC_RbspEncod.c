@@ -432,6 +432,7 @@ static IRbspWriter writer =
   writeSeiPictureTiming,
   AL_RbspEncoding_WriteMasteringDisplayColourVolume,
   AL_RbspEncoding_WriteContentLightLevel,
+  AL_RbspEncoding_WriteAlternativeTransferCharacteristics,
   AL_RbspEncoding_WriteST2094_10,
   AL_RbspEncoding_WriteST2094_40,
   AL_RbspEncoding_WriteUserDataUnregistered

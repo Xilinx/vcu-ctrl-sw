@@ -37,14 +37,15 @@
 
 #include "EncSize.h"
 #include "lib_common/Utils.h"
+#include "lib_common/StreamBufferPrivate.h"
 
 /****************************************************************************/
-int AL_GetCompLcuSize(uint8_t uLcuSize, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bUseEnt)
+int AL_GetCompDataSize(uint32_t uNumLCU, uint8_t uLog2MaxCUSize, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bUseEnt)
 {
 
-  (void)uLcuSize, (void)uBitDepth, (void)eChromaMode, (void)bUseEnt;
+  (void)uNumLCU, (void)uLog2MaxCUSize, (void)uBitDepth, (void)eChromaMode, (void)bUseEnt;
   // header + MVDs + residuals words size
-  return 1312;
+  return uNumLCU * 1312;
 }
 
 /****************************************************************************/

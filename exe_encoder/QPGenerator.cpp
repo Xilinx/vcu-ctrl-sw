@@ -327,7 +327,7 @@ static bool OpenFile(const string& sQPTablesFolder, int iFrameID, string motif, 
 }
 
 /****************************************************************************/
-bool Load_QPTable_FromFile_AOM(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBytesPerLCU, const string& sQPTablesFolder, int iFrameID, bool bRelative)
+bool Load_QPTable_FromFile_AOM(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBytesPerLCU, const string& sQPTablesFolder, int iFrameID, int iSliceQP, bool bRelative)
 {
   string sLine;
   ifstream file;
@@ -348,6 +348,18 @@ bool Load_QPTable_FromFile_AOM(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, int 
 
     if(!bRelative && (pSeg[iSeg] < 0 || pSeg[iSeg] > 255))
       pSeg[iSeg] = 255;
+
+    if(bRelative)
+    {
+      if(pSeg[iSeg] + iSliceQP < 1)
+      {
+        pSeg[iSeg] = 1 - iSliceQP;
+      }
+      else if(pSeg[iSeg] + iSliceQP > 255)
+      {
+        pSeg[iSeg] = 255 - iSliceQP;
+      }
+    }
   }
 
   // read QPs
@@ -364,7 +376,7 @@ bool Load_QPTable_FromFile(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iN
   if(!OpenFile(sQPTablesFolder, iFrameID, QPTablesMotif, file))
     return false;
 
-  // Warning : the LOAD_QP is not backward compatible
+  // Warning: the LOAD_QP is not backward compatible
   ReadQPs(file, pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU);
 
   return true;
@@ -719,7 +731,7 @@ bool GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP
   // ------------------------------------------------------------------------
   case AL_GENERATE_LOAD_QP:
   {
-    bRet = bIsAOM ? Load_QPTable_FromFile_AOM(pSegs, pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, sQPTablesFolder, iFrameID, bRelative) :
+    bRet = bIsAOM ? Load_QPTable_FromFile_AOM(pSegs, pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, sQPTablesFolder, iFrameID, iSliceQP, bRelative) :
            Load_QPTable_FromFile(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, sQPTablesFolder, iFrameID);
   } break;
   default: break;

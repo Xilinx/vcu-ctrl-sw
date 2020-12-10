@@ -44,32 +44,56 @@
 extern "C"
 {
 #include "lib_common/PixMapBuffer.h"
+#include "lib_common/BufferStreamMeta.h"
 }
 
 void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tYuvFourCC);
 
-class Md5Calculator : public IFrameSink
+class Md5Calculator
+{
+protected:
+  Md5Calculator(std::string& path)
+  {
+    if(path == "stdout")
+      m_pMd5Out = &std::cout;
+    else
+    {
+      OpenOutput(m_Md5File, path);
+      m_pMd5Out = &m_Md5File;
+    }
+  }
+
+  void Md5Output()
+  {
+    auto const sMD5 = m_MD5.GetMD5();
+    *m_pMd5Out << sMD5 << std::endl;
+  }
+
+  std::ofstream m_Md5File;
+  std::ostream* m_pMd5Out;
+  CMD5 m_MD5;
+};
+
+class YuvMd5Calculator : public IFrameSink, Md5Calculator
 {
 public:
-  Md5Calculator(std::string path, ConfigFile& cfg_, AL_TBuffer* Yuv_) :
+  YuvMd5Calculator(std::string& path, ConfigFile& cfg_, AL_TBuffer* Yuv_) :
+    Md5Calculator(path),
     Yuv(Yuv_),
     fourcc(cfg_.RecFourCC)
-  {
-    OpenOutput(m_Md5File, path);
-  }
+  {}
 
   void ProcessFrame(AL_TBuffer* pBuf) override
   {
     if(pBuf == EndOfStream)
     {
-      auto const sMD5 = m_MD5.GetMD5();
-      m_Md5File << sMD5;
+      Md5Output();
       return;
     }
 
     TFourCC tRecFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
 
-    if(tRecFourCC != fourcc)
+    if(tRecFourCC != fourcc && !AL_IsCompressed(tRecFourCC))
     {
       RecToYuv(pBuf, Yuv, fourcc);
       pBuf = Yuv;
@@ -82,14 +106,44 @@ public:
   }
 
 private:
-  std::ofstream m_Md5File;
-  CMD5 m_MD5;
   AL_TBuffer* const Yuv;
   TFourCC const fourcc;
 };
 
-std::unique_ptr<IFrameSink> createMd5Calculator(std::string path, ConfigFile& cfg_, AL_TBuffer* Yuv_)
+std::unique_ptr<IFrameSink> createYuvMd5Calculator(std::string path, ConfigFile& cfg_, AL_TBuffer* Yuv_)
 {
-  return std::unique_ptr<IFrameSink>(new Md5Calculator(path, cfg_, Yuv_));
+  return std::unique_ptr<IFrameSink>(new YuvMd5Calculator(path, cfg_, Yuv_));
+}
+
+class StreamMd5Calculator : public IFrameSink, Md5Calculator
+{
+public:
+  StreamMd5Calculator(std::string& path) :
+    Md5Calculator(path)
+  {}
+
+  void ProcessFrame(AL_TBuffer* pBuf) override
+  {
+    if(pBuf == EndOfStream)
+    {
+      Md5Output();
+      return;
+    }
+
+    AL_TStreamMetaData* pMeta = reinterpret_cast<AL_TStreamMetaData*>(AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_STREAM));
+
+    if(pMeta)
+    {
+      uint8_t* pStreamData = AL_Buffer_GetData(pBuf);
+
+      for(int i = 0; i < pMeta->uNumSection; i++)
+        m_MD5.Update(pStreamData + pMeta->pSections[i].uOffset, pMeta->pSections[i].uLength);
+    }
+  }
+};
+
+std::unique_ptr<IFrameSink> createStreamMd5Calculator(std::string path)
+{
+  return std::unique_ptr<IFrameSink>(new StreamMd5Calculator(path));
 }
 

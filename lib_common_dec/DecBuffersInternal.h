@@ -49,10 +49,11 @@
 #include "lib_common/SliceConsts.h"
 #include "lib_common/BufCommonInternal.h"
 #include "lib_common/BufferAPI.h"
-#include "lib_common/FourCC.h"
+#include "lib_common_dec/DecBuffers.h"
 
 #define SIZE_PIXEL sizeof(uint16_t)
 
+// Limitation on old decoder ips
 #define AL_MAX_HEIGHT 8192
 #define SIZE_LCU_INFO 16   /*!< LCU compressed size + LCU offset                  */
 #define SCD_SIZE 128 /*!< size of start code detector output                */
@@ -72,11 +73,8 @@ static const int AVC_LCU_CMP_SIZE[4] =
   800, 1120, 1408, 2016
 }; /*!< AVC  LCU compressed max size*/
 
-#define NB_REF_PLANE 2
-#define POCOL_LIST_OFFSET (16 * NB_REF_PLANE) // in number of list entry
-#define MVCOL_LIST_OFFSET (POCOL_LIST_OFFSET + 16) // in number of list entry
-#define FBC_LIST_OFFSET (MVCOL_LIST_OFFSET + 16) // in number of list entry
-#define REF_LIST_SIZE (FBC_LIST_OFFSET + 16 * NB_REF_PLANE) // in number of list entry
+#define MAX_NB_REF_PLANE 2
+#define MAX_REF_LIST_SIZE (MAX_REF * (2 + 2 * MAX_NB_REF_PLANE)) // in number of list entry
 
 static const int SCLST_SIZE_DEC = 12288;
 
@@ -98,12 +96,14 @@ typedef struct t_BufferRef
 }TBufferRef, TBufferListRef[2][MAX_REF + 1];
 
 /*************************************************************************//*!
-   \brief Retrieves the number of LCU in the frame
-   \param[in] tDim  Frame dimension (width, height) in pixel
-   \param[in] uLog2LCUSize    Max Size of a Coding Unit
-   \return number of LCU in the frame
+   \brief Offsets to the data in the reference frame list
 *****************************************************************************/
-int AL_GetNumLCU(AL_TDimension tDim, uint8_t uLog2LCUSize);
+typedef struct t_RefListOffsets
+{
+  uint32_t uColocPocOffset;
+  uint32_t uColocMVOffset;
+  uint32_t uMapOffset;
+}TRefListOffsets;
 
 /*************************************************************************//*!
    \brief Retrieves the size of a HEVC compressed buffer(LCU header + MVDs + Residuals)
@@ -155,13 +155,13 @@ int AL_GetAllocSize_AvcMV(AL_TDimension tDim);
 int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bFrameBufferCompression, AL_EFbStorageMode eFrameBufferStorageMode);
 
 /*************************************************************************//*!
-   \brief Create the AL_TMetaData associated to the reconstruct buffers
-   \param[in] tDim Frame dimension (width, height) in pixel
-   \param[in] tFourCC FourCC of the frame buffer
-   \param[in] iPitch Pitch of the frame buffer
-   \return the AL_TMetaData
+   \brief Get offsets to the different data of the reference list buffer
+   \param[in] eChromaOrder Chroma order
+   \return data offsets in the reference list buffer
 *****************************************************************************/
-AL_TMetaData* AL_CreateRecBufMetaData(AL_TDimension tDim, int iPitch, TFourCC tFourCC);
+TRefListOffsets AL_GetRefListOffsets(AL_EChromaOrder eChromaOrder);
+
+int32_t RndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode);
+int32_t RndHeight(int32_t iHeight);
 
 /*@}*/
-

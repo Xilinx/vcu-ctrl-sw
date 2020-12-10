@@ -53,6 +53,7 @@
 #include "lib_common_dec/DecChanParam.h"
 #include "lib_common_dec/DecSliceParam.h"
 #include "lib_common_dec/DecPicParam.h"
+#include "lib_trace/DecTraceDefs.h"
 
 /****************************************************************************/
 typedef struct

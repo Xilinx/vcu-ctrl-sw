@@ -747,6 +747,13 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB_
       bCBAndSEIMeta = false;
       break;
     }
+    case SEI_PTYPE_ALTERNATIVE_TRANSFER_CHARACTERISTICS:
+    {
+      PARSE_OR_SKIP(sei_alternative_transfer_characteristics(&pIAup->tParsedHDRSEIs.tATC, pRP));
+      pIAup->tParsedHDRSEIs.bHasATC = true;
+      bCBAndSEIMeta = false;
+      break;
+    }
     case SEI_PTYPE_USER_DATA_REGISTERED:
     {
       AL_EUserDataRegisterSEIType eSEIType;

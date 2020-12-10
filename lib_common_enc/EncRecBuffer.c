@@ -52,9 +52,10 @@ uint32_t AL_GetRecPitch(uint32_t uBitDepth, uint32_t uWidth)
   return UnsignedRoundUp(uWidth, iTileWidth) * iTileHeight * uBitDepth / 8;
 }
 
-void AL_EncRecBuffer_FillPlaneDesc(AL_TPlaneDescription* pPlaneDesc, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bIsAvc)
+void AL_EncRecBuffer_FillPlaneDesc(AL_TPlaneDescription* pPlaneDesc, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bIsAvc, uint8_t uLCUSize, uint16_t uMVVRange, AL_EChEncOption eOptions)
 {
   (void)eChromaMode, (void)bIsAvc; // if no fbc support
+  AL_EChEncOption eTmpOption = eOptions;
 
   if(AL_Plane_IsPixelPlane(pPlaneDesc->ePlaneId))
   {
@@ -64,7 +65,7 @@ void AL_EncRecBuffer_FillPlaneDesc(AL_TPlaneDescription* pPlaneDesc, AL_TDimensi
     if(pPlaneDesc->ePlaneId != AL_PLANE_Y)
     {
       int iPlaneOrder = pPlaneDesc->ePlaneId == AL_PLANE_V ? 2 : 1;
-      pPlaneDesc->iOffset = iPlaneOrder * AL_GetAllocSize_EncReference(tDim, uBitDepth, AL_CHROMA_MONO, false);
+      pPlaneDesc->iOffset = iPlaneOrder * AL_GetAllocSize_EncReference(tDim, uBitDepth, uLCUSize, AL_CHROMA_MONO, eTmpOption, uMVVRange);
     }
 
     return;

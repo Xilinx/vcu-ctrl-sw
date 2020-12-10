@@ -56,13 +56,6 @@
 #include "lib_assert/al_assert.h"
 
 /****************************************************************************/
-uint32_t GetMaxLCU(uint16_t uWidth, uint16_t uHeight, uint8_t uLog2MaxCuSize)
-{
-  return ((uWidth + (1 << uLog2MaxCuSize) - 1) >> uLog2MaxCuSize)
-         * ((uHeight + (1 << uLog2MaxCuSize) - 1) >> uLog2MaxCuSize);
-}
-
-/****************************************************************************/
 uint32_t AL_GetAllocSizeEP1()
 {
   uint32_t uEP1Size = EP1_BUF_LAMBDAS.Size + EP1_BUF_SCL_LST.Size;
@@ -251,62 +244,49 @@ static uint32_t GetRasterFrameSize(AL_TDimension tDim, uint8_t uBitDepth, AL_ECh
 }
 
 /****************************************************************************/
-static uint32_t GetAllocSize_Ref(AL_TDimension tRoundedDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bFbc)
+static uint32_t GetAllocSize_Ref(AL_TDimension tRoundedDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, uint16_t uMVVRange, uint8_t uLCUSize, AL_EChEncOption eOptions)
 {
-  (void)bFbc;
-  uint32_t uSize = GetRasterFrameSize(tRoundedDim, uBitDepth, eChromaMode);
+  (void)eOptions, (void)uMVVRange, (void)uLCUSize;
+  AL_TDimension tDim = tRoundedDim;
+
+  uint32_t uSize = GetRasterFrameSize(tDim, uBitDepth, eChromaMode);
 
   return uSize;
 }
 
-#if USE_POWER_TWO_REF_PITCH
 /****************************************************************************/
-static int AL_RndUpPow2(int iVal)
+uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, uint8_t uLCUSize, AL_EChromaMode eChromaMode, AL_EChEncOption eOptions, uint16_t uMVVRange)
 {
-  int iRnd = 1;
+  (void)uMVVRange, (void)uLCUSize;
 
-  while(iRnd < iVal)
-    iRnd <<= 1;
-
-  return iRnd;
-}
-
-#endif
-
-/****************************************************************************/
-uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bComp)
-{
   AL_TDimension RoundedDim;
   RoundedDim.iHeight = RoundUp(tDim.iHeight, 64);
   RoundedDim.iWidth = RoundUp(tDim.iWidth, 64);
-#if USE_POWER_TWO_REF_PITCH
-  RoundedDim.iWidth = AL_RndUpPow2(tDim.iWidth);
-#endif
-  return GetAllocSize_Ref(RoundedDim, uBitDepth, eChromaMode, bComp);
+  return GetAllocSize_Ref(RoundedDim, uBitDepth, eChromaMode, uMVVRange, uLCUSize, eOptions);
 }
 
 /****************************************************************************/
-uint32_t AL_GetAllocSize_CompData(AL_TDimension tDim, uint8_t uLCUSize, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bUseEnt)
+uint32_t AL_GetAllocSize_CompData(AL_TDimension tDim, uint8_t uLog2MaxCuSize, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bUseEnt)
 {
   uint32_t uBlk16x16 = GetBlk16x16(tDim);
-  return AL_GetCompLcuSize(uLCUSize, uBitDepth, eChromaMode, bUseEnt) * uBlk16x16;
+  return AL_GetCompDataSize(uBlk16x16, uLog2MaxCuSize, uBitDepth, eChromaMode, bUseEnt);
 }
 
 /****************************************************************************/
-uint32_t AL_GetAllocSize_EncCompMap(AL_TDimension tDim, uint8_t uLCUSize, uint8_t uNumCore, bool bUseEnt)
+uint32_t AL_GetAllocSize_EncCompMap(AL_TDimension tDim, uint8_t uLog2MaxCuSize, uint8_t uNumCore, bool bUseEnt)
 {
-  (void)uLCUSize, (void)uNumCore, (void)bUseEnt;
+  (void)uLog2MaxCuSize, (void)uNumCore, (void)bUseEnt;
   uint32_t uBlk16x16 = GetBlk16x16(tDim);
   return RoundUp(SIZE_LCU_INFO * uBlk16x16, 32);
 }
 
 /*****************************************************************************/
-uint32_t AL_GetAllocSize_MV(AL_TDimension tDim, uint8_t uLCUSize, AL_ECodec Codec)
+uint32_t AL_GetAllocSize_MV(AL_TDimension tDim, uint8_t uLog2MaxCuSize, AL_ECodec Codec)
 {
   uint32_t uNumBlk = 0;
   int iMul = (Codec == AL_CODEC_HEVC) ? 1 :
              2;
-  switch(uLCUSize)
+  switch(uLog2MaxCuSize)
   {
   case 4: uNumBlk = GetBlk16x16(tDim);
     break;

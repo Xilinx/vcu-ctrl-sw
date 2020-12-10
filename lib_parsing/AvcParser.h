@@ -45,7 +45,7 @@
 #include "common_syntax.h"
 #include "Aup.h"
 
-#include "lib_decode/lib_decode.h" // for AL_CB_ParsedSEI
+#include "lib_common_dec/DecCallbacks.h" // for AL_CB_ParsedSEI
 #include "lib_common/BufferSeiMeta.h"
 
 void AL_AVC_InitAUP(AL_TAvcAup* pAUP);

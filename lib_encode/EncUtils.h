@@ -140,7 +140,6 @@ void AL_Decomposition(uint32_t* y, uint8_t* x);
 void AL_Reduction(uint32_t* pN, uint32_t* pD);
 
 /****************************************************************************/
-int AL_H273_ColourDescToColourPrimaries(AL_EColourDescription colourDesc);
 void AL_UpdateAspectRatio(AL_TVuiParam* pVuiParam, uint32_t uWidth, uint32_t uHeight, AL_EAspectRatio eAspectRatio);
 void AL_UpdateSarAspectRatio(AL_TVuiParam* pVuiParam, uint32_t uWidth, uint32_t uHeight, AL_EAspectRatio eAspectRatio);
 

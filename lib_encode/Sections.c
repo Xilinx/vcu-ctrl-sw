@@ -174,7 +174,7 @@ static uint32_t generateHDRSeiFlags(bool bWriteSPS, bool bMustWriteDynHDR)
   uint32_t uFlags = 0;
 
   if(bWriteSPS)
-    uFlags |= AL_SEI_MDCV | AL_SEI_CLL;
+    uFlags |= AL_SEI_MDCV | AL_SEI_CLL | AL_SEI_ATC;
 
   uFlags |= AL_SEI_ST2094_10;
 

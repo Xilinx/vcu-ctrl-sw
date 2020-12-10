@@ -57,9 +57,9 @@
 #include "lib_app/console.h"
 #include "lib_app/utils.h"
 #include "lib_app/plateform.h"
+#include "lib_app/YuvIO.h"
 
 #include "CodecUtils.h"
-#include "YuvIO.h"
 #include "sink.h"
 #include "IpDevice.h"
 
@@ -98,6 +98,7 @@ static int g_StrideHeight = -1;
 static int g_Stride = -1;
 static int constexpr g_defaultMinBuffers = 2;
 static bool g_MultiChunk = false;
+static bool g_EncodeTraceRegField = false;
 
 using namespace std;
 
@@ -171,6 +172,7 @@ void SetDefaults(ConfigFile& cfg)
   cfg.MainInput.FileInfo.FrameRate = 0;
   cfg.MainInput.FileInfo.PictHeight = 0;
   cfg.MainInput.FileInfo.PictWidth = 0;
+  cfg.RunInfo.encDevicePath = "/dev/allegroIP";
   cfg.RunInfo.iDeviceType = DEVICE_TYPE_BOARD;
   cfg.RunInfo.iSchedulerType = SCHEDULER_TYPE_MCU;
   cfg.RunInfo.bLoop = false;
@@ -209,6 +211,9 @@ static AL_EChromaMode stringToChromaMode(string s)
 
   if(s == "CHROMA_4_2_2")
     return AL_CHROMA_4_2_2;
+
+  if(s == "CHROMA_4_4_4")
+    return AL_CHROMA_4_4_4;
 
   throw runtime_error("Unknown chroma mode: \"" + s + "\"");
 }
@@ -299,7 +304,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
     }
     else
       DoNotAcceptCfg = true;
-  });
+  }, ShouldShowAdvancedFeatures());
 
   opt.addFlag("--help-cfg", &g_helpCfg, "Show cfg help. Show the default value for each parameter. If this option is used with a cfg, show the end value of each parameter.");
   opt.addFlag("--help-cfg-json", &g_helpCfgJson, "Same as --help-cfg but in json format");
@@ -329,7 +334,9 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addString("--input,-i", &cfg.MainInput.YUVFileName, "YUV input file");
   opt.addString("--output,-o", &cfg.BitstreamFileName, "Compressed output file");
   opt.addString("--output-rec,-r", &cfg.RecFileName, "Output reconstructed YUV file");
-  opt.addString("--md5", &cfg.RunInfo.sMd5Path, "Path to the output MD5 textfile");
+  opt.addString("--md5", &cfg.RunInfo.sRecMd5Path, "[DEPRECATED] use --md5-rec instead");
+  opt.addString("--md5-rec", &cfg.RunInfo.sRecMd5Path, "Filename to the output MD5 of the reconstructed pictures");
+  opt.addString("--md5-stream", &cfg.RunInfo.sStreamMd5Path, "Filename to the output MD5 of the bitstream");
   opt.addInt("--input-width", &cfg.MainInput.FileInfo.PictWidth, "Specifies YUV input width");
   opt.addInt("--input-height", &cfg.MainInput.FileInfo.PictHeight, "Specifies YUV input height");
   opt.addCustom("--input-format", &cfg.MainInput.FileInfo.FourCC, createParseInputFourCC(), "Specifies YUV input format (I420, IYUV, YV12, NV12, Y800, Y010, P010, I0AL ...)", "enum");
@@ -401,6 +408,8 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addInt("--prefetch", &g_numFrameToRepeat, "Prefetch n frames and loop between these frames for max picture count");
   opt.addFlag("--print-picture-type", &cfg.RunInfo.printPictureType, "Write picture type for each frame in the file", true);
   opt.addFlag("--print-ratectrl-stat", &cfg.RunInfo.printRateCtrlStat, "Write rate-control related statistics for each frame in the file. Only a subset of the statistics is written, more data and motion vectors are also available.", true);
+
+  opt.addString("--device", &cfg.RunInfo.encDevicePath, "Path of the device file used to talk with the IP. Default is /dev/allegroIP");
 
   opt.endSection("Traces && Debug");
 
@@ -640,34 +649,16 @@ unique_ptr<IConvSrc> CreateSrcConverter(TFrameInfo const& FrameInfo, AL_ESrcMode
   (void)tChParam;
   switch(eSrcMode)
   {
-  case AL_SRC_NVX:
-    return make_unique<CNvxConv>(FrameInfo);
+  case AL_SRC_RASTER:
+    return make_unique<CRasterConv>(FrameInfo);
   default:
     throw runtime_error("Unsupported source conversion.");
   }
 }
 
-/*****************************************************************************/
-function<AL_TIpCtrl* (AL_TIpCtrl*)> GetIpCtrlWrapper(TCfgRunInfo& RunInfo, void* pTraceHook)
-{
-  function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl;
-  switch(RunInfo.ipCtrlMode)
-  {
-  default:
-    wrapIpCtrl = [](AL_TIpCtrl* ipCtrl) -> AL_TIpCtrl*
-                 {
-                   return ipCtrl;
-                 };
-    break;
-  }
-
-  return wrapIpCtrl;
-}
-
-/*****************************************************************************/
 static AL_TBufPoolConfig GetBufPoolConfig(const char* debugName, AL_TMetaData* pMetaData, int iSize, int frameBuffersCount)
 {
-  AL_TBufPoolConfig poolConfig = {};
+  AL_TBufPoolConfig poolConfig {};
 
   poolConfig.uNumBuf = frameBuffersCount;
   poolConfig.zBufSize = iSize;
@@ -679,7 +670,7 @@ static AL_TBufPoolConfig GetBufPoolConfig(const char* debugName, AL_TMetaData* p
 /*****************************************************************************/
 static AL_TBufPoolConfig GetQpBufPoolConfig(AL_TEncSettings& Settings, AL_TEncChanParam& tChParam, int frameBuffersCount)
 {
-  AL_TBufPoolConfig poolConfig = {};
+  AL_TBufPoolConfig poolConfig {};
 
   if(AL_IS_QP_TABLE_REQUIRED(Settings.eQpTableMode))
   {
@@ -735,9 +726,10 @@ static uint8_t GetNumBufForGop(AL_TEncSettings Settings)
 static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, int iLayerID)
 {
   int smoothingStream = 2;
+
   auto numStreams = g_defaultMinBuffers + smoothingStream + GetNumBufForGop(Settings);
   AL_TDimension dim = { Settings.tChParam[iLayerID].uEncWidth, Settings.tChParam[iLayerID].uEncHeight };
-  auto streamSize = AL_GetMitigatedMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat));
+  uint64_t streamSize = AL_GetMitigatedMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat));
   bool bIsXAVCIntraCBG = AL_IS_XAVC_CBG(Settings.tChParam[0].eProfile) && AL_IS_INTRA_PROFILE(Settings.tChParam[0].eProfile);
 
   if(bIsXAVCIntraCBG)
@@ -756,12 +748,19 @@ static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, int i
   if(Settings.tChParam[0].bSubframeLatency)
   {
     numStreams *= Settings.tChParam[0].uNumSlices;
-    streamSize /= Settings.tChParam[0].uNumSlices;
+
+    /* Due to rounding, the slices don't have all the same height. Compute size of the biggest slice */
+    uint64_t lcuSize = 1 << Settings.tChParam[0].uLog2MaxCuSize;
+    uint64_t rndHeight = RoundUp(dim.iHeight, lcuSize);
+    streamSize = streamSize * lcuSize * (1 + rndHeight / (Settings.tChParam[0].uNumSlices * lcuSize)) / rndHeight;
+
     /* we need space for the headers on each slice */
     streamSize += AL_ENC_MAX_HEADER_SIZE;
     /* stream size is required to be 32bytes aligned */
     streamSize = RoundUp(streamSize, 32);
   }
+
+  assert(streamSize <= INT32_MAX);
 
   AL_TMetaData* pMetaData = (AL_TMetaData*)AL_StreamMetaData_Create(AL_MAX_SECTION);
   return GetBufPoolConfig("stream", pMetaData, streamSize, numStreams);
@@ -808,7 +807,7 @@ struct LayerRessources
 
   void OpenInput(ConfigFile& cfg, AL_HEncoder hEnc);
 
-  bool SendInput(ConfigFile& cfg, IFrameSink* firstSink);
+  bool SendInput(ConfigFile& cfg, IFrameSink* firstSink, void* pTraceHook);
 
   void ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hEnc);
 
@@ -855,7 +854,7 @@ void LayerRessources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffer
   layerInputs.insert(layerInputs.end(), cfg.DynamicInputs.begin(), cfg.DynamicInputs.end());
 
   hFinished = Rtos_CreateEvent(false);
-  AL_TAllocator* pAllocator = pDevices->m_pAllocator.get();
+  AL_TAllocator* pAllocator = pDevices->GetAllocator();
   StreamBufPoolConfig = GetStreamBufPoolConfig(Settings, iLayerID);
   StreamBufPool.Init(pAllocator, StreamBufPoolConfig);
 
@@ -891,12 +890,17 @@ void LayerRessources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffer
 
   string LayerRecFileName = cfg.RecFileName;
 
-  if(!LayerRecFileName.empty())
+  if(!LayerRecFileName.empty() || !cfg.RunInfo.sRecMd5Path.empty())
   {
     RecYuv = AllocateConversionBuffer(Settings.tChParam[iLayerID].uEncWidth, Settings.tChParam[iLayerID].uEncHeight, cfg.RecFourCC);
 
     if(RecYuv == nullptr)
       throw runtime_error("Couldn't allocate reconstruct conversion buffer");
+  }
+
+  if(!LayerRecFileName.empty())
+  {
+
     frameWriter = createFrameWriter(LayerRecFileName, cfg, RecYuv.get(), iLayerID);
   }
 
@@ -964,8 +968,9 @@ void LayerRessources::OpenInput(ConfigFile& cfg, AL_HEncoder hEnc)
   ChangeInput(cfg, iInputIdx, hEnc);
 }
 
-bool LayerRessources::SendInput(ConfigFile& cfg, IFrameSink* firstSink)
+bool LayerRessources::SendInput(ConfigFile& cfg, IFrameSink* firstSink, void* pTraceHooker)
 {
+  (void)pTraceHooker;
   firstSink->PreprocessFrame();
 
   return sendInputFileTo(YuvFile, SrcBufPool, SrcYuv.get(), cfg, layerInputs[iInputIdx].FileInfo, pSrcConv.get(), firstSink, iPictCount, iReadCount);
@@ -1013,18 +1018,18 @@ void SafeMain(int argc, char** argv)
   AL_Settings_SetDefaultParam(&Settings);
   SetMoreDefaults(cfg);
 
-  if(!RecFileName.empty() || !cfg.RunInfo.sMd5Path.empty())
+  if(!RecFileName.empty() || !cfg.RunInfo.sRecMd5Path.empty())
     Settings.tChParam[0].eEncOptions = (AL_EChEncOption)(Settings.tChParam[0].eEncOptions | AL_OPT_FORCE_REC);
 
   if(g_helpCfg)
   {
-    PrintConfigFileUsage(cfg);
+    PrintConfigFileUsage(cfg, ShouldShowAdvancedFeatures());
     exit(0);
   }
 
   if(g_helpCfgJson)
   {
-    PrintConfigFileUsageJson(cfg);
+    PrintConfigFileUsageJson(cfg, ShouldShowAdvancedFeatures());
     exit(0);
   }
 
@@ -1032,22 +1037,22 @@ void SafeMain(int argc, char** argv)
 
   if(g_showCfg)
   {
-    PrintConfig(cfg);
+    PrintConfig(cfg, ShouldShowAdvancedFeatures());
   }
-
-  /* null if not supported */
-  void* pTraceHook = nullptr;
-
-  function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl = GetIpCtrlWrapper(RunInfo, pTraceHook);
 
   CIpDeviceParam param;
   param.iSchedulerType = RunInfo.iSchedulerType;
   param.iDeviceType = RunInfo.iDeviceType;
+
   param.pCfgFile = &cfg;
   param.bTrackDma = RunInfo.trackDma;
   param.iVqDescr = RunInfo.eVQDescr;
 
-  auto pIpDevice = CreateIpDevice(param, wrapIpCtrl);
+  auto pIpDevice = std::shared_ptr<CIpDevice>(new CIpDevice);
+  pIpDevice->Configure(param);
+
+  /* null if not supported */
+  void* pTraceHook {};
 
   if(!pIpDevice)
     throw runtime_error("Can't create IpDevice");
@@ -1057,8 +1062,8 @@ void SafeMain(int argc, char** argv)
   unique_ptr<EncoderSink> enc;
   unique_ptr<EncoderLookAheadSink> encFirstPassLA;
 
-  auto pAllocator = pIpDevice->m_pAllocator.get();
-  auto pScheduler = pIpDevice->m_pScheduler;
+  auto pAllocator = pIpDevice->GetAllocator();
+  auto pScheduler = pIpDevice->GetScheduler();
 
   RCPlugin_Init(&cfg.Settings, &cfg.Settings.tChParam[0], pAllocator);
   auto ReleaseRcPlugin = scopeExit([&]()
@@ -1110,6 +1115,14 @@ void SafeMain(int argc, char** argv)
 
   enc->BitstreamOutput = createBitstreamWriter(StreamFileName, cfg);
 
+  if(!cfg.RunInfo.sStreamMd5Path.empty())
+  {
+    auto multisink = unique_ptr<MultiSink>(new MultiSink);
+    multisink->sinks.push_back(move(enc->BitstreamOutput));
+    multisink->sinks.push_back(createStreamMd5Calculator(cfg.RunInfo.sStreamMd5Path));
+    enc->BitstreamOutput = move(multisink);
+  }
+
   if(!cfg.RunInfo.bitrateFile.empty())
     enc->BitrateOutput = createBitrateWriter(cfg.RunInfo.bitrateFile, cfg);
 
@@ -1123,11 +1136,11 @@ void SafeMain(int argc, char** argv)
     Rtos_SetEvent(layerRessources[0].hFinished);
   });
 
-  if(!cfg.RunInfo.sMd5Path.empty())
+  if(!cfg.RunInfo.sRecMd5Path.empty())
   {
     auto multisink = unique_ptr<MultiSink>(new MultiSink);
     multisink->sinks.push_back(move(enc->LayerRecOutput[0]));
-    multisink->sinks.push_back(createMd5Calculator(cfg.RunInfo.sMd5Path, cfg, layerRessources[0].RecYuv.get()));
+    multisink->sinks.push_back(createYuvMd5Calculator(cfg.RunInfo.sRecMd5Path, cfg, layerRessources[0].RecYuv.get()));
     enc->LayerRecOutput[0] = move(multisink);
   }
 
@@ -1152,7 +1165,7 @@ void SafeMain(int argc, char** argv)
     AL_64U uBeforeTime = Rtos_GetTime();
 
     for(int i = 0; i < Settings.NumLayer; ++i)
-      hasInputAndNoError = layerRessources[i].SendInput(cfg, firstSink) && hasInputAndNoError;
+      hasInputAndNoError = layerRessources[i].SendInput(cfg, firstSink, pTraceHook) && hasInputAndNoError;
 
     AL_64U uAfterTime = Rtos_GetTime();
 

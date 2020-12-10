@@ -77,6 +77,12 @@ void HDRWriter::BuildSEIs(AL_THDRSEIs& tHDRSEIs, TJsonValue& tSEIRoot)
     BuildContentLightLevel(tHDRSEIs.tCLL, tCLLObject);
   }
 
+  if(tHDRSEIs.bHasATC)
+  {
+    auto& tATCObject = tSEIRoot.AddValue("AlternativeTransferCharacteristics", TJsonValue::JSON_VALUE_OBJECT);
+    BuildAlternativeTransferCharacteristics(tHDRSEIs.tATC, tATCObject);
+  }
+
   if(tHDRSEIs.bHasST2094_10)
   {
     auto& tST9094_10Object = tSEIRoot.AddValue("DynamicMeta_ST2094_10", TJsonValue::JSON_VALUE_OBJECT);
@@ -113,6 +119,11 @@ void HDRWriter::BuildContentLightLevel(AL_TContentLightLevel& tCLL, TJsonValue& 
 {
   tSEIObject.AddValue("max_content_light_level", static_cast<int>(tCLL.max_content_light_level));
   tSEIObject.AddValue("max_pic_average_light_level", static_cast<int>(tCLL.max_pic_average_light_level));
+}
+
+void HDRWriter::BuildAlternativeTransferCharacteristics(AL_TAlternativeTransferCharacteristics& tATC, TJsonValue& tSEIObject)
+{
+  tSEIObject.AddValue("preferred_transfer_characteristics", static_cast<int>(tATC.preferred_transfer_characteristics));
 }
 
 void HDRWriter::BuildST2094_10(AL_TDynamicMeta_ST2094_10& tST2094_10, TJsonValue& tSEIObject)

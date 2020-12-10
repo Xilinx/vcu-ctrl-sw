@@ -53,7 +53,7 @@
 #include "lib_common/SliceHeader.h"
 #include "lib_common/Utils.h"
 
-#include "lib_common_dec/DecBuffers.h"
+#include "lib_common_dec/DecBuffersInternal.h"
 #include "lib_common_dec/DecPicParam.h"
 #include "lib_common_dec/DecDpbMode.h"
 

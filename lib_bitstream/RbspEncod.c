@@ -44,6 +44,7 @@
 
 #include "RbspEncod.h"
 #include "lib_assert/al_assert.h"
+#include "lib_common/SyntaxConversion.h"
 
 /*****************************************************************************/
 void AL_RbspEncoding_WriteAUD(AL_TBitStreamLite* pBS, AL_ESliceType eSliceType)
@@ -149,6 +150,17 @@ void AL_RbspEncoding_WriteContentLightLevel(AL_TBitStreamLite* pBS, AL_TContentL
 
   AL_BitStreamLite_PutU(pBS, 16, pCLL->max_content_light_level);
   AL_BitStreamLite_PutU(pBS, 16, pCLL->max_pic_average_light_level);
+
+  AL_BitStreamLite_EndOfSEIPayload(pBS);
+  AL_RbspEncoding_EndSEI(pBS, bookmark);
+}
+
+/******************************************************************************/
+void AL_RbspEncoding_WriteAlternativeTransferCharacteristics(AL_TBitStreamLite* pBS, AL_TAlternativeTransferCharacteristics* pATC)
+{
+  int const bookmark = AL_RbspEncoding_BeginSEI(pBS, 147);
+
+  AL_BitStreamLite_PutU(pBS, 8, AL_TransferCharacteristicsToVUIValue(pATC->preferred_transfer_characteristics));
 
   AL_BitStreamLite_EndOfSEIPayload(pBS);
   AL_RbspEncoding_EndSEI(pBS, bookmark);

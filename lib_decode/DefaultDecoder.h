@@ -48,9 +48,9 @@
 #include "lib_decode/lib_decode.h"
 #include "I_DecoderCtx.h"
 #include "InternalError.h"
-#include "lib_common_dec/DecBuffers.h"
 #include "lib_common_dec/DecInfo.h"
 #include "lib_rtos/types.h"
+#include "lib_trace/DecTraceDefs.h"
 
 typedef struct
 {
@@ -118,10 +118,11 @@ bool AL_Default_Decoder_Alloc(AL_TDecCtx* pCtx, TMemDesc* pMD, uint32_t uSize, c
    \param[in] iSPSize Size of the slice param buffer
    \param[in] iCompDataSize Size of the comp data buffer
    \param[in] iCompMapSize Size of the comp map buffer
+   \param[in] iCQpSize Size of the chroma qp tables
    \return If the function succeeds the return value is nonzero (true)
          If the function fails the return value is zero (false)
 *****************************************************************************/
-bool AL_Default_Decoder_AllocPool(AL_TDecCtx* pCtx, int iALFSize, int iWPSize, int iSPSize, int iCompDataSize, int iCompMapSize);
+bool AL_Default_Decoder_AllocPool(AL_TDecCtx* pCtx, int iALFSize, int iWPSize, int iSPSize, int iCompDataSize, int iCompMapSize, int iCQpSize);
 
 /*************************************************************************//*!
    \brief This function allocate comp memory blocks used by the decoder

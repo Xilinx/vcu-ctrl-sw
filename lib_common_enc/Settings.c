@@ -497,6 +497,8 @@ void AL_Settings_SetDefaultRCParam(AL_TRCParam* pRCParam)
 /***************************************************************************/
 #define AL_DEFAULT_PROFILE AL_PROFILE_HEVC_MAIN
 
+static int const iBetaOffsetAuto = -1;
+
 /***************************************************************************/
 void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 {
@@ -532,7 +534,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   AL_Settings_SetDefaultRCParam(&pChan->tRCParam);
 
   pChan->iTcOffset = -1;
-  pChan->iBetaOffset = -1;
+  pChan->iBetaOffset = iBetaOffsetAuto;
 
   pChan->uNumCore = NUMCORE_AUTO;
   pChan->uNumSlices = 1;
@@ -558,6 +560,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pChan->pMeRange[AL_SLICE_P][1] = -1; // Vert
   pChan->pMeRange[AL_SLICE_B][0] = -1; // Horz
   pChan->pMeRange[AL_SLICE_B][1] = -1; // Vert
+  pChan->uMVVRange = 0;
   pChan->uLog2MaxCuSize = HEVC_MAX_CTB_SIZE;
   pChan->uLog2MinCuSize = MIN_CU_SIZE;
   pChan->uLog2MaxTuSize = 5; // 32x32
@@ -570,7 +573,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pChan->eEntropyMode = AL_MODE_CABAC;
   pChan->eWPMode = AL_WP_DEFAULT;
 
-  pChan->eSrcMode = AL_SRC_NVX;
+  pChan->eSrcMode = AL_SRC_RASTER;
 
   pSettings->LookAhead = 0;
   pSettings->TwoPass = 0;
@@ -790,7 +793,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   }
 
   AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
-  ECheckResolutionError eResError = AL_ParamConstraints_CheckResolution(pChParam->eProfile, eChromaMode, pChParam->uEncWidth, pChParam->uEncHeight);
+  ECheckResolutionError eResError = AL_ParamConstraints_CheckResolution(pChParam->eProfile, eChromaMode, 1 << pChParam->uLog2MaxCuSize, pChParam->uEncWidth, pChParam->uEncHeight);
 
   if(eResError == CRERROR_WIDTHCHROMA)
   {
@@ -801,6 +804,11 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   {
     ++err;
     MSG("Width shall be multiple of 2 on 420 or 422 chroma mode!");
+  }
+  else if(eResError == CRERROR_64x64_MIN_RES)
+  {
+    ++err;
+    MSG("LCU64x64 encoding is currently limited to resolution higher or equal to 72x72!");
   }
 
   int iNumB = pChParam->tGopParam.uNumB;
@@ -1125,15 +1133,30 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
   if(pChParam->tGopParam.eMode == AL_GOP_MODE_DEFAULT &&
      pChParam->tGopParam.uNumB > uMaxNumB)
   {
-    MSG("!! Warning : number of B frames per GOP is too high");
+    MSG("!! Warning: number of B frames per GOP is too high");
     pChParam->tGopParam.uNumB = uMaxNumB;
+  }
+
+  bool bIsLoopFilterEnable = (pChParam->eEncTools & AL_OPT_LF);
+
+  if(pChParam->tGopParam.eGdrMode != AL_GDR_OFF)
+  {
+    pChParam->eEncTools &= ~AL_OPT_LF;
+    MSG("!! Loop filter is not allowed with GDR enabled !!");
+    bIsLoopFilterEnable = false;
+  }
+
+  if(!bIsLoopFilterEnable)
+  {
+    pChParam->iBetaOffset = 0;
+    pChParam->iTcOffset = 0;
   }
 
   AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
 
   if(!checkProfileCoherency(iBitDepth, eChromaMode, pSettings->tChParam[0].eProfile))
   {
-    MSG("!! Warning : Adapting profile to support bitdepth and chroma mode");
+    MSG("!! Warning: Adapting profile to support bitdepth and chroma mode");
     pSettings->tChParam[0].eProfile = getMinimumProfile(AL_GET_CODEC(pSettings->tChParam[0].eProfile), iBitDepth, eChromaMode);
     ++numIncoherency;
   }
@@ -1142,16 +1165,24 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
   {
     if((pChParam->uLog2MaxCuSize - pChParam->uCuQPDeltaDepth) < pChParam->uLog2MinCuSize)
     {
-      MSG("!! Warning : CuQpDeltaDepth doesn't match Log2MinCUSize !!");
+      MSG("!! Warning: CuQpDeltaDepth doesn't match Log2MinCUSize !!");
       ++numIncoherency;
       pChParam->uCuQPDeltaDepth = pChParam->uLog2MaxCuSize - pChParam->uLog2MinCuSize;
     }
 
-    if(pChParam->uCuQPDeltaDepth > 2)
+    if((pChParam->uLog2MaxCuSize == 6 && (pChParam->uCuQPDeltaDepth > 3 || pChParam->uCuQPDeltaDepth > 3)) &&
+       (pChParam->uLog2MaxCuSize != 6 && (pChParam->uCuQPDeltaDepth > 2)))
     {
-      MSG("!! Warning : CuQpDeltaDepth shall be less then or equal to 2 !");
+      MSG("!! Warning: CuQpDeltaDepth is too high!");
       ++numIncoherency;
-      pChParam->uCuQPDeltaDepth = 2;
+      pChParam->uCuQPDeltaDepth = pChParam->uLog2MaxCuSize == 6 ? 3 : 2;
+    }
+
+    if(AL_IS_AUTO_OR_ADAPTIVE_QP_CTRL(pSettings->eQpCtrlMode) && pChParam->uLog2MaxCuSize == 6 && pChParam->uCuQPDeltaDepth == 0)
+    {
+      MSG("!! Warning: CuQPDeltaDepth shall be superior to zero in AUTO_QP mode!");
+      ++numIncoherency;
+      pChParam->uCuQPDeltaDepth = 1;
     }
   }
   else
@@ -1472,7 +1503,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
   if(pChParam->tRCParam.eRCMode == AL_RC_CONST_QP && pChParam->tRCParam.iInitialQP < 0)
     pChParam->tRCParam.iInitialQP = 30;
 
-  // Fill zero value with surounding non-zero value if any. Warning : don't change the order of if statements below !!
+  // Fill zero value with surounding non-zero value if any. Warning: don't change the order of if statements below !!
   if(pChParam->tRCParam.pMaxPictureSize[AL_SLICE_P] == 0)
     pChParam->tRCParam.pMaxPictureSize[AL_SLICE_P] = pChParam->tRCParam.pMaxPictureSize[AL_SLICE_I];
 

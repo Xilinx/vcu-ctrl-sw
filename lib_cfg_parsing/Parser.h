@@ -358,11 +358,19 @@ std::string getDefaultArrayValue(T* t, int arraySize, int rescale = 1)
 
 struct Callback
 {
+  Callback() = default;
+  Callback & operator = (Callback const &) = default;
+  Callback(Callback const &) = default;
+
+  Callback(std::function<void(std::deque<Token> &)> const& func_, std::string const& showName_, std::string const& desc_, std::string const& available_, std::function<std::string()> defaultValue_) :
+    func{func_}, showName{showName_}, desc{desc_}, available{available_}, defaultValue{defaultValue_} {}
+
   std::function<void(std::deque<Token> &)> func;
   std::string showName;
   std::string desc;
   std::string available;
   std::function<std::string()> defaultValue;
+  bool isAdvancedFeature = false;
 };
 
 static int safeToLower(int c)
@@ -385,6 +393,12 @@ struct ConfigParser
   void updateSection(std::string text);
 
   std::map<Section, std::map<std::string, Callback>> identifiers;
+  bool showAdvancedFeature = true;
+
+  void setAdvanced(Section section, char const* name)
+  {
+    identifiers[section][tolowerStr(name)].isAdvancedFeature = true;
+  }
 
   template<typename T, typename U = long long int>
   void addArith(Section section, char const* name, T& t, std::string desc = "no description")

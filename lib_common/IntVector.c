@@ -81,6 +81,11 @@ bool IntVector_IsIn(IntVector* self, int element)
   return find(self, element) != -1;
 }
 
+int IntVector_Count(IntVector* self)
+{
+  return self->count;
+}
+
 void IntVector_Revert(IntVector* self)
 {
   for(int i = self->count - 1; i >= 0; i--)

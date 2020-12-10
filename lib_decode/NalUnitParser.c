@@ -52,8 +52,6 @@
 #include "lib_common/HwScalingList.h"
 #include "lib_common/BufferSeiMeta.h"
 
-#include "lib_common_dec/DecSliceParam.h"
-#include "lib_common_dec/DecBuffers.h"
 #include "lib_common_dec/RbspParser.h"
 
 #include "lib_parsing/SliceHdrParsing.h"

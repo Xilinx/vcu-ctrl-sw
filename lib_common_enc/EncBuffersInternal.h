@@ -43,15 +43,6 @@
 #define AL_MAX_LAWINDOWSIZE 0
 #define ENC_MAX_CMD (AL_MAX_NUM_B_PICT + 3 + AL_MAX_LAWINDOWSIZE)
 
-/*************************************************************************//*!
-   \brief Retrieves the maximum size of one NAL unit
-   \param[in] uWidth Frame Width in pixel
-   \param[in] uHeight Frame Height in pixel
-   \param[in] uLog2MaxCuSize  Maximum Size of a Coding Unit
-   \return maximum size of one NAL unit
-*****************************************************************************/
-uint32_t GetMaxLCU(uint16_t uWidth, uint16_t uHeight, uint8_t uLog2MaxCuSize);
-
 static const AL_TBufInfo EP1_BUF_SCL_LST =
 {
   16, 25344, 256
@@ -107,41 +98,43 @@ static const size_t MVBUFF_MV_OFFSET = 256; // Motion Vectors
    \brief Retrieves the size of a Reference YUV frame buffer
    \param[in] tDim Frame dimensions
    \param[in] uBitDepth YUV bit-depth
+   \param[in] uLCUSize Max size of a coding unit
    \param[in] eChromaMode Chroma Mode
-   \param[in] eEncOption Encoding option flags
+   \param[in] eOptions Encoding option flags
+   \param[in] uMVVRange extra buffer lines used for reconstructed buffering
    \return maximum size (in bytes) needed for the YUV frame buffer
 *****************************************************************************/
-uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bComp);
+uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, uint8_t uLCUSize, AL_EChromaMode eChromaMode, AL_EChEncOption eOptions, uint16_t uMVVRange);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a compressed buffer(LCU header + MVDs + Residuals)
    \param[in] tDim Frame dimensions
-   \param[in] uLCUSize Max size of a coding unit
+   \param[in] uLog2MaxCuSize Max size of a coding unit (log2)
    \param[in] uBitDepth YUV bit-depth
    \param[in] eChromaMode Chroma Mode
    \param[in] bUseEnt Do we use entropy compression
    \return maximum size (in bytes) needed for the compressed buffer
 *****************************************************************************/
-uint32_t AL_GetAllocSize_CompData(AL_TDimension tDim, uint8_t uLcuSize, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bUseEnt);
+uint32_t AL_GetAllocSize_CompData(AL_TDimension tDim, uint8_t uLog2MaxCuSize, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bUseEnt);
 
 /*************************************************************************//*!
    \brief Retrieves the offset of the current LCU Hdr_MVDs words
    \param[in] tDim Frame dimensions
-   \param[in] uLCUSize Max size of a coding unit
+   \param[in] uLog2MaxCuSize Max size of a coding unit (log2)
    \param[in] uNumCore number of core used by the channel
    \param[in] bUseEnt Do we use entropy compression
    \return maximum size (in bytes) needed for the LCU Info buffer
 *****************************************************************************/
-uint32_t AL_GetAllocSize_EncCompMap(AL_TDimension tDim, uint8_t uLcuSize, uint8_t uNumCore, bool bUseEnt);
+uint32_t AL_GetAllocSize_EncCompMap(AL_TDimension tDim, uint8_t uLog2MaxCuSize, uint8_t uNumCore, bool bUseEnt);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a colocated frame buffer
    \param[in] tDim Frame dimensions
-   \param[in] uLCUSize Max size of a coding unit
+   \param[in] uLog2MaxCuSize Max size of a coding unit (log2)
    \param[in] Codec Flag which specifies the codec used
    \return the size (in bytes) needed for the colocated frame buffer
 *****************************************************************************/
-uint32_t AL_GetAllocSize_MV(AL_TDimension tDim, uint8_t uLcuSize, AL_ECodec Codec);
+uint32_t AL_GetAllocSize_MV(AL_TDimension tDim, uint8_t uLog2MaxCuSize, AL_ECodec Codec);
 
 /*************************************************************************//*!
    \brief Retrieves the size of an entry_points size buffer

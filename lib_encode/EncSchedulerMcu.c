@@ -61,7 +61,6 @@ typedef struct
   AL_TDriver* driver;
   int fd;
   AL_THREAD thread;
-  int32_t shouldContinue;
   bool outputRec;
 }Channel;
 
@@ -140,7 +139,6 @@ static AL_ERR API_CreateChannel(AL_HANDLE* hChannel, AL_IEncScheduler* pSchedule
   AL_Assert(!AL_IS_ERROR_CODE(msg.status.error_code));
 
   setCallbacks(chan, pCBs);
-  chan->shouldContinue = 1;
   chan->thread = Rtos_CreateThread(&WaitForStatus, chan);
 
   if(!chan->thread)
@@ -191,8 +189,6 @@ static bool API_DestroyChannel(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel)
 
   if(!chan)
     return false;
-
-  Rtos_AtomicDecrement(&chan->shouldContinue);
 
   AL_Driver_PostMessage(scheduler->driver, chan->fd, AL_MCU_DESTROY_CHANNEL, NULL);
 
@@ -259,11 +255,6 @@ static bool API_ReleaseRecPicture(AL_IEncScheduler* pScheduler, AL_HANDLE hChann
   return true;
 }
 
-static bool getStatusMsg(Channel* chan, struct al5_params* msg)
-{
-  return AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_WAIT_FOR_STATUS, msg) == DRIVER_SUCCESS;
-}
-
 static void processStatusMsg(Channel* chan, struct al5_params* msg)
 {
   AL_Assert(msg->size >= sizeof(AL_PTR64));
@@ -287,15 +278,34 @@ static void* WaitForStatus(void* p)
   Rtos_SetCurrentThreadName("enc-status-it");
   Channel* chan = p;
   struct al5_params msg = { 0 };
+  Rtos_PollCtx ctx;
+  /* Wait for wait for status events forever in poll */
+  ctx.timeout = -1;
+  ctx.events = AL_POLLIN;
 
   while(true)
   {
-    if(Rtos_AtomicDecrement(&chan->shouldContinue) < 0)
-      break;
-    Rtos_AtomicIncrement(&chan->shouldContinue);
+    ctx.revents = 0;
 
-    if(getStatusMsg(chan, &msg))
-      processStatusMsg(chan, &msg);
+    AL_EDriverError err = AL_Driver_PostMessage(chan->driver, chan->fd, AL_POLL_MSG, &ctx);
+
+    if(err != DRIVER_SUCCESS)
+      continue;
+
+    if(ctx.revents & AL_POLLIN)
+    {
+      AL_EDriverError err = AL_Driver_PostMessage2(chan->driver, chan->fd, AL_MCU_WAIT_FOR_STATUS, &msg, false /* non blocking */);
+
+      if(err == DRIVER_SUCCESS)
+        processStatusMsg(chan, &msg);
+      else
+        Rtos_Log(AL_LOG_ERROR, "Failed to get decode status (error code: %d)\n", err);
+    }
+    /* If the polling finds an end of operation, it means that the channel was destroyed and we can stop waiting for encoding results. */
+    else if(ctx.revents & AL_POLLHUP)
+    {
+      break;
+    }
   }
 
   return 0;

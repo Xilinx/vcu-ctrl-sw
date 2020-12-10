@@ -44,6 +44,7 @@
  *****************************************************************************/
 
 #include "lib_common/Utils.h"
+#include "lib_common/SyntaxConversion.h"
 
 #include "common_syntax.h"
 #include <string.h>
@@ -564,6 +565,17 @@ bool sei_content_light_level(AL_TContentLightLevel* pCLL, AL_TRbspParser* pRP)
 
   pCLL->max_content_light_level = u(pRP, 16);
   pCLL->max_pic_average_light_level = u(pRP, 16);
+
+  if(byte_aligned(pRP))
+    return true;
+
+  return byte_alignment(pRP);
+}
+
+/*****************************************************************************/
+bool sei_alternative_transfer_characteristics(AL_TAlternativeTransferCharacteristics* pATC, AL_TRbspParser* pRP)
+{
+  pATC->preferred_transfer_characteristics = AL_VUIValueToTransferCharacteristics(u(pRP, 8));
 
   if(byte_aligned(pRP))
     return true;

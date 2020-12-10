@@ -70,6 +70,7 @@ private:
   void BuildSEIs(AL_THDRSEIs& tHDRSEIs, TJsonValue& tSEIRoot);
   void BuildMasteringDisplayColorVolume(AL_TMasteringDisplayColourVolume& tMDCV, TJsonValue& tSEIObject);
   void BuildContentLightLevel(AL_TContentLightLevel& tCLL, TJsonValue& tSEIObject);
+  void BuildAlternativeTransferCharacteristics(AL_TAlternativeTransferCharacteristics& tATC, TJsonValue& tSEIObject);
   void BuildST2094_10(AL_TDynamicMeta_ST2094_10& tST2094_10, TJsonValue& tSEIObject);
   void BuildST2094_40(AL_TDynamicMeta_ST2094_40& tST2094_40, TJsonValue& tSEIObject);
   void BuildST2094_40ProcessingWindow(AL_TDynamicMeta_ST2094_40& tST2094_40, int iWindow, TJsonValue& tPWObject);

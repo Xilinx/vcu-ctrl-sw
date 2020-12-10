@@ -1,5 +1,6 @@
 CFLAGS+=-O3
 CFLAGS+=-g0
+
 SCM_REV:=-D'SCM_REV="$(shell git rev-parse HEAD 2> /dev/null || echo 0)"'
 SCM_BRANCH=-D'SCM_BRANCH="$(shell git rev-parse --abbrev-ref HEAD 2> /dev/null || echo unknown)"'
 
@@ -30,6 +31,7 @@ STRIP:=$(CROSS_COMPILE)strip
 SIZE:=$(CROSS_COMPILE)size
 
 TARGET:=$(shell $(CC) -dumpmachine)
+
 
 all: true_all
 
@@ -83,6 +85,7 @@ ifneq ($(ENABLE_DECODER),0)
   -include lib_decode/project.mk
   include exe_decoder/project.mk
 endif
+
 
 
 ifneq ($(ENABLE_ENCODER),0)

@@ -106,7 +106,7 @@ int Rtos_Log(int iLogLevel, char const* const sMsg, ...)
 
 #include <string.h>
 
-/* no implementation of malloc, free, memmove and memcmp */
+/* no implementation of malloc, free, memmove nor printf */
 
 /****************************************************************************/
 void* Rtos_Memcpy(void* pDst, void const* pSrc, size_t zSize)
@@ -118,6 +118,20 @@ void* Rtos_Memcpy(void* pDst, void const* pSrc, size_t zSize)
 void* Rtos_Memset(void* pDst, int iVal, size_t zSize)
 {
   return memset(pDst, iVal, zSize);
+}
+
+/****************************************************************************/
+int Rtos_Memcmp(void const* pBuf1, void const* pBuf2, size_t zSize)
+{
+  return memcmp(pBuf1, pBuf2, zSize);
+}
+
+/****************************************************************************/
+int Rtos_Log(int iLogLevel, char const* const sMsg, ...)
+{
+  (void)iLogLevel;
+  (void)sMsg;
+  return 0;
 }
 
 #endif
@@ -524,8 +538,9 @@ bool Rtos_WaitEvent(AL_EVENT Event, uint32_t Wait)
     gettimeofday(&now, NULL);
 
     struct timespec deadline;
-    deadline.tv_sec = now.tv_sec + Wait / 1000;
-    deadline.tv_nsec = (now.tv_usec + 1000UL * (Wait % 1000)) * 1000UL;
+    uint64_t uWaitNsec = (now.tv_usec + 1000ULL * Wait) * 1000ULL;
+    deadline.tv_sec = (uWaitNsec / 1000000000ULL) + now.tv_sec;
+    deadline.tv_nsec = uWaitNsec % 1000000000ULL;
 
     while(!reachedDeadline && !pEvt->bSignaled)
       reachedDeadline = (pthread_cond_timedwait(&pEvt->Cond, &pEvt->Mutex, &deadline) == ETIMEDOUT);
@@ -590,7 +605,7 @@ void Rtos_DeleteThread(AL_THREAD Thread)
 
 void* Rtos_DriverOpen(char const* name)
 {
-  int fd = open(name, O_RDWR);
+  int fd = open(name, O_RDWR | O_NONBLOCK);
 
   if(fd == -1)
     return NULL;
@@ -610,24 +625,20 @@ int Rtos_DriverIoctl(void* drv, unsigned long int req, void* data)
 }
 
 #include <poll.h>
-int Rtos_DriverPoll(void* drv, int timeout, unsigned long flags)
+int Rtos_DriverPoll(void* drv, Rtos_PollCtx* ctx)
 {
   struct pollfd pollData;
-  pollData.events = 0;
-
-  if(flags & AL_POLLPRI)
-    pollData.events |= POLLPRI;
-
-  if(flags & AL_POLLIN)
-    pollData.events |= POLLIN;
-
-  if(flags & AL_POLLOUT)
-    pollData.events |= POLLOUT;
-
-  if(flags & AL_POLLERR)
-    pollData.events |= POLLERR;
+  /* bitfield are bit compatible */
+  pollData.events = ctx->events;
   pollData.fd = (int)(intptr_t)drv;
-  return poll(&pollData, 1, timeout);
+
+  int err = poll(&pollData, 1, ctx->timeout);
+
+  if(err == -1 || err == 0)
+    return err;
+
+  ctx->revents = pollData.revents;
+  return 1;
 }
 
 /****************************************************************************/

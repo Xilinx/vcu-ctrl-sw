@@ -57,6 +57,11 @@
 #include "lib_common_enc/Settings.h"
 #include "lib_common_enc/EncRecBuffer.h"
 
+/*************************************************************************//*!
+    \brief Virtual interface used to access the scheduler of the Encoder IP.
+    If you want to create multiple channels in the same process that access the same IP, the AL_IEncScheduler should be shared between them.
+    \see AL_SchedulerCpu_Create and AL_SchedulerMcu_Create if available to get concrete implementations of this interface.
+*****************************************************************************/
 typedef struct AL_i_EncScheduler AL_IEncScheduler;
 extern void AL_IEncScheduler_Destroy(AL_IEncScheduler* pScheduler);
 

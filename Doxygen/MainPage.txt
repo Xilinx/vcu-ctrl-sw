@@ -2,6 +2,23 @@
 
 \mainpage Encoder / Decoder Control Software
 
+Welcome to the Allegro Codec Documentation.
+
+Here are shortcuts to the main documentation pages
+
+[Encoder Documentation]
+
+[Decoder Documentation]
+
+[Rate Control Plugin Documentation]
+
+You can also find them in the Modules/ item on the left navigation menu.
+
+
+[Encoder Documentation]:@ref Encoder
+[Decoder Documentation]:@ref Decoder
+[Rate Control Plugin Documentation]:@ref Rate_Control_Plugin
+
 
 */
 

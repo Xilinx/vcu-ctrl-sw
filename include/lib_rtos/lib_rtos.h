@@ -126,12 +126,25 @@ void* Rtos_DriverOpen(char const* name);
 void Rtos_DriverClose(void* drv);
 int Rtos_DriverIoctl(void* drv, unsigned long int req, void* data);
 
-#define AL_POLLPRI 1
-#define AL_POLLIN 2
-#define AL_POLLOUT 4
-#define AL_POLLERR 8
+#define AL_POLLIN 0x001   /* There is data to read.  */
+#define AL_POLLPRI 0x002   /* There is urgent data to read.  */
+#define AL_POLLOUT 0x004   /* Writing now will not block.  */
 
-int Rtos_DriverPoll(void* drv, int timeout, unsigned long flags);
+/* Event types always implicitly polled for.  These bits need not be set in
+   `events', but they will appear in `revents' to indicate the status of
+   the file descriptor.  */
+#define AL_POLLERR 0x008   /* Error condition.  */
+#define AL_POLLHUP 0x010   /* Hung up.  */
+#define AL_POLLNVAL 0x020       /* Invalid polling request.  */
+
+typedef struct Rtos_PollCtx_t
+{
+  unsigned long events;
+  unsigned long revents;
+  int timeout;
+}Rtos_PollCtx;
+
+int Rtos_DriverPoll(void* drv, Rtos_PollCtx* ctx);
 
 /****************************************************************************/
 /*  Atomics */

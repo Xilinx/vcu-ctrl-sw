@@ -61,4 +61,3 @@ bool ReadOneFrameYuv(std::ifstream& File, AL_TBuffer* pBuf, bool bLoop);
 
 /*****************************************************************************/
 bool WriteOneFrame(std::ofstream& File, AL_TBuffer const* pBuf);
-

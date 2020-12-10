@@ -50,8 +50,6 @@
 #include "lib_common/FourCC.h"
 #include "lib_common/SyntaxConversion.h"
 
-#include "lib_common_dec/DecSliceParam.h"
-#include "lib_common_dec/DecBuffers.h"
 #include "lib_common_dec/RbspParser.h"
 #include "lib_common_dec/DecInfo.h"
 #include "lib_common_dec/Defines_mcu.h"
@@ -137,7 +135,7 @@ static int getMaxNumberOfSlices(AL_TStreamSettings const* pStreamSettings, AL_TA
   int maxSlicesCountSupported = AL_AVC_GetMaxNumberOfSlices(AVC_PROFILE_IDC_HIGH_422, 52, 1, 60, INT32_MAX);
   return maxSlicesCountSupported; /* TODO : fix bad behaviour in firmware to decrease dynamically the number of slices */
 
-  int macroblocksCountInPicture = (pStreamSettings->tDim.iWidth / 16) * (pStreamSettings->tDim.iHeight / 16);
+  int macroblocksCountInPicture = GetBlk16x16(pStreamSettings->tDim);
 
   int numUnitsInTick = 1, timeScale = 1;
 
@@ -268,7 +266,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
   int iSizeCompMap = AL_GetAllocSize_DecCompMap(pCtx->tStreamSettings.tDim);
   AL_ERR error = AL_ERR_NO_MEMORY;
 
-  if(!AL_Default_Decoder_AllocPool(pCtx, 0, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap))
+  if(!AL_Default_Decoder_AllocPool(pCtx, 0, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap, 0))
     goto fail_alloc;
 
   int iDpbMaxBuf = getConcealedMaxDPBSize(pCtx->tStreamSettings.iLevel, pCtx->tStreamSettings.tDim.iWidth, pCtx->tStreamSettings.tDim.iHeight, pSPS->max_num_ref_frames);
@@ -607,8 +605,8 @@ static bool avcInitFrameBuffers(AL_TDecCtx* pCtx, bool bStartsNewCVS, const AL_T
   {
     AL_THDRSEIs* pHDRSEIs = &pCtx->aup.tParsedHDRSEIs;
     pMeta->eColourDescription = AL_H273_ColourPrimariesToColourDesc(pSPS->vui_param.colour_primaries);
-    pMeta->eTransferCharacteristics = pSPS->vui_param.transfer_characteristics;
-    pMeta->eColourMatrixCoeffs = pSPS->vui_param.matrix_coefficients;
+    pMeta->eTransferCharacteristics = AL_VUIValueToTransferCharacteristics(pSPS->vui_param.transfer_characteristics);
+    pMeta->eColourMatrixCoeffs = AL_VUIValueToColourMatrixCoefficients(pSPS->vui_param.matrix_coefficients);
     AL_HDRSEIs_Copy(pHDRSEIs, &pMeta->tHDRSEIs);
     AL_HDRSEIs_Reset(pHDRSEIs);
   }
@@ -654,6 +652,9 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
 
     if(!initSlice(pCtx, pSlice))
     {
+      if(bIsLastAUNal && *bBeginFrameIsValid)
+        AL_CancelFrameBuffers(pCtx);
+
       UpdateContextAtEndOfFrame(pCtx);
       return;
     }
@@ -688,7 +689,15 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     else if(bCheckDynResChange && (spsSettings.tDim.iWidth != tLastDim.iWidth || spsSettings.tDim.iHeight != tLastDim.iHeight))
     {
       AL_TCropInfo tCropInfo = extractCropInfo(pSPS);
-      resolutionFound(pCtx, &spsSettings, &tCropInfo, pSPS->max_num_ref_frames);
+      AL_ERR error = resolutionFound(pCtx, &spsSettings, &tCropInfo, pSPS->max_num_ref_frames);
+
+      if(error != AL_SUCCESS)
+      {
+        Rtos_Log(AL_LOG_ERROR, "ResolutionFound callback returns with error\n");
+        AL_Default_Decoder_SetError(pCtx, AL_WARN_RES_FOUND_CB, pPP->tBufIDs.FrmID);
+        pSPS->bConceal = true;
+        isValid = false;
+      }
     }
   }
 

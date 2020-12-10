@@ -428,7 +428,7 @@ void TwoPassMngr::ComputeComplexity()
 /***************************************************************************/
 bool TwoPassMngr::HasPatternTwoFrames()
 {
-  vector<int> v = {};
+  vector<int> v {};
 
   for(auto i = tFrames.begin(); i < tFrames.end(); i++)
     v.push_back(i->iPercentIntra[0]);
@@ -593,7 +593,7 @@ void LookAheadMngr::ComputeComplexity()
 /***************************************************************************/
 bool LookAheadMngr::HasPatternTwoFrames()
 {
-  vector<int> v = {};
+  vector<int> v {};
 
   for(auto i = m_fifo.begin(); i < m_fifo.end(); i++)
   {

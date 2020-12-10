@@ -592,3 +592,24 @@
         - User should set AspectRatio in order to follow the requirement of the profile
         - User should set MaxPictureSizeInBits in order to pad Intra CBG profile
     -- Several minors bugs
+
+2020-11-19 (v1.0.63)
+-------------------
+  Added Features:
+    -- When an encoding channel hangs, try to reset the IP seamlessly
+
+  API:
+    -- Version of the API is now 0.26.0
+    -- New warning when the resolution callback returns with error: AL_WARN_RES_FOUND_CB
+    -- Split API files to be clearer
+        - Add DecBuffers.h
+        - Add DecCallbacks.h
+    -- Add missing AL_OPT_NONE
+    -- Rename: AL_SRC_NVX -> AL_SRC_RASTER
+    -- AL_EncRecBuffer_FillPlaneDesc need 3 more parameters: uLcuSize, uMVVRange, eOtpions
+
+  Fixes:
+    -- Fix IO read/write for all formats
+    -- Fix encoder watchdog issues
+    -- Align stream buffer size to the biggest slice in slicelat mode
+    -- Several minors bugs

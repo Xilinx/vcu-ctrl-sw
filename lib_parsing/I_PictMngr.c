@@ -37,8 +37,9 @@
 
 #include "I_PictMngr.h"
 
+#include "lib_common_dec/DecBuffersInternal.h"
+#include "lib_common/Error.h"
 #include "lib_common/PixMapBufferInternal.h"
-#include "lib_decode/lib_decode.h"
 #include "lib_common_dec/IpDecFourCC.h"
 #include "lib_assert/al_assert.h"
 
@@ -438,6 +439,10 @@ static uint8_t sMvBufPool_GetFreeBufID(AL_TMvBufPool* pPool)
   uint8_t uMvID = pPool->pFreeIDs[--pPool->iFreeCnt];
   AL_Assert(pPool->iAccessCnt[uMvID] == 0);
   pPool->iAccessCnt[uMvID] = 1;
+
+  if(AL_CLEAN_BUFFERS)
+    Rtos_Memset(pPool->pMvBufs[uMvID].tMD.pVirtualAddr, 0, pPool->pMvBufs[uMvID].tMD.uSize);
+
   Rtos_ReleaseMutex(pPool->Mutex);
 
   return uMvID;
@@ -1138,10 +1143,12 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam* pSP, TBuff
 
   if(pListAddr && pListAddr->tMD.pVirtualAddr)
   {
+    TRefListOffsets tRefListOffsets = AL_GetRefListOffsets(eChromaOrder);
+
     AL_PADDR* pAddr = (AL_PADDR*)pListAddr->tMD.pVirtualAddr;
-    AL_PADDR* pColocMvList = ((AL_PADDR*)pListAddr->tMD.pVirtualAddr) + MVCOL_LIST_OFFSET;
-    AL_PADDR* pColocPocList = ((AL_PADDR*)pListAddr->tMD.pVirtualAddr) + POCOL_LIST_OFFSET;
-    AL_PADDR* pFbcList = ((AL_PADDR*)pListAddr->tMD.pVirtualAddr) + FBC_LIST_OFFSET;
+    AL_PADDR* pColocMvList = ((AL_PADDR*)pListAddr->tMD.pVirtualAddr) + tRefListOffsets.uColocMVOffset;
+    AL_PADDR* pColocPocList = ((AL_PADDR*)pListAddr->tMD.pVirtualAddr) + tRefListOffsets.uColocPocOffset;
+    AL_PADDR* pFbcList = ((AL_PADDR*)pListAddr->tMD.pVirtualAddr) + tRefListOffsets.uMapOffset;
 
     for(int i = 0; i < PIC_ID_POOL_SIZE; ++i)
     {

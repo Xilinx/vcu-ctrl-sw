@@ -160,9 +160,6 @@ AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TAl
   if(!stream)
     goto fail_stream_allocation;
 
-  /* prevent trailing_zero_bits*/
-  AL_Buffer_MemSet(stream, 0xFF);
-
   if(!AL_Patchworker_Init(&this->patchworker, stream, &this->fifo))
     goto fail_patchworker_allocation;
 

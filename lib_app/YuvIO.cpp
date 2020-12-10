@@ -423,4 +423,3 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf)
 
   return true;
 }
-

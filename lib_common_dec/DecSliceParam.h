@@ -46,7 +46,7 @@
 
 #include "lib_rtos/types.h"
 #include "lib_common/SliceConsts.h"
-#include "DecBuffers.h"
+#include "lib_common_dec/DecBuffersInternal.h"
 
 /*************************************************************************//*!
    \brief Slice Parameters : Mimics structure for IP registers

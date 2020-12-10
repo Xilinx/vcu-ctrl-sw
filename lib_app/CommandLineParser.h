@@ -47,16 +47,27 @@
 #include <stdexcept>
 #include <iostream>
 
+static inline bool ShouldShowAdvancedFeatures()
+{
+  return true;
+}
+
 struct CommandLineParser
 {
   CommandLineParser() = default;
-  explicit CommandLineParser(std::function<void(std::string)> onOptionParsed_) : onOptionParsed{onOptionParsed_} {};
+  explicit CommandLineParser(bool showAdvancedFeatures_) : showAdvancedFeatures{showAdvancedFeatures_} {};
+  explicit CommandLineParser(std::function<void(std::string)> onOptionParsed_, bool showAdvancedFeatures_) : onOptionParsed{onOptionParsed_}, showAdvancedFeatures{showAdvancedFeatures_} {};
+  void setErrorOnUnknown(bool errorOut)
+  {
+    errorOnUnknown = errorOut;
+  }
 
   struct Option
   {
     std::function<void(std::string)> parser;
     std::string desc; /* full formatted description with the name of the option */
     std::string desc_; /* description provided by the user verbatim */
+    bool advancedFeature = false;
     bool repeat = false;
   };
 
@@ -74,14 +85,24 @@ struct CommandLineParser
         auto i_func = options.find(word);
 
         if(i_func == options.end())
+        {
+          if(!errorOnUnknown)
+            continue;
+
           throw std::runtime_error("Unknown option: '" + word + "', use --help to get help");
+        }
 
         i_func->second.parser(word);
       }
       else /* positional argument */
       {
         if(positionals.empty())
+        {
+          if(!errorOnUnknown)
+            continue;
+
           throw std::runtime_error("Too many positional arguments. Can't interpret '" + word + "', use -h to get help");
+        }
         auto& positional = positionals.front();
         positional.parser(word);
 
@@ -322,6 +343,12 @@ struct CommandLineParser
         std::cerr << "  [" << section << "]" << std::endl;
       }
 
+      std::string item;
+      std::stringstream ss(command);
+
+      if(getline(ss, item, ',') && options.at(item).advancedFeature && !showAdvancedFeatures)
+        continue;
+
       std::cerr << "  " << descs.at(command) << std::endl;
     }
   }
@@ -352,6 +379,9 @@ struct CommandLineParser
       auto& o = o_.second;
       auto section = sections.at(name);
 
+      if(o.advancedFeature && !showAdvancedFeatures)
+        continue;
+
       if(!first)
         std::cerr << ", " << std::endl;
       first = false;
@@ -359,6 +389,29 @@ struct CommandLineParser
     }
 
     std::cerr << "]" << std::endl;
+  }
+
+  // You can also use "X,Y,Z unrelated option to set multiple option as advanced at the same time"
+  void setAdvanced(std::string name)
+  {
+    std::string item;
+    std::stringstream ss(name);
+
+    if(isOption(name))
+    {
+      int num_opt = 0;
+
+      while(getline(ss, item, ','))
+      {
+        ++num_opt;
+        options[item].advancedFeature = true;
+      }
+
+      if(num_opt == 0)
+        throw std::runtime_error("You need to call setAvanced on an existing option");
+    }
+    else
+      throw std::runtime_error("You can't set a positional argument as advanced as it would change the place of all the other positional arguments.");
   }
 
 private:
@@ -404,5 +457,7 @@ private:
 
   std::queue<std::string> words;
   std::function<void(std::string)> onOptionParsed = [](std::string) {};
+  bool errorOnUnknown = true;
+  bool showAdvancedFeatures = true;
 };
 

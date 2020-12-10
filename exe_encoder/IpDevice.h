@@ -36,8 +36,7 @@
 ******************************************************************************/
 
 #pragma once
-#include <memory>
-#include <functional>
+
 #include "lib_app/InputFiles.h"
 #include "lib_app/utils.h"
 #include "exe_encoder/CfgParser.h"
@@ -53,14 +52,6 @@ typedef struct AL_t_IpCtrl AL_TIpCtrl;
 typedef struct AL_t_Timer AL_Timer;
 
 /*****************************************************************************/
-struct CIpDevice
-{
-  AL_IEncScheduler* m_pScheduler = nullptr;
-  std::shared_ptr<AL_TAllocator> m_pAllocator;
-  AL_Timer* m_pTimer;
-};
-
-/*****************************************************************************/
 struct CIpDeviceParam
 {
   int iDeviceType;
@@ -70,5 +61,41 @@ struct CIpDeviceParam
   int iVqDescr = 0;
 };
 
-std::shared_ptr<CIpDevice> CreateIpDevice(CIpDeviceParam& param, std::function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl);
+/*****************************************************************************/
+class CIpDevice
+{
+public:
+  CIpDevice() {};
+  ~CIpDevice();
+
+  void Configure(CIpDeviceParam& param);
+  AL_IEncScheduler* GetScheduler();
+  AL_TAllocator* GetAllocator();
+  AL_Timer* GetTimer();
+
+  CIpDevice(CIpDevice const &) = delete;
+  CIpDevice & operator = (CIpDevice const &) = delete;
+
+private:
+  AL_IEncScheduler* m_pScheduler = nullptr;
+  AL_TAllocator* m_pAllocator = nullptr;
+  AL_Timer* m_pTimer = nullptr;
+
+  void ConfigureMcu(CIpDeviceParam& param);
+};
+
+inline AL_IEncScheduler* CIpDevice::GetScheduler()
+{
+  return m_pScheduler;
+}
+
+inline AL_TAllocator* CIpDevice::GetAllocator()
+{
+  return m_pAllocator;
+}
+
+inline AL_Timer* CIpDevice::GetTimer()
+{
+  return m_pTimer;
+}
 

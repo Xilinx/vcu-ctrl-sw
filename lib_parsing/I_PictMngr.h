@@ -47,7 +47,6 @@
 #include "lib_common/BufferAPI.h"
 #include "lib_common/SliceHeader.h"
 
-#include "lib_common_dec/DecBuffers.h"
 #include "lib_common_dec/DecSliceParam.h"
 #include "lib_common_dec/DecInfo.h"
 #include "DPB.h"

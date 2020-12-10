@@ -39,6 +39,7 @@
 #include "lib_common_enc/EncHwScalingList.h"
 #include "lib_common_enc/EncBuffersInternal.h"
 #include "IP_EncoderCtx.h"
+#include "lib_common/SyntaxConversion.h"
 
 /****************************************************************************/
 static int getScalingListPresentId(int iSizeId, int iIntraInter, int iYCbCr)
@@ -311,8 +312,8 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   // Colour parameter information
   pSPS->vui_param.colour_description_present_flag = 1;
   pSPS->vui_param.colour_primaries = AL_H273_ColourDescToColourPrimaries(pSettings->eColourDescription);
-  pSPS->vui_param.transfer_characteristics = pSettings->eTransferCharacteristics;
-  pSPS->vui_param.matrix_coefficients = pSettings->eColourMatrixCoeffs;
+  pSPS->vui_param.transfer_characteristics = AL_TransferCharacteristicsToVUIValue(pSettings->eTransferCharacteristics);
+  pSPS->vui_param.matrix_coefficients = AL_ColourMatrixCoefficientsToVUIValue(pSettings->eColourMatrixCoeffs);
 
   // Timing information
   AL_UpdateVuiTimingInfo(&pSPS->vui_param, 0, &pSettings->tChParam[0].tRCParam, 2);

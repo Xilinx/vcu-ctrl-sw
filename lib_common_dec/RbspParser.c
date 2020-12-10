@@ -46,7 +46,7 @@
 #include <string.h>
 
 #include "lib_common/Utils.h"
-#include "lib_common_dec/DecBuffers.h"
+#include "lib_common_dec/DecBuffersInternal.h"
 #include "lib_assert/al_assert.h"
 
 #define odd(a) ((a) & 1)
@@ -195,6 +195,9 @@ void InitRbspParser(TCircBuffer const* pStream, uint8_t* pBuffer, bool bHasSC, A
 /*****************************************************************************/
 uint8_t read_bit(AL_TRbspParser* pRP, uint32_t iBitIndex)
 {
+  if(pRP->iTrailingBitOneIndex < pRP->iTotalBitIndex + 1)
+    fetch_data(pRP);
+
   uint32_t iByteOffset = iBitIndex >> 3;
   int iBitOffset = (int)(7 - (iBitIndex & 7));
 

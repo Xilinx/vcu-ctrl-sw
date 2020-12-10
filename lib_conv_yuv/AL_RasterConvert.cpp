@@ -35,7 +35,7 @@
 *
 ******************************************************************************/
 
-#include "AL_NvxConvert.h"
+#include "AL_RasterConvert.h"
 
 #include <cassert>
 #include <iostream>
@@ -54,7 +54,7 @@ extern "C"
 using namespace std;
 
 /*****************************************************************************/
-CNvxConv::CNvxConv(TFrameInfo const& FrameInfo) :
+CRasterConv::CRasterConv(TFrameInfo const& FrameInfo) :
   m_FrameInfo(FrameInfo)
 {
 }
@@ -265,7 +265,7 @@ static void convertToP410(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
 }
 
 /*****************************************************************************/
-void CNvxConv::ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut)
+void CRasterConv::ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut)
 {
   TFourCC tFourCCIn = AL_PixMapBuffer_GetFourCC(pSrcIn);
   auto const picFmt = AL_EncGetSrcPicFormat(m_FrameInfo.eCMode, uBitDepth, AL_FB_RASTER, false);
@@ -288,4 +288,3 @@ void CNvxConv::ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBu
   default: return NoConversionFound(tSrcOutFourCC);
   }
 }
-

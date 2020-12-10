@@ -83,8 +83,6 @@ CMD5::CMD5()
 /*************************************************************************************/
 void CMD5::Update(uint8_t* pBuffer, uint32_t uSize)
 {
-  assert(!(uSize & 3)); // Only support 32-bit aligned buffer size
-
   m_uNumBytes += uSize;
 
   if(m_uBound)
@@ -141,7 +139,7 @@ std::string CMD5::GetMD5()
 
   sMD5.clear();
 
-  for(int h = 0; h < (long)sizeof(m_pHash8); ++h)
+  for(size_t h = 0; h < sizeof(m_pHash8); ++h)
   {
     sMD5 += sToHex[m_pHash8[h] >> 4];
     sMD5 += sToHex[m_pHash8[h] & 15];

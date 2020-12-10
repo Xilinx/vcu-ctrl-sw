@@ -2146,6 +2146,31 @@ void T628_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
 /****************************************************************************/
 template<typename TUntiled, typename FConvert>
+static void Untile4x4Block8b(uint8_t* pTiled4x4, TUntiled* pUntiled, int iUntiledPitch, FConvert convert)
+{
+  pUntiled[0] = convert(pTiled4x4[0]);
+  pUntiled[1] = convert(pTiled4x4[1]);
+  pUntiled[2] = convert(pTiled4x4[2]);
+  pUntiled[3] = convert(pTiled4x4[3]);
+  pUntiled += iUntiledPitch;
+  pUntiled[0] = convert(pTiled4x4[4]);
+  pUntiled[1] = convert(pTiled4x4[5]);
+  pUntiled[2] = convert(pTiled4x4[6]);
+  pUntiled[3] = convert(pTiled4x4[7]);
+  pUntiled += iUntiledPitch;
+  pUntiled[0] = convert(pTiled4x4[8]);
+  pUntiled[1] = convert(pTiled4x4[5]);
+  pUntiled[2] = convert(pTiled4x4[6]);
+  pUntiled[3] = convert(pTiled4x4[6]);
+  pUntiled += iUntiledPitch;
+  pUntiled[0] = convert(pTiled4x4[7]);
+  pUntiled[1] = convert(pTiled4x4[8]);
+  pUntiled[2] = convert(pTiled4x4[8]);
+  pUntiled[3] = convert(pTiled4x4[9]);
+}
+
+/****************************************************************************/
+template<typename TUntiled, typename FConvert>
 static void Untile4x4Block10b(uint16_t* pTiled4x4, TUntiled* pUntiled, int iUntiledPitch, FConvert convert)
 {
   pUntiled[0] = convert(pTiled4x4[0] & 0x3FF);
@@ -2185,33 +2210,57 @@ static void Untile4x4Block12b(uint16_t* pTiled4x4, TUntiled* pUntiled, int iUnti
 }
 
 /****************************************************************************/
-static void Untile4x4Block10bTo8b(uint16_t* pTiled4x4, uint8_t* pUntiled, int iUntiledPitch)
+static void Untile4x4Block8bTo8b(void* pTiled4x4, void* pUntiled, int iUntiledPitch)
 {
-  Untile4x4Block10b<uint8_t>(pTiled4x4, pUntiled, iUntiledPitch, RND_10B_TO_8B);
+  Untile4x4Block8b<uint8_t>((uint8_t*)pTiled4x4, (uint8_t*)pUntiled, iUntiledPitch, [](uint8_t u8) { return u8; });
 }
 
 /****************************************************************************/
-static void Untile4x4Block1xbTo1xb(uint16_t* pTiled4x4, uint16_t* pUntiled, int iUntiledPitch)
+static void Untile4x4Block8bTo10b(void* pTiled4x4, void* pUntiled, int iUntiledPitch)
 {
-  Untile4x4Block10b<uint16_t>(pTiled4x4, pUntiled, iUntiledPitch, [](uint16_t u16) { return u16; });
+  Untile4x4Block8b<uint16_t>((uint8_t*)pTiled4x4, (uint16_t*)pUntiled, iUntiledPitch, [](uint8_t u8) { return uint16_t(u8) << 2; });
 }
 
 /****************************************************************************/
-static void Untile4x4Block12bTo8b(uint16_t* pTiled4x4, uint8_t* pUntiled, int iUntiledPitch)
+static void Untile4x4Block8bTo12b(void* pTiled4x4, void* pUntiled, int iUntiledPitch)
 {
-  Untile4x4Block12b<uint8_t>(pTiled4x4, pUntiled, iUntiledPitch, RND_12B_TO_8B);
+  Untile4x4Block8b<uint16_t>((uint8_t*)pTiled4x4, (uint16_t*)pUntiled, iUntiledPitch, [](uint8_t u8) { return uint16_t(u8) << 4; });
 }
 
 /****************************************************************************/
-static void Untile4x4Block12bTo10b(uint16_t* pTiled4x4, uint16_t* pUntiled, int iUntiledPitch)
+static void Untile4x4Block10bTo8b(void* pTiled4x4, void* pUntiled, int iUntiledPitch)
 {
-  Untile4x4Block12b<uint16_t>(pTiled4x4, pUntiled, iUntiledPitch, RND_12B_TO_10B);
+  Untile4x4Block10b<uint8_t>((uint16_t*)pTiled4x4, (uint8_t*)pUntiled, iUntiledPitch, RND_10B_TO_8B);
 }
 
 /****************************************************************************/
-static void Untile4x4Block12bTo12b(uint16_t* pTiled4x4, uint16_t* pUntiled, int iUntiledPitch)
+static void Untile4x4Block10bTo10b(void* pTiled4x4, void* pUntiled, int iUntiledPitch)
 {
-  Untile4x4Block12b<uint16_t>(pTiled4x4, pUntiled, iUntiledPitch, [](uint16_t u16) { return u16; });
+  Untile4x4Block10b<uint16_t>((uint16_t*)pTiled4x4, (uint16_t*)pUntiled, iUntiledPitch, [](uint16_t u16) { return u16; });
+}
+
+/****************************************************************************/
+static void Untile4x4Block10bTo12b(void* pTiled4x4, void* pUntiled, int iUntiledPitch)
+{
+  Untile4x4Block10b<uint16_t>((uint16_t*)pTiled4x4, (uint16_t*)pUntiled, iUntiledPitch, [](uint16_t u16) { return u16 << 2; });
+}
+
+/****************************************************************************/
+static void Untile4x4Block12bTo8b(void* pTiled4x4, void* pUntiled, int iUntiledPitch)
+{
+  Untile4x4Block12b<uint8_t>((uint16_t*)pTiled4x4, (uint8_t*)pUntiled, iUntiledPitch, RND_12B_TO_8B);
+}
+
+/****************************************************************************/
+static void Untile4x4Block12bTo10b(void* pTiled4x4, void* pUntiled, int iUntiledPitch)
+{
+  Untile4x4Block12b<uint16_t>((uint16_t*)pTiled4x4, (uint16_t*)pUntiled, iUntiledPitch, RND_12B_TO_10B);
+}
+
+/****************************************************************************/
+static void Untile4x4Block12bTo12b(void* pTiled4x4, void* pUntiled, int iUntiledPitch)
+{
+  Untile4x4Block12b<uint16_t>((uint16_t*)pTiled4x4, (uint16_t*)pUntiled, iUntiledPitch, [](uint16_t u16) { return u16; });
 }
 
 /****************************************************************************/
@@ -2294,6 +2343,37 @@ static void T64_Untile_Component_HighBD(AL_TBuffer const* pSrc, AL_TBuffer* pDst
 {
   const int iTileW = 64;
   const int iTileH = 4;
+
+  void (* Untile4x4Block) (void*, void*, int);
+
+  if(bdIn == 12)
+  {
+    if(bdOut == 12)
+      Untile4x4Block = Untile4x4Block12bTo12b;
+    else if(bdOut == 10)
+      Untile4x4Block = Untile4x4Block12bTo10b;
+    else
+      Untile4x4Block = Untile4x4Block12bTo8b;
+  }
+  else if(bdIn == 10)
+  {
+    if(bdOut == 12)
+      Untile4x4Block = Untile4x4Block10bTo12b;
+    else if(bdOut == 10)
+      Untile4x4Block = Untile4x4Block10bTo10b;
+    else
+      Untile4x4Block = Untile4x4Block10bTo8b;
+  }
+  else
+  {
+    if(bdOut == 12)
+      Untile4x4Block = Untile4x4Block8bTo12b;
+    else if(bdOut == 10)
+      Untile4x4Block = Untile4x4Block8bTo10b;
+    else
+      Untile4x4Block = Untile4x4Block8bTo8b;
+  }
+
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pSrc);
 
   uint16_t* pSrcData = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, ePlaneId);
@@ -2323,21 +2403,8 @@ static void T64_Untile_Component_HighBD(AL_TBuffer const* pSrc, AL_TBuffer* pDst
         {
           DstType* pOutY = pDstData + (H + h) * iPitchDst + (W + w);
 
-          if(bdIn == 12)
-          {
-            if(bdOut == 12)
-              Untile4x4Block12bTo12b(pInY, (uint16_t*)pOutY, iPitchDst);
-            else if(bdOut == 10)
-              Untile4x4Block12bTo10b(pInY, (uint16_t*)pOutY, iPitchDst);
-            else
-              Untile4x4Block12bTo8b(pInY, (uint8_t*)pOutY, iPitchDst);
-          }
-          else // 10 bit
-          {
-            bdOut == 10 ?
-            Untile4x4Block1xbTo1xb(pInY, (uint16_t*)pOutY, iPitchDst) :
-            Untile4x4Block10bTo8b(pInY, (uint8_t*)pOutY, iPitchDst);
-          }
+          Untile4x4Block(pInY, pOutY, iPitchDst);
+
           pInY += bdIn;
         }
 
@@ -2598,7 +2665,7 @@ void T60A_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
         for(int w = 0; w < iTileW - iCropW; w += 4)
         {
           uint16_t* pOutC = pDstData + (H + h) * iPitchDst + (W + w);
-          Untile4x4Block1xbTo1xb(pInC, pOutC, iPitchDst);
+          Untile4x4Block10bTo10b(pInC, pOutC, iPitchDst);
           pInC += 10;
         }
 
@@ -2744,12 +2811,14 @@ void T62X_To_P21X(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uBd)
   uint16_t* pInC = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
   uint16_t* pDstData = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
 
+  auto Untile4x4Block = (uBd == 12) ? Untile4x4Block12bTo12b : Untile4x4Block10bTo10b;
+
   for(int h = 0; h < tDim.iHeight; h += 4)
   {
     for(int w = 0; w < iWidthC; w += 4)
     {
       uint16_t* pOutC = pDstData + h * iPitchDst + w;
-      Untile4x4Block1xbTo1xb(pInC, pOutC, iPitchDst);
+      Untile4x4Block(pInC, pOutC, iPitchDst);
       pInC += 10;
     }
 
@@ -2782,6 +2851,26 @@ void T648_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 }
 
 /****************************************************************************/
+void T64A_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  T64_Untile_Component_HighBD<uint8_t>(pSrc, pDst, 10, 8, AL_PLANE_Y);
+  T64_Untile_Component_HighBD<uint8_t>(pSrc, pDst, 10, 8, AL_PLANE_U);
+  T64_Untile_Component_HighBD<uint8_t>(pSrc, pDst, 10, 8, AL_PLANE_V);
+
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I444));
+}
+
+/****************************************************************************/
+void T648_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 8, 10, AL_PLANE_Y);
+  T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 8, 10, AL_PLANE_U);
+  T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 8, 10, AL_PLANE_V);
+
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I4AL));
+}
+
+/****************************************************************************/
 void T64A_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 {
   T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 10, 10, AL_PLANE_Y);
@@ -2797,7 +2886,28 @@ void T64C_To_I4CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
   T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 12, 12, AL_PLANE_Y);
   T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 12, 12, AL_PLANE_U);
   T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 12, 12, AL_PLANE_V);
+
   AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I4CL));
+}
+
+/****************************************************************************/
+void T64C_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 12, 10, AL_PLANE_Y);
+  T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 12, 10, AL_PLANE_U);
+  T64_Untile_Component_HighBD<uint16_t>(pSrc, pDst, 12, 10, AL_PLANE_V);
+
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I4AL));
+}
+
+/****************************************************************************/
+void T64C_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  T64_Untile_Component_HighBD<uint8_t>(pSrc, pDst, 12, 8, AL_PLANE_Y);
+  T64_Untile_Component_HighBD<uint8_t>(pSrc, pDst, 12, 8, AL_PLANE_U);
+  T64_Untile_Component_HighBD<uint8_t>(pSrc, pDst, 12, 8, AL_PLANE_V);
+
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I444));
 }
 
 /****************************************************************************/

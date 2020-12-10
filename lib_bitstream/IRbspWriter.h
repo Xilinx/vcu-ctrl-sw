@@ -55,6 +55,7 @@ typedef struct rbspWriter
   void (* WriteSEI_PictureTiming)(AL_TBitStreamLite* writer, AL_TSps const* pISps, int iAuCpbRemovalDelay, int iPicDpbOutputDelay, int iPicStruct);
   void (* WriteSEI_MasteringDisplayColourVolume)(AL_TBitStreamLite* writer, AL_TMasteringDisplayColourVolume* pMDCV);
   void (* WriteSEI_ContentLightLevel)(AL_TBitStreamLite* writer, AL_TContentLightLevel* pCLL);
+  void (* WriteSEI_AlternativeTransferCharacteristics)(AL_TBitStreamLite* writer, AL_TAlternativeTransferCharacteristics* pATC);
   void (* WriteSEI_ST2094_10)(AL_TBitStreamLite* writer, AL_TDynamicMeta_ST2094_10* pST2094_10);
   void (* WriteSEI_ST2094_40)(AL_TBitStreamLite* writer, AL_TDynamicMeta_ST2094_40* pST2094_40);
   void (* WriteSEI_UserDataUnregistered)(AL_TBitStreamLite* writer, uint8_t uuid[16], int8_t numSlices);

@@ -51,6 +51,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <map>
+#include <functional>
 
 #include "RCPlugin.h"
 

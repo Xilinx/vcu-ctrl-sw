@@ -8,6 +8,12 @@ $ make -f MakefilePlugin
 
 Compilation results are the new firmware bin/plugged_al5e.fw and bin/plugged_al5e_b.fw
 
+Creating the documentation
+==========================
+
+The documentation of the rate control plugin can be generated using  Doxygen/doxygen.sh
+It can then be accessed at Doxygen/doc/html/index.html
+
 Integration
 ===========
 
@@ -30,6 +36,7 @@ Source Code
 * PluginInterface.h contains the interface your plugin needs to implement.
 * ExampleRCPlugin.c contains a rate ctrl plugin which traces all the call to the
 api.
+* exe_encoder/RCPlugin.h contains the userland code that talks with the example plugin
 
 Misc
 ====

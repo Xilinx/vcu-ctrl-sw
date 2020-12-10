@@ -36,8 +36,8 @@
 ******************************************************************************/
 
 #include "lib_decode/lib_decode.h"
-#include "lib_common_dec/DecBuffers.h"
 #include "lib_decode/DefaultDecoder.h"
+#include "lib_common_dec/DecBuffersInternal.h"
 
 AL_ERR CreateAvcDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
 AL_ERR CreateHevcDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
@@ -125,9 +125,6 @@ bool AL_Decoder_PreallocateBuffers(AL_HDecoder hDec)
   AL_TDecoder* pDec = (AL_TDecoder*)hDec;
   return AL_Default_Decoder_PreallocateBuffers(pDec);
 }
-
-int32_t RndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode);
-int32_t RndHeight(int32_t iHeight);
 
 uint32_t AL_Decoder_GetMinPitch(uint32_t uWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode)
 {

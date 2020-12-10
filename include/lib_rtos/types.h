@@ -78,8 +78,8 @@
 
 typedef uint64_t AL_64U __AL_ALIGNED__ (8); // Ensure that 64bits has same alignment on all platforms
 typedef int64_t AL_64S;
-typedef uint8_t* AL_VADDR; // keep byte pointer
-typedef uint32_t AL_PADDR; // physical address, 32-bit address registers
+typedef uint8_t* AL_VADDR; /*!< Virtual address. byte pointer */
+typedef uint32_t AL_PADDR; /*!< Physical address, 32-bit address registers */
 typedef AL_64U AL_PTR64;
 typedef uint32_t AL_ERR;
 typedef void* AL_HANDLE;

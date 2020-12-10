@@ -47,6 +47,7 @@
 #pragma once
 
 #include "lib_rtos/types.h"
+#include "lib_common/PicFormat.h"
 #include "lib_common/Allocator.h"
 
 static const int NUMCORE_AUTO = 0;
@@ -134,6 +135,13 @@ int ceil_log2(uint16_t n);
 
 /****************************************************************************/
 int floor_log2(uint16_t n);
+
+/****************************************************************************/
+int GetBlkNumber(AL_TDimension tDim, uint8_t uLog2MaxCuSize);
+
+static AL_INLINE int GetBlk64x64(AL_TDimension tDim) { return GetBlkNumber(tDim, 6); }
+static AL_INLINE int GetBlk32x32(AL_TDimension tDim) { return GetBlkNumber(tDim, 5); }
+static AL_INLINE int GetBlk16x16(AL_TDimension tDim) { return GetBlkNumber(tDim, 4); }
 
 /****************************************************************************/
 AL_HANDLE AlignedAlloc(AL_TAllocator* pAllocator, const char* pBufName, uint32_t uSize, uint32_t uAlign, uint32_t* uAllocatedSize, uint32_t* uAlignmentOffset);

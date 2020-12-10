@@ -6,7 +6,6 @@ PARSER_SRCS:=\
 
 EXE_ENCODER_SRCS:=\
   $(THIS_EXE_ENCODER)/CodecUtils.cpp\
-  $(THIS_EXE_ENCODER)/YuvIO.cpp\
   $(THIS_EXE_ENCODER)/FileUtils.cpp\
   $(THIS_EXE_ENCODER)/IpDevice.cpp\
   $(THIS_EXE_ENCODER)/container.cpp\

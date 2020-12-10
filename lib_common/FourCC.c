@@ -126,11 +126,13 @@ static const TFourCCMapping FourCCMappings[] =
   , AL_FOURCC_MAPPING(FOURCC2('T', '5', 'm', 'A'), AL_CHROMA_4_0_0, 10, AL_FB_TILE_32x4, AL_C_ORDER_NO_CHROMA, false, false)
   , AL_FOURCC_MAPPING(FOURCC2('T', '5', '0', 'A'), AL_CHROMA_4_2_0, 10, AL_FB_TILE_32x4, AL_C_ORDER_SEMIPLANAR, false, false)
   , AL_FOURCC_MAPPING(FOURCC2('T', '5', '2', 'A'), AL_CHROMA_4_2_2, 10, AL_FB_TILE_32x4, AL_C_ORDER_SEMIPLANAR, false, false)
+  , AL_FOURCC_MAPPING(FOURCC2('T', '5', '4', 'A'), AL_CHROMA_4_4_4, 10, AL_FB_TILE_32x4, AL_C_ORDER_U_V, false, false)
 
   // tile : 32x4: 12b
   , AL_FOURCC_MAPPING(FOURCC2('T', '5', 'm', 'C'), AL_CHROMA_4_0_0, 12, AL_FB_TILE_32x4, AL_C_ORDER_NO_CHROMA, false, false)
   , AL_FOURCC_MAPPING(FOURCC2('T', '5', '0', 'C'), AL_CHROMA_4_2_0, 12, AL_FB_TILE_32x4, AL_C_ORDER_SEMIPLANAR, false, false)
   , AL_FOURCC_MAPPING(FOURCC2('T', '5', '2', 'C'), AL_CHROMA_4_2_2, 12, AL_FB_TILE_32x4, AL_C_ORDER_SEMIPLANAR, false, false)
+  , AL_FOURCC_MAPPING(FOURCC2('T', '5', '4', 'C'), AL_CHROMA_4_4_4, 12, AL_FB_TILE_32x4, AL_C_ORDER_U_V, false, false)
 
   // 10b packed
   , AL_FOURCC_MAPPING(FOURCC2('X', 'V', '1', '0'), AL_CHROMA_4_0_0, 10, AL_FB_RASTER, AL_C_ORDER_NO_CHROMA, false, true)

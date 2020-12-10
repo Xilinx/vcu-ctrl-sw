@@ -101,6 +101,18 @@ void AL_DecodeOneNal(AL_NonVclNuts nuts, AL_NalParser parser, AL_TAup* pAUP, AL_
     parser.parseVps(pAUP, &rp);
   }
 
+  if((nut == nuts.apsPrefix || nut == nuts.apsSuffix) && parser.parseAps)
+  {
+    AL_TRbspParser rp = getParserOnNonVclNalInternalBuf(pCtx);
+    parser.parseAps(pAUP, &rp, pCtx);
+  }
+
+  if(nut == nuts.ph && parser.parsePh)
+  {
+    AL_TRbspParser rp = getParserOnNonVclNalInternalBuf(pCtx);
+    parser.parsePh(pAUP, &rp, pCtx);
+  }
+
   if((nut == nuts.eos) || (nut == nuts.eob) || ((nut == nuts.fd) && pCtx->eInputMode == AL_DEC_SPLIT_INPUT))
   {
     if(pCtx->bFirstIsValid && pCtx->bFirstSliceInFrameIsValid)

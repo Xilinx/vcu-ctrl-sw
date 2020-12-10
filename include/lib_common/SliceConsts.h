@@ -36,7 +36,7 @@
 ******************************************************************************/
 
 /**************************************************************************//*!
-   \addtogroup SliceConsts
+   \addtogroup slice_constants Slice Constants
    @{
    \file
 ******************************************************************************/
@@ -88,8 +88,8 @@ typedef enum e_PicStruct
 *****************************************************************************/
 typedef enum e_EntropyMode
 {
-  AL_MODE_CAVLC,
-  AL_MODE_CABAC,
+  AL_MODE_CAVLC, /*!< Use the CAVLC entropy */
+  AL_MODE_CABAC, /*!< Use the CABAC entropy */
   AL_MODE_MAX_ENUM, /* sentinel */
 }AL_EEntropyMode;
 
@@ -109,7 +109,7 @@ typedef enum e_WPMode
 *****************************************************************************/
 typedef enum AL_e_BufferOutputMode
 {
-  AL_OUTPUT_INTERNAL, // Output reconstructed buffers stored as in the encoder
+  AL_OUTPUT_INTERNAL, /*!< Output reconstructed buffers stored as in the encoder */
   AL_OUTPUT_MAX_ENUM, /* sentinel */
 }AL_EBufferOutputMode;
 

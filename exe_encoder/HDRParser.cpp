@@ -134,6 +134,9 @@ bool HDRParser::ReadJson(const std::string& sHDRFile, AL_THDRSEIs& tHDRSEIs, int
   if(pSEIRoot->GetValue("ContentLightLevel", TJsonValue::JSON_VALUE_OBJECT, pSEIObject))
     tHDRSEIs.bHasCLL = ReadContentLightLevel(pSEIObject, tHDRSEIs.tCLL);
 
+  if(pSEIRoot->GetValue("AlternativeTransferCharacteristics", TJsonValue::JSON_VALUE_OBJECT, pSEIObject))
+    tHDRSEIs.bHasATC = ReadAlternativeTransferCharacteristics(pSEIObject, tHDRSEIs.tATC);
+
   if(pSEIRoot->GetValue("DynamicMeta_ST2094_10", TJsonValue::JSON_VALUE_OBJECT, pSEIObject))
     tHDRSEIs.bHasST2094_10 = ReadST2094_10(pSEIObject, tHDRSEIs.tST2094_10);
 
@@ -189,6 +192,17 @@ bool HDRParser::ReadContentLightLevel(TJsonValue* pSEIObject, AL_TContentLightLe
   if(!pSEIObject->GetValue("max_pic_average_light_level", iVal))
     return false;
   tCLL.max_pic_average_light_level = iVal;
+
+  return true;
+}
+
+bool HDRParser::ReadAlternativeTransferCharacteristics(TJsonValue* pSEIObject, AL_TAlternativeTransferCharacteristics& tATC)
+{
+  int iVal = 0;
+
+  if(!pSEIObject->GetValue("preferred_transfer_characteristics", iVal))
+    return false;
+  tATC.preferred_transfer_characteristics = static_cast<AL_ETransferCharacteristics>(iVal);
 
   return true;
 }

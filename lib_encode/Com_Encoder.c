@@ -516,9 +516,6 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
   SetHLSInfos(pCtx, pReqInfo, pFI);
 #endif
 
-  if(!pCtx->bEncodingStarted)
-    pCtx->bEncodingStarted = true;
-
   bool bRet = AL_IEncScheduler_EncodeOneFrame(pCtx->pScheduler, pCtx->tLayerCtx[iLayerID].hChannel, pEI, pReqInfo, &addresses);
 
   if(!bRet)
@@ -858,6 +855,7 @@ void AL_Common_Encoder_Destroy(AL_TEncoder* pEnc)
 
   if(pCtx)
   {
+
     destroyChannels(pCtx);
     MemDesc_Free(&pCtx->tMDSettings);
     Rtos_Free(pCtx);
@@ -1093,7 +1091,7 @@ static bool AL_Common_Encoder_SetChannelResolution(AL_TLayerCtx* pLayerCtx, AL_T
   AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChanParam->ePicFormat);
 
   if(
-    (AL_ParamConstraints_CheckResolution(pChanParam->eProfile, eChromaMode, tDim.iWidth, tDim.iHeight) != CRERROR_OK)
+    (AL_ParamConstraints_CheckResolution(pChanParam->eProfile, eChromaMode, 1 << pChanParam->uLog2MaxCuSize, tDim.iWidth, tDim.iHeight) != CRERROR_OK)
     || (!AL_SrcBuffersChecker_UpdateResolution(&pLayerCtx->srcBufferChecker, tDim))
     )
     return false;
@@ -1139,6 +1137,9 @@ static bool AL_Common_Encoder_SetLoopFilterOffset(AL_TEncoder* pEnc, bool bBeta,
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
   {
     AL_TEncChanParam* pChanParam = &pCtx->pSettings->tChParam[i];
+
+    if(pChanParam->tGopParam.eGdrMode != AL_GDR_OFF)
+      AL_RETURN_ERROR(AL_ERR_INVALID_CMD_VALUE);
     AL_TLayerCtx* pLayerCtx = &pCtx->tLayerCtx[i];
 
     bool bValidCmd = bBeta ? AL_ParamConstraints_CheckLFBetaOffset(pChanParam->eProfile, iOffset) : AL_ParamConstraints_CheckLFTcOffset(pChanParam->eProfile, iOffset);
@@ -1174,6 +1175,7 @@ bool AL_Common_Encoder_SetHDRSEIs(AL_TEncoder* pEnc, AL_THDRSEIs* pHDRSEIs)
 
   if((pHDRSEIs->bHasMDCV && !(pCtx->pSettings->uEnableSEI & AL_SEI_MDCV)) ||
      (pHDRSEIs->bHasCLL && !(pCtx->pSettings->uEnableSEI & AL_SEI_CLL)) ||
+     (pHDRSEIs->bHasATC && !(pCtx->pSettings->uEnableSEI & AL_SEI_ATC)) ||
      (pHDRSEIs->bHasST2094_10 && !(pCtx->pSettings->uEnableSEI & AL_SEI_ST2094_10)) ||
      (pHDRSEIs->bHasST2094_40 && !(pCtx->pSettings->uEnableSEI & AL_SEI_ST2094_40)))
     AL_RETURN_ERROR(AL_ERR_CMD_NOT_ALLOWED);
@@ -1231,6 +1233,9 @@ AL_TNalsData AL_ExtractNalsData(AL_TEncCtx* pCtx, int iLayerID, int iPicID)
 
   if(pHDRSEIs == NULL || !pHDRSEIs->bHasCLL)
     data.seiFlags &= ~AL_SEI_CLL;
+
+  if(pHDRSEIs == NULL || !pHDRSEIs->bHasATC)
+    data.seiFlags &= ~AL_SEI_ATC;
 
   if(pHDRSEIs == NULL || !pHDRSEIs->bHasST2094_10)
     data.seiFlags &= ~AL_SEI_ST2094_10;

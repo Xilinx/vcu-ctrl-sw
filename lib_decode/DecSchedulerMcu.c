@@ -97,6 +97,7 @@ typedef struct
   AL_TDriver* driver;
   AL_TDecScheduler_CB_EndParsing endParsingCB;
   AL_TDecScheduler_CB_EndDecoding endDecodingCB;
+  int iChanId; // for debug purposes
 }Channel;
 
 typedef struct
@@ -193,21 +194,6 @@ static void setChannelMsg(struct al5_params* msg, const TMemDesc* pMDChParams)
   Rtos_Memcpy(msg->opaque, &uVirtAddr, msg->size);
 }
 
-static bool getStatusMsg(Channel* chan, struct al5_params* msg)
-{
-  bool bRet = AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_WAIT_FOR_STATUS, msg) == DRIVER_SUCCESS;
-
-  if(!bRet && !chan->bBeingDestroyed)
-    perror("Failed to get decode status");
-
-  return bRet;
-}
-
-static bool getScStatusMsg(SCMsg* pMsg, struct al5_scstatus* StatusMsg)
-{
-  return AL_Driver_PostMessage(pMsg->driver, pMsg->fd, AL_MCU_WAIT_FOR_START_CODE, StatusMsg) == DRIVER_SUCCESS;
-}
-
 static void processStatusMsg(Channel* channel, struct al5_params* msg)
 {
   uint32_t const DEC_1 = 1;
@@ -246,15 +232,35 @@ static void* NotificationThread(void* p)
 {
   Rtos_SetCurrentThreadName("dec-status-it");
   Channel* chan = p;
+  struct al5_params msg = { 0 };
+  Rtos_PollCtx ctx;
+  /* Wait for wait for status events forever in poll */
+  ctx.timeout = -1;
+  ctx.events = AL_POLLIN;
 
   while(true)
   {
-    struct al5_params msg = { 0 };
+    ctx.revents = 0;
 
-    if(!getStatusMsg(chan, &msg))
+    AL_EDriverError err = AL_Driver_PostMessage(chan->driver, chan->fd, AL_POLL_MSG, &ctx);
+
+    if(err != DRIVER_SUCCESS)
+      continue;
+
+    if(ctx.revents & AL_POLLIN)
+    {
+      AL_EDriverError err = AL_Driver_PostMessage2(chan->driver, chan->fd, AL_MCU_WAIT_FOR_STATUS, &msg, false /* non blocking */);
+
+      if(err == DRIVER_SUCCESS)
+        processStatusMsg(chan, &msg);
+      else
+        Rtos_Log(AL_LOG_ERROR, "Failed to get decode status (error code: %d)\n", err);
+    }
+    /* If the polling finds an end of operation, it means that the channel was destroyed and we can stop waiting for encoding results. */
+    else if(ctx.revents & AL_POLLHUP)
+    {
       break;
-
-    processStatusMsg(chan, &msg);
+    }
   }
 
   return NULL;
@@ -275,7 +281,7 @@ static void processScStatusMsg(SCMsg* pMsg, struct al5_scstatus* StatusMsg)
 }
 
 /* One reader, no race condition */
-bool isSCReady(void* p)
+static bool isSCReady(void* p)
 {
   AL_EventQueue* pCtx = p;
   pthread_mutex_lock(&pCtx->Lock);
@@ -289,6 +295,10 @@ static void* ScNotificationThread(void* p)
   Rtos_SetCurrentThreadName("dec-scd-it");
   AL_EventQueue* pEventQueue = (AL_EventQueue*)p;
   struct al5_scstatus StatusMsg = { 0 };
+  Rtos_PollCtx ctx;
+  /* Wait for start code events forever in poll */
+  ctx.timeout = -1;
+  ctx.events = AL_POLLIN;
 
   while(true)
   {
@@ -303,8 +313,27 @@ static void* ScNotificationThread(void* p)
       break;
     }
 
-    if(getScStatusMsg(pMsg, &StatusMsg))
-      processScStatusMsg(pMsg, &StatusMsg);
+    ctx.revents = 0;
+
+    AL_EDriverError err = AL_Driver_PostMessage(pMsg->driver, pMsg->fd, AL_POLL_MSG, &ctx);
+
+    if(err != DRIVER_SUCCESS)
+      continue;
+
+    if(ctx.revents & AL_POLLIN)
+    {
+      AL_EDriverError err = AL_Driver_PostMessage2(pMsg->driver, pMsg->fd, AL_MCU_WAIT_FOR_START_CODE, &StatusMsg, false /* non blocking */);
+
+      if(err == DRIVER_SUCCESS)
+        processScStatusMsg(pMsg, &StatusMsg);
+      else
+        Rtos_Log(AL_LOG_ERROR, "Failed to get start code status (error code: %d)\n", err);
+    }
+    else if(ctx.revents & AL_POLLHUP)
+    {
+      Rtos_Log(AL_LOG_ERROR, "Unexpected End of Operation on Startcode Status\n", err);
+      break;
+    }
 
     Rtos_Free(pMsg);
   }
@@ -418,9 +447,11 @@ static AL_ERR API_DestroyChannel(AL_IDecScheduler* pScheduler, AL_HANDLE hChanne
   chan->bBeingDestroyed = true;
   AL_ERR errorCode = AL_ERROR;
 
-  if(AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_DESTROY_CHANNEL, NULL) != DRIVER_SUCCESS)
+  AL_EDriverError error = AL_Driver_PostMessage(chan->driver, chan->fd, AL_MCU_DESTROY_CHANNEL, NULL);
+
+  if(error != DRIVER_SUCCESS)
   {
-    perror("Failed to destroy channel");
+    Rtos_Log(AL_LOG_ERROR, "Failed to destroy channel (error code: %d)\n", error);
     goto exit;
   }
 
@@ -449,6 +480,7 @@ static AL_ERR API_CreateChannel(AL_HANDLE* hChannel, AL_IDecScheduler* pSchedule
   }
 
   chan->bBeingDestroyed = false;
+  chan->iChanId = -1;
   chan->endParsingCB = endParsingCallback;
   chan->endDecodingCB = endDecodingCallback;
   chan->driver = scheduler->driver;
@@ -456,7 +488,7 @@ static AL_ERR API_CreateChannel(AL_HANDLE* hChannel, AL_IDecScheduler* pSchedule
 
   if(chan->fd < 0)
   {
-    fprintf(stderr, "Couldn't open device file %s while creating channel; %s\n", scheduler->deviceFile, strerror(errno));
+    Rtos_Log(AL_LOG_ERROR, "Couldn't open device file %s while creating channel; %s\n", scheduler->deviceFile, strerror(errno));
     goto fail_open;
   }
 
@@ -477,7 +509,11 @@ static AL_ERR API_CreateChannel(AL_HANDLE* hChannel, AL_IDecScheduler* pSchedule
     goto fail_open;
   }
 
-  AL_Assert(msg.status.error_code == 0);
+  AL_Assert(msg.status.error_code == AL_SUCCESS);
+
+  /* Retrieve channel id if it was given to us using the param as an output (debug) */
+  if(msg.param.size == 4)
+    chan->iChanId = msg.param.opaque[0];
 
   chan->thread = Rtos_CreateThread(&NotificationThread, chan);
 
@@ -539,16 +575,18 @@ static void API_SearchSC(AL_IDecScheduler* pScheduler, AL_HANDLE hStartCodeChann
 
   if(pMsg->fd < 0)
   {
-    fprintf(stderr, "Cannot open device file %s: %s\n", scheduler->deviceFile, strerror(errno));
+    Rtos_Log(AL_LOG_ERROR, "Cannot open device file %s: %s\n", scheduler->deviceFile, strerror(errno));
     goto fail_open;
   }
 
   struct al5_search_sc_msg search_msg = { 0 };
   setSearchStartCodeMsg(&search_msg, pScParam, pBufAddrs);
 
-  if(AL_Driver_PostMessage(scheduler->driver, pMsg->fd, AL_MCU_SEARCH_START_CODE, &search_msg) != DRIVER_SUCCESS)
+  AL_EDriverError error = AL_Driver_PostMessage(scheduler->driver, pMsg->fd, AL_MCU_SEARCH_START_CODE, &search_msg);
+
+  if(error != DRIVER_SUCCESS)
   {
-    perror("Failed to search start code");
+    Rtos_Log(AL_LOG_ERROR, "Failed to search start code (error code: %d)\n", error);
     goto fail_open;
   }
 
@@ -582,9 +620,10 @@ static void API_DecodeOneFrame(AL_IDecScheduler* pScheduler, AL_HANDLE hChannel,
 
   struct al5_decode_msg msg = { 0 };
   prepareDecodeMessage(&msg, pPictParam, pPictAddrs, hSliceParam);
+  AL_EDriverError error = AL_Driver_PostMessage(scheduler->driver, chan->fd, AL_MCU_DECODE_ONE_FRM, &msg);
 
-  if(AL_Driver_PostMessage(scheduler->driver, chan->fd, AL_MCU_DECODE_ONE_FRM, &msg) != DRIVER_SUCCESS)
-    perror("Failed to decode");
+  if(error != DRIVER_SUCCESS)
+    Rtos_Log(AL_LOG_ERROR, "Failed to decode one frame (error code: %d)\n", error);
 }
 
 static void API_DecodeOneSlice(AL_IDecScheduler* pScheduler, AL_HANDLE hChannel, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* hSliceParam)
@@ -595,8 +634,10 @@ static void API_DecodeOneSlice(AL_IDecScheduler* pScheduler, AL_HANDLE hChannel,
   struct al5_decode_msg msg = { 0 };
   prepareDecodeMessage(&msg, pPictParam, pPictAddrs, hSliceParam);
 
-  if(AL_Driver_PostMessage(scheduler->driver, chan->fd, AL_MCU_DECODE_ONE_SLICE, &msg) != DRIVER_SUCCESS)
-    perror("Failed to decode");
+  AL_EDriverError error = AL_Driver_PostMessage(scheduler->driver, chan->fd, AL_MCU_DECODE_ONE_SLICE, &msg);
+
+  if(error != DRIVER_SUCCESS)
+    Rtos_Log(AL_LOG_ERROR, "Failed to decode one slice (error code: %d)\n", error);
 }
 
 static const AL_IDecSchedulerVtable DecSchedulerMcuVtable =

@@ -133,6 +133,17 @@ void LogVerbose(EConColor Color, const char* sMsg, ...)
   va_end(args);
 }
 
+void LogDebug(const char* sMsg, ...)
+{
+  if(g_Verbosity < 20)
+    return;
+
+  va_list args;
+  va_start(args, sMsg);
+  Message(CC_DEFAULT, sMsg, args);
+  va_end(args);
+}
+
 void OpenInput(std::ifstream& fp, std::string filename, bool binary)
 {
   fp.open(filename, binary ? std::ios::binary : std::ios::in);

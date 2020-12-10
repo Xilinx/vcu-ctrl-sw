@@ -83,3 +83,32 @@ AL_EColourDescription AL_H273_ColourPrimariesToColourDesc(int iColourPrimaries)
 
   return AL_COLOUR_DESC_UNSPECIFIED;
 }
+
+int AL_TransferCharacteristicsToVUIValue(AL_ETransferCharacteristics eTransferCharacteristics)
+{
+  AL_Assert(eTransferCharacteristics != AL_TRANSFER_CHARAC_MAX_ENUM);
+  return (int)eTransferCharacteristics;
+}
+
+AL_ETransferCharacteristics AL_VUIValueToTransferCharacteristics(int iTransferCharacteristics)
+{
+  if(iTransferCharacteristics == 0 || iTransferCharacteristics == 3 ||
+     iTransferCharacteristics >= AL_TRANSFER_CHARAC_MAX_ENUM)
+    return AL_TRANSFER_CHARAC_UNSPECIFIED;
+
+  return (AL_ETransferCharacteristics)iTransferCharacteristics;
+}
+
+int AL_ColourMatrixCoefficientsToVUIValue(AL_EColourMatrixCoefficients eColourMatrixCoef)
+{
+  AL_Assert(eColourMatrixCoef != AL_COLOUR_MAT_COEFF_MAX_ENUM);
+  return (int)eColourMatrixCoef;
+}
+
+AL_EColourMatrixCoefficients AL_VUIValueToColourMatrixCoefficients(int iColourMatrixCoef)
+{
+  if(iColourMatrixCoef == 3 || iColourMatrixCoef >= AL_COLOUR_MAT_COEFF_MAX_ENUM)
+    return AL_COLOUR_MAT_COEFF_UNSPECIFIED;
+
+  return (AL_EColourMatrixCoefficients)iColourMatrixCoef;
+}

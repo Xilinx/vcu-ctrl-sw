@@ -40,8 +40,8 @@
 #include <cassert>
 
 #include "CodecUtils.h"
-#include "YuvIO.h"
 
+#include "lib_app/YuvIO.h"
 #include "lib_app/convert.h"
 #include "lib_app/utils.h"
 

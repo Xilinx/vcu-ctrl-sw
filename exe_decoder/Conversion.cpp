@@ -71,10 +71,13 @@ void CropFrame(AL_TBuffer* pYUV, int iSizePix, uint32_t uCropLeft, uint32_t uCro
   /*chroma samples*/
   if(eMode != AL_CHROMA_MONO)
   {
+    int iRatioH = (eMode == AL_CHROMA_4_4_4) ? 1 : 2;
+    int iRatioV = (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
+    int iWidthC = (tRawDim.iWidth + iRatioH - 1) / iRatioH;
+    int iHeightC = (tRawDim.iHeight + iRatioV - 1) / iRatioV;
+
     int iCbOffset = tRawDim.iWidth * tRawDim.iHeight;
-    tRawDim.iWidth /= (eMode == AL_CHROMA_4_4_4) ? 1 : 2;
-    tRawDim.iHeight /= (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
-    int iCrOffset = iCbOffset + (tRawDim.iWidth * tRawDim.iHeight);
+    int iCrOffset = iCbOffset + (iWidthC * iHeightC);
 
     iBeginVert /= (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
     iEndVert /= (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
@@ -87,7 +90,7 @@ void CropFrame(AL_TBuffer* pYUV, int iSizePix, uint32_t uCropLeft, uint32_t uCro
 
       for(int iParse = iBeginVert; iParse < iEndVert; ++iParse)
       {
-        memmove(pOut, &pIn[(iParse * tRawDim.iWidth + iBeginHrz + iChromaOffset) * iSizePix], (iEndHrz - iBeginHrz) * iSizePix);
+        memmove(pOut, &pIn[(iParse * iWidthC + iBeginHrz + iChromaOffset) * iSizePix], (iEndHrz - iBeginHrz) * iSizePix);
         pOut += (iEndHrz - iBeginHrz) * iSizePix;
       }
     }

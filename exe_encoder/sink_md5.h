@@ -40,5 +40,6 @@
 #include "sink.h"
 #include "CfgParser.h"
 
-std::unique_ptr<IFrameSink> createMd5Calculator(std::string path, ConfigFile& cfg_, AL_TBuffer* Yuv_);
+std::unique_ptr<IFrameSink> createYuvMd5Calculator(std::string path, ConfigFile& cfg_, AL_TBuffer* Yuv_);
+std::unique_ptr<IFrameSink> createStreamMd5Calculator(std::string path);
 

@@ -38,6 +38,7 @@ ifneq ($(ENABLE_HEVC),0)
 endif
 
 
+
 ifneq ($(ENABLE_HIGH_DYNAMIC_RANGE),0)
   LIB_COMMON_SRC+=lib_common/HDR.c
 endif

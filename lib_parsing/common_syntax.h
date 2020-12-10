@@ -55,6 +55,7 @@
 #define SEI_PTYPE_RECOVERY_POINT 6
 #define SEI_PTYPE_MASTERING_DISPLAY_COLOUR_VOLUME 137
 #define SEI_PTYPE_CONTENT_LIGHT_LEVEL 144
+#define SEI_PTYPE_ALTERNATIVE_TRANSFER_CHARACTERISTICS 147
 
 /* COMMON USER DATA REGISTERED SEI TYPES */
 typedef enum
@@ -127,6 +128,14 @@ bool sei_mastering_display_colour_volume(AL_TMasteringDisplayColourVolume* pMDCV
    \param[in]  pRP       Pointer to NAL parser
 *****************************************************************************/
 bool sei_content_light_level(AL_TContentLightLevel* pCLL, AL_TRbspParser* pRP);
+
+/*************************************************************************//*!
+   \brief The sei_alternative_transfer_characteristics parsing
+   \param[out] pATC Pointer to the alternative_transfer_characteristics structure
+   that will be filled
+   \param[in]  pRP       Pointer to NAL parser
+*****************************************************************************/
+bool sei_alternative_transfer_characteristics(AL_TAlternativeTransferCharacteristics* pATC, AL_TRbspParser* pRP);
 
 /*************************************************************************//*!
    \brief Parse the first bytes of user_data_registered_itu_t_t35 sei to determine

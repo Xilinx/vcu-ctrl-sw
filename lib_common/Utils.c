@@ -95,6 +95,14 @@ int floor_log2(uint16_t n)
   return s;
 }
 
+/****************************************************************************/
+int GetBlkNumber(AL_TDimension tDim, uint8_t uLog2MaxCuSize)
+{
+  return ((tDim.iWidth + (1 << uLog2MaxCuSize) - 1) >> uLog2MaxCuSize)
+         * ((tDim.iHeight + (1 << uLog2MaxCuSize) - 1) >> uLog2MaxCuSize);
+}
+
+/****************************************************************************/
 AL_HANDLE AlignedAlloc(AL_TAllocator* pAllocator, const char* pBufName, uint32_t uSize, uint32_t uAlign, uint32_t* uAllocatedSize, uint32_t* uAlignmentOffset)
 {
   AL_HANDLE pBuf = NULL;

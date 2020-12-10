@@ -48,6 +48,7 @@ void LogDimmedWarning(const char* sMsg, ...);
 void LogInfo(const char* sMsg, ...);
 void LogInfo(EConColor Color, const char* sMsg, ...);
 void LogVerbose(const char* sMsg, ...);
+void LogDebug(const char* sMsg, ...);
 void LogVerbose(EConColor Color, const char* sMsg, ...);
 
 void OpenInput(std::ifstream& fp, std::string filename, bool binary = true);

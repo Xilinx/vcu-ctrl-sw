@@ -164,6 +164,7 @@ typedef struct t_WPTable
   int8_t chroma_log2_weight_denom;
 
   AL_TWPCoeff tWpCoeff[2];
+  uint8_t NumWeights[2];
 }AL_TWPTable;
 
 /*************************************************************************//*!

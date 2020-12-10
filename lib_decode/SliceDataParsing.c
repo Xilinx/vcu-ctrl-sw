@@ -53,8 +53,6 @@
 #include "lib_common/PixMapBufferInternal.h"
 #include "lib_common/BufferHandleMeta.h"
 
-#include "lib_common_dec/DecBuffers.h"
-#include "lib_common_dec/DecSliceParam.h"
 #include "lib_common_dec/DecHwScalingList.h"
 #include "lib_common_dec/RbspParser.h"
 

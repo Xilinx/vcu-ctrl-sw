@@ -121,11 +121,7 @@ typedef struct AL_t_DecPictParam
   int8_t PicCrQpOffset;
   int8_t CbQpOffLst[6];
   int8_t CrQpOffLst[6];
-  union
-  {
-    int8_t DeltaQPCUDepth;
-    int8_t DeltaQPCUSubdiv;
-  };
+  int8_t DeltaQPCUDepth;
 
   uint16_t PicWidth;
   uint16_t PicHeight;

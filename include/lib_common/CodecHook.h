@@ -47,5 +47,8 @@ typedef enum
   AL_HOOK_DEC1,
   AL_HOOK_DEC2,
   AL_HOOK_JPEG,
+  AL_HOOK_FBC,
+  AL_HOOK_FBD,
+  AL_HOOK_ME,
   AL_HOOK_TOP,
 }AL_ECodecHook;

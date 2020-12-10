@@ -32,14 +32,6 @@ else
 endif
 endif
 
-ifneq ($(ENABLE_ELASTIC),0)
-  LDFLAGS+=-lcurl
-  LDFLAGS+=-lcpr
-  INCLUDES+=-I./extra/cpr/include
-  INCLUDES+=-I./extra/date/include
-  LDFLAGS+=-L./extra/cpr/build
-  LIB_CPR_A=./extra/cpr/build/libcpr.a
-endif
 
 LDFLAGS+=$(LPTHREAD)
 

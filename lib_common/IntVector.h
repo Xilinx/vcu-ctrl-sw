@@ -37,8 +37,8 @@
 
 #pragma once
 
-#include <stdbool.h>
-#include <lib_common/Utils.h>
+#include <lib_rtos/types.h> // bool
+#include <lib_common/Utils.h> // Min
 #include <lib_assert/al_assert.h>
 
 #define MAX_ELEMENTS 32
@@ -54,6 +54,7 @@ void IntVector_Add(IntVector* self, int element);
 void IntVector_MoveBack(IntVector* self, int element);
 void IntVector_Remove(IntVector* self, int element);
 bool IntVector_IsIn(IntVector* self, int element);
+int IntVector_Count(IntVector* self);
 void IntVector_Revert(IntVector* self);
 void IntVector_Copy(IntVector* from, IntVector* to);
 

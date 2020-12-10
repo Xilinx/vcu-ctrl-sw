@@ -43,7 +43,7 @@
    \file
  *****************************************************************************/
 
-#include "lib_common_dec/DecBuffers.h"
+#include "lib_common_dec/DecBuffersInternal.h"
 #include "lib_common/Utils.h"
 #include "lib_common/BufferPixMapMeta.h"
 
@@ -64,20 +64,6 @@ int32_t RndHeight(int32_t iHeight)
 {
   int const iAlignment = 64;
   return RoundUp(iHeight, iAlignment);
-}
-
-/****************************************************************************/
-int AL_GetNumLCU(AL_TDimension tDim, uint8_t uLog2LCUSize)
-{
-  switch(uLog2LCUSize)
-  {
-  case 4: return GetBlk16x16(tDim);
-  case 5: return GetBlk32x32(tDim);
-  case 6: return GetBlk64x64(tDim);
-  default: AL_Assert(0);
-  }
-
-  return 0;
 }
 
 /****************************************************************************/
@@ -163,6 +149,20 @@ int AL_DecGetAllocSize_Frame_Y(AL_EFbStorageMode eFbStorage, AL_TDimension tDim,
 int AL_DecGetAllocSize_Frame_UV(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode)
 {
   return AL_DecGetAllocSize_Frame_PixPlane(eFbStorage, tDim, iPitch, eChromaMode, AL_PLANE_UV);
+}
+
+/****************************************************************************/
+TRefListOffsets AL_GetRefListOffsets(AL_EChromaOrder eChromaOrder)
+{
+  AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES];
+  const int iNbPixPlanes = Max(2, AL_Plane_GetBufferPixelPlanes(eChromaOrder, usedPlanes));
+  TRefListOffsets tOffsets =
+  {
+    MAX_REF* iNbPixPlanes,
+    MAX_REF * (iNbPixPlanes + 1),
+    MAX_REF * (iNbPixPlanes + 2)
+  };
+  return tOffsets;
 }
 
 /*****************************************************************************/

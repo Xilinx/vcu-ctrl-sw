@@ -90,8 +90,8 @@ static AL_TRateCtrlMetaData* create(AL_TAllocator* pAllocator, uint32_t uBufMVSi
   return pMeta;
 }
 
-AL_TRateCtrlMetaData* AL_RateCtrlMetaData_Create(AL_TAllocator* pAllocator, AL_TDimension tDim, uint8_t uLcuSize, AL_ECodec eCodec)
+AL_TRateCtrlMetaData* AL_RateCtrlMetaData_Create(AL_TAllocator* pAllocator, AL_TDimension tDim, uint8_t uLog2MaxCuSize, AL_ECodec eCodec)
 {
-  uint32_t uSizeMV = AL_GetAllocSize_MV(tDim, uLcuSize, eCodec) - MVBUFF_MV_OFFSET;
+  uint32_t uSizeMV = AL_GetAllocSize_MV(tDim, uLog2MaxCuSize, eCodec) - MVBUFF_MV_OFFSET;
   return create(pAllocator, uSizeMV);
 }

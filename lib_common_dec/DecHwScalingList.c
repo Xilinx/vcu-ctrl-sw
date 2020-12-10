@@ -41,11 +41,21 @@
 /******************************************************************************/
 static void AL_sWriteWord(const uint8_t* pSrc, int iSize, uint32_t* pBuf, const int* pScan)
 {
-  for(int scl = 0; scl < iSize; ++scl)
+  for(int iScl = 0; iScl < iSize; ++iScl)
   {
-    int iOffset = scl << 2;
-    *pBuf++ = pSrc[pScan ? pScan[iOffset] : iOffset] | (pSrc[pScan ? pScan[iOffset + 1] : iOffset + 1] << 8) |
-              (pSrc[pScan ? pScan[iOffset + 2] : iOffset + 2] << 16) | ((uint32_t)pSrc[pScan ? pScan[iOffset + 3] : iOffset + 3] << 24);
+    int iOffset = iScl << 2;
+    int iOffset0 = pScan ? pScan[iOffset] : iOffset;
+    int iOffset1 = pScan ? pScan[iOffset + 1] : iOffset + 1;
+    int iOffset2 = pScan ? pScan[iOffset + 2] : iOffset + 2;
+    int iOffset3 = pScan ? pScan[iOffset + 3] : iOffset + 3;
+
+    uint32_t var = 0;
+    var |= pSrc[iOffset0];
+    var |= pSrc[iOffset1] << 8;
+    var |= pSrc[iOffset2] << 16;
+    var |= pSrc[iOffset3] << 24;
+
+    *pBuf++ = var;
   }
 }
 

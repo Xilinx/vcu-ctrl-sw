@@ -55,6 +55,7 @@
 extern "C"
 {
 #include "lib_common/PixMapBuffer.h"
+#include "lib_common/BufCommon.h"
 #include "lib_decode/lib_decode.h"
 #include "lib_common_dec/DecBuffers.h"
 #include "lib_common_dec/IpDecFourCC.h"
@@ -115,7 +116,6 @@ static inline int RoundUp(int iVal, int iRnd)
 static uint32_t constexpr uDefaultNumBuffersHeldByNextComponent = 1; /* We need at least 1 buffer to copy the output on a file */
 static bool bCertCRC = false;
 static bool g_MultiChunk = false;
-static int g_DecodeAPBId = 1;
 static uint8_t constexpr NUMCORE_AUTO = 0;
 
 AL_TDecSettings getDefaultDecSettings()
@@ -123,7 +123,6 @@ AL_TDecSettings getDefaultDecSettings()
   AL_TDecSettings settings {};
 
   settings.iStackSize = 2;
-  settings.iBitDepth = -1;
   settings.uNumCore = NUMCORE_AUTO;
   settings.uFrameRate = 60000;
   settings.uClkRatio = 1000;
@@ -157,6 +156,7 @@ struct Config
 
   int iDeviceType = DEVICE_TYPE_BOARD; // board
   SCHEDULER_TYPE iSchedulerType = SCHEDULER_TYPE_MCU;
+  int iOutputBitDepth = -1;
   int iNumTrace = -1;
   int iNumberTrace = 0;
   bool bForceCleanBuffers = false;
@@ -166,6 +166,7 @@ struct Config
   size_t zInputBufferSize = zDefaultInputBufferSize;
   IpCtrlMode ipCtrlMode = IPCTRL_MODE_STANDARD;
   string logsFile = "";
+  string apbFile = "";
   bool trackDma = false;
   int hangers = 0;
   int iLoop = 1;
@@ -314,7 +315,7 @@ static Config ParseCommandLine(int argc, char* argv[])
   string sOut;
   string sRasterOut;
 
-  auto opt = CommandLineParser();
+  auto opt = CommandLineParser(ShouldShowAdvancedFeatures());
 
   opt.addFlag("--help,-h", &Config.help, "Shows this help");
   opt.addFlag("--help-json", &helpJson, "Show this help (json)");
@@ -333,7 +334,7 @@ static Config ParseCommandLine(int argc, char* argv[])
 
   opt.addInt("-fps", &fps, "force framerate");
   opt.addCustom("-clk", &Config.tDecSettings.uClkRatio, &IntWithOffset<1000>, "Set clock ratio, (0 for 1000, 1 for 1001)", "number");
-  opt.addInt("-bd", &Config.tDecSettings.iBitDepth, "Output YUV bitdepth (0:auto, 8, 10, 12)");
+  opt.addInt("-bd", &Config.iOutputBitDepth, "Output YUV bitdepth (0:auto, 8, 10, 12)");
   opt.addFlag("--sync-i-frames", &Config.tDecSettings.bUseIFramesAsSyncPoint,
               "Allow decoder to sync on I frames if configurations' nals are presents",
               true);
@@ -378,6 +379,7 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addFlag("--multi-chunk", &g_MultiChunk, "Allocate luma and chroma of decoded frames on different memory chunks");
   opt.addInt("-nbuf", &Config.uInputBufferNum, "Specify the number of input feeder buffer");
   opt.addInt("-nsize", &Config.zInputBufferSize, "Specify the size (in bytes) of input feeder buffer");
+  opt.addInt("-stream-buf-size", &Config.tDecSettings.iStreamBufSize, "Specify the size (in bytes) of internal circualr buffer size (0 = default)");
 
   opt.addString("-crc_ip", &Config.sCrc, "Output crc file");
 
@@ -642,8 +644,7 @@ AL_TO_IP GetTileConversionFunction(int iPicFmt)
   auto const AL_CHROMA_422_8bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 8, 10);
 
   auto const AL_CHROMA_444_8bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 8, 8);
-  auto const AL_CHROMA_444_10bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 10, 10);
-  auto const AL_CHROMA_444_12bitTo12bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 12, 12);
+  auto const AL_CHROMA_444_8bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 8, 10);
 
   auto const AL_CHROMA_MONO_10bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_MONO, 10, 10);
   auto const AL_CHROMA_MONO_10bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_MONO, 10, 8);
@@ -653,6 +654,9 @@ AL_TO_IP GetTileConversionFunction(int iPicFmt)
 
   auto const AL_CHROMA_422_10bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 10, 10);
   auto const AL_CHROMA_422_10bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 10, 8);
+
+  auto const AL_CHROMA_444_10bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 10, 10);
+  auto const AL_CHROMA_444_10bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 10, 8);
 
   auto const AL_CHROMA_MONO_12bitTo12bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_MONO, 12, 12);
   auto const AL_CHROMA_MONO_12bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_MONO, 12, 10);
@@ -665,6 +669,10 @@ AL_TO_IP GetTileConversionFunction(int iPicFmt)
   auto const AL_CHROMA_422_12bitTo12bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 12, 12);
   auto const AL_CHROMA_422_12bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 12, 10);
   auto const AL_CHROMA_422_12bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_2_2, 12, 8);
+
+  auto const AL_CHROMA_444_12bitTo12bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 12, 12);
+  auto const AL_CHROMA_444_12bitTo10bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 12, 10);
+  auto const AL_CHROMA_444_12bitTo8bit = GetConvFormat(AL_EChromaMode::AL_CHROMA_4_4_4, 12, 18);
   switch(iPicFmt)
   {
   case AL_CHROMA_420_8bitTo8bit: return T608_To_I420;
@@ -673,6 +681,7 @@ AL_TO_IP GetTileConversionFunction(int iPicFmt)
 
   case AL_CHROMA_420_8bitTo10bit: return T608_To_I0AL;
   case AL_CHROMA_422_8bitTo10bit: return T628_To_I2AL;
+  case AL_CHROMA_444_8bitTo10bit: return T648_To_I4AL;
 
   case AL_CHROMA_MONO_8bitTo8bit: return T608_To_Y800;
   case AL_CHROMA_MONO_8bitTo10bit: return T608_To_Y010;
@@ -684,6 +693,7 @@ AL_TO_IP GetTileConversionFunction(int iPicFmt)
   case AL_CHROMA_422_10bitTo8bit: return T62A_To_I422;
 
   case AL_CHROMA_444_10bitTo10bit: return T64A_To_I4AL;
+  case AL_CHROMA_444_10bitTo8bit: return T64A_To_I444;
 
   case AL_CHROMA_MONO_10bitTo10bit: return T60A_To_Y010;
   case AL_CHROMA_MONO_10bitTo8bit: return T60A_To_Y800;
@@ -701,6 +711,8 @@ AL_TO_IP GetTileConversionFunction(int iPicFmt)
   case AL_CHROMA_422_12bitTo8bit: return T62C_To_I422;
 
   case AL_CHROMA_444_12bitTo12bit: return T64C_To_I4CL;
+  case AL_CHROMA_444_12bitTo10bit: return T64C_To_I4AL;
+  case AL_CHROMA_444_12bitTo8bit: return T64C_To_I444;
 
   default:
   {
@@ -730,12 +742,15 @@ static void ConvertFrameBuffer(AL_TBuffer& input, AL_TBuffer*& pOutput, int iBdO
 {
   TFourCC tRecFourCC = AL_PixMapBuffer_GetFourCC(&input);
   AL_TDimension tRecDim = AL_PixMapBuffer_GetDimension(&input);
+  AL_EChromaMode eRecChromaMode = AL_GetChromaMode(tRecFourCC);
 
   if(pOutput != NULL)
   {
     AL_TDimension tYuvDim = AL_PixMapBuffer_GetDimension(pOutput);
+    TFourCC tYuvFourCC = AL_PixMapBuffer_GetFourCC(pOutput);
+    AL_EChromaMode eYuvChromaMode = AL_GetChromaMode(tYuvFourCC);
 
-    if(tRecDim.iWidth != tYuvDim.iWidth || tRecDim.iHeight != tYuvDim.iHeight)
+    if(tRecDim.iWidth != tYuvDim.iWidth || tRecDim.iHeight != tYuvDim.iHeight || eRecChromaMode != eYuvChromaMode)
     {
       AL_Buffer_Destroy(pOutput);
       pOutput = NULL;
@@ -744,10 +759,9 @@ static void ConvertFrameBuffer(AL_TBuffer& input, AL_TBuffer*& pOutput, int iBdO
 
   if(pOutput == NULL)
   {
-    AL_EChromaMode eChromaMode = AL_GetChromaMode(tRecFourCC);
     AL_TPicFormat tConvPicFormat = AL_TPicFormat {
-      eChromaMode, static_cast<uint8_t>(iBdOut), AL_FB_RASTER,
-      eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : AL_C_ORDER_U_V, false, false
+      eRecChromaMode, static_cast<uint8_t>(iBdOut), AL_FB_RASTER,
+      eRecChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : AL_C_ORDER_U_V, false, false
     };
     TFourCC tConvFourCC = AL_GetFourCC(tConvPicFormat);
     pOutput = AL_PixMapBuffer_Create(AL_GetDefaultAllocator(), NULL, tRecDim, tConvFourCC);
@@ -760,7 +774,7 @@ static void ConvertFrameBuffer(AL_TBuffer& input, AL_TBuffer*& pOutput, int iBdO
 
     auto const iSizePix = (iBdOut + 7) >> 3;
     auto const iPitchY = iSizePix * tRecDim.iWidth;
-    auto const iPitchC = (iPitchY + sx - 1) / sx;
+    auto const iPitchC = iSizePix * ((tRecDim.iWidth + sx - 1) / sx);
     auto const iSizeY = iPitchY * tRecDim.iHeight;
     auto const iSizeC = iPitchC * ((tRecDim.iHeight + sy - 1) / sy);
 
@@ -1046,7 +1060,7 @@ static void sInputParsed(AL_TBuffer* pParsedFrame, void* pUserParam, int iParsin
     return;
   }
 
-  AL_Assert(0);
+  assert(0);
 }
 
 /******************************************************************************/
@@ -1117,7 +1131,7 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
       LogDimmedWarning("\nDecoder has discarded some SEI while the SEI metadata buffer was too small\n");
 
     if(bExitError)
-      LogError("Error: %d", err);
+      LogError("Error: %d\n", err);
     else
       LogVerbose(CC_GREY, "Complete\n\n");
     Rtos_SetEvent(hExitMain);
@@ -1438,10 +1452,9 @@ struct WorkerConfig
 
 void SafeChannelMain(WorkerConfig& w)
 {
-  auto pAllocator = w.pIpDevice->m_pAllocator.get();
-  auto pScheduler = w.pIpDevice->m_pScheduler;
+  auto pAllocator = w.pIpDevice->GetAllocator();
+  auto pScheduler = w.pIpDevice->GetScheduler();
   auto& Config = *w.pConfig;
-  auto pIpDevice = w.pIpDevice;
   bool bUseBoard = w.bUseBoard;
 
   ofstream seiOutput;
@@ -1468,7 +1481,7 @@ void SafeChannelMain(WorkerConfig& w)
     if(Config.tDecSettings.eInputMode == AL_DEC_SPLIT_INPUT)
     {
       meta = (AL_TMetaData*)AL_StreamMetaData_Create(1);
-      pBufPoolAllocator = pIpDevice->m_pAllocator.get();
+      pBufPoolAllocator = pAllocator;
     }
 
     BufPoolConfig.pMetaData = meta;
@@ -1493,7 +1506,7 @@ void SafeChannelMain(WorkerConfig& w)
 
   }
 
-  display.iBitDepth = Config.tDecSettings.iBitDepth;
+  display.iBitDepth = Config.iOutputBitDepth;
   display.MaxFrames = Config.iMaxFrames;
 
   if(!Config.hdrFile.empty())
@@ -1517,8 +1530,6 @@ void SafeChannelMain(WorkerConfig& w)
   CB.displayCB = { &sFrameDisplay, &display };
   CB.resolutionFoundCB = { &sResolutionFound, &ResolutionFoundParam };
   CB.parsedSeiCB = { &sParsedSei, (void*)&seiOutput };
-
-  Settings.iBitDepth = HW_IP_BIT_DEPTH;
 
   AL_HDecoder hDec;
   auto error = AL_Decoder_Create(&hDec, (AL_IDecScheduler*)pScheduler, pAllocator, &Settings, &CB);
@@ -1632,24 +1643,17 @@ void SafeMain(int argc, char** argv)
 
   // IP Device ------------------------------------------------------------
 
-  function<AL_TIpCtrl* (AL_TIpCtrl*)> wrapIpCtrl;
-  switch(Config.ipCtrlMode)
-  {
-  default:
-    wrapIpCtrl = [](AL_TIpCtrl* ipCtrl) -> AL_TIpCtrl*
-                 {
-                   return ipCtrl;
-                 };
-    break;
-  }
-
   CIpDeviceParam param;
   param.iSchedulerType = Config.iSchedulerType;
   param.iDeviceType = Config.iDeviceType;
   param.bTrackDma = Config.trackDma;
   param.uNumCore = Config.tDecSettings.uNumCore;
   param.iHangers = Config.hangers;
-  auto pIpDevice = CreateIpDevice(param, wrapIpCtrl);
+  param.ipCtrlMode = Config.ipCtrlMode;
+  param.apbFile = Config.apbFile;
+
+  std::shared_ptr<CIpDevice> pIpDevice = std::shared_ptr<CIpDevice>(new CIpDevice);
+  pIpDevice->Configure(param);
 
   bool bUseBoard = (param.iDeviceType == DEVICE_TYPE_BOARD); // retrieve auto-detected device type
 

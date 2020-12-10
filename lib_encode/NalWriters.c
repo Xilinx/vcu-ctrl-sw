@@ -150,6 +150,12 @@ static void seiPrefixWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, vo
       writer->WriteSEI_ContentLightLevel(bitstream, &pCtx->pHDRSEIs->tCLL);
       uFlags &= ~AL_SEI_CLL;
     }
+    else if(uFlags & AL_SEI_ATC)
+    {
+      AL_Assert(pCtx->pHDRSEIs);
+      writer->WriteSEI_AlternativeTransferCharacteristics(bitstream, &pCtx->pHDRSEIs->tATC);
+      uFlags &= ~AL_SEI_ATC;
+    }
     else if(uFlags & AL_SEI_ST2094_10)
     {
       AL_Assert(pCtx->pHDRSEIs);

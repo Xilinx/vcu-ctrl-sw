@@ -244,8 +244,8 @@ void AL_HEVC_FillPictParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx
   pPP->Log2MaxTUSkipSize = pPps->log2_transform_skip_block_size_minus2 + 2;
   pPP->Log2MinTUSize = pSps->log2_min_transform_block_size_minus2 + 2;
   pPP->Log2MaxTUSize = pPP->Log2MinTUSize + pSps->log2_diff_max_min_transform_block_size;
-  pPP->Log2MinPCMSize = pSps->pcm_enabled_flag ? pSps->log2_min_pcm_luma_coding_block_size_minus3 + 3 : 0;
-  pPP->Log2MaxPCMSize = pSps->pcm_enabled_flag ? pPP->Log2MinPCMSize + pSps->log2_diff_max_min_pcm_luma_coding_block_size : 0;
+  pPP->Log2MinPCMSize = pSps->pcm_enabled_flag ? pSps->log2_min_pcm_luma_coding_block_size_minus3 + 3 : 3;
+  pPP->Log2MaxPCMSize = pSps->pcm_enabled_flag ? pPP->Log2MinPCMSize + pSps->log2_diff_max_min_pcm_luma_coding_block_size : 3;
   pPP->Log2MinCUSize = pSps->Log2MinCbSize;
   pPP->Log2MaxCUSize = pSps->Log2CtbSize;
   pPP->Codec = AL_CODEC_HEVC;

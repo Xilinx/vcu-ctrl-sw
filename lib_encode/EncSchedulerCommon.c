@@ -50,7 +50,7 @@ void SetChannelInfo(AL_TCommonChannelInfo* pChanInfo, AL_TEncChanParam* pChParam
   pChanInfo->bIsAvc = AL_IS_AVC(pChParam->eProfile);
   bool bComp = false;
 
-  pChanInfo->uRecSize = AL_GetAllocSize_EncReference(tDim, uBitDepth, eChromaMode, bComp);
+  pChanInfo->uRecSize = AL_GetAllocSize_EncReference(tDim, uBitDepth, 1 << pChParam->uLog2MaxCuSize, eChromaMode, bComp, 0);
   AL_TPicFormat picRecFormat = AL_EncGetRecPicFormat(eChromaMode, uBitDepth, bComp);
 
   pChanInfo->RecFourCC = AL_GetFourCC(picRecFormat);
@@ -70,7 +70,7 @@ void SetRecPic(AL_TRecPic* pRecPic, AL_TAllocator* pAllocator, AL_HANDLE hRecBuf
   for(int iPlane = 0; iPlane < iNbPlanes; iPlane++)
   {
     tPlanesDesc[iPlane].ePlaneId = usedPlanes[iPlane];
-    AL_EncRecBuffer_FillPlaneDesc(&tPlanesDesc[iPlane], pRecInfo->tPicDim, tPicFormat.eChromaMode, tPicFormat.uBitDepth, pChanInfo->bIsAvc);
+    AL_EncRecBuffer_FillPlaneDesc(&tPlanesDesc[iPlane], pRecInfo->tPicDim, tPicFormat.eChromaMode, tPicFormat.uBitDepth, pChanInfo->bIsAvc, 0, 0, 0);
   }
 
   AL_PixMapBuffer_AddPlanes(pRecPic->pBuf, hRecBuf, pChanInfo->uRecSize, &tPlanesDesc[0], iNbPlanes);
