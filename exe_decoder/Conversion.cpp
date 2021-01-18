@@ -45,55 +45,23 @@ extern "C"
 
 #include "Conversion.h"
 
-void CropFrame(AL_TBuffer* pYUV, int iSizePix, uint32_t uCropLeft, uint32_t uCropRight, uint32_t uCropTop, uint32_t uCropBottom)
+void CropFrame(AL_TBuffer* pYUV, int iSizePix, int32_t iCropLeft, int32_t iCropRight, int32_t iCropTop, int32_t iCropBottom)
 {
-  AL_TDimension tRawDim = AL_PixMapBuffer_GetDimension(pYUV);
-  AL_EChromaMode eMode = AL_GetChromaMode(AL_PixMapBuffer_GetFourCC(pYUV));
+  AL_TPixMapMetaData* pMeta = (AL_TPixMapMetaData*)AL_Buffer_GetMetaData(pYUV, AL_META_TYPE_PIXMAP);
 
-  /*warning: works in frame only in 4:2:0*/
-  int iBeginVert = uCropTop;
-  int iBeginHrz = uCropLeft;
-  int iEndVert = tRawDim.iHeight - uCropBottom;
-  int iEndHrz = tRawDim.iWidth - uCropRight;
+  pMeta->tDim.iWidth -= iCropLeft + iCropRight;
+  pMeta->tDim.iHeight -= iCropTop + iCropBottom;
 
-  AL_PixMapBuffer_SetDimension(pYUV, AL_TDimension { iEndHrz - iBeginHrz, iEndVert - iBeginVert });
+  pMeta->tPlanes[AL_PLANE_Y].iOffset += iCropTop * AL_PixMapBuffer_GetPlanePitch(pYUV, AL_PLANE_Y) + iCropLeft * iSizePix;
 
-  uint8_t* pIn = AL_PixMapBuffer_GetPlaneAddress(pYUV, AL_PLANE_Y);
-  uint8_t* pOut = pIn;
+  AL_EChromaMode eMode = AL_GetChromaMode(pMeta->tFourCC);
 
-  /*luma samples*/
-  for(int iParse = iBeginVert; iParse < iEndVert; ++iParse)
-  {
-    memmove(pOut, &pIn[(iParse * tRawDim.iWidth + iBeginHrz) * iSizePix], (iEndHrz - iBeginHrz) * iSizePix);
-    pOut += (iEndHrz - iBeginHrz) * iSizePix;
-  }
-
-  /*chroma samples*/
   if(eMode != AL_CHROMA_MONO)
   {
-    int iRatioH = (eMode == AL_CHROMA_4_4_4) ? 1 : 2;
-    int iRatioV = (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
-    int iWidthC = (tRawDim.iWidth + iRatioH - 1) / iRatioH;
-    int iHeightC = (tRawDim.iHeight + iRatioV - 1) / iRatioV;
-
-    int iCbOffset = tRawDim.iWidth * tRawDim.iHeight;
-    int iCrOffset = iCbOffset + (iWidthC * iHeightC);
-
-    iBeginVert /= (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
-    iEndVert /= (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
-    iBeginHrz /= (eMode == AL_CHROMA_4_4_4) ? 1 : 2;
-    iEndHrz /= (eMode == AL_CHROMA_4_4_4) ? 1 : 2;
-
-    for(int iUV = 0; iUV < 2; ++iUV)
-    {
-      int iChromaOffset = (iUV ? iCrOffset : iCbOffset);
-
-      for(int iParse = iBeginVert; iParse < iEndVert; ++iParse)
-      {
-        memmove(pOut, &pIn[(iParse * iWidthC + iBeginHrz + iChromaOffset) * iSizePix], (iEndHrz - iBeginHrz) * iSizePix);
-        pOut += (iEndHrz - iBeginHrz) * iSizePix;
-      }
-    }
+    iCropTop /= (eMode == AL_CHROMA_4_2_0) ? 2 : 1;
+    iCropLeft /= (eMode == AL_CHROMA_4_4_4) ? 1 : 2;
+    pMeta->tPlanes[AL_PLANE_U].iOffset += iCropTop * AL_PixMapBuffer_GetPlanePitch(pYUV, AL_PLANE_U) + iCropLeft * iSizePix;
+    pMeta->tPlanes[AL_PLANE_V].iOffset += iCropTop * AL_PixMapBuffer_GetPlanePitch(pYUV, AL_PLANE_V) + iCropLeft * iSizePix;
   }
 }
 

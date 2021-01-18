@@ -261,6 +261,8 @@ static AL_HANDLE LinuxDma_Alloc_256B_Aligned(AL_TAllocator* pAllocator, size_t z
   if(!p)
     return NULL;
 
+  p->shouldCloseFd = true;
+
   if(!isAligned256B(p->info.phy_addr))
   {
     LinuxDma_Free(pAllocator, (AL_HANDLE)p);
@@ -268,9 +270,9 @@ static AL_HANDLE LinuxDma_Alloc_256B_Aligned(AL_TAllocator* pAllocator, size_t z
 
     if(!p)
       return NULL;
-  }
 
-  p->shouldCloseFd = true;
+    p->shouldCloseFd = true;
+  }
 
   LOG_ALLOCATION(p);
 

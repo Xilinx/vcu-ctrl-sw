@@ -36,6 +36,13 @@
 ******************************************************************************/
 
 #include "crc.h"
+
+extern "C"
+{
+#include "lib_common/PixMapBuffer.h"
+#include "lib_common/BufCommon.h"
+}
+
 #include <iomanip>
 
 using namespace std;
@@ -79,34 +86,61 @@ void CRC32(int iBdIn, int iBdOut, uint32_t& crc, T* pBuffer)
   crc = (crc << iBdOut) ^ crc32_table[((crc >> (32 - iBdOut)) ^ iPix) & mask];
 }
 
-/******************************************************************************/
 template<typename T>
-void Compute_CRC(int iBdInY, int iBdInC, int iBdOut, int iNumPix, int iNumPixC, AL_EChromaMode eMode, T* pBuf, ofstream& ofCrcFile)
+uint32_t ComputePlaneCRC(AL_TBuffer* pYUV, AL_EPlaneId ePlane, AL_TDimension tDim, int iBdIn, int iBdOut)
+{
+  uint32_t crc = UINT32_MAX;
+
+  T* pPlane = (T*)AL_PixMapBuffer_GetPlaneAddress(pYUV, ePlane);
+  int iPitch = AL_PixMapBuffer_GetPlanePitch(pYUV, ePlane) / sizeof(T);
+
+  for(int i = 0; i < tDim.iHeight; i++)
+  {
+    for(int j = 0; j < tDim.iWidth; j++)
+      CRC32(iBdOut, iBdIn, crc, pPlane++);
+
+    pPlane += iPitch - tDim.iWidth;
+  }
+
+  return crc;
+}
+
+void Compute_CRC(AL_TBuffer* pYUV, int iBdInY, int iBdInC, std::ofstream& ofCrcFile)
 {
   uint32_t crc_luma = UINT32_MAX;
   uint32_t crc_cb = UINT32_MAX;
   uint32_t crc_cr = UINT32_MAX;
 
-  for(int iPix = 0; iPix < iNumPix; ++iPix)
-    CRC32(iBdOut, iBdInY, crc_luma, pBuf++);
+  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pYUV);
 
-  if(eMode != AL_CHROMA_MONO)
+  TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pYUV);
+  AL_TPicFormat tPicFormat;
+  AL_GetPicFormat(tFourCC, &tPicFormat);
+
+  if(tPicFormat.uBitDepth == 8)
+    crc_luma = ComputePlaneCRC<uint8_t>(pYUV, AL_PLANE_Y, tDim, iBdInY, tPicFormat.uBitDepth);
+  else
+    crc_luma = ComputePlaneCRC<uint16_t>(pYUV, AL_PLANE_Y, tDim, iBdInY, tPicFormat.uBitDepth);
+
+  if(tPicFormat.eChromaMode != AL_CHROMA_MONO)
   {
-    for(int iPix = 0; iPix < iNumPixC; ++iPix)
-      CRC32(iBdOut, iBdInC, crc_cb, pBuf++);
+    tDim.iWidth = AL_GetChromaWidth(tFourCC, tDim.iWidth);
+    tDim.iHeight = AL_GetChromaHeight(tFourCC, tDim.iHeight);
 
-    for(int iPix = 0; iPix < iNumPixC; ++iPix)
-      CRC32(iBdOut, iBdInC, crc_cr, pBuf++);
+    if(tPicFormat.uBitDepth == 8)
+    {
+      crc_cb = ComputePlaneCRC<uint8_t>(pYUV, AL_PLANE_U, tDim, iBdInC, tPicFormat.uBitDepth);
+      crc_cr = ComputePlaneCRC<uint8_t>(pYUV, AL_PLANE_V, tDim, iBdInC, tPicFormat.uBitDepth);
+    }
+    else
+    {
+      crc_cb = ComputePlaneCRC<uint16_t>(pYUV, AL_PLANE_U, tDim, iBdInC, tPicFormat.uBitDepth);
+      crc_cr = ComputePlaneCRC<uint16_t>(pYUV, AL_PLANE_V, tDim, iBdInC, tPicFormat.uBitDepth);
+    }
   }
 
   ofCrcFile << setfill('0') << setw(8) << crc_luma << " : ";
   ofCrcFile << setfill('0') << setw(8) << crc_cb << " : ";
   ofCrcFile << setfill('0') << setw(8) << crc_cr << endl;
 }
-
-template
-void Compute_CRC<uint8_t>(int iBdInY, int iBdInC, int iBdOut, int iNumPix, int iNumPixC, AL_EChromaMode eMode, uint8_t* pBuf, ofstream& ofCrcFile);
-
-template
-void Compute_CRC<uint16_t>(int iBdInY, int iBdInC, int iBdOut, int iNumPix, int iNumPixC, AL_EChromaMode eMode, uint16_t* pBuf, ofstream& ofCrcFile);
 

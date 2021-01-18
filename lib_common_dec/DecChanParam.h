@@ -54,6 +54,7 @@ typedef struct AL_t_DecChannelParam
 {
   int32_t iWidth; /*< width in pixels */
   int32_t iHeight; /*< height in pixels */
+  uint8_t uLog2MaxCuSize;
   uint32_t uFrameRate;
   uint32_t uClkRatio;
   uint32_t uMaxLatency;

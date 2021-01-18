@@ -49,6 +49,7 @@
 #include "lib_common/Error.h"
 #include "lib_common/FourCC.h"
 #include "lib_common/SyntaxConversion.h"
+#include "lib_common/HardwareConfig.h"
 
 #include "lib_common_dec/RbspParser.h"
 #include "lib_common_dec/DecInfo.h"
@@ -152,16 +153,10 @@ static bool isSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, AL_TStream
 {
   int iSPSLumaBitDepth = pSPS->bit_depth_luma_minus8 + 8;
 
-  if(iSPSLumaBitDepth > HW_IP_BIT_DEPTH)
-    return false;
-
   if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSLumaBitDepth))
     return false;
 
   int iSPSChromaBitDepth = pSPS->bit_depth_chroma_minus8 + 8;
-
-  if(iSPSChromaBitDepth > HW_IP_BIT_DEPTH)
-    return false;
 
   if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSChromaBitDepth))
     return false;
@@ -178,37 +173,40 @@ static bool isSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, AL_TStream
 
   AL_EChromaMode eSPSChromaMode = (AL_EChromaMode)pSPS->chroma_format_idc;
 
-  if((pStreamSettings->eChroma != AL_CHROMA_MAX_ENUM) && (pStreamSettings->eChroma < eSPSChromaMode))
+  if(eSPSChromaMode > AL_HWConfig_Dec_GetSupportedChromaMode())
     return false;
 
-  AL_TCropInfo tSPSCropInfo = extractCropInfo(pSPS);
+  if((pStreamSettings->eChroma != AL_CHROMA_MAX_ENUM) && (pStreamSettings->eChroma < eSPSChromaMode))
+  {
+    Rtos_Log(AL_LOG_ERROR, "Invalid chroma-mode, incompatible with initial setting used for allocation.\n");
+    return false;
+  }
 
-  int iSPSCropWidth = tSPSCropInfo.uCropOffsetLeft + tSPSCropInfo.uCropOffsetRight;
   AL_TDimension tSPSDim = extractDimension(pSPS);
 
-  if((pStreamSettings->tDim.iWidth > 0) && (pStreamSettings->tDim.iWidth < (tSPSDim.iWidth - iSPSCropWidth)))
+  if((pStreamSettings->tDim.iWidth > 0) && (pStreamSettings->tDim.iWidth < tSPSDim.iWidth))
   {
-    Rtos_Log(AL_LOG_ERROR, "Invalid Crop\n");
+    Rtos_Log(AL_LOG_ERROR, "Invalid resolution. Width greater than initial setting in decoder.\n");
     return false;
   }
 
-  if((pStreamSettings->tDim.iWidth > 0) && (tSPSDim.iWidth < AL_CORE_AVC_MIN_RES))
+  static const int32_t iMinResolution = AL_CORE_MIN_CU_NB << AL_CORE_AVC_LOG2_MAX_CU_SIZE;
+
+  if(tSPSDim.iWidth < iMinResolution)
   {
-    Rtos_Log(AL_LOG_ERROR, "Invalid resolution : Width too small\n");
+    Rtos_Log(AL_LOG_ERROR, "Invalid resolution : minimum width is 2 CTBs.\n");
     return false;
   }
 
-  int iSPSCropHeight = tSPSCropInfo.uCropOffsetTop + tSPSCropInfo.uCropOffsetBottom;
-
-  if((pStreamSettings->tDim.iHeight > 0) && (pStreamSettings->tDim.iHeight < (tSPSDim.iHeight - iSPSCropHeight)))
+  if((pStreamSettings->tDim.iHeight > 0) && (pStreamSettings->tDim.iHeight < tSPSDim.iHeight))
   {
-    Rtos_Log(AL_LOG_ERROR, "Invalid Crop\n");
+    Rtos_Log(AL_LOG_ERROR, "Invalid resolution. Height greater than initial setting in decoder.\n");
     return false;
   }
 
-  if((pStreamSettings->tDim.iHeight > 0) && (tSPSDim.iHeight < AL_CORE_AVC_MIN_RES))
+  if(tSPSDim.iHeight < iMinResolution)
   {
-    Rtos_Log(AL_LOG_ERROR, "Invalid resolution : Height too small\n");
+    Rtos_Log(AL_LOG_ERROR, "Invalid resolution : minimum height is 2 CTBs.\n");
     return false;
   }
 
@@ -310,6 +308,7 @@ static bool initChannel(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
   AL_TDecChanParam* pChan = pCtx->pChanParam;
   pChan->iWidth = pCtx->tStreamSettings.tDim.iWidth;
   pChan->iHeight = pCtx->tStreamSettings.tDim.iHeight;
+  pChan->uLog2MaxCuSize = AL_CORE_AVC_LOG2_MAX_CU_SIZE;
 
   const int iSPSMaxSlices = getMaxNumberOfSlices(&pCtx->tStreamSettings, pSPS);
   pChan->iMaxSlices = iSPSMaxSlices;
@@ -595,7 +594,7 @@ static bool avcInitFrameBuffers(AL_TDecCtx* pCtx, bool bStartsNewCVS, const AL_T
   (void)bStartsNewCVS;
   AL_TDimension const tDim = extractDimension(pSPS);
 
-  if(!AL_InitFrameBuffers(pCtx, pBufs, bStartsNewCVS, tDim, pPP))
+  if(!AL_InitFrameBuffers(pCtx, pBufs, bStartsNewCVS, tDim, (AL_EChromaMode)pSPS->chroma_format_idc, pPP))
     return false;
 
   AL_TBuffer* pDispBuf = AL_PictMngr_GetDisplayBufferFromID(&pCtx->PictMngr, pPP->tBufIDs.FrmID);

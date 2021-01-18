@@ -48,6 +48,7 @@
 #include "lib_common/HevcUtils.h"
 #include "lib_common/Error.h"
 #include "lib_common/SyntaxConversion.h"
+#include "lib_common/HardwareConfig.h"
 
 #include "lib_common_dec/RbspParser.h"
 #include "lib_common_dec/DecInfo.h"
@@ -261,9 +262,29 @@ static AL_TStreamSettings extractStreamSettings(AL_THevcSps const* pSPS)
 extern int HEVC_GetMinOutputBuffersNeeded(int iDpbMaxBuf, int iStack);
 
 /*****************************************************************************/
-static AL_ERR resolutionFound(AL_TDecCtx* pCtx, AL_TStreamSettings const* pSpsSettings, AL_TCropInfo const* pCropInfo)
+static bool isStillPictureProfileSPS(AL_THevcSps const* pSPS)
 {
+  return (pSPS->profile_and_level.general_profile_idc == 3) ||
+         (pSPS->profile_and_level.general_profile_idc >= 4 && pSPS->profile_and_level.general_one_picture_only_constraint_flag);
+}
+
+static int getMaxDPBSize(AL_TStreamSettings const* pSpsSettings, AL_THevcSps const* pSPS)
+{
+  // Remark: pSpsSettings param should be useless
+  // and it should be derived as follow:
+  // pSpsSettings = extractStreamSettings(pSPS);
+
   int iDpbMaxBuf = AL_HEVC_GetMaxDPBSize(pSpsSettings->iLevel, pSpsSettings->tDim.iWidth, pSpsSettings->tDim.iHeight);
+
+  if(isStillPictureProfileSPS(pSPS))
+    iDpbMaxBuf = 1;
+
+  return iDpbMaxBuf;
+}
+
+/*****************************************************************************/
+static AL_ERR resolutionFound(AL_TDecCtx* pCtx, AL_TStreamSettings const* pSpsSettings, AL_TCropInfo const* pCropInfo, int iDpbMaxBuf)
+{
   int iMaxBuf = HEVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, pCtx->iStackSize);
   bool bEnableDisplayCompression;
   AL_EFbStorageMode eDisplayStorageMode = AL_Default_Decoder_GetDisplayStorageMode(pCtx, &bEnableDisplayCompression);
@@ -277,16 +298,10 @@ static bool isSPSCompatibleWithStreamSettings(AL_THevcSps const* pSPS, AL_TStrea
 {
   int iSPSLumaBitDepth = pSPS->bit_depth_luma_minus8 + 8;
 
-  if(iSPSLumaBitDepth > HW_IP_BIT_DEPTH)
-    return false;
-
   if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSLumaBitDepth))
     return false;
 
   int iSPSChromaBitDepth = pSPS->bit_depth_chroma_minus8 + 8;
-
-  if(iSPSChromaBitDepth > HW_IP_BIT_DEPTH)
-    return false;
 
   if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSChromaBitDepth))
     return false;
@@ -303,37 +318,40 @@ static bool isSPSCompatibleWithStreamSettings(AL_THevcSps const* pSPS, AL_TStrea
 
   AL_EChromaMode eSPSChromaMode = (AL_EChromaMode)pSPS->chroma_format_idc;
 
-  if((pStreamSettings->eChroma != AL_CHROMA_MAX_ENUM) && (pStreamSettings->eChroma < eSPSChromaMode))
+  if(eSPSChromaMode > AL_HWConfig_Dec_GetSupportedChromaMode())
     return false;
 
-  AL_TCropInfo tSPSCropInfo = extractCropInfo(pSPS);
+  if((pStreamSettings->eChroma != AL_CHROMA_MAX_ENUM) && (pStreamSettings->eChroma < eSPSChromaMode))
+  {
+    Rtos_Log(AL_LOG_ERROR, "Invalid chroma-mode, incompatible with initial setting used for allocation.\n");
+    return false;
+  }
 
-  int iSPSCropWidth = tSPSCropInfo.uCropOffsetLeft + tSPSCropInfo.uCropOffsetRight;
   AL_TDimension tSPSDim = { pSPS->pic_width_in_luma_samples, pSPS->pic_height_in_luma_samples };
 
-  if((pStreamSettings->tDim.iWidth > 0) && (pStreamSettings->tDim.iWidth < (tSPSDim.iWidth - iSPSCropWidth)))
+  if((pStreamSettings->tDim.iWidth > 0) && (pStreamSettings->tDim.iWidth < tSPSDim.iWidth))
   {
-    Rtos_Log(AL_LOG_ERROR, "Invalid width or cropping\n");
+    Rtos_Log(AL_LOG_ERROR, "Invalid resolution. Width greater than initial setting in decoder.\n");
     return false;
   }
 
-  if((pStreamSettings->tDim.iWidth > 0) && (tSPSDim.iWidth < AL_CORE_HEVC_MIN_RES))
+  int32_t iMinResolution = AL_CORE_MIN_CU_NB << pSPS->Log2CtbSize;
+
+  if(tSPSDim.iWidth < iMinResolution)
   {
-    Rtos_Log(AL_LOG_ERROR, "Invalid resolution: Width too small\n");
+    Rtos_Log(AL_LOG_ERROR, "Invalid resolution: minimum width is 2 CTBs.\n");
     return false;
   }
 
-  int iSPSCropHeight = tSPSCropInfo.uCropOffsetTop + tSPSCropInfo.uCropOffsetBottom;
-
-  if((pStreamSettings->tDim.iHeight > 0) && (pStreamSettings->tDim.iHeight < (tSPSDim.iHeight - iSPSCropHeight)))
+  if((pStreamSettings->tDim.iHeight > 0) && (pStreamSettings->tDim.iHeight < tSPSDim.iHeight))
   {
-    Rtos_Log(AL_LOG_ERROR, "Invalid height or cropping\n");
+    Rtos_Log(AL_LOG_ERROR, "Invalid resolution. Height greater than initial setting in decoder.\n");
     return false;
   }
 
-  if((pStreamSettings->tDim.iHeight > 0) && (tSPSDim.iHeight < AL_CORE_HEVC_MIN_RES))
+  if(tSPSDim.iHeight < iMinResolution)
   {
-    Rtos_Log(AL_LOG_ERROR, "Invalid resolution: Height too small\n");
+    Rtos_Log(AL_LOG_ERROR, "Invalid resolution: minimum height is 2 CTBs.\n");
     return false;
   }
 
@@ -364,7 +382,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
   if(!AL_Default_Decoder_AllocPool(pCtx, 0, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap, 0))
     goto fail_alloc;
 
-  int iDpbMaxBuf = AL_HEVC_GetMaxDPBSize(pCtx->tStreamSettings.iLevel, pCtx->tStreamSettings.tDim.iWidth, pCtx->tStreamSettings.tDim.iHeight);
+  int const iDpbMaxBuf = getMaxDPBSize(&pCtx->tStreamSettings, pSPS);
   int iMaxBuf = HEVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, pCtx->iStackSize);
   int iSizeMV = AL_GetAllocSize_HevcMV(pCtx->tStreamSettings.tDim);
   int iSizePOC = POCBUFF_PL_SIZE;
@@ -385,7 +403,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
   AL_PictMngr_Init(&pCtx->PictMngr, pCtx->pAllocator, &tPictMngrParam);
 
   AL_TCropInfo tCropInfo = extractCropInfo(pSPS);
-  error = resolutionFound(pCtx, &pCtx->tStreamSettings, &tCropInfo);
+  error = resolutionFound(pCtx, &pCtx->tStreamSettings, &tCropInfo, iDpbMaxBuf);
 
   if(AL_IS_ERROR_CODE(error))
     goto fail_alloc;
@@ -403,6 +421,7 @@ static bool initChannel(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
   AL_TDecChanParam* pChan = pCtx->pChanParam;
   pChan->iWidth = pCtx->tStreamSettings.tDim.iWidth;
   pChan->iHeight = pCtx->tStreamSettings.tDim.iHeight;
+  pChan->uLog2MaxCuSize = pSPS->Log2CtbSize;
 
   const int iSPSMaxSlices = getMaxSlicesCount(pCtx->tStreamSettings.iLevel);
   pChan->iMaxSlices = iSPSMaxSlices;
@@ -695,7 +714,7 @@ static bool hevcInitFrameBuffers(AL_TDecCtx* pCtx, bool bStartsNewCVS, const AL_
   (void)bStartsNewCVS;
   AL_TDimension const tDim = { pSPS->pic_width_in_luma_samples, pSPS->pic_height_in_luma_samples };
 
-  if(!AL_InitFrameBuffers(pCtx, pBufs, bStartsNewCVS, tDim, pPP))
+  if(!AL_InitFrameBuffers(pCtx, pBufs, bStartsNewCVS, tDim, (AL_EChromaMode)pSPS->chroma_format_idc, pPP))
     return false;
 
   AL_TBuffer* pDispBuf = AL_PictMngr_GetDisplayBufferFromID(&pCtx->PictMngr, pPP->tBufIDs.FrmID);
@@ -805,7 +824,8 @@ static void decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     else if(bCheckDynResChange && (spsSettings.tDim.iWidth != tLastDim.iWidth || spsSettings.tDim.iHeight != tLastDim.iHeight))
     {
       AL_TCropInfo tCropInfo = extractCropInfo(pSPS);
-      AL_ERR error = resolutionFound(pCtx, &spsSettings, &tCropInfo);
+      int const iDpbMaxBuf = getMaxDPBSize(&spsSettings, pSPS);
+      AL_ERR error = resolutionFound(pCtx, &spsSettings, &tCropInfo, iDpbMaxBuf);
 
       if(error != AL_SUCCESS)
       {

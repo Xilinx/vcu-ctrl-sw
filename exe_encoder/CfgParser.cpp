@@ -386,6 +386,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   }, sliceSizeEnums, "Target Slice Size (AVC, HEVC only, not supported in AVC multicore) If set to 0, slices are defined by the NumSlices parameter, Otherwise it specifies the target slice size, in bytes, that the encoder uses to automatically split the bitstream into approximately equally sized slices, with a granularity of one LCU.");
   parser.addBool(curSection, "DependentSlice", cfg.Settings.bDependentSlice, "When there are several slices per frames, this parameter specifies whether the additional slices are dependent slice segments or regular slices (HEVC only)");
   parser.addBool(curSection, "SubframeLatency", cfg.Settings.tChParam[0].bSubframeLatency, "Enable the subframe latency mode");
+  parser.addBool(curSection, "UniformSliceType", cfg.Settings.tChParam[0].bUseUniformSliceType, "Enable uniform slice types encoding");
   map<string, int> seis {};
   seis["SEI_NONE"] = AL_SEI_NONE;
   seis["SEI_BP"] = AL_SEI_BP;

@@ -43,6 +43,7 @@
 #include "lib_common/SPS.h"
 #include "lib_common/PPS.h"
 #include "lib_common/ScalingList.h"
+#include "lib_common_enc/PictureInfo.h"
 #include "lib_assert/al_assert.h"
 
 /******************************************************************************/
@@ -815,8 +816,8 @@ static void writeSeiPictureTiming(AL_TBitStreamLite* pBS, AL_TSps const* pISps, 
 
   if(pSps->vui_param.hrd_param.nal_hrd_parameters_present_flag || pSps->vui_param.hrd_param.vcl_hrd_parameters_present_flag)
   {
-    AL_BitStreamLite_PutU(pBS, 31, iAuCpbRemovalDelay / 2);
-    AL_BitStreamLite_PutU(pBS, 31, iPicDpbOutputDelay / 2);
+    AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 + 1, (iAuCpbRemovalDelay / PicStructToFieldNumber[iPicStruct]));
+    AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 + 1, (iPicDpbOutputDelay / PicStructToFieldNumber[iPicStruct]));
 
     if(pSps->vui_param.hrd_param.sub_pic_hrd_params_present_flag)
     {

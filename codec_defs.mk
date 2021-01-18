@@ -14,6 +14,7 @@ INCLUDES+=-I./extra/include
 
 #CFLAGS+=-Werror
 CFLAGS+=-Wall -Wextra
+CFLAGS+=-DAL_ENABLE_64BIT=$(ENABLE_64BIT)
 
 ifeq ($(ENABLE_64BIT),0)
   # force 32 bit compilation

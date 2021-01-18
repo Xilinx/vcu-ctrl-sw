@@ -49,10 +49,14 @@ static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicSt
   bool bMustWritePPS = AL_HEVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, pCtx->pSettings, pPicStatus, pHLSInfo, iLayerID);
   HEVC_GenerateSections(pCtx, pStream, pPicStatus, iLayerID, iPicID, bMustWritePPS);
 
-  if(pPicStatus->eType == AL_SLICE_I)
-    pCtx->cpbRemovalDelay = 0;
-
+  pCtx->initialCpbRemovalDelay = pPicStatus->uInitialRemovalDelay;
   pCtx->cpbRemovalDelay += PicStructToFieldNumber[pPicStatus->ePicStruct];
+
+  if(pPicStatus->eType == AL_SLICE_I)
+  {
+    int const iDefaultCpbRemovalDelay = 0;
+    pCtx->cpbRemovalDelay = iDefaultCpbRemovalDelay;
+  }
 }
 
 static bool shouldReleaseSource(AL_TEncPicStatus* p)

@@ -601,7 +601,7 @@
   API:
     -- Version of the API is now 0.26.0
     -- New warning when the resolution callback returns with error: AL_WARN_RES_FOUND_CB
-    -- Split API files to be clearer
+    -- Split API files to be clearer:
         - Add DecBuffers.h
         - Add DecCallbacks.h
     -- Add missing AL_OPT_NONE
@@ -612,4 +612,27 @@
     -- Fix IO read/write for all formats
     -- Fix encoder watchdog issues
     -- Align stream buffer size to the biggest slice in slicelat mode
+    -- Several minors bugs
+
+2020-12-31 (v1.0.64)
+-------------------
+  Added Features:
+    -- Decoder's settings can be checked and set to default value. The API is similar to the encoder
+
+  API:
+    -- Version of the API is now 0.27.0
+    -- Add bUseUniformSliceType in encoder channel parameters
+    -- Split API to be clearer:
+        - Add DecSettings.h
+    -- Decoder new functions:
+        - AL_DecSettings_SetDefaults -> Retrieves the default settings
+        - AL_DecSettings_CheckValidity -> Checks that all decoding parameters are valid
+        - AL_DecSettings_CheckCoherency -> Checks that decoding parameters are coherent between them
+    -- Decoder/Encoder new functions:
+        - AL_GetChromaWidth -> Retrieves chroma width
+        - AL_IS_INTERLACED
+
+  Fixes:
+    -- Fix HDR SEIs: BufferingPeriod/PictureTiming (InitialRemovalDelay and AuCPBRemovalDelayMinus1)
+    -- Fix v1.0.63 regressions on wavefront and AVC-multicore in encoder reference model
     -- Several minors bugs

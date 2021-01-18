@@ -180,4 +180,4 @@
 #define FW_API_VERSION    19       // Used for tracking changes in lib_mvd API - currently stable
 #define FW_VERSION         1       // Define a firmware API version, this is used in debug callbacks for tracking purposes
 
-#define MVD_CLEAR_SLAB_LIST_ENTRY_ON_FREE
+#define ENABLE_CRIT_SECTIONS

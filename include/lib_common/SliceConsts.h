@@ -63,7 +63,7 @@ typedef enum e_SliceType
 }AL_ESliceType;
 
 /*************************************************************************//*!
-   \brief Indentifies pic_struct (subset of table D-2)
+   \brief Identifies pic_struct (subset of table D-2)
 *****************************************************************************/
 typedef enum e_PicStruct
 {

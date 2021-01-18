@@ -674,16 +674,14 @@ uint8_t AL_Dpb_GetLastPicID(AL_TDpb* pDpb)
   Rtos_GetMutex(pDpb->Mutex);
 
   uint8_t uNode = pDpb->uHeadPOC;
-  uint8_t uRetID;
+  uint8_t uRetID = uEndOfList;
 
-  if(uNode == uEndOfList)
-    uRetID = uNode;
-  else
+  while(uNode != uEndOfList)
   {
-    while(pDpb->Nodes[uNode].uNextPOC != uEndOfList)
-      uNode = pDpb->Nodes[uNode].uNextPOC;
+    if(pDpb->Nodes[uNode].uPicID != uEndOfList)
+      uRetID = pDpb->Nodes[uNode].uPicID;
 
-    uRetID = pDpb->Nodes[uNode].uPicID;
+    uNode = pDpb->Nodes[uNode].uNextPOC;
   }
 
   Rtos_ReleaseMutex(pDpb->Mutex);

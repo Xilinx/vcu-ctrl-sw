@@ -395,8 +395,8 @@ static void writeSeiPictureTiming(AL_TBitStreamLite* pBS, AL_TSps const* pISps, 
 
   if(pSps->vui_param.hrd_param.nal_hrd_parameters_present_flag || pSps->vui_param.hrd_param.vcl_hrd_parameters_present_flag)
   {
-    AL_BitStreamLite_PutU(pBS, 32, iCpbRemovalDelay);
-    AL_BitStreamLite_PutU(pBS, 32, iDpbOutputDelay);
+    AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 + 1, iCpbRemovalDelay);
+    AL_BitStreamLite_PutU(pBS, pSps->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 + 1, iDpbOutputDelay);
   }
 
   if(pSps->vui_param.pic_struct_present_flag)

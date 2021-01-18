@@ -41,9 +41,8 @@
 
 extern "C"
 {
-#include "lib_common/PicFormat.h"
+#include "lib_common/BufferAPI.h"
 }
 
-template<typename T>
-void Compute_CRC(int iBdInY, int iBdInC, int iBdOut, int iNumPix, int iNumPixC, AL_EChromaMode eMode, T* pBuf, std::ofstream& ofCrcFile);
+void Compute_CRC(AL_TBuffer* pYUV, int iBdInY, int iBdInC, std::ofstream& ofCrcFile);
 

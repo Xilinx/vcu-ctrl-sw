@@ -201,6 +201,10 @@ AL_TMetaData* AL_CreateRecBufMetaData(AL_TDimension tDim, int iMinPitch, TFourCC
   {
     int iPitch = usedPlanes[iPlane] == AL_PLANE_Y ? iMinPitch : AL_GetChromaPitch(tFourCC, iMinPitch);
     AL_PixMapMetaData_AddPlane(pSrcMeta, (AL_TPlane) {0, iOffset, iPitch }, usedPlanes[iPlane]);
+
+    if(usedPlanes[iPlane] == AL_PLANE_U)
+      AL_PixMapMetaData_AddPlane(pSrcMeta, (AL_TPlane) {0, iOffset, iPitch }, AL_PLANE_UV);
+
     iOffset += AL_DecGetAllocSize_Frame_PixPlane(tPicFormat.eStorageMode, tDim, iPitch, tPicFormat.eChromaMode, usedPlanes[iPlane]);
   }
 

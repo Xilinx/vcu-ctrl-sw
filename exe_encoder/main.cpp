@@ -51,6 +51,7 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <thread>
 
 #include "lib_app/BufPool.h"
 #include "lib_app/PixMapBufPool.h"
@@ -720,9 +721,8 @@ static uint8_t GetNumBufForGop(AL_TEncSettings Settings)
 {
   int uNumFields = 1;
 
-  if((Settings.tChParam[0].eVideoMode == AL_VM_INTERLACED_TOP) || (Settings.tChParam[0].eVideoMode==AL_VM_INTERLACED_BOTTOM))
+  if(AL_IS_INTERLACED(Settings.tChParam[0].eVideoMode))
     uNumFields = 2;
-
   return uNumFields * Settings.tChParam[0].tGopParam.uNumB;
 }
 
@@ -1002,66 +1002,15 @@ void LayerRessources::ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hE
   }
 }
 
-/*****************************************************************************/
-void SafeMain(int argc, char** argv)
+void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& param)
 {
-  InitializePlateform();
-
-  ConfigFile cfg {};
-  SetDefaults(cfg);
-
   auto& Settings = cfg.Settings;
   auto& StreamFileName = cfg.BitstreamFileName;
-  auto& RecFileName = cfg.RecFileName;
   auto& RunInfo = cfg.RunInfo;
-
-  ParseCommandLine(argc, argv, cfg);
-
-  DisplayVersionInfo();
-
-  AL_Settings_SetDefaultParam(&Settings);
-  SetMoreDefaults(cfg);
-
-  if(!RecFileName.empty() || !cfg.RunInfo.sRecMd5Path.empty())
-    Settings.tChParam[0].eEncOptions = (AL_EChEncOption)(Settings.tChParam[0].eEncOptions | AL_OPT_FORCE_REC);
-
-  if(g_helpCfg)
-  {
-    PrintConfigFileUsage(cfg, ShouldShowAdvancedFeatures());
-    exit(0);
-  }
-
-  if(g_helpCfgJson)
-  {
-    PrintConfigFileUsageJson(cfg, ShouldShowAdvancedFeatures());
-    exit(0);
-  }
-
-  ValidateConfig(cfg);
-
-  if(g_showCfg)
-  {
-    PrintConfig(cfg, ShouldShowAdvancedFeatures());
-  }
-
-  CIpDeviceParam param;
-  param.iSchedulerType = RunInfo.iSchedulerType;
-  param.iDeviceType = RunInfo.iDeviceType;
-
-  param.pCfgFile = &cfg;
-  param.bTrackDma = RunInfo.trackDma;
-  param.iVqDescr = RunInfo.eVQDescr;
-
-  auto pIpDevice = std::shared_ptr<CIpDevice>(new CIpDevice);
-  pIpDevice->Configure(param);
+  std::vector<LayerRessources> layerRessources(cfg.Settings.NumLayer);
 
   /* null if not supported */
   void* pTraceHook {};
-
-  if(!pIpDevice)
-    throw runtime_error("Can't create IpDevice");
-
-  std::vector<LayerRessources> layerRessources(cfg.Settings.NumLayer);
 
   unique_ptr<EncoderSink> enc;
   unique_ptr<EncoderLookAheadSink> encFirstPassLA;
@@ -1070,8 +1019,7 @@ void SafeMain(int argc, char** argv)
   auto pScheduler = pIpDevice->GetScheduler();
 
   RCPlugin_Init(&cfg.Settings, &cfg.Settings.tChParam[0], pAllocator);
-  auto ReleaseRcPlugin = scopeExit([&]()
-  {
+  auto ReleaseRcPlugin = scopeExit([&]() {
     AL_Allocator_Free(pAllocator, cfg.Settings.hRcPluginDmaContext);
   });
 
@@ -1090,7 +1038,7 @@ void SafeMain(int argc, char** argv)
   int srcBuffersCount = g_numFrameToRepeat == 0 ? frameBuffersCount : max(frameBuffersCount, g_numFrameToRepeat);
 
   for(size_t i = 0; i < layerRessources.size(); i++)
-    layerRessources[i].Init(cfg, frameBuffersCount, srcBuffersCount, i, pIpDevice.get());
+    layerRessources[i].Init(cfg, frameBuffersCount, srcBuffersCount, i, pIpDevice);
 
   // --------------------------------------------------------------------------------
   // Create Encoder
@@ -1113,7 +1061,8 @@ void SafeMain(int argc, char** argv)
   for(size_t i = 0; i < layerRessources.size(); i++)
   {
     layerRessources[i].PushRessources(cfg, enc.get()
-                                      , encFirstPassLA.get()
+                                      ,
+                                      encFirstPassLA.get()
                                       );
   }
 
@@ -1185,6 +1134,101 @@ void SafeMain(int argc, char** argv)
 
 }
 
+struct channel_runtime_error : public std::runtime_error
+{
+  explicit channel_runtime_error() : std::runtime_error("")
+  {
+  }
+};
+
+static void ChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& param, std::exception_ptr& exception)
+{
+  try
+  {
+    SafeChannelMain(cfg, pIpDevice, param);
+    exception = nullptr;
+    return;
+  }
+  catch(codec_error const& error)
+  {
+    cerr << endl << "Codec error: " << error.what() << endl;
+    exception = std::current_exception();
+  }
+  catch(runtime_error const& error)
+  {
+    cerr << endl << "Exception caught: " << error.what() << endl;
+    exception = std::make_exception_ptr(channel_runtime_error());
+  }
+}
+
+/*****************************************************************************/
+void SafeMain(int argc, char** argv)
+{
+  InitializePlateform();
+
+  ConfigFile cfg {
+  }
+
+  ;
+  {
+    SetDefaults(cfg);
+    ParseCommandLine(argc, argv, cfg);
+
+    auto& Settings = cfg.Settings;
+    auto& RecFileName = cfg.RecFileName;
+
+    DisplayVersionInfo();
+
+    AL_Settings_SetDefaultParam(&Settings);
+    SetMoreDefaults(cfg);
+
+    if(!RecFileName.empty() || !cfg.RunInfo.sRecMd5Path.empty())
+      Settings.tChParam[0].eEncOptions = (AL_EChEncOption)(Settings.tChParam[0].eEncOptions | AL_OPT_FORCE_REC);
+
+    if(g_helpCfg)
+    {
+      PrintConfigFileUsage(cfg, ShouldShowAdvancedFeatures());
+      exit(0);
+    }
+
+    if(g_helpCfgJson)
+    {
+      PrintConfigFileUsageJson(cfg, ShouldShowAdvancedFeatures());
+      exit(0);
+    }
+
+    ValidateConfig(cfg);
+
+    if(g_showCfg)
+    {
+      PrintConfig(cfg, ShouldShowAdvancedFeatures());
+    }
+
+  }
+
+  auto& RunInfo = cfg.RunInfo;
+
+  CIpDeviceParam param;
+  param.iSchedulerType = RunInfo.iSchedulerType;
+  param.iDeviceType = RunInfo.iDeviceType;
+
+  param.pCfgFile = &cfg;
+  param.bTrackDma = RunInfo.trackDma;
+  param.iVqDescr = RunInfo.eVQDescr;
+
+  auto pIpDevice = std::shared_ptr<CIpDevice>(new CIpDevice);
+  pIpDevice->Configure(param);
+
+  if(!pIpDevice)
+    throw runtime_error("Can't create IpDevice");
+
+  std::exception_ptr pError;
+  ChannelMain(cfg, pIpDevice.get(), param, pError);
+
+  if(pError)
+    std::rethrow_exception(pError);
+}
+
 /******************************************************************************/
 
 int main(int argc, char** argv)
@@ -1196,8 +1240,11 @@ int main(int argc, char** argv)
   }
   catch(codec_error const& error)
   {
-    cerr << endl << "Codec error: " << error.what() << endl;
     return error.GetCode();
+  }
+  catch(channel_runtime_error const& error)
+  {
+    return 1;
   }
   catch(runtime_error const& error)
   {

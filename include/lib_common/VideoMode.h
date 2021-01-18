@@ -48,6 +48,14 @@ typedef enum AL_e_VideoMode
   AL_VM_MAX_ENUM,
 }AL_EVideoMode;
 
+static AL_INLINE bool AL_IS_INTERLACED(AL_EVideoMode eVideoMode)
+{
+  (void)eVideoMode;
+  bool bIsInterlaced = false;
+  bIsInterlaced = (eVideoMode == AL_VM_INTERLACED_TOP) || (eVideoMode == AL_VM_INTERLACED_BOTTOM);
+  return bIsInterlaced;
+}
+
 /*************************************************************************//*!
    \brief Sequence Mode
 *****************************************************************************/

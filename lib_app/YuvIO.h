@@ -47,8 +47,12 @@ extern "C"
 #include <fstream>
 #include "lib_app/InputFiles.h"
 
+/* By default, we align allocation dimensions to 8x8 to ensures compatibility with conversion functions.
+ * Indeed, they process full 4x4 blocks in tile mode */
+static const uint32_t DEFAULT_RND_DIM = 8;
+
 /*****************************************************************************/
-AL_TBuffer* AllocateDefaultYuvIOBuffer(AL_TDimension const& tDimension, TFourCC tFourCC);
+AL_TBuffer* AllocateDefaultYuvIOBuffer(AL_TDimension const& tDimension, TFourCC tFourCC, uint32_t uRndDim = DEFAULT_RND_DIM);
 
 /*****************************************************************************/
 void GotoFirstPicture(TYUVFileInfo const& FI, std::ifstream& File, unsigned int iFirstPict = 0);
@@ -57,7 +61,7 @@ void GotoFirstPicture(TYUVFileInfo const& FI, std::ifstream& File, unsigned int 
 int GotoNextPicture(TYUVFileInfo const& FI, std::ifstream& File, int iEncFrameRate, int iEncPictCount, int iFilePictCount);
 
 /*****************************************************************************/
-bool ReadOneFrameYuv(std::ifstream& File, AL_TBuffer* pBuf, bool bLoop);
+bool ReadOneFrameYuv(std::ifstream& File, AL_TBuffer* pBuf, bool bLoop, uint32_t uRndDim = DEFAULT_RND_DIM);
 
 /*****************************************************************************/
 bool WriteOneFrame(std::ofstream& File, AL_TBuffer const* pBuf);

@@ -267,7 +267,9 @@ static AL_INLINE bool AL_IS_INTRA_PROFILE(AL_EProfile eProfile)
 /****************************************************************************/
 static AL_INLINE bool AL_IS_XAVC(AL_EProfile eProfile)
 {
-  bool bRes = (
+  (void)eProfile;
+  bool bRes = false;
+  bRes = (
     (AL_IS_AVC(eProfile))
     && ((AL_GET_CS_FLAGS(eProfile) & 0x1000) != 0)
     );
@@ -277,7 +279,9 @@ static AL_INLINE bool AL_IS_XAVC(AL_EProfile eProfile)
 /****************************************************************************/
 static AL_INLINE bool AL_IS_XAVC_CBG(AL_EProfile eProfile)
 {
-  bool bRes = (
+  (void)eProfile;
+  bool bRes = false;
+  bRes = (
     (AL_IS_XAVC(eProfile))
     && ((AL_GET_CS_FLAGS(eProfile) & 0x2000) == 0)
     );
@@ -287,7 +291,9 @@ static AL_INLINE bool AL_IS_XAVC_CBG(AL_EProfile eProfile)
 /****************************************************************************/
 static AL_INLINE bool AL_IS_XAVC_VBR(AL_EProfile eProfile)
 {
-  bool bRes = (
+  (void)eProfile;
+  bool bRes = false;
+  bRes = (
     (AL_IS_XAVC(eProfile))
     && ((AL_GET_CS_FLAGS(eProfile) & 0x2000) != 0)
     );
@@ -297,7 +303,9 @@ static AL_INLINE bool AL_IS_XAVC_VBR(AL_EProfile eProfile)
 /****************************************************************************/
 static AL_INLINE bool AL_IS_XAVC_MP4(AL_EProfile eProfile)
 {
-  bool bRes = (
+  (void)eProfile;
+  bool bRes = false;
+  bRes = (
     (AL_IS_XAVC(eProfile))
     && ((AL_GET_CS_FLAGS(eProfile) & 0x4000) == 0)
     );
@@ -307,7 +315,9 @@ static AL_INLINE bool AL_IS_XAVC_MP4(AL_EProfile eProfile)
 /****************************************************************************/
 static AL_INLINE bool AL_IS_XAVC_MXF(AL_EProfile eProfile)
 {
-  bool bRes = (
+  (void)eProfile;
+  bool bRes = false;
+  bRes = (
     (AL_IS_XAVC(eProfile))
     && ((AL_GET_CS_FLAGS(eProfile) & 0x4000) != 0)
     );

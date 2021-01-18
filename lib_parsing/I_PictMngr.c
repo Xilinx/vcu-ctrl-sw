@@ -671,7 +671,18 @@ int32_t AL_PictMngr_GetCurrentPOC(AL_TPictMngrCtx* pCtx)
 }
 
 /***************************************************************************/
-bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, bool bStartsNewCVS, AL_TDimension tDim)
+static void ChangePictChromaMode(AL_TBuffer* pBuf, AL_EChromaMode eChromaMode)
+{
+  TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
+  AL_TPicFormat tPicFmt;
+  AL_Assert(AL_GetPicFormat(tFourCC, &tPicFmt));
+  tPicFmt = AL_GetDecPicFormat(eChromaMode, tPicFmt.uBitDepth, tPicFmt.eStorageMode, tPicFmt.bCompressed);
+  tFourCC = AL_GetDecFourCC(tPicFmt);
+  AL_PixMapBuffer_SetFourCC(pBuf, tFourCC);
+}
+
+/***************************************************************************/
+bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, bool bStartsNewCVS, AL_TDimension tDim, AL_EChromaMode eChromaMode)
 {
   pCtx->uRecID = sFrmBufPoolFifo_Pop(&pCtx->FrmBufPool);
 
@@ -684,6 +695,7 @@ bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, bool bStartsNewCVS, AL_TDimen
   AL_TRecBuffers tBuffers = sFrmBufPool_GetBufferFromID(&pCtx->FrmBufPool, pCtx->uRecID);
 
   AL_PixMapBuffer_SetDimension(tBuffers.pFrame, tDim);
+  ChangePictChromaMode(tBuffers.pFrame, eChromaMode);
 
   pCtx->FrmBufPool.array[pCtx->uRecID].bStartsNewCVS = bStartsNewCVS;
 

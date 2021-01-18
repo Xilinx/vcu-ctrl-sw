@@ -74,6 +74,7 @@ extern "C"
 #include "lib_app/utils.h"
 #include "lib_app/CommandLineParser.h"
 #include "lib_app/plateform.h"
+#include "lib_app/YuvIO.h"
 
 #include "Conversion.h"
 #include "IpDevice.h"
@@ -116,33 +117,17 @@ static inline int RoundUp(int iVal, int iRnd)
 static uint32_t constexpr uDefaultNumBuffersHeldByNextComponent = 1; /* We need at least 1 buffer to copy the output on a file */
 static bool bCertCRC = false;
 static bool g_MultiChunk = false;
-static uint8_t constexpr NUMCORE_AUTO = 0;
 
 AL_TDecSettings getDefaultDecSettings()
 {
   AL_TDecSettings settings {};
-
-  settings.iStackSize = 2;
-  settings.uNumCore = NUMCORE_AUTO;
-  settings.uFrameRate = 60000;
-  settings.uClkRatio = 1000;
-  settings.uDDRWidth = 32;
-  settings.eDecUnit = AL_AU_UNIT;
-  settings.eDpbMode = AL_DPB_NORMAL;
-  settings.eFBStorageMode = AL_FB_RASTER;
-  settings.tStream.tDim = { -1, -1 };
-  settings.tStream.eChroma = AL_CHROMA_MAX_ENUM;
-  settings.tStream.iBitDepth = -1;
-  settings.tStream.iProfileIdc = -1;
-  settings.tStream.eSequenceMode = AL_SM_MAX_ENUM;
-  settings.eCodec = AL_CODEC_HEVC;
-  settings.eBufferOutputMode = AL_OUTPUT_INTERNAL;
-  settings.bUseIFramesAsSyncPoint = false;
-  settings.eInputMode = AL_DEC_UNSPLIT_INPUT;
+  AL_DecSettings_SetDefaults(&settings);
   return settings;
 }
 
 static int const zDefaultInputBufferSize = 32 * 1024;
+static const int OUTPUT_BD_MAXPROFILE = -1;
+static const int OUTPUT_BD_CURRENT = 0;
 
 struct Config
 {
@@ -156,7 +141,7 @@ struct Config
 
   int iDeviceType = DEVICE_TYPE_BOARD; // board
   SCHEDULER_TYPE iSchedulerType = SCHEDULER_TYPE_MCU;
-  int iOutputBitDepth = -1;
+  int iOutputBitDepth = OUTPUT_BD_MAXPROFILE;
   int iNumTrace = -1;
   int iNumberTrace = 0;
   bool bForceCleanBuffers = false;
@@ -174,6 +159,7 @@ struct Config
   int iMaxFrames = INT_MAX;
   string seiFile = "";
   string hdrFile = "";
+  bool bUsePreAlloc = false;
 };
 
 /******************************************************************************/
@@ -237,12 +223,6 @@ void getExpectedSeparator(stringstream& ss, char expectedSep)
     throw runtime_error("wrong prealloc arguments separator");
 }
 
-bool invalidPreallocSettings(AL_TStreamSettings const& settings)
-{
-  return settings.iProfileIdc <= 0 || settings.iLevel <= 0
-         || settings.tDim.iWidth <= 0 || settings.tDim.iHeight <= 0 || settings.eChroma == AL_CHROMA_MAX_ENUM || settings.eSequenceMode == AL_SM_MAX_ENUM;
-}
-
 void parsePreAllocArgs(AL_TStreamSettings* settings, string& toParse)
 {
   stringstream ss(toParse);
@@ -298,9 +278,6 @@ void parsePreAllocArgs(AL_TStreamSettings* settings, string& toParse)
 
   if(ss.fail() || (ss.tellg() != streampos(-1)))
     throw runtime_error("wrong prealloc arguments format");
-
-  if(invalidPreallocSettings(*settings))
-    throw runtime_error("wrong prealloc arguments");
 }
 
 /******************************************************************************/
@@ -466,19 +443,15 @@ static Config ParseCommandLine(int argc, char* argv[])
 
   {
     if(!preAllocArgs.empty())
+    {
       parsePreAllocArgs(&Config.tDecSettings.tStream, preAllocArgs);
-
-    if(Config.tDecSettings.uNumCore > AL_DEC_NUM_CORES)
-      throw runtime_error("Invalid number of cores");
-
-    if(Config.tDecSettings.uDDRWidth != 16 && Config.tDecSettings.uDDRWidth != 32 && Config.tDecSettings.uDDRWidth != 64)
-      throw runtime_error("Invalid DDR width");
+      Config.bUsePreAlloc = true;
+    }
 
     // silently correct user settings
     Config.uInputBufferNum = max(1u, Config.uInputBufferNum);
     Config.zInputBufferSize = max(size_t(1), Config.zInputBufferSize);
-    Config.zInputBufferSize = (!preAllocArgs.empty() && Config.zInputBufferSize == zDefaultInputBufferSize) ? AL_GetMaxNalSize(Config.tDecSettings.eCodec, Config.tDecSettings.tStream.tDim, Config.tDecSettings.tStream.eChroma, Config.tDecSettings.tStream.iBitDepth, Config.tDecSettings.tStream.iLevel, Config.tDecSettings.tStream.iProfileIdc) : Config.zInputBufferSize;
-    Config.tDecSettings.iStackSize = max(1, Config.tDecSettings.iStackSize);
+    Config.zInputBufferSize = (Config.bUsePreAlloc && Config.zInputBufferSize == zDefaultInputBufferSize) ? AL_GetMaxNalSize(Config.tDecSettings.eCodec, Config.tDecSettings.tStream.tDim, Config.tDecSettings.tStream.eChroma, Config.tDecSettings.tStream.iBitDepth, Config.tDecSettings.tStream.iLevel, Config.tDecSettings.tStream.iProfileIdc) : Config.zInputBufferSize;
   }
 
   if(Config.sIn.empty())
@@ -744,13 +717,17 @@ static void ConvertFrameBuffer(AL_TBuffer& input, AL_TBuffer*& pOutput, int iBdO
   AL_TDimension tRecDim = AL_PixMapBuffer_GetDimension(&input);
   AL_EChromaMode eRecChromaMode = AL_GetChromaMode(tRecFourCC);
 
+  TFourCC tConvFourCC;
+  AL_TPicFormat tConvPicFormat;
+
   if(pOutput != NULL)
   {
     AL_TDimension tYuvDim = AL_PixMapBuffer_GetDimension(pOutput);
-    TFourCC tYuvFourCC = AL_PixMapBuffer_GetFourCC(pOutput);
-    AL_EChromaMode eYuvChromaMode = AL_GetChromaMode(tYuvFourCC);
+    tConvFourCC = AL_PixMapBuffer_GetFourCC(pOutput);
+    AL_GetPicFormat(tConvFourCC, &tConvPicFormat);
 
-    if(tRecDim.iWidth != tYuvDim.iWidth || tRecDim.iHeight != tYuvDim.iHeight || eRecChromaMode != eYuvChromaMode)
+    if(tRecDim.iWidth != tYuvDim.iWidth || tRecDim.iHeight != tYuvDim.iHeight ||
+       eRecChromaMode != tConvPicFormat.eChromaMode || iBdOut != tConvPicFormat.uBitDepth)
     {
       AL_Buffer_Destroy(pOutput);
       pOutput = NULL;
@@ -759,39 +736,16 @@ static void ConvertFrameBuffer(AL_TBuffer& input, AL_TBuffer*& pOutput, int iBdO
 
   if(pOutput == NULL)
   {
-    AL_TPicFormat tConvPicFormat = AL_TPicFormat {
+    tConvPicFormat = AL_TPicFormat {
       eRecChromaMode, static_cast<uint8_t>(iBdOut), AL_FB_RASTER,
       eRecChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : AL_C_ORDER_U_V, false, false
     };
-    TFourCC tConvFourCC = AL_GetFourCC(tConvPicFormat);
-    pOutput = AL_PixMapBuffer_Create(AL_GetDefaultAllocator(), NULL, tRecDim, tConvFourCC);
+    tConvFourCC = AL_GetFourCC(tConvPicFormat);
+
+    pOutput = AllocateDefaultYuvIOBuffer(tRecDim, tConvFourCC);
 
     if(pOutput == NULL)
       throw runtime_error("Couldn't allocate YuvBuffer");
-
-    int sx = 1, sy = 1;
-    AL_GetSubsampling(tConvFourCC, &sx, &sy);
-
-    auto const iSizePix = (iBdOut + 7) >> 3;
-    auto const iPitchY = iSizePix * tRecDim.iWidth;
-    auto const iPitchC = iSizePix * ((tRecDim.iWidth + sx - 1) / sx);
-    auto const iSizeY = iPitchY * tRecDim.iHeight;
-    auto const iSizeC = iPitchC * ((tRecDim.iHeight + sy - 1) / sy);
-
-    AL_TPlaneDescription tPlaneDesc[3] =
-    {
-      { AL_PLANE_Y, 0, iPitchY },
-      { AL_PLANE_U, iSizeY, iPitchC },
-      { AL_PLANE_V, iSizeY + iSizeC, iPitchC }
-    };
-
-    uint32_t uSize = iSizeY;
-
-    if(tConvPicFormat.eChromaMode != AL_CHROMA_MONO)
-      uSize += 2 * iSizeC;
-
-    if(!AL_PixMapBuffer_Allocate_And_AddPlanes(pOutput, uSize, &tPlaneDesc[0], tConvPicFormat.eChromaMode == AL_CHROMA_MONO ? 1 : 3, "conversion frame buffer"))
-      throw runtime_error("Couldn't allocate YuvBuffer planes");
   }
 
   auto AllegroConvert = GetConversionFunction(tRecFourCC, iBdOut);
@@ -886,29 +840,14 @@ void UncompressedOutputWriter::ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode 
   if(info.tCrop.bCropping)
     CropFrame(YuvBuffer, iSizePix, info.tCrop.uCropOffsetLeft, info.tCrop.uCropOffsetRight, info.tCrop.uCropOffsetTop, info.tCrop.uCropOffsetBottom);
 
-  TFourCC tRecFourCC = AL_PixMapBuffer_GetFourCC(&tRecBuf);
-
-  int sx = 1, sy = 1;
-  AL_GetSubsampling(tRecFourCC, &sx, &sy);
-  AL_TDimension tYuvDim = AL_PixMapBuffer_GetDimension(YuvBuffer);
-  int const iNumPix = tYuvDim.iHeight * tYuvDim.iWidth;
-  int const iNumPixC = AL_GetChromaMode(tRecFourCC) == AL_CHROMA_MONO ? 0 : ((tYuvDim.iWidth + sx - 1) / sx) * ((tYuvDim.iHeight + sy - 1) / sy);
-
   if(CertCrcFile.is_open())
-  {
-    // compute crc
-    auto eChromaMode = AL_GetChromaMode(tRecFourCC);
-
-    uint8_t* pBuf = AL_PixMapBuffer_GetPlaneAddress(YuvBuffer, AL_PLANE_Y);
-
-    if(iBdOut == 8)
-      Compute_CRC(info.uBitDepthY, info.uBitDepthC, iBdOut, iNumPix, iNumPixC, eChromaMode, pBuf, CertCrcFile);
-    else
-      Compute_CRC(info.uBitDepthY, info.uBitDepthC, iBdOut, iNumPix, iNumPixC, eChromaMode, (uint16_t*)pBuf, CertCrcFile);
-  }
+    Compute_CRC(YuvBuffer, info.uBitDepthY, info.uBitDepthC, CertCrcFile);
 
   if(YuvFile.is_open())
-    YuvFile.write((const char*)AL_PixMapBuffer_GetPlaneAddress(YuvBuffer, AL_PLANE_Y), (iNumPix + 2 * iNumPixC) * iSizePix);
+    WriteOneFrame(YuvFile, YuvBuffer);
+
+  if(info.tCrop.bCropping)
+    CropFrame(YuvBuffer, iSizePix, -(int32_t)info.tCrop.uCropOffsetLeft, -(int32_t)info.tCrop.uCropOffsetRight, -(int32_t)info.tCrop.uCropOffsetTop, -(int32_t)info.tCrop.uCropOffsetBottom);
 }
 
 /******************************************************************************/
@@ -945,11 +884,11 @@ struct Display
 struct ResChgParam
 {
   AL_HDecoder hDec;
+  bool bUsePreAlloc;
   bool bPoolIsInit;
   PixMapBufPool bufPool;
   AL_TDecSettings* pDecSettings;
   AL_TAllocator* pAllocator;
-  AL_TDecSettings* pSettings;
   bool bAddHDRMetaData;
   mutex hMutex;
 };
@@ -1146,9 +1085,9 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
     if(err == AL_WARN_CONCEAL_DETECT)
       iNumFrameConceal++;
 
-    if(iBitDepth == 0)
+    if(iBitDepth == OUTPUT_BD_CURRENT)
       iBitDepth = max(pInfo->uBitDepthY, pInfo->uBitDepthC);
-    else if(iBitDepth == -1)
+    else if(iBitDepth == OUTPUT_BD_MAXPROFILE)
       iBitDepth = AL_Decoder_GetMaxBD(hDec);
 
     assert(AL_Buffer_GetData(pFrame));
@@ -1249,7 +1188,7 @@ void AddHDRMetaData(AL_TBuffer* pBufStream)
     AL_Buffer_AddMetaData(pBufStream, (AL_TMetaData*)pHDReta);
 }
 
-static int sConfigureDecBufPool(PixMapBufPool& SrcBufPool, AL_TPicFormat tPicFormat, AL_TDimension tDim, int iPitchY)
+static int sConfigureDecBufPool(PixMapBufPool& SrcBufPool, AL_TPicFormat tPicFormat, AL_TDimension tDim, int iPitchY, bool bPreallocChromaCompat)
 {
   auto const tFourCC = AL_GetDecFourCC(tPicFormat);
   SrcBufPool.SetFormat(tDim, tFourCC);
@@ -1264,6 +1203,13 @@ static int sConfigureDecBufPool(PixMapBufPool& SrcBufPool, AL_TPicFormat tPicFor
   {
     int iPitch = usedPlanes[iPlane] == AL_PLANE_Y ? iPitchY : AL_GetChromaPitch(tFourCC, iPitchY);
     vPlaneDesc.push_back(AL_TPlaneDescription { usedPlanes[iPlane], iOffset, iPitch });
+
+    /* We ensure compatibility with 420/422. Only required when we use prealloc configured for
+     * 444 chroma-mode (worst case) and the real chroma-mode is unknown. Breaks planes agnostic
+     * allocation. */
+    if(bPreallocChromaCompat && usedPlanes[iPlane] == AL_PLANE_U)
+      vPlaneDesc.push_back(AL_TPlaneDescription { AL_PLANE_UV, iOffset, iPitch });
+
     iOffset += AL_DecGetAllocSize_Frame_PixPlane(tPicFormat.eStorageMode, tDim, iPitch, tPicFormat.eChromaMode, usedPlanes[iPlane]);
 
     if(g_MultiChunk)
@@ -1304,7 +1250,7 @@ static AL_ERR sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSe
   if(p->bPoolIsInit)
     BufferSize = AL_DecGetAllocSize_Frame(pSettings->tDim, minPitch, pSettings->eChroma, bMainOutputCompression, eMainOutputStorageMode);
   else
-    BufferSize = sConfigureDecBufPool(p->bufPool, tPicFormat, pSettings->tDim, minPitch);
+    BufferSize = sConfigureDecBufPool(p->bufPool, tPicFormat, pSettings->tDim, minPitch, p->bUsePreAlloc);
 
   assert(BufferSize >= BufferSizeLib);
 
@@ -1515,6 +1461,7 @@ void SafeChannelMain(WorkerConfig& w)
   AL_TDecSettings Settings = Config.tDecSettings;
 
   ResChgParam ResolutionFoundParam;
+  ResolutionFoundParam.bUsePreAlloc = Config.bUsePreAlloc;
   ResolutionFoundParam.pAllocator = pAllocator;
   ResolutionFoundParam.bPoolIsInit = false;
   ResolutionFoundParam.pDecSettings = &Settings;
@@ -1530,6 +1477,25 @@ void SafeChannelMain(WorkerConfig& w)
   CB.displayCB = { &sFrameDisplay, &display };
   CB.resolutionFoundCB = { &sResolutionFound, &ResolutionFoundParam };
   CB.parsedSeiCB = { &sParsedSei, (void*)&seiOutput };
+
+  FILE* out = stdout;
+
+  if(!g_Verbosity)
+    out = NULL;
+
+  auto const err = AL_DecSettings_CheckValidity(&Settings, out);
+
+  if(err != 0)
+  {
+    stringstream ss;
+    ss << err << " errors(s). " << "Invalid settings, please check your command line.";
+    throw runtime_error(ss.str());
+  }
+
+  auto const incoherencies = AL_DecSettings_CheckCoherency(&Settings, out);
+
+  if(incoherencies == -1)
+    throw runtime_error("Fatal coherency error in settings, please check your command line.");
 
   AL_HDecoder hDec;
   auto error = AL_Decoder_Create(&hDec, (AL_IDecScheduler*)pScheduler, pAllocator, &Settings, &CB);
@@ -1552,12 +1518,9 @@ void SafeChannelMain(WorkerConfig& w)
 
   AL_Decoder_SetParam(hDec, bUseBoard ? "Fpga" : "Ref", Config.iNumTrace, Config.iNumberTrace, Config.bForceCleanBuffers, Config.ipCtrlMode == IPCTRL_MODE_TRACE);
 
-  if(!invalidPreallocSettings(Config.tDecSettings.tStream))
-  {
-    if(!AL_Decoder_PreallocateBuffers(hDec))
-      if(auto eErr = AL_Decoder_GetLastError(hDec))
-        throw codec_error(eErr);
-  }
+  if(Config.bUsePreAlloc && !AL_Decoder_PreallocateBuffers(hDec))
+    if(auto eErr = AL_Decoder_GetLastError(hDec))
+      throw codec_error(eErr);
 
   const AL_ECodec eCodec = Config.tDecSettings.eCodec;
 

@@ -33,8 +33,8 @@ $ ../allegro-vcu-omx-il/bin/omx_encoder.exe 144x144.nv12 --width 144 --height 14
 Source Code
 ===========
 
-* PluginInterface.h contains the interface your plugin needs to implement.
-* ExampleRCPlugin.c contains a rate ctrl plugin which traces all the call to the
+* include/lib_rate_ctrl/PluginInterface.h contains the interface your plugin needs to implement.
+* lib_rate_ctrl/ExampleRCPlugin.c contains a rate ctrl plugin which traces all the call to the
 api.
 * exe_encoder/RCPlugin.h contains the userland code that talks with the example plugin
 

@@ -249,8 +249,10 @@ int32_t AL_PictMngr_GetCurrentPOC(AL_TPictMngrCtx* pCtx);
    \param[in] pCtx          Pointer to a Picture manager context object
    \param[in] bStartsNewCVS True if the next frame starts a new CVS, false otherwise
    \param[in] tDim          Picture dimension (width, height) in pixel unit
+   \param[in] eChromaMode   Picture chroma mode
+   \return return true if a new frame has been reserved, false otherwise
 *****************************************************************************/
-bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, bool bStartsNewCVS, AL_TDimension tDim);
+bool AL_PictMngr_BeginFrame(AL_TPictMngrCtx* pCtx, bool bStartsNewCVS, AL_TDimension tDim, AL_EChromaMode eChromaMode);
 
 /*************************************************************************//*!
    \brief This function prepares the Picture Manager context to new frame

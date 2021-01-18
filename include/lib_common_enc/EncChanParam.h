@@ -562,6 +562,7 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   uint16_t uOutputCropHeight;
   uint16_t uOutputCropPosX;
   uint16_t uOutputCropPosY;
+  bool bUseUniformSliceType;
 } AL_TEncChanParam;
 
 /***************************************************************************/

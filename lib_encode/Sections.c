@@ -126,8 +126,8 @@ static AL_TSeiPrefixCtx createSeiPrefixCtx(const AL_TNalsData* pNalsData, AL_TEn
     pNalsData->seiData.initialCpbRemovalDelay,
     pNalsData->seiData.cpbRemovalDelay,
     uFlags,
-    pPicStatus
-    , pNalsData->seiData.pHDRSEIs
+    pPicStatus,
+    pNalsData->seiData.pHDRSEIs,
   };
   return ctx;
 }
@@ -158,9 +158,9 @@ static uint32_t generateSeiFlags(AL_TEncPicStatus const* pPicStatus, bool bForce
   {
     uFlags |= AL_SEI_BP;
 
-    bool bShouldUseSEIReconveryPoint = (!pPicStatus->bIsIDR || bForceSEIRecoveryPointOnIDR);
+    bool bShouldUseSEIRecoveryPoint = (!pPicStatus->bIsIDR || bForceSEIRecoveryPointOnIDR);
 
-    if(bShouldUseSEIReconveryPoint)
+    if(bShouldUseSEIRecoveryPoint)
       uFlags |= AL_SEI_RP;
   }
   else if(pPicStatus->iRecoveryCnt)

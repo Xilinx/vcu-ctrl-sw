@@ -178,9 +178,9 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
    written.
    \return 0 if no incoherency
            the number of incoherency if incoherency were found
-   -1 if a fatal incoherency was found
-   Since the function automatically apply correction,
-   the Settings can be then used with IP encoder.
+           -1 if a fatal incoherency was found
+   Since the function automatically apply correction, the Settings can be then
+   used with IP encoder.
  *****************************************************************************/
 int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pChParam, TFourCC tFourCC, FILE* pOut);
 

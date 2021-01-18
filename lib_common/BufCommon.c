@@ -119,8 +119,29 @@ int AL_GetChromaPitch(TFourCC tFourCC, int iLumaPitch)
     return 0;
 
   int iNumPlanes = tPicFormat.eChromaOrder == AL_C_ORDER_SEMIPLANAR ? 2 : 1;
+  int iChromaPitch = iLumaPitch;
+
+  if(tPicFormat.eChromaMode != AL_CHROMA_4_4_4)
+  {
+    int iRound = tPicFormat.uBitDepth > 8 ? 4 : 2;
+    iChromaPitch = RoundUp(iLumaPitch, iRound) / 2;
+  }
+
+  return iChromaPitch * iNumPlanes;
+}
+
+/****************************************************************************/
+int AL_GetChromaWidth(TFourCC tFourCC, int iLumaWidth)
+{
+  AL_TPicFormat tPicFormat;
+  AL_Assert(AL_GetPicFormat(tFourCC, &tPicFormat));
+
+  if(tPicFormat.eChromaMode == AL_CHROMA_MONO)
+    return 0;
+
+  int iNumPlanes = tPicFormat.eChromaOrder == AL_C_ORDER_SEMIPLANAR ? 2 : 1;
   int iHrzScale = tPicFormat.eChromaMode == AL_CHROMA_4_4_4 ? 1 : 2;
-  return iLumaPitch / iHrzScale * iNumPlanes;
+  return ((iLumaWidth + iHrzScale - 1) / iHrzScale) * iNumPlanes;
 }
 
 /****************************************************************************/
@@ -131,7 +152,7 @@ int AL_GetChromaHeight(TFourCC tFourCC, int iLumaHeight)
   if(eChromaMode == AL_CHROMA_MONO)
     return 0;
 
-  return eChromaMode == AL_CHROMA_4_2_0 ? iLumaHeight / 2 : iLumaHeight;
+  return eChromaMode == AL_CHROMA_4_2_0 ? (iLumaHeight + 1) / 2 : iLumaHeight;
 }
 
 /****************************************************************************/

@@ -66,6 +66,13 @@ int AL_GetChromaPitch(TFourCC tFourCC, int iLumaPitch);
 
 /*************************************************************************//*!
    \param[in] tFourCC FourCC of a framebuffer
+   \param[in] iLumaWidth Width of luma plane
+   \return width of a chroma plane
+*****************************************************************************/
+int AL_GetChromaWidth(TFourCC tFourCC, int iLumaWidth);
+
+/*************************************************************************//*!
+   \param[in] tFourCC FourCC of a framebuffer
    \param[in] iLumaHeight Height of luma plane
    \return height of a chroma plane
 *****************************************************************************/

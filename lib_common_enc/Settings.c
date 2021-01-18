@@ -368,6 +368,7 @@ static void XAVC_CheckCoherency(AL_TEncSettings* pSettings)
   pChannel->eEncTools &= (~AL_OPT_LF_X_TILE);
   pChannel->eEncTools &= (~AL_OPT_LF_X_SLICE);
   pChannel->eEncTools &= (~AL_OPT_LF);
+  pChannel->bUseUniformSliceType = true;
 
   if(AL_IS_INTRA_PROFILE(pChannel->eProfile))
   {
@@ -701,7 +702,6 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
       MSG("Invalid parameter: NumCore. The width should at least be 256 pixels per core for HEVC conformance.");
     }
   }
-
   int const iCTBSize = (1 << pChParam->uLog2MaxCuSize);
 
   if(pChParam->uEncHeight <= iCTBSize)
@@ -1135,6 +1135,12 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
   {
     MSG("!! Warning: number of B frames per GOP is too high");
     pChParam->tGopParam.uNumB = uMaxNumB;
+  }
+
+  if(!AL_IS_AVC(pChParam->eProfile) && pChParam->bUseUniformSliceType)
+  {
+    MSG("!! Use uniform slice type is not available in this codec !!");
+    pChParam->bUseUniformSliceType = false;
   }
 
   bool bIsLoopFilterEnable = (pChParam->eEncTools & AL_OPT_LF);

@@ -71,9 +71,6 @@ bool AL_PixMapMetaData_AddPlane(AL_TPixMapMetaData* pMeta, AL_TPlane tPlane, AL_
   AL_TPicFormat tPicFormat;
   AL_Assert(AL_GetPicFormat(pMeta->tFourCC, &tPicFormat));
 
-  if(!AL_Plane_Exists(tPicFormat.eChromaOrder, tPicFormat.bCompressed, ePlaneId))
-    return false;
-
   pMeta->tPlanes[ePlaneId] = tPlane;
 
   return true;

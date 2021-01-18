@@ -12,8 +12,9 @@ LIB_DECODE_SRC+=\
 		lib_decode/Patchworker.c\
 		lib_decode/DecoderFeeder.c\
 		lib_decode/SplitBufferFeeder.c\
-    lib_decode/I_DecScheduler.c\
-    lib_decode/WorkPool.c\
+		lib_decode/I_DecScheduler.c\
+		lib_decode/WorkPool.c\
+		lib_decode/DecSettings.c\
 
 
 ifneq ($(ENABLE_MCU),0)

@@ -44,12 +44,12 @@
  *****************************************************************************/
 
 #include <string.h>
-#include <stdio.h>
 
 #include "DefaultDecoder.h"
 #include "NalUnitParser.h"
 #include "UnsplitBufferFeeder.h"
 #include "SplitBufferFeeder.h"
+#include "DecSettingsInternal.h"
 
 #include "lib_common/Error.h"
 #include "lib_common/StreamBuffer.h"
@@ -130,59 +130,6 @@ static int NalHeaderSize(AL_ECodec eCodec)
   }
 
   return -1;
-}
-
-/******************************************************************************/
-static bool IsAtLeastOneStreamDimSet(AL_TDimension tDim)
-{
-  return (tDim.iWidth > 0) || (tDim.iHeight > 0);
-}
-
-/******************************************************************************/
-static bool IsAllStreamDimSet(AL_TDimension tDim)
-{
-  return (tDim.iWidth > 0) && (tDim.iHeight > 0);
-}
-
-/******************************************************************************/
-static bool IsStreamChromaSet(AL_EChromaMode eChroma)
-{
-  return eChroma != AL_CHROMA_MAX_ENUM;
-}
-
-/******************************************************************************/
-static bool IsStreamBitDepthSet(int iBitDepth)
-{
-  return iBitDepth > 0;
-}
-
-/******************************************************************************/
-static bool IsStreamLevelSet(int iLevel)
-{
-  return iLevel > 0;
-}
-
-/******************************************************************************/
-static bool IsStreamProfileSet(int iProfileIdc)
-{
-  return iProfileIdc > 0;
-}
-
-static bool IsStreamSequenceModeSet(AL_ESequenceMode eSequenceMode)
-{
-  return eSequenceMode != AL_SM_MAX_ENUM;
-}
-
-/******************************************************************************/
-static bool IsAllStreamSettingsSet(AL_TStreamSettings const* pStreamSettings)
-{
-  return IsAllStreamDimSet(pStreamSettings->tDim) && IsStreamChromaSet(pStreamSettings->eChroma) && IsStreamBitDepthSet(pStreamSettings->iBitDepth) && IsStreamLevelSet(pStreamSettings->iLevel) && IsStreamProfileSet(pStreamSettings->iProfileIdc) && IsStreamSequenceModeSet(pStreamSettings->eSequenceMode);
-}
-
-/*****************************************************************************/
-static bool IsAtLeastOneStreamSettingsSet(AL_TStreamSettings const* pStreamSettings)
-{
-  return IsAtLeastOneStreamDimSet(pStreamSettings->tDim) || IsStreamChromaSet(pStreamSettings->eChroma) || IsStreamBitDepthSet(pStreamSettings->iBitDepth) || IsStreamLevelSet(pStreamSettings->iLevel) || IsStreamProfileSet(pStreamSettings->iProfileIdc) || IsStreamSequenceModeSet(pStreamSettings->eSequenceMode);
 }
 
 /* Buffer size must be aligned with hardware requests, which are 2048 or 4096 bytes for dec1 units (for old or new decoder respectively). */
@@ -913,6 +860,7 @@ static AL_NonVclNuts AL_GetNonVclNuts(AL_TDecCtx* pCtx)
 /*****************************************************************************/
 static void GenerateScdIpTraces(AL_TDecCtx* pCtx, AL_TScBufferAddrs ScdBuffer, AL_TBuffer* pStream, TMemDesc scBuffer)
 {
+  (void)pCtx;
   (void)ScdBuffer;
   (void)pStream;
   (void)scBuffer;
@@ -1438,22 +1386,9 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
   AL_TDecoder* pDec = (AL_TDecoder*)pAbsDec;
   AL_TDecCtx* pCtx = &pDec->ctx;
   AL_Assert(!pCtx->bIsBuffersAllocated);
-  AL_Assert(IsAllStreamSettingsSet(&pCtx->tStreamSettings));
 
   AL_ERR error = AL_ERR_NO_MEMORY;
   AL_TStreamSettings const* pStreamSettings = &pCtx->tStreamSettings;
-
-  if(pStreamSettings->iBitDepth > HW_IP_BIT_DEPTH)
-  {
-    AL_Default_Decoder_SetError(pCtx, AL_ERR_REQUEST_MALFORMED, -1);
-    return false;
-  }
-
-  if(pStreamSettings->eSequenceMode == AL_SM_MAX_ENUM)
-  {
-    AL_Default_Decoder_SetError(pCtx, AL_ERR_REQUEST_MALFORMED, -1);
-    return false;
-  }
 
   int iSPSMaxSlices = RoundUp(pCtx->pChanParam->iHeight, 16) / 16;
   int iSizeALF = 0;
