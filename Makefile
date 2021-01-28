@@ -79,7 +79,7 @@ endif
 -include ref.mk
 
 ifneq ($(ENABLE_DECODER),0)
-  # ctrlsw_decoder
+  # AL_Decoder
   -include lib_parsing/project.mk
   -include lib_scheduler_dec/project.mk
   -include lib_decode/project.mk
@@ -89,7 +89,7 @@ endif
 
 
 ifneq ($(ENABLE_ENCODER),0)
-  # ctrlsw_encoder
+  # AL_Encoder
   -include lib_conv_yuv/project.mk
   include exe_encoder/project.mk
 endif
