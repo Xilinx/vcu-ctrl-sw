@@ -35,8 +35,6 @@
 *
 ******************************************************************************/
 
-#include "YuvIO.h"
-
 #include <cstdlib>
 #include <cstdarg>
 #include <cstring>
@@ -47,10 +45,10 @@
 #include <climits>
 
 #include "lib_app/utils.h"
+#include "lib_app/YuvIO.h"
 
 extern "C"
 {
-#include "lib_rtos/lib_rtos.h"
 #include "lib_common/PixMapBuffer.h"
 #include "lib_common/BufCommon.h"
 }

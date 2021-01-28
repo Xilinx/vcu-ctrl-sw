@@ -133,4 +133,3 @@ static inline void DisplayVersionInfo(char const* company, char const* productNa
 
   LogVerbose(CC_YELLOW, "%s\n\n", comments);
 }
-

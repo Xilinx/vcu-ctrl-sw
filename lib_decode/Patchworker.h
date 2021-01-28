@@ -43,6 +43,8 @@
 
 #include "lib_common_dec/DecBuffersInternal.h"
 
+#define AL_CIRCULAR_BUFFER_SIZE_MARGIN 1
+
 typedef struct al_t_Patchworker
 {
   bool endOfInput;
@@ -51,6 +53,7 @@ typedef struct al_t_Patchworker
   AL_TFifo* inputFifo;
   AL_TBuffer* outputCirc;
   AL_TBuffer* workBuf;
+  bool bCompleteFill;
 }AL_TPatchworker;
 
 /*

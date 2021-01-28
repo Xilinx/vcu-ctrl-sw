@@ -74,10 +74,14 @@ static std::string PictTypeToString(AL_ESliceType type)
 static bool PreprocessQP(uint8_t* pQPs, AL_EGenerateQpMode eMode, const AL_TEncChanParam& tChParam, const std::string& sQPTablesFolder, int iFrameCountSent)
 {
   uint8_t* pSegs = NULL;
+
+  auto iQPTableDepth = 0;
+
   return GenerateQPBuffer(eMode, tChParam.tRCParam.iInitialQP,
                           tChParam.tRCParam.iMinQP, tChParam.tRCParam.iMaxQP,
                           AL_GetWidthInLCU(tChParam), AL_GetHeightInLCU(tChParam),
-                          tChParam.eProfile, sQPTablesFolder, iFrameCountSent, pQPs + EP2_BUF_QP_BY_MB.Offset, pSegs);
+                          tChParam.eProfile, iQPTableDepth, sQPTablesFolder,
+                          iFrameCountSent, pQPs + EP2_BUF_QP_BY_MB.Offset, pSegs);
 }
 
 class QPBuffers
@@ -151,9 +155,13 @@ private:
     AL_TBuffer* pQpBuf = layerInfo.bufPool->GetBuffer();
     bool bRet = PreprocessQP(AL_Buffer_GetData(pQpBuf), mode, tLayerChParam, layerInfo.sQPTablesFolder, frameNum);
 
+    auto iQPTableDepth = 0;
+
     if(!bRet)
-      bRet = GenerateROIBuffer(mQPLayerRoiCtxs[iLayerID], layerInfo.sRoiFileName, AL_GetWidthInLCU(tLayerChParam), AL_GetHeightInLCU(tLayerChParam),
-                               tLayerChParam.eProfile, frameNum, AL_Buffer_GetData(pQpBuf) + EP2_BUF_QP_BY_MB.Offset);
+      bRet = GenerateROIBuffer(mQPLayerRoiCtxs[iLayerID], layerInfo.sRoiFileName,
+                               AL_GetWidthInLCU(tLayerChParam), AL_GetHeightInLCU(tLayerChParam),
+                               tLayerChParam.eProfile, iQPTableDepth, frameNum,
+                               AL_Buffer_GetData(pQpBuf) + EP2_BUF_QP_BY_MB.Offset);
 
     if(!bRet)
     {

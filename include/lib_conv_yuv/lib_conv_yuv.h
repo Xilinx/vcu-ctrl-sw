@@ -37,24 +37,6 @@
 
 #pragma once
 
-extern "C"
-{
-#include "lib_common/BufferAPI.h"
-#include "lib_common/SliceConsts.h"
-#include "lib_common_enc/EncChanParam.h"
-}
+#include "ConvSrc.h"
 
-struct IConvSrc
-{
-  virtual ~IConvSrc() = default;
-
-  virtual void ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut) = 0;
-};
-
-struct TFrameInfo
-{
-  AL_TDimension tDimension;
-  uint8_t iBitDepth;
-  AL_EChromaMode eCMode;
-};
-
+#include "AL_RasterConvert.h"

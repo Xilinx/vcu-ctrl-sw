@@ -1,9 +1,5 @@
 THIS_EXE_ENCODER:=$(call get-my-dir)
 
-PARSER_SRCS:=\
-  $(THIS_EXE_ENCODER)/CfgParser.cpp\
-  $(LIB_CFG_PARSING_SRC)\
-
 EXE_ENCODER_SRCS:=\
   $(THIS_EXE_ENCODER)/CodecUtils.cpp\
   $(THIS_EXE_ENCODER)/FileUtils.cpp\
@@ -18,9 +14,7 @@ EXE_ENCODER_SRCS:=\
   $(THIS_EXE_ENCODER)/EncCmdMngr.cpp\
   $(THIS_EXE_ENCODER)/QPGenerator.cpp\
   $(THIS_EXE_ENCODER)/CommandsSender.cpp\
-  $(PARSER_SRCS)\
-  $(LIB_CONV_SRC)\
-  $(LIB_APP_SRC)\
+  $(THIS_EXE_ENCODER)/CfgParser.cpp\
 
 ifneq ($(ENABLE_ROI),0)
   EXE_ENCODER_SRCS+=$(THIS_EXE_ENCODER)/ROIMngr.cpp
@@ -51,7 +45,7 @@ $(BIN)/$(THIS_EXE_ENCODER)/main.cpp.o: INTROSPECT_FLAGS=-DAL_COMPIL_FLAGS='"$(CF
 $(BIN)/$(THIS_EXE_ENCODER)/main.cpp.o: INTROSPECT_FLAGS+=-DHAS_COMPIL_FLAGS=1
 
 
-$(BIN)/AL_Encoder.exe: $(EXE_ENCODER_OBJ) $(LIB_REFENC_A) $(LIB_REFALLOC_A) $(LIB_ENCODER_A)
+$(BIN)/AL_Encoder.exe: $(EXE_ENCODER_OBJ) $(LIB_REFENC_A) $(LIB_REFALLOC_A) $(LIB_ENCODER_A) $(LIB_APP_A) $(LIB_CFG_PARSING_A) $(LIB_CONV_YUV_A)
 
 TARGETS+=$(BIN)/AL_Encoder.exe
 
@@ -67,12 +61,12 @@ endif
 $(BIN)/$(THIS_EXE_ENCODER)/CfgParser.cpp.o: CFLAGS+=-O0
 
 EXE_CFG_PARSER_SRCS:=\
-  $(THIS_EXE_ENCODER)/ParserMain.cpp \
-  $(PARSER_SRCS)\
+  $(THIS_EXE_ENCODER)/ParserMain.cpp\
+  $(THIS_EXE_ENCODER)/CfgParser.cpp\
 
 EXE_CFG_PARSER_OBJ:=$(EXE_CFG_PARSER_SRCS:%=$(BIN)/%.o)
 
-$(BIN)/AL_CfgParser.exe: $(EXE_CFG_PARSER_OBJ) $(LIB_ENCODER_A)
+$(BIN)/AL_CfgParser.exe: $(EXE_CFG_PARSER_OBJ) $(LIB_ENCODER_A) $(LIB_CFG_PARSING_A)
 
 TARGETS+=$(BIN)/AL_CfgParser.exe
 

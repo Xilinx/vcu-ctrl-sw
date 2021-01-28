@@ -35,29 +35,42 @@
 *
 ******************************************************************************/
 
+/****************************************************************************
+   -----------------------------------------------------------------------------
+ **************************************************************************//*!
+   \addtogroup lib_base
+   @{
+   \file
+ *****************************************************************************/
 #pragma once
 
-enum EConColor
+#include <vector>
+extern "C"
 {
-  CC_BLACK,
-  CC_RED,
-  CC_GREEN,
-  CC_YELLOW,
-  CC_BLUE,
-  CC_MAGENTA,
-  CC_CYAN,
-  CC_GREY,
-  CC_DARK_RED,
-  CC_DARK_GREEN,
-  CC_DARK_YELLOW,
-  CC_DARK_BLUE,
-  CC_DARK_MAGENTA,
-  CC_DARK_CYAN,
-  CC_DARK_GREY,
-  CC_WHITE,
-  CC_DEFAULT,
-};
+#include "lib_common/FourCC.h"
+}
 
-void SetEnableColor(bool bColor);
-void SetConsoleColor(EConColor eColor);
+/*************************************************************************//*!
+   \brief Chroma sampling format for video source file
+*****************************************************************************/
+typedef enum e_FileFormat
+{
+  FILE_MONOCHROME, /*!< YUV file is monochrome and contains only luma samples*/
+  FILE_YUV_4_2_0,  /*!< YUV file contains 4:2:0 chroma samples and is stored
+                      in planar IYUV (also called I420) format */
+}EFileFormat;
 
+/*************************************************************************//*!
+   \brief YUV File size and format information
+*****************************************************************************/
+typedef AL_INTROSPECT (category = "debug") struct t_YUVFileInfo
+{
+  int PictWidth;  /*!< Frame width in pixels */
+  int PictHeight; /*!< Frame height in pixels */
+
+  TFourCC FourCC; /*!< FOURCC identifying the file format */
+
+  unsigned int FrameRate;  /*!< Frame by second */
+}TYUVFileInfo;
+
+/*@}*/

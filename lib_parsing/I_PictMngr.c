@@ -605,6 +605,8 @@ bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, AL_TAllocator* pAllocator, AL_TPict
 
   pCtx->pAllocator = pAllocator;
 
+  pCtx->tOutputPosition = pParam->tOutputPosition;
+
   return true;
 }
 
@@ -832,9 +834,11 @@ void AL_PictMngr_UnlockID(AL_TPictMngrCtx* pCtx, int iFrameID, int iMotionVector
 }
 
 /***************************************************************************/
-static void sFrmBufPool_GetInfoDecode(AL_TFrmBufPool* pPool, int iFrameID, AL_TInfoDecode* pInfo, bool* pStartsNewCVS, AL_EFbStorageMode eFbStorageMode, int iBitdepth, bool bDisplayInfo)
+static void sFrmBufPool_GetInfoDecode(AL_TPictMngrCtx* pCtx, int iFrameID, AL_TInfoDecode* pInfo, bool* pStartsNewCVS, AL_EFbStorageMode eFbStorageMode, int iBitdepth, bool bDisplayInfo)
 {
   AL_Assert(pInfo);
+
+  AL_TFrmBufPool* pPool = &pCtx->FrmBufPool;
 
   AL_TRecBuffers tBuffers = sFrmBufPool_GetBufferFromID(pPool, iFrameID);
   AL_Assert(sRecBuffers_AreNotNull(&tBuffers, pPool));
@@ -850,6 +854,7 @@ static void sFrmBufPool_GetInfoDecode(AL_TFrmBufPool* pPool, int iFrameID, AL_TI
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
   AL_Assert(tFourCC != 0);
   pInfo->eChromaMode = AL_GetChromaMode(tFourCC);
+  pInfo->tPos = pCtx->tOutputPosition;
 
   if(pStartsNewCVS)
     *pStartsNewCVS = pPool->array[iFrameID].bStartsNewCVS;
@@ -864,7 +869,7 @@ static AL_TBuffer* AL_PictMngr_GetDisplayBuffer2(AL_TPictMngrCtx* pCtx, AL_TInfo
   AL_EFbStorageMode eOutputStorageMode = pCtx->eFbStorageMode;
 
   if(pInfo)
-    sFrmBufPool_GetInfoDecode(&pCtx->FrmBufPool, iFrameID, pInfo, pStartsNewCVS, eOutputStorageMode, pCtx->iBitdepth, true);
+    sFrmBufPool_GetInfoDecode(pCtx, iFrameID, pInfo, pStartsNewCVS, eOutputStorageMode, pCtx->iBitdepth, true);
 
   AL_TRecBuffers tRecBuffers = sFrmBufPool_GetBufferFromID(&pCtx->FrmBufPool, iFrameID);
 
@@ -981,7 +986,7 @@ AL_TBuffer* AL_PictMngr_GetRecBufferFromDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_
   if(pInfo != NULL && pRecBuf != NULL)
   {
     AL_EFbStorageMode eOutputStorageMode = pCtx->eFbStorageMode;
-    sFrmBufPool_GetInfoDecode(&pCtx->FrmBufPool, iFrameID, pInfo, NULL, eOutputStorageMode, pCtx->iBitdepth, false);
+    sFrmBufPool_GetInfoDecode(pCtx, iFrameID, pInfo, NULL, eOutputStorageMode, pCtx->iBitdepth, false);
   }
 
   return pRecBuf;
@@ -1158,9 +1163,9 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam* pSP, TBuff
     TRefListOffsets tRefListOffsets = AL_GetRefListOffsets(eChromaOrder);
 
     AL_PADDR* pAddr = (AL_PADDR*)pListAddr->tMD.pVirtualAddr;
-    AL_PADDR* pColocMvList = ((AL_PADDR*)pListAddr->tMD.pVirtualAddr) + tRefListOffsets.uColocMVOffset;
-    AL_PADDR* pColocPocList = ((AL_PADDR*)pListAddr->tMD.pVirtualAddr) + tRefListOffsets.uColocPocOffset;
-    AL_PADDR* pFbcList = ((AL_PADDR*)pListAddr->tMD.pVirtualAddr) + tRefListOffsets.uMapOffset;
+    AL_PADDR* pColocMvList = (AL_PADDR*)(((uint32_t*)pListAddr->tMD.pVirtualAddr) + tRefListOffsets.uColocMVOffset);
+    AL_PADDR* pColocPocList = (AL_PADDR*)(((uint32_t*)pListAddr->tMD.pVirtualAddr) + tRefListOffsets.uColocPocOffset);
+    AL_PADDR* pFbcList = (AL_PADDR*)(((uint32_t*)pListAddr->tMD.pVirtualAddr) + tRefListOffsets.uMapOffset);
 
     for(int i = 0; i < PIC_ID_POOL_SIZE; ++i)
     {
@@ -1195,6 +1200,8 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam* pSP, TBuff
 
       pAddr[i] = AL_PixMapBuffer_GetPlanePhysicalAddress(pRefBuf, AL_PLANE_Y);
       pAddr[PIC_ID_POOL_SIZE + i] = AL_PixMapBuffer_GetPlanePhysicalAddress(pRefBuf, eFirstCPlane);
+      pAddr[i] += AL_PixMapBuffer_GetPositionOffset(pRefBuf, pCtx->tOutputPosition, AL_PLANE_Y);
+      pAddr[PIC_ID_POOL_SIZE + i] += AL_PixMapBuffer_GetPositionOffset(pRefBuf, pCtx->tOutputPosition, eFirstCPlane);
 
       pFbcList[i] = 0;
       pFbcList[PIC_ID_POOL_SIZE + i] = 0;

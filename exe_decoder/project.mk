@@ -7,7 +7,6 @@ EXE_DECODER_SRC:=\
   $(THIS_EXE_DECODER)/CodecUtils.cpp\
   $(THIS_EXE_DECODER)/Conversion.cpp\
   $(THIS_EXE_DECODER)/InputLoader.cpp\
-  $(LIB_APP_SRC)\
 
 
 
@@ -20,7 +19,7 @@ endif
 EXE_DECODER_OBJ:=$(EXE_DECODER_SRC:%=$(BIN)/%.o)
 
 
-$(BIN)/AL_Decoder.exe: $(EXE_DECODER_OBJ) $(LIB_REFDEC_A) $(LIB_REFALLOC_A) $(LIB_DECODER_A)
+$(BIN)/AL_Decoder.exe: $(EXE_DECODER_OBJ) $(LIB_REFDEC_A) $(LIB_REFALLOC_A) $(LIB_DECODER_A) $(LIB_APP_A)
 
 $(BIN)/$(THIS_EXE_DECODER)/%.o: CFLAGS+=-pthread
 

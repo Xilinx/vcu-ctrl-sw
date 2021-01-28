@@ -37,22 +37,26 @@
 
 #pragma once
 
-#include <chrono>
-#include <thread>
-#include <stdint.h>
-
-inline uint64_t GetPerfTime()
+enum EConColor
 {
-  using namespace std;
+  CC_BLACK,
+  CC_RED,
+  CC_GREEN,
+  CC_YELLOW,
+  CC_BLUE,
+  CC_MAGENTA,
+  CC_CYAN,
+  CC_GREY,
+  CC_DARK_RED,
+  CC_DARK_GREEN,
+  CC_DARK_YELLOW,
+  CC_DARK_BLUE,
+  CC_DARK_MAGENTA,
+  CC_DARK_CYAN,
+  CC_DARK_GREY,
+  CC_WHITE,
+  CC_DEFAULT,
+};
 
-  auto now = chrono::high_resolution_clock::now();
-  auto elapsed = now.time_since_epoch();
-  return chrono::duration_cast<chrono::milliseconds>(elapsed).count();
-}
-
-inline void Sleep(int ms)
-{
-  using namespace std;
-  this_thread::sleep_for(chrono::milliseconds(ms));
-}
-
+void SetEnableColor(bool bColor);
+void SetConsoleColor(EConColor eColor);

@@ -31,7 +31,7 @@ LIB_ISCHEDULER_ENC_A=$(BIN)/liballegro_encscheduler.a
 LIB_ISCHEDULER_ENC_DLL=$(BIN)/liballegro_encscheduler.so
 
 ISCHEDULER_SRC:=\
-	lib_encode/I_EncScheduler.c\
+  lib_encode/I_EncScheduler.c\
   lib_encode/EncSchedulerCommon.c\
 
 

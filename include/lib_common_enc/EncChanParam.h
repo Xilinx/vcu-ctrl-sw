@@ -491,6 +491,12 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   uint16_t uSrcWidth;
   uint16_t uSrcHeight;
 
+  bool bEnableSrcCrop;
+  uint16_t uSrcCropWidth;
+  uint16_t uSrcCropHeight;
+  uint16_t uSrcCropPosX;
+  uint16_t uSrcCropPosY;
+
   AL_EVideoMode eVideoMode;
   /* Encoding picture format */
   AL_EPicFormat ePicFormat;

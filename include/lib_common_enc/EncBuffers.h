@@ -77,9 +77,10 @@ static const AL_TBufInfo EP2_BUF_QP_BY_MB =
    \brief Retrieves the size of a Encoder parameters buffer 2 (QP Ctrl)
    \param[in] tDim Frame size in pixels
    \param[in] eCodec Codec
+   \param[in] uLog2MaxCuSize Log2 of maximum CU size
    \return maximum size (in bytes) needed to store
 *****************************************************************************/
-uint32_t AL_GetAllocSizeEP2(AL_TDimension tDim, AL_ECodec eCodec);
+uint32_t AL_GetAllocSizeEP2(AL_TDimension tDim, AL_ECodec eCodec, uint8_t uLog2MaxCuSize);
 
 // AL_DEPRECATED("Doesn't support pitch different of AL_EncGetMinPitch. Use AL_GetAllocSizeSrc(). Will be removed in 0.9")
 uint32_t AL_GetAllocSize_Src(AL_TDimension tDim, uint8_t uBitDepth, AL_EChromaMode eChromaMode, AL_ESrcMode eSrcFmt);

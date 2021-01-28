@@ -158,9 +158,9 @@ TRefListOffsets AL_GetRefListOffsets(AL_EChromaOrder eChromaOrder)
   const int iNbPixPlanes = Max(2, AL_Plane_GetBufferPixelPlanes(eChromaOrder, usedPlanes));
   TRefListOffsets tOffsets =
   {
-    MAX_REF* iNbPixPlanes,
-    MAX_REF * (iNbPixPlanes + 1),
-    MAX_REF * (iNbPixPlanes + 2)
+    MAX_REF* iNbPixPlanes, // Colocated MV list addr offset
+    MAX_REF * (iNbPixPlanes + 1), // Colocated POC list addr offset
+    MAX_REF * (iNbPixPlanes + 2), // Fbc map list addr offset
   };
   return tOffsets;
 }

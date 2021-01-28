@@ -460,4 +460,3 @@ private:
   bool errorOnUnknown = true;
   bool showAdvancedFeatures = true;
 };
-

@@ -147,4 +147,3 @@ static inline std::string toString(std::pair<int, int> p)
 }
 
 std::string escape(std::string const& text);
-

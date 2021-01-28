@@ -72,7 +72,7 @@ typedef AL_TDecoderFeeder DecoderFeederSlave;
 static bool CircBuffer_IsFull(AL_TBuffer* pBuf)
 {
   AL_TCircMetaData* pMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_CIRCULAR);
-  return pMeta->iAvailSize == (int32_t)AL_Buffer_GetSize(pBuf);
+  return pMeta->iAvailSize == ((int32_t)AL_Buffer_GetSize(pBuf) - AL_CIRCULAR_BUFFER_SIZE_MARGIN);
 }
 
 static bool shouldKeepGoing(AL_TDecoderFeeder* slave)

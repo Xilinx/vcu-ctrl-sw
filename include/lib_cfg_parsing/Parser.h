@@ -639,4 +639,3 @@ struct ConfigParser
   std::string nearestMatch(std::string const& wrong);
   void parseIdentifiers(Token const& ident, std::deque<Token>& tokens);
 };
-

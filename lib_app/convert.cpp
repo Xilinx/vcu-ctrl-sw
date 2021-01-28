@@ -49,14 +49,13 @@
 // https://docs.microsoft.com/en-us/windows/win32/medfound/10-bit-and-16-bit-yuv-video-formats
 
 #include <cassert>
+#include <cstring>
+#include "lib_app/convert.h"
 
 extern "C" {
-#include "lib_rtos/lib_rtos.h"
 #include "lib_common/PixMapBuffer.h"
 #include "lib_common/Utils.h"
 }
-
-#include "convert.h"
 
 static inline uint8_t RND_10B_TO_8B(uint16_t val)
 {
@@ -85,7 +84,7 @@ void CopyPixMapPlane(AL_TBuffer const* pSrc, AL_TBuffer* pDst, AL_EPlaneId ePlan
 
   for(int iH = 0; iH < iHeight; iH++)
   {
-    Rtos_Memcpy(pDstData, pSrcData, iByteWidth);
+    std::memcpy(pDstData, pSrcData, iByteWidth);
     pSrcData += iPitchSrc;
     pDstData += iPitchDst;
   }
@@ -378,12 +377,6 @@ void Y800_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 }
 
 /****************************************************************************/
-static uint32_t toTen(uint8_t sample)
-{
-  return (((uint32_t)sample) << 2) & 0x3FF;
-}
-
-/****************************************************************************/
 void Y800_To_XV10(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 {
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pSrc);
@@ -429,6 +422,9 @@ void Y800_To_XV10(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 /****************************************************************************/
 static void Set_XV_ChromaComponent(AL_TBuffer* pDstBuf, int iHrzScale, int iVrtScale)
 {
+  (void)iHrzScale;
+  (void)iVrtScale;
+
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pDstBuf);
 
   int iWidthC = ((tDim.iWidth + 1) >> 1) << 1;

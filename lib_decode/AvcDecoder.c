@@ -284,7 +284,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
     iMaxBuf,
     iSizeMV,
     pCtx->pChanParam->bUseEarlyCallback,
-
+    pCtx->tOutputPosition,
   };
 
   AL_PictMngr_Init(&pCtx->PictMngr, pCtx->pAllocator, &tPictMngrParam);

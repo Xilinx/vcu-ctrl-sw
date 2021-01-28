@@ -204,3 +204,28 @@ int AL_PixMapBuffer_GetPlaneChunkIdx(AL_TBuffer const* pBuf, AL_EPlaneId ePlaneI
 
   return pMeta->tPlanes[ePlaneId].iChunkIdx;
 }
+
+uint32_t AL_PixMapBuffer_GetPositionOffset(AL_TBuffer const* pBuf, AL_TPosition tPos, AL_EPlaneId ePlaneId)
+{
+  AL_TPixMapMetaData* pMeta = (AL_TPixMapMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_PIXMAP);
+
+  uint32_t uPitch = pMeta->tPlanes[ePlaneId].iPitch;
+  AL_EChromaMode eChromaMode = AL_GetChromaMode(pMeta->tFourCC);
+  uint8_t uBitdepth = AL_GetBitDepth(pMeta->tFourCC);
+
+  if(ePlaneId != AL_PLANE_Y)
+  {
+    if(eChromaMode == AL_CHROMA_4_2_0)
+      tPos.iY /= 2;
+
+    if((eChromaMode == AL_CHROMA_4_2_0 || eChromaMode == AL_CHROMA_4_2_2) && (ePlaneId != AL_PLANE_UV))
+      tPos.iX /= 2;
+  }
+
+  if(uBitdepth > 8)
+  {
+    return tPos.iY * uPitch + tPos.iX * 4 / 3;
+  }
+  else
+    return tPos.iY * uPitch + tPos.iX;
+}

@@ -645,10 +645,23 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     }
   }
 
-  if(pChParam->uSrcWidth != pChParam->uEncWidth || pChParam->uSrcHeight != pChParam->uEncHeight)
+  if(pChParam->bEnableSrcCrop)
   {
-    ++err;
-    MSG("Different input and output resolutions are not supported by the IP");
+    const int HStep = AL_GET_BITDEPTH(pChParam->ePicFormat) == 10 ? 24 : 32; // In 10-bit there are 24 samples every 32 bytes
+    const int VStep = 1; // should be 2 in 4:2:0 but customer requires it to be 1 in any case !
+
+    if((pChParam->uSrcCropPosX % HStep) || (pChParam->uSrcCropPosY % VStep))
+    {
+      ++err;
+      MSG("The input crop area doesn't fit the alignement constraints for the current buffer format");
+    }
+
+    if(pChParam->uSrcCropPosX + pChParam->uSrcCropWidth > pChParam->uSrcWidth ||
+       pChParam->uSrcCropPosY + pChParam->uSrcCropHeight > pChParam->uSrcHeight)
+    {
+      ++err;
+      MSG("The input crop area doesn't fit in the input picture");
+    }
   }
 
   if(!AL_sSettings_CheckLevel(pChParam->eProfile, pChParam->uLevel))
@@ -1190,6 +1203,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
       ++numIncoherency;
       pChParam->uCuQPDeltaDepth = 1;
     }
+
   }
   else
   {

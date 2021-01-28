@@ -258,11 +258,12 @@ void Generate_BorderQP_AOM(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, int iLCU
 }
 
 /****************************************************************************/
-static void ReadQPs(ifstream& qpFile, uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBytesPerLCU)
+static void ReadQPs(ifstream& qpFile, uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBytesPerLCU, int iQPTableDepth)
 {
   string sLine;
-
-  int iNumQPPerLine = (iNumQPPerLCU == 5) ? 5 : 1;
+  int iNumQPPerLine;
+  (void)iQPTableDepth;
+  iNumQPPerLine = (iNumQPPerLCU == 5) ? 5 : 1;
   int iNumDigit = iNumQPPerLine * 2;
 
   int iIdx = 0;
@@ -270,16 +271,21 @@ static void ReadQPs(ifstream& qpFile, uint8_t* pQPs, int iNumLCUs, int iNumQPPer
   for(int iLCU = 0; iLCU < iNumLCUs; ++iLCU)
   {
     int iFirst = iNumBytesPerLCU * iLCU;
+    int iNumLine = 0;
 
     for(int iQP = 0; iQP < iNumQPPerLCU; ++iQP)
     {
       if(iIdx == 0)
+      {
         getline(qpFile, sLine);
+        ++iNumLine;
+      }
 
       pQPs[iFirst + iQP] = FromHex2(sLine[iNumDigit - 2 * iIdx - 2], sLine[iNumDigit - 2 * iIdx - 1]);
 
       iIdx = (iIdx + 1) % iNumQPPerLine;
     }
+
   }
 }
 
@@ -327,7 +333,7 @@ static bool OpenFile(const string& sQPTablesFolder, int iFrameID, string motif, 
 }
 
 /****************************************************************************/
-bool Load_QPTable_FromFile_AOM(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBytesPerLCU, const string& sQPTablesFolder, int iFrameID, int iSliceQP, bool bRelative)
+bool Load_QPTable_FromFile_AOM(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBytesPerLCU, int iQPTableDepth, const string& sQPTablesFolder, int iFrameID, int iSliceQP, bool bRelative)
 {
   string sLine;
   ifstream file;
@@ -363,13 +369,13 @@ bool Load_QPTable_FromFile_AOM(uint8_t* pSegs, uint8_t* pQPs, int iNumLCUs, int 
   }
 
   // read QPs
-  ReadQPs(file, pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU);
+  ReadQPs(file, pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iQPTableDepth);
 
   return true;
 }
 
 /****************************************************************************/
-bool Load_QPTable_FromFile(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBytesPerLCU, const string& sQPTablesFolder, int iFrameID)
+bool Load_QPTable_FromFile(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iNumBytesPerLCU, int iQPTableDepth, const string& sQPTablesFolder, int iFrameID)
 {
   ifstream file;
 
@@ -377,7 +383,7 @@ bool Load_QPTable_FromFile(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int iN
     return false;
 
   // Warning: the LOAD_QP is not backward compatible
-  ReadQPs(file, pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU);
+  ReadQPs(file, pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iQPTableDepth);
 
   return true;
 }
@@ -646,20 +652,12 @@ void Generate_Random_WithFlag(uint8_t* pQPs, int iNumLCUs, int iNumQPPerLCU, int
 }
 
 /****************************************************************************/
-static void GetQPBufferParameters(int iLCUPicWidth, int iLCUPicHeight, AL_EProfile eProf, int& iNumQPPerLCU, int& iNumBytesPerLCU, int& iNumLCUs, uint8_t* pQPs)
+static void GetQPBufferParameters(int iLCUPicWidth, int iLCUPicHeight, AL_EProfile eProf, int iQPTableDepth, int& iNumQPPerLCU, int& iNumBytesPerLCU, int& iNumLCUs, uint8_t* pQPs)
 {
   (void)eProf;
+  (void)iQPTableDepth;
   iNumQPPerLCU = 1;
   iNumBytesPerLCU = 1;
-
-#if AL_BLK16X16_QP_TABLE
-
-  if(!AL_IS_AVC(eProf))
-  {
-    iNumQPPerLCU = 5;
-    iNumBytesPerLCU = 8;
-  }
-#endif
 
   iNumLCUs = iLCUPicWidth * iLCUPicHeight;
   int iSize = RoundUp(iNumLCUs * iNumBytesPerLCU, 128);
@@ -669,15 +667,15 @@ static void GetQPBufferParameters(int iLCUPicWidth, int iLCUPicHeight, AL_EProfi
 }
 
 /****************************************************************************/
-bool GenerateROIBuffer(AL_TRoiMngrCtx* pRoiCtx, string const& sRoiFileName, int iLCUPicWidth, int iLCUPicHeight, AL_EProfile eProf, int iFrameID, uint8_t* pQPs)
+bool GenerateROIBuffer(AL_TRoiMngrCtx* pRoiCtx, string const& sRoiFileName, int iLCUPicWidth, int iLCUPicHeight, AL_EProfile eProf, int iQPTableDepth, int iFrameID, uint8_t* pQPs)
 {
   int iNumQPPerLCU, iNumBytesPerLCU, iNumLCUs;
-  GetQPBufferParameters(iLCUPicWidth, iLCUPicHeight, eProf, iNumQPPerLCU, iNumBytesPerLCU, iNumLCUs, pQPs);
+  GetQPBufferParameters(iLCUPicWidth, iLCUPicHeight, eProf, iQPTableDepth, iNumQPPerLCU, iNumBytesPerLCU, iNumLCUs, pQPs);
   return Load_QPTable_FromRoiFile(pRoiCtx, sRoiFileName, pQPs, iFrameID, iNumQPPerLCU, iNumBytesPerLCU);
 }
 
 /****************************************************************************/
-bool GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUPicWidth, int iLCUPicHeight, AL_EProfile eProf, const string& sQPTablesFolder, int iFrameID, uint8_t* pQPs, uint8_t* pSegs)
+bool GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUPicWidth, int iLCUPicHeight, AL_EProfile eProf, int iQPTableDepth, const string& sQPTablesFolder, int iFrameID, uint8_t* pQPs, uint8_t* pSegs)
 {
   bool bRet = false;
   static int iRandFlag = 0;
@@ -704,7 +702,7 @@ bool GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP
   }
 
   int iNumQPPerLCU, iNumBytesPerLCU, iNumLCUs;
-  GetQPBufferParameters(iLCUPicWidth, iLCUPicHeight, eProf, iNumQPPerLCU, iNumBytesPerLCU, iNumLCUs, pQPs);
+  GetQPBufferParameters(iLCUPicWidth, iLCUPicHeight, eProf, iQPTableDepth, iNumQPPerLCU, iNumBytesPerLCU, iNumLCUs, pQPs);
   /////////////////////////////////  QPs  /////////////////////////////////////
   switch(eQPMode)
   {
@@ -731,8 +729,8 @@ bool GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP
   // ------------------------------------------------------------------------
   case AL_GENERATE_LOAD_QP:
   {
-    bRet = bIsAOM ? Load_QPTable_FromFile_AOM(pSegs, pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, sQPTablesFolder, iFrameID, iSliceQP, bRelative) :
-           Load_QPTable_FromFile(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, sQPTablesFolder, iFrameID);
+    bRet = bIsAOM ? Load_QPTable_FromFile_AOM(pSegs, pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iQPTableDepth, sQPTablesFolder, iFrameID, iSliceQP, bRelative) :
+           Load_QPTable_FromFile(pQPs, iNumLCUs, iNumQPPerLCU, iNumBytesPerLCU, iQPTableDepth, sQPTablesFolder, iFrameID);
   } break;
   default: break;
   }

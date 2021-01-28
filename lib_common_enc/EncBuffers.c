@@ -64,23 +64,19 @@ uint32_t AL_GetAllocSizeEP1()
 }
 
 /****************************************************************************/
-uint32_t AL_GetAllocSizeEP2(AL_TDimension tDim, AL_ECodec eCodec)
+uint32_t AL_GetAllocSizeEP2(AL_TDimension tDim, AL_ECodec eCodec, uint8_t uLog2MaxCuSize)
 {
   uint32_t uMaxSize = 0;
+  int iMaxLCUs = GetBlkNumber(tDim, uLog2MaxCuSize);
   switch(eCodec)
   {
   case AL_CODEC_HEVC:
   {
-    int iMaxLCUs = GetBlk32x32(tDim);
-#if AL_BLK16X16_QP_TABLE
-    iMaxLCUs *= 8;
-#endif
     uMaxSize = iMaxLCUs;
     break;
   }
   case AL_CODEC_AVC:
   {
-    int iMaxLCUs = GetBlk16x16(tDim);
     uMaxSize = iMaxLCUs;
     break;
   }

@@ -35,7 +35,7 @@
 *
 ******************************************************************************/
 
-#include "plateform.h"
+#include "lib_app/plateform.h"
 
 #define NOMINMAX
 #include <windows.h>

@@ -35,43 +35,23 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \addtogroup lib_base
-   @{
-   \file
- *****************************************************************************/
 #pragma once
 
-#include <vector>
-extern "C"
+#include <chrono>
+#include <thread>
+#include <stdint.h>
+
+inline uint64_t GetPerfTime()
 {
-#include "lib_common/FourCC.h"
+  using namespace std;
+
+  auto now = chrono::high_resolution_clock::now();
+  auto elapsed = now.time_since_epoch();
+  return chrono::duration_cast<chrono::milliseconds>(elapsed).count();
 }
 
-/*************************************************************************//*!
-   \brief Chroma sampling format for video source file
-*****************************************************************************/
-typedef enum e_FileFormat
+inline void Sleep(int ms)
 {
-  FILE_MONOCHROME, /*!< YUV file is monochrome and contains only luma samples*/
-  FILE_YUV_4_2_0,  /*!< YUV file contains 4:2:0 chroma samples and is stored
-                      in planar IYUV (also called I420) format */
-}EFileFormat;
-
-/*************************************************************************//*!
-   \brief YUV File size and format information
-*****************************************************************************/
-typedef AL_INTROSPECT (category = "debug") struct t_YUVFileInfo
-{
-  int PictWidth;  /*!< Frame width in pixels */
-  int PictHeight; /*!< Frame height in pixels */
-
-  TFourCC FourCC; /*!< FOURCC identifying the file format */
-
-  unsigned int FrameRate;  /*!< Frame by second */
-}TYUVFileInfo;
-
-/*@}*/
-
+  using namespace std;
+  this_thread::sleep_for(chrono::milliseconds(ms));
+}

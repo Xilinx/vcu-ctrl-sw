@@ -238,4 +238,3 @@ void XV20_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
    compressed.
  */
 void CopyPixMapBuffer(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-

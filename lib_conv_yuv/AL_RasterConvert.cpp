@@ -35,7 +35,7 @@
 *
 ******************************************************************************/
 
-#include "AL_RasterConvert.h"
+#include "lib_conv_yuv/AL_RasterConvert.h"
 
 #include <cassert>
 #include <iostream>

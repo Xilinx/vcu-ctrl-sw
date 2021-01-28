@@ -397,7 +397,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
     iDpbRef, pCtx->eDpbMode, pCtx->pChanParam->eFBStorageMode, pCtx->tStreamSettings.iBitDepth,
     iMaxBuf, iSizeMV,
     pCtx->pChanParam->bUseEarlyCallback,
-
+    pCtx->tOutputPosition,
   };
 
   AL_PictMngr_Init(&pCtx->PictMngr, pCtx->pAllocator, &tPictMngrParam);

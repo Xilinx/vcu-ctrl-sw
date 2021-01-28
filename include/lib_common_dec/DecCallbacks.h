@@ -77,8 +77,8 @@ typedef struct
 
 /*************************************************************************//*!
    \brief Resolution change callback definition.
-   It is called only once when the first decoding process occurs.
-   The decoder doesn't support a change of resolution inside a stream
+   It is called for each frame resolution change (including the first frame
+   resolution detection)
    Callback must return an error code that can be different from AL_SUCCESS
    in case of memory allocation error
 *****************************************************************************/

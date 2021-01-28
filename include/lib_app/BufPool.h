@@ -47,8 +47,6 @@
 extern "C"
 {
 #include "lib_rtos/types.h"
-#include "lib_rtos/lib_rtos.h"
-
 #include "lib_common/Allocator.h"
 #include "lib_common/BufferAPI.h"
 #include "lib_common/BufferMeta.h"
@@ -215,4 +213,3 @@ struct BufPool : public BaseBufPool
 };
 
 #endif
-

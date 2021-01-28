@@ -500,6 +500,26 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
 
   addresses.tSrcInfo.uPitch = AL_PixMapBuffer_GetPlanePitch(pFrame, AL_PLANE_Y);
 
+  if(pChParam->bEnableSrcCrop)
+  {
+    int iPosX = pChParam->uSrcCropPosX;
+    int iPosY = pChParam->uSrcCropPosY;
+
+    if(AL_GET_BITDEPTH(pChParam->ePicFormat) > 8)
+    {
+      iPosX = (iPosX * 4) / 3;
+      iPosY *= 2;
+    }
+
+    addresses.tSrcAddrs.pY += iPosY * AL_PixMapBuffer_GetPlanePitch(pFrame, AL_PLANE_Y) + iPosX;
+
+    if(AL_GET_CHROMA_MODE(pChParam->ePicFormat) == AL_CHROMA_4_2_0)
+      iPosY /= 2;
+
+    if(tPicFormat.eChromaOrder == AL_C_ORDER_SEMIPLANAR)
+      addresses.tSrcAddrs.pC1 += iPosY * AL_PixMapBuffer_GetPlanePitch(pFrame, AL_PLANE_UV) + iPosX;
+  }
+
   addresses.tSrcInfo.uBitDepth = tPicFormat.uBitDepth;
   addresses.tSrcInfo.uFormat = AL_GET_SRC_FMT(pChParam->eSrcMode);
 

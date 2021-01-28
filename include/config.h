@@ -98,13 +98,10 @@
 #ifndef MAX_NUM_LAYER
 #define MAX_NUM_LAYER 1
 #endif
-#ifndef AL_BLK16X16_QP_TABLE
-#define AL_BLK16X16_QP_TABLE 0
-#endif
 
 
 #define AL_CONFIGURE_COMMANDLINE "./configure --config-blob customers/Xilinx/config.ini"
 #define AL_VERSION_MAJOR 0
-#define AL_VERSION_MINOR 27
+#define AL_VERSION_MINOR 28
 #define AL_VERSION_STEP 0
 

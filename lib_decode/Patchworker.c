@@ -53,7 +53,7 @@ static size_t GetCopiedAreaSize(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, AL_TB
    * we keep a chunk of memory always free after the used area to be able to write
    * the EOS at any moment.
    */
-  size_t unusedAreaSize = AL_Buffer_GetSize(stream) - pStreamMeta->iAvailSize;
+  size_t unusedAreaSize = AL_Buffer_GetSize(stream) - AL_CIRCULAR_BUFFER_SIZE_MARGIN - pStreamMeta->iAvailSize;
 
   /* if no metadata, assume offset = 0 and available size = buffer size */
   if(!pMeta)

@@ -282,6 +282,11 @@ static void SetCodingResolution(ConfigFile& cfg)
   cfg.Settings.tChParam[0].uEncWidth = cfg.Settings.tChParam[0].uSrcWidth;
   cfg.Settings.tChParam[0].uEncHeight = cfg.Settings.tChParam[0].uSrcHeight;
 
+  if(cfg.Settings.tChParam[0].bEnableSrcCrop)
+  {
+    cfg.Settings.tChParam[0].uEncWidth = cfg.Settings.tChParam[0].uSrcCropWidth;
+    cfg.Settings.tChParam[0].uEncHeight = cfg.Settings.tChParam[0].uSrcCropHeight;
+  }
 }
 
 bool g_helpCfg = false;
@@ -676,7 +681,7 @@ static AL_TBufPoolConfig GetQpBufPoolConfig(AL_TEncSettings& Settings, AL_TEncCh
   if(AL_IS_QP_TABLE_REQUIRED(Settings.eQpTableMode))
   {
     AL_TDimension tDim = { tChParam.uEncWidth, tChParam.uEncHeight };
-    poolConfig = GetBufPoolConfig("qp-ext", NULL, AL_GetAllocSizeEP2(tDim, static_cast<AL_ECodec>(AL_GET_CODEC(tChParam.eProfile))), frameBuffersCount);
+    poolConfig = GetBufPoolConfig("qp-ext", NULL, AL_GetAllocSizeEP2(tDim, static_cast<AL_ECodec>(AL_GET_CODEC(tChParam.eProfile)), tChParam.uLog2MaxCuSize), frameBuffersCount);
   }
   return poolConfig;
 }
@@ -1004,6 +1009,7 @@ void LayerRessources::ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hE
 
 void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& param)
 {
+  (void)param;
   auto& Settings = cfg.Settings;
   auto& StreamFileName = cfg.BitstreamFileName;
   auto& RunInfo = cfg.RunInfo;
@@ -1068,16 +1074,16 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
 
   enc->BitstreamOutput = createBitstreamWriter(StreamFileName, cfg);
 
-  if(!cfg.RunInfo.sStreamMd5Path.empty())
+  if(!RunInfo.sStreamMd5Path.empty())
   {
     auto multisink = unique_ptr<MultiSink>(new MultiSink);
     multisink->sinks.push_back(move(enc->BitstreamOutput));
-    multisink->sinks.push_back(createStreamMd5Calculator(cfg.RunInfo.sStreamMd5Path));
+    multisink->sinks.push_back(createStreamMd5Calculator(RunInfo.sStreamMd5Path));
     enc->BitstreamOutput = move(multisink);
   }
 
-  if(!cfg.RunInfo.bitrateFile.empty())
-    enc->BitrateOutput = createBitrateWriter(cfg.RunInfo.bitrateFile, cfg);
+  if(!RunInfo.bitrateFile.empty())
+    enc->BitrateOutput = createBitrateWriter(RunInfo.bitrateFile, cfg);
 
   // --------------------------------------------------------------------------------
   // Set Callbacks
@@ -1089,11 +1095,11 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
     Rtos_SetEvent(layerRessources[0].hFinished);
   });
 
-  if(!cfg.RunInfo.sRecMd5Path.empty())
+  if(!RunInfo.sRecMd5Path.empty())
   {
     auto multisink = unique_ptr<MultiSink>(new MultiSink);
     multisink->sinks.push_back(move(enc->LayerRecOutput[0]));
-    multisink->sinks.push_back(createYuvMd5Calculator(cfg.RunInfo.sRecMd5Path, cfg, layerRessources[0].RecYuv.get()));
+    multisink->sinks.push_back(createYuvMd5Calculator(RunInfo.sRecMd5Path, cfg, layerRessources[0].RecYuv.get()));
     enc->LayerRecOutput[0] = move(multisink);
   }
 
@@ -1101,10 +1107,10 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
 
   if(g_numFrameToRepeat > 0)
   {
-    prefetch.reset(new RepeaterSink(g_numFrameToRepeat, cfg.RunInfo.iMaxPict));
+    prefetch.reset(new RepeaterSink(g_numFrameToRepeat, RunInfo.iMaxPict));
     prefetch->next = firstSink;
     firstSink = prefetch.get();
-    cfg.RunInfo.iMaxPict = g_numFrameToRepeat;
+    RunInfo.iMaxPict = g_numFrameToRepeat;
     frameBuffersCount = max(frameBuffersCount, g_numFrameToRepeat);
   }
 
@@ -1122,8 +1128,8 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
 
     AL_64U uAfterTime = Rtos_GetTime();
 
-    if((uAfterTime - uBeforeTime) < cfg.RunInfo.uInputSleepInMilliseconds)
-      Rtos_Sleep(cfg.RunInfo.uInputSleepInMilliseconds - (uAfterTime - uBeforeTime));
+    if((uAfterTime - uBeforeTime) < RunInfo.uInputSleepInMilliseconds)
+      Rtos_Sleep(RunInfo.uInputSleepInMilliseconds - (uAfterTime - uBeforeTime));
   }
 
   for(int i = 0; i < Settings.NumLayer; ++i)
@@ -1176,13 +1182,14 @@ void SafeMain(int argc, char** argv)
 
     auto& Settings = cfg.Settings;
     auto& RecFileName = cfg.RecFileName;
+    auto& RunInfo = cfg.RunInfo;
 
     DisplayVersionInfo();
 
     AL_Settings_SetDefaultParam(&Settings);
     SetMoreDefaults(cfg);
 
-    if(!RecFileName.empty() || !cfg.RunInfo.sRecMd5Path.empty())
+    if(!RecFileName.empty() || !RunInfo.sRecMd5Path.empty())
       Settings.tChParam[0].eEncOptions = (AL_EChEncOption)(Settings.tChParam[0].eEncOptions | AL_OPT_FORCE_REC);
 
     if(g_helpCfg)

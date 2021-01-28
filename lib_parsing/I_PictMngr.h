@@ -166,6 +166,8 @@ typedef struct t_PictMngrCtx
     AL_THevcRefPicCtx HevcRef;
   };
 
+  AL_TPosition tOutputPosition;
+
   AL_TAllocator* pAllocator;
 }AL_TPictMngrCtx;
 
@@ -180,6 +182,7 @@ typedef struct AL_t_PictMngrParam
   int iSizeMV; /*!< Size of motion-vector buffer managed */
 
   bool bForceOutput; /*!< Force frame output */
+  AL_TPosition tOutputPosition; /*!< Specifies the position offset of the active area in the frame buffers */
 }AL_TPictMngrParam;
 
 /*************************************************************************//*!

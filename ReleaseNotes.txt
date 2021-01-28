@@ -636,3 +636,32 @@
     -- Fix HDR SEIs: BufferingPeriod/PictureTiming (InitialRemovalDelay and AuCPBRemovalDelayMinus1)
     -- Fix v1.0.63 regressions on wavefront and AVC-multicore in encoder reference model
     -- Several minors bugs
+
+2021-01-25 (v1.0.65)
+-------------------
+  Added Features:
+    -- Encoder:
+        - CoarseCrop: it encodes the selected windows in the input source
+    -- Decoder:
+        - OutputPosition: it writes into the output buffer at the selection position
+    -- 'lib_app' can now be used as a library (static, dynamic): liballegro_app.{a, so}
+    -- 'lib_cfg_parsing' can now be used as a library (static, dynamic): liballegro_cfg_parsing.{a, so}
+    -- 'lib_conv_yuv' can now be used as a library (static, dynamic): liballegro_conv_yuv.{a, so}
+
+  API:
+    -- Version of the API is now 0.28.0
+    -- Add uLog2MaxCuSize to get minimum EP2 buffer size: AL_GetAllocSizeEP2(AL_TDimension tDim, AL_ECodec eCodec, uint8_t uLog2MaxCuSize)
+    -- Encoder new parameters for CoarseCrop (AL_TEncChanParam):
+        - bool bEnableSrcCrop;
+        - uint16_t uSrcCropWidth;
+        - uint16_t uSrcCropHeight;
+        - uint16_t uSrcCropPosX;
+        - uint16_t uSrcCropPosY;
+    -- Decoder new parameters for OutputPosition (AL_TDecSettings):
+        - AL_TPosition tOutputPosition;
+    -- Add 'lib_app' folder
+    -- Add 'lib_cfg_parsing' folder
+    -- Add 'lib_conv_yuv' folder
+
+  Fixes:
+    -- Several minors bugs

@@ -89,6 +89,7 @@ typedef struct t_InfoDecode
   AL_EFbStorageMode eFbStorageMode; /*! frame buffer storage mode */
   AL_EPicStruct ePicStruct; /*!< structure (frame/field, top/Bottom) of the current framebuffer */
   uint32_t uCRC; /*!< framebuffer data checksum */
+  AL_TPosition tPos; /*!< Position of the top left decoded pixel */
 }AL_TInfoDecode;
 
 /*************************************************************************//*!

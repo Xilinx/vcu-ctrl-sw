@@ -182,6 +182,25 @@ static int IntWithOffset(const string& word)
   return atoi(word.c_str()) + Offset;
 }
 
+template<typename TCouple, char Separator>
+static TCouple CoupleWithSeparator(const string& str)
+{
+  TCouple Couple;
+  struct t_couple
+  {
+    uint32_t first;
+    uint32_t second;
+  }* pCouple = reinterpret_cast<t_couple*>(&Couple);
+
+  static_assert(sizeof(TCouple) == sizeof(t_couple), "Invalid structure size");
+
+  size_t sep = str.find_first_of(Separator);
+  pCouple->first = atoi(str.substr(0, sep).c_str());
+  pCouple->second = atoi(str.substr(sep + 1).c_str());
+
+  return Couple;
+}
+
 /******************************************************************************/
 static AL_EFbStorageMode getMainOutputStorageMode(const AL_TDecSettings& decSettings, bool& bOutputCompression)
 {
@@ -249,12 +268,6 @@ void parsePreAllocArgs(AL_TStreamSettings* settings, string& toParse)
   ss >> settings->iProfileIdc;
   getExpectedSeparator(ss, ':');
   ss >> settings->iLevel;
-
-  /* For pre-allocation, we must use 8x8 (HEVC) or MB (AVC) rounded dimensions, like the SPS. */
-  /* Actually, round up to the LCU so we're able to support resolution changes with the same LCU sizes. */
-  /* And because we don't know the codec here, always use 64 as MB/LCU size. */
-  settings->tDim.iWidth = RoundUp(settings->tDim.iWidth, 64);
-  settings->tDim.iHeight = RoundUp(settings->tDim.iHeight, 64);
 
   if(string(chroma) == "400")
     settings->eChroma = AL_CHROMA_4_0_0;
@@ -342,6 +355,7 @@ static Config ParseCommandLine(int argc, char* argv[])
 
   string preAllocArgs = "";
   opt.addString("--prealloc-args", &preAllocArgs, "Specify stream's parameters: '1920x1080:video-mode:422:10:profile-idc:level'.");
+  opt.addCustom("--output-position", &Config.tDecSettings.tOutputPosition, &CoupleWithSeparator<AL_TPosition, ','>, "Specify the position of the decoded frame in frame buffer");
 
   opt.startSection("Run");
 
@@ -445,8 +459,18 @@ static Config ParseCommandLine(int argc, char* argv[])
     if(!preAllocArgs.empty())
     {
       parsePreAllocArgs(&Config.tDecSettings.tStream, preAllocArgs);
+
+      /* For pre-allocation, we must use 8x8 (HEVC) or MB (AVC) rounded dimensions, like the SPS. */
+      /* Actually, round up to the LCU so we're able to support resolution changes with the same LCU sizes. */
+      /* And because we don't know the codec here, always use 64 as MB/LCU size. */
+      Config.tDecSettings.tStream.tDim.iWidth = RoundUp(Config.tDecSettings.tStream.tDim.iWidth, 64);
+      Config.tDecSettings.tStream.tDim.iHeight = RoundUp(Config.tDecSettings.tStream.tDim.iHeight, 64);
+
       Config.bUsePreAlloc = true;
     }
+
+    if((Config.tDecSettings.tOutputPosition.iX || Config.tDecSettings.tOutputPosition.iY) && !Config.bUsePreAlloc)
+      throw std::runtime_error(" --output-position requires preallocation");
 
     // silently correct user settings
     Config.uInputBufferNum = max(1u, Config.uInputBufferNum);
@@ -711,8 +735,9 @@ AL_TO_IP GetConversionFunction(TFourCC input, int iBdOut)
     return Get12BitsConversionFunction(iPicFmt);
 }
 
-static void ConvertFrameBuffer(AL_TBuffer& input, AL_TBuffer*& pOutput, int iBdOut)
+static void ConvertFrameBuffer(AL_TBuffer& input, AL_TBuffer*& pOutput, int iBdOut, const AL_TPosition& tPos)
 {
+  (void)tPos;
   TFourCC tRecFourCC = AL_PixMapBuffer_GetFourCC(&input);
   AL_TDimension tRecDim = AL_PixMapBuffer_GetDimension(&input);
   AL_EChromaMode eRecChromaMode = AL_GetChromaMode(tRecFourCC);
@@ -734,15 +759,19 @@ static void ConvertFrameBuffer(AL_TBuffer& input, AL_TBuffer*& pOutput, int iBdO
     }
   }
 
+  AL_PixMapBuffer_SetDimension(&input, { tPos.iX + tRecDim.iWidth, tPos.iY + tRecDim.iHeight });
+
   if(pOutput == NULL)
   {
+    AL_TDimension tDim = AL_PixMapBuffer_GetDimension(&input);
+
     tConvPicFormat = AL_TPicFormat {
       eRecChromaMode, static_cast<uint8_t>(iBdOut), AL_FB_RASTER,
       eRecChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : AL_C_ORDER_U_V, false, false
     };
     tConvFourCC = AL_GetFourCC(tConvPicFormat);
 
-    pOutput = AllocateDefaultYuvIOBuffer(tRecDim, tConvFourCC);
+    pOutput = AllocateDefaultYuvIOBuffer(tDim, tConvFourCC);
 
     if(pOutput == NULL)
       throw runtime_error("Couldn't allocate YuvBuffer");
@@ -750,6 +779,9 @@ static void ConvertFrameBuffer(AL_TBuffer& input, AL_TBuffer*& pOutput, int iBdO
 
   auto AllegroConvert = GetConversionFunction(tRecFourCC, iBdOut);
   AllegroConvert(&input, pOutput);
+
+  AL_PixMapBuffer_SetDimension(&input, tRecDim);
+  AL_PixMapBuffer_SetDimension(pOutput, tRecDim);
 }
 
 /******************************************************************************/
@@ -759,8 +791,8 @@ public:
   BaseOutputWriter(const string& sYuvFileName, const string& sIPCrcFileName);
   virtual ~BaseOutputWriter() {};
 
-  void ProcessOutput(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut);
-  virtual void ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut) = 0;
+  void ProcessOutput(AL_TBuffer& tRecBuf, const AL_TInfoDecode& info, int iBdOut);
+  virtual void ProcessFrame(AL_TBuffer& tRecBuf, const AL_TInfoDecode& info, int iBdOut) = 0;
 
 protected:
   ofstream YuvFile;
@@ -781,7 +813,7 @@ BaseOutputWriter::BaseOutputWriter(const string& sYuvFileName, const string& sIP
   }
 }
 
-void BaseOutputWriter::ProcessOutput(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut)
+void BaseOutputWriter::ProcessOutput(AL_TBuffer& tRecBuf, const AL_TInfoDecode& info, int iBdOut)
 {
   if(IpCrcFile.is_open())
     IpCrcFile << std::setfill('0') << std::setw(8) << (int)info.uCRC << std::endl;
@@ -796,7 +828,7 @@ public:
   ~UncompressedOutputWriter();
 
   UncompressedOutputWriter(const string& sYuvFileName, const string& sIPCrcFileName, const string& sCertCrcFileName);
-  void ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut) override;
+  void ProcessFrame(AL_TBuffer& tRecBuf, const AL_TInfoDecode& info, int iBdOut) override;
 
 private:
   ofstream CertCrcFile; // Cert crc only computed for uncompressed output
@@ -827,18 +859,35 @@ int UncompressedOutputWriter::convertBitDepthToEven(int iBd) const
   return ((iBd % 2) != 0) ? iBd + 1 : iBd;
 }
 
-void UncompressedOutputWriter::ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int iBdOut)
+void UncompressedOutputWriter::ProcessFrame(AL_TBuffer& tRecBuf, const AL_TInfoDecode& info, int iBdOut)
 {
   if(!(YuvFile.is_open() || CertCrcFile.is_open()))
     return;
   iBdOut = convertBitDepthToEven(iBdOut);
 
-  ConvertFrameBuffer(tRecBuf, YuvBuffer, iBdOut);
+  bool bCrop = info.tCrop.bCropping;
+  int32_t iCropLeft = info.tCrop.uCropOffsetLeft;
+  int32_t iCropRight = info.tCrop.uCropOffsetRight;
+  int32_t iCropTop = info.tCrop.uCropOffsetTop;
+  int32_t iCropBottom = info.tCrop.uCropOffsetBottom;
+  AL_TPosition tPos = { 0, 0 };
+
+  if(info.tPos.iX || info.tPos.iY)
+  {
+    tPos = info.tPos;
+    bCrop = true;
+    iCropLeft += info.tPos.iX;
+    iCropRight -= info.tPos.iX;
+    iCropTop += info.tPos.iY;
+    iCropBottom -= info.tPos.iY;
+  }
+
+  ConvertFrameBuffer(tRecBuf, YuvBuffer, iBdOut, tPos);
 
   auto const iSizePix = (iBdOut + 7) >> 3;
 
-  if(info.tCrop.bCropping)
-    CropFrame(YuvBuffer, iSizePix, info.tCrop.uCropOffsetLeft, info.tCrop.uCropOffsetRight, info.tCrop.uCropOffsetTop, info.tCrop.uCropOffsetBottom);
+  if(bCrop)
+    CropFrame(YuvBuffer, iSizePix, iCropLeft, iCropRight, iCropTop, iCropBottom);
 
   if(CertCrcFile.is_open())
     Compute_CRC(YuvBuffer, info.uBitDepthY, info.uBitDepthC, CertCrcFile);
@@ -846,8 +895,9 @@ void UncompressedOutputWriter::ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode 
   if(YuvFile.is_open())
     WriteOneFrame(YuvFile, YuvBuffer);
 
-  if(info.tCrop.bCropping)
-    CropFrame(YuvBuffer, iSizePix, -(int32_t)info.tCrop.uCropOffsetLeft, -(int32_t)info.tCrop.uCropOffsetRight, -(int32_t)info.tCrop.uCropOffsetTop, -(int32_t)info.tCrop.uCropOffsetBottom);
+  if(bCrop)
+    CropFrame(YuvBuffer, iSizePix, -iCropLeft, -iCropRight, -iCropTop, -iCropBottom);
+
 }
 
 /******************************************************************************/
@@ -890,6 +940,7 @@ struct ResChgParam
   AL_TDecSettings* pDecSettings;
   AL_TAllocator* pAllocator;
   bool bAddHDRMetaData;
+  AL_TPosition tOutputPosition;
   mutex hMutex;
 };
 
@@ -1242,6 +1293,14 @@ static AL_ERR sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSe
   auto tPicFormat = AL_GetDecPicFormat(pSettings->eChroma, pSettings->iBitDepth, eMainOutputStorageMode, bMainOutputCompression);
   auto tFourCC = AL_GetDecFourCC(tPicFormat);
 
+  bool bPoolIsInit = p->bPoolIsInit;
+
+  if(bPoolIsInit)
+  {
+    assert(((p->tOutputPosition.iX + pSettings->tDim.iWidth) <= pDecSettings->tStream.tDim.iWidth) &&
+           ((p->tOutputPosition.iY + pSettings->tDim.iHeight) <= pDecSettings->tStream.tDim.iHeight));
+  }
+
   int minPitch = AL_Decoder_GetMinPitch(pSettings->tDim.iWidth, pSettings->iBitDepth, eMainOutputStorageMode);
 
   /* get size for print */
@@ -1465,6 +1524,7 @@ void SafeChannelMain(WorkerConfig& w)
   ResolutionFoundParam.pAllocator = pAllocator;
   ResolutionFoundParam.bPoolIsInit = false;
   ResolutionFoundParam.pDecSettings = &Settings;
+  ResolutionFoundParam.tOutputPosition = Settings.tOutputPosition;
   ResolutionFoundParam.bAddHDRMetaData = display.pHDRWriter != nullptr;
 
   DecodeParam tDecodeParam {};

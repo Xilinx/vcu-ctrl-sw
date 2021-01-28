@@ -35,10 +35,10 @@
 *
 ******************************************************************************/
 
-#include "console.h"
+#include "lib_app/console.h"
 
 #include <unistd.h>
-#include <stdio.h>
+#include <cstdio>
 
 static bool bUseColor = true;
 static bool isAuto = true;

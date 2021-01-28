@@ -1436,7 +1436,7 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
     iDpbMaxBuf, pCtx->eDpbMode, pCtx->pChanParam->eFBStorageMode, pStreamSettings->iBitDepth,
     iMaxBuf, iSizeMV,
     pCtx->pChanParam->bUseEarlyCallback,
-
+    pCtx->tOutputPosition,
   };
 
   AL_PictMngr_Init(&pCtx->PictMngr, pCtx->pAllocator, &tPictMngrParam);
@@ -1801,7 +1801,8 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler,
     // Alloc Decoder buffers
     for(int i = 0; i < pCtx->iStackSize; ++i)
     {
-      SAFE_ALLOC(pCtx, &pCtx->PoolListRefAddr[i].tMD, MAX_REF_LIST_SIZE * sizeof(AL_PADDR), "reflist");
+      AL_Assert(sizeof(AL_PADDR) == sizeof(uint32_t));
+      SAFE_ALLOC(pCtx, &pCtx->PoolListRefAddr[i].tMD, MAX_REF_LIST_SIZE * sizeof(uint32_t), "reflist");
       SAFE_ALLOC(pCtx, &pCtx->PoolSclLst[i].tMD, SCLST_SIZE_DEC, "scllst");
       AL_CleanupMemory(pCtx->PoolSclLst[i].tMD.pVirtualAddr, pCtx->PoolSclLst[i].tMD.uSize);
 
@@ -1856,6 +1857,8 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler,
     goto cleanup;
 
   bool useStartCode = true;
+
+  pCtx->tOutputPosition = pSettings->tOutputPosition;
 
   if(useStartCode)
     AL_IDecScheduler_CreateStartCodeChannel(&pCtx->hStartCodeChannel, pCtx->pScheduler);

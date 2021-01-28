@@ -149,6 +149,19 @@ static void populateInputSection(ConfigParser& parser, ConfigFile& cfg)
   parser.addPath(curSection, "HDRFile", cfg.sHDRFileName, "Name of the file specifying HDR SEI contents");
   parser.addArith(curSection, "FrameRate", cfg.MainInput.FileInfo.FrameRate, "Specifies the number of frames per second of the source, if it isn't set, we take the RATE_CONTROL FrameRate value. If this parameter is greater than the frame rate specified in the rate control section, the encoder will drop some frames; when this parameter is lower than the frame rate specified in the rate control section, the encoder will repeat some frames");
 
+  parser.addCustom(curSection, "CropWidth", [&](std::deque<Token>& tokens)
+  {
+    cfg.Settings.tChParam[0].bEnableSrcCrop = true;
+    cfg.Settings.tChParam[0].uSrcCropWidth = parseArithmetic<int>(tokens);
+  }, [&]() { return std::to_string(cfg.Settings.tChParam[0].uSrcCropWidth); }, "Specifies cropped source YUV width");
+  parser.addCustom(curSection, "CropHeight", [&](std::deque<Token>& tokens)
+  {
+    cfg.Settings.tChParam[0].bEnableSrcCrop = true;
+    cfg.Settings.tChParam[0].uSrcCropHeight = parseArithmetic<int>(tokens);
+  }, [&]() { return std::to_string(cfg.Settings.tChParam[0].uSrcCropHeight); }, "Specifies cropped source YUV height");
+
+  parser.addArith(curSection, "CropPosX", cfg.Settings.tChParam[0].uSrcCropPosX, "Abscissa of the first pixel for source Crop");
+  parser.addArith(curSection, "CropPosY", cfg.Settings.tChParam[0].uSrcCropPosY, "Ordinate of the first pixel for source Crop");
 }
 
 static void populateOutputSection(ConfigParser& parser, ConfigFile& cfg)

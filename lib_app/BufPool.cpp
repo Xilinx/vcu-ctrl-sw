@@ -42,7 +42,7 @@ extern "C"
 #include "lib_common/Allocator.h"
 }
 
-#include "BufPool.h"
+#include "lib_app/BufPool.h"
 
 static bool Fifo_Init(App_Fifo* pFifo, size_t zMaxElem);
 static void Fifo_Deinit(App_Fifo* pFifo);

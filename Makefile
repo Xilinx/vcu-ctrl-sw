@@ -43,12 +43,12 @@ include base.mk
 
 # Libraries
 -include lib_fpga/project.mk
-include lib_app/project.mk
 -include lib_cfg_parsing/project.mk
 -include lib_common/project.mk
 -include lib_rtos/project.mk
 -include lib_ip_ctrl/project.mk
 -include lib_perfs/project.mk
+-include lib_app/project.mk #lib_common and lib_perfs dependency
 
 
 BUILD_LIB_FBC=0

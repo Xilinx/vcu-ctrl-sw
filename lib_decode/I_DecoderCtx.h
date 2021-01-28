@@ -182,6 +182,8 @@ typedef struct t_Dec_Ctx
 
   int iNumSlicesRemaining;
 
+  AL_TPosition tOutputPosition;
+
   TMemDesc tMDChanParam;
 }AL_TDecCtx;
 

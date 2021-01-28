@@ -181,6 +181,15 @@ int AL_DecSettings_CheckValidity(AL_TDecSettings* pSettings, FILE* pOut)
     }
   }
 
+  const int HStep = pSettings->tStream.iBitDepth == 10 ? 24 : 32; // In 10-bit there are 24 samples every 32 bytes
+  const int VStep = 1; // should be 2 in 4:2:0 but customer requires it to be 1 in any case !
+
+  if((pSettings->tOutputPosition.iX % HStep) != 0 || (pSettings->tOutputPosition.iY % VStep) != 0)
+  {
+    ++err;
+    MSG("The output position doesn't fit the alignement constraints for the current buffer format");
+  }
+
   return err;
 }
 

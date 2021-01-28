@@ -130,6 +130,13 @@ static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecP
   pBufs->tRecC1.tMD.uPhysicalAddr = AL_PixMapBuffer_GetPlanePhysicalAddress(pRec, eFirstCPlane);
   pBufs->tRecC1.tMD.pVirtualAddr = AL_PixMapBuffer_GetPlaneAddress(pRec, eFirstCPlane);
 
+  uint32_t uOffset = AL_PixMapBuffer_GetPositionOffset(pRec, pCtx->tOutputPosition, AL_PLANE_Y);
+  pBufs->tRecY.tMD.uPhysicalAddr += uOffset;
+  pBufs->tRecY.tMD.pVirtualAddr += uOffset;
+  uOffset = AL_PixMapBuffer_GetPositionOffset(pRec, pCtx->tOutputPosition, eFirstCPlane);
+  pBufs->tRecC1.tMD.uPhysicalAddr += uOffset;
+  pBufs->tRecC1.tMD.pVirtualAddr += uOffset;
+
   pBufs->tPoc.tMD.uPhysicalAddr = pCtx->POC.tMD.uPhysicalAddr;
   pBufs->tPoc.tMD.pVirtualAddr = pCtx->POC.tMD.pVirtualAddr;
 
