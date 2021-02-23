@@ -160,7 +160,7 @@ int AL_StreamMetaData_GetLastSectionOfFlag(AL_TStreamMetaData* pMetaData, uint32
   return flagSectionId;
 }
 
-static int InsertSectionAtId(AL_TStreamMetaData* pMetaData, uint16_t targetId, uint32_t uOffset, uint32_t uLength, AL_ESectionFlags eFlags)
+static int InsertSectionAtId(AL_TStreamMetaData* pMetaData, uint16_t uTargetID, uint32_t uOffset, uint32_t uLength, AL_ESectionFlags eFlags)
 {
   if(!pMetaData)
     return -1;
@@ -171,23 +171,29 @@ static int InsertSectionAtId(AL_TStreamMetaData* pMetaData, uint16_t targetId, u
   if(uNumSection >= pMetaData->uMaxNumSection)
     return -1;
 
-  for(int i = uNumSection - 1; i >= (int)targetId; --i)
+  for(int i = uNumSection - 1; i >= (int)uTargetID; --i)
   {
     AL_TStreamSection* cur = &pSections[i];
     SetSection(pSections, i + 1, cur->uOffset, cur->uLength, cur->eFlags);
   }
 
-  SetSection(pSections, targetId, uOffset, uLength, eFlags);
+  SetSection(pSections, uTargetID, uOffset, uLength, eFlags);
   ++pMetaData->uNumSection;
 
-  return targetId;
+  return uTargetID;
 }
 
 static int AddPrefixSei(AL_TStreamMetaData* pMetaData, uint32_t uOffset, uint32_t uLength)
 {
   // the prefix sei needs to be inserted after a config section if it exists
-  int seiSectionId = AL_StreamMetaData_GetLastSectionOfFlag(pMetaData, AL_SECTION_CONFIG_FLAG) + 1;
-  return InsertSectionAtId(pMetaData, seiSectionId, uOffset, uLength, AL_SECTION_SEI_PREFIX_FLAG);
+  int iLastSEIPrefixSectionID = AL_StreamMetaData_GetLastSectionOfFlag(pMetaData, AL_SECTION_SEI_PREFIX_FLAG);
+
+  if(iLastSEIPrefixSectionID == -1)
+    iLastSEIPrefixSectionID = AL_StreamMetaData_GetLastSectionOfFlag(pMetaData, AL_SECTION_CONFIG_FLAG);
+
+  int iSEIPrefixSectionID = iLastSEIPrefixSectionID + 1;
+
+  return InsertSectionAtId(pMetaData, iSEIPrefixSectionID, uOffset, uLength, AL_SECTION_SEI_PREFIX_FLAG);
 }
 
 int AL_StreamMetaData_AddSeiSection(AL_TStreamMetaData* pMetaData, bool isPrefix, uint32_t uOffset, uint32_t uLength)
