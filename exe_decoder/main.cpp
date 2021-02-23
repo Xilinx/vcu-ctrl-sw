@@ -1295,12 +1295,6 @@ static AL_ERR sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSe
 
   bool bPoolIsInit = p->bPoolIsInit;
 
-  if(bPoolIsInit)
-  {
-    assert(((p->tOutputPosition.iX + pSettings->tDim.iWidth) <= pDecSettings->tStream.tDim.iWidth) &&
-           ((p->tOutputPosition.iY + pSettings->tDim.iHeight) <= pDecSettings->tStream.tDim.iHeight));
-  }
-
   int minPitch = AL_Decoder_GetMinPitch(pSettings->tDim.iWidth, pSettings->iBitDepth, eMainOutputStorageMode);
 
   /* get size for print */
