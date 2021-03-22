@@ -69,7 +69,8 @@ static AL_TMetaData* SrcMeta_Clone(AL_TMetaData* pMeta)
 bool AL_PixMapMetaData_AddPlane(AL_TPixMapMetaData* pMeta, AL_TPlane tPlane, AL_EPlaneId ePlaneId)
 {
   AL_TPicFormat tPicFormat;
-  AL_Assert(AL_GetPicFormat(pMeta->tFourCC, &tPicFormat));
+  bool bSuccess = AL_GetPicFormat(pMeta->tFourCC, &tPicFormat);
+  AL_Assert(bSuccess);
 
   pMeta->tPlanes[ePlaneId] = tPlane;
 

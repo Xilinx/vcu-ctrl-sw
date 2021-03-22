@@ -279,7 +279,8 @@ static bool InitIDPool(AL_TIDPool* pPool, int iPoolSize)
 /***************************************************************************/
 static AL_TFrameInfo* GetNextFrameInfo(AL_TFrameInfoPool* pFrameInfoPool)
 {
-  AL_Assert(GetNextPoolId(&pFrameInfoPool->tIDPool));
+  bool bNextPoolIDAvailable = GetNextPoolId(&pFrameInfoPool->tIDPool);
+  AL_Assert(bNextPoolIDAvailable);
   return &pFrameInfoPool->FrameInfos[pFrameInfoPool->tIDPool.iCurID];
 }
 
@@ -311,7 +312,8 @@ static AL_THDRSEIs* GetNextHDRSEIs(AL_THDRPool* pHDRPool)
   if(pHDRPool->tIDPool.iCurID != INVALID_POOL_ID)
     DecrRefCount(pHDRPool, pHDRPool->tIDPool.iCurID);
 
-  AL_Assert(GetNextPoolId(&pHDRPool->tIDPool));
+  bool bNextPoolIDAvailable = GetNextPoolId(&pHDRPool->tIDPool);
+  AL_Assert(bNextPoolIDAvailable);
   pHDRPool->uRefCount[pHDRPool->tIDPool.iCurID] = 1;
   return GetHDRSEIs(pHDRPool, pHDRPool->tIDPool.iCurID);
 }
@@ -490,7 +492,8 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
 
   AL_TEncChanParam* pChParam = &pCtx->pSettings->tChParam[iLayerID];
   AL_TPicFormat tPicFormat;
-  AL_Assert(AL_GetPicFormat(AL_PixMapBuffer_GetFourCC(pFrame), &tPicFormat));
+  bool bSuccess = AL_GetPicFormat(AL_PixMapBuffer_GetFourCC(pFrame), &tPicFormat);
+  AL_Assert(bSuccess);
 
   addresses.tSrcAddrs.pY = AL_PixMapBuffer_GetPlanePhysicalAddress(pFrame, AL_PLANE_Y);
   addresses.tSrcAddrs.pC1 = 0;

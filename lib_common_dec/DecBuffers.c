@@ -190,7 +190,8 @@ AL_TMetaData* AL_CreateRecBufMetaData(AL_TDimension tDim, int iMinPitch, TFourCC
   pSrcMeta->tDim = tDim;
 
   AL_TPicFormat tPicFormat;
-  AL_Assert(AL_GetPicFormat(tFourCC, &tPicFormat));
+  bool bSuccess = AL_GetPicFormat(tFourCC, &tPicFormat);
+  AL_Assert(bSuccess);
 
   int iOffset = 0;
 

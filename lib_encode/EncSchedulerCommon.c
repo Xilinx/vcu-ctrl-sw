@@ -61,7 +61,8 @@ void SetRecPic(AL_TRecPic* pRecPic, AL_TAllocator* pAllocator, AL_HANDLE hRecBuf
   pRecPic->pBuf = AL_PixMapBuffer_Create(pAllocator, NULL, pRecInfo->tPicDim, pChanInfo->RecFourCC);
 
   AL_TPicFormat tPicFormat;
-  AL_Assert(AL_GetPicFormat(pChanInfo->RecFourCC, &tPicFormat));
+  bool bSuccess = AL_GetPicFormat(pChanInfo->RecFourCC, &tPicFormat);
+  AL_Assert(bSuccess);
 
   AL_TPlaneDescription tPlanesDesc[AL_PLANE_MAX_ENUM];
   AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES];

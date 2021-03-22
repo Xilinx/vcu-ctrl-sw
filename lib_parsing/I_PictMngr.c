@@ -677,7 +677,8 @@ static void ChangePictChromaMode(AL_TBuffer* pBuf, AL_EChromaMode eChromaMode)
 {
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
   AL_TPicFormat tPicFmt;
-  AL_Assert(AL_GetPicFormat(tFourCC, &tPicFmt));
+  bool bSuccess = AL_GetPicFormat(tFourCC, &tPicFmt);
+  AL_Assert(bSuccess);
   tPicFmt = AL_GetDecPicFormat(eChromaMode, tPicFmt.uBitDepth, tPicFmt.eStorageMode, tPicFmt.bCompressed);
   tFourCC = AL_GetDecFourCC(tPicFmt);
   AL_PixMapBuffer_SetFourCC(pBuf, tFourCC);

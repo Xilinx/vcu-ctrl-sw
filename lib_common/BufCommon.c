@@ -113,7 +113,8 @@ int32_t ComputeRndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFr
 int AL_GetChromaPitch(TFourCC tFourCC, int iLumaPitch)
 {
   AL_TPicFormat tPicFormat;
-  AL_Assert(AL_GetPicFormat(tFourCC, &tPicFormat));
+  bool bSuccess = AL_GetPicFormat(tFourCC, &tPicFormat);
+  AL_Assert(bSuccess);
 
   if(tPicFormat.eChromaMode == AL_CHROMA_MONO)
     return 0;
@@ -134,7 +135,8 @@ int AL_GetChromaPitch(TFourCC tFourCC, int iLumaPitch)
 int AL_GetChromaWidth(TFourCC tFourCC, int iLumaWidth)
 {
   AL_TPicFormat tPicFormat;
-  AL_Assert(AL_GetPicFormat(tFourCC, &tPicFormat));
+  bool bSuccess = AL_GetPicFormat(tFourCC, &tPicFormat);
+  AL_Assert(bSuccess);
 
   if(tPicFormat.eChromaMode == AL_CHROMA_MONO)
     return 0;

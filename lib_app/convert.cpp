@@ -3145,7 +3145,8 @@ void CopyPixMapBuffer(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pSrc);
 
   AL_TPicFormat tPicFormat;
-  assert(AL_GetPicFormat(tFourCC, &tPicFormat) && !tPicFormat.b10bPacked && !tPicFormat.bCompressed);
+  bool bSuccess = AL_GetPicFormat(tFourCC, &tPicFormat);
+  assert(bSuccess && !tPicFormat.b10bPacked && !tPicFormat.bCompressed);
 
   AL_PixMapBuffer_SetFourCC(pDst, tFourCC);
   AL_PixMapBuffer_SetDimension(pDst, tDim);

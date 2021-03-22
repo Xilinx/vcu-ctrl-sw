@@ -108,7 +108,8 @@ static bool CheckPlanes(AL_TSrcBufferChecker* pCtx, AL_TBuffer* pBuf)
   uint32_t uChunkSizes[AL_BUFFER_MAX_CHUNK] = { 0 };
 
   AL_TPicFormat tPicFormat;
-  AL_Assert(AL_GetPicFormat(tFourCC, &tPicFormat));
+  bool bSuccess = AL_GetPicFormat(tFourCC, &tPicFormat);
+  AL_Assert(bSuccess);
   AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES];
   int iNbPlanes = AL_Plane_GetBufferPixelPlanes(tPicFormat.eChromaOrder, usedPlanes);
 

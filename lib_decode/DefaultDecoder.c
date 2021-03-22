@@ -349,7 +349,8 @@ static bool AL_sDecoder_TryDisplayOneFrame(AL_TDecCtx* pCtx, int iFrameID)
   if(pFrameToDisplay == NULL)
     return false;
 
-  AL_Assert(AL_Buffer_GetData(pFrameToDisplay));
+  uint8_t* pPtrIsNotNull = AL_Buffer_GetData(pFrameToDisplay);
+  AL_Assert(pPtrIsNotNull != NULL);
 
   BuildCurrentHRD(pCtx, pFrameToDisplay, bStartsNewCVS);
 
@@ -409,7 +410,8 @@ void AL_Default_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus)
     AL_TBuffer* pDecodedFrame = AL_PictMngr_GetDisplayBufferFromID(&pCtx->PictMngr, iFrameID);
     AL_Assert(pDecodedFrame);
     pCtx->endDecodingCB.func(pDecodedFrame, pCtx->endDecodingCB.userParam);
-    AL_Assert(AL_sDecoder_TryDisplayOneFrame(pCtx, iFrameID));
+    bool bSuccess = AL_sDecoder_TryDisplayOneFrame(pCtx, iFrameID);
+    AL_Assert(bSuccess);
     return;
   }
 
@@ -516,7 +518,8 @@ static void ReleaseFramePictureUnused(AL_TDecCtx* pCtx)
     if(!pFrameToRelease)
       break;
 
-    AL_Assert(AL_Buffer_GetData(pFrameToRelease));
+    uint8_t* pPtrIsNotNull = AL_Buffer_GetData(pFrameToRelease);
+    AL_Assert(pPtrIsNotNull != NULL);
 
     pCtx->displayCB.func(pFrameToRelease, NULL, pCtx->displayCB.userParam);
     AL_PictMngr_SignalCallbackReleaseIsDone(&pCtx->PictMngr, pFrameToRelease);
