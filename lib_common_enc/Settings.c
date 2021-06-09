@@ -1160,9 +1160,18 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
   if(pChParam->tGopParam.eGdrMode != AL_GDR_OFF)
   {
-    pChParam->eEncTools &= ~AL_OPT_LF;
-    MSG("!! Loop filter is not allowed with GDR enabled !!");
-    bIsLoopFilterEnable = false;
+    if((pSettings->uEnableSEI & AL_SEI_RP) == 0)
+    {
+      pSettings->uEnableSEI |= AL_SEI_RP;
+      MSG("!! Force Recovery Point SEI in GDR !!");
+    }
+
+    if(bIsLoopFilterEnable)
+    {
+      pChParam->eEncTools &= ~AL_OPT_LF;
+      MSG("!! Loop filter is not allowed with GDR enabled !!");
+      bIsLoopFilterEnable = false;
+    }
   }
 
   if(!bIsLoopFilterEnable)
