@@ -231,6 +231,12 @@ void AL_LaunchSliceDecoding(AL_TDecCtx* pCtx, bool bIsLastAUNal, bool hasPreviou
   if(hasPreviousSlice && uSliceID)
   {
     pPrevSP = &(((AL_TDecSliceParam*)pCtx->PoolSP[pCtx->uToggle].tMD.pVirtualAddr)[uSliceID - 1]);
+
+    if(pPrevSP->eSliceType == AL_SLICE_CONCEAL && uSliceID == 1)
+    {
+      pCtx->BufAddrs = AL_SetBufferAddrs(pCtx);
+      SetBufferHandleMetaData(pCtx);
+    }
     decodeOneSlice(pCtx, uSliceID - 1, &pCtx->BufAddrs);
   }
 
