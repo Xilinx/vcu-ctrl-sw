@@ -302,10 +302,18 @@ void AL_Common_Encoder_SetME(int iHrzRange_P, int iVrtRange_P, int iHrzRange_B, 
    \brief The AL_Common_Encoder_ComputeRCParam function initializes the rate control basic parameters
    \param[in]  iCbOffset U plane qp offset
    \param[in]  iCrOffset V plane qp offset
-   \param[in]  iTableIdx Initial QP table index
+   \param[in]  iIntraOnlyOff QP offset to apply in intra only case
    \param[out] pChParam Pointer to the structure receiving the rate control parameters
 *****************************************************************************/
-void AL_Common_Encoder_ComputeRCParam(int iCbOffset, int iCrOffset, int iTableIdx, int iIntraOnlyOff, AL_TEncChanParam* pChParam);
+void AL_Common_Encoder_ComputeRCParam(int iCbOffset, int iCrOffset, int iIntraOnlyOff, AL_TEncChanParam* pChParam);
+
+/*************************************************************************//*!
+   \brief The AL_Common_Encoder_GetInitialQP function compute the initial QP value when using rate controller
+   \param[in]  iBitPerPixel number of coded bits per pixel : computed using BitRate and FrameRate
+   \param[in]  eProfile encoding profile used
+   \return returns the initial QP value
+*****************************************************************************/
+uint8_t AL_Common_Encoder_GetInitialQP(uint32_t iBitPerPixel, AL_EProfile eProfile);
 
 #if AL_ENABLE_ENC_WATCHDOG
 void AL_Common_Encoder_SetWatchdogCB(AL_TEncCtx* pCtx, const AL_TEncSettings* pSettings);

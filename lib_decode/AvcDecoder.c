@@ -133,9 +133,6 @@ static int getMaxBitDepth(AL_TAvcSps const* pSPS)
 /*************************************************************************/
 static int getMaxNumberOfSlices(AL_TStreamSettings const* pStreamSettings, AL_TAvcSps const* pSPS)
 {
-  int maxSlicesCountSupported = AL_AVC_GetMaxNumberOfSlices(AVC_PROFILE_IDC_HIGH_422, 52, 1, 60, INT32_MAX);
-  return maxSlicesCountSupported; /* TODO : fix bad behaviour in firmware to decrease dynamically the number of slices */
-
   int macroblocksCountInPicture = GetBlk16x16(pStreamSettings->tDim);
 
   int numUnitsInTick = 1, timeScale = 1;
@@ -145,7 +142,7 @@ static int getMaxNumberOfSlices(AL_TStreamSettings const* pStreamSettings, AL_TA
     numUnitsInTick = pSPS->vui_param.vui_num_units_in_tick;
     timeScale = pSPS->vui_param.vui_time_scale;
   }
-  return Min(maxSlicesCountSupported, AL_AVC_GetMaxNumberOfSlices(pStreamSettings->iProfileIdc, pStreamSettings->iLevel, numUnitsInTick, timeScale, macroblocksCountInPicture));
+  return AL_AVC_GetMaxNumberOfSlices(pStreamSettings->eProfile, pStreamSettings->iLevel, numUnitsInTick, timeScale, macroblocksCountInPicture);
 }
 
 /*****************************************************************************/
@@ -163,7 +160,7 @@ static bool isSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, AL_TStream
 
   int iSPSMaxBitDepth = getMaxBitDepth(pSPS);
 
-  if(iSPSMaxBitDepth > HW_IP_BIT_DEPTH)
+  if(iSPSMaxBitDepth > AL_HWConfig_Dec_GetSupportedBitDepth())
     return false;
 
   int iSPSLevel = pSPS->constraint_set3_flag ? 9 : pSPS->level_idc; /* We treat constraint set 3 as a level 9 */
@@ -222,28 +219,43 @@ extern int AVC_GetMinOutputBuffersNeeded(int iDpbMaxBuf, int iStack);
 /******************************************************************************/
 static AL_TStreamSettings extractStreamSettings(AL_TAvcSps const* pSPS)
 {
+  uint32_t uFlags = (pSPS->constraint_set0_flag |
+                     (pSPS->constraint_set1_flag << 1) |
+                     (pSPS->constraint_set2_flag << 2) |
+                     (pSPS->constraint_set3_flag << 3) |
+                     (pSPS->constraint_set4_flag << 4) |
+                     (pSPS->constraint_set5_flag << 5));
+
   AL_TStreamSettings tStreamSettings;
   tStreamSettings.tDim = extractDimension(pSPS);
   tStreamSettings.eChroma = (AL_EChromaMode)pSPS->chroma_format_idc;
   tStreamSettings.iBitDepth = getMaxBitDepth(pSPS);
-  AL_Assert(tStreamSettings.iBitDepth <= HW_IP_BIT_DEPTH);
+  AL_Assert(tStreamSettings.iBitDepth <= AL_HWConfig_Dec_GetSupportedBitDepth());
   tStreamSettings.iLevel = pSPS->constraint_set3_flag ? 9 : pSPS->level_idc;
-  tStreamSettings.iProfileIdc = pSPS->profile_idc;
+  tStreamSettings.eProfile = AL_PROFILE_AVC | pSPS->profile_idc | AL_CS_FLAGS(uFlags);
   tStreamSettings.eSequenceMode = AL_SM_PROGRESSIVE;
   return tStreamSettings;
 }
 
 /******************************************************************************/
-static int getConcealedMaxDPBSize(int iLevel, int iWidth, int iHeight, int iSPSMaxRefFrames)
+int AL_AVC_GetMaxDpbBuffers(AL_TStreamSettings const* pSpsSettings)
 {
-  int iDpbMaxBuf = AL_AVC_GetMaxDPBSize(iLevel, iWidth, iHeight);
+  if(AL_IS_INTRA_PROFILE(pSpsSettings->eProfile))
+    return 2;
+
+  return AL_AVC_GetMaxDPBSize(pSpsSettings->iLevel, pSpsSettings->tDim.iWidth, pSpsSettings->tDim.iHeight);
+}
+
+static int getMaxDPBSize(AL_TStreamSettings const* pSpsSettings, int iSPSMaxRefFrames)
+{
+  int iDpbMaxBuf = AL_AVC_GetMaxDpbBuffers(pSpsSettings);
   return Max(iDpbMaxBuf, iSPSMaxRefFrames);
 }
 
 /******************************************************************************/
 static AL_ERR resolutionFound(AL_TDecCtx* pCtx, AL_TStreamSettings const* pSpsSettings, AL_TCropInfo const* pCropInfo, int iSPSMaxRefFrames)
 {
-  int iDpbMaxBuf = getConcealedMaxDPBSize(pSpsSettings->iLevel, pSpsSettings->tDim.iWidth, pSpsSettings->tDim.iHeight, iSPSMaxRefFrames);
+  int iDpbMaxBuf = getMaxDPBSize(pSpsSettings, iSPSMaxRefFrames);
   int iMaxBuf = AVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, pCtx->iStackSize);
   bool bEnableDisplayCompression;
   AL_EFbStorageMode eDisplayStorageMode = AL_Default_Decoder_GetDisplayStorageMode(pCtx, &bEnableDisplayCompression);
@@ -264,11 +276,11 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
   int iSizeCompMap = AL_GetAllocSize_DecCompMap(pCtx->tStreamSettings.tDim);
   AL_ERR error = AL_ERR_NO_MEMORY;
 
-  if(!AL_Default_Decoder_AllocPool(pCtx, 0, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap, 0))
+  if(!AL_Default_Decoder_AllocPool(pCtx, 0, 0, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap, 0))
     goto fail_alloc;
 
-  int iDpbMaxBuf = getConcealedMaxDPBSize(pCtx->tStreamSettings.iLevel, pCtx->tStreamSettings.tDim.iWidth, pCtx->tStreamSettings.tDim.iHeight, pSPS->max_num_ref_frames);
-  int iMaxBuf = AVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, pCtx->iStackSize);
+  int iDpbMaxBuf = getMaxDPBSize(&pCtx->tStreamSettings, pSPS->max_num_ref_frames);
+  int iMaxBuf = AL_AVC_GetMinOutputBuffersNeeded(&pCtx->tStreamSettings, pCtx->iStackSize);
   int iSizeMV = AL_GetAllocSize_AvcMV(pCtx->tStreamSettings.tDim);
   int iSizePOC = POCBUFF_PL_SIZE;
 
@@ -287,7 +299,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
     pCtx->tOutputPosition,
   };
 
-  AL_PictMngr_Init(&pCtx->PictMngr, pCtx->pAllocator, &tPictMngrParam);
+  AL_PictMngr_Init(&pCtx->PictMngr, &tPictMngrParam);
 
   AL_TCropInfo tCropInfo = extractCropInfo(pSPS);
   error = resolutionFound(pCtx, &pCtx->tStreamSettings, &tCropInfo, pSPS->max_num_ref_frames);
@@ -312,6 +324,7 @@ static bool initChannel(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
 
   const int iSPSMaxSlices = getMaxNumberOfSlices(&pCtx->tStreamSettings, pSPS);
   pChan->iMaxSlices = iSPSMaxSlices;
+  pChan->iMaxTiles = 1;
 
   if(!pCtx->bForceFrameRate && pSPS->vui_parameters_present_flag)
   {
@@ -454,9 +467,9 @@ static void createConcealSlice(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSl
   concealSlice(pCtx, pPP, pSP, pSlice, false);
   pSP->FirstLcuSliceSegment = 0;
   pSP->FirstLcuSlice = 0;
-  pSP->FirstLCU = 0;
+  pSP->SliceFirstLCU = 0;
   pSP->NextSliceSegment = pSlice->first_mb_in_slice;
-  pSP->NumLCU = pSlice->first_mb_in_slice;
+  pSP->SliceNumLCU = pSlice->first_mb_in_slice;
 
   pSlice->slice_type = uCurSliceType;
 }

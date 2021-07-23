@@ -44,13 +44,14 @@
  *****************************************************************************/
 #pragma once
 
-extern "C"
-{
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "lib_rtos/types.h"
 #include "lib_common/Allocator.h"
 #include "lib_common/BufferAPI.h"
 #include "lib_common/BufferMeta.h"
-}
 
 /*************************************************************************//*!
    \brief AL_TBufPoolConfig: Used to configure the AL_TBufPool
@@ -147,6 +148,7 @@ void AL_BufPool_Commit(AL_TBufPool* pBufPool);
 /*@}*/
 
 #ifdef __cplusplus
+}
 
 #include <stdexcept>
 class bufpool_decommited_error : public std::runtime_error

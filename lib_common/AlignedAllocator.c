@@ -132,6 +132,8 @@ static const AL_AllocatorVtable s_AlignedAllocatorVtable =
   AL_AlignedAllocator_GetVirtualAddr,
   AL_AlignedAllocator_GetPhysicalAddr,
   AL_AlignedAllocator_AllocNamed,
+  NULL,
+  NULL,
 };
 
 AL_TAllocator* AL_AlignedAllocator_Create(AL_TAllocator* pMemoryAllocator, AL_TAllocator* pRealAllocator, uint32_t uAlign)

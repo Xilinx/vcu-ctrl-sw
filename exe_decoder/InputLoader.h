@@ -41,6 +41,8 @@ extern "C"
 {
 #include "lib_common/BufferAPI.h"
 #include "lib_common/Profiles.h"
+#include "lib_assert/al_assert.h"
+#include "lib_decode/lib_decode.h"
 }
 #include <vector>
 #include <istream>
@@ -49,17 +51,20 @@ extern "C"
 struct InputLoader
 {
   virtual ~InputLoader() {}
-  virtual uint32_t ReadStream(std::istream& ifFileStream, AL_TBuffer* pBufStream) = 0;
+  virtual uint32_t ReadStream(std::istream& ifFileStream, AL_TBuffer* pBufStream, uint8_t& uBufFlags) = 0;
 };
 
 /****************************************************************************/
 struct BasicLoader : public InputLoader
 {
-  uint32_t ReadStream(std::istream& ifFileStream, AL_TBuffer* pBufStream) override
+  uint32_t ReadStream(std::istream& ifFileStream, AL_TBuffer* pBufStream, uint8_t& uBufFlags) override
   {
     uint8_t* pBuf = AL_Buffer_GetData(pBufStream);
 
     ifFileStream.read((char*)pBuf, AL_Buffer_GetSize(pBufStream));
+
+    uBufFlags = AL_STREAM_BUF_FLAG_UNKNOWN;
+
     return (uint32_t)ifFileStream.gcount();
   }
 };
@@ -81,7 +86,7 @@ struct CircBuffer
 struct SplitInput : public InputLoader
 {
   SplitInput(int iSize, AL_ECodec eCodec, bool bSliceCut);
-  uint32_t ReadStream(std::istream& ifFileStream, AL_TBuffer* pBufStream) override;
+  uint32_t ReadStream(std::istream& ifFileStream, AL_TBuffer* pBufStream, uint8_t& uBufFlags) override;
 
 private:
   std::vector<uint8_t> m_Stream;

@@ -64,3 +64,4 @@ TFourCC AL_GetDecFourCC(AL_TPicFormat const picFmt);
 *****************************************************************************/
 AL_TPicFormat AL_GetDecPicFormat(AL_EChromaMode eChromaMode, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode, bool bIsCompressed);
 
+/*@}*/

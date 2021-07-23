@@ -343,6 +343,8 @@ static const AL_DmaAllocLinuxVtable DmaAllocLinuxVtable =
     &LinuxDma_GetVirtualAddr,
     &LinuxDma_GetPhysicalAddr,
     NULL,
+    NULL,
+    NULL,
   },
   &LinuxDma_GetFd,
   &LinuxDma_ImportFromFd,

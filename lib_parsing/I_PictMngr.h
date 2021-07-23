@@ -168,7 +168,6 @@ typedef struct t_PictMngrCtx
 
   AL_TPosition tOutputPosition;
 
-  AL_TAllocator* pAllocator;
 }AL_TPictMngrCtx;
 
 typedef struct AL_t_PictMngrParam
@@ -188,12 +187,10 @@ typedef struct AL_t_PictMngrParam
 /*************************************************************************//*!
    \brief Initialize the PictureManager.
    \param[in] pCtx        Pointer to a Picture manager context object
-   \param[in] pAllocator  Pointer to ac Alloctor interface object used to
-                          allocate internal buffers
    \param[in] pParam      Picture manager parameters
    \return If the function succeeds the return true. Return false otherwise
 *****************************************************************************/
-bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, AL_TAllocator* pAllocator, AL_TPictMngrParam* pParam);
+bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, AL_TPictMngrParam* pParam);
 
 /*************************************************************************//*!
    \brief Flush all pictures so all buffers are fully released
@@ -296,8 +293,9 @@ uint8_t AL_PictMngr_GetLastPicID(AL_TPictMngrCtx* pCtx);
    \param[in] eMarkingFlag    Reference status of the decoded picture
    \param[in] uNonExisting    Non existing status of the decoded picture
    \param[in] eNUT            Added NAL unit type
+   \param[in] uSubpicFlag     Added subpicture flag
 *****************************************************************************/
-void AL_PictMngr_Insert(AL_TPictMngrCtx* pCtx, int iFramePOC, uint32_t uPocLsb, int iFrameID, uint8_t uMvID, uint8_t pic_output_flag, AL_EMarkingRef eMarkingFlag, uint8_t uNonExisting, AL_ENut eNUT);
+void AL_PictMngr_Insert(AL_TPictMngrCtx* pCtx, int iFramePOC, uint32_t uPocLsb, int iFrameID, uint8_t uMvID, uint8_t pic_output_flag, AL_EMarkingRef eMarkingFlag, uint8_t uNonExisting, AL_ENut eNUT, uint8_t uSubpicFlag);
 
 /*************************************************************************//*!
    \brief This function updates the Picture Manager context each time a picture have been decoded.
@@ -321,8 +319,9 @@ AL_TBuffer* AL_PictMngr_ForceDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode
    \brief This function add a display frame buffer in the picture manager
    \param[in] pCtx   Pointer to a Picture manager context object
    \param[in] pBuf   Pointer to the display picture buffer to be added
+   \return True if buffer has been successfully pushed, false otherwise
 *****************************************************************************/
-void AL_PictMngr_PutDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TBuffer* pBuf);
+bool AL_PictMngr_PutDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TBuffer* pBuf);
 
 /*************************************************************************//*!
    \brief This function returns the display picture buffer associated to iFrameID
@@ -369,7 +368,7 @@ void AL_PictMngr_DecommitPool(AL_TPictMngrCtx* pCtx);
 void AL_PictMngr_UnlockID(AL_TPictMngrCtx* pCtx, int iFrameID, int iMotionVectorID);
 
 /*****************************************************************************/
-bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam* pSP, TBufferListRef* pListRef, TBuffer* pListVirtAddr, TBuffer* pListAddr, TBufferPOC* pPOC, TBufferMV* pMV, AL_TRecBuffers* pRecs);
+bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam const* pSP, TBufferListRef* pListRef, TBuffer* pListVirtAddr, TBuffer* pListAddr, TBufferPOC* pPOC, TBufferMV* pMV, AL_TRecBuffers* pRecs);
 
 /*@}*/
 

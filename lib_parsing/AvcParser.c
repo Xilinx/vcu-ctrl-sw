@@ -326,7 +326,7 @@ static bool isProfileSupported(uint8_t profile_idc)
 
   case AVC_PROFILE_IDC_HIGH_422:
   case AVC_PROFILE_IDC_HIGH10:
-    return HW_IP_BIT_DEPTH >= 10;
+    return true;
 
   default:
     return false;

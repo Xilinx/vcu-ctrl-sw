@@ -148,6 +148,7 @@
 #define MVD_HW_SCHEDULE_SEQUENTIAL     // DecLib internal scheduler mode of operation - DEFAULT
 //#define MVD_HW_SCHEDULE_STAT_UPDATE_FIX
 #define MVD_EARLY_DCP_ALLOC            // Allocate the decoupled memory area at stream start time - DEFAULT
+#define MVD_TASK_THREAD                // Mvd task are handled in a thread
 
 #define DECLIB_FORCE_HW_STOP           // Force stop HW on an API stop command - DEFAULT
 #define DECLIB_CTX_FLUSH_AFTER_SAVE    // Flush internal DecLib ctx on save/restore - DEFAULT
@@ -166,7 +167,7 @@
 #define DIAG_SUPPORT_ENABLED       // Include initial diagnostics code                          - DEFAULT
 #define GLOBAL_USE_RUN_TIME_CFG    // Configure lib)mvd from AL_Mvd layer                       - DEFAULT
 #define GTB_SET_NUM_STREAMS        // Set number of streams at build time using parameter below - DEFAULT
-#define GTB_NUM_STREAMS          1 // Number of streams the firmware is built to handle - CONFIGURABLE
+#define GTB_NUM_STREAMS          2 // Number of streams the firmware is built to handle - CONFIGURABLE
 
 #define ENABLE_PERF_TIMER          // Enable calls to performance timers, if implemented - CONFIGURABLE
 #define ENABLE_TRACE_IN_RELEASE  0 // Enable trace                  - CONFIGURABLE
@@ -180,4 +181,7 @@
 #define FW_API_VERSION    19       // Used for tracking changes in lib_mvd API - currently stable
 #define FW_VERSION         1       // Define a firmware API version, this is used in debug callbacks for tracking purposes
 
-#define ENABLE_CRIT_SECTIONS
+#define ENABLE_CRIT_SECTIONS       // Locks to prevent from concurrent accesses around shared structures
+
+#define SPLIT_INPUT_STACK_SIZE 4   // Number of stream buffers that can be stacked in split-input mode
+#define SEPARATED_BUF_REQ          // If set, we distinguish main YUV buffers from secondary YUV buffers and MBI buffers

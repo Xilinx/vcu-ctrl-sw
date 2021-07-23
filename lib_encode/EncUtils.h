@@ -55,8 +55,8 @@ typedef struct AL_t_EncPicStatus AL_TEncPicStatus;
 typedef struct AL_t_HLSInfo AL_HLSInfo;
 
 /****************************************************************************/
-static const int MAX_IDX_BIT_PER_PEL = 35;
-static const int AL_BitPerPixelQP[2][36][2] = /* x1000 */
+#define MAX_IDX_BIT_PER_PEL 28
+static const int AL_BitPerPixelQP[2][MAX_IDX_BIT_PER_PEL + 1][2] = /* x1000 */
 {
   // AVC
   {

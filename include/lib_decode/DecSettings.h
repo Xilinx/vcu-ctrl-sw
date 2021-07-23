@@ -80,7 +80,6 @@ typedef struct
   AL_EDecUnit eDecUnit; /*!< Should subframe latency mode be used */
   AL_EDpbMode eDpbMode; /*!< Should low ref mode be used */
   AL_TStreamSettings tStream; /*!< Stream's settings. These need to be set if you want to preallocate the buffer. memset to 0 otherwise */
-  AL_EBufferOutputMode eBufferOutputMode; /*!< Reconstructed buffers output mode */
   AL_TPosition tOutputPosition; /*!< Position of the top left corner of the decoded frames in the Output buffers*/
   bool bUseIFramesAsSyncPoint; /*!< Allow decoder to sync on I frames if configurations' nals are presents */
   bool bUseEarlyCallback; /*< Lowlat phase 2. This only makes sense with special support for hw synchro */

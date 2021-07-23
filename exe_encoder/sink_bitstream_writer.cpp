@@ -54,7 +54,6 @@ struct BitstreamWriter : IFrameSink
   BitstreamWriter(string path, ConfigFile const& cfg_) : cfg(cfg_)
   {
     OpenOutput(m_file, path);
-
     WriteContainerHeader(m_file, cfg.Settings, cfg.MainInput.FileInfo, -1);
   }
 
@@ -75,7 +74,7 @@ struct BitstreamWriter : IFrameSink
   {
     auto const outputSizeInBits = m_file.tellp() * 8;
     auto const frameRate = (float)cfg.Settings.tChParam[0].tRCParam.uFrameRate / cfg.Settings.tChParam[0].tRCParam.uClkRatio;
-    auto const durationInSeconds = m_frameCount / frameRate;
+    auto const durationInSeconds = m_frameCount / (frameRate * cfg.Settings.NumLayer);
     auto bitrate = outputSizeInBits / durationInSeconds;
     LogInfo("Achieved bitrate = %.4f Kbps\n", (float)bitrate);
   }

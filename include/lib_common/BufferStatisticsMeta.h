@@ -45,3 +45,5 @@
 
 #include "lib_common/BufferMeta.h"
 #include "lib_common/BufferAPI.h"
+
+/*@}*/

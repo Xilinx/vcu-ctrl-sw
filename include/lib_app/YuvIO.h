@@ -65,3 +65,11 @@ bool ReadOneFrameYuv(std::ifstream& File, AL_TBuffer* pBuf, bool bLoop, uint32_t
 
 /*****************************************************************************/
 bool WriteOneFrame(std::ofstream& File, AL_TBuffer const* pBuf);
+
+/*****************************************************************************/
+int GetPictureSize(TYUVFileInfo FI);
+
+/*****************************************************************************/
+int GetFileSize(std::ifstream& File);
+
+/*****************************************************************************/

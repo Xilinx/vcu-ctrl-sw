@@ -82,40 +82,10 @@ static void AntiEmul(AL_TBitStreamLite* pStream, uint8_t const* pData, int iNumB
   writeByte(pStream, *pData);
 }
 
-static void writeStartCode(AL_TBitStreamLite* pStream, AL_ECodec eCodec, int nut)
-{
-  (void)nut;
-#if (defined(ANDROID) || defined(__ANDROID_API__))
-  bool bZeroByte = true;
-#else
-  bool bZeroByte = false;
-#endif
-  // If this is a SPS, a PPS, an AUD or a SEI, add an extra zero_byte (spec. B.1.2).
-  switch(eCodec)
-  {
-  case AL_CODEC_AVC:
-    bZeroByte |= (nut >= AL_AVC_NUT_PREFIX_SEI && nut <= AL_AVC_NUT_SUB_SPS);
-    break;
-  case AL_CODEC_HEVC:
-    bZeroByte |= (nut >= AL_HEVC_NUT_VPS && nut <= AL_HEVC_NUT_SUFFIX_SEI);
-    break;
-  default:
-    break;
-  }
-
-  if(bZeroByte)
-    writeByte(pStream, 0x00);
-
-  // don't count start code in case of "VCL Compliance"
-  writeByte(pStream, 0x00);
-  writeByte(pStream, 0x00);
-  writeByte(pStream, 0x01);
-}
-
 /****************************************************************************/
-void FlushNAL(AL_TBitStreamLite* pStream, AL_ECodec eCodec, uint8_t uNUT, AL_TNalHeader const* pHeader, uint8_t* pDataInNAL, int iBitsInNAL)
+void FlushNAL(IRbspWriter* pWriter, AL_TBitStreamLite* pStream, uint8_t uNUT, AL_TNalHeader const* pHeader, uint8_t* pDataInNAL, int iBitsInNAL, AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned)
 {
-  writeStartCode(pStream, eCodec, uNUT);
+  pWriter->WriteStartCode(pStream, uNUT, eStartCodeBytesAligned);
 
   for(int i = 0; i < pHeader->size; i++)
     writeByte(pStream, pHeader->bytes[i]);
@@ -127,10 +97,10 @@ void FlushNAL(AL_TBitStreamLite* pStream, AL_ECodec eCodec, uint8_t uNUT, AL_TNa
 }
 
 /****************************************************************************/
-void WriteFillerData(AL_TBitStreamLite* pStream, AL_ECodec eCodec, uint8_t uNUT, AL_TNalHeader const* pHeader, int iBytesCount, bool bDontFill)
+void WriteFillerData(IRbspWriter* pWriter, AL_TBitStreamLite* pStream, uint8_t uNUT, AL_TNalHeader const* pHeader, int iBytesCount, bool bDontFill, AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned)
 {
   int bookmark = AL_BitStreamLite_GetBitsCount(pStream);
-  writeStartCode(pStream, eCodec, uNUT);
+  pWriter->WriteStartCode(pStream, uNUT, eStartCodeBytesAligned);
 
   for(int i = 0; i < pHeader->size; i++)
     writeByte(pStream, pHeader->bytes[i]);

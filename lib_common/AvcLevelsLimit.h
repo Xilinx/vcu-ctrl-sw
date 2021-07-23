@@ -37,9 +37,10 @@
 
 #pragma once
 #include "lib_rtos/types.h"
+#include "lib_common/Profiles.h"
 
 bool AL_AVC_CheckLevel(int level);
-uint32_t AL_AVC_GetMaxNumberOfSlices(int profile, int level, int numUnitInTicks, int timeScale, int numMbsInPic);
+uint32_t AL_AVC_GetMaxNumberOfSlices(AL_EProfile profile, int level, int numUnitInTicks, int timeScale, int numMbsInPic);
 uint32_t AL_AVC_GetMaxCPBSize(int level);
 uint32_t AL_AVC_GetMaxDPBSize(int level, int iWidth, int iHeight);
 

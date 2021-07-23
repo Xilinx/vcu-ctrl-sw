@@ -151,9 +151,9 @@ typedef struct t_Hevc_Pps
   uint16_t num_tile_rows_minus1;
 
   uint8_t uniform_spacing_flag;
-  uint16_t column_width[AL_MAX_COLUMNS_TILE];
-  uint16_t row_height[AL_MAX_ROWS_TILE];
-  uint32_t TileTopology[AL_MAX_ROWS_TILE * AL_MAX_COLUMNS_TILE];
+  uint16_t tile_column_width[AL_MAX_COLUMNS_TILE];
+  uint16_t tile_row_height[AL_MAX_ROWS_TILE];
+  uint32_t TileTopology[AL_MAX_NUM_TILE];
   uint8_t loop_filter_across_tiles_enabled_flag;
 
   uint8_t loop_filter_across_slices_enabled_flag;

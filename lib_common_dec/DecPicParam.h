@@ -127,8 +127,8 @@ typedef struct AL_t_DecPictParam
   uint16_t PicHeight;
   uint16_t LcuPicWidth;
   uint16_t LcuPicHeight;
-  uint16_t column_width[AL_MAX_COLUMNS_TILE];
-  uint16_t row_height[AL_MAX_ROWS_TILE];
+  uint16_t tile_column_width[AL_MAX_COLUMNS_TILE];
+  uint16_t tile_row_height[AL_MAX_ROWS_TILE];
   uint16_t num_tile_columns;
   uint16_t num_tile_rows;
 
@@ -136,13 +136,6 @@ typedef struct AL_t_DecPictParam
   AL_EPicStruct ePicStruct;
 
   uint32_t OptionFlags;
-
-  uint8_t NumLadfIntervals;
-  int8_t ladf_lowest_interval_qp_offset;
-  int8_t ladf_qp_offset[4];
-  uint16_t LadfDeltaThreshold[4];
-
-  uint8_t QpPrimeTsMin;
 
   AL_EChromaMode ChromaMode;
   AL_EEntropyMode eEntMode;

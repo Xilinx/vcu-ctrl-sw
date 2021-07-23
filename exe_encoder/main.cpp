@@ -47,6 +47,7 @@
 #include <sstream>
 #include <cstdarg>
 #include <stdexcept>
+#include <exception>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -99,7 +100,6 @@ static int g_StrideHeight = -1;
 static int g_Stride = -1;
 static int constexpr g_defaultMinBuffers = 2;
 static bool g_MultiChunk = false;
-static bool g_EncodeTraceRegField = false;
 
 using namespace std;
 
@@ -190,13 +190,13 @@ void SetDefaults(ConfigFile& cfg)
 
 static void Usage(CommandLineParser const& opt, char* ExeName)
 {
-  cerr << "Usage: " << ExeName << " -cfg <configfile> [options]" << endl;
-  cerr << "Options:" << endl;
+  cout << "Usage: " << ExeName << " -cfg <configfile> [options]" << endl;
+  cout << "Options:" << endl;
 
   opt.usage();
 
-  cerr << endl << "Examples:" << endl;
-  cerr << "  " << ExeName << " -cfg test/config/encode_simple.cfg -r rec.yuv -o output.hevc -i input.yuv" << endl;
+  cout << endl << "Examples:" << endl;
+  cout << "  " << ExeName << " -cfg test/config/encode_simple.cfg -r rec.yuv -o output.hevc -i input.yuv" << endl;
 }
 
 static AL_EChromaMode stringToChromaMode(string s)
@@ -270,10 +270,10 @@ static void SetCodingResolution(ConfigFile& cfg)
   int iMaxSrcWidth = cfg.MainInput.FileInfo.PictWidth;
   int iMaxSrcHeight = cfg.MainInput.FileInfo.PictHeight;
 
-  for(auto input = cfg.DynamicInputs.begin(); input != cfg.DynamicInputs.end(); input++)
+  for(auto const& input: cfg.DynamicInputs)
   {
-    iMaxSrcWidth = std::max(input->FileInfo.PictWidth, iMaxSrcWidth);
-    iMaxSrcHeight = std::max(input->FileInfo.PictHeight, iMaxSrcHeight);
+    iMaxSrcWidth = max(input.FileInfo.PictWidth, iMaxSrcWidth);
+    iMaxSrcHeight = max(input.FileInfo.PictHeight, iMaxSrcHeight);
   }
 
   cfg.Settings.tChParam[0].uSrcWidth = iMaxSrcWidth;
@@ -288,10 +288,6 @@ static void SetCodingResolution(ConfigFile& cfg)
     cfg.Settings.tChParam[0].uEncHeight = cfg.Settings.tChParam[0].uSrcCropHeight;
   }
 }
-
-bool g_helpCfg = false;
-bool g_helpCfgJson = false;
-bool g_showCfg = false;
 
 /*****************************************************************************/
 void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
@@ -312,11 +308,8 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
       DoNotAcceptCfg = true;
   }, ShouldShowAdvancedFeatures());
 
-  opt.addFlag("--help-cfg", &g_helpCfg, "Show cfg help. Show the default value for each parameter. If this option is used with a cfg, show the end value of each parameter.");
-  opt.addFlag("--help-cfg-json", &g_helpCfgJson, "Same as --help-cfg but in json format");
   opt.addFlag("--help,-h", &help, "Show this help");
   opt.addFlag("--help-json", &helpJson, "Show this help (json)");
-  opt.addFlag("--show-cfg", &g_showCfg, "Show the cfg variables value before launching the program");
   opt.addFlag("--version", &version, "Show version");
 
   opt.addOption("-cfg", [&](string)
@@ -340,7 +333,6 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addString("--input,-i", &cfg.MainInput.YUVFileName, "YUV input file");
   opt.addString("--output,-o", &cfg.BitstreamFileName, "Compressed output file");
   opt.addString("--output-rec,-r", &cfg.RecFileName, "Output reconstructed YUV file");
-  opt.addString("--md5", &cfg.RunInfo.sRecMd5Path, "[DEPRECATED] use --md5-rec instead");
   opt.addString("--md5-rec", &cfg.RunInfo.sRecMd5Path, "Filename to the output MD5 of the reconstructed pictures");
   opt.addString("--md5-stream", &cfg.RunInfo.sStreamMd5Path, "Filename to the output MD5 of the bitstream");
   opt.addInt("--input-width", &cfg.MainInput.FileInfo.PictWidth, "Specifies YUV input width");
@@ -391,8 +383,6 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addInt("--gop-length", &cfg.Settings.tChParam[0].tGopParam.uGopLength, "Specifies the GOP length, 1 means I slice only");
   opt.addInt("--gop-numB", &cfg.Settings.tChParam[0].tGopParam.uNumB, "Number of consecutive B frame (0 .. 4)");
 
-  opt.endSection("Rate Control && GOP");
-
   opt.startSection("Run");
 
   opt.addInt("--first-picture", &cfg.RunInfo.iFirstPict, "First picture encoded (skip those before)");
@@ -400,8 +390,6 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addFlag("--loop", &cfg.RunInfo.bLoop, "Loop at the end of the yuv file");
 
   opt.addInt("--input-sleep", &cfg.RunInfo.uInputSleepInMilliseconds, "Minimum waiting time in milliseconds between each process frame (0 by default)");
-
-  opt.endSection("Run");
 
   opt.startSection("Traces && Debug");
 
@@ -416,8 +404,6 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addFlag("--print-ratectrl-stat", &cfg.RunInfo.printRateCtrlStat, "Write rate-control related statistics for each frame in the file. Only a subset of the statistics is written, more data and motion vectors are also available.", true);
 
   opt.addString("--device", &cfg.RunInfo.encDevicePath, "Path of the device file used to talk with the IP. Default is /dev/allegroIP");
-
-  opt.endSection("Traces && Debug");
 
   opt.startSection("Misc");
 
@@ -434,9 +420,10 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
   opt.addFlag("--quiet,-q", &g_Verbosity, "Do not print anything", 0);
   opt.addInt("--verbosity", &g_Verbosity, "Choose the verbosity level (-q is equivalent to --verbosity 0)");
 
-  opt.endSection("Misc");
+  opt.startDeprecatedSection();
+  opt.addString("--md5", &cfg.RunInfo.sRecMd5Path, "Use --md5-rec instead");
 
-  opt.parse(argc, argv);
+  bool bHasDeprecated = opt.parse(argc, argv);
 
   if(help)
   {
@@ -457,6 +444,9 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
     exit(0);
   }
 
+  if(bHasDeprecated && g_Verbosity)
+    opt.usageDeprecated();
+
   if(g_Verbosity)
     cerr << warning.str();
 
@@ -471,6 +461,13 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg)
     cfg.RunInfo.iMaxPict = 1;
 }
 
+/*****************************************************************************/
+void GetCodecFromCommandLine(int argc, char** argv, ConfigFile& cfg)
+{
+  ParseCommandLine(argc, argv, cfg);
+}
+
+/*****************************************************************************/
 void ValidateConfig(ConfigFile& cfg)
 {
   string invalid_settings("Invalid settings, check the [SETTINGS] section of your configuration file or check your commandline (use -h to get help)");
@@ -619,8 +616,10 @@ static void PrepareInput(ifstream& YuvFile, string& YUVFileName, TYUVFileInfo& F
   GotoFirstPicture(FileInfo, YuvFile, iFirstPict);
 }
 
-static void GetSrcFrame(shared_ptr<AL_TBuffer>& frame, int& iReadCount, int iPictCount, ifstream& YuvFile, const TYUVFileInfo& FileInfo, PixMapBufPool& SrcBufPool, AL_TBuffer* Yuv, AL_TEncChanParam const& tChParam, ConfigFile const& cfg, IConvSrc* pSrcConv)
+static shared_ptr<AL_TBuffer> GetSrcFrame(int& iReadCount, int iPictCount, ifstream& YuvFile, const TYUVFileInfo& FileInfo, PixMapBufPool& SrcBufPool, AL_TBuffer* Yuv, AL_TEncChanParam const& tChParam, ConfigFile const& cfg, IConvSrc* pSrcConv)
 {
+  shared_ptr<AL_TBuffer> frame;
+
   if(!isLastPict(iPictCount, cfg.RunInfo.iMaxPict))
   {
     if(cfg.MainInput.FileInfo.FrameRate != tChParam.tRCParam.uFrameRate)
@@ -629,6 +628,7 @@ static void GetSrcFrame(shared_ptr<AL_TBuffer>& frame, int& iReadCount, int iPic
     frame = ReadSourceFrame(&SrcBufPool, Yuv, YuvFile, tChParam, cfg, pSrcConv);
     iReadCount++;
   }
+  return frame;
 }
 
 static bool sendInputFileTo(ifstream& YuvFile, PixMapBufPool& SrcBufPool, AL_TBuffer* Yuv, ConfigFile const& cfg, TYUVFileInfo& FileInfo, IConvSrc* pSrcConv, IFrameSink* sink, int& iPictCount, int& iReadCount)
@@ -639,8 +639,7 @@ static bool sendInputFileTo(ifstream& YuvFile, PixMapBufPool& SrcBufPool, AL_TBu
     return false;
   }
 
-  shared_ptr<AL_TBuffer> frame;
-  GetSrcFrame(frame, iReadCount, iPictCount, YuvFile, FileInfo, SrcBufPool, Yuv, cfg.Settings.tChParam[0], cfg, pSrcConv);
+  shared_ptr<AL_TBuffer> frame = GetSrcFrame(iReadCount, iPictCount, YuvFile, FileInfo, SrcBufPool, Yuv, cfg.Settings.tChParam[0], cfg, pSrcConv);
   sink->ProcessFrame(frame.get());
 
   if(!frame)
@@ -697,7 +696,7 @@ static void ConfigureSrcBufPool(PixMapBufPool& SrcBufPool, TFrameInfo& FrameInfo
   int iPitchY = ComputeYPitch(FrameInfo.tDimension.iWidth, tFourCC);
   int iStrideHeight = g_StrideHeight != -1 ? g_StrideHeight : RoundUp(FrameInfo.tDimension.iHeight, 8);
 
-  std::vector<AL_TPlaneDescription> vPlaneDesc;
+  vector<AL_TPlaneDescription> vPlaneDesc;
   int iOffset = 0;
 
   AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES];
@@ -742,7 +741,7 @@ static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, int i
   bool bIsXAVCIntraCBG = AL_IS_XAVC_CBG(Settings.tChParam[0].eProfile) && AL_IS_INTRA_PROFILE(Settings.tChParam[0].eProfile);
 
   if(bIsXAVCIntraCBG)
-    streamSize = AL_GetMaxNalSize(AL_GET_CODEC(Settings.tChParam[0].eProfile), dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat), Settings.tChParam[0].uLevel, AL_GET_PROFILE_IDC(Settings.tChParam[0].eProfile));
+    streamSize = AL_GetMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat), Settings.tChParam[0].eProfile, Settings.tChParam[0].uLevel);
 
   if(AL_TwoPassMngr_HasLookAhead(Settings))
   {
@@ -848,7 +847,7 @@ struct LayerRessources
 
   int iLayerID = 0;
   int iInputIdx = 0;
-  std::vector<TConfigYUVInput> layerInputs;
+  vector<TConfigYUVInput> layerInputs;
 
   AL_EVENT hFinished = NULL;
 };
@@ -916,8 +915,9 @@ void LayerRessources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffer
   TFrameInfo FrameInfo = GetFrameInfo(Settings.tChParam[iLayerID]);
   auto const eSrcMode = Settings.tChParam[0].eSrcMode;
 
-  /* source compression case */
   pSrcConv = CreateSrcConverter(FrameInfo, eSrcMode, Settings.tChParam[iLayerID]);
+
+  /* source compression case */
 
   InitSrcBufPool(pAllocator, shouldConvert, pSrcConv, FrameInfo, eSrcMode, srcBuffersCount, SrcBufPool);
 
@@ -943,7 +943,7 @@ void LayerRessources::PushRessources(ConfigFile& cfg, EncoderSink* enc
     encFirstPassLA->AddQpBufPool(qpInf, iLayerID);
 
   if(frameWriter)
-    enc->LayerRecOutput[iLayerID] = std::move(frameWriter);
+    enc->LayerRecOutput[iLayerID] = move(frameWriter);
 
   for(int i = 0; i < (int)StreamBufPoolConfig.uNumBuf; ++i)
   {
@@ -1013,7 +1013,7 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
   auto& Settings = cfg.Settings;
   auto& StreamFileName = cfg.BitstreamFileName;
   auto& RunInfo = cfg.RunInfo;
-  std::vector<LayerRessources> layerRessources(cfg.Settings.NumLayer);
+  vector<LayerRessources> layerRessources(cfg.Settings.NumLayer);
 
   /* null if not supported */
   void* pTraceHook {};
@@ -1097,10 +1097,14 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
 
   if(!RunInfo.sRecMd5Path.empty())
   {
-    auto multisink = unique_ptr<MultiSink>(new MultiSink);
-    multisink->sinks.push_back(move(enc->LayerRecOutput[0]));
-    multisink->sinks.push_back(createYuvMd5Calculator(RunInfo.sRecMd5Path, cfg, layerRessources[0].RecYuv.get()));
-    enc->LayerRecOutput[0] = move(multisink);
+    for(int iLayerID = 0; iLayerID < Settings.NumLayer; ++iLayerID)
+    {
+      auto multisink = unique_ptr<MultiSink>(new MultiSink);
+      multisink->sinks.push_back(move(enc->LayerRecOutput[iLayerID]));
+      string LayerMd5FileName = RunInfo.sRecMd5Path;
+      multisink->sinks.push_back(createYuvMd5Calculator(LayerMd5FileName, cfg, layerRessources[iLayerID].RecYuv.get()));
+      enc->LayerRecOutput[iLayerID] = move(multisink);
+    }
   }
 
   unique_ptr<RepeaterSink> prefetch;
@@ -1136,18 +1140,18 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
     layerRessources[i].WaitFinished();
 
   if(auto err = GetEncoderLastError())
-    throw codec_error(EncoderErrorToString(err), err);
+    throw codec_error(AL_Codec_ErrorToString(err), err);
 
 }
 
-struct channel_runtime_error : public std::runtime_error
+struct channel_runtime_error : public runtime_error
 {
-  explicit channel_runtime_error() : std::runtime_error("")
+  explicit channel_runtime_error() : runtime_error("")
   {
   }
 };
 
-static void ChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& param, std::exception_ptr& exception)
+static void ChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& param, exception_ptr& exception)
 {
   try
   {
@@ -1158,17 +1162,17 @@ static void ChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& p
   catch(codec_error const& error)
   {
     cerr << endl << "Codec error: " << error.what() << endl;
-    exception = std::current_exception();
+    exception = current_exception();
   }
   catch(runtime_error const& error)
   {
     cerr << endl << "Exception caught: " << error.what() << endl;
-    exception = std::make_exception_ptr(channel_runtime_error());
+    exception = make_exception_ptr(channel_runtime_error());
   }
 }
 
 /*****************************************************************************/
-void SafeMain(int argc, char** argv)
+void SafeMain(int argc, char* argv[])
 {
   InitializePlateform();
 
@@ -1178,38 +1182,24 @@ void SafeMain(int argc, char** argv)
   ;
   {
     SetDefaults(cfg);
-    ParseCommandLine(argc, argv, cfg);
+    GetCodecFromCommandLine(argc, argv, cfg);
 
     auto& Settings = cfg.Settings;
+    AL_Settings_SetDefaultParam(&Settings);
+
+    ParseCommandLine(argc, argv, cfg);
+
+    SetMoreDefaults(cfg);
+
     auto& RecFileName = cfg.RecFileName;
     auto& RunInfo = cfg.RunInfo;
-
-    DisplayVersionInfo();
-
-    AL_Settings_SetDefaultParam(&Settings);
-    SetMoreDefaults(cfg);
 
     if(!RecFileName.empty() || !RunInfo.sRecMd5Path.empty())
       Settings.tChParam[0].eEncOptions = (AL_EChEncOption)(Settings.tChParam[0].eEncOptions | AL_OPT_FORCE_REC);
 
-    if(g_helpCfg)
-    {
-      PrintConfigFileUsage(cfg, ShouldShowAdvancedFeatures());
-      exit(0);
-    }
-
-    if(g_helpCfgJson)
-    {
-      PrintConfigFileUsageJson(cfg, ShouldShowAdvancedFeatures());
-      exit(0);
-    }
+    DisplayVersionInfo();
 
     ValidateConfig(cfg);
-
-    if(g_showCfg)
-    {
-      PrintConfig(cfg, ShouldShowAdvancedFeatures());
-    }
 
   }
 
@@ -1223,22 +1213,21 @@ void SafeMain(int argc, char** argv)
   param.bTrackDma = RunInfo.trackDma;
   param.iVqDescr = RunInfo.eVQDescr;
 
-  auto pIpDevice = std::shared_ptr<CIpDevice>(new CIpDevice);
+  auto pIpDevice = shared_ptr<CIpDevice>(new CIpDevice);
   pIpDevice->Configure(param);
 
   if(!pIpDevice)
     throw runtime_error("Can't create IpDevice");
 
-  std::exception_ptr pError;
+  exception_ptr pError;
   ChannelMain(cfg, pIpDevice.get(), param, pError);
 
   if(pError)
-    std::rethrow_exception(pError);
+    rethrow_exception(pError);
 }
 
 /******************************************************************************/
-
-int main(int argc, char** argv)
+int main(int argc, char* argv[])
 {
   try
   {

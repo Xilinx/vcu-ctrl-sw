@@ -983,7 +983,7 @@ bool AL_HEVC_ParseSliceHeader(AL_THevcSliceHdr* pSlice, AL_THevcSliceHdr* pIndSl
       int syntax_size = pSlice->offset_len_minus1 + 1;
 
       for(int i = 1; i <= pSlice->num_entry_point_offsets; ++i)
-        pSlice->entry_point_offset_minus1[i] = u(pRP, syntax_size) + 1;
+        pSlice->entry_point_offset_minus1[i] = u(pRP, syntax_size);
     }
   }
 

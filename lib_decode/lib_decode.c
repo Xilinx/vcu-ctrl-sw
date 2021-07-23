@@ -77,6 +77,12 @@ void AL_Decoder_SetParam(AL_HDecoder hDec, const char* sPrefix, int iFrmID, int 
 }
 
 /*****************************************************************************/
+bool AL_Decoder_PushStreamBuffer(AL_HDecoder hDec, AL_TBuffer* pBuf, size_t uSize, uint8_t uFlags)
+{
+  return AL_Default_Decoder_PushStreamBuffer((AL_TDecoder*)hDec, pBuf, uSize, uFlags);
+}
+
+/*****************************************************************************/
 bool AL_Decoder_PushBuffer(AL_HDecoder hDec, AL_TBuffer* pBuf, size_t uSize)
 {
   return AL_Default_Decoder_PushBuffer((AL_TDecoder*)hDec, pBuf, uSize);
@@ -89,9 +95,9 @@ void AL_Decoder_Flush(AL_HDecoder hDec)
 }
 
 /*****************************************************************************/
-void AL_Decoder_PutDisplayPicture(AL_HDecoder hDec, AL_TBuffer* pDisplay)
+bool AL_Decoder_PutDisplayPicture(AL_HDecoder hDec, AL_TBuffer* pDisplay)
 {
-  AL_Default_Decoder_PutDecPict((AL_TDecoder*)hDec, pDisplay);
+  return AL_Default_Decoder_PutDecPict((AL_TDecoder*)hDec, pDisplay);
 }
 
 /*****************************************************************************/

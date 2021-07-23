@@ -60,7 +60,7 @@ typedef struct
   AL_EChromaMode eChroma; /*!< Stream's chroma mode (400/420/422/444) */
   int iBitDepth; /*!< Stream's bit depth */
   int iLevel; /*!< Stream's level */
-  int iProfileIdc; /*!< Stream's profile idc */
+  AL_EProfile eProfile; /*!< Stream's profile */
   AL_ESequenceMode eSequenceMode; /*!< Stream's sequence mode */
 }AL_TStreamSettings;
 

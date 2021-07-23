@@ -61,6 +61,7 @@ typedef struct
 AL_THandleMetaData* AL_HandleMetaData_Create(int iMaxHandles, int iHandleSizeInBytes);
 AL_THandleMetaData* AL_HandleMetaData_Clone(AL_THandleMetaData* pMeta);
 bool AL_HandleMetaData_AddHandle(AL_THandleMetaData* pMeta, AL_HANDLE pHandle);
+void AL_HandleMetaData_ResetHandles(AL_THandleMetaData* pMeta);
 AL_HANDLE AL_HandleMetaData_GetHandle(AL_THandleMetaData* pMeta, int iNumHandle);
 int AL_HandleMetaData_GetNumHandles(AL_THandleMetaData* pMeta);
 

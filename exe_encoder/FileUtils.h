@@ -49,6 +49,7 @@ std::string combinePath(const std::string& folder, const std::string& filename);
 std::string createFileNameWithID(const std::string& path, const std::string& motif, const std::string& extension, int iFrameID);
 
 /****************************************************************************/
+#define FROM_HEX_ERROR -1
 int FromHex2(char a, char b);
 
 /****************************************************************************/

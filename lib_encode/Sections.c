@@ -73,7 +73,7 @@ static int writeNalInBuffer(IRbspWriter* writer, uint8_t* buffer, int bufSize, A
   return AL_BitStreamLite_GetBitsCount(&bitstream);
 }
 
-static int WriteNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, int bitstreamSize, AL_TNalUnit* nal)
+static int WriteNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, int bitstreamSize, AL_TNalUnit* nal, AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned)
 {
   uint8_t tmpBuffer[AL_ENC_MAX_HEADER_SIZE];
 
@@ -83,7 +83,7 @@ static int WriteNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, int bitst
     return -1;
 
   int start = getBytesOffset(bitstream);
-  FlushNAL(bitstream, writer->GetCodec(), nal->nut, &nal->header, tmpBuffer, sizeInBits);
+  FlushNAL(writer, bitstream, nal->nut, &nal->header, tmpBuffer, sizeInBits, eStartCodeBytesAligned);
   int end = getBytesOffset(bitstream);
 
   if(bitstream->isOverflow)
@@ -91,17 +91,17 @@ static int WriteNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, int bitst
   return end - start;
 }
 
-static void GenerateNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, int bitstreamSize, AL_TNalUnit* nal, AL_TStreamMetaData* pMeta, uint32_t uFlags)
+static void GenerateNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, int bitstreamSize, AL_TNalUnit* nal, AL_TStreamMetaData* pMeta, uint32_t uFlags, AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned)
 {
   int start = getBytesOffset(bitstream);
-  int size = WriteNal(writer, bitstream, bitstreamSize, nal);
+  int size = WriteNal(writer, bitstream, bitstreamSize, nal, eStartCodeBytesAligned);
   /* we should always be able to write the configuration nals as we reserved
    * enough space for them */
   AL_Assert(size >= 0);
   AddSection(pMeta, start, size, uFlags);
 }
 
-static void GenerateConfigNalUnits(IRbspWriter* writer, AL_TNalUnit* nals, uint32_t* nalsFlags, int nalsCount, AL_TBuffer* pStream)
+static void GenerateConfigNalUnits(IRbspWriter* writer, AL_TNalUnit* nals, uint32_t* nalsFlags, int nalsCount, AL_TBuffer* pStream, AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned)
 {
   AL_TBitStreamLite bitstream;
   int bitstreamSize = AL_ENC_MAX_CONFIG_HEADER_SIZE;
@@ -109,7 +109,7 @@ static void GenerateConfigNalUnits(IRbspWriter* writer, AL_TNalUnit* nals, uint3
   AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
 
   for(int i = 0; i < nalsCount; i++)
-    GenerateNal(writer, &bitstream, bitstreamSize, &nals[i], pMetaData, nalsFlags[i]);
+    GenerateNal(writer, &bitstream, bitstreamSize, &nals[i], pMetaData, nalsFlags[i], eStartCodeBytesAligned);
 }
 
 static AL_TSeiPrefixAPSCtx createSeiPrefixAPSCtx(AL_TSps* sps, AL_THevcVps* vps)
@@ -266,7 +266,7 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, AL_TNalsData const* pN
     for(int i = 0; i < nalsCount; i++)
       nals[i].header = nuts.GetNalHeader(nals[i].nut, nals[i].nalRefIdc, nals[i].layerId, nals[i].tempId);
 
-    GenerateConfigNalUnits(writer, nals, nalsFlags, nalsCount, pStream);
+    GenerateConfigNalUnits(writer, nals, nalsFlags, nalsCount, pStream, pNalsData->eStartCodeBytesAligned);
   }
 
   AL_TStreamPart* pStreamParts = (AL_TStreamPart*)(AL_Buffer_GetData(pStream) + pPicStatus->uStreamPartOffset);
@@ -290,7 +290,7 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, AL_TNalsData const* pN
 
     int iBookmark = AL_BitStreamLite_GetBitsCount(&bs);
     AL_TNalHeader header = nuts.GetNalHeader(nuts.fdNut, 0, 0, pPicStatus->uTempId);
-    WriteFillerData(&bs, writer->GetCodec(), nuts.fdNut, &header, pPicStatus->iFiller, bDontFill);
+    WriteFillerData(writer, &bs, nuts.fdNut, &header, pPicStatus->iFiller, bDontFill, pNalsData->eStartCodeBytesAligned);
     int iWritten = (AL_BitStreamLite_GetBitsCount(&bs) - iBookmark) / 8;
 
     if(iWritten < pPicStatus->iFiller)
@@ -317,7 +317,7 @@ static AL_TSeiExternalCtx createExternalSeiCtx(uint8_t* pPayload, int iPayloadTy
 
 #include "lib_common/Utils.h" // For Min
 
-static int createExternalSei(AL_ECodec eCodec, AL_TNuts nuts, AL_TBuffer* pStream, uint32_t uOffset, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId)
+static int createExternalSei(AL_ECodec eCodec, AL_TNuts nuts, AL_TBuffer* pStream, uint32_t uOffset, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId, AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned)
 {
   (void)eCodec;
 
@@ -337,7 +337,7 @@ static int createExternalSei(AL_ECodec eCodec, AL_TNuts nuts, AL_TBuffer* pStrea
   if(eCodec == AL_CODEC_HEVC)
     pWriter = AL_GetHevcRbspWriter();
 
-  return WriteNal(pWriter, &bitstream, bitstreamSize, &nal);
+  return WriteNal(pWriter, &bitstream, bitstreamSize, &nal, eStartCodeBytesAligned);
 }
 
 uint32_t getUserSeiPrefixOffset(AL_TStreamMetaData* pStreamMeta)
@@ -351,7 +351,7 @@ uint32_t getUserSeiPrefixOffset(AL_TStreamMetaData* pStreamMeta)
   return lastSeiPrefixSection.uOffset + lastSeiPrefixSection.uLength;
 }
 
-int AL_WriteSeiSection(AL_ECodec eCodec, AL_TNuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId)
+int AL_WriteSeiSection(AL_ECodec eCodec, AL_TNuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId, AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned)
 {
   AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
   AL_Assert(pMetaData);
@@ -359,7 +359,7 @@ int AL_WriteSeiSection(AL_ECodec eCodec, AL_TNuts nuts, AL_TBuffer* pStream, boo
 
   uint32_t uOffset = isPrefix ? getUserSeiPrefixOffset(pMetaData) : AL_StreamMetaData_GetUnusedStreamPart(pMetaData);
 
-  int iTotalSize = createExternalSei(eCodec, nuts, pStream, uOffset, isPrefix, iPayloadType, pPayload, iPayloadSize, iTempId);
+  int iTotalSize = createExternalSei(eCodec, nuts, pStream, uOffset, isPrefix, iPayloadType, pPayload, iPayloadSize, iTempId, eStartCodeBytesAligned);
 
   if(iTotalSize < 0)
     return -1;

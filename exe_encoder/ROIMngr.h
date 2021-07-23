@@ -138,7 +138,10 @@ bool AL_RoiMngr_AddROI(AL_TRoiMngrCtx* pCtx, int iPosX, int iPosY, int iWidth, i
    \param[in] pCtx Pointer to the ROI Manager context
    \param[in] iNumQPPerLCU Number of QP values for a codec LCU
    \param[in] iNumBytesPerLCU Number of bytes storing the QPs for one LCU
-   \param[out] pBuf The buffer of QPs to fill
+   \param[out] pQPs The buffer of QPs to fill
+   \param[in] iLcuQpOffset Offset of the beginning of CU Qp per block of the given LCU
 *****************************************************************************/
-void AL_RoiMngr_FillBuff(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerLCU, uint8_t* pBuf);
+void AL_RoiMngr_FillBuff(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerLCU, uint8_t* pQPs, int iLcuQpOffset);
+
+/*@}*/
 

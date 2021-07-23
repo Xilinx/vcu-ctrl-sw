@@ -58,7 +58,8 @@ typedef enum e_SliceType
   AL_SLICE_B = 0,  /*!< B Slice (can contain I, P and B blocks) */
   AL_SLICE_CONCEAL = 6, /*!< Conceal Slice (slice was concealed) */
   AL_SLICE_SKIP = 7, /*!< Skip Slice */
-  AL_SLICE_REPEAT = 8, /*!< VP9 Repeat Slice (repeats the content of its reference) */
+  AL_SLICE_REPEAT = 8, /*!< AOM Repeat Slice (repeats the content of its reference) */
+  AL_SLICE_REPEAT_POST = 9, /*!< AOM Repeat Slice decided post-encoding */
   AL_SLICE_MAX_ENUM, /* sentinel */
 }AL_ESliceType;
 
@@ -105,15 +106,6 @@ typedef enum e_WPMode
 }AL_EWPMode;
 
 /*************************************************************************//*!
-   \brief Decoded buffer output mode
-*****************************************************************************/
-typedef enum AL_e_BufferOutputMode
-{
-  AL_OUTPUT_INTERNAL, /*!< Output reconstructed buffers stored as in the encoder */
-  AL_OUTPUT_MAX_ENUM, /* sentinel */
-}AL_EBufferOutputMode;
-
-/*************************************************************************//*!
    \brief Struct for offsets
 *****************************************************************************/
 typedef struct
@@ -133,6 +125,16 @@ typedef enum e_FillerCtrlMode
   AL_FILLER_ENC, /*!< 0xFF data filled by encoder it-self */
   AL_FILLER_APP, /*!< 0xFF data filled by the application layer */
 }AL_EFillerCtrlMode;
+
+/*************************************************************************//*!
+   \brief Start code bytes aligned mode
+*****************************************************************************/
+typedef enum e_StartCodeBytesAlignedMode
+{
+  AL_START_CODE_AUTO,
+  AL_START_CODE_3_BYTES,
+  AL_START_CODE_4_BYTES,
+}AL_EStartCodeBytesAlignedMode;
 
 /*@}*/
 

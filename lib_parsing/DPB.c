@@ -780,7 +780,7 @@ uint8_t AL_Dpb_GetNextFreeNode(AL_TDpb* pDpb)
 }
 
 /*****************************************************************************/
-void AL_Dpb_FillList(AL_TDpb* pDpb, uint8_t uL0L1, TBufferListRef const* pListRef, int32_t* pPocList, uint32_t* pLongTermList)
+void AL_Dpb_FillList(AL_TDpb* pDpb, uint8_t uL0L1, TBufferListRef const* pListRef, int32_t* pPocList, uint32_t* pLongTermList, uint32_t* pSubpicList)
 {
   Rtos_GetMutex(pDpb->Mutex);
 
@@ -796,6 +796,7 @@ void AL_Dpb_FillList(AL_TDpb* pDpb, uint8_t uL0L1, TBufferListRef const* pListRe
       if(pDpb->Nodes[uNodeID].eMarking_flag == LONG_TERM_REF)
         *pLongTermList |= (1 << uPicID); // long term flag
       *pLongTermList |= ((uint32_t)1 << (16 + uPicID)); // available POC
+      *pSubpicList |= (pDpb->Nodes[uNodeID].uSubpicFlag << uPicID);
     }
   }
 
@@ -1125,7 +1126,7 @@ uint8_t AL_Dpb_RemoveHead(AL_TDpb* pDpb)
 }
 
 /*****************************************************************************/
-void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, uint32_t uPocLsb, uint8_t uNode, uint8_t uFrmID, uint8_t uMvID, uint8_t pic_output_flag, AL_EMarkingRef eMarkingFlag, uint8_t uNonExisting, AL_ENut eNUT)
+void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, uint32_t uPocLsb, uint8_t uNode, uint8_t uFrmID, uint8_t uMvID, uint8_t pic_output_flag, AL_EMarkingRef eMarkingFlag, uint8_t uNonExisting, AL_ENut eNUT, uint8_t uSubpicFlag)
 {
   uint8_t uPicID = uEndOfList;
 
@@ -1165,6 +1166,7 @@ void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, uint32_t uPocLsb, uint8_t uNode
   pNode->bIsReset = false;
   pNode->non_existing = uNonExisting;
   pNode->eNUT = eNUT;
+  pNode->uSubpicFlag = uSubpicFlag;
 
   // Update frame status in display fifo list
   if(uFrmID != uEndOfList)

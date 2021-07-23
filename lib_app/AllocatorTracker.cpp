@@ -144,6 +144,18 @@ static AL_PADDR getPhysicalAddr(AL_TAllocator* handle, AL_HANDLE buf)
   return AL_Allocator_GetPhysicalAddr(self->realAllocator, buf);
 }
 
+static void syncForCpu(AL_TAllocator* handle, AL_VADDR pVirtualAddr, size_t zSize)
+{
+  auto self = (AllocatorTracker*)handle;
+  return AL_Allocator_SyncForCpu(self->realAllocator, pVirtualAddr, zSize);
+}
+
+static void syncForDevice(AL_TAllocator* handle, AL_VADDR pVirtualAddr, size_t zSize)
+{
+  auto self = (AllocatorTracker*)handle;
+  return AL_Allocator_SyncForDevice(self->realAllocator, pVirtualAddr, zSize);
+}
+
 const AL_AllocatorVtable trackerVtable =
 {
   destroy,
@@ -152,6 +164,8 @@ const AL_AllocatorVtable trackerVtable =
   getVirtualAddr,
   getPhysicalAddr,
   allocNamed,
+  syncForCpu,
+  syncForDevice,
 };
 
 AL_TAllocator* createAllocatorTracker(AL_TAllocator* pAllocator)

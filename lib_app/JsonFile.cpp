@@ -428,7 +428,7 @@ void CJsonWriter::WriteObject(std::ofstream& ofs, const TJsonValue& tValue, int 
 
   size_t i = 0;
 
-  for(auto const tSubValue : tValue.objectValue)
+  for(auto const& tSubValue : tValue.objectValue)
   {
     NextLineAlignment(ofs, iTab + 1);
 

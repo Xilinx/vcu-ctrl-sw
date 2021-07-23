@@ -35,14 +35,16 @@
 *
 ******************************************************************************/
 
+#include <cassert>
 #include <cstdlib>
 #include <cstdarg>
 #include <cstring>
+#include <climits>
 #include <iomanip>
 #include <iostream>
 #include <string>
-#include <cassert>
-#include <climits>
+#include <sstream>
+#include <fstream>
 
 extern "C"
 {
@@ -53,6 +55,8 @@ extern "C"
 
 #include "CodecUtils.h"
 #include "lib_app/utils.h"
+
+using namespace std;
 
 /******************************************************************************/
 void DisplayFrameStatus(int iFrameNum)
@@ -73,9 +77,9 @@ bool IsConversionNeeded(TFourCC const& FourCC, AL_TPicFormat const& picFmt)
 }
 
 /*****************************************************************************/
-unsigned int ReadNextFrame(std::ifstream& File)
+unsigned int ReadNextFrame(ifstream& File)
 {
-  std::string sLine;
+  string sLine;
 
   getline(File, sLine);
 
@@ -86,14 +90,13 @@ unsigned int ReadNextFrame(std::ifstream& File)
 }
 
 /*****************************************************************************/
-#include <sstream>
-unsigned int ReadNextFrameMV(std::ifstream& File, int& iX, int& iY)
+unsigned int ReadNextFrameMV(ifstream& File, int& iX, int& iY)
 {
-  std::string sLine, sVal;
+  string sLine, sVal;
   int iFrame = 0;
   iX = iY = 0;
   getline(File, sLine);
-  std::stringstream ss(sLine);
+  stringstream ss(sLine);
   ss >> sVal;
 
   do
@@ -124,12 +127,10 @@ unsigned int ReadNextFrameMV(std::ifstream& File, int& iX, int& iY)
 }
 
 /*****************************************************************************/
-void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection, const AL_TEncChanParam* pChannelParam)
+void WriteOneSection(ofstream& File, AL_TBuffer* pStream, AL_TStreamSection* pCurSection, const AL_TEncChanParam* pChannelParam)
 {
   (void)pChannelParam;
 
-  AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
-  AL_TStreamSection* pCurSection = &pStreamMeta->pSections[iSection];
   uint8_t* pData = AL_Buffer_GetData(pStream);
 
   if(pCurSection->uLength)
@@ -174,7 +175,7 @@ static void FillSectionFillerData(AL_TBuffer* pStream, int iSection, const AL_TE
 }
 
 /*****************************************************************************/
-int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream, const AL_TEncSettings* pSettings)
+int WriteStream(ofstream& File, AL_TBuffer* pStream, const AL_TEncSettings* pSettings)
 {
   AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
   auto& tChParam = pSettings->tChParam[0];
@@ -183,25 +184,27 @@ int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream, const AL_TEncSetti
 
   for(int curSection = 0; curSection < pStreamMeta->uNumSection; ++curSection)
   {
-    if(pStreamMeta->pSections[curSection].eFlags & AL_SECTION_END_FRAME_FLAG)
+    AL_TStreamSection* pCurSection = &pStreamMeta->pSections[curSection];
+
+    if(pCurSection->eFlags & AL_SECTION_END_FRAME_FLAG)
       ++iNumFrame;
 
-    if(pStreamMeta->pSections[curSection].eFlags & AL_SECTION_APP_FILLER_FLAG)
+    if(pCurSection->eFlags & AL_SECTION_APP_FILLER_FLAG)
       FillSectionFillerData(pStream, curSection, &tChParam);
 
-    WriteOneSection(HEVCFile, pStream, curSection, &tChParam);
+    WriteOneSection(File, pStream, pCurSection, &tChParam);
   }
 
   return iNumFrame;
 }
 
 /*****************************************************************************/
-void GetImageStreamSize(AL_TBuffer* pStream, std::deque<ImageSize>& imageSizes)
+void GetImageStreamSize(AL_TBuffer* pStream, deque<ImageSize>& imageSizes)
 {
   AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
 
   if(imageSizes.empty())
-    throw std::runtime_error("You need at least one empty image size structure to begin the first frame");
+    throw runtime_error("You need at least one empty image size structure to begin the first frame");
 
   for(int curSection = 0; curSection < pStreamMeta->uNumSection; ++curSection)
   {

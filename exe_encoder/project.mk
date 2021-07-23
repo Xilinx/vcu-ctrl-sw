@@ -30,8 +30,6 @@ ifneq ($(ENABLE_HIGH_DYNAMIC_RANGE),0)
 endif
 
 
--include $(THIS_EXE_ENCODER)/site.mk
-
 
 EXE_ENCODER_OBJ:=$(EXE_ENCODER_SRCS:%=$(BIN)/%.o)
 

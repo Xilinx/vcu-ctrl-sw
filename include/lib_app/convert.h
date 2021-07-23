@@ -37,8 +37,11 @@
 
 #pragma once
 
+#include <functional>
+
 extern "C" {
 #include "lib_common/BufferAPI.h"
+#include "lib_common/FourCC.h"
 }
 
 void YV12_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -117,6 +120,7 @@ void P212_To_I2CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void P012_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void P212_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I4CL_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I0CL_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I0CL_To_Y012(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void P012_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void P212_To_I422(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -125,9 +129,6 @@ void I4CL_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void P210_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void P210_To_I422(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void P210_To_XV20(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-
-void P410_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P410_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void Y010_To_XV15(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y010_To_XV10(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -238,3 +239,15 @@ void XV20_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
    compressed.
  */
 void CopyPixMapBuffer(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+
+/**************************************************************************//*!
+   \brief Convert data from a buffer to another.
+   \param[in] pSrc Source buffer to convert
+   \param[in] pDst Destination buffer with data converted from pSrc
+   \return 1 in case of error, 0 on success.
+******************************************************************************/
+int ConvertPixMapBuffer(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+
+typedef std::function<void (AL_TBuffer const*, AL_TBuffer*)> tConvFourCCFunc;
+
+tConvFourCCFunc GetConvFourCCFunc(TFourCC tInFourCC, TFourCC tOutFourCC);

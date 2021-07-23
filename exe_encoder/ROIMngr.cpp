@@ -195,10 +195,10 @@ static void UpdateTransitionVert(AL_TRoiMngrCtx* pCtx, uint8_t* pLcu1, uint8_t* 
 }
 
 /****************************************************************************/
-static uint32_t GetNodePosInBuf(AL_TRoiMngrCtx* pCtx, uint32_t uLcuX, uint32_t uLcuY, int iNumBytesPerLCU)
+static uint32_t GetNodePosInBuf(AL_TRoiMngrCtx* pCtx, uint32_t uLcuX, uint32_t uLcuY, int iNumBytesPerLCU, int iLcuQpOffset)
 {
   uint32_t uLcuNum = uLcuY * pCtx->iLcuPicWidth + uLcuX;
-  return uLcuNum * iNumBytesPerLCU;
+  return uLcuNum * iNumBytesPerLCU + iLcuQpOffset;
 }
 
 /****************************************************************************/
@@ -218,9 +218,9 @@ static inline void SetLCUQuality(uint8_t* pLCUQP, uint8_t uROIQP)
 }
 
 /****************************************************************************/
-static void ComputeROI(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerLCU, uint8_t* pBuf, AL_TRoiNode* pNode)
+static void ComputeROI(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerLCU, uint8_t* pQPs, int iLcuQpOffset, AL_TRoiNode* pNode)
 {
-  auto* pLCU = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY, iNumBytesPerLCU);
+  auto* pLCU = pQPs + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY, iNumBytesPerLCU, iLcuQpOffset);
 
   // Fill Roi
   for(int h = 0; h < pNode->iHeight; ++h)
@@ -239,11 +239,11 @@ static void ComputeROI(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerL
     // Update above transition
     if(pNode->iPosY)
     {
-      uint8_t* pLcuTop1 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY - 1, iNumBytesPerLCU);
+      uint8_t* pLcuTop1 = pQPs + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY - 1, iNumBytesPerLCU, iLcuQpOffset);
       uint8_t* pLcuTop2 = pLcuTop1;
 
       if(pNode->iPosY > 1)
-        pLcuTop2 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY - 2, iNumBytesPerLCU);
+        pLcuTop2 = pQPs + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY - 2, iNumBytesPerLCU, iLcuQpOffset);
 
       UpdateTransitionHorz(pCtx, pLcuTop1, pLcuTop2, iNumQPPerLCU, iNumBytesPerLCU, pCtx->iLcuPicWidth, pNode->iPosX, pNode->iWidth, pNode->iDeltaQP);
     }
@@ -251,11 +251,11 @@ static void ComputeROI(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerL
     // update below transition
     if(pNode->iPosY + pNode->iHeight + 1 < pCtx->iLcuPicHeight)
     {
-      uint8_t* pLcuBot1 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY + pNode->iHeight, iNumBytesPerLCU);
+      uint8_t* pLcuBot1 = pQPs + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY + pNode->iHeight, iNumBytesPerLCU, iLcuQpOffset);
       uint8_t* pLcuBot2 = pLcuBot1;
 
       if(pNode->iPosY + pNode->iHeight + 2 < pCtx->iLcuPicHeight)
-        pLcuBot2 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY + pNode->iHeight + 1, iNumBytesPerLCU);
+        pLcuBot2 = pQPs + GetNodePosInBuf(pCtx, pNode->iPosX, pNode->iPosY + pNode->iHeight + 1, iNumBytesPerLCU, iLcuQpOffset);
 
       UpdateTransitionHorz(pCtx, pLcuBot1, pLcuBot2, iNumQPPerLCU, iNumBytesPerLCU, pCtx->iLcuPicWidth, pNode->iPosX, pNode->iWidth, pNode->iDeltaQP);
     }
@@ -263,11 +263,11 @@ static void ComputeROI(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerL
     // update left transition
     if(pNode->iPosX)
     {
-      uint8_t* pLcuLeft1 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX - 1, pNode->iPosY, iNumBytesPerLCU);
+      uint8_t* pLcuLeft1 = pQPs + GetNodePosInBuf(pCtx, pNode->iPosX - 1, pNode->iPosY, iNumBytesPerLCU, iLcuQpOffset);
       uint8_t* pLcuLeft2 = pLcuLeft1;
 
       if(pNode->iPosX > 1)
-        pLcuLeft2 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX - 2, pNode->iPosY, iNumBytesPerLCU);
+        pLcuLeft2 = pQPs + GetNodePosInBuf(pCtx, pNode->iPosX - 2, pNode->iPosY, iNumBytesPerLCU, iLcuQpOffset);
 
       UpdateTransitionVert(pCtx, pLcuLeft1, pLcuLeft2, iNumQPPerLCU, iNumBytesPerLCU, pCtx->iLcuPicWidth, pNode->iHeight, pNode->iDeltaQP);
     }
@@ -275,11 +275,11 @@ static void ComputeROI(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerL
     // update right transition
     if(pNode->iPosX + pNode->iWidth + 1 < pCtx->iLcuPicWidth)
     {
-      uint8_t* pLcuRight1 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX + pNode->iWidth, pNode->iPosY, iNumBytesPerLCU);
+      uint8_t* pLcuRight1 = pQPs + GetNodePosInBuf(pCtx, pNode->iPosX + pNode->iWidth, pNode->iPosY, iNumBytesPerLCU, iLcuQpOffset);
       uint8_t* pLcuRight2 = pLcuRight1;
 
       if(pNode->iPosX + pNode->iWidth + 2 < pCtx->iLcuPicWidth)
-        pLcuRight2 = pBuf + GetNodePosInBuf(pCtx, pNode->iPosX + pNode->iWidth + 1, pNode->iPosY, iNumBytesPerLCU);
+        pLcuRight2 = pQPs + GetNodePosInBuf(pCtx, pNode->iPosX + pNode->iWidth + 1, pNode->iPosY, iNumBytesPerLCU, iLcuQpOffset);
 
       UpdateTransitionVert(pCtx, pLcuRight1, pLcuRight2, iNumQPPerLCU, iNumBytesPerLCU, pCtx->iLcuPicWidth, pNode->iHeight, pNode->iDeltaQP);
     }
@@ -368,17 +368,17 @@ bool AL_RoiMngr_AddROI(AL_TRoiMngrCtx* pCtx, int iPosX, int iPosY, int iWidth, i
 }
 
 /****************************************************************************/
-void AL_RoiMngr_FillBuff(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerLCU, uint8_t* pBuf)
+void AL_RoiMngr_FillBuff(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerLCU, uint8_t* pQPs, int iLcuQpOffset)
 {
-  assert(pBuf);
+  assert(pQPs);
 
   // Fill background
   for(int iLCU = 0; iLCU < pCtx->iNumLCUs; iLCU++)
   {
-    int iFirst = iLCU * iNumBytesPerLCU;
+    int iFirst = iLCU * iNumBytesPerLCU + iLcuQpOffset;
 
-    for(int iQP = 0; iQP < iNumQPPerLCU; ++iQP)
-      pBuf[iFirst + iQP] = GetNewDeltaQP(pCtx->eBkgQuality);
+    for(int iQP = 0; iQP < iNumQPPerLCU - iLcuQpOffset; ++iQP)
+      pQPs[iFirst + iQP] = GetNewDeltaQP(pCtx->eBkgQuality);
   }
 
   // Fill ROIs
@@ -386,7 +386,7 @@ void AL_RoiMngr_FillBuff(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPe
 
   while(pCur)
   {
-    ComputeROI(pCtx, iNumQPPerLCU, iNumBytesPerLCU, pBuf, pCur);
+    ComputeROI(pCtx, iNumQPPerLCU, iNumBytesPerLCU, pQPs, iLcuQpOffset, pCur);
     pCur = pCur->pNext;
   }
 }

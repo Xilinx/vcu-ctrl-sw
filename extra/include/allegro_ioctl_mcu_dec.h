@@ -64,10 +64,12 @@ struct al5_channel_status
   __u32 error_code;
 };
 
+#define OPAQUE_SIZE 128
+
 struct al5_params
 {
 	__u32 size;
-	__u32 opaque[128];
+	__u32 opaque[OPAQUE_SIZE];
 };
 
 struct al5_channel_config

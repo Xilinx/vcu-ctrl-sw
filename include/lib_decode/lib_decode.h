@@ -36,7 +36,7 @@
 ******************************************************************************/
 
 /**************************************************************************//*!
-   \defgroup Decoder
+   \defgroup Decoder Decoder
 
    The diagram below shows the usual usage of the encoder control software API
    \htmlonly
@@ -81,6 +81,16 @@ typedef struct
   AL_EDecHandleState eState;
   AL_TBuffer* pHandle;
 }AL_TDecMetaHandle;
+
+/*************************************************************************//*!
+   \brief Flags characterizing stream buffers pushed for decoding
+*****************************************************************************/
+typedef enum
+{
+  AL_STREAM_BUF_FLAG_UNKNOWN = 0x0, /*!< Stream buffer content is unknown */
+  AL_STREAM_BUF_FLAG_ENDOFSLICE = 0x2, /*!< The stream buffer ends a slice */
+  AL_STREAM_BUF_FLAG_ENDOFFRAME = 0x4 /*!< The stream buffer ends a frame */
+}AL_EStreamBufFlags;
 
 /*************************************************************************//*!
    \brief Handle to the decoder object.
@@ -129,9 +139,10 @@ void AL_Decoder_SetParam(AL_HDecoder hDec, const char* sPrefix, int iFrmID, int 
    \param[in] hDec Handle to a decoder object.
    \param[in] pBuf Pointer to the encoded bitstream buffer
    \param[in] uSize Size in bytes of actual data in pBuf
+   \param[in] uFlags Flags characterizing the stream buffer
    \return return the current error status
 *****************************************************************************/
-bool AL_Decoder_PushBuffer(AL_HDecoder hDec, AL_TBuffer* pBuf, size_t uSize);
+bool AL_Decoder_PushStreamBuffer(AL_HDecoder hDec, AL_TBuffer* pBuf, size_t uSize, uint8_t uFlags);
 
 /*************************************************************************//*!
    \brief Flushes the decoding request stack when the stream parsing is finished.
@@ -144,8 +155,9 @@ void AL_Decoder_Flush(AL_HDecoder hDec);
    It is used to give the decoder buffers where it will output the decoded pictures
    \param[in] hDec   Handle to a decoder object.
    \param[in] pDisplay Pointer to the decoded picture buffer
+   \return return true if buffer has been successfully added, false otherwise
 *****************************************************************************/
-void AL_Decoder_PutDisplayPicture(AL_HDecoder hDec, AL_TBuffer* pDisplay);
+bool AL_Decoder_PutDisplayPicture(AL_HDecoder hDec, AL_TBuffer* pDisplay);
 
 /*************************************************************************//*!
    \brief Retrieves the codec of the specified decoder instance
@@ -207,3 +219,7 @@ uint32_t AL_Decoder_GetMinPitch(uint32_t uWidth, uint8_t uBitDepth, AL_EFbStorag
 *****************************************************************************/
 uint32_t AL_Decoder_GetMinStrideHeight(uint32_t uHeight);
 
+/*@}*/
+
+AL_DEPRECATED("Use AL_Decoder_PushStreamBuffer.")
+bool AL_Decoder_PushBuffer(AL_HDecoder hDec, AL_TBuffer* pBuf, size_t uSize);

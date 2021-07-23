@@ -64,6 +64,9 @@ int AVC_GetMinOutputBuffersNeeded(int iDpbMaxBuf, int iStack)
 /******************************************************************************/
 int AL_AVC_GetMinOutputBuffersNeeded(AL_TStreamSettings const* pStreamSettings, int iStack)
 {
+  if(AL_IS_INTRA_PROFILE(pStreamSettings->eProfile))
+    return iStack;
+
   int const iDpbMaxBuf = AL_AVC_GetMaxDPBSize(pStreamSettings->iLevel, pStreamSettings->tDim.iWidth, pStreamSettings->tDim.iHeight);
   return AVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, iStack);
 }
@@ -79,6 +82,12 @@ int HEVC_GetMinOutputBuffersNeeded(int iDpbMaxBuf, int iStack)
 /******************************************************************************/
 int AL_HEVC_GetMinOutputBuffersNeeded(AL_TStreamSettings const* pStreamSettings, int iStack)
 {
+  if(AL_IS_STILL_PROFILE(pStreamSettings->eProfile))
+    return 1;
+
+  if(AL_IS_INTRA_PROFILE(pStreamSettings->eProfile))
+    return Max(2, iStack);
+
   int const iDpbMaxBuf = AL_HEVC_GetMaxDPBSize(pStreamSettings->iLevel, pStreamSettings->tDim.iWidth, pStreamSettings->tDim.iHeight);
   return HEVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, iStack);
 }

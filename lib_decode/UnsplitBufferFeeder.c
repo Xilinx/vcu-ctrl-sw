@@ -50,6 +50,8 @@ typedef struct al_t_UnsplitBufferFeeder
   AL_TDecoderFeeder* decoderFeeder;
 
   AL_TBuffer* eosBuffer;
+  bool bForceAccessUnitDestroy;
+  bool eos;
 }AL_TUnsplitBufferFeeder;
 
 static void notifyDecoder(AL_TUnsplitBufferFeeder* this)
@@ -72,6 +74,12 @@ static bool enqueueBuffer(AL_TUnsplitBufferFeeder* this, AL_TBuffer* pBuf)
 static bool pushBuffer(AL_TFeeder* hFeeder, AL_TBuffer* pBuf, size_t uSize, bool bLastBuffer)
 {
   AL_TUnsplitBufferFeeder* this = (AL_TUnsplitBufferFeeder*)hFeeder;
+
+  if(bLastBuffer && this->eos && pBuf == this->eosBuffer)
+    return false;
+
+  this->eos = bLastBuffer;
+
   AL_TMetaData* pMetaCirc = (AL_TMetaData*)AL_CircMetaData_Create(0, uSize, bLastBuffer);
 
   if(!pMetaCirc)
@@ -102,10 +110,7 @@ static void flush(AL_TFeeder* hFeeder)
 {
   AL_TUnsplitBufferFeeder* this = (AL_TUnsplitBufferFeeder*)hFeeder;
 
-  if(this->eosBuffer)
-    pushBuffer(hFeeder, this->eosBuffer, AL_Buffer_GetSize(this->eosBuffer), true);
-
-  AL_DecoderFeeder_Flush(this->decoderFeeder);
+  pushBuffer(hFeeder, this->eosBuffer, AL_Buffer_GetSize(this->eosBuffer), true);
 }
 
 static void reset(AL_TFeeder* hFeeder)
@@ -118,7 +123,7 @@ static void destroy(AL_TFeeder* hFeeder)
 {
   AL_TUnsplitBufferFeeder* this = (AL_TUnsplitBufferFeeder*)hFeeder;
 
-  if(this->eosBuffer)
+  if(this->bForceAccessUnitDestroy)
     pushBuffer(hFeeder, this->eosBuffer, AL_Buffer_GetSize(this->eosBuffer), false);
   AL_DecoderFeeder_Destroy(this->decoderFeeder);
   AL_Patchworker_Deinit(&this->patchworker);
@@ -142,15 +147,19 @@ static const AL_TFeederVtable UnsplitBufferFeederVtable =
   &freeBuf,
 };
 
-AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TAllocator* pAllocator, int iBufferStreamSize, AL_TBuffer* eosBuffer, AL_CB_Error* errorCallback)
+AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TAllocator* pAllocator, int iBufferStreamSize, AL_TBuffer* eosBuffer, bool bForceAccessUnitDestroy, AL_CB_Error* errorCallback)
 {
   AL_TUnsplitBufferFeeder* this = Rtos_Malloc(sizeof(*this));
 
   if(!this)
     return NULL;
 
+  AL_Assert(eosBuffer);
+
   this->vtable = &UnsplitBufferFeederVtable;
   this->eosBuffer = eosBuffer;
+  this->bForceAccessUnitDestroy = bForceAccessUnitDestroy;
+  this->eos = false;
 
   if(iMaxBufNum <= 0 || !AL_Fifo_Init(&this->fifo, iMaxBufNum))
     goto fail_queue_allocation;

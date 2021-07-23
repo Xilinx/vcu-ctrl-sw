@@ -730,3 +730,51 @@ int32_t Rtos_AtomicDecrement(int32_t* iVal)
 
 #endif
 
+#if __MICROBLAZE__
+#include "McuSys.h"
+
+void Rtos_InitCacheCB(void* ctx, Rtos_MemoryFnCB pfnInvalCB, Rtos_MemoryFnCB pfnFlushCB)
+{
+  (void)ctx;
+  (void)pfnInvalCB;
+  (void)pfnFlushCB;
+}
+
+void Rtos_InvalidateCacheMemory(void* pMem, size_t zSize)
+{
+  Mcu_ClearDcache((uint32_t)((uintptr_t)pMem), zSize);
+}
+
+void Rtos_FlushCacheMemory(void* pMem, size_t zSize)
+{
+  (void)pMem;
+  (void)zSize;
+  /* Not needed as microblaze use write through access */
+}
+
+#else
+
+static void* pCacheCBCtx;
+static Rtos_MemoryFnCB pfnInvalMemoryCB = NULL;
+static Rtos_MemoryFnCB pfnFlushMemoryCB = NULL;
+
+void Rtos_InitCacheCB(void* ctx, Rtos_MemoryFnCB pfnInvalCB, Rtos_MemoryFnCB pfnFlushCB)
+{
+  pCacheCBCtx = ctx;
+  pfnInvalMemoryCB = pfnInvalCB;
+  pfnFlushMemoryCB = pfnFlushCB;
+}
+
+void Rtos_InvalidateCacheMemory(void* pMem, size_t zSize)
+{
+  if(pfnInvalMemoryCB)
+    pfnInvalMemoryCB(pCacheCBCtx, pMem, zSize);
+}
+
+void Rtos_FlushCacheMemory(void* pMem, size_t zSize)
+{
+  if(pfnFlushMemoryCB)
+    pfnFlushMemoryCB(pCacheCBCtx, pMem, zSize);
+}
+
+#endif

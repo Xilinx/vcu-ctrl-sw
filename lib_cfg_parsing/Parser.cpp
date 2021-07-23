@@ -88,7 +88,7 @@ std::string parseString(std::deque<Token>& tokens)
   return acc.str();
 }
 
-int parseEnum(std::deque<Token>& tokens, std::map<std::string, int> const& availableEnums)
+int parseEnum(std::deque<Token>& tokens, std::map<std::string, EnumDescription<int>> const& availableEnums)
 {
   int value {};
   bool lastIsOr = false;
@@ -101,9 +101,9 @@ int parseEnum(std::deque<Token>& tokens, std::map<std::string, int> const& avail
       if(token.type == TokenType::Identifier)
       {
         if(lastIsOr)
-          value = (int)((uint32_t)value | (uint32_t)availableEnums.at(token.text));
+          value = (int)((uint32_t)value | (uint32_t)availableEnums.at(token.text).name);
         else if(!lastIsIdent)
-          value = availableEnums.at(token.text);
+          value = availableEnums.at(token.text).name;
         else
           throw std::out_of_range("");
         lastIsOr = false;
@@ -128,7 +128,7 @@ int parseEnum(std::deque<Token>& tokens, std::map<std::string, int> const& avail
   return value;
 }
 
-int parseBoolEnum(std::deque<Token>& tokens, std::map<std::string, int> boolEnums)
+int parseBoolEnum(std::deque<Token>& tokens, std::map<std::string, EnumDescription<int>> boolEnums)
 {
   /* support values 0 or 1 for boolean value */
   Token& token = tokens[0];
@@ -139,14 +139,14 @@ int parseBoolEnum(std::deque<Token>& tokens, std::map<std::string, int> boolEnum
   return parseEnum(tokens, boolEnums);
 }
 
-std::map<std::string, int> createBoolEnums()
+std::map<std::string, EnumDescription<int>> createBoolEnums(std::vector<Codec> codecs)
 {
   /* we need something that can take a bool */
-  std::map<std::string, int> boolEnums;
-  boolEnums["TRUE"] = true;
-  boolEnums["FALSE"] = false;
-  boolEnums["ENABLE"] = true;
-  boolEnums["DISABLE"] = false;
+  std::map<std::string, EnumDescription<int>> boolEnums;
+  boolEnums["TRUE"] = { true, "True", codecs };
+  boolEnums["FALSE"] = { false, "False", codecs };
+  boolEnums["ENABLE"] = { true, "Enable", codecs };
+  boolEnums["DISABLE"] = { false, "Disable", codecs };
 
   return boolEnums;
 }

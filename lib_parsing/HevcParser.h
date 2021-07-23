@@ -36,19 +36,17 @@
 ******************************************************************************/
 
 #pragma once
+#include "Aup.h"
+#include "common_syntax.h"
+#include "Concealment.h"
 
 #include "lib_common/PPS.h"
 #include "lib_common/SEI.h"
-#include "lib_common_dec/RbspParser.h"
-#include "Concealment.h"
-#include "common_syntax.h"
-#include "Aup.h"
-
-#include "lib_common_dec/DecCallbacks.h" // for AL_CB_ParsedSEI
 #include "lib_common/BufferSeiMeta.h"
+#include "lib_common_dec/RbspParser.h"
+#include "lib_common_dec/DecCallbacks.h" // for AL_CB_ParsedSEI
 
 void AL_HEVC_InitAUP(AL_THevcAup* pAUP);
-
 void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId);
 AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_TRbspParser* pRP, AL_THevcSps* pSPS);
 void AL_HEVC_ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP);

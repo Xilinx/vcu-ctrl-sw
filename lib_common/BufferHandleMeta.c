@@ -154,6 +154,13 @@ bool AL_HandleMetaData_AddHandle(AL_THandleMetaData* pMeta, AL_HANDLE pHandle)
   return true;
 }
 
+void AL_HandleMetaData_ResetHandles(AL_THandleMetaData* pMeta)
+{
+  Rtos_GetMutex(pMeta->pInternal->mutex);
+  pMeta->pInternal->numHandles = 0;
+  Rtos_ReleaseMutex(pMeta->pInternal->mutex);
+}
+
 AL_HANDLE AL_HandleMetaData_GetHandle(AL_THandleMetaData* pMeta, int iNumHandle)
 {
   return getHandlePtr(pMeta, iNumHandle);

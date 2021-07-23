@@ -146,6 +146,7 @@ typedef struct t_DpbNode
   uint32_t uPicLatency;
   uint8_t non_existing;
   AL_ENut eNUT;
+  uint8_t uSubpicFlag; /*!< Frame with subpicture */
 }AL_TDpbNode;
 
 /*************************************************************************//*!
@@ -362,8 +363,9 @@ uint8_t AL_Dpb_RemoveHead(AL_TDpb* pDpb);
    \param[in]     eMarkingFlag    Added reference status
    \param[in]     uNonExisting    Added non existing status
    \param[in]     eNUT            Added Nal Unit Type
+   \param[in]     uSubpicFlag     Added subpicture flag
 *****************************************************************************/
-void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, uint32_t uPocLsb, uint8_t uNode, uint8_t uFrmID, uint8_t uMvID, uint8_t pic_output_flag, AL_EMarkingRef eMarkingFlag, uint8_t uNonExisting, AL_ENut eNUT);
+void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, uint32_t uPocLsb, uint8_t uNode, uint8_t uFrmID, uint8_t uMvID, uint8_t pic_output_flag, AL_EMarkingRef eMarkingFlag, uint8_t uNonExisting, AL_ENut eNUT, uint8_t uSubpicFlag);
 
 /*************************************************************************//*!
    \brief Update DPB state after a frame decoding
@@ -455,9 +457,9 @@ uint8_t AL_Dpb_ConvertPicIDToNodeID(AL_TDpb const* pDpb, uint8_t uPicID);
    \param[in]  pListRef      Reference list
    \param[out] pPocList      Poc list output buffer
    \param[out] pLongTermList Reference picture marking status output buffer
-   \return The node index with the given poc_lsb
+   \param[out] pSubpicList   Reference picture subpics flags output buffer
 *****************************************************************************/
-void AL_Dpb_FillList(AL_TDpb* pDpb, uint8_t uL0L1, TBufferListRef const* pListRef, int* pPocList, uint32_t* pLongTermList);
+void AL_Dpb_FillList(AL_TDpb* pDpb, uint8_t uL0L1, TBufferListRef const* pListRef, int* pPocList, uint32_t* pLongTermList, uint32_t* pSubpicList);
 
 /*************************************************************************//*!
    \brief Searches the picture with the given poc_lsb in the dpb with the correspondig marking flag

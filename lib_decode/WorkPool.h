@@ -41,11 +41,20 @@
 
 typedef struct
 {
-  AL_TBuffer** bufs;
+  AL_TBuffer* buf;
+  int prev;
+  int next;
+}WorkPoolElem;
+
+typedef struct
+{
+  WorkPoolElem* elems;
   AL_MUTEX lock;
   AL_EVENT spaceAvailable;
-  int head;
-  int size;
+  int freeHead;
+  int freeQueue;
+  int filledHead;
+  int filledQueue;
   int capacity;
 }WorkPool;
 
@@ -53,3 +62,6 @@ bool AL_WorkPool_Init(WorkPool* pool, int iMaxBufNum);
 void AL_WorkPool_Deinit(WorkPool* pool);
 void AL_WorkPool_Remove(WorkPool* pool, AL_TBuffer* pBuf);
 void AL_WorkPool_PushBack(WorkPool* pool, AL_TBuffer* pBuf);
+bool AL_WorkPool_IsEmpty(WorkPool* pool); /* Not thread safe */
+bool AL_WorkPool_IsFull(WorkPool* pool);  /* Not thread safe */
+int AL_WorkPool_GetSize(WorkPool* pool);  /* Not thread safe */

@@ -96,7 +96,7 @@ bool IsAllStreamSettingsSet(AL_TStreamSettings const* pStreamSettings)
          IsStreamChromaSet(pStreamSettings->eChroma) &&
          IsStreamBitDepthSet(pStreamSettings->iBitDepth) &&
          IsStreamLevelSet(pStreamSettings->iLevel) &&
-         IsStreamProfileSet(pStreamSettings->iProfileIdc) &&
+         IsStreamProfileSet(pStreamSettings->eProfile) &&
          IsStreamSequenceModeSet(pStreamSettings->eSequenceMode);
 }
 
@@ -107,7 +107,7 @@ bool IsAtLeastOneStreamSettingsSet(AL_TStreamSettings const* pStreamSettings)
          IsStreamChromaSet(pStreamSettings->eChroma) ||
          IsStreamBitDepthSet(pStreamSettings->iBitDepth) ||
          IsStreamLevelSet(pStreamSettings->iLevel) ||
-         IsStreamProfileSet(pStreamSettings->iProfileIdc) ||
+         IsStreamProfileSet(pStreamSettings->eProfile) ||
          IsStreamSequenceModeSet(pStreamSettings->eSequenceMode);
 }
 
@@ -128,14 +128,13 @@ void AL_DecSettings_SetDefaults(AL_TDecSettings* pSettings)
   pSettings->tStream.eChroma = AL_CHROMA_MAX_ENUM;
   pSettings->tStream.eSequenceMode = AL_SM_MAX_ENUM;
   pSettings->eCodec = AL_CODEC_HEVC;
-  pSettings->eBufferOutputMode = AL_OUTPUT_INTERNAL;
   pSettings->bUseIFramesAsSyncPoint = false;
   pSettings->eInputMode = AL_DEC_UNSPLIT_INPUT;
 
   pSettings->tStream.tDim.iWidth = STREAM_SETTING_UNKNOWN;
   pSettings->tStream.tDim.iHeight = STREAM_SETTING_UNKNOWN;
   pSettings->tStream.iBitDepth = STREAM_SETTING_UNKNOWN;
-  pSettings->tStream.iProfileIdc = STREAM_SETTING_UNKNOWN;
+  pSettings->tStream.eProfile = STREAM_SETTING_UNKNOWN;
   pSettings->tStream.iLevel = STREAM_SETTING_UNKNOWN;
 }
 
@@ -158,16 +157,18 @@ int AL_DecSettings_CheckValidity(AL_TDecSettings* pSettings, FILE* pOut)
     MSG("Invalid DDR width.");
   }
 
+  bool bAllStreamSettingsSet = IsAllStreamSettingsSet(&pSettings->tStream);
+
   if(IsAtLeastOneStreamSettingsSet(&pSettings->tStream))
   {
-    if(!IsAllStreamSettingsSet(&pSettings->tStream))
+    if(!bAllStreamSettingsSet)
     {
       ++err;
       MSG("Invalid prealloc settings. Each parameter must be specified.");
     }
     else
     {
-      if(pSettings->tStream.iBitDepth > HW_IP_BIT_DEPTH)
+      if(pSettings->tStream.iBitDepth > AL_HWConfig_Dec_GetSupportedBitDepth())
       {
         ++err;
         MSG("Invalid prealloc settings. Specified bit-depth is incompatible with HW.");
@@ -207,13 +208,24 @@ int AL_DecSettings_CheckCoherency(AL_TDecSettings* pSettings, FILE* pOut)
     ++numIncoherency;
   }
 
+  if(pSettings->iStreamBufSize > 0)
+  {
+    int iAlignedStreamBufferSize = GetAlignedStreamBufferSize(pSettings->iStreamBufSize);
+
+    if(iAlignedStreamBufferSize != pSettings->iStreamBufSize)
+    {
+      MSG("!! Aligning stream buffer size to HW constraints !!");
+      pSettings->iStreamBufSize = iAlignedStreamBufferSize;
+    }
+  }
+
   if(IsAllStreamSettingsSet(&pSettings->tStream))
   {
     if(pSettings->eCodec == AL_CODEC_AVC)
     {
-      static const int AVC_ROUND_DIM = 16;
+      static int const AVC_ROUND_DIM = 16;
 
-      if((pSettings->tStream.tDim.iWidth & (AVC_ROUND_DIM - 1)) || (pSettings->tStream.tDim.iHeight & (AVC_ROUND_DIM - 1)))
+      if(((pSettings->tStream.tDim.iWidth % AVC_ROUND_DIM) != 0) || ((pSettings->tStream.tDim.iHeight % AVC_ROUND_DIM) != 0))
       {
         MSG("!! AVC preallocation dimensions must be multiple of 16. Adjusting parameter !!");
         pSettings->tStream.tDim.iWidth = RoundUp(pSettings->tStream.tDim.iWidth, AVC_ROUND_DIM);
@@ -224,4 +236,13 @@ int AL_DecSettings_CheckCoherency(AL_TDecSettings* pSettings, FILE* pOut)
   }
 
   return numIncoherency;
+}
+
+int GetAlignedStreamBufferSize(int iStreamBufferSize)
+{
+  /* Buffer size must be aligned with hardware requests. For VP9/AV1, alignment to 32 bytes is required. For other
+     codecs, 2048 or 4096 bytes alignment is required for dec1 units (for old or new decoder respectively).
+  */
+  static int const BITSTREAM_REQUEST_SIZE = 4096;
+  return RoundUp(iStreamBufferSize, BITSTREAM_REQUEST_SIZE);
 }

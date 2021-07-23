@@ -84,11 +84,9 @@ protected:
 };
 
 /*****************************************************************************/
-void WriteOneSection(std::ofstream& File, AL_TBuffer* pStream, int iSection, const AL_TEncChanParam* pChannelParam);
+int WriteStream(std::ofstream& File, AL_TBuffer* pStream, const AL_TEncSettings* pSettings);
 
 /*****************************************************************************/
-int WriteStream(std::ofstream& HEVCFile, AL_TBuffer* pStream, const AL_TEncSettings* pSettings);
-
 struct ImageSize
 {
   int size; // in bytes

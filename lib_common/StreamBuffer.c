@@ -41,6 +41,7 @@
 #include "lib_common/AvcLevelsLimit.h"
 #include "lib_common/HevcLevelsLimit.h"
 
+static const uint8_t STREAM_ALLOC_LOG2_MINCUSIZE = 4;
 static const uint8_t STREAM_ALLOC_LOG2_MAXCUSIZE = 6;
 
 /****************************************************************************/
@@ -70,8 +71,12 @@ int GetPCMSize(uint32_t uNumLCU, uint8_t uLog2MaxCuSize, AL_EChromaMode eChromaM
 /****************************************************************************/
 int GetPcmVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth)
 {
+  /* We round the dimensions according to the maximum LCU size, but then
+  compute stream size according the the minimum LCU size. Indeed, smaller LCU
+  can give bigger PCM sizes due to rounding */
   uint32_t uNumLCU = GetBlkNumber(tDim, STREAM_ALLOC_LOG2_MAXCUSIZE);
-  return GetPCMSize(uNumLCU, STREAM_ALLOC_LOG2_MAXCUSIZE, eMode, iBitDepth, false);
+  uNumLCU <<= 2 * (STREAM_ALLOC_LOG2_MAXCUSIZE - STREAM_ALLOC_LOG2_MINCUSIZE);
+  return GetPCMSize(uNumLCU, STREAM_ALLOC_LOG2_MINCUSIZE, eMode, iBitDepth, false);
 }
 
 /****************************************************************************/
@@ -86,16 +91,18 @@ int Hevc_GetMaxVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDept
 }
 
 /****************************************************************************/
-int AL_GetMaxNalSize(AL_ECodec eCodec, AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth, int iLevel, int iProfileIdc)
+int AL_GetMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth, AL_EProfile eProfile, int iLevel)
 {
-  (void)iLevel, (void)iProfileIdc;
+  (void)iLevel;
+
+  AL_ECodec eCodec = AL_GET_CODEC(eProfile);
 
   int iMaxPCM = (eCodec == AL_CODEC_HEVC) ? Hevc_GetMaxVclNalSize(tDim, eMode, iBitDepth) : GetPcmVclNalSize(tDim, eMode, iBitDepth);
 
   int iNumSlices = 1;
 
   if(eCodec == AL_CODEC_AVC)
-    iNumSlices = AL_AVC_GetMaxNumberOfSlices(iProfileIdc, iLevel, 1, 60, INT32_MAX);
+    iNumSlices = AL_AVC_GetMaxNumberOfSlices(eProfile, iLevel, 1, 60, INT32_MAX);
 
   if(eCodec == AL_CODEC_HEVC)
     iNumSlices = AL_HEVC_GetMaxNumberOfSlices(iLevel);

@@ -42,10 +42,12 @@
 
 /*************************************************************************//*!
    \brief Parsing callback definition.
-   It is called every time an input buffer as been parsed by the hardware
-   If eInputMode is AL_DEC_UNSPLIT_INPUT, pParsedFrame should not have AL_THandleMetaData
-   The iParsingID corresponds to the id in the AL_HandleMetaData associated with
-   the buffer.
+   It is called every time an input buffer as been parsed by the hardware.
+   Callback parameters are:
+   - pParsedFrame: the frame parsed. If eInputMode is AL_DEC_UNSPLIT_INPUT,
+                   pParsedFrame should not have AL_THandleMetaData
+   - pUserParam: user context provided in the callback structure
+   - iParsingID: the id in the AL_HandleMetaData associated with the buffer
 *****************************************************************************/
 typedef struct
 {
@@ -55,8 +57,9 @@ typedef struct
 
 /*************************************************************************//*!
    \brief Decoded callback definition.
-   It is called every time a frame is decoded
-   A null frame indicates an error occured
+   It is called every time a frame is decoded. Callback parameters are:
+   - pDecodedFrame: the decoded frame. A null frame indicates an error occured.
+   - pUserParam: user context provided in the callback structure
 *****************************************************************************/
 typedef struct
 {
@@ -66,8 +69,13 @@ typedef struct
 
 /*************************************************************************//*!
    \brief Display callback definition.
-   It is called every time a frame can be displayed
-   a null frame indicates the end of the stream
+   It is called every time a frame can be displayed. Callback parameters are:
+   - pDisplayedFrame: the frame to display
+   - pInfo: Info on the decoded frame. If pInfo is null, it means that the
+            decoder is releasing the pDisplayed frame, and the frame must not
+            be displayed. If both pDisplayedFrame and pInfo are null, it means
+            that we reached the end of stream.
+   - pUserParam: user context provided in the callback structure
 *****************************************************************************/
 typedef struct
 {
@@ -78,9 +86,16 @@ typedef struct
 /*************************************************************************//*!
    \brief Resolution change callback definition.
    It is called for each frame resolution change (including the first frame
-   resolution detection)
-   Callback must return an error code that can be different from AL_SUCCESS
-   in case of memory allocation error
+   resolution detection) and provides all information required to allocate
+   frame buffers. Callback must return an error code that can be different
+   from AL_SUCCESS in case of memory allocation error. Callback parameters are:
+   - BufferNumber: number of frame buffers required to decode the stream. User
+                   must ensure that at least as many buffers are pushed in
+                   the decoder.
+   - BufferSize: minimum size required for one frame buffer
+   - pSettings: Info on the decoded stream
+   - pCropInfo: Area that will have to be cropped from the decoded frames
+   - pUserParam: user context provided in the callback structure
 *****************************************************************************/
 typedef struct
 {
@@ -90,9 +105,14 @@ typedef struct
 
 /*************************************************************************//*!
    \brief Parsed SEI callback definition.
-   It is called when a SEI is parsed
-   Antiemulation has already been removed by the decoder from the payload.
-   See Annex D.3 of ITU-T for the sei_payload syntax
+   It is called when a SEI is parsed. See Annex D.3 of ITU-T for the
+   sei_payload syntax. Callback parameters are:
+   - bIsPrefix: true if prefix SEI, false otherwise
+   - iPayloadType: type of the payload
+   - pPayload: payload data, for which antiemulation has already been removed
+               by the decoder
+   - iPayloadSize: size of the payload data
+   - pUserParam: user context provided in the callback structure
 *****************************************************************************/
 typedef struct
 {

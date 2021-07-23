@@ -483,6 +483,8 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
     addresses.pEP2 = AL_Buffer_GetPhysicalAddress(pQpTable);
     addresses.pEP2_v = (AL_PTR64)(uintptr_t)AL_Buffer_GetData(pQpTable);
     pEI->eEncOptions |= AL_OPT_USE_QP_TABLE;
+
+    Rtos_FlushCacheMemory(AL_Buffer_GetData(pQpTable), AL_Buffer_GetSize(pQpTable));
   }
   else
   {
@@ -494,6 +496,8 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
   AL_TPicFormat tPicFormat;
   bool bSuccess = AL_GetPicFormat(AL_PixMapBuffer_GetFourCC(pFrame), &tPicFormat);
   AL_Assert(bSuccess);
+
+  Rtos_FlushCacheMemory(AL_Buffer_GetData(pFrame), AL_Buffer_GetSize(pFrame));
 
   addresses.tSrcAddrs.pY = AL_PixMapBuffer_GetPlanePhysicalAddress(pFrame, AL_PLANE_Y);
   addresses.tSrcAddrs.pC1 = 0;
@@ -595,20 +599,21 @@ void AL_Common_Encoder_SetWatchdogCB(AL_TEncCtx* pCtx, const AL_TEncSettings* pS
 #endif
 
 /***************************************************************************/
-static int8_t GetInitialQP(uint32_t iBitPerPixel, int iTableIdx)
+uint8_t AL_Common_Encoder_GetInitialQP(uint32_t iBitPerPixel, AL_EProfile eProfile)
 {
-  int8_t iInitQP = AL_BitPerPixelQP[iTableIdx][MAX_IDX_BIT_PER_PEL][1];
+  int iTableIdx = AL_IS_AVC(eProfile) ? 0 : 1;
+  uint8_t InitQP = AL_BitPerPixelQP[iTableIdx][MAX_IDX_BIT_PER_PEL][1];
 
   for(int i = 0; i < MAX_IDX_BIT_PER_PEL; i++)
   {
     if(iBitPerPixel <= (uint32_t)AL_BitPerPixelQP[iTableIdx][i][0])
     {
-      iInitQP = AL_BitPerPixelQP[iTableIdx][i][1];
+      InitQP = AL_BitPerPixelQP[iTableIdx][i][1];
       break;
     }
   }
 
-  return iInitQP;
+  return InitQP;
 }
 
 bool AL_Common_Encoder_IsInitialQpProvided(AL_TEncChanParam* pChParam)
@@ -625,7 +630,7 @@ static void SetGoldenRefFrequency(AL_TEncChanParam* pChParam)
 {
   pChParam->tGopParam.uFreqGoldenRef = 0;
 
-  if((pChParam->eLdaCtrlMode != AL_DYNAMIC_LDA) && (!pChParam->tRCParam.bUseGoldenRef))
+  if((pChParam->eLdaCtrlMode != AL_DYNAMIC_LDA) || (!pChParam->tRCParam.bUseGoldenRef))
     return;
 
   if(pChParam->tGopParam.eMode & AL_GOP_FLAG_DEFAULT)
@@ -705,13 +710,13 @@ static void DeinitBuffers(AL_TLayerCtx* pCtx)
 }
 
 /****************************************************************************/
-void AL_Common_Encoder_ComputeRCParam(int iCbOffset, int iCrOffset, int iTableIdx, int iIntraOnlyOff, AL_TEncChanParam* pChParam)
+void AL_Common_Encoder_ComputeRCParam(int iCbOffset, int iCrOffset, int iIntraOnlyOff, AL_TEncChanParam* pChParam)
 {
   // Calculate Initial QP if not provided ----------------------------------
   if(!AL_Common_Encoder_IsInitialQpProvided(pChParam))
   {
     uint32_t iBitPerPixel = ComputeBitPerPixel(pChParam);
-    int8_t iInitQP = GetInitialQP(iBitPerPixel, iTableIdx);
+    int iInitQP = AL_Common_Encoder_GetInitialQP(iBitPerPixel, pChParam->eProfile);
 
     if(pChParam->tGopParam.uGopLength <= 1)
       iInitQP += iIntraOnlyOff;
@@ -727,8 +732,11 @@ void AL_Common_Encoder_ComputeRCParam(int iCbOffset, int iCrOffset, int iTableId
   if(pChParam->tRCParam.iMaxQP < pChParam->tRCParam.iMinQP)
     pChParam->tRCParam.iMaxQP = pChParam->tRCParam.iMinQP;
 
-  pChParam->tRCParam.iMinQP = Max(pChParam->tRCParam.iMinQP, (0 - Min(iCbOffset, iCrOffset)));
-  pChParam->tRCParam.iMaxQP = Min(pChParam->tRCParam.iMaxQP, (51 - Max(iCbOffset, iCrOffset)));
+  int iMinQP = 0;
+  int iMaxQP = 51;
+
+  pChParam->tRCParam.iMinQP = Max(pChParam->tRCParam.iMinQP, (iMinQP - Min(iCbOffset, iCrOffset)));
+  pChParam->tRCParam.iMaxQP = Min(pChParam->tRCParam.iMaxQP, (iMaxQP - Max(iCbOffset, iCrOffset)));
   pChParam->tRCParam.iInitialQP = Clip3(pChParam->tRCParam.iInitialQP, pChParam->tRCParam.iMinQP, pChParam->tRCParam.iMaxQP);
 
   bool bIsCappedVBR = (pChParam->tRCParam.eRCMode == AL_RC_CAPPED_VBR);
@@ -1238,6 +1246,7 @@ AL_TNalsData AL_ExtractNalsData(AL_TEncCtx* pCtx, int iLayerID, int iPicID)
   data.pps = &pCtx->tLayerCtx[iLayerID].pps;
 
   AL_TEncSettings const* pSettings = pCtx->pSettings;
+  data.eStartCodeBytesAligned = pSettings->tChParam[iLayerID].eStartCodeBytesAligned;
   data.bMustWriteAud = pSettings->bEnableAUD && isBaseLayer(iLayerID);
   data.fillerCtrlMode = pSettings->eEnableFillerData;
   data.seiFlags = (AL_ESeiFlag)pSettings->uEnableSEI;
@@ -1298,6 +1307,10 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
   AL_Common_SetError(pCtx, pPicStatus->eErrorCode);
 
   AL_TBuffer* pStream = pCtx->tLayerCtx[iLayerID].StreamSent[streamId];
+  AL_TStreamPart* pStreamParts = (AL_TStreamPart*)(AL_Buffer_GetData(pStream) + pPicStatus->uStreamPartOffset);
+
+  for(int iPart = 0; iPart < pPicStatus->iNumParts; ++iPart)
+    Rtos_InvalidateCacheMemory(AL_Buffer_GetData(pStream) + pStreamParts[iPart].uOffset, pStreamParts[iPart].uSize);
 
   int iPoolID = pPicStatus->UserParam;
   AL_TFrameInfo* pFI = &pCtx->tFrameInfoPool.FrameInfos[iPoolID];
@@ -1478,13 +1491,14 @@ int AL_Encoder_AddSei(AL_HEncoder hEnc, AL_TBuffer* pStream, bool isPrefix, int 
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
   AL_TEncCtx* pCtx = pEnc->pCtx;
+  AL_TEncChanParam* pChannel = &pCtx->pSettings->tChParam[0];
 
   AL_TNuts nuts;
-  AL_EProfile eProfile = pCtx->pSettings->tChParam[0].eProfile;
+  AL_EProfile eProfile = pChannel->eProfile;
   bool exists = CreateNuts(&nuts, eProfile);
 
   if(!exists)
     return -1;
-  return AL_WriteSeiSection(AL_GET_CODEC(eProfile), nuts, pStream, isPrefix, iPayloadType, pPayload, iPayloadSize, iTempId);
+  return AL_WriteSeiSection(AL_GET_CODEC(eProfile), nuts, pStream, isPrefix, iPayloadType, pPayload, iPayloadSize, iTempId, pChannel->eStartCodeBytesAligned);
 }
 

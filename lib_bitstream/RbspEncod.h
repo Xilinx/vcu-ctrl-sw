@@ -60,7 +60,6 @@
    \param[in] eSliceType Slice type
 *************************************************************************/
 void AL_RbspEncoding_WriteAUD(AL_TBitStreamLite* pRE, AL_ESliceType eSliceType);
-
 int AL_RbspEncoding_BeginSEI(AL_TBitStreamLite* pRE, uint8_t payloadType);
 void AL_RbspEncoding_BeginSEI2(AL_TBitStreamLite* pBS, int iPayloadType, int iPayloadSize);
 void AL_RbspEncoding_EndSEI(AL_TBitStreamLite* pRE, int bookmarkSEI);

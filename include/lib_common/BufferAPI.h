@@ -316,5 +316,17 @@ AL_TMetaData* AL_Buffer_GetMetaData(AL_TBuffer const* pBuf, AL_EMetaType eType);
 *****************************************************************************/
 void AL_Buffer_MemSet(const AL_TBuffer* pBuf, int iVal);
 
+/*************************************************************************//*!
+   \brief Invalidate the memory backed by the buffer
+   \param[in] pBuf Pointer to an AL_TBuffer
+*****************************************************************************/
+void AL_Buffer_InvalidateMemory(const AL_TBuffer* pBuf);
+
+/*************************************************************************//*!
+   \brief Flushed the memory backed by the buffer
+   \param[in] pBuf Pointer to an AL_TBuffer
+*****************************************************************************/
+void AL_Buffer_FlushMemory(const AL_TBuffer* pBuf);
+
 /*@}*/
 

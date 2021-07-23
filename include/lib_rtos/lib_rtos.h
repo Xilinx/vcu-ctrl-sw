@@ -153,6 +153,15 @@ int32_t Rtos_AtomicIncrement(int32_t* iVal);
 int32_t Rtos_AtomicDecrement(int32_t* iVal);
 
 /****************************************************************************/
+/*  Cache Memory Coherency */
+/****************************************************************************/
+typedef void (* Rtos_MemoryFnCB)(void* ctx, void* pMem, size_t zSize);
+
+void Rtos_InitCacheCB(void* ctx, Rtos_MemoryFnCB pfnInvalCB, Rtos_MemoryFnCB pfnFlushCB);
+void Rtos_InvalidateCacheMemory(void* pMem, size_t zSize);
+void Rtos_FlushCacheMemory(void* pMem, size_t zSize);
+
+/****************************************************************************/
 
 /*@}*/
 

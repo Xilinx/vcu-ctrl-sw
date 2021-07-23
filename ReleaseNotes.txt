@@ -207,7 +207,7 @@
     -- export less headers in include: We do not export IScheduler.h anymore.
     -- exe_encoder and exe_decoder do not depend on any internal headers anymore
     -- add API to add section in the stream buffer from outside lib_encode (external SEI support)
-    -- add decoder AL_Decoder_ForceStop API to terminate decoding regardless of remaining data in 
+    -- add decoder AL_Decoder_ForceStop API to terminate decoding regardless of remaining data in
        the circular buffer and/or input buffer(s), only wait for end of command already sent to the MCU.
 
   Missing feature(s):
@@ -664,4 +664,38 @@
     -- Add 'lib_conv_yuv' folder
 
   Fixes:
+    -- Several minors bugs
+
+2021-07-19 (v1.0.68)
+-------------------
+  Added Features:
+    -- To-String-Error is now available
+    -- Encoder:
+      - StartCode bytes aligned mode (3, 4, auto)
+    -- Decoder:
+      - New way to push stream buffer: AL_Decoder_PushStreamBuffer
+    -- 'lib_cfg_parsing' as been updated
+
+  API:
+    -- Version of the API is now 0.31.0
+    -- Add 'const char* AL_Codec_ErrorToString(AL_ERR eErrorCode)' to get a string matching an error
+    -- Modify 'AL_GetMaxNalSize':
+      -- remove uncessary AL_ECodec parameter -> prevents lot of errors
+      -- change profile <-> level location
+      -- use AL_EProfile instead of profile_idc
+    -- Rename iProfileIdc -> eProfile:
+      -- easier for user
+      -- use 'AL_EProfile' instead of 'int'
+      -- reduce underlaying memory allocated
+    -- Use AL_Decoder_PushStreamBuffer instead of AL_Decoder_PushBuffer
+      -- Flag added:
+          - AL_STREAM_BUF_FLAG_UNKNOWN = 0x0, /*!< Stream buffer content is unknown */
+          - AL_STREAM_BUF_FLAG_ENDOFSLICE = 0x2, /*!< The stream buffer ends a slice */
+          - AL_STREAM_BUF_FLAG_ENDOFFRAME = 0x4 /*!< The stream buffer ends a frame */
+
+  Fixes:
+    -- AVC multicores + multichannels last frame scheduling issue
+    -- CabacInit cfg value:
+      -- AVC: [0..2]
+      -- HEVC: [0..1]
     -- Several minors bugs

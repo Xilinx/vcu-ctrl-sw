@@ -44,6 +44,7 @@ using std::cout;
 using std::endl;
 
 using std::cerr;
+using std::cout;
 using std::string;
 
 struct Config
@@ -57,13 +58,13 @@ struct Config
 
 static void Usage(CommandLineParser const& opt, char* ExeName)
 {
-  cerr << "Usage: " << ExeName << " -cfg <configfile> [options]" << endl;
-  cerr << "Options:" << endl;
+  cout << "Usage: " << ExeName << " -cfg <configfile> [options]" << endl;
+  cout << "Options:" << endl;
 
   opt.usage();
 
-  cerr << "Examples:" << endl;
-  cerr << "  " << ExeName << " -cfg test/config/encode_simple.cfg" << endl;
+  cout << "Examples:" << endl;
+  cout << "  " << ExeName << " -cfg test/config/encode_simple.cfg" << endl;
 }
 
 Config parseCommandLine(int argc, char* argv[])

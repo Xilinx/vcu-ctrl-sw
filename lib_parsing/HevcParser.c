@@ -158,21 +158,21 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
 
       for(uint8_t i = 0; i < pPPS->num_tile_columns_minus1; ++i)
       {
-        pPPS->column_width[i] = ue(pRP) + 1;
-        uClmnOffset += pPPS->column_width[i];
+        pPPS->tile_column_width[i] = ue(pRP) + 1;
+        uClmnOffset += pPPS->tile_column_width[i];
       }
 
       for(uint8_t i = 0; i < pPPS->num_tile_rows_minus1; ++i)
       {
-        pPPS->row_height[i] = ue(pRP) + 1;
-        uLineOffset += pPPS->row_height[i];
+        pPPS->tile_row_height[i] = ue(pRP) + 1;
+        uLineOffset += pPPS->tile_row_height[i];
       }
 
       if(uClmnOffset >= uLCUPicWidth || uLineOffset >= uLCUPicHeight)
         return;
 
-      pPPS->column_width[pPPS->num_tile_columns_minus1] = uLCUPicWidth - uClmnOffset;
-      pPPS->row_height[pPPS->num_tile_rows_minus1] = uLCUPicHeight - uLineOffset;
+      pPPS->tile_column_width[pPPS->num_tile_columns_minus1] = uLCUPicWidth - uClmnOffset;
+      pPPS->tile_row_height[pPPS->num_tile_rows_minus1] = uLCUPicHeight - uLineOffset;
     }
     else /* tile of same size */
     {
@@ -180,10 +180,10 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
       uint16_t num_line = pPPS->num_tile_rows_minus1 + 1;
 
       for(uint8_t i = 0; i <= pPPS->num_tile_columns_minus1; ++i)
-        pPPS->column_width[i] = (((i + 1) * uLCUPicWidth) / num_clmn) - ((i * uLCUPicWidth) / num_clmn);
+        pPPS->tile_column_width[i] = (((i + 1) * uLCUPicWidth) / num_clmn) - ((i * uLCUPicWidth) / num_clmn);
 
       for(uint8_t i = 0; i <= pPPS->num_tile_rows_minus1; ++i)
-        pPPS->row_height[i] = (((i + 1) * uLCUPicHeight) / num_line) - ((i * uLCUPicHeight) / num_line);
+        pPPS->tile_row_height[i] = (((i + 1) * uLCUPicHeight) / num_line) - ((i * uLCUPicHeight) / num_line);
     }
 
     /* register tile topology within the frame */
@@ -197,10 +197,10 @@ void AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* pPpsId)
         uint8_t uLine = 0;
 
         while(line < i)
-          uLine += pPPS->row_height[line++];
+          uLine += pPPS->tile_row_height[line++];
 
         while(clmn < j)
-          uClmn += pPPS->column_width[clmn++];
+          uClmn += pPPS->tile_column_width[clmn++];
 
         pPPS->TileTopology[(i * (pPPS->num_tile_columns_minus1 + 1)) + j] = uLine * uLCUPicWidth + uClmn;
       }

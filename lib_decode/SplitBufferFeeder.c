@@ -63,6 +63,7 @@ typedef struct al_t_SplitBufferFeeder
   bool eos;
   bool stopped;
   AL_TBuffer* pEOSBuffer;
+  bool bEOSParsingCB;
 }AL_TSplitBufferFeeder;
 
 static bool enqueueBuffer(AL_TSplitBufferFeeder* this, AL_TBuffer* pBuf)
@@ -122,6 +123,7 @@ static void Process(AL_TSplitBufferFeeder* this)
 
   AL_HANDLE hDec = this->hDec;
 
+  Rtos_FlushCacheMemory(AL_Buffer_GetData(workBuf), AL_Buffer_GetSize(workBuf));
   AL_WorkPool_PushBack(&this->workPool, workBuf);
 
   UNIT_ERROR err = AL_Decoder_TryDecodeOneUnit(hDec, workBuf);
@@ -131,21 +133,18 @@ static void Process(AL_TSplitBufferFeeder* this)
 
   if(pMeta && pMeta->bLastBuffer)
   {
-    // There won't be a callback for the eos buffer as it doesn't contain a frame / slice
-    // so we free it here.
-    freeBuf((AL_TFeeder*)this, workBuf);
+    if(!this->bEOSParsingCB || !IsSuccess(err))
+    {
+      // There won't be a callback for the eos buffer as it doesn't contain a frame / slice
+      // so we free it here.
+      freeBuf((AL_TFeeder*)this, workBuf);
+    }
     this->stopped = true;
     AL_Decoder_InternalFlush(this->hDec);
   }
   else
   {
-    if(this->stopped)
-    {
-      this->stopped = false;
-      Rtos_GetMutex(this->lock);
-      this->eos = false;
-      Rtos_ReleaseMutex(this->lock);
-    }
+    this->stopped = false;
 
     if(!IsSuccess(err))
     {
@@ -188,6 +187,16 @@ static bool pushBuffer(AL_TFeeder* hFeeder, AL_TBuffer* pBuf, size_t uSize, bool
   AL_TSplitBufferFeeder* this = (AL_TSplitBufferFeeder*)hFeeder;
   AL_TCircMetaData* pMetaCirc = (AL_TCircMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_CIRCULAR);
 
+  Rtos_GetMutex(this->lock);
+
+  if(bLastBuffer && this->eos)
+  {
+    Rtos_ReleaseMutex(this->lock);
+    return false;
+  }
+  this->eos = bLastBuffer;
+  Rtos_ReleaseMutex(this->lock);
+
   if(!pMetaCirc)
   {
     AL_TMetaData* pMeta = (AL_TMetaData*)AL_CircMetaData_Create(0, uSize, bLastBuffer);
@@ -197,7 +206,7 @@ static bool pushBuffer(AL_TFeeder* hFeeder, AL_TBuffer* pBuf, size_t uSize, bool
 
     if(!AL_Buffer_AddMetaData(pBuf, pMeta))
     {
-      Rtos_Free(pMeta);
+      AL_MetaData_Destroy(pMeta);
       return false;
     }
   }
@@ -224,17 +233,11 @@ static void pushEOS(AL_TFeeder* hFeeder)
   AL_TSplitBufferFeeder* this = (AL_TSplitBufferFeeder*)hFeeder;
 
   /* Ensure in subframe latency that even if the user doesn't send a full frame at the end of the stream, we can finish sent slices */
-  if(this->pEOSBuffer)
-    pushBuffer(hFeeder, this->pEOSBuffer, AL_Buffer_GetSize(this->pEOSBuffer), true);
-  signal(hFeeder);
+  pushBuffer(hFeeder, this->pEOSBuffer, AL_Buffer_GetSize(this->pEOSBuffer), true);
 }
 
 static void flush(AL_TFeeder* hFeeder)
 {
-  AL_TSplitBufferFeeder* this = (AL_TSplitBufferFeeder*)hFeeder;
-  Rtos_GetMutex(this->lock);
-  this->eos = true;
-  Rtos_ReleaseMutex(this->lock);
   pushEOS(hFeeder);
 }
 
@@ -278,7 +281,7 @@ static void destroy(AL_TFeeder* hFeeder)
   if(this->process)
     destroy_process(hFeeder);
 
-  AL_Assert(this->workPool.size == 0);
+  AL_Assert(AL_WorkPool_IsEmpty(&this->workPool));
 
   AL_WorkPool_Deinit(&this->workPool);
   AL_Fifo_Deinit(&this->inputFifo);
@@ -347,7 +350,7 @@ static bool addEOSMeta(AL_TBuffer* pEOSBuffer)
   return true;
 }
 
-AL_TFeeder* AL_SplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TBuffer* pEOSBuffer)
+AL_TFeeder* AL_SplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TBuffer* pEOSBuffer, bool bEOSParsingCB)
 {
   AL_Assert(pEOSBuffer);
 
@@ -366,6 +369,7 @@ AL_TFeeder* AL_SplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TBuff
   this->numInputBuf = 0;
   this->keepGoing = 1;
   this->stopped = true;
+  this->bEOSParsingCB = bEOSParsingCB;
 
   if(iMaxBufNum <= 0 || !AL_Fifo_Init(&this->inputFifo, iMaxBufNum))
     goto fail_queue_allocation;

@@ -132,4 +132,4 @@ int AL_PixMapMetaData_GetOffsetUV(AL_TPixMapMetaData* pMeta);
 AL_DEPRECATED("Renamed. Use AL_TPixMapMetaData.")
 typedef AL_TPixMapMetaData AL_TSrcMetaData;
 
-/*@*/
+/*@}*/

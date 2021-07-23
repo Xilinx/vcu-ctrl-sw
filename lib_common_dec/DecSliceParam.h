@@ -69,6 +69,8 @@ typedef struct AL_t_DecSliceParam
   uint8_t TileNgbC;
   uint8_t TileNgbD;
   uint8_t TileNgbE;
+  uint8_t TileNgbH;
+  uint8_t TileNgbI;
   uint16_t NumEntryPoint;
   uint8_t PicIDL0[MAX_REF];
   uint8_t PicIDL1[MAX_REF];
@@ -88,8 +90,8 @@ typedef struct AL_t_DecSliceParam
   uint16_t LcuTileWidth;
   uint16_t LcuTileHeight;
 
-  uint32_t FirstLCU;
-  uint32_t NumLCU;
+  uint32_t SliceFirstLCU;
+  uint32_t SliceNumLCU;
 
   uint32_t NextSliceSegment;
   uint32_t FirstLcuSliceSegment;

@@ -77,15 +77,28 @@ std::string createFileNameWithID(const std::string& path, const std::string& mot
 }
 
 /****************************************************************************/
+static int FromHex1(char a)
+{
+  int A = FROM_HEX_ERROR;
+
+  if((a >= 'a') && (a <= 'f'))
+    A = (a - 'a') + 10;
+  else if((a >= 'A') && (a <= 'F'))
+    A = (a - 'A') + 10;
+  else if((a >= '0') && (a <= '9'))
+    A = (a - '0');
+
+  return A;
+}
+
+/****************************************************************************/
 int FromHex2(char a, char b)
 {
-  int A = ((a >= 'a') && (a <= 'f')) ? (a - 'a') + 10 :
-          ((a >= 'A') && (a <= 'F')) ? (a - 'A') + 10 :
-          ((a >= '0') && (a <= '9')) ? (a - '0') : 0;
+  int A = FromHex1(a);
+  int B = FromHex1(b);
 
-  int B = ((b >= 'a') && (b <= 'f')) ? (b - 'a') + 10 :
-          ((b >= 'A') && (b <= 'F')) ? (b - 'A') + 10 :
-          ((b >= '0') && (b <= '9')) ? (b - '0') : 0;
+  if(A == FROM_HEX_ERROR || B == FROM_HEX_ERROR)
+    return FROM_HEX_ERROR;
 
   return (A << 4) + B;
 }
@@ -93,6 +106,12 @@ int FromHex2(char a, char b)
 /****************************************************************************/
 int FromHex4(char a, char b, char c, char d)
 {
-  return (FromHex2(a, b) << 8) + FromHex2(c, d);
+  int AB = FromHex2(a, b);
+  int CD = FromHex2(c, d);
+
+  if(AB == FROM_HEX_ERROR || CD == FROM_HEX_ERROR)
+    return FROM_HEX_ERROR;
+
+  return (AB << 8) + CD;
 }
 

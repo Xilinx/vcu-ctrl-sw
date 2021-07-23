@@ -64,6 +64,7 @@ typedef struct
 
 typedef struct
 {
+  AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned;
   AL_THevcVps* vps;
   AL_TSps* sps;
   AL_TPps* pps;
@@ -76,5 +77,5 @@ typedef struct
 }AL_TNalsData;
 
 void GenerateSections(IRbspWriter* writer, AL_TNuts Nuts, AL_TNalsData const* pNalsData, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayerID, int iNumSlices, bool bSubframeLatency, bool bForceSEIRecoveryPointOnIDR);
-int AL_WriteSeiSection(AL_ECodec eCodec, AL_TNuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId);
+int AL_WriteSeiSection(AL_ECodec eCodec, AL_TNuts nuts, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId, AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned);
 

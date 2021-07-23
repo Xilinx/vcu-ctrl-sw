@@ -79,6 +79,8 @@ static const AL_AllocatorVtable s_DefaultAllocatorVtable =
   AL_sDefaultAllocator_GetVirtualAddr,
   AL_sDefaultAllocator_GetPhysicalAddr,
   NULL,
+  NULL,
+  NULL,
 };
 
 typedef struct
@@ -149,6 +151,8 @@ static const AL_AllocatorVtable s_WrapperAllocatorVtable =
   AL_sWrapperAllocator_Free,
   AL_sWrapperAllocator_GetVirtualAddr,
   AL_sWrapperAllocator_GetPhysicalAddr,
+  NULL,
+  NULL,
   NULL,
 };
 

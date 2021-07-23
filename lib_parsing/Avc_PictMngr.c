@@ -327,7 +327,7 @@ void AL_AVC_PictMngr_EndParsing(AL_TPictMngrCtx* pCtx, bool bClearRef, AL_EMarki
     AL_Dpb_Remove(pDpb, uDelete);
   }
 
-  AL_PictMngr_Insert(pCtx, pCtx->iCurFramePOC, 0, pCtx->uRecID, pCtx->uMvID, 1, eMarkingFlag, 0, 0);
+  AL_PictMngr_Insert(pCtx, pCtx->iCurFramePOC, 0, pCtx->uRecID, pCtx->uMvID, 1, eMarkingFlag, 0, 0, 0);
   AL_Dpb_ResetMMCO5(&pCtx->DPB);
 }
 
@@ -373,7 +373,7 @@ void AL_AVC_PictMngr_Fill_Gap_In_FrameNum(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr
         pUnusedSlice.adaptive_ref_pic_marking_mode_flag = 0;
         int iFramePOC = AL_sCalculatePOC(pCtx, &pUnusedSlice);
 
-        AL_PictMngr_Insert(pCtx, iFramePOC, 0, uEndOfList, uEndOfList, 0, SHORT_TERM_REF, 1, 0);
+        AL_PictMngr_Insert(pCtx, iFramePOC, 0, uEndOfList, uEndOfList, 0, SHORT_TERM_REF, 1, 0, 0);
         AL_Dpb_MarkingProcess(&pCtx->DPB, &pUnusedSlice);
         AL_Dpb_AVC_Cleanup(&pCtx->DPB);
         pCtx->iPrevFrameNum = UnusedShortTermFrameNum;

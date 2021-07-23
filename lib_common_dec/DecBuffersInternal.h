@@ -85,6 +85,7 @@ typedef TBuffer TBufferPOC;
 
 static const int POCBUFF_PL_SIZE = 96;  // POC List size
 static const int POCBUFF_LONG_TERM_OFFSET = 64;  // Long term flag List
+static const int POCBUFF_SUBPIC_OFFSET = 68;  // Frame with subpicture flag List
 
 /*************************************************************************//*!
    \brief List of references frame buffer

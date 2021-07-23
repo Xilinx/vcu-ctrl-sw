@@ -45,8 +45,8 @@
 #include "lib_common/SliceHeader.h"
 #include "lib_common/SPS.h"
 #include "lib_common/PPS.h"
+#include "lib_common/Nuts.h"
 #include "lib_common/ScalingList.h"
-
 #include "lib_assert/al_assert.h"
 
 /******************************************************************************/
@@ -418,11 +418,36 @@ static AL_ECodec getCodec(void)
   return AL_CODEC_AVC;
 }
 
+static inline bool isForce4BytesCode(AL_EStartCodeBytesAlignedMode eMode, int nut)
+{
+  switch(eMode)
+  {
+  case AL_START_CODE_AUTO: return nut >= AL_AVC_NUT_PREFIX_SEI && nut <= AL_AVC_NUT_SUFFIX_SEI;
+  case AL_START_CODE_3_BYTES: return false;
+  case AL_START_CODE_4_BYTES: return true;
+  default: return nut >= AL_AVC_NUT_PREFIX_SEI && nut <= AL_AVC_NUT_SUFFIX_SEI;
+  }
+
+  return nut >= AL_AVC_NUT_PREFIX_SEI && nut <= AL_AVC_NUT_SUFFIX_SEI;
+}
+
+static void writeStartCode(AL_TBitStreamLite* pBS, int nut, AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned)
+{
+  if(isForce4BytesCode(eStartCodeBytesAligned, nut))
+    AL_BitStreamLite_PutBits(pBS, 8, 0x00);
+
+  // don't count start code in case of "VCL Compliance"
+  AL_BitStreamLite_PutBits(pBS, 8, 0x00);
+  AL_BitStreamLite_PutBits(pBS, 8, 0x00);
+  AL_BitStreamLite_PutBits(pBS, 8, 0x01);
+}
+
 /******************************************************************************/
 static IRbspWriter writer =
 {
   getCodec,
   AL_RbspEncoding_WriteAUD,
+  writeStartCode,
   NULL, /* writeVps */
   writeSps,
   writePps,

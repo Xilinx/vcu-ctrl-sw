@@ -2,8 +2,8 @@
 
 #define IDI_ICON1 101
 
-#define AL_ENCODER_VERSION 1, 0, 65
-#define AL_ENCODER_VERSION_STR "1,0,65"
+#define AL_ENCODER_VERSION 1, 0, 68
+#define AL_ENCODER_VERSION_STR "1,0,68"
 
 #define AL_ENCODER_NAME_PART1 "- AVC "
 #define AL_ENCODER_NAME_PART2 "- HEVC "
@@ -18,7 +18,7 @@
 #define AL_ENCODER_PRODUCT_NAME AL_ENCODER_NAME " Encoder Reference Software"
 #define AL_ENCODER_FILE_DESCR AL_ENCODER_COMPANY " - " AL_ENCODER_PRODUCT_NAME
 #define AL_ENCODER_INTERNAL_NAME AL_ENCODER_NAME " Encoder"
-#define AL_ENCODER_COPYRIGHT "Copyright (C) 2008-2020"
+#define AL_ENCODER_COPYRIGHT "Copyright (C) 2008-2021"
 #define AL_ENCODER_ORIGINAL_NAME "AL_Encoder.exe"
 
 // Next default values for new objects

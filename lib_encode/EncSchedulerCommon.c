@@ -49,8 +49,9 @@ void SetChannelInfo(AL_TCommonChannelInfo* pChanInfo, AL_TEncChanParam* pChParam
 
   pChanInfo->bIsAvc = AL_IS_AVC(pChParam->eProfile);
   bool bComp = false;
+  AL_EChEncOption eOptions = 0;
 
-  pChanInfo->uRecSize = AL_GetAllocSize_EncReference(tDim, uBitDepth, 1 << pChParam->uLog2MaxCuSize, eChromaMode, bComp, 0);
+  pChanInfo->uRecSize = AL_GetAllocSize_EncReference(tDim, uBitDepth, 1 << pChParam->uLog2MaxCuSize, eChromaMode, eOptions, 0);
   AL_TPicFormat picRecFormat = AL_EncGetRecPicFormat(eChromaMode, uBitDepth, bComp);
 
   pChanInfo->RecFourCC = AL_GetFourCC(picRecFormat);

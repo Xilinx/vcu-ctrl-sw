@@ -39,6 +39,7 @@
 #include "lib_app/InputFiles.h"
 #include "lib_encode/lib_encoder.h"
 #include "exe_encoder/IvfContainer.h"
+#include "CodecUtils.h"
 
 using namespace std;
 

@@ -49,6 +49,7 @@ typedef struct AL_t_EncPicParam
   AL_TEncInfo tEncInfo;
   AL_TPictureInfo tPicInfo;
   AL_TRefInfo tRefInfo;
+  AL_TRpsInfo tRpsInfo;
 
   uint8_t uNumPicTotalCurr;
   int32_t iLastIdrId;

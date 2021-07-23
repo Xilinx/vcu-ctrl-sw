@@ -51,6 +51,7 @@
 #pragma once
 
 #include "lib_rtos/types.h"
+#include "lib_rtos/lib_rtos.h"
 
 /**************************************************************************//*!
    \brief Generic memory allocator interface object
@@ -66,6 +67,8 @@ typedef struct
   AL_VADDR (* pfnGetVirtualAddr)(AL_TAllocator* pAllocator, AL_HANDLE hBuf);
   AL_PADDR (* pfnGetPhysicalAddr)(AL_TAllocator* pAllocator, AL_HANDLE hBuf);
   AL_HANDLE (* pfnAllocNamed)(AL_TAllocator* pAllocator, size_t zSize, char const* name);
+  void (* pfnSyncForCpu)(AL_TAllocator* pAllocator, AL_VADDR pVirtualAddr, size_t zSize);
+  void (* pfnSyncForDevice)(AL_TAllocator* pAllocator, AL_VADDR pVirtualAddr, size_t zSize);
 }AL_AllocatorVtable;
 
 struct AL_t_Allocator
@@ -158,6 +161,48 @@ static AL_INLINE
 AL_PADDR AL_Allocator_GetPhysicalAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
 {
   return pAllocator->vtable->pfnGetPhysicalAddr(pAllocator, hBuf);
+}
+
+/**************************************************************************//*!
+   \brief Synchronize a memory area for the CPU
+   \param[in] pAllocator the Allocator interface object used to allocate the
+   memory buffers
+   \param[in] pVirtualAddr Virtual address at which the area starts.
+   \param[in] zSize Size of the area to synchronize for device.
+   \return a pointer to the allocated memory in the IP address space
+******************************************************************************/
+static AL_INLINE
+void AL_Allocator_SyncForCpu(AL_TAllocator* pAllocator, AL_VADDR pVirtualAddr, size_t zSize)
+{
+  if(pAllocator->vtable->pfnSyncForCpu)
+    pAllocator->vtable->pfnSyncForCpu(pAllocator, pVirtualAddr, zSize);
+}
+
+/**************************************************************************//*!
+   \brief Synchronize a memory area for the Device
+   \param[in] pAllocator the Allocator interface object used to allocate the
+   memory buffers
+   \param[in] pVirtualAddr Virtual address at which the area starts.
+   \param[in] zSize Size of the area to synchronize for device.
+   \return a pointer to the allocated memory in the IP address space
+******************************************************************************/
+static AL_INLINE
+void AL_Allocator_SyncForDevice(AL_TAllocator* pAllocator, AL_VADDR pVirtualAddr, size_t zSize)
+{
+  if(pAllocator->vtable->pfnSyncForDevice)
+    pAllocator->vtable->pfnSyncForDevice(pAllocator, pVirtualAddr, zSize);
+}
+
+/**************************************************************************//*!
+   \brief Setup cache callbacks to use the allocator ones
+   \param[in] pAllocator the Allocator interface object to use for cache
+   callbacks
+   \return a pointer to the allocated memory in the IP address space
+******************************************************************************/
+static AL_INLINE
+void AL_Allocator_InitCacheCallbacks(AL_TAllocator* pAllocator)
+{
+  Rtos_InitCacheCB(pAllocator, (Rtos_MemoryFnCB)AL_Allocator_SyncForCpu, (Rtos_MemoryFnCB)AL_Allocator_SyncForDevice);
 }
 
 /**************************************************************************//*!

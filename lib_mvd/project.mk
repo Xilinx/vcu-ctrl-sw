@@ -2,6 +2,7 @@ LIB_MVD_SRC+=\
 	  lib_mvd/AL_Mvd.c\
     lib_mvd/fw_data/FWTip/Modules/Decoder/Core/DecLib/BSDMA/mvd_bsdma.c\
     lib_mvd/fw_data/FWTip/Modules/Decoder/Core/DecLib/BSDMA/mvd_bsdma_cq.c\
+    lib_mvd/fw_data/FWTip/Modules/Decoder/Core/DecLib/BSDMA/mvd_streambuf_queue.c\
     lib_mvd/fw_data/FWTip/Modules/Decoder/Core/DecLib/CommandQueue/mvd_supercq_control.c\
     lib_mvd/fw_data/FWTip/Modules/Decoder/Core/DecLib/CommandQueue/mvd_sync.c\
     lib_mvd/fw_data/FWTip/Modules/Decoder/Core/DecLib/Control/DecLibBaseDecIf.c\

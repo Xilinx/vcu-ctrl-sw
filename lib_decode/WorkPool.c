@@ -38,19 +38,20 @@
 #include "lib_decode/WorkPool.h"
 #include "lib_assert/al_assert.h"
 
+#define INVALID_BUF_POS -1
+
 bool AL_WorkPool_Init(WorkPool* pool, int iMaxBufNum)
 {
-  pool->bufs = Rtos_Malloc(sizeof(AL_TBuffer*) * iMaxBufNum);
-  Rtos_Memset(pool->bufs, 0, sizeof(AL_TBuffer*) * iMaxBufNum);
+  pool->elems = Rtos_Malloc(sizeof(WorkPoolElem) * iMaxBufNum);
 
-  if(!pool->bufs)
+  if(!pool->elems)
     return false;
 
   pool->lock = Rtos_CreateMutex();
 
   if(!pool->lock)
   {
-    Rtos_Free(pool->bufs);
+    Rtos_Free(pool->elems);
     return false;
   }
 
@@ -58,19 +59,33 @@ bool AL_WorkPool_Init(WorkPool* pool, int iMaxBufNum)
 
   if(!pool->spaceAvailable)
   {
-    Rtos_Free(pool->bufs);
-    Rtos_DeleteMutex(pool->bufs);
+    Rtos_Free(pool->elems);
+    Rtos_DeleteMutex(pool->lock);
     return false;
   }
+
+  pool->freeHead = 0;
+  pool->freeQueue = iMaxBufNum - 1;
+  pool->filledHead = INVALID_BUF_POS;
+  pool->filledQueue = INVALID_BUF_POS;
   pool->capacity = iMaxBufNum;
-  pool->size = 0;
-  pool->head = 0;
+
+  for(int i = 0; i < pool->capacity; ++i)
+  {
+    pool->elems[i].buf = NULL;
+    pool->elems[i].prev = i - 1;
+    pool->elems[i].next = i + 1;
+  }
+
+  pool->elems[0].prev = INVALID_BUF_POS;
+  pool->elems[pool->capacity - 1].next = INVALID_BUF_POS;
+
   return true;
 }
 
 void AL_WorkPool_Deinit(WorkPool* pool)
 {
-  Rtos_Free(pool->bufs);
+  Rtos_Free(pool->elems);
   Rtos_DeleteMutex(pool->lock);
   Rtos_DeleteEvent(pool->spaceAvailable);
 }
@@ -78,30 +93,40 @@ void AL_WorkPool_Deinit(WorkPool* pool)
 void AL_WorkPool_Remove(WorkPool* pool, AL_TBuffer* pBuf)
 {
   Rtos_GetMutex(pool->lock);
-  int i;
 
-  for(i = pool->head; i < pool->head + pool->size; ++i)
-  {
-    if(pool->bufs[i % pool->capacity] == pBuf)
-    {
-      pool->bufs[i % pool->capacity] = NULL;
-      break;
-    }
-  }
+  int iPos = pool->filledHead;
 
-  AL_Assert(i < pool->head + pool->size);
+  while(iPos != INVALID_BUF_POS && pool->elems[iPos].buf != pBuf)
+    iPos = pool->elems[iPos].next;
 
-  AL_TBuffer* curBuf = pool->bufs[pool->head];
+  AL_Assert(iPos != INVALID_BUF_POS);
 
-  while(curBuf == NULL && pool->size != 0)
-  {
-    pool->head = (pool->head + 1) % pool->capacity;
-    --pool->size;
-    curBuf = pool->bufs[pool->head];
-  }
+  WorkPoolElem* pElem = &pool->elems[iPos];
 
-  if(pool->size != pool->capacity)
-    Rtos_SetEvent(pool->spaceAvailable);
+  /* Remove from filled list */
+  if(pElem->prev != INVALID_BUF_POS)
+    pool->elems[pElem->prev].next = pElem->next;
+  else
+    pool->filledHead = pElem->next;
+
+  if(pElem->next != INVALID_BUF_POS)
+    pool->elems[pElem->next].prev = pElem->prev;
+  else
+    pool->filledQueue = pElem->prev;
+
+  /* Add in free list */
+  pElem->buf = NULL;
+  pElem->prev = pool->freeQueue;
+  pElem->next = INVALID_BUF_POS;
+
+  if(pool->freeQueue != INVALID_BUF_POS)
+    pool->elems[pool->freeQueue].next = iPos;
+  pool->freeQueue = iPos;
+
+  if(pool->freeHead == INVALID_BUF_POS)
+    pool->freeHead = iPos;
+
+  Rtos_SetEvent(pool->spaceAvailable);
 
   Rtos_ReleaseMutex(pool->lock);
 }
@@ -110,15 +135,58 @@ void AL_WorkPool_PushBack(WorkPool* pool, AL_TBuffer* pBuf)
 {
   Rtos_GetMutex(pool->lock);
 
-  while(pool->size == pool->capacity)
+  while(AL_WorkPool_IsFull(pool))
   {
     Rtos_ReleaseMutex(pool->lock);
     Rtos_WaitEvent(pool->spaceAvailable, AL_WAIT_FOREVER);
     Rtos_GetMutex(pool->lock);
   }
 
-  int index = (pool->head + pool->size) % pool->capacity;
-  pool->bufs[index] = pBuf;
-  ++pool->size;
+  int iPos = pool->freeHead;
+  WorkPoolElem* pElem = &pool->elems[iPos];
+
+  /* Remove from free list */
+  if(pElem->next != INVALID_BUF_POS)
+    pool->elems[pElem->next].prev = INVALID_BUF_POS;
+  else
+    pool->freeQueue = INVALID_BUF_POS;
+  pool->freeHead = pElem->next;
+
+  /* Add in filled list */
+  pElem->buf = pBuf;
+  pElem->prev = pool->filledQueue;
+  pElem->next = INVALID_BUF_POS;
+
+  if(pool->filledQueue != INVALID_BUF_POS)
+    pool->elems[pool->filledQueue].next = iPos;
+  pool->filledQueue = iPos;
+
+  if(pool->filledHead == INVALID_BUF_POS)
+    pool->filledHead = iPos;
+
   Rtos_ReleaseMutex(pool->lock);
+}
+
+bool AL_WorkPool_IsEmpty(WorkPool* pool)
+{
+  return pool->filledHead == INVALID_BUF_POS;
+}
+
+bool AL_WorkPool_IsFull(WorkPool* pool)
+{
+  return pool->freeHead == INVALID_BUF_POS;
+}
+
+int AL_WorkPool_GetSize(WorkPool* pool)
+{
+  int iCnt = 0;
+  int iPos = pool->filledHead;
+
+  while(iPos != INVALID_BUF_POS)
+  {
+    iPos = pool->elems[iPos].next;
+    iCnt++;
+  }
+
+  return iCnt;
 }

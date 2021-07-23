@@ -70,6 +70,44 @@ uint32_t AL_HEVC_GetMaxNumberOfSlices(int level)
   }
 }
 
+/*****************************************************************************/
+uint32_t AL_HEVC_GetMaxTileColumns(int level)
+{
+  switch(level)
+  {
+  case 10:
+  case 20:
+  case 21: return 1;
+  case 30: return 2;
+  case 31: return 3;
+  case 40:
+  case 41: return 5;
+  case 50:
+  case 51:
+  case 52: return 10;
+  default: return 20;
+  }
+}
+
+/*****************************************************************************/
+uint32_t AL_HEVC_GetMaxTileRows(int level)
+{
+  switch(level)
+  {
+  case 10:
+  case 20:
+  case 21: return 1;
+  case 30: return 2;
+  case 31: return 3;
+  case 40:
+  case 41: return 5;
+  case 50:
+  case 51:
+  case 52: return 11;
+  default: return 22;
+  }
+}
+
 /****************************************************************************/
 uint32_t AL_HEVC_GetMaxCPBSize(int level, int tier)
 {

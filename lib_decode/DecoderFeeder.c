@@ -42,8 +42,7 @@
 #include "lib_common/Error.h"
 #include "lib_common/Utils.h"
 
-void AL_Default_Decoder_WaitFrameSent(AL_HDecoder hDec);
-void AL_Default_Decoder_ReleaseFrames(AL_HDecoder hDec);
+void AL_Default_Decoder_WaitFrameSent(AL_HDecoder hDec, uint32_t uStreamOffset);
 
 extern UNIT_ERROR AL_Decoder_TryDecodeOneUnit(AL_HDecoder hDec, AL_TBuffer* pBufStream);
 extern int AL_Decoder_GetDecodedStrOffset(AL_HANDLE hDec);
@@ -116,7 +115,7 @@ static bool Slave_Process(DecoderFeederSlave* slave, AL_TBuffer* startCodeStream
   {
     if(CircBuffer_IsFull(slave->patchworker->outputCirc))
     {
-      AL_Default_Decoder_WaitFrameSent(hDec);
+      AL_Default_Decoder_WaitFrameSent(hDec, uNewOffset);
 
       uNewOffset = AL_Decoder_GetDecodedStrOffset(hDec);
       CircBuffer_ConsumeUpToOffset(slave->patchworker->outputCirc, uNewOffset);
@@ -134,7 +133,6 @@ static bool Slave_Process(DecoderFeederSlave* slave, AL_TBuffer* startCodeStream
         }
       }
 
-      AL_Default_Decoder_ReleaseFrames(hDec);
       Rtos_SetEvent(slave->incomingWorkEvent);
     }
 
@@ -210,12 +208,6 @@ void AL_DecoderFeeder_Destroy(AL_TDecoderFeeder* this)
 
 void AL_DecoderFeeder_Process(AL_TDecoderFeeder* this)
 {
-  Rtos_SetEvent(this->incomingWorkEvent);
-}
-
-void AL_DecoderFeeder_Flush(AL_TDecoderFeeder* this)
-{
-  AL_Patchworker_NotifyEndOfInput(this->patchworker);
   Rtos_SetEvent(this->incomingWorkEvent);
 }
 

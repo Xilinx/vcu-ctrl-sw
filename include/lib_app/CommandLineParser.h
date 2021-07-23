@@ -54,6 +54,7 @@ static inline bool ShouldShowAdvancedFeatures()
 
 struct CommandLineParser
 {
+public:
   CommandLineParser() = default;
   explicit CommandLineParser(bool showAdvancedFeatures_) : showAdvancedFeatures{showAdvancedFeatures_} {};
   explicit CommandLineParser(std::function<void(std::string)> onOptionParsed_, bool showAdvancedFeatures_) : onOptionParsed{onOptionParsed_}, showAdvancedFeatures{showAdvancedFeatures_} {};
@@ -71,8 +72,10 @@ struct CommandLineParser
     bool repeat = false;
   };
 
-  void parse(int argc, char* argv[])
+  bool parse(int argc, char* argv[])
   {
+    deprecatedWordsParsed.clear();
+
     for(int i = 1; i < argc; ++i)
       words.push(argv[i]);
 
@@ -92,6 +95,8 @@ struct CommandLineParser
           throw std::runtime_error("Unknown option: '" + word + "', use --help to get help");
         }
 
+        checkDeprecated(word);
+
         i_func->second.parser(word);
       }
       else /* positional argument */
@@ -103,6 +108,9 @@ struct CommandLineParser
 
           throw std::runtime_error("Too many positional arguments. Can't interpret '" + word + "', use -h to get help");
         }
+
+        checkDeprecated(word);
+
         auto& positional = positionals.front();
         positional.parser(word);
 
@@ -110,6 +118,8 @@ struct CommandLineParser
           positionals.pop_front();
       }
     }
+
+    return !deprecatedWordsParsed.empty();
   }
 
   void startSection(std::string const& sectionName)
@@ -117,12 +127,9 @@ struct CommandLineParser
     curSection = sectionName;
   }
 
-  void endSection(std::string const& sectionName)
+  void startDeprecatedSection()
   {
-    if(curSection != sectionName)
-      throw std::runtime_error("The section being ended isn't the current section.");
-    /* Return to the default section */
-    curSection = "";
+    startSection(DEPRECATED_SECTION);
   }
 
   template<typename T>
@@ -339,8 +346,8 @@ struct CommandLineParser
 
         if(section == "")
           throw std::runtime_error("If a section has been started, you can't go back to the general section. (For display reasons)");
-        std::cerr << std::endl;
-        std::cerr << "  [" << section << "]" << std::endl;
+        std::cout << std::endl;
+        std::cout << "  [" << section << "]" << std::endl;
       }
 
       std::string item;
@@ -349,8 +356,18 @@ struct CommandLineParser
       if(getline(ss, item, ',') && options.at(item).advancedFeature && !showAdvancedFeatures)
         continue;
 
-      std::cerr << "  " << descs.at(command) << std::endl;
+      std::cout << "  " << descs.at(command) << std::endl;
     }
+  }
+
+  void usageDeprecated() const
+  {
+    std::cout << "Warning, usage of the following deprecated options:" << std::endl;
+
+    for(auto& w : deprecatedWordsParsed)
+      std::cout << "  " << descs.at(w) << std::endl;
+
+    std::cout << std::endl;
   }
 
   /* not a complete escape function. This just validates our usecases. */
@@ -371,7 +388,7 @@ struct CommandLineParser
   void usageJson() const
   {
     bool first = true;
-    std::cerr << "[";
+    std::cout << "[" << std::endl;
 
     for(auto& o_: options)
     {
@@ -383,12 +400,16 @@ struct CommandLineParser
         continue;
 
       if(!first)
-        std::cerr << ", " << std::endl;
+        std::cout << ", " << std::endl;
       first = false;
-      std::cerr << "{ \"name\":\"" << name << "\", \"desc\":\"" << jsonEscape(o.desc_) << "\", \"section\":\"" << section << "\"}";
+      std::cout << "{" << std::endl;
+      std::cout << "\"name\":\"" << name << "\"," << std::endl;
+      std::cout << "\"description\":\"" << jsonEscape(o.desc_) << "\"," << std::endl;
+      std::cout << "\"section\":\"" << section << "\"" << std::endl;
+      std::cout << "}";
     }
 
-    std::cerr << "]" << std::endl;
+    std::cout << std::endl << "]" << std::endl;
   }
 
   // You can also use "X,Y,Z unrelated option to set multiple option as advanced at the same time"
@@ -436,9 +457,10 @@ private:
     displayOrder.push_back(name);
   }
 
-  static std::string makeDescription(std::string word, std::string type, std::string desc)
+  std::string makeDescription(std::string word, std::string type, std::string desc)
   {
     std::string s;
+
     s += word;
 
     if(!type.empty())
@@ -455,8 +477,24 @@ private:
     return word[0] == '-';
   }
 
+  bool checkDeprecated(std::string const& word)
+  {
+    auto curSec = sections.find(word);
+
+    if(curSec != sections.end() && curSec->second == DEPRECATED_SECTION)
+    {
+      deprecatedWordsParsed.push_back(word);
+      return true;
+    }
+    return false;
+  }
+
   std::queue<std::string> words;
   std::function<void(std::string)> onOptionParsed = [](std::string) {};
+  std::vector<std::string> deprecatedWordsParsed;
   bool errorOnUnknown = true;
   bool showAdvancedFeatures = true;
+  static const std::string DEPRECATED_SECTION;
 };
+
+const std::string CommandLineParser::DEPRECATED_SECTION = "Deprecated";

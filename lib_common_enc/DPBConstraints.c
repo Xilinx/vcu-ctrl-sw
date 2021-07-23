@@ -136,9 +136,8 @@ uint8_t AL_DPBConstraint_GetMaxRef_GopMngrCustom(const AL_TGopParam* pGopParam, 
 /****************************************************************************/
 uint8_t AL_DPBConstraint_GetMaxDPBSize(const AL_TEncChanParam* pChParam)
 {
-  bool bIsAOM = false;
   bool bIsLookAhead = false;
-  AL_EGopMngrType eGopMngrType = AL_GetGopMngrType(pChParam->tGopParam.eMode, bIsAOM, bIsLookAhead);
+  AL_EGopMngrType eGopMngrType = AL_GetGopMngrType(pChParam->tGopParam.eMode, AL_GET_CODEC(pChParam->eProfile), bIsLookAhead);
   AL_ECodec eCodec = AL_GET_CODEC(pChParam->eProfile);
   uint8_t uDPBSize = 0;
   switch(eGopMngrType)
@@ -161,9 +160,9 @@ uint8_t AL_DPBConstraint_GetMaxDPBSize(const AL_TEncChanParam* pChParam)
 }
 
 /****************************************************************************/
-AL_EGopMngrType AL_GetGopMngrType(AL_EGopCtrlMode eMode, bool bIsAom, bool bIsLookAhead)
+AL_EGopMngrType AL_GetGopMngrType(AL_EGopCtrlMode eMode, AL_ECodec eCodec, bool bIsLookAhead)
 {
-  (void)bIsAom;
+  (void)eCodec;
   (void)bIsLookAhead;
 
   if(eMode == AL_GOP_MODE_ADAPTIVE || (eMode & AL_GOP_FLAG_LOW_DELAY))

@@ -38,6 +38,11 @@
 #include "lib_common/BufferAPIInternal.h"
 #include "lib_assert/al_assert.h"
 
+#define AL_BUFFER_META_ALLOC_COUNT 4
+// Maximum "estimated" number of metadata for user
+#define AL_BUFFER_USER_META_MAX_COUNT 20
+#define AL_BUFFER_META_MAX_COUNT (AL_META_TYPE_MAX + AL_BUFFER_USER_META_MAX_COUNT)
+
 typedef struct al_t_BufferImpl
 {
   AL_TBuffer buf;
@@ -46,6 +51,7 @@ typedef struct al_t_BufferImpl
 
   AL_TMetaData** pMeta;
   int iMetaCount;
+  int iAllocedMetaCount;
 
   void* pUserData; /*!< user private data */
   PFN_RefCount_CallBack pCallBack; /*!< user callback. called when the buffer refcount reaches 0 */
@@ -90,8 +96,10 @@ static bool initData(AL_TBufferImpl* pBuf, AL_TAllocator* pAllocator, PFN_RefCou
 {
   pBuf->buf.pAllocator = pAllocator;
   pBuf->pCallBack = pCallBack;
+  pBuf->pUserData = NULL;
   pBuf->pMeta = NULL;
   pBuf->iMetaCount = 0;
+  pBuf->iAllocedMetaCount = 0;
   pBuf->iRefCount = 0;
   pBuf->buf.iChunkCnt = 0;
 
@@ -294,17 +302,25 @@ bool AL_Buffer_AddMetaData(AL_TBuffer* hBuf, AL_TMetaData* pMeta)
 
   Rtos_GetMutex(pBuf->pLock);
 
-  size_t const zOldSize = sizeof(AL_TMetaData*) * pBuf->iMetaCount;
-  size_t const zNewSize = sizeof(AL_TMetaData*) * (pBuf->iMetaCount + 1);
-  AL_TMetaData** pNewBuffer = (AL_TMetaData**)Realloc(pBuf->pMeta, zOldSize, zNewSize);
-
-  if(!pNewBuffer)
+  if(pBuf->iMetaCount == pBuf->iAllocedMetaCount)
   {
-    Rtos_ReleaseMutex(pBuf->pLock);
-    return false;
+    size_t const zOldSize = sizeof(AL_TMetaData*) * pBuf->iAllocedMetaCount;
+    size_t const zNewSize = sizeof(AL_TMetaData*) * (pBuf->iAllocedMetaCount + AL_BUFFER_META_ALLOC_COUNT);
+
+    AL_TMetaData** pNewBuffer = (AL_TMetaData**)Realloc(pBuf->pMeta, zOldSize, zNewSize);
+
+    if(!pNewBuffer)
+    {
+      Rtos_ReleaseMutex(pBuf->pLock);
+      return false;
+    }
+
+    pBuf->iAllocedMetaCount += AL_BUFFER_META_ALLOC_COUNT;
+    pBuf->pMeta = pNewBuffer;
+
+    AL_Assert(pBuf->iAllocedMetaCount < AL_BUFFER_META_MAX_COUNT);
   }
 
-  pBuf->pMeta = pNewBuffer;
   pBuf->pMeta[pBuf->iMetaCount] = pMeta;
   pBuf->iMetaCount++;
 
@@ -325,13 +341,8 @@ bool AL_Buffer_RemoveMetaData(AL_TBuffer* hBuf, AL_TMetaData* pMeta)
     if(pBuf->pMeta[i] == pMeta)
     {
       pBuf->pMeta[i] = pBuf->pMeta[pBuf->iMetaCount - 1];
-      AL_TMetaData** pTmp = (AL_TMetaData**)Realloc(pBuf->pMeta, sizeof(void*) * pBuf->iMetaCount, sizeof(void*) * (pBuf->iMetaCount - 1));
-
-      /* if we can't realloc, keep the old bigger buffer */
-      if(pTmp)
-        pBuf->pMeta = pTmp;
-
       pBuf->iMetaCount--;
+
       Rtos_ReleaseMutex(pBuf->pLock);
       return true;
     }
@@ -394,3 +405,27 @@ void AL_Buffer_MemSet(const AL_TBuffer* pBuf, int iVal)
     Rtos_Memset(AL_Buffer_GetDataChunk(pBuf, i), iVal, AL_Buffer_GetSizeChunk(pBuf, i));
 }
 
+typedef void (* BufferChunkCB)(uint8_t* pChunk, size_t zChunkSize);
+
+static void BufferForEachChunk(const AL_TBuffer* pBuf, BufferChunkCB pfnChunkCB)
+{
+  int8_t iChunkCount = AL_Buffer_GetChunkCount(pBuf);
+  int8_t iChunk;
+
+  for(iChunk = 0; iChunk < iChunkCount; iChunk++)
+  {
+    uint8_t* pChunk = AL_Buffer_GetDataChunk(pBuf, iChunk);
+    size_t zChunkSize = AL_Buffer_GetSizeChunk(pBuf, iChunk);
+    pfnChunkCB(pChunk, zChunkSize);
+  }
+}
+
+void AL_Buffer_InvalidateMemory(const AL_TBuffer* pBuf)
+{
+  BufferForEachChunk(pBuf, (BufferChunkCB)Rtos_InvalidateCacheMemory);
+}
+
+void AL_Buffer_FlushMemory(const AL_TBuffer* pBuf)
+{
+  BufferForEachChunk(pBuf, (BufferChunkCB)Rtos_FlushCacheMemory);
+}

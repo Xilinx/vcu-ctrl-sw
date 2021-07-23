@@ -346,6 +346,8 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   AL_THevcSps* pSPS = (AL_THevcSps*)pISPS;
   InitHEVC_Sps(pSPS);
 
+  AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
+
   pSPS->sps_video_parameter_set_id = 0;
 
   int const iNumTemporalLayer = DeduceNumTemporalLayer(&pChParam->tGopParam);
@@ -414,7 +416,7 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   pSPS->vui_parameters_present_flag = 0;
 #endif
 
-  pSPS->vui_param.chroma_loc_info_present_flag = 1;
+  pSPS->vui_param.chroma_loc_info_present_flag = (eChromaMode == AL_CHROMA_4_2_0) ? 1 : 0;
   pSPS->vui_param.chroma_sample_loc_type_top_field = 0;
   pSPS->vui_param.chroma_sample_loc_type_bottom_field = 0;
 
@@ -650,10 +652,10 @@ bool AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TEnc
     pPPS->tiles_enabled_flag = 1;
 
     for(int iClmn = 0; iClmn < iNumClmn - 1; ++iClmn)
-      pPPS->column_width[iClmn] = pTileWidth[iClmn];
+      pPPS->tile_column_width[iClmn] = pTileWidth[iClmn];
 
     for(int iRow = 0; iRow < iNumRow - 1; ++iRow)
-      pPPS->row_height[iRow] = pTileHeight[iRow];
+      pPPS->tile_row_height[iRow] = pTileHeight[iRow];
   }
   pPPS->diff_cu_qp_delta_depth = pPicStatus->uCuQpDeltaDepth;
 

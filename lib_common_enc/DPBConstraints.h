@@ -45,7 +45,7 @@ typedef enum AL_e_GOPMngrType
 {
   AL_GOP_MNGR_DEFAULT,
   AL_GOP_MNGR_CUSTOM,
-  AL_GOP_MNGR_MAX_ENUM
+  AL_GOP_MNGR_MAX_ENUM,
 }AL_EGopMngrType;
 
 /*************************************************************************//*!
@@ -62,7 +62,7 @@ uint8_t AL_DPBConstraint_GetMaxDPBSize(const AL_TEncChanParam* pChParam);
    \param[in] bIsAom True if the encoding codec is an AOM codec
    \param[out] The type of GOP Manager used
 *****************************************************************************/
-AL_EGopMngrType AL_GetGopMngrType(AL_EGopCtrlMode eMode, bool bIsAom, bool bIsLookAhead);
+AL_EGopMngrType AL_GetGopMngrType(AL_EGopCtrlMode eMode, AL_ECodec eCodec, bool bIsLookAhead);
 
 uint8_t AL_DPBConstraint_GetMaxRef_DefaultGopMngr(const AL_TGopParam* pGopParam, AL_ECodec eCodec, AL_EVideoMode eVideoMode);
 uint8_t AL_DPBConstraint_GetMaxRef_GopMngrCustom(const AL_TGopParam* pGopParam, AL_ECodec eCodec, AL_EVideoMode eVideoMode);

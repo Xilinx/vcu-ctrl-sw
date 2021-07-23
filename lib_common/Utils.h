@@ -139,6 +139,7 @@ int floor_log2(uint16_t n);
 /****************************************************************************/
 int GetBlkNumber(AL_TDimension tDim, uint8_t uLog2MaxCuSize);
 
+static AL_INLINE int GetBlk128x128(AL_TDimension tDim) { return GetBlkNumber(tDim, 7); }
 static AL_INLINE int GetBlk64x64(AL_TDimension tDim) { return GetBlkNumber(tDim, 6); }
 static AL_INLINE int GetBlk32x32(AL_TDimension tDim) { return GetBlkNumber(tDim, 5); }
 static AL_INLINE int GetBlk16x16(AL_TDimension tDim) { return GetBlkNumber(tDim, 4); }

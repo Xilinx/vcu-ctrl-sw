@@ -111,32 +111,16 @@ static uint32_t AL_AVC_GetSliceRate(int level)
 }
 
 /****************************************************************************/
-enum Profile
+uint32_t AL_AVC_GetMaxNumberOfSlices(AL_EProfile profile, int level, int numUnitInTicks, int timeScale, int numMbsInPic)
 {
-  _NONE = 0,
-  CAVLC_444 = 44,
-  BASELINE = 66,
-  CONSTRAINED_BASELINE = 67,
-  MAIN = 77,
-  EXTENDED = 88,
-  HIGH = 100,
-  HIGH_10 = 110,
-  HIGH_422 = 122,
-  HIGH_444_PREDICTIVE = 244,
-  MULTIVIEW_HIGH = 118,
-  STEREO_HIGH = 128
-};
 
-/****************************************************************************/
-uint32_t AL_AVC_GetMaxNumberOfSlices(int profile, int level, int numUnitInTicks, int timeScale, int numMbsInPic)
-{
   uint32_t maxMBPS = AL_AVC_GetMaxMBperSec(level);
   uint32_t sliceRate = AL_AVC_GetSliceRate(level);
 
   if(sliceRate == 0)
     return numMbsInPic;
 
-  if(profile == BASELINE || profile == CONSTRAINED_BASELINE || profile == EXTENDED)
+  if(profile == AL_PROFILE_AVC_BASELINE || profile == AL_PROFILE_AVC_C_BASELINE || profile == AL_PROFILE_AVC_EXTENDED)
     return numMbsInPic;
 
   return Min(maxMBPS * 2 * numUnitInTicks / timeScale / sliceRate, numMbsInPic);

@@ -68,6 +68,12 @@ static size_t GetNotCopiedAreaSize(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, si
   return pMeta->iAvailSize - zCopiedSize;
 }
 
+static void CopyDataAndFlushCache(uint8_t* pDst, uint8_t* pSrc, size_t zSize)
+{
+  Rtos_Memcpy(pDst, pSrc, zSize);
+  Rtos_FlushCacheMemory(pDst, zSize);
+}
+
 static void CopyAreaToStream(uint8_t* pData, uint32_t uOffset, size_t zCopySize, AL_TBuffer* stream, AL_TCircMetaData* pStreamMeta)
 {
   size_t sStreamSize = AL_Buffer_GetSize(stream);
@@ -77,12 +83,12 @@ static void CopyAreaToStream(uint8_t* pData, uint32_t uOffset, size_t zCopySize,
   if(uEndStream + zCopySize > sStreamSize)
   {
     uint32_t SpaceLeftBeforeWrapping = sStreamSize - uEndStream;
-    Rtos_Memcpy(pStreamData + uEndStream, pData + uOffset, SpaceLeftBeforeWrapping);
-    Rtos_Memcpy(pStreamData, pData + uOffset + SpaceLeftBeforeWrapping, zCopySize - SpaceLeftBeforeWrapping);
+    CopyDataAndFlushCache(pStreamData + uEndStream, pData + uOffset, SpaceLeftBeforeWrapping);
+    CopyDataAndFlushCache(pStreamData, pData + uOffset + SpaceLeftBeforeWrapping, zCopySize - SpaceLeftBeforeWrapping);
     return;
   }
 
-  Rtos_Memcpy(pStreamData + uEndStream, pData + uOffset, zCopySize);
+  CopyDataAndFlushCache(pStreamData + uEndStream, pData + uOffset, zCopySize);
 }
 
 static size_t TryCopyBufferToStream(AL_TBuffer* pBuf, AL_TCircMetaData* pMeta, AL_TBuffer* stream)
@@ -148,7 +154,6 @@ size_t AL_Patchworker_CopyBuffer(AL_TPatchworker* this, AL_TBuffer* pBuf, size_t
 
 bool AL_Patchworker_Init(AL_TPatchworker* this, AL_TBuffer* stream, AL_TFifo* pInputFifo)
 {
-  this->endOfInput = false;
   this->lock = Rtos_CreateMutex();
   this->workBuf = NULL;
   this->inputFifo = pInputFifo;
@@ -215,21 +220,6 @@ size_t AL_Patchworker_Transfer(AL_TPatchworker* this)
   return zCopiedSize;
 }
 
-void AL_Patchworker_NotifyEndOfInput(AL_TPatchworker* this)
-{
-  Rtos_GetMutex(this->lock);
-  this->endOfInput = true;
-  Rtos_ReleaseMutex(this->lock);
-}
-
-bool AL_Patchworker_IsEndOfInput(AL_TPatchworker* this)
-{
-  Rtos_GetMutex(this->lock);
-  bool bRet = this->endOfInput;
-  Rtos_ReleaseMutex(this->lock);
-  return bRet;
-}
-
 bool AL_Patchworker_IsAllDataTransfered(AL_TPatchworker* this)
 {
   AL_TCircMetaData* pMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(this->outputCirc, AL_META_TYPE_CIRCULAR);
@@ -239,7 +229,6 @@ bool AL_Patchworker_IsAllDataTransfered(AL_TPatchworker* this)
 void AL_Patchworker_Reset(AL_TPatchworker* this)
 {
   Rtos_GetMutex(this->lock);
-  this->endOfInput = false;
   AL_TCircMetaData* pMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(this->outputCirc, AL_META_TYPE_CIRCULAR);
   pMeta->iOffset = 0;
   pMeta->iAvailSize = 0;

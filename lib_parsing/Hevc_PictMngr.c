@@ -79,12 +79,13 @@ static void AL_HEVC_sFillWPCoeff(AL_VADDR pDataWP, AL_THevcSliceHdr* pSlice, uin
 static void AL_HEVC_sBuildWPCoeff(AL_TPictMngrCtx* pCtx, AL_THevcSliceHdr* pSlice, TBuffer* pWP)
 {
   AL_VADDR pDataWP = pWP->tMD.pVirtualAddr + (pCtx->uNumSlice * WP_SLICE_SIZE);
-  Rtos_Memset(pDataWP, 0, WP_SLICE_SIZE);
 
   // weighted pred case
   if((pSlice->pPPS->weighted_bipred_flag && pSlice->slice_type == AL_SLICE_B) ||
      (pSlice->pPPS->weighted_pred_flag && pSlice->slice_type == AL_SLICE_P))
   {
+    Rtos_Memset(pDataWP, 0, WP_SLICE_SIZE);
+
     AL_HEVC_sFillWPCoeff(pDataWP, pSlice, 0);
 
     if(pSlice->slice_type == AL_SLICE_B)
@@ -265,7 +266,7 @@ void AL_HEVC_PictMngr_EndFrame(AL_TPictMngrCtx* pCtx, uint32_t uPocLsb, AL_ENut 
     }
   }
 
-  AL_PictMngr_Insert(pCtx, pCtx->iCurFramePOC, uPocLsb, pCtx->uRecID, pCtx->uMvID, pic_output_flag, SHORT_TERM_REF, 0, eNUT);
+  AL_PictMngr_Insert(pCtx, pCtx->iCurFramePOC, uPocLsb, pCtx->uRecID, pCtx->uMvID, pic_output_flag, SHORT_TERM_REF, 0, eNUT, 0);
   AL_Dpb_HEVC_Cleanup(pDpb, pSlice->pSPS->SpsMaxLatency, pSlice->pSPS->sps_max_num_reorder_pics[pSlice->pSPS->sps_max_sub_layers_minus1]);
 }
 

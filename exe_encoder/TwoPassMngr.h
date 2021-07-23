@@ -41,6 +41,7 @@
 #include <vector>
 #include <cstring>
 #include <deque>
+#include <memory>
 
 extern "C"
 {

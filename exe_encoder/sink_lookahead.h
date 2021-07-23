@@ -75,20 +75,24 @@ struct EncoderLookAheadSink : IFrameSink
     AL_ERR errorCode = AL_Encoder_Create(&hEnc, pScheduler, pAllocator, &cfgLA.Settings, onEndEncoding);
 
     if(errorCode)
-      throw codec_error(EncoderErrorToString(errorCode), errorCode);
+      throw codec_error(AL_Codec_ErrorToString(errorCode), errorCode);
 
     commandsSender.reset(new CommandsSender(hEnc));
     m_pictureType = cfg.RunInfo.printPictureType ? AL_SLICE_MAX_ENUM : -1;
 
     bEnableFirstPassSceneChangeDetection = cfg.Settings.bEnableFirstPassSceneChangeDetection;
     EOSFinished = Rtos_CreateEvent(false);
+    FifoFlushFinished = Rtos_CreateEvent(false);
     iNumLayer = cfg.Settings.NumLayer;
+
+    m_maxpicCount = cfg.RunInfo.iMaxPict;
   }
 
   ~EncoderLookAheadSink()
   {
     AL_Encoder_Destroy(hEnc);
     Rtos_DeleteEvent(EOSFinished);
+    Rtos_DeleteEvent(FifoFlushFinished);
   }
 
   void AddQpBufPool(QPBuffers::QPLayerInfo qpInf, int iLayerID)
@@ -123,16 +127,23 @@ struct EncoderLookAheadSink : IFrameSink
 
     std::shared_ptr<AL_TBuffer> QpBufShared(QpBuf, [&](AL_TBuffer* pBuf) { qpBuffers.releaseBuffer(pBuf); });
 
-    if(!AL_Encoder_Process(hEnc, Src, QpBuf))
-      throw std::runtime_error("Failed LA");
+    if(m_picCount <= m_maxpicCount)
+    {
+      AL_TBuffer* pSrc = (m_picCount == m_maxpicCount) ? nullptr : Src;
+
+      if(!AL_Encoder_Process(hEnc, pSrc, QpBuf))
+        throw std::runtime_error("Failed LA");
+    }
 
     if(Src)
+    {
       m_picCount++;
+    }
     else if(iNumLayer == 1)
     {
       // the main process waits for the LookAhead to end so he can flush the fifo
       Rtos_WaitEvent(EOSFinished, AL_WAIT_FOREVER);
-      ProcessFifo(true);
+      ProcessFifo(true, false);
     }
   }
 
@@ -144,6 +155,7 @@ struct EncoderLookAheadSink : IFrameSink
 
 private:
   int m_picCount = 0;
+  int m_maxpicCount = -1;
   int m_pictureType = -1;
   std::ifstream CmdFile;
   CEncCmdMngr EncCmd;
@@ -152,7 +164,9 @@ private:
   LookAheadMngr lookAheadMngr;
   bool bEnableFirstPassSceneChangeDetection;
   AL_EVENT EOSFinished;
+  AL_EVENT FifoFlushFinished;
   int iNumLayer;
+  int iNumFrameEnded;
 
   static inline bool isStreamReleased(AL_TBuffer* pStream, AL_TBuffer const* pSrc)
   {
@@ -176,6 +190,17 @@ private:
     pThis->processOutputLookAhead(pStream);
   }
 
+  void LaunchSecondPassDirectly(AL_TBuffer* pSrc)
+  {
+    Rtos_WaitEvent(FifoFlushFinished, AL_WAIT_FOREVER);
+
+    AL_Buffer_Ref(pSrc);
+    lookAheadMngr.m_fifo.push_back(pSrc);
+    ProcessFifo(false, true);
+
+    Rtos_SetEvent(FifoFlushFinished);
+  }
+
   void processOutputLookAhead(AL_TBuffer* pStream)
   {
     BitstreamOutput->ProcessFrame(pStream);
@@ -183,12 +208,12 @@ private:
 
     if(AL_IS_ERROR_CODE(eErr))
     {
-      LogError("%s\n", EncoderErrorToString(eErr));
+      LogError("%s\n", AL_Codec_ErrorToString(eErr));
       g_EncoderLastError = eErr;
     }
 
     if(AL_IS_WARNING_CODE(eErr))
-      LogWarning("%s\n", EncoderErrorToString(eErr));
+      LogWarning("%s\n", AL_Codec_ErrorToString(eErr));
 
     if(pStream)
     {
@@ -226,7 +251,9 @@ private:
 
     AL_Buffer_Ref(pSrc);
     lookAheadMngr.m_fifo.push_back(pSrc);
-    ProcessFifo(false);
+    ProcessFifo(false, false);
+
+    ++iNumFrameEnded;
   }
 
   AL_TBuffer* GetSrcBuffer()
@@ -236,7 +263,7 @@ private:
     return pSrc;
   }
 
-  void ProcessFifo(bool isEOS)
+  void ProcessFifo(bool isEOS, bool NoFirstPass)
   {
     auto iLASize = lookAheadMngr.uLookAheadSize;
 
@@ -247,8 +274,9 @@ private:
       next->ProcessFrame(NULL);
     }
     // Fifo is full, or fifo must be emptied at EOS
-    else if(isEOS || lookAheadMngr.m_fifo.size() == iLASize)
+    else if(isEOS || iNumFrameEnded == iLASize || NoFirstPass)
     {
+      iNumFrameEnded--;
       lookAheadMngr.ProcessLookAheadParams();
       AL_TBuffer* pSrc = GetSrcBuffer();
 
@@ -257,7 +285,7 @@ private:
       AL_Buffer_Unref(pSrc);
 
       if(isEOS)
-        ProcessFifo(isEOS);
+        ProcessFifo(isEOS, NoFirstPass);
     }
   }
 };

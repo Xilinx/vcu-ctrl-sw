@@ -36,7 +36,7 @@
 ******************************************************************************/
 
 /**************************************************************************//*!
-   \defgroup Encoder
+   \defgroup Encoder Encoder
 
    The diagram below shows the usual usage of the encoder control software API
    \htmlonly

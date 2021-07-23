@@ -110,7 +110,7 @@ static void ComputeQPInfo(AL_TEncChanParam* pChParam)
 {
   int iCbOffset = pChParam->iCbPicQpOffset;
   int iCrOffset = pChParam->iCrPicQpOffset;
-  AL_Common_Encoder_ComputeRCParam(iCbOffset, iCrOffset, 0, 12, pChParam);
+  AL_Common_Encoder_ComputeRCParam(iCbOffset, iCrOffset, 12, pChParam);
 }
 
 static void generateNals(AL_TEncCtx* pCtx, int iLayerID, bool bWriteVps)

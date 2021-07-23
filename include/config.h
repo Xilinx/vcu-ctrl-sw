@@ -83,11 +83,11 @@
 #ifndef HW_IP_BURST_ALIGNMENT
 #define HW_IP_BURST_ALIGNMENT 32
 #endif
-#ifndef HW_IP_BIT_DEPTH
-#define HW_IP_BIT_DEPTH 10
-#endif
 #ifndef AL_ENC_CORE_MAX_WIDTH
 #define AL_ENC_CORE_MAX_WIDTH 4096
+#endif
+#ifndef AL_ENC_CORE_MAX_WIDTH_JPEG
+#define AL_ENC_CORE_MAX_WIDTH_JPEG 16384
 #endif
 #ifndef AL_MAX_ENC_SLICE
 #define AL_MAX_ENC_SLICE 200
@@ -102,6 +102,6 @@
 
 #define AL_CONFIGURE_COMMANDLINE "./configure --config-blob customers/Xilinx/config.ini"
 #define AL_VERSION_MAJOR 0
-#define AL_VERSION_MINOR 28
+#define AL_VERSION_MINOR 31
 #define AL_VERSION_STEP 0
 

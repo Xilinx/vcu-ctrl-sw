@@ -138,6 +138,9 @@ typedef enum __AL_ALIGNED__ (4) AL_e_Profile
 } AL_EProfile;
 
 /****************************************************************************/
+#define AL_MAKE_PROFILE(Codec, Idc, Flags) ((AL_EProfile)(((Codec) << 24) | ((Flags) << 8) | (Idc)))
+
+/****************************************************************************/
 static AL_INLINE AL_ECodec AL_GET_CODEC(AL_EProfile eProfile)
 {
   return (AL_ECodec)((eProfile & 0xFF000000) >> 24);
@@ -154,6 +157,42 @@ static AL_INLINE int AL_GET_PROFILE_IDC(AL_EProfile eProfile)
 #define AL_GET_CS_FLAGS(Prof) ((Prof & 0x00FFFF00) >> 8)
 
 /****************************************************************************/
+static AL_INLINE bool AL_IS_VP9(AL_EProfile eProfile)
+{
+  (void)eProfile;
+  bool bIsCodecVP9 = false;
+  return bIsCodecVP9;
+}
+
+/****************************************************************************/
+static AL_INLINE bool AL_IS_AV1(AL_EProfile eProfile)
+{
+  (void)eProfile;
+  bool bIsCodecAV1 = false;
+  return bIsCodecAV1;
+}
+
+/****************************************************************************/
+static AL_INLINE bool AL_IS_AOM(AL_EProfile eProfile)
+{
+  return AL_IS_AV1(eProfile) || AL_IS_VP9(eProfile);
+}
+
+/****************************************************************************/
+static AL_INLINE bool AL_IS_AOM_CODEC(AL_ECodec eCodec)
+{
+  return ((eCodec) == AL_CODEC_VP9) || ((eCodec) == AL_CODEC_AV1);
+}
+
+/****************************************************************************/
+static AL_INLINE bool AL_IS_JPEG(AL_EProfile eProfile)
+{
+  (void)eProfile;
+  bool bIsCodecJPEG = false;
+  return bIsCodecJPEG;
+}
+
+/****************************************************************************/
 static AL_INLINE bool AL_IS_AVC(AL_EProfile eProfile)
 {
   return AL_GET_CODEC(eProfile) == AL_CODEC_AVC;
@@ -166,6 +205,18 @@ static AL_INLINE bool AL_IS_HEVC(AL_EProfile eProfile)
 }
 
 /****************************************************************************/
+static AL_INLINE bool AL_IS_VVC(AL_EProfile eProfile)
+{
+  return AL_GET_CODEC(eProfile) == AL_CODEC_VVC;
+}
+
+/****************************************************************************/
+static AL_INLINE bool AL_IS_ITU_CODEC(AL_ECodec eCodec)
+{
+  return ((eCodec) == AL_CODEC_AVC) || ((eCodec) == AL_CODEC_HEVC) || ((eCodec) == AL_CODEC_VVC);
+}
+
+/****************************************************************************/
 static AL_INLINE bool AL_IS_LOW_BITRATE_PROFILE(AL_EProfile eProfile)
 {
   bool bRes = ((AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt) && (AL_GET_RExt_FLAGS(eProfile) & 0x0080));
@@ -175,8 +226,10 @@ static AL_INLINE bool AL_IS_LOW_BITRATE_PROFILE(AL_EProfile eProfile)
 /****************************************************************************/
 static AL_INLINE bool AL_IS_STILL_PROFILE(AL_EProfile eProfile)
 {
-  bool bRes = ((AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt) && (AL_GET_RExt_FLAGS(eProfile) & 0x0100))
-              || (AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_HEVC_MAIN_STILL);
+  (void)eProfile;
+  bool bRes = false;
+  bRes |= ((AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_HEVC_RExt) && (AL_GET_RExt_FLAGS(eProfile) & 0x0100))
+          || (AL_GET_PROFILE_CODEC_AND_IDC(eProfile) == AL_PROFILE_HEVC_MAIN_STILL);
   return bRes;
 }
 
@@ -323,3 +376,5 @@ static AL_INLINE bool AL_IS_XAVC_MXF(AL_EProfile eProfile)
     );
   return bRes;
 }
+
+/*@}*/

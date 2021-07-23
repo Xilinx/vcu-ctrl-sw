@@ -106,6 +106,7 @@ static bool AL_sSettings_CheckProfile(AL_EProfile eProfile)
   case AL_PROFILE_HEVC_MAIN_422_12:
   case AL_PROFILE_HEVC_MAIN_444:
   case AL_PROFILE_HEVC_MAIN_444_10:
+  case AL_PROFILE_HEVC_MAIN_444_12:
   case AL_PROFILE_HEVC_MAIN_INTRA:
   case AL_PROFILE_HEVC_MAIN10_INTRA:
   case AL_PROFILE_HEVC_MAIN_422_INTRA:
@@ -440,21 +441,12 @@ static void XAVC_CheckCoherency(AL_TEncSettings* pSettings)
 }
 
 /***************************************************************************/
-static void AL_sSettings_SetDefaultXAVCParam(AL_TEncSettings* pSettings)
-{
-  XAVC_CheckCoherency(pSettings);
-}
-
-/***************************************************************************/
 static void AL_sSettings_SetDefaultAVCParam(AL_TEncSettings* pSettings)
 {
   pSettings->tChParam[0].uLog2MaxCuSize = AVC_MAX_CU_SIZE;
 
   if(pSettings->eScalingList == AL_SCL_MAX_ENUM)
     pSettings->eScalingList = AL_SCL_FLAT;
-
-  if(AL_IS_XAVC(pSettings->tChParam[0].eProfile))
-    AL_sSettings_SetDefaultXAVCParam(pSettings);
 }
 
 /***************************************************************************/
@@ -462,9 +454,6 @@ static void AL_sSettings_SetDefaultHEVCParam(AL_TEncSettings* pSettings)
 {
   if(pSettings->eScalingList == AL_SCL_MAX_ENUM)
     pSettings->eScalingList = AL_SCL_DEFAULT;
-
-  if(pSettings->tChParam[0].uCabacInitIdc > 1)
-    pSettings->tChParam[0].uCabacInitIdc = 1;
 }
 
 /***************************************************************************/
@@ -484,9 +473,9 @@ void AL_Settings_SetDefaultRCParam(AL_TRCParam* pRCParam)
   pRCParam->uPBDelta = -1;
   pRCParam->uMaxPelVal = 255;
   pRCParam->uMaxPSNR = 4200;
-  pRCParam->eOptions = AL_RC_OPT_SCN_CHG_RES | AL_RC_OPT_SC_PREVENTION;
+  pRCParam->eOptions = 0;
 
-  pRCParam->bUseGoldenRef = false;
+  pRCParam->bUseGoldenRef = true;
   pRCParam->uGoldenRefFrequency = 10;
   pRCParam->uPGoldenDelta = 2;
   pRCParam->pMaxPictureSize[AL_SLICE_I] = 0;
@@ -588,6 +577,11 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pChan->uOutputCropPosY = 0;
   pChan->uOutputCropWidth = 0;
   pChan->uOutputCropHeight = 0;
+  pChan->eStartCodeBytesAligned = AL_START_CODE_AUTO;
+
+#if (defined(ANDROID) || defined(__ANDROID_API__))
+  pChan->eStartCodeBytesAligned = AL_START_CODE_4_BYTES;
+#endif
 }
 
 /***************************************************************************/
@@ -612,6 +606,7 @@ void AL_Settings_SetDefaultParam(AL_TEncSettings* pSettings)
 
   if(AL_IS_HEVC(pSettings->tChParam[0].eProfile))
     AL_sSettings_SetDefaultHEVCParam(pSettings);
+
 }
 
 /***************************************************************************/
@@ -625,13 +620,13 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     MSG("Invalid parameter: Profile");
   }
 
-  if(AL_IS_10BIT_PROFILE(pChParam->eProfile) && (AL_GET_BITDEPTH(pChParam->ePicFormat) > 8) && (HW_IP_BIT_DEPTH < 10))
+  if(AL_IS_10BIT_PROFILE(pChParam->eProfile) && (AL_GET_BITDEPTH(pChParam->ePicFormat) > 8) && (AL_HWConfig_Enc_GetSupportedBitDepth() < 10))
   {
     ++err;
     MSG("The hardware IP doesn't support 10-bit encoding");
   }
 
-  if(AL_IS_12BIT_PROFILE(pChParam->eProfile) && (AL_GET_BITDEPTH(pChParam->ePicFormat) > 10) && (HW_IP_BIT_DEPTH < 12))
+  if(AL_IS_12BIT_PROFILE(pChParam->eProfile) && (AL_GET_BITDEPTH(pChParam->ePicFormat) > 10) && (AL_HWConfig_Enc_GetSupportedBitDepth() < 12))
   {
     ++err;
     MSG("The hardware IP doesn't support 12-bit encoding");
@@ -707,6 +702,12 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
       MSGF("Invalid parameter: NumCore. The width should at least be %d CTB per core. With the specified number of core, it is %d CTB per core. (Multi core alignement constraint might be the reason of this error if the CTB are equal)", diagnostic.requiredWidthInCtbPerCore, diagnostic.actualWidthInCtbPerCore);
     }
 
+    if(AL_IS_HEVC(pChParam->eProfile) && pSettings->tChParam[0].uCabacInitIdc > 1)
+    {
+      ++err;
+      MSG("Invalid parameter: CabacInit");
+    }
+
     int MinCoreWidth = 256;
 
     if(AL_IS_HEVC(pChParam->eProfile) && (pChParam->uEncWidth < MinCoreWidth * pChParam->uNumCore))
@@ -714,6 +715,12 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
       ++err;
       MSG("Invalid parameter: NumCore. The width should at least be 256 pixels per core for HEVC conformance.");
     }
+  }
+
+  if(AL_IS_AVC(pChParam->eProfile) && pSettings->tChParam[0].uCabacInitIdc > 2)
+  {
+    ++err;
+    MSG("Invalid parameter: CabacInit");
   }
   int const iCTBSize = (1 << pChParam->uLog2MaxCuSize);
 
@@ -724,6 +731,25 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   }
 
   int iMaxQP = 51;
+  int iMinQP = 0;
+
+  if(pChParam->tRCParam.iMaxQP < pChParam->tRCParam.iMinQP)
+  {
+    ++err;
+    MSG("Invalid parameters: MinQP and MaxQP");
+  }
+
+  if(pChParam->tRCParam.iMaxQP > iMaxQP)
+  {
+    ++err;
+    MSG("Invalid parameter: MaxQP");
+  }
+
+  if(pChParam->tRCParam.iMinQP < iMinQP)
+  {
+    ++err;
+    MSG("Invalid parameter: MinQP");
+  }
 
   if(pChParam->tRCParam.iInitialQP > iMaxQP)
   {
@@ -954,37 +980,6 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   return err;
 }
 
-/******************************************************************************/
-static uint32_t GetHevcMaxTileRow(uint8_t uLevel)
-{
-  switch(uLevel)
-  {
-  case 10:
-  case 20:
-  case 21:
-    return 1;
-  case 30:
-    return 2;
-  case 31:
-    return 3;
-  case 40:
-  case 41:
-    return 5;
-  case 50:
-  case 51:
-  case 52:
-    return 11;
-  case 60:
-  case 61:
-  case 62:
-    return 22;
-  default:
-    Rtos_Log(AL_LOG_CRITICAL, "level:%d\n", uLevel);
-    AL_Assert(0);
-    return 1;
-  }
-}
-
 /***************************************************************************/
 bool checkBitDepthCoherency(int iBitDepth, AL_EProfile eProfile)
 {
@@ -1059,7 +1054,7 @@ AL_EProfile getHevcMinimumProfile(int iBitDepth, AL_EChromaMode eChroma)
     // case AL_CHROMA_4_0_0: return AL_PROFILE_HEVC_MONO12;
     case AL_CHROMA_4_2_0: return AL_PROFILE_HEVC_MAIN12;
     case AL_CHROMA_4_2_2: return AL_PROFILE_HEVC_MAIN_422_12;
-    // case AL_CHROMA_4_4_4: return AL_PROFILE_HEVC_MAIN_444_12;
+    case AL_CHROMA_4_4_4: return AL_PROFILE_HEVC_MAIN_444_12;
     default: AL_Assert(0);
     }
 
@@ -1115,6 +1110,7 @@ AL_EProfile getAvcMinimumProfile(int iBitDepth, AL_EChromaMode eChroma)
 AL_EProfile getMinimumProfile(AL_ECodec eCodec, int iBitDepth, AL_EChromaMode eChromaMode)
 {
   (void)iBitDepth;
+  (void)eChromaMode;
   switch(eCodec)
   {
   case AL_CODEC_AVC: return getAvcMinimumProfile(iBitDepth, eChromaMode);
@@ -1156,6 +1152,13 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     pChParam->bUseUniformSliceType = false;
   }
 
+  if((pChParam->uSliceSize > 0) && (pChParam->uLog2MaxCuSize > 5))
+  {
+    MSG("!! Warning: Slice size is not available with Log2MaxCuSize > 5 !!");
+    pChParam->uSliceSize = 0;
+    ++numIncoherency;
+  }
+
   bool bIsLoopFilterEnable = (pChParam->eEncTools & AL_OPT_LF);
 
   if(pChParam->tGopParam.eGdrMode != AL_GDR_OFF)
@@ -1173,6 +1176,18 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
       bIsLoopFilterEnable = false;
     }
   }
+
+#if (defined(ANDROID) || defined(__ANDROID_API__))
+
+  if(AL_IS_ITU_CODEC(AL_GET_CODEC(pChParam->eProfile)))
+  {
+    if(pChParam->eStartCodeBytesAligned != AL_START_CODE_4_BYTES)
+    {
+      MSG("!! Start code bytes must be 4-bytes aligned !!");
+      pChParam->eStartCodeBytesAligned = AL_START_CODE_4_BYTES;
+    }
+  }
+#endif
 
   if(!bIsLoopFilterEnable)
   {
@@ -1362,6 +1377,9 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
   int const MAX_LOW_DELAY_B_GOP_LENGTH = 4;
   int const MIN_LOW_DELAY_B_GOP_LENGTH = 1;
 
+  if(pChParam->tRCParam.bUseGoldenRef && (pChParam->tGopParam.uNumB > 0 || pChParam->tRCParam.eRCMode != AL_RC_CONST_QP))
+    pChParam->tRCParam.bUseGoldenRef = false;
+
   if(pChParam->tGopParam.eMode == AL_GOP_MODE_LOW_DELAY_B && (pChParam->tGopParam.uGopLength > MAX_LOW_DELAY_B_GOP_LENGTH ||
                                                               pChParam->tGopParam.uGopLength < MIN_LOW_DELAY_B_GOP_LENGTH))
   {
@@ -1499,9 +1517,9 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     if(iNumCore == NUMCORE_AUTO)
       iNumCore = AL_CoreConstraint_GetExpectedNumberOfCores(&constraint, pChParam->uEncWidth, pChParam->uEncHeight, pChParam->tRCParam.uFrameRate * 1000, pChParam->tRCParam.uClkRatio);
 
-    if(iNumCore > 1 && pChParam->uNumSlices > GetHevcMaxTileRow(pChParam->uLevel))
+    if(iNumCore > 1 && pChParam->uNumSlices > AL_HEVC_GetMaxTileRows(pChParam->uLevel))
     {
-      pChParam->uNumSlices = Clip3(pChParam->uNumSlices, 1, GetHevcMaxTileRow(pChParam->uLevel));
+      pChParam->uNumSlices = Clip3(pChParam->uNumSlices, 1, AL_HEVC_GetMaxTileRows(pChParam->uLevel));
       MSG("!!With this Configuration, this NumSlices cannot be set!!");
       ++numIncoherency;
     }
@@ -1530,7 +1548,10 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
   }
 
   if(pChParam->tRCParam.eRCMode == AL_RC_CONST_QP && pChParam->tRCParam.iInitialQP < 0)
+  {
     pChParam->tRCParam.iInitialQP = 30;
+
+  }
 
   // Fill zero value with surounding non-zero value if any. Warning: don't change the order of if statements below !!
   if(pChParam->tRCParam.pMaxPictureSize[AL_SLICE_P] == 0)

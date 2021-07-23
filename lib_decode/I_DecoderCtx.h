@@ -49,6 +49,7 @@
 
 #include "lib_parsing/I_PictMngr.h"
 #include "lib_parsing/Concealment.h"
+#include "lib_parsing/Aup.h"
 
 #include "NalUnitParser.h"
 #include "lib_decode/I_DecScheduler.h"
@@ -81,7 +82,6 @@ typedef struct t_Dec_Ctx
   AL_HANDLE hChannel;
   AL_HANDLE hStartCodeChannel;
   AL_TAllocator* pAllocator;
-
   AL_EChanState eChanState;
 
   AL_CB_EndParsing endParsingCB;
@@ -122,6 +122,8 @@ typedef struct t_Dec_Ctx
   AL_EDpbMode eDpbMode;
   int iStackSize;
   bool bForceFrameRate;
+  bool bIntraOnlyProfile;
+  bool bStillPictureProfile;
 
   // Trace stuff
   char sTracePrefix[8];

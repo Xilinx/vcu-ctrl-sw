@@ -40,5 +40,5 @@
 #include "I_Feeder.h"
 #include "DecoderFeeder.h"
 
-AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, int uMaxBufNum, AL_TAllocator* pAllocator, int iBufferStreamSize, AL_TBuffer* eosBuffer, AL_CB_Error* errorCallback);
+AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, int uMaxBufNum, AL_TAllocator* pAllocator, int iBufferStreamSize, AL_TBuffer* eosBuffer, bool bForceAccessUnitDestroy, AL_CB_Error* errorCallback);
 

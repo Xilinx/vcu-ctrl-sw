@@ -140,4 +140,4 @@ TFourCC AL_PixMapBuffer_GetFourCC(AL_TBuffer const* pBuf);
 *****************************************************************************/
 bool AL_PixMapBuffer_SetFourCC(AL_TBuffer* pBuf, TFourCC tFourCC);
 
-/*@*/
+/*@}*/

@@ -165,13 +165,13 @@ void AL_AVC_FillSliceParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx*
   // Reg 5
   if(pSP->eSliceType == AL_SLICE_CONCEAL)
   {
-    pSP->FirstLCU = pCtx->PictMngr.uNumSlice;
+    pSP->SliceFirstLCU = pCtx->PictMngr.uNumSlice;
     pSP->FirstLcuSliceSegment = pCtx->PictMngr.uNumSlice;
     pSP->FirstLcuSlice = pCtx->PictMngr.uNumSlice;
   }
   else
   {
-    pSP->FirstLCU = pSlice->first_mb_in_slice;
+    pSP->SliceFirstLCU = pSlice->first_mb_in_slice;
     pSP->FirstLcuSliceSegment = pSlice->first_mb_in_slice;
     pSP->FirstLcuSlice = pSlice->first_mb_in_slice;
   }
@@ -180,7 +180,7 @@ void AL_AVC_FillSliceParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx*
   pSP->NumRefIdxL1Minus1 = pSlice->num_ref_idx_l1_active_minus1;
 
   // Reg 6
-  pSP->NumLCU = pPP->LcuPicWidth * pPP->LcuPicHeight;
+  pSP->SliceNumLCU = pPP->LcuPicWidth * pPP->LcuPicHeight;
   pSP->SliceHeaderLength = pSlice->slice_header_length;
 
   // Reg 0x11
@@ -323,10 +323,10 @@ void AL_HEVC_FillPictParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx
   if(pPps->tiles_enabled_flag)
   {
     for(int i = 0; i <= pPps->num_tile_columns_minus1; ++i)
-      pPP->column_width[i] = pPps->column_width[i];
+      pPP->tile_column_width[i] = pPps->tile_column_width[i];
 
     for(int i = 0; i <= pPps->num_tile_rows_minus1; ++i)
-      pPP->row_height[i] = pPps->row_height[i];
+      pPP->tile_row_height[i] = pPps->tile_row_height[i];
   }
 
 }
@@ -401,8 +401,10 @@ void AL_HEVC_FillSliceParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCt
   pSP->WeightedPred = pPps->weighted_pred_flag;
   pSP->WeightedBiPred = pPps->weighted_bipred_flag;
 
-  for(int i = 0; i <= pSlice->num_entry_point_offsets; ++i)
-    pSP->entry_point_offset[i] = pSlice->entry_point_offset_minus1[i];
+  pSP->entry_point_offset[0] = 0;
+
+  for(int i = 1; i <= pSlice->num_entry_point_offsets; ++i)
+    pSP->entry_point_offset[i] = pSlice->entry_point_offset_minus1[i] + 1;
 }
 
 /******************************************************************************/

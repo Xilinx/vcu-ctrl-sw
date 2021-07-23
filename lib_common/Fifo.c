@@ -47,28 +47,35 @@ bool AL_Fifo_Init(AL_TFifo* pFifo, size_t zMaxElem)
   pFifo->ElemBuffer = (void**)Rtos_Malloc(zElemSize);
 
   if(!pFifo->ElemBuffer)
-    return false;
+    goto fail_elements_allocation;
   Rtos_Memset(pFifo->ElemBuffer, 0xCD, zElemSize);
 
   pFifo->hCountSem = Rtos_CreateSemaphore(0);
 
   if(!pFifo->hCountSem)
-  {
-    Rtos_Free(pFifo->ElemBuffer);
-    return false;
-  }
+    goto fail_count_creation;
 
   pFifo->hSpaceSem = Rtos_CreateSemaphore(zMaxElem);
-  pFifo->hMutex = Rtos_CreateMutex();
 
   if(!pFifo->hSpaceSem)
-  {
-    Rtos_DeleteSemaphore(pFifo->hCountSem);
-    Rtos_Free(pFifo->ElemBuffer);
-    return false;
-  }
+    goto fail_space_creation;
+
+  pFifo->hMutex = Rtos_CreateMutex();
+
+  if(!pFifo->hMutex)
+    goto fail_mutex_create;
 
   return true;
+
+  fail_mutex_create:
+  Rtos_DeleteSemaphore(pFifo->hSpaceSem);
+  fail_space_creation:
+  Rtos_DeleteSemaphore(pFifo->hCountSem);
+  fail_count_creation:
+  Rtos_Free(pFifo->ElemBuffer);
+  fail_elements_allocation:
+
+  return false;
 }
 
 void AL_Fifo_Deinit(AL_TFifo* pFifo)

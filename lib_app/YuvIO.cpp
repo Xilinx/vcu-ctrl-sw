@@ -116,7 +116,7 @@ AL_TBuffer* AllocateDefaultYuvIOBuffer(AL_TDimension const& tDimension, TFourCC 
 }
 
 /*****************************************************************************/
-static int PictureSize(TYUVFileInfo FI)
+int GetPictureSize(TYUVFileInfo FI)
 {
   uint32_t uFileRowSize = GetIOLumaRowSize(FI.FourCC, FI.PictWidth);
   int iPictSize = uFileRowSize * FI.PictHeight;
@@ -143,7 +143,7 @@ static int PictureSize(TYUVFileInfo FI)
 /*****************************************************************************/
 void GotoFirstPicture(TYUVFileInfo const& FI, std::ifstream& File, unsigned int iFirstPict)
 {
-  int64_t const iPictLen = PictureSize(FI);
+  int64_t const iPictLen = GetPictureSize(FI);
   File.seekg(iPictLen * iFirstPict);
 }
 
@@ -154,7 +154,7 @@ int GotoNextPicture(TYUVFileInfo const& FI, std::ifstream& File, int iEncFrameRa
 
   if(iMove != 0)
   {
-    int iPictSize = PictureSize(FI);
+    int iPictSize = GetPictureSize(FI);
     File.seekg(iPictSize * iMove, std::ios_base::cur);
   }
   return iMove;
@@ -445,4 +445,14 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf)
   }
 
   return true;
+}
+
+/*****************************************************************************/
+int GetFileSize(std::ifstream& File)
+{
+  auto position = File.tellg();
+  File.seekg(0, std::ios_base::end);
+  auto size = File.tellg();
+  File.seekg(position);
+  return size;
 }

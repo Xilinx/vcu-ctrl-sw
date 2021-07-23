@@ -50,7 +50,6 @@
 #include "InternalError.h"
 #include "lib_common_dec/DecInfo.h"
 #include "lib_rtos/types.h"
-#include "lib_trace/DecTraceDefs.h"
 
 typedef struct
 {
@@ -99,6 +98,15 @@ void AL_Default_Decoder_EndParsing(void* pUserParam, int iFrameID, int iParsingI
 void AL_Default_Decoder_EndDecoding(void* pUserParam, AL_TDecPicStatus* pStatus);
 
 /*************************************************************************//*!
+   \brief This function signal that a buffer as been fully parsed and force
+          its release. Function meant to be used for buffers that haven't
+          been freed through a endparsing nor enddecoding call.
+   \param[in] pUserParam filled with the decoder context
+   \param[in] pBufStream buffer containing input bitstream to decode
+*****************************************************************************/
+void AL_Default_Decoder_ReleaseStreamBuffer(void* pUserParam, AL_TBuffer* pBufStream);
+
+/*************************************************************************//*!
    \brief This function allocate memory blocks usable by the decoder
    \param[in]  pCtx decoder context
    \param[out] pMD  Pointer to TMemDesc structure that receives allocated
@@ -114,6 +122,7 @@ bool AL_Default_Decoder_Alloc(AL_TDecCtx* pCtx, TMemDesc* pMD, uint32_t uSize, c
    \brief This function allocate comp memory blocks used by the decoder
    \param[in] pCtx decoder context
    \param[in] iALFSize Size of the ALF filter sets buffer
+   \param[in] iLmcsSize Size of the LMCS coeffs buffer
    \param[in] iWPSize Size of the weighted pred buffer
    \param[in] iSPSize Size of the slice param buffer
    \param[in] iCompDataSize Size of the comp data buffer
@@ -122,7 +131,7 @@ bool AL_Default_Decoder_Alloc(AL_TDecCtx* pCtx, TMemDesc* pMD, uint32_t uSize, c
    \return If the function succeeds the return value is nonzero (true)
          If the function fails the return value is zero (false)
 *****************************************************************************/
-bool AL_Default_Decoder_AllocPool(AL_TDecCtx* pCtx, int iALFSize, int iWPSize, int iSPSize, int iCompDataSize, int iCompMapSize, int iCQpSize);
+bool AL_Default_Decoder_AllocPool(AL_TDecCtx* pCtx, int iALFSize, int iLmcsSize, int iWPSize, int iSPSize, int iCompDataSize, int iCompMapSize, int iCQpSize);
 
 /*************************************************************************//*!
    \brief This function allocate comp memory blocks used by the decoder
@@ -153,9 +162,10 @@ AL_EFbStorageMode AL_Default_Decoder_GetDisplayStorageMode(AL_TDecCtx* pCtx, boo
 
 void AL_Default_Decoder_Destroy(AL_TDecoder* pAbsDec);
 void AL_Default_Decoder_SetParam(AL_TDecoder* pAbsDec, const char* sPrefix, int iFrmID, int iNumFrm, bool bForceCleanBuffers, bool bShouldPrintFrameDelimiter);
+bool AL_Default_Decoder_PushStreamBuffer(AL_TDecoder* pAbsDec, AL_TBuffer* pBuf, size_t uSize, uint8_t uFlags);
 bool AL_Default_Decoder_PushBuffer(AL_TDecoder* pAbsDec, AL_TBuffer* pBuf, size_t uSize);
 void AL_Default_Decoder_Flush(AL_TDecoder* pAbsDec);
-void AL_Default_Decoder_PutDecPict(AL_TDecoder* pAbsDec, AL_TBuffer* pDecPict);
+bool AL_Default_Decoder_PutDecPict(AL_TDecoder* pAbsDec, AL_TBuffer* pDecPict);
 int AL_Default_Decoder_GetMaxBD(AL_TDecoder* pAbsDec);
 AL_ERR AL_Default_Decoder_GetLastError(AL_TDecoder* pAbsDec);
 AL_ERR AL_Default_Decoder_GetFrameError(AL_TDecoder* pAbsDec, AL_TBuffer* pBuf);

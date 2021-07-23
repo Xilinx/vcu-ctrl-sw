@@ -97,7 +97,7 @@ void AL_SetConcealParameters(AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP);
    \param[in]  bIsLastVclNalInAU Specifies if this is the last NAL of the current access unit
    \param[in]  bNextIsDependent  Specifies if the next slice segment is a dependent or non-dependent slice
 *****************************************************************************/
-void AL_TerminatePreviousCommand(AL_TDecCtx* pCtx, AL_TDecPicParam* pPP, AL_TDecSliceParam* pSP, bool bIsLastVclNalInAU, bool bNextIsDependent);
+void AL_TerminatePreviousCommand(AL_TDecCtx* pCtx, AL_TDecPicParam const* pPP, AL_TDecSliceParam* pSP, bool bIsLastVclNalInAU, bool bNextIsDependent);
 
 /*************************************************************************//*!
    \brief The AL_AVC_PrepareCommand function prepares the buffers for the hardware decoding process

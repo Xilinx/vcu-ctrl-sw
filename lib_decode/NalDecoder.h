@@ -36,7 +36,13 @@
 ******************************************************************************/
 
 #pragma once
+#include "I_DecoderCtx.h"
 #include "DefaultDecoder.h"
+
+#include "lib_common_dec/RbspParser.h"
+#include "lib_parsing/Aup.h"
+#include "lib_common/BufferSeiMeta.h"
+#include "lib_common/Nuts.h"
 
 typedef struct
 {

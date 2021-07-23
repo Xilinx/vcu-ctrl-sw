@@ -80,7 +80,7 @@ static bool PreprocessQP(uint8_t* pQPs, AL_EGenerateQpMode eMode, const AL_TEncC
   return GenerateQPBuffer(eMode, tChParam.tRCParam.iInitialQP,
                           tChParam.tRCParam.iMinQP, tChParam.tRCParam.iMaxQP,
                           AL_GetWidthInLCU(tChParam), AL_GetHeightInLCU(tChParam),
-                          tChParam.eProfile, iQPTableDepth, sQPTablesFolder,
+                          tChParam.eProfile, tChParam.uLog2MaxCuSize, iQPTableDepth, sQPTablesFolder,
                           iFrameCountSent, pQPs + EP2_BUF_QP_BY_MB.Offset, pSegs);
 }
 
@@ -153,20 +153,30 @@ private:
     auto& tLayerChParam = settings.tChParam[iLayerID];
 
     AL_TBuffer* pQpBuf = layerInfo.bufPool->GetBuffer();
-    bool bRet = PreprocessQP(AL_Buffer_GetData(pQpBuf), mode, tLayerChParam, layerInfo.sQPTablesFolder, frameNum);
 
-    auto iQPTableDepth = 0;
+    bool bRet = false;
+    std::string sErrorMsg = "Error loading external QP tables.";
 
-    if(!bRet)
-      bRet = GenerateROIBuffer(mQPLayerRoiCtxs[iLayerID], layerInfo.sRoiFileName,
-                               AL_GetWidthInLCU(tLayerChParam), AL_GetHeightInLCU(tLayerChParam),
-                               tLayerChParam.eProfile, iQPTableDepth, frameNum,
-                               AL_Buffer_GetData(pQpBuf) + EP2_BUF_QP_BY_MB.Offset);
+    if(AL_GENERATE_ROI_QP == (AL_EGenerateQpMode)(mode & AL_GENERATE_MASK_QP_TABLE))
+    {
+      auto iQPTableDepth = 0;
+
+      if(!GenerateROIBuffer(mQPLayerRoiCtxs[iLayerID], layerInfo.sRoiFileName,
+                            AL_GetWidthInLCU(tLayerChParam), AL_GetHeightInLCU(tLayerChParam),
+                            tLayerChParam.eProfile, tLayerChParam.uLog2MaxCuSize, iQPTableDepth,
+                            frameNum, AL_Buffer_GetData(pQpBuf) + EP2_BUF_QP_BY_MB.Offset))
+      {
+        bRet = false;
+        sErrorMsg = "Error loading ROI file.";
+      }
+    }
+    else
+    bRet = PreprocessQP(AL_Buffer_GetData(pQpBuf), mode, tLayerChParam, layerInfo.sQPTablesFolder, frameNum);
 
     if(!bRet)
     {
       releaseBuffer(pQpBuf);
-      throw std::runtime_error("Error loading external QP tables.");
+      throw std::runtime_error(sErrorMsg);
     }
 
     return pQpBuf;
@@ -185,28 +195,6 @@ static AL_ERR g_EncoderLastError = AL_SUCCESS;
 AL_ERR GetEncoderLastError()
 {
   return g_EncoderLastError;
-}
-
-static
-const char* EncoderErrorToString(AL_ERR eErr)
-{
-  switch(eErr)
-  {
-  case AL_ERR_STREAM_OVERFLOW: return "Stream Error: Stream overflow";
-  case AL_ERR_TOO_MANY_SLICES: return "Stream Error: Too many slices";
-  case AL_ERR_CHAN_CREATION_NO_CHANNEL_AVAILABLE: return "Channel creation failed, no channel available";
-  case AL_ERR_CHAN_CREATION_RESOURCE_UNAVAILABLE: return "Channel creation failed, processing power of the available cores insufficient";
-  case AL_ERR_CHAN_CREATION_NOT_ENOUGH_CORES: return "Channel creation failed, couldn't spread the load on enough cores";
-  case AL_ERR_REQUEST_MALFORMED: return "Channel creation failed, request was malformed";
-  case AL_ERR_NO_MEMORY: return "Memory shortage detected (DMA, embedded memory or virtual memory)";
-#if AL_ENABLE_ENC_WATCHDOG
-  case AL_ERR_WATCHDOG_TIMEOUT: return "Watchdog timeout";
-#endif
-  case AL_WARN_LCU_OVERFLOW: return "Warning some LCU exceed the maximum allowed bits";
-  case AL_WARN_NUM_SLICES_ADJUSTED: return "Warning num slices have been adjusted";
-  case AL_SUCCESS: return "Success";
-  default: return "Unknown error";
-  }
 }
 
 struct safe_ifstream
@@ -238,10 +226,10 @@ struct EncoderSink : IFrameSink
     AL_ERR errorCode = AL_Encoder_Create(&hEnc, pScheduler, pAllocator, &cfg.Settings, onEndEncoding);
 
     if(AL_IS_ERROR_CODE(errorCode))
-      throw codec_error(EncoderErrorToString(errorCode), errorCode);
+      throw codec_error(AL_Codec_ErrorToString(errorCode), errorCode);
 
     if(AL_IS_WARNING_CODE(errorCode))
-      LogWarning("%s\n", EncoderErrorToString(errorCode));
+      LogWarning("%s\n", AL_Codec_ErrorToString(errorCode));
 
     commandsSender.reset(new CommandsSender(hEnc));
     BitstreamOutput.reset(new NullFrameSink);
@@ -403,12 +391,12 @@ private:
 
     if(AL_IS_ERROR_CODE(eErr))
     {
-      LogError("%s\n", EncoderErrorToString(eErr));
+      LogError("%s\n", AL_Codec_ErrorToString(eErr));
       g_EncoderLastError = eErr;
     }
 
     if(AL_IS_WARNING_CODE(eErr))
-      LogWarning("%s\n", EncoderErrorToString(eErr));
+      LogWarning("%s\n", AL_Codec_ErrorToString(eErr));
 
     if(pStream && shouldAddDummySei)
     {
@@ -445,16 +433,17 @@ private:
 
   void processOutput(AL_TBuffer* pStream)
   {
-    auto eErr = PreprocessOutput(pStream);
+    AL_ERR eErr;
+    eErr = PreprocessOutput(pStream);
 
     if(AL_IS_ERROR_CODE(eErr))
     {
-      LogError("%s\n", EncoderErrorToString(eErr));
+      LogError("%s\n", AL_Codec_ErrorToString(eErr));
       g_EncoderLastError = eErr;
     }
 
     if(AL_IS_WARNING_CODE(eErr))
-      LogWarning("%s\n", EncoderErrorToString(eErr));
+      LogWarning("%s\n", AL_Codec_ErrorToString(eErr));
 
     if(pStream)
     {
@@ -467,6 +456,9 @@ private:
     while(AL_Encoder_GetRecPicture(hEnc, &RecPic))
     {
       auto buf = RecPic.pBuf;
+
+      if(buf)
+        AL_Buffer_InvalidateMemory(buf);
       LayerRecOutput[0]->ProcessFrame(buf);
       AL_Encoder_ReleaseRecPicture(hEnc, &RecPic);
     }

@@ -58,6 +58,7 @@ typedef struct AL_t_Segmentation
 {
   bool enable;
   bool update_map;
+  bool temporal_update;
   bool update_data;
   bool abs_delta;
   int16_t feature_data[MAX_SEGMENTS];  // only store data for Q
