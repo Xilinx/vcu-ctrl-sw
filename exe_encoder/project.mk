@@ -45,14 +45,14 @@ $(BIN)/$(THIS_EXE_ENCODER)/main.cpp.o: INTROSPECT_FLAGS=-DAL_COMPIL_FLAGS='"$(CF
 $(BIN)/$(THIS_EXE_ENCODER)/main.cpp.o: INTROSPECT_FLAGS+=-DHAS_COMPIL_FLAGS=1
 
 
-$(BIN)/ctrlsw_encoder: $(EXE_ENCODER_OBJ) $(LIB_REFENC_A) $(LIB_REFALLOC_A) $(LIB_ENCODER_A) $(LIB_APP_A) $(LIB_CFG_PARSING_A) $(LIB_CONV_YUV_A)
+$(BIN)/AL_Encoder.exe: $(EXE_ENCODER_OBJ) $(LIB_REFENC_A) $(LIB_REFALLOC_A) $(LIB_ENCODER_A) $(LIB_APP_A) $(LIB_CFG_PARSING_A) $(LIB_CONV_YUV_A)
 
-TARGETS+=$(BIN)/ctrlsw_encoder
+TARGETS+=$(BIN)/AL_Encoder.exe
 
 ifneq ($(ENABLE_LIB_ISCHEDULER),0)
-$(BIN)/AL_Encoder.sh: $(BIN)/ctrlsw_encoder
+$(BIN)/AL_Encoder.sh: $(BIN)/AL_Encoder.exe
 	@echo "Generate script $@"
-	$(shell echo 'LD_LIBRARY_PATH=$(BIN) $(BIN)/ctrlsw_encoder "$$@"' > $@ && chmod a+x $@)
+	$(shell echo 'LD_LIBRARY_PATH=$(BIN) $(BIN)/AL_Encoder.exe "$$@"' > $@ && chmod a+x $@)
 
 TARGETS+=$(BIN)/AL_Encoder.sh
 endif
