@@ -117,13 +117,12 @@ uint32_t AL_AVC_GetMaxNumberOfSlices(AL_EProfile profile, int level, int numUnit
   uint32_t maxMBPS = AL_AVC_GetMaxMBperSec(level);
   uint32_t sliceRate = AL_AVC_GetSliceRate(level);
 
-  if(sliceRate == 0)
-    return numMbsInPic;
+  uint32_t maxNumSlices = numMbsInPic;
 
-  if(profile == AL_PROFILE_AVC_BASELINE || profile == AL_PROFILE_AVC_C_BASELINE || profile == AL_PROFILE_AVC_EXTENDED)
-    return numMbsInPic;
+  if(sliceRate != 0 && profile != AL_PROFILE_AVC_BASELINE && profile != AL_PROFILE_AVC_C_BASELINE && profile != AL_PROFILE_AVC_EXTENDED)
+    maxNumSlices = Min(maxMBPS * 2 * numUnitInTicks / timeScale / sliceRate, numMbsInPic);
 
-  return Min(maxMBPS * 2 * numUnitInTicks / timeScale / sliceRate, numMbsInPic);
+  return Min(2880, maxNumSlices);
 }
 
 /****************************************************************************/
