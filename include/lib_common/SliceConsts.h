@@ -134,6 +134,7 @@ typedef enum e_StartCodeBytesAlignedMode
   AL_START_CODE_AUTO,
   AL_START_CODE_3_BYTES,
   AL_START_CODE_4_BYTES,
+  AL_START_CODE_MAX_ENUM,
 }AL_EStartCodeBytesAlignedMode;
 
 /*@}*/
