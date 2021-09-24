@@ -221,6 +221,32 @@ static unsigned int AL_sHEVC_GenerateSkippedTileCabac(AL_TBitStreamLite* pBS, bo
 }
 
 /******************************************************************************/
+int AddAntiEmulSizeInBytes(AL_TBitStreamLite* pBS)
+{
+  int numBytes = (AL_BitStreamLite_GetBitsCount(pBS) + 7) / 8;
+  uint8_t* bitstream = AL_BitStreamLite_GetData(pBS);
+
+  int insertedBytes = 0;
+  int numConsecutiveZero = 0;
+
+  for(int i = 0; i < numBytes; i++)
+  {
+    if(numConsecutiveZero == 2 && bitstream[i] <= 0x03)
+    {
+      insertedBytes++;
+      numConsecutiveZero = 0;
+    }
+
+    if(bitstream[i] == 0x00)
+      numConsecutiveZero++;
+    else
+      numConsecutiveZero = 0;
+  }
+
+  return insertedBytes;
+}
+
+/******************************************************************************/
 bool AL_HEVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iWidth, int iHeight, uint8_t uLog2MaxCuSize, uint8_t uMinCuSize, int iTileColumns, int iTileRows, uint16_t* pTileWidths, uint16_t* pTileHeights)
 {
   if(!pSkipPict || !pSkipPict->pData)
@@ -246,10 +272,10 @@ bool AL_HEVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iWidth, i
       int iTileWidth = Min(pTileWidths[iTileColumn] << uLog2MaxCuSize, W);
       int iTileHeight = Min(pTileHeights[iTileRow] << uLog2MaxCuSize, H);
       iBinsCount = AL_sHEVC_GenerateSkippedTileCabac(&BS, bLastTile, iTileWidth, iTileHeight, uLog2MaxCuSize, uMinCuSize, uTileNumLCU);
-      iBitsCount = AL_BitStreamLite_GetBitsCount(&BS);
+      iBitsCount = AL_BitStreamLite_GetBitsCount(&BS) + BytesToBits(AddAntiEmulSizeInBytes(&BS));
 
       AL_Assert(((iBitsCount - iPrevBitsCount) % 8) == 0);
-      pSkipPict->uTileSizes[iTile++] = (iBitsCount - iPrevBitsCount) / 8;
+      pSkipPict->uTileSizes[iTile++] = BitsToBytes(iBitsCount - iPrevBitsCount);
 
       iPrevBitsCount = iBitsCount;
 
@@ -259,7 +285,7 @@ bool AL_HEVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iWidth, i
     H -= (pTileHeights[iTileRow] << uLog2MaxCuSize);
   }
 
-  pSkipPict->iNumBits = iBitsCount;
+  pSkipPict->iNumBits = AL_BitStreamLite_GetBitsCount(&BS);
   pSkipPict->iNumBins = iBinsCount;
   pSkipPict->iNumTiles = iTileColumns * iTileRows;
 
