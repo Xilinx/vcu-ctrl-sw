@@ -137,7 +137,7 @@ static int getMaxNumberOfSlices(AL_TStreamSettings const* pStreamSettings, AL_TA
 
   int numUnitsInTick = 1, timeScale = 1;
 
-  if(pSPS->vui_parameters_present_flag)
+  if(pSPS->vui_parameters_present_flag && pSPS->vui_param.vui_timing_info_present_flag)
   {
     numUnitsInTick = pSPS->vui_param.vui_num_units_in_tick;
     timeScale = pSPS->vui_param.vui_time_scale;
@@ -326,7 +326,7 @@ static bool initChannel(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
   pChan->iMaxSlices = iSPSMaxSlices;
   pChan->iMaxTiles = 1;
 
-  if(!pCtx->bForceFrameRate && pSPS->vui_parameters_present_flag)
+  if(!pCtx->bForceFrameRate && pSPS->vui_parameters_present_flag && pSPS->vui_param.vui_timing_info_present_flag)
   {
     pChan->uFrameRate = pSPS->vui_param.vui_time_scale / 2;
     pChan->uClkRatio = pSPS->vui_param.vui_num_units_in_tick;
