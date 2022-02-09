@@ -131,10 +131,10 @@ static int getMaxBitDepth(AL_TAvcSps const* pSPS)
 }
 
 /*************************************************************************/
-static int getMaxNumberOfSlices(AL_TStreamSettings const* pStreamSettings, AL_TAvcSps const* pSPS)
+static int getMaxNumberOfSlices(AL_TDecCtx const* pCtx, AL_TAvcSps const* pSPS)
 {
+  AL_TStreamSettings const* pStreamSettings = &pCtx->tStreamSettings;
   int macroblocksCountInPicture = GetBlk16x16(pStreamSettings->tDim);
-
   int numUnitsInTick = 1, timeScale = 1;
 
   if(pSPS->vui_parameters_present_flag && pSPS->vui_param.vui_timing_info_present_flag)
@@ -142,6 +142,13 @@ static int getMaxNumberOfSlices(AL_TStreamSettings const* pStreamSettings, AL_TA
     numUnitsInTick = pSPS->vui_param.vui_num_units_in_tick;
     timeScale = pSPS->vui_param.vui_time_scale;
   }
+
+  if(pCtx->bForceFrameRate)
+  {
+    numUnitsInTick = pCtx->pChanParam->uFrameRate * 2;
+    timeScale = pCtx->pChanParam->uClkRatio;
+  }
+
   return AL_AVC_GetMaxNumberOfSlices(pStreamSettings->eProfile, pStreamSettings->iLevel, numUnitsInTick, timeScale, macroblocksCountInPicture);
 }
 
@@ -269,7 +276,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
 {
   int iNumMBs = (pSPS->pic_width_in_mbs_minus1 + 1) * (pSPS->pic_height_in_map_units_minus1 + 1);
   AL_Assert(iNumMBs == ((pCtx->tStreamSettings.tDim.iWidth / 16) * (pCtx->tStreamSettings.tDim.iHeight / 16)));
-  int iSPSMaxSlices = getMaxNumberOfSlices(&pCtx->tStreamSettings, pSPS);
+  int iSPSMaxSlices = getMaxNumberOfSlices(pCtx, pSPS);
   int iSizeWP = iSPSMaxSlices * WP_SLICE_SIZE;
   int iSizeSP = iSPSMaxSlices * sizeof(AL_TDecSliceParam);
   int iSizeCompData = AL_GetAllocSize_AvcCompData(pCtx->tStreamSettings.tDim, pCtx->tStreamSettings.eChroma);
@@ -322,7 +329,7 @@ static bool initChannel(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
   pChan->iHeight = pCtx->tStreamSettings.tDim.iHeight;
   pChan->uLog2MaxCuSize = AL_CORE_AVC_LOG2_MAX_CU_SIZE;
 
-  const int iSPSMaxSlices = getMaxNumberOfSlices(&pCtx->tStreamSettings, pSPS);
+  int const iSPSMaxSlices = getMaxNumberOfSlices(pCtx, pSPS);
   pChan->iMaxSlices = iSPSMaxSlices;
   pChan->iMaxTiles = 1;
 
