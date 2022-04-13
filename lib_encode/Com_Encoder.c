@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -48,10 +48,14 @@
 #include "lib_common/BufferPictureMeta.h"
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/BufferLookAheadMeta.h"
+#include "lib_common_enc/EncChanParamInternal.h"
 #include "lib_common_enc/RateCtrlMeta.h"
 #include "lib_common_enc/IpEncFourCC.h"
 #include "lib_common_enc/DPBConstraints.h"
+#include "lib_common_enc/EncBuffersInternal.h"
+#include "lib_common_enc/QPTableInternal.h"
 #include "lib_common_enc/ParamConstraints.h"
+#include "lib_encode/Sections.h"
 
 #define DEBUG_PATH "."
 
@@ -133,8 +137,6 @@ static bool init(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TAllocator* pA
 
   AL_SrcBuffersChecker_Init(&pCtx->tLayerCtx[0].srcBufferChecker, pChParam);
 
-  pCtx->iLastIdrId = 0;
-
   for(int iLayer = 0; iLayer < MAX_NUM_LAYER; iLayer++)
     pCtx->bEndOfStreamReceived[iLayer] = false;
 
@@ -147,8 +149,8 @@ static bool init(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TAllocator* pA
 
   pCtx->eError = AL_SUCCESS;
 
-  Rtos_Memset(pCtx->tFrameInfoPool.FrameInfos, 0, sizeof(pCtx->tFrameInfoPool.FrameInfos));
-  Rtos_Memset(pCtx->SourceSent, 0, sizeof(pCtx->SourceSent));
+  Rtos_Memset(&pCtx->tFrameInfoPool.FrameInfos, 0, sizeof(pCtx->tFrameInfoPool.FrameInfos));
+  Rtos_Memset(&pCtx->SourceSent, 0, sizeof(pCtx->SourceSent));
 
   pCtx->Mutex = Rtos_CreateMutex();
   AL_Assert(pCtx->Mutex);
@@ -162,36 +164,34 @@ static AL_TEncRequestInfo* getCurrentCommands(AL_TLayerCtx* pCtx)
 }
 
 /***************************************************************************/
-void AL_Common_Encoder_NotifySceneChange(AL_TEncoder* pEnc, int iAhead)
+void AL_Common_Encoder_NotifySceneChange(AL_TEncCtx* pCtx, int iAhead)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
   AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[0]);
   pReqInfo->eReqOptions |= AL_OPT_SCENE_CHANGE;
   pReqInfo->uSceneChangeDelay = iAhead;
 }
 
 /***************************************************************************/
-void AL_Common_Encoder_NotifyIsLongTerm(AL_TEncoder* pEnc)
+void AL_Common_Encoder_NotifyIsLongTerm(AL_TEncCtx* pCtx)
 {
-  if(!pEnc->pCtx->pSettings->tChParam[0].tGopParam.bEnableLT)
+  if(!pCtx->pSettings->tChParam[0].tGopParam.bEnableLT)
     return;
-  AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pEnc->pCtx->tLayerCtx[0]);
+  AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[0]);
   pReqInfo->eReqOptions |= AL_OPT_IS_LONG_TERM;
 }
 
 /***************************************************************************/
-void AL_Common_Encoder_NotifyUseLongTerm(AL_TEncoder* pEnc)
+void AL_Common_Encoder_NotifyUseLongTerm(AL_TEncCtx* pCtx)
 {
-  if(!pEnc->pCtx->pSettings->tChParam[0].tGopParam.bEnableLT)
+  if(!pCtx->pSettings->tChParam[0].tGopParam.bEnableLT)
     return;
-  AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pEnc->pCtx->tLayerCtx[0]);
+  AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[0]);
   pReqInfo->eReqOptions |= AL_OPT_USE_LONG_TERM;
 }
 
 /***************************************************************************/
-bool AL_Common_Encoder_PutStreamBuffer(AL_TEncoder* pEnc, AL_TBuffer* pStream, int iLayerID)
+bool AL_Common_Encoder_PutStreamBuffer(AL_TEncCtx* pCtx, AL_TBuffer* pStream, int iLayerID)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
   AL_TStreamMetaData* pMetaData = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
   AL_Assert(pMetaData);
   AL_Assert(pCtx);
@@ -219,18 +219,16 @@ bool AL_Common_Encoder_PutStreamBuffer(AL_TEncoder* pEnc, AL_TBuffer* pStream, i
 }
 
 /***************************************************************************/
-bool AL_Common_Encoder_GetRecPicture(AL_TEncoder* pEnc, AL_TRecPic* pRecPic, int iLayerID)
+bool AL_Common_Encoder_GetRecPicture(AL_TEncCtx* pCtx, AL_TRecPic* pRecPic, int iLayerID)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
   AL_Assert(pCtx);
 
   return AL_IEncScheduler_GetRecPicture(pCtx->pScheduler, pCtx->tLayerCtx[iLayerID].hChannel, pRecPic);
 }
 
 /***************************************************************************/
-void AL_Common_Encoder_ReleaseRecPicture(AL_TEncoder* pEnc, AL_TRecPic* pRecPic, int iLayerID)
+void AL_Common_Encoder_ReleaseRecPicture(AL_TEncCtx* pCtx, AL_TRecPic* pRecPic, int iLayerID)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
   AL_Assert(pCtx);
 
   AL_IEncScheduler_ReleaseRecPicture(pCtx->pScheduler, pCtx->tLayerCtx[iLayerID].hChannel, pRecPic);
@@ -240,8 +238,6 @@ void AL_Common_Encoder_ReleaseRecPicture(AL_TEncoder* pEnc, AL_TRecPic* pRecPic,
 
   AL_Buffer_Destroy(pRecPic->pBuf);
 }
-
-void AL_Common_Encoder_ConfigureZapper(AL_TEncCtx* pCtx, AL_TEncInfo* pEncInfo);
 
 /***************************************************************************/
 static bool GetNextPoolId(AL_TIDPool* pPool)
@@ -319,10 +315,8 @@ static AL_THDRSEIs* GetNextHDRSEIs(AL_THDRPool* pHDRPool)
 }
 
 /***************************************************************************/
-static bool EndOfStream(AL_TEncoder* pEnc, int iLayerID)
+static bool EndOfStream(AL_TEncCtx* pCtx, int iLayerID)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
-
   return AL_IEncScheduler_EncodeOneFrame(pCtx->pScheduler, pCtx->tLayerCtx[iLayerID].hChannel, NULL, NULL, NULL);
 }
 
@@ -367,16 +361,16 @@ void AL_Common_Encoder_SetEncodingOptions(AL_TEncCtx* pCtx, AL_TFrameInfo* pFI, 
 }
 
 /****************************************************************************/
-void AL_Common_Encoder_ProcessLookAheadParam(AL_TEncoder* pEnc, AL_TEncInfo* pEI, AL_TBuffer* pFrame)
+void AL_Common_Encoder_ProcessLookAheadParam(AL_TEncCtx* pCtx, AL_TEncInfo* pEI, AL_TBuffer* pFrame)
 {
   (void)pEI;
   // Process first pass informations from the metadata, notifies scene changes and transmits parameters for the RateCtrl
   AL_TLookAheadMetaData* pMetaDataLA = (AL_TLookAheadMetaData*)AL_Buffer_GetMetaData(pFrame, AL_META_TYPE_LOOKAHEAD);
 
   if(pMetaDataLA && pMetaDataLA->eSceneChange == AL_SC_NEXT)
-    AL_Common_Encoder_NotifySceneChange(pEnc, 1);
+    AL_Common_Encoder_NotifySceneChange(pCtx, 1);
   else if(pMetaDataLA && pMetaDataLA->eSceneChange == AL_SC_CURRENT)
-    AL_Common_Encoder_NotifySceneChange(pEnc, 0);
+    AL_Common_Encoder_NotifySceneChange(pCtx, 0);
 
   if(pMetaDataLA && pMetaDataLA->iPictureSize != -1)
   {
@@ -388,29 +382,38 @@ void AL_Common_Encoder_ProcessLookAheadParam(AL_TEncoder* pEnc, AL_TEncInfo* pEI
 }
 
 /***************************************************************************/
-static bool CheckQPTable(AL_TEncCtx* pCtx, AL_TBuffer* pQpTable)
+static uint8_t UpdateEncoderInfos(AL_TEncCtx* pCtx, AL_TEncInfo* pEI, AL_TEncChanParam* pChParam, int iLayerID)
 {
-  if(AL_IS_QP_TABLE_REQUIRED(pCtx->pSettings->eQpTableMode))
-    return NULL != pQpTable;
+  uint8_t uSpsId = 0;
 
-  return true;
+  if(!AL_IS_AOM(pChParam->eProfile))
+  {
+    Rtos_GetMutex(pCtx->Mutex);
+    uSpsId = AL_GetSps(&pCtx->tHeadersCtx[iLayerID], pChParam->uEncWidth, pChParam->uEncHeight);
+    pEI->uPpsId = AL_GetPps(&pCtx->tHeadersCtx[iLayerID], uSpsId, pChParam->iCbPicQpOffset, pChParam->iCrPicQpOffset);
+    Rtos_ReleaseMutex(pCtx->Mutex);
+  }
+  pEI->iQp1Offset = pChParam->iCbPicQpOffset;
+  pEI->iQp2Offset = pChParam->iCrPicQpOffset;
+
+  return uSpsId;
 }
 
-#if AL_HAS_HLS_DYNAMIC_INFO
 /***************************************************************************/
-static void SetHLSInfos(AL_TEncCtx* pCtx, AL_TEncRequestInfo* pReqInfo, AL_TFrameInfo* pFI)
+static void SetHLSInfos(AL_TEncCtx* pCtx, AL_TEncRequestInfo* pReqInfo, AL_TFrameInfo* pFI, AL_TEncChanParam* pChParam, uint8_t uSpsId)
 {
   (void)pCtx;
   (void)pReqInfo;
+  (void)pChParam;
   pFI->tHLSUpdateInfo = (const AL_HLSInfo) {
     0
   };
 
-  if(pReqInfo->eReqOptions & AL_OPT_SET_INPUT_RESOLUTION)
-  {
-    pFI->tHLSUpdateInfo.bResolutionChanged = true;
-    pFI->tHLSUpdateInfo.uNalID = pReqInfo->dynResParams.uNewNalsId;
-  }
+  pFI->tHLSUpdateInfo.uSpsId = uSpsId;
+  pFI->tHLSUpdateInfo.uPpsId = pFI->tEncInfo.uPpsId;
+
+  pFI->tHLSUpdateInfo.iCbPicQpOffset = pChParam->iCbPicQpOffset;
+  pFI->tHLSUpdateInfo.iCrPicQpOffset = pChParam->iCrPicQpOffset;
 
   if(pReqInfo->eReqOptions & AL_OPT_SET_LF_OFFSETS)
   {
@@ -431,13 +434,27 @@ static void SetHLSInfos(AL_TEncCtx* pCtx, AL_TEncRequestInfo* pReqInfo, AL_TFram
   }
 }
 
-#endif
+/***************************************************************************/
+AL_ERR AL_Common_Encoder_GetLastError(AL_TEncCtx* pCtx)
+{
+  Rtos_GetMutex(pCtx->Mutex);
+  AL_ERR eError = pCtx->eError;
+  Rtos_ReleaseMutex(pCtx->Mutex);
+
+  return eError;
+}
 
 /***************************************************************************/
-bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer* pQpTable, int iLayerID)
+void AL_Common_SetError(AL_TEncCtx* pCtx, AL_ERR eErrorCode)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
+  Rtos_GetMutex(pCtx->Mutex);
+  pCtx->eError = eErrorCode;
+  Rtos_ReleaseMutex(pCtx->Mutex);
+}
 
+/***************************************************************************/
+bool AL_Common_Encoder_Process(AL_TEncCtx* pCtx, AL_TBuffer* pFrame, AL_TBuffer* pQpTable, int iLayerID)
+{
   if(pCtx->bEndOfStreamReceived[iLayerID])
     return false;
 
@@ -450,7 +467,7 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
       if(pCtx->bEndOfStreamReceived[i] == false)
       {
         pCtx->bEndOfStreamReceived[i] = true;
-        bRes &= EndOfStream(pEnc, i);
+        bRes &= EndOfStream(pCtx, i);
       }
     }
 
@@ -460,8 +477,31 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
   if(!AL_SrcBuffersChecker_CanBeUsed(&pCtx->tLayerCtx[iLayerID].srcBufferChecker, pFrame))
     return false;
 
-  if(!CheckQPTable(pCtx, pQpTable))
-    return false;
+  if(pQpTable != NULL && pCtx->pSettings->bDiagnostic)
+  {
+    AL_TDimension tEncDim = { pCtx->pSettings->tChParam[iLayerID].uEncWidth, pCtx->pSettings->tChParam[iLayerID].uEncHeight };
+    AL_ECodec eCodec = AL_GET_CODEC(pCtx->pSettings->tChParam[iLayerID].eProfile);
+
+    int iQPTableDepth = 0;
+    uint32_t uExpectedSize = AL_GetAllocSizeEP2(tEncDim, eCodec, pCtx->pSettings->tChParam[iLayerID].uLog2MaxCuSize);
+    uint32_t uRealSize = AL_Buffer_GetSize(pQpTable);
+
+    if(uRealSize < uExpectedSize)
+    {
+      AL_Common_SetError(pCtx, AL_ERR_QPLOAD_NOT_ENOUGH_DATA);
+      return false;
+    }
+
+    uint8_t* pQP = AL_Buffer_GetData(pQpTable) + EP2_BUF_SEG_CTRL.Offset;
+    AL_ERR eErr = AL_QPTable_CheckValidity(pQP, tEncDim, AL_GET_CODEC(pCtx->pSettings->tChParam[iLayerID].eProfile), iQPTableDepth,
+                                           pCtx->pSettings->tChParam[iLayerID].uLog2MaxCuSize, pCtx->pSettings->tChParam[iLayerID].eEncOptions & AL_OPT_QP_TAB_RELATIVE);
+
+    if(eErr != AL_SUCCESS)
+    {
+      AL_Common_SetError(pCtx, eErr);
+      return false;
+    }
+  }
 
   AL_Common_Encoder_WaitReadiness(pCtx);
 
@@ -537,11 +577,11 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
   AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[iLayerID]);
 
   if(pCtx->pSettings->LookAhead > 0 || pCtx->pSettings->TwoPass == 2)
-    AL_Common_Encoder_ProcessLookAheadParam(pEnc, pEI, pFrame);
+    AL_Common_Encoder_ProcessLookAheadParam(pCtx, pEI, pFrame);
 
-#if AL_HAS_HLS_DYNAMIC_INFO
-  SetHLSInfos(pCtx, pReqInfo, pFI);
-#endif
+  uint8_t uSpsId;
+  uSpsId = UpdateEncoderInfos(pCtx, pEI, pChParam, iLayerID);
+  SetHLSInfos(pCtx, pReqInfo, pFI, pChParam, uSpsId);
 
   bool bRet = AL_IEncScheduler_EncodeOneFrame(pCtx->pScheduler, pCtx->tLayerCtx[iLayerID].hChannel, pEI, pReqInfo, &addresses);
 
@@ -551,18 +591,6 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
   Rtos_Memset(pReqInfo, 0, sizeof(*pReqInfo));
   Rtos_Memset(pEI, 0, sizeof(*pEI));
   return bRet;
-}
-
-/***************************************************************************/
-AL_ERR AL_Common_Encoder_GetLastError(AL_TEncoder* pEnc)
-{
-  AL_TEncCtx* pCtx = pEnc->pCtx;
-
-  Rtos_GetMutex(pCtx->Mutex);
-  AL_ERR eError = pEnc->pCtx->eError;
-  Rtos_ReleaseMutex(pCtx->Mutex);
-
-  return eError;
 }
 
 static void setMaxNumRef(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
@@ -577,14 +605,6 @@ void AL_Common_Encoder_SetHlsParam(AL_TEncChanParam* pChParam)
 {
   if(pChParam->uCabacInitIdc)
     pChParam->uPpsParam |= AL_PPS_CABAC_INIT_PRES_FLAG;
-}
-
-/***************************************************************************/
-void AL_Common_SetError(AL_TEncCtx* pCtx, AL_ERR eErrorCode)
-{
-  Rtos_GetMutex(pCtx->Mutex);
-  pCtx->eError = eErrorCode;
-  Rtos_ReleaseMutex(pCtx->Mutex);
 }
 
 #if AL_ENABLE_ENC_WATCHDOG
@@ -725,19 +745,32 @@ void AL_Common_Encoder_ComputeRCParam(int iCbOffset, int iCrOffset, int iIntraOn
     pChParam->tRCParam.iInitialQP = iInitQP;
   }
 
-  if(pChParam->tRCParam.eRCMode != AL_RC_CONST_QP && pChParam->tRCParam.iMinQP < 10
+  if(pChParam->tRCParam.eRCMode != AL_RC_CONST_QP // && pChParam->tRCParam.iMinQP < 10
      )
-    pChParam->tRCParam.iMinQP = 10;
+  {
+    for(int i = 0; i < ARRAY_SIZE(pChParam->tRCParam.iMinQP); i++)
+    {
+      if(pChParam->tRCParam.iMinQP[i] < 10)
+        pChParam->tRCParam.iMinQP[i] = 10;
+    }
+  }
 
-  if(pChParam->tRCParam.iMaxQP < pChParam->tRCParam.iMinQP)
-    pChParam->tRCParam.iMaxQP = pChParam->tRCParam.iMinQP;
+  for(int i = 0; i < ARRAY_SIZE(pChParam->tRCParam.iMaxQP); i++)
+  {
+    if(pChParam->tRCParam.iMaxQP[i] < pChParam->tRCParam.iMinQP[i])
+      pChParam->tRCParam.iMaxQP[i] = pChParam->tRCParam.iMinQP[i];
+  }
 
   int iMinQP = 0;
   int iMaxQP = 51;
 
-  pChParam->tRCParam.iMinQP = Max(pChParam->tRCParam.iMinQP, (iMinQP - Min(iCbOffset, iCrOffset)));
-  pChParam->tRCParam.iMaxQP = Min(pChParam->tRCParam.iMaxQP, (iMaxQP - Max(iCbOffset, iCrOffset)));
-  pChParam->tRCParam.iInitialQP = Clip3(pChParam->tRCParam.iInitialQP, pChParam->tRCParam.iMinQP, pChParam->tRCParam.iMaxQP);
+  for(int i = 0; i < ARRAY_SIZE(pChParam->tRCParam.iMaxQP); i++)
+  {
+    pChParam->tRCParam.iMinQP[i] = Max(pChParam->tRCParam.iMinQP[i], (iMinQP - Min(iCbOffset, iCrOffset)));
+    pChParam->tRCParam.iMaxQP[i] = Min(pChParam->tRCParam.iMaxQP[i], (iMaxQP - Max(iCbOffset, iCrOffset)));
+  }
+
+  pChParam->tRCParam.iInitialQP = Clip3(pChParam->tRCParam.iInitialQP, pChParam->tRCParam.iMinQP[AL_SLICE_I], pChParam->tRCParam.iMaxQP[AL_SLICE_I]);
 
   bool bIsCappedVBR = (pChParam->tRCParam.eRCMode == AL_RC_CAPPED_VBR);
   bool bIsCappedQuality = false;
@@ -824,33 +857,39 @@ static void ResetSettings(AL_TEncCtx* pCtx)
   Rtos_Memset(pCtx->tMDSettings.pVirtualAddr, 0, pCtx->tMDSettings.uSize);
 }
 
-/***************************************************************************/
-AL_TEncoder* AL_Common_Encoder_Create(AL_TAllocator* pAlloc)
+static void SetupHeaders(AL_TEncCtx* pCtx)
 {
-  AL_TEncoder* pEnc = (AL_HEncoder)Rtos_Malloc(sizeof(AL_TEncoder));
+  int i;
 
-  if(!pEnc)
+  for(i = 0; i < MAX_NUM_LAYER; i++)
+  {
+    pCtx->tHeadersCtx[i].iPrevSps = (MAX_SPS_IDS - 1 + i) % MAX_SPS_IDS;
+    pCtx->tHeadersCtx[i].iPrevPps = (MAX_PPS_IDS - 1 + i) % MAX_PPS_IDS;
+    pCtx->tHeadersCtx[i].ppsCtx[(MAX_PPS_IDS - 1 + i) % MAX_PPS_IDS].uSpsId = ~0;
+  }
+}
+
+/***************************************************************************/
+AL_TEncCtx* AL_Common_Encoder_Create(AL_TAllocator* pAlloc)
+{
+  AL_TEncCtx* pCtx = Rtos_Malloc(sizeof(AL_TEncCtx));
+
+  if(!pCtx)
     goto fail;
-  Rtos_Memset(pEnc, 0, sizeof(AL_TEncoder));
 
-  pEnc->pCtx = Rtos_Malloc(sizeof(AL_TEncCtx));
+  Rtos_Memset(pCtx, 0, sizeof(*pCtx));
 
-  if(!pEnc->pCtx)
-    goto fail;
-  Rtos_Memset(pEnc->pCtx, 0, sizeof *(pEnc->pCtx));
-
-  if(!MemDesc_Alloc(&pEnc->pCtx->tMDSettings, pAlloc, sizeof(*pEnc->pCtx->pSettings)))
+  if(!MemDesc_Alloc(&pCtx->tMDSettings, pAlloc, sizeof(*pCtx->pSettings)))
     goto fail;
 
-  FillSettingsPointers(pEnc->pCtx);
-  ResetSettings(pEnc->pCtx);
+  FillSettingsPointers(pCtx);
+  ResetSettings(pCtx);
+  SetupHeaders(pCtx);
 
-  return pEnc;
+  return pCtx;
 
   fail:
-
-  if(pEnc)
-    AL_Common_Encoder_Destroy(pEnc);
+  AL_Common_Encoder_Destroy(pCtx);
   return NULL;
 }
 
@@ -880,10 +919,8 @@ static void destroyChannels(AL_TEncCtx* pCtx)
 }
 
 /***************************************************************************/
-void AL_Common_Encoder_Destroy(AL_TEncoder* pEnc)
+void AL_Common_Encoder_Destroy(AL_TEncCtx* pCtx)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
-
   if(pCtx)
   {
 
@@ -891,29 +928,33 @@ void AL_Common_Encoder_Destroy(AL_TEncoder* pEnc)
     MemDesc_Free(&pCtx->tMDSettings);
     Rtos_Free(pCtx);
   }
-
-  Rtos_Free(pEnc);
-}
-
-/***************************************************************************/
-static int GetNalID(AL_TEncCtx* pCtx, uint16_t uWidth, uint16_t uHeight)
-{
-  AL_TDimension tDim = { uWidth, uHeight };
-  int i = 0;
-
-  while(i < MAX_NAL_IDS && (pCtx->nalResolutionsPerID[i].iWidth != 0))
-  {
-    if(pCtx->nalResolutionsPerID[i].iWidth == uWidth && pCtx->nalResolutionsPerID[i].iHeight == uHeight)
-      return i;
-    i++;
-  }
-
-  i = i % MAX_NAL_IDS;
-  pCtx->nalResolutionsPerID[i] = tDim;
-  return i;
 }
 
 #define AL_RETURN_ERROR(e) { AL_Common_SetError(pCtx, e); return false; }
+#define AL_CRIT_SECTION_RETURN_ERROR(mutex, e) { Rtos_ReleaseMutex(mutex); \
+                                                 AL_Common_SetError(pCtx, e); \
+                                                 return false; }
+
+bool AL_Common_Encoder_SetCostMode(AL_TEncCtx* pCtx, bool costMode)
+{
+  for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
+  {
+    AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[i]);
+    pReqInfo->eReqOptions |= AL_OPT_UPDATE_COST_MODE;
+
+    if(costMode)
+    {
+      pCtx->pSettings->tChParam[i].eEncOptions |= AL_OPT_RDO_COST_MODE;
+    }
+    else
+    {
+      pCtx->pSettings->tChParam[i].eEncOptions &= ~AL_OPT_RDO_COST_MODE;
+    }
+    pReqInfo->smartParams.costMode = costMode;
+  }
+
+  return true;
+}
 
 /****************************************************************************/
 static bool IsGopRestartForbidden(AL_TEncChanParam* pChParam)
@@ -924,10 +965,8 @@ static bool IsGopRestartForbidden(AL_TEncChanParam* pChParam)
 }
 
 /****************************************************************************/
-bool AL_Common_Encoder_RestartGop(AL_TEncoder* pEnc)
+bool AL_Common_Encoder_RestartGop(AL_TEncCtx* pCtx)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
-
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
   {
     if(IsGopRestartForbidden(&pCtx->pSettings->tChParam[i]))
@@ -941,37 +980,56 @@ bool AL_Common_Encoder_RestartGop(AL_TEncoder* pEnc)
 }
 
 /****************************************************************************/
-static void setNewParams(AL_TEncCtx* pCtx, int iLayerID)
+static bool IsGopRestartRecoveryPointForbidden(AL_TEncChanParam* pChParam)
 {
-  AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[iLayerID]);
-  pReqInfo->eReqOptions |= AL_OPT_UPDATE_PARAMS;
-
-  pReqInfo->smartParams.rc = pCtx->pSettings->tChParam[iLayerID].tRCParam;
-  pReqInfo->smartParams.gop = pCtx->pSettings->tChParam[iLayerID].tGopParam;
+  return !(pChParam->tGopParam.eMode & AL_GOP_FLAG_LOW_DELAY);
 }
 
 /****************************************************************************/
-bool AL_Common_Encoder_SetGopLength(AL_TEncoder* pEnc, int iGopLength)
+bool AL_Common_Encoder_RestartGopRecoveryPoint(AL_TEncCtx* pCtx)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
-
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
   {
-    if((pCtx->pSettings->tChParam[i].tGopParam.eMode & AL_GOP_FLAG_DEFAULT) == 0)
+    if(IsGopRestartRecoveryPointForbidden(&pCtx->pSettings->tChParam[i]))
+    {
       AL_RETURN_ERROR(AL_ERR_CMD_NOT_ALLOWED);
+    }
 
-    pCtx->pSettings->tChParam[i].tGopParam.uGopLength = iGopLength;
-    setNewParams(pCtx, i);
+    AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[i]);
+    pReqInfo->eReqOptions |= AL_OPT_RECOVERY_POINT;
   }
 
   return true;
 }
 
 /****************************************************************************/
-bool AL_Common_Encoder_SetGopNumB(AL_TEncoder* pEnc, int iNumB)
+static void setRcGopParams(AL_TEncCtx* pCtx, int iLayerID)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
+  AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[iLayerID]);
+  pReqInfo->eReqOptions |= AL_OPT_UPDATE_RC_GOP_PARAMS;
 
+  pReqInfo->smartParams.rc = pCtx->pSettings->tChParam[iLayerID].tRCParam;
+  pReqInfo->smartParams.gop = pCtx->pSettings->tChParam[iLayerID].tGopParam;
+}
+
+/****************************************************************************/
+bool AL_Common_Encoder_SetGopLength(AL_TEncCtx* pCtx, int iGopLength)
+{
+  for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
+  {
+    if((pCtx->pSettings->tChParam[i].tGopParam.eMode & AL_GOP_FLAG_DEFAULT) == 0)
+      AL_RETURN_ERROR(AL_ERR_CMD_NOT_ALLOWED);
+
+    pCtx->pSettings->tChParam[i].tGopParam.uGopLength = iGopLength;
+    setRcGopParams(pCtx, i);
+  }
+
+  return true;
+}
+
+/****************************************************************************/
+bool AL_Common_Encoder_SetGopNumB(AL_TEncCtx* pCtx, int iNumB)
+{
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
   {
     if((pCtx->pSettings->tChParam[i].tGopParam.eMode & AL_GOP_FLAG_DEFAULT) == 0)
@@ -981,17 +1039,15 @@ bool AL_Common_Encoder_SetGopNumB(AL_TEncoder* pEnc, int iNumB)
       AL_RETURN_ERROR(AL_ERR_INVALID_CMD_VALUE);
 
     pCtx->pSettings->tChParam[i].tGopParam.uNumB = iNumB;
-    setNewParams(pCtx, i);
+    setRcGopParams(pCtx, i);
   }
 
   return true;
 }
 
 /****************************************************************************/
-bool AL_Common_Encoder_SetFreqIDR(AL_TEncoder* pEnc, int iFreqIDR)
+bool AL_Common_Encoder_SetFreqIDR(AL_TEncCtx* pCtx, int iFreqIDR)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
-
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
   {
     if((pCtx->pSettings->tChParam[i].tGopParam.eMode & AL_GOP_FLAG_DEFAULT) == 0)
@@ -1001,32 +1057,50 @@ bool AL_Common_Encoder_SetFreqIDR(AL_TEncoder* pEnc, int iFreqIDR)
       AL_RETURN_ERROR(AL_ERR_INVALID_CMD_VALUE);
 
     pCtx->pSettings->tChParam[i].tGopParam.uFreqIDR = iFreqIDR;
-    setNewParams(pCtx, i);
+    setRcGopParams(pCtx, i);
   }
 
   return true;
 }
 
 /****************************************************************************/
-bool AL_Common_Encoder_SetBitRate(AL_TEncoder* pEnc, int iBitRate, int iLayerID)
+bool AL_Common_Encoder_SetBitRate(AL_TEncCtx* pCtx, int iBitRate, int iLayerID)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
-
   pCtx->pSettings->tChParam[iLayerID].tRCParam.uTargetBitRate = iBitRate;
 
   if(AL_IS_CBR(pCtx->pSettings->tChParam[iLayerID].tRCParam.eRCMode))
     pCtx->pSettings->tChParam[iLayerID].tRCParam.uMaxBitRate = iBitRate;
 
-  setNewParams(pCtx, iLayerID);
+  setRcGopParams(pCtx, iLayerID);
 
   return true;
 }
 
 /****************************************************************************/
-bool AL_Common_Encoder_SetFrameRate(AL_TEncoder* pEnc, uint16_t uFrameRate, uint16_t uClkRatio)
+bool AL_Common_Encoder_SetMaxBitRate(AL_TEncCtx* pCtx, int iTargetBitRate, int iMaxBitRate, int iLayerID)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
+  pCtx->pSettings->tChParam[iLayerID].tRCParam.uTargetBitRate = iTargetBitRate;
 
+  if(iTargetBitRate <= iMaxBitRate)
+  {
+    if(AL_IS_CBR(pCtx->pSettings->tChParam[iLayerID].tRCParam.eRCMode))
+      pCtx->pSettings->tChParam[iLayerID].tRCParam.uMaxBitRate = iTargetBitRate;
+    else
+      pCtx->pSettings->tChParam[iLayerID].tRCParam.uMaxBitRate = iMaxBitRate;
+
+    setRcGopParams(pCtx, iLayerID);
+  }
+  else
+  {
+    AL_RETURN_ERROR(AL_ERR_INVALID_CMD_VALUE);
+  }
+
+  return true;
+}
+
+/****************************************************************************/
+bool AL_Common_Encoder_SetFrameRate(AL_TEncCtx* pCtx, uint16_t uFrameRate, uint16_t uClkRatio)
+{
   if(uFrameRate > pCtx->uInitialFrameRate)
     AL_RETURN_ERROR(AL_ERR_INVALID_CMD_VALUE);
 
@@ -1041,16 +1115,14 @@ bool AL_Common_Encoder_SetFrameRate(AL_TEncoder* pEnc, uint16_t uFrameRate, uint
   Rtos_ReleaseMutex(pCtx->Mutex);
 
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
-    setNewParams(pCtx, i);
+    setRcGopParams(pCtx, i);
 
   return true;
 }
 
 /****************************************************************************/
-bool AL_Common_Encoder_SetQP(AL_TEncoder* pEnc, int16_t iQP)
+bool AL_Common_Encoder_SetQP(AL_TEncCtx* pCtx, int16_t iQP)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
-
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
   {
     if(pCtx->pSettings->tChParam[i].tRCParam.eRCMode != AL_RC_BYPASS &&
@@ -1058,11 +1130,6 @@ bool AL_Common_Encoder_SetQP(AL_TEncoder* pEnc, int16_t iQP)
        pCtx->pSettings->tChParam[i].tRCParam.eRCMode != AL_RC_VBR)
     {
       AL_RETURN_ERROR(AL_ERR_CMD_NOT_ALLOWED);
-    }
-
-    if((iQP < pCtx->pSettings->tChParam[i].tRCParam.iMinQP) || (iQP > pCtx->pSettings->tChParam[i].tRCParam.iMaxQP))
-    {
-      AL_RETURN_ERROR(AL_ERR_INVALID_CMD_VALUE);
     }
 
     AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[i]);
@@ -1074,43 +1141,58 @@ bool AL_Common_Encoder_SetQP(AL_TEncoder* pEnc, int16_t iQP)
 }
 
 /****************************************************************************/
-bool AL_Common_Encoder_SetQPBounds(AL_TEncoder* pEnc, int16_t iMinQP, int16_t iMaxQP)
+bool AL_Common_Encoder_SetQPBounds(AL_TEncCtx* pCtx, int16_t iMinQP, int16_t iMaxQP, AL_ESliceType sliceType)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
-
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
   {
-    pCtx->pSettings->tChParam[i].tRCParam.iMinQP = iMinQP;
-    pCtx->pSettings->tChParam[i].tRCParam.iMaxQP = iMaxQP;
-    setNewParams(pCtx, i);
+    pCtx->pSettings->tChParam[i].tRCParam.iMinQP[sliceType] = iMinQP;
+    pCtx->pSettings->tChParam[i].tRCParam.iMaxQP[sliceType] = iMaxQP;
+    setRcGopParams(pCtx, i);
   }
 
   return true;
 }
 
 /****************************************************************************/
-bool AL_Common_Encoder_SetQPIPDelta(AL_TEncoder* pEnc, int16_t uIPDelta)
+bool AL_Common_Encoder_SetQPIPDelta(AL_TEncCtx* pCtx, int16_t uIPDelta)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
-
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
   {
     pCtx->pSettings->tChParam[i].tRCParam.uIPDelta = uIPDelta;
-    setNewParams(pCtx, i);
+    setRcGopParams(pCtx, i);
   }
 
   return true;
 }
 
 /****************************************************************************/
-bool AL_Common_Encoder_SetQPPBDelta(AL_TEncoder* pEnc, int16_t uPBDelta)
+bool AL_Common_Encoder_SetQPPBDelta(AL_TEncCtx* pCtx, int16_t uPBDelta)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
-
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
   {
     pCtx->pSettings->tChParam[i].tRCParam.uPBDelta = uPBDelta;
-    setNewParams(pCtx, i);
+    setRcGopParams(pCtx, i);
+  }
+
+  return true;
+}
+
+/****************************************************************************/
+bool AL_Common_Encoder_SetAutoQP(AL_TEncCtx* pCtx, bool useAutoQP)
+{
+  for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
+  {
+    AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[i]);
+    pReqInfo->eReqOptions |= AL_OPT_SET_AUTO_QP;
+
+    if(useAutoQP)
+    {
+      pCtx->pSettings->tChParam[i].eEncOptions |= AL_OPT_ENABLE_AUTO_QP;
+    }
+    else
+      pCtx->pSettings->tChParam[i].eEncOptions &= ~AL_OPT_ENABLE_AUTO_QP;
+
+    pReqInfo->smartParams.useAutoQP = useAutoQP;
   }
 
   return true;
@@ -1131,10 +1213,8 @@ static bool AL_Common_Encoder_SetChannelResolution(AL_TLayerCtx* pLayerCtx, AL_T
   return true;
 }
 
-bool AL_Common_Encoder_SetInputResolution(AL_TEncoder* pEnc, AL_TDimension tDim)
+bool AL_Common_Encoder_SetInputResolution(AL_TEncCtx* pCtx, AL_TDimension tDim)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
-
   Rtos_GetMutex(pCtx->Mutex);
 
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
@@ -1143,7 +1223,7 @@ bool AL_Common_Encoder_SetInputResolution(AL_TEncoder* pEnc, AL_TDimension tDim)
     AL_TLayerCtx* pLayerCtx = &pCtx->tLayerCtx[i];
 
     if((IsGopRestartForbidden(&pCtx->pSettings->tChParam[i])) || (!AL_Common_Encoder_SetChannelResolution(pLayerCtx, pChanParam, tDim)))
-      AL_RETURN_ERROR(AL_ERR_CMD_NOT_ALLOWED);
+      AL_CRIT_SECTION_RETURN_ERROR(pCtx->Mutex, AL_ERR_CMD_NOT_ALLOWED);
 
     AL_TEncRequestInfo* pReqInfo = getCurrentCommands(pLayerCtx);
     pReqInfo->eReqOptions |= AL_OPT_SET_INPUT_RESOLUTION;
@@ -1153,7 +1233,6 @@ bool AL_Common_Encoder_SetInputResolution(AL_TEncoder* pEnc, AL_TDimension tDim)
     }
 
     pReqInfo->dynResParams.tInputResolution = tDim;
-    pReqInfo->dynResParams.uNewNalsId = GetNalID(pCtx, tDim.iWidth, tDim.iHeight);
   }
 
   Rtos_ReleaseMutex(pCtx->Mutex);
@@ -1161,16 +1240,16 @@ bool AL_Common_Encoder_SetInputResolution(AL_TEncoder* pEnc, AL_TDimension tDim)
   return true;
 }
 
-static bool AL_Common_Encoder_SetLoopFilterOffset(AL_TEncoder* pEnc, bool bBeta, int8_t iOffset)
+static bool AL_Common_Encoder_SetLoopFilterOffset(AL_TEncCtx* pCtx, bool bBeta, int8_t iOffset)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
-
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
   {
     AL_TEncChanParam* pChanParam = &pCtx->pSettings->tChParam[i];
 
     if(pChanParam->tGopParam.eGdrMode != AL_GDR_OFF)
+    {
       AL_RETURN_ERROR(AL_ERR_INVALID_CMD_VALUE);
+    }
     AL_TLayerCtx* pLayerCtx = &pCtx->tLayerCtx[i];
 
     bool bValidCmd = bBeta ? AL_ParamConstraints_CheckLFBetaOffset(pChanParam->eProfile, iOffset) : AL_ParamConstraints_CheckLFTcOffset(pChanParam->eProfile, iOffset);
@@ -1190,20 +1269,41 @@ static bool AL_Common_Encoder_SetLoopFilterOffset(AL_TEncoder* pEnc, bool bBeta,
   return true;
 }
 
-bool AL_Common_Encoder_SetLoopFilterBetaOffset(AL_TEncoder* pEnc, int8_t iBetaOffset)
+bool AL_Common_Encoder_SetLoopFilterBetaOffset(AL_TEncCtx* pCtx, int8_t iBetaOffset)
 {
-  return AL_Common_Encoder_SetLoopFilterOffset(pEnc, true, iBetaOffset);
+  return AL_Common_Encoder_SetLoopFilterOffset(pCtx, true, iBetaOffset);
 }
 
-bool AL_Common_Encoder_SetLoopFilterTcOffset(AL_TEncoder* pEnc, int8_t iTcOffset)
+bool AL_Common_Encoder_SetLoopFilterTcOffset(AL_TEncCtx* pCtx, int8_t iTcOffset)
 {
-  return AL_Common_Encoder_SetLoopFilterOffset(pEnc, false, iTcOffset);
+  return AL_Common_Encoder_SetLoopFilterOffset(pCtx, false, iTcOffset);
 }
 
-bool AL_Common_Encoder_SetHDRSEIs(AL_TEncoder* pEnc, AL_THDRSEIs* pHDRSEIs)
+bool AL_Common_Encoder_SetQPChromaOffsets(AL_TEncCtx* pCtx, int8_t iQp1Offset, int8_t iQp2Offset)
 {
-  AL_TEncCtx* pCtx = pEnc->pCtx;
+  for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
+  {
+    AL_TEncChanParam* pChanParam = &pCtx->pSettings->tChParam[i];
 
+    if(AL_IS_HEVC(pChanParam->eProfile) || AL_IS_VVC(pChanParam->eProfile))
+    {
+      iQp1Offset -= pChanParam->iCbSliceQpOffset;
+      iQp2Offset -= pChanParam->iCrSliceQpOffset;
+    }
+
+    if(!AL_ParamConstraints_CheckChromaOffsets(pChanParam->eProfile, iQp1Offset, iQp2Offset,
+                                               pChanParam->iCbSliceQpOffset, pChanParam->iCrSliceQpOffset))
+      AL_RETURN_ERROR(AL_ERR_INVALID_CMD_VALUE);
+
+    pChanParam->iCbPicQpOffset = iQp1Offset;
+    pChanParam->iCrPicQpOffset = iQp2Offset;
+  }
+
+  return true;
+}
+
+bool AL_Common_Encoder_SetHDRSEIs(AL_TEncCtx* pCtx, AL_THDRSEIs* pHDRSEIs)
+{
   if((pHDRSEIs->bHasMDCV && !(pCtx->pSettings->uEnableSEI & AL_SEI_MDCV)) ||
      (pHDRSEIs->bHasCLL && !(pCtx->pSettings->uEnableSEI & AL_SEI_CLL)) ||
      (pHDRSEIs->bHasATC && !(pCtx->pSettings->uEnableSEI & AL_SEI_ATC)) ||
@@ -1232,22 +1332,17 @@ static bool isSeiEnable(AL_ESeiFlag eFlags)
   return eFlags != AL_SEI_NONE;
 }
 
-static bool isBaseLayer(int iLayer)
-{
-  return iLayer == 0;
-}
-
 AL_TNalsData AL_ExtractNalsData(AL_TEncCtx* pCtx, int iLayerID, int iPicID)
 {
   (void)iPicID;
+  AL_TEncSettings const* pSettings = pCtx->pSettings;
   AL_TNalsData data = { 0 };
   data.vps = &pCtx->vps;
   data.sps = &pCtx->tLayerCtx[iLayerID].sps;
   data.pps = &pCtx->tLayerCtx[iLayerID].pps;
+  data.aud = &pCtx->tLayerCtx[iLayerID].aud;
 
-  AL_TEncSettings const* pSettings = pCtx->pSettings;
   data.eStartCodeBytesAligned = pSettings->tChParam[iLayerID].eStartCodeBytesAligned;
-  data.bMustWriteAud = pSettings->bEnableAUD && isBaseLayer(iLayerID);
   data.fillerCtrlMode = pSettings->eEnableFillerData;
   data.seiFlags = (AL_ESeiFlag)pSettings->uEnableSEI;
 
@@ -1388,11 +1483,10 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
 }
 
 /****************************************************************************/
-AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncoder* pEnc, AL_IEncScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings)
+AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncCtx* pCtx, AL_IEncScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings)
 {
   AL_Assert(pSettings->NumLayer > 0);
 
-  AL_TEncCtx* pCtx = pEnc->pCtx;
   AL_ERR errorCode = AL_ERROR;
 
   if(!pCtx->encoder.configureChannel)
@@ -1432,7 +1526,6 @@ AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncoder* pEnc, AL_IEncScheduler* pSch
   AL_Common_Encoder_SetWatchdogCB(pCtx, pSettings);
 #endif
 
-  (void)GetNalID(pCtx, pChParam->uEncWidth, pChParam->uEncHeight);
   // HACK: needed to preprocess scaling list, but doesn't generate the good nals
   // because we are missing some value populated by AL_IEncScheduler_CreateChannel
   pCtx->encoder.generateNals(pCtx, 0, true);
@@ -1465,37 +1558,13 @@ AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncoder* pEnc, AL_IEncScheduler* pSch
   return errorCode;
 }
 
-AL_TNuts CreateAvcNuts(void);
-AL_TNuts CreateHevcNuts(void);
-bool CreateNuts(AL_TNuts* nuts, AL_EProfile eProfile)
+int AL_Common_Encoder_AddSei(AL_TEncCtx* pCtx, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId)
 {
-  (void)nuts, (void)eProfile;
-
-  if(AL_IS_AVC(eProfile))
-  {
-    *nuts = CreateAvcNuts();
-    return true;
-  }
-
-  if(AL_IS_HEVC(eProfile))
-  {
-    *nuts = CreateHevcNuts();
-    return true;
-  }
-  return false;
-}
-
-#include "lib_encode/Sections.h"
-
-int AL_Encoder_AddSei(AL_HEncoder hEnc, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId)
-{
-  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
-  AL_TEncCtx* pCtx = pEnc->pCtx;
   AL_TEncChanParam* pChannel = &pCtx->pSettings->tChParam[0];
 
   AL_TNuts nuts;
   AL_EProfile eProfile = pChannel->eProfile;
-  bool exists = CreateNuts(&nuts, eProfile);
+  bool exists = AL_CreateNuts(&nuts, eProfile);
 
   if(!exists)
     return -1;

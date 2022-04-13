@@ -21,7 +21,7 @@ $(BIN)/%.S.o: %.S
 $(BIN)/%.cpp.o: %.cpp
 	@mkdir -p $(dir $@)
 	@echo "CXX $<"
-	$(Q)$(CXX) $< $(CFLAGS) $(INCLUDES) -std=c++11 -o $@ -c
+	$(Q)$(CXX) $< $(CFLAGS) $(INCLUDES) -std=gnu++11 -o $@ -c
 	@$(CC) $(CFLAGS) -c $(INCLUDES) -o "$@.dep" "$<" -MM -MT "$@"
 
 $(BIN)/%.c.o: %.c

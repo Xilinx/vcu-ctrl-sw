@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -35,31 +35,22 @@
 *
 ******************************************************************************/
 
+/**************************************************************************//*!
+   \addtogroup qp_table Quantization Parameter Table
+   @{
+   \file
+******************************************************************************/
 #pragma once
+#include "lib_common/PicFormat.h"
+#include "lib_common/Profiles.h"
 
-#include "lib_rtos/types.h"
-#include <string>
+#define AL_QPTABLE_NUM_SEGMENTS 8
+#define AL_QPTABLE_SEGMENTS_SIZE (AL_QPTABLE_NUM_SEGMENTS * 2)
 
-class CMD5
-{
-public:
-  CMD5();
+static int8_t const MASK_QP_NUMBITS = (int8_t)6;
+static int8_t const MASK_QP = (int8_t)0x3F;
+static int8_t const MASK_FORCE_INTRA = (int8_t)0x40;
+static int8_t const MASK_FORCE_MV0 = (int8_t)0x80;
+static int8_t const MASK_FORCE = (int8_t)0xC0;
 
-  void Update(uint8_t* pBuffer, uint32_t uSize);
-  std::string GetMD5();
-
-protected:
-  void UpdateBlock(uint32_t* pBlock);
-
-  union
-  {
-    uint32_t m_pHash32[4];
-    uint8_t m_pHash8[16];
-  };
-
-  AL_64U m_uNumBytes;
-
-  uint8_t m_pBound[64]; // 512 bits
-  uint32_t m_uBound;
-};
-
+/*@}*/

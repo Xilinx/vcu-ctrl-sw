@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -59,6 +59,7 @@ typedef struct AL_t_DecChannelParam
   uint32_t uClkRatio;
   uint32_t uMaxLatency;
   uint8_t uNumCore;
+  bool bNonRealtime;
   uint8_t uDDRWidth;
   bool bLowLat;
   bool bParallelWPP;

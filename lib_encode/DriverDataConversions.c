@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -75,7 +75,7 @@ static void setPicParam(struct al5_params* msg, AL_TEncInfo* encInfo, AL_TEncReq
   if(reqInfo->eReqOptions & AL_OPT_SCENE_CHANGE)
     write(msg, &reqInfo->uSceneChangeDelay, sizeof(reqInfo->uSceneChangeDelay));
 
-  if(reqInfo->eReqOptions & AL_OPT_UPDATE_PARAMS)
+  if(reqInfo->eReqOptions & AL_OPT_UPDATE_RC_GOP_PARAMS)
   {
     write(msg, &reqInfo->smartParams.rc, sizeof(reqInfo->smartParams.rc));
     write(msg, &reqInfo->smartParams.gop, sizeof(reqInfo->smartParams.gop));

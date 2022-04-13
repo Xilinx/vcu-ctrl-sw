@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -177,7 +177,7 @@ int AL_Buffer_AddChunk(AL_TBuffer* pBuf, AL_HANDLE hChunk, size_t zSize);
    \param[in] pBuf Pointer to an AL_TBuffer
    \return Returns the number of chunks of the buffer
 *****************************************************************************/
-static AL_INLINE int8_t AL_Buffer_GetChunkCount(const AL_TBuffer* pBuf)
+static inline int8_t AL_Buffer_GetChunkCount(const AL_TBuffer* pBuf)
 {
   return pBuf->iChunkCnt;
 }
@@ -189,7 +189,7 @@ static AL_INLINE int8_t AL_Buffer_GetChunkCount(const AL_TBuffer* pBuf)
    \return Returns true if the buffer contains a chunk with given index, false
    otherwise
 *****************************************************************************/
-static AL_INLINE bool AL_Buffer_HasChunk(const AL_TBuffer* pBuf, int8_t iChunkIdx)
+static inline bool AL_Buffer_HasChunk(const AL_TBuffer* pBuf, int8_t iChunkIdx)
 {
   return iChunkIdx >= 0 && iChunkIdx < pBuf->iChunkCnt;
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -43,11 +43,11 @@
 static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_TBuffer* pStream, int iLayerID, int iPicID)
 {
   AL_UpdateVuiTimingInfo(&pCtx->tLayerCtx[iLayerID].sps.HevcSPS.vui_param, iLayerID, &pCtx->pSettings->tChParam[iLayerID].tRCParam, 1);
-  AL_HLSInfo* pHLSInfo = NULL;
-  pHLSInfo = AL_GetHLSInfo(pCtx, iPicID);
-  AL_HEVC_UpdateSPS(&pCtx->tLayerCtx[iLayerID].sps, pCtx->pSettings, pPicStatus, pHLSInfo, iLayerID);
-  bool bMustWritePPS = AL_HEVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, pCtx->pSettings, pPicStatus, pHLSInfo, iLayerID);
-  HEVC_GenerateSections(pCtx, pStream, pPicStatus, iLayerID, iPicID, bMustWritePPS);
+  AL_HLSInfo* pHLSInfo = AL_GetHLSInfo(pCtx, iPicID);
+  AL_HEVC_UpdateSPS(&pCtx->tLayerCtx[iLayerID].sps, pCtx->pSettings, pPicStatus, pHLSInfo, &pCtx->tHeadersCtx[iLayerID], iLayerID);
+  bool bMustWritePPS = AL_HEVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, pCtx->pSettings, pPicStatus, pHLSInfo, &pCtx->tHeadersCtx[iLayerID], iLayerID);
+  bool bMustWriteAUD = AL_HEVC_UpdateAUD(&pCtx->tLayerCtx[iLayerID].aud, pCtx->pSettings, pPicStatus, iLayerID);
+  HEVC_GenerateSections(pCtx, pStream, pPicStatus, iLayerID, iPicID, bMustWritePPS, bMustWriteAUD);
 
   pCtx->initialCpbRemovalDelay = pPicStatus->uInitialRemovalDelay;
   pCtx->cpbRemovalDelay += PicStructToFieldNumber[pPicStatus->ePicStruct];
@@ -102,6 +102,7 @@ static void initHls(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
 
   if((AL_GET_CHROMA_MODE(pChParam->ePicFormat) != AL_CHROMA_MONO) && (pChParam->iCbSliceQpOffset || pChParam->iCrSliceQpOffset))
     pChParam->uPpsParam |= AL_PPS_SLICE_CHROMA_QP_OFFSET_PRES_FLAG;
+
 }
 
 static void SetMotionEstimationRange(AL_TEncChanParam* pChParam)

@@ -14,7 +14,8 @@ LIB_COMMON_SRC:=\
   lib_common/IntVector.c\
   lib_common/Planes.c\
   lib_common/HardwareConfig.c\
-  lib_common/Error.c\
+  lib_common/Error.c
+
 
 HAS_CODEC=0
 ifneq ($(ENABLE_AVC),0)
@@ -31,6 +32,8 @@ endif
 
 
 
+
+
 ifneq ($(HAS_CODEC),0)
   LIB_COMMON_SRC+=lib_common/LevelLimit.c
   LIB_COMMON_SRC+=lib_common/StreamBuffer.c
@@ -40,9 +43,10 @@ ifneq ($(HAS_CODEC),0)
   LIB_COMMON_SRC+=lib_common/BufferCircMeta.c
   LIB_COMMON_SRC+=lib_common/BufferStreamMeta.c
   LIB_COMMON_SRC+=lib_common/BufferPictureMeta.c
-  LIB_COMMON_SRC+=lib_common/BufferLookAheadMeta.c
   LIB_COMMON_SRC+=lib_common/BufferSeiMeta.c
   LIB_COMMON_SRC+=lib_common/BufferStatisticsMeta.c
+
+  LIB_COMMON_SRC+=lib_common/BufferLookAheadMeta.c
 
 ifneq ($(ENABLE_HIGH_DYNAMIC_RANGE),0)
   LIB_COMMON_SRC+=lib_common/HDR.c

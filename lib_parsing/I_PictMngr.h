@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -132,6 +132,7 @@ typedef struct AL_t_HevcRefPicCtx
 *****************************************************************************/
 typedef struct t_PictMngrCtx
 {
+  AL_MUTEX FirstInitMutex;
   bool bFirstInit;
   bool bForceOutput;
   AL_EFbStorageMode eFbStorageMode;
@@ -151,6 +152,7 @@ typedef struct t_PictMngrCtx
   uint32_t uSizePOC; /*!< Whole size of poc Buffer */
 
   int iCurFramePOC;
+  AL_EPicStruct ePicStruct;
 
   /*info needed for POC calculation*/
   int32_t iPrevPocMSB;
@@ -183,6 +185,15 @@ typedef struct AL_t_PictMngrParam
   bool bForceOutput; /*!< Force frame output */
   AL_TPosition tOutputPosition; /*!< Specifies the position offset of the active area in the frame buffers */
 }AL_TPictMngrParam;
+
+/*************************************************************************//*!
+   \brief Pre initialize the PictureManager. This must be called before
+          another thread may call AL_PictMngr_Init()
+   \param[in] pCtx        Pointer to a Picture manager context object
+   \param[in] pParam      Picture manager parameters
+   \return If the function succeeds the return true. Return false otherwise
+*****************************************************************************/
+bool AL_PictMngr_PreInit(AL_TPictMngrCtx* pCtx);
 
 /*************************************************************************//*!
    \brief Initialize the PictureManager.
@@ -286,6 +297,7 @@ uint8_t AL_PictMngr_GetLastPicID(AL_TPictMngrCtx* pCtx);
    \brief This function insert a decoded frame into the DPB
    \param[in,out] pCtx        Pointer to a Picture manager context object
    \param[in] iFramePOC       Picture order count of the decoded picture
+   \param[in] ePicStruct      Picture structure of the decoded picture
    \param[in] uPocLsb         poc_lsb value of the decoded picture
    \param[in] iFrameID        Frame id of he associated frame buffer
    \param[in] uMvID           Motion-vector id of the associated frame buffer
@@ -295,7 +307,7 @@ uint8_t AL_PictMngr_GetLastPicID(AL_TPictMngrCtx* pCtx);
    \param[in] eNUT            Added NAL unit type
    \param[in] uSubpicFlag     Added subpicture flag
 *****************************************************************************/
-void AL_PictMngr_Insert(AL_TPictMngrCtx* pCtx, int iFramePOC, uint32_t uPocLsb, int iFrameID, uint8_t uMvID, uint8_t pic_output_flag, AL_EMarkingRef eMarkingFlag, uint8_t uNonExisting, AL_ENut eNUT, uint8_t uSubpicFlag);
+void AL_PictMngr_Insert(AL_TPictMngrCtx* pCtx, int iFramePOC, AL_EPicStruct ePicStruct, uint32_t uPocLsb, int iFrameID, uint8_t uMvID, uint8_t pic_output_flag, AL_EMarkingRef eMarkingFlag, uint8_t uNonExisting, AL_ENut eNUT, uint8_t uSubpicFlag);
 
 /*************************************************************************//*!
    \brief This function updates the Picture Manager context each time a picture have been decoded.

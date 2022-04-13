@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -37,6 +37,14 @@
 
 #include "lib_common_enc/ParamConstraints.h"
 
+#define MIN_QP_CHROMA_OFFSET -12
+#define MAX_QP_CHROMA_OFFSET 12
+
+static bool AL_CheckChromaOffsetsInRange(int8_t iQpOffset)
+{
+  return iQpOffset >= MIN_QP_CHROMA_OFFSET && iQpOffset <= MAX_QP_CHROMA_OFFSET;
+}
+
 ECheckResolutionError AL_ParamConstraints_CheckResolution(AL_EProfile eProfile, AL_EChromaMode eChromaMode, uint8_t uLCUSize, uint16_t uWidth, uint16_t uHeight)
 {
   (void)eProfile;
@@ -65,3 +73,30 @@ bool AL_ParamConstraints_CheckLFTcOffset(AL_EProfile eProfile, int8_t iTcOffset)
   return true;
 }
 
+bool AL_ParamConstraints_CheckChromaOffsets(AL_EProfile eProfile, int8_t iCbPicQpOffset, int8_t iCrPicQpOffset, int8_t iCbSliceQpOffset, int8_t iCrSliceQpOffset)
+{
+  (void)eProfile;
+
+  if(!AL_CheckChromaOffsetsInRange(iCbPicQpOffset) || !AL_CheckChromaOffsetsInRange(iCrPicQpOffset))
+    return false;
+
+  if(AL_IS_AVC(eProfile))
+    return true;
+
+  if(!AL_CheckChromaOffsetsInRange(iCbSliceQpOffset) || !AL_CheckChromaOffsetsInRange(iCrSliceQpOffset))
+    return false;
+
+  if(!AL_CheckChromaOffsetsInRange(iCbPicQpOffset + iCbSliceQpOffset) || !AL_CheckChromaOffsetsInRange(iCrPicQpOffset + iCrSliceQpOffset))
+    return false;
+
+  return true;
+}
+
+void AL_ParamConstraints_GetQPBounds(AL_ECodec eCodec, int* pMinQP, int* pMaxQP)
+{
+  *pMinQP = 0;
+  *pMaxQP = 51;
+
+  (void)eCodec;
+
+}

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -99,7 +99,7 @@ static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam const* pPP, AL
   int const iMaxBitDepth = pCtx->tStreamSettings.iBitDepth;
   AL_TBuffer* pRec = pCtx->pRecs.pFrame;
 
-  uint16_t uPitch = AL_PixMapBuffer_GetPlanePitch(pRec, AL_PLANE_Y);
+  uint32_t uPitch = AL_PixMapBuffer_GetPlanePitch(pRec, AL_PLANE_Y);
   AL_Assert(uPitch != 0);
 
   // The first version supported only 8 or 10 bit with a flag at pos 31.

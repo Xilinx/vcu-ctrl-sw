@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -79,31 +79,38 @@ typedef enum AL_e_PicEncOption
 typedef struct AL_t_EncInfo
 {
   AL_EPicEncOption eEncOptions;
+  uint8_t uPpsId;
   int16_t iPpsQP;
 
   AL_TLookAheadParam tLAParam;
 
   AL_64U UserParam;
   AL_64U SrcHandle;
+
+  int8_t iQp1Offset;
+  int8_t iQp2Offset;
 }AL_TEncInfo;
 
 typedef enum
 {
   AL_NO_OPT = 0,
-  AL_OPT_SCENE_CHANGE = 0x0001,
-  AL_OPT_IS_LONG_TERM = 0x0002,
-  AL_OPT_USE_LONG_TERM = 0x0004,
-  AL_OPT_RESTART_GOP = 0x0008,
-  AL_OPT_UPDATE_PARAMS = 0x0010,
-  AL_OPT_SET_QP = 0x0100,
-  AL_OPT_SET_INPUT_RESOLUTION = 0x0200,
-  AL_OPT_SET_LF_OFFSETS = 0x0400,
+  AL_OPT_SCENE_CHANGE = 0x00001,
+  AL_OPT_IS_LONG_TERM = 0x00002,
+  AL_OPT_USE_LONG_TERM = 0x00004,
+  AL_OPT_RESTART_GOP = 0x00008,
+  AL_OPT_UPDATE_RC_GOP_PARAMS = 0x00010,
+  AL_OPT_UPDATE_COST_MODE = 0x01000,
+  AL_OPT_SET_QP = 0x00100,
+  AL_OPT_SET_INPUT_RESOLUTION = 0x00200,
+  AL_OPT_SET_LF_OFFSETS = 0x00400,
+  AL_OPT_SET_AUTO_QP = 0x08000,
+  AL_OPT_UPDATE_AUTO_QP_VALUES = 0x20000,
+  AL_OPT_RECOVERY_POINT = 0x10000,
 }AL_ERequestEncOption;
 
 typedef struct
 {
   AL_TDimension tInputResolution;
-  uint8_t uNewNalsId;
 }AL_TDynResParams;
 
 typedef struct
@@ -113,6 +120,8 @@ typedef struct
   int16_t iQPSet;
   int8_t iLFBetaOffset;
   int8_t iLFTcOffset;
+  bool costMode;
+  bool useAutoQP;
 }AL_TEncSmartParams;
 
 typedef struct AL_t_EncRequestInfo
@@ -172,13 +181,20 @@ typedef struct AL_t_EncPicStatus
   int16_t iPpsQP;
   int iRecoveryCnt;
   uint8_t uTempId;
+  int32_t iPOC;
 
   uint8_t uCuQpDeltaDepth;
+  uint8_t bDisLoopFilter;
+  int8_t iBetaOffset;
+  int8_t iTcOffset;
 
   int32_t iPictureSize;
   int8_t iPercentIntra[5];
 
   AL_RateCtrl_Statistics tRateCtrlStats;
+
+  uint16_t uGdrPos;
+  AL_EGdrMode eGdrMode;
 
 }AL_TEncPicStatus;
 

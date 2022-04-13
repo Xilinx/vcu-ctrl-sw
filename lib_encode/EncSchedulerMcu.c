@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -299,7 +299,7 @@ static void* WaitForStatus(void* p)
       if(err == DRIVER_SUCCESS)
         processStatusMsg(chan, &msg);
       else
-        Rtos_Log(AL_LOG_ERROR, "Failed to get decode status (error code: %d)\n", err);
+        Rtos_Log(AL_LOG_ERROR, "Failed to get encode status (error code: %d)\n", err);
     }
     /* If the polling finds an end of operation, it means that the channel was destroyed and we can stop waiting for encoding results. */
     else if(ctx.revents & AL_POLLHUP)
@@ -308,7 +308,7 @@ static void* WaitForStatus(void* p)
     }
   }
 
-  return 0;
+  return NULL;
 }
 
 static void API_Destroy(AL_IEncScheduler* pScheduler)

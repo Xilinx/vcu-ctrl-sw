@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -47,6 +47,7 @@
 
 #include "BitStreamLite.h"
 #include "lib_common/SliceConsts.h"
+#include "lib_common/AUD.h"
 #include "lib_common/HDR.h"
 
 /*************************************************************************//*!
@@ -59,7 +60,7 @@
    \param[in] pRE Pointer to TRbspEncoding Object
    \param[in] eSliceType Slice type
 *************************************************************************/
-void AL_RbspEncoding_WriteAUD(AL_TBitStreamLite* pRE, AL_ESliceType eSliceType);
+void AL_RbspEncoding_WriteAUD(AL_TBitStreamLite* pRE, AL_TAud const* pAud);
 int AL_RbspEncoding_BeginSEI(AL_TBitStreamLite* pRE, uint8_t payloadType);
 void AL_RbspEncoding_BeginSEI2(AL_TBitStreamLite* pBS, int iPayloadType, int iPayloadSize);
 void AL_RbspEncoding_EndSEI(AL_TBitStreamLite* pRE, int bookmarkSEI);

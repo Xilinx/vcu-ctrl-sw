@@ -43,7 +43,6 @@ include base.mk
 
 # Libraries
 -include lib_fpga/project.mk
--include lib_cfg_parsing/project.mk
 -include lib_common/project.mk
 -include lib_rtos/project.mk
 -include lib_ip_ctrl/project.mk
@@ -54,6 +53,7 @@ include base.mk
 BUILD_LIB_FBC=0
 BUILD_EXE_FBC=0
 BUILD_EXE_FBD=0
+
 
 ifneq ($(ENABLE_ENCODER),0)
 -include lib_common_enc/project.mk
@@ -83,7 +83,7 @@ ifneq ($(ENABLE_DECODER),0)
   -include lib_parsing/project.mk
   -include lib_scheduler_dec/project.mk
   -include lib_decode/project.mk
-  include exe_decoder/project.mk
+  -include exe_decoder/project.mk
 endif
 
 
@@ -117,6 +117,7 @@ ifeq ($(findstring linux,$(TARGET)),linux)
   -include exe_sync_ip/project.mk
 endif
 endif
+
 
 
 

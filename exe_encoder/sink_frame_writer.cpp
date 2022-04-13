@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -60,6 +60,8 @@ void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tYuvFourCC)
   TFourCC tRecFourCC = AL_PixMapBuffer_GetFourCC(pRec);
   tConvFourCCFunc pFunc = GetConvFourCCFunc(tRecFourCC, tYuvFourCC);
 
+  AL_PixMapBuffer_SetDimension(pYuv, AL_PixMapBuffer_GetDimension(pRec));
+
   if(!pFunc)
     assert(false && "Can't find a conversion function suitable for format");
 
@@ -70,7 +72,7 @@ void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tYuvFourCC)
 class FrameWriter : public IFrameSink
 {
 public:
-  FrameWriter(string RecFileName, ConfigFile& cfg_, AL_TBuffer* Yuv_, int iLayerID) : m_cfg(cfg_), m_Yuv(Yuv_)
+  FrameWriter(string RecFileName, ConfigFile& cfg_, int iLayerID) : m_cfg(cfg_)
   {
     (void)iLayerID; // if no fbc support
     OpenOutput(m_RecFile, RecFileName);
@@ -84,26 +86,46 @@ public:
       return;
     }
 
-    AL_PixMapBuffer_SetDimension(m_Yuv, AL_PixMapBuffer_GetDimension(pBuf));
-
     {
-      RecToYuv(pBuf, m_Yuv, m_cfg.RecFourCC);
-      WriteOneFrame(m_RecFile, m_Yuv);
+      CheckAndAllocateConversionBuffer(pBuf);
+      RecToYuv(pBuf, m_convYUV.get(), m_cfg.RecFourCC);
+      WriteOneFrame(m_RecFile, m_convYUV.get());
     }
   }
 
 private:
   ofstream m_RecFile;
   ConfigFile& m_cfg;
-  AL_TBuffer* const m_Yuv;
+  std::shared_ptr<AL_TBuffer> m_convYUV;
+
+  void CheckAndAllocateConversionBuffer(AL_TBuffer* pBuf)
+  {
+    AL_TDimension tOutputDim = AL_PixMapBuffer_GetDimension(pBuf);
+
+    if(m_convYUV != nullptr)
+    {
+      AL_TDimension tConvDim = AL_PixMapBuffer_GetDimension(m_convYUV.get());
+
+      if(tConvDim.iHeight >= tOutputDim.iHeight && tConvDim.iWidth >= tOutputDim.iWidth)
+        return;
+    }
+
+    AL_TBuffer* pYuv = AllocateDefaultYuvIOBuffer(tOutputDim, m_cfg.RecFourCC);
+
+    if(pYuv == nullptr)
+      throw runtime_error("Couldn't allocate reconstruct conversion buffer");
+
+    m_convYUV = shared_ptr<AL_TBuffer>(pYuv, &AL_Buffer_Destroy);
+
+  }
 };
 
-unique_ptr<IFrameSink> createFrameWriter(string path, ConfigFile& cfg_, AL_TBuffer* Yuv_, int iLayerID_)
+unique_ptr<IFrameSink> createFrameWriter(string path, ConfigFile& cfg_, int iLayerID_)
 {
 
   if(cfg_.Settings.TwoPass == 1)
     return unique_ptr<IFrameSink>(new NullFrameSink);
 
-  return unique_ptr<IFrameSink>(new FrameWriter(path, cfg_, Yuv_, iLayerID_));
+  return unique_ptr<IFrameSink>(new FrameWriter(path, cfg_, iLayerID_));
 }
 

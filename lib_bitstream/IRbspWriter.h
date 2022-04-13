@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -40,14 +40,22 @@
 #include "BitStreamLite.h"
 #include "lib_common/SPS.h"
 #include "lib_common/PPS.h"
+#include "lib_common/AUD.h"
+#include "lib_common/VPS.h"
 #include "lib_common/HDR.h"
+
+typedef struct t_AudParam
+{
+  AL_ESliceType eType;
+  bool bIsIrapOrGdr;
+}AL_TAudParam;
 
 typedef struct rbspWriter
 {
   AL_ECodec (* GetCodec)(void);
-  void (* WriteAUD)(AL_TBitStreamLite* writer, AL_ESliceType eSliceType);
+  void (* WriteAUD)(AL_TBitStreamLite* writer, AL_TAud const* pAudParam);
   void (* WriteStartCode)(AL_TBitStreamLite* write, int nut, AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned);
-  void (* WriteVPS)(AL_TBitStreamLite* writer, AL_THevcVps const* pVps);
+  void (* WriteVPS)(AL_TBitStreamLite* writer, AL_TVps const* pVps);
   void (* WriteSPS)(AL_TBitStreamLite* writer, AL_TSps const* pSps, int iLayerId);
   void (* WritePPS)(AL_TBitStreamLite* writer, AL_TPps const* pPps);
   void (* WriteSEI_ActiveParameterSets)(AL_TBitStreamLite* writer, AL_THevcVps const* pVps, AL_TSps const* pISps);

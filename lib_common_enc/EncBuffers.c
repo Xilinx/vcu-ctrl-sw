@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,7 @@
 #include "lib_common_enc/EncBuffers.h"
 #include "lib_common_enc/IpEncFourCC.h"
 #include "lib_common_enc/EncSize.h"
-#include "lib_assert/al_assert.h"
+#include "lib_common_enc/QPTableInternal.h"
 
 /****************************************************************************/
 uint32_t AL_GetAllocSizeEP1()
@@ -64,27 +64,15 @@ uint32_t AL_GetAllocSizeEP1()
 }
 
 /****************************************************************************/
+uint32_t AL_GetAllocSizeFlexibleEP2(AL_TDimension tDim, AL_ECodec eCodec, uint8_t uLog2MaxCuSize, uint8_t uQpLCUGranularity)
+{
+  return (uint32_t)(EP2_BUF_QP_CTRL.Size) + AL_QPTable_GetFlexibleSize(tDim, eCodec, uLog2MaxCuSize, uQpLCUGranularity);
+}
+
+/****************************************************************************/
 uint32_t AL_GetAllocSizeEP2(AL_TDimension tDim, AL_ECodec eCodec, uint8_t uLog2MaxCuSize)
 {
-  uint32_t uMaxSize = 0;
-  int iMaxLCUs = GetBlkNumber(tDim, uLog2MaxCuSize);
-  switch(eCodec)
-  {
-  case AL_CODEC_HEVC:
-  {
-    uMaxSize = iMaxLCUs;
-    break;
-  }
-  case AL_CODEC_AVC:
-  {
-    uMaxSize = iMaxLCUs;
-    break;
-  }
-  default:
-    AL_Assert(0);
-  }
-
-  return (uint32_t)(EP2_BUF_QP_CTRL.Size + EP2_BUF_SEG_CTRL.Size) + RoundUp(uMaxSize, 128);
+  return AL_GetAllocSizeFlexibleEP2(tDim, eCodec, uLog2MaxCuSize, 1);
 }
 
 /****************************************************************************/
@@ -264,7 +252,7 @@ uint32_t AL_GetAllocSize_EncReference(AL_TDimension tDim, uint8_t uBitDepth, uin
 /****************************************************************************/
 uint32_t AL_GetAllocSize_CompData(AL_TDimension tDim, uint8_t uLog2MaxCuSize, uint8_t uBitDepth, AL_EChromaMode eChromaMode, bool bUseEnt)
 {
-  uint32_t uBlk16x16 = GetBlk16x16(tDim);
+  uint32_t uBlk16x16 = GetSquareBlkNumber(tDim, 16);
   return AL_GetCompDataSize(uBlk16x16, uLog2MaxCuSize, uBitDepth, eChromaMode, bUseEnt);
 }
 
@@ -272,7 +260,7 @@ uint32_t AL_GetAllocSize_CompData(AL_TDimension tDim, uint8_t uLog2MaxCuSize, ui
 uint32_t AL_GetAllocSize_EncCompMap(AL_TDimension tDim, uint8_t uLog2MaxCuSize, uint8_t uNumCore, bool bUseEnt)
 {
   (void)uLog2MaxCuSize, (void)uNumCore, (void)bUseEnt;
-  uint32_t uBlk16x16 = GetBlk16x16(tDim);
+  uint32_t uBlk16x16 = GetSquareBlkNumber(tDim, 16);
   return RoundUp(SIZE_LCU_INFO * uBlk16x16, 32);
 }
 
@@ -284,11 +272,11 @@ uint32_t AL_GetAllocSize_MV(AL_TDimension tDim, uint8_t uLog2MaxCuSize, AL_ECode
              2;
   switch(uLog2MaxCuSize)
   {
-  case 4: uNumBlk = GetBlk16x16(tDim);
+  case 4: uNumBlk = GetSquareBlkNumber(tDim, 16);
     break;
-  case 5: uNumBlk = GetBlk32x32(tDim) << 2;
+  case 5: uNumBlk = GetSquareBlkNumber(tDim, 32) << 2;
     break;
-  case 6: uNumBlk = GetBlk64x64(tDim) << 4;
+  case 6: uNumBlk = GetSquareBlkNumber(tDim, 64) << 4;
     break;
   default: AL_Assert(0);
   }
@@ -304,6 +292,7 @@ uint32_t AL_GetAllocSize_WPP(int iLCUPicHeight, int iNumSlices, uint8_t uNumCore
   return uAlignedSize;
 }
 
+/*****************************************************************************/
 uint32_t AL_GetAllocSize_SliceSize(uint32_t uWidth, uint32_t uHeight, uint32_t uNumSlices, uint32_t uLog2MaxCuSize)
 {
   int iWidthInLcu = (uWidth + ((1 << uLog2MaxCuSize) - 1)) >> uLog2MaxCuSize;

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -746,7 +746,7 @@ void AL_HEVC_short_term_ref_pic_set(AL_THevcSps* pSPS, uint8_t RefIdx, AL_TRbspP
 }
 
 /*****************************************************************************/
-void AL_HEVC_ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
+AL_PARSE_RESULT AL_HEVC_ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 {
   AL_THevcVps* pVPS;
 
@@ -757,7 +757,7 @@ void AL_HEVC_ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
   int vps_id = u(pRP, 4);
 
   if(vps_id >= AL_HEVC_MAX_VPS)
-    return;
+    return AL_UNSUPPORTED;
 
   pVPS = &pIAup->hevcAup.pVPS[vps_id];
   pVPS->vps_video_parameter_set_id = vps_id;
@@ -829,6 +829,8 @@ void AL_HEVC_ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
       skip(pRP, 1); // vps_extension_data_flag
   }
   rbsp_trailing_bits(pRP);
+
+  return AL_OK;
 }
 
 /*****************************************************************************/

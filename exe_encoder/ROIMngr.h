@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -88,7 +88,7 @@ struct AL_TRoiMngrCtx
   int iLcuPicWidth;
   int iLcuPicHeight;
   int iNumLCUs;
-  uint8_t uLcuSize;
+  uint8_t uLog2MaxCuSize;
 
   AL_ERoiQuality eBkgQuality;
   AL_ERoiOrder eOrder;
@@ -106,7 +106,7 @@ struct AL_TRoiMngrCtx
    \param[in] eOrder ROI priority
    \returns Pointer to the ROI Manager context created
 *****************************************************************************/
-AL_TRoiMngrCtx* AL_RoiMngr_Create(int iPicWidth, int iPicHeight, AL_EProfile eProf, AL_ERoiQuality eBkgQuality, AL_ERoiOrder eOrder);
+AL_TRoiMngrCtx* AL_RoiMngr_Create(int iPicWidth, int iPicHeight, AL_EProfile eProf, uint8_t uLog2MaxCuSize, AL_ERoiQuality eBkgQuality, AL_ERoiOrder eOrder);
 
 /*************************************************************************//*!
    \brief Destroy a ROI Manager context

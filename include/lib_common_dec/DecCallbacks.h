@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -58,7 +58,7 @@ typedef struct
 /*************************************************************************//*!
    \brief Decoded callback definition.
    It is called every time a frame is decoded. Callback parameters are:
-   - pDecodedFrame: the decoded frame. A null frame indicates an error occured.
+   - pDecodedFrame: the decoded frame.
    - pUserParam: user context provided in the callback structure
 *****************************************************************************/
 typedef struct
@@ -110,8 +110,10 @@ typedef struct
    - bIsPrefix: true if prefix SEI, false otherwise
    - iPayloadType: type of the payload
    - pPayload: payload data, for which antiemulation has already been removed
-               by the decoder
-   - iPayloadSize: size of the payload data
+               by the decoder. This value can be NULL in case decoder failed to
+               allocate memory for sei payload.
+   - iPayloadSize: size of the payload data. This value can be zero in case
+                   decoder failed to allocate memory for sei payload.
    - pUserParam: user context provided in the callback structure
 *****************************************************************************/
 typedef struct
@@ -119,3 +121,16 @@ typedef struct
   void (* func)(bool bIsPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, void* pUserParam);
   void* userParam;
 }AL_CB_ParsedSei;
+
+/*************************************************************************//*!
+   \brief Decoding error callback definition.
+   It is called when an error occurs during decoding. User might decide to
+   continue decoding or destroy the decoder depending on error.
+   - eError: error type
+   - pUserParam: user context provided in the callback structure
+*****************************************************************************/
+typedef struct
+{
+  void (* func)(AL_ERR eError, void* pUserParam);
+  void* userParam;
+}AL_CB_Error;

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -84,11 +84,7 @@ typedef struct t_Dec_Ctx
   AL_TAllocator* pAllocator;
   AL_EChanState eChanState;
 
-  AL_CB_EndParsing endParsingCB;
-  AL_CB_EndDecoding endDecodingCB;
-  AL_CB_Display displayCB;
-  AL_CB_ResolutionFound resolutionFoundCB;
-  AL_CB_ParsedSei parsedSeiCB;
+  AL_TDecCallBacks tDecCB;
 
   AL_SEMAPHORE Sem;
   AL_EVENT ScDetectionComplete;

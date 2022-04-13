@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -311,9 +311,9 @@ int Rtos_DriverIoctl(void* drv, unsigned long int req, void* data)
   return -1; // not implemented
 }
 
-int Rtos_DriverPoll(void* drv, int timeout, unsigned long flags)
+int Rtos_DriverPoll(void* drv, Rtos_PollCtx* ctx)
 {
-  (void)drv, (void)timeout, (void)flags;
+  (void)drv, (void)ctx;
   return -1; // not implemented
 }
 

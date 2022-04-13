@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -82,7 +82,7 @@ struct AL_t_Allocator
    \param[in] pAllocator the Allocator interface object to be destroyed
    \return true on success false otherwise
 ******************************************************************************/
-static AL_INLINE bool AL_Allocator_Destroy(AL_TAllocator* pAllocator)
+static inline bool AL_Allocator_Destroy(AL_TAllocator* pAllocator)
 {
   if(pAllocator->vtable->pfnDestroy)
     return pAllocator->vtable->pfnDestroy(pAllocator);
@@ -97,7 +97,7 @@ static AL_INLINE bool AL_Allocator_Destroy(AL_TAllocator* pAllocator)
    The handle value depends on the Allocator implementation and shall be treat as
    a black box.
 ******************************************************************************/
-static AL_INLINE
+static inline
 AL_HANDLE AL_Allocator_Alloc(AL_TAllocator* pAllocator, size_t zSize)
 {
   return pAllocator->vtable->pfnAlloc(pAllocator, zSize);
@@ -113,7 +113,7 @@ AL_HANDLE AL_Allocator_Alloc(AL_TAllocator* pAllocator, size_t zSize)
    The handle value depends on the Allocator implementation and shall be treat as
    a black box.
 ******************************************************************************/
-static AL_INLINE
+static inline
 AL_HANDLE AL_Allocator_AllocNamed(AL_TAllocator* pAllocator, size_t zSize, char const* sName)
 {
   (void)sName;
@@ -131,7 +131,7 @@ AL_HANDLE AL_Allocator_AllocNamed(AL_TAllocator* pAllocator, size_t zSize, char 
    \param[in] hBuf Handle to the memory buffer to be freed.
    \return true on success, false otherwise
 ******************************************************************************/
-static AL_INLINE
+static inline
 bool AL_Allocator_Free(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
 {
   return pAllocator->vtable->pfnFree(pAllocator, hBuf);
@@ -144,7 +144,7 @@ bool AL_Allocator_Free(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
    \param[in] hBuf Handle to the memory buffer.
    \return a pointer to the allocated memory in user space
 ******************************************************************************/
-static AL_INLINE
+static inline
 AL_VADDR AL_Allocator_GetVirtualAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
 {
   return pAllocator->vtable->pfnGetVirtualAddr(pAllocator, hBuf);
@@ -157,7 +157,7 @@ AL_VADDR AL_Allocator_GetVirtualAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
    \param[in] hBuf Handle to the memory buffer.
    \return a pointer to the allocated memory in the IP address space
 ******************************************************************************/
-static AL_INLINE
+static inline
 AL_PADDR AL_Allocator_GetPhysicalAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
 {
   return pAllocator->vtable->pfnGetPhysicalAddr(pAllocator, hBuf);
@@ -171,7 +171,7 @@ AL_PADDR AL_Allocator_GetPhysicalAddr(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
    \param[in] zSize Size of the area to synchronize for device.
    \return a pointer to the allocated memory in the IP address space
 ******************************************************************************/
-static AL_INLINE
+static inline
 void AL_Allocator_SyncForCpu(AL_TAllocator* pAllocator, AL_VADDR pVirtualAddr, size_t zSize)
 {
   if(pAllocator->vtable->pfnSyncForCpu)
@@ -186,7 +186,7 @@ void AL_Allocator_SyncForCpu(AL_TAllocator* pAllocator, AL_VADDR pVirtualAddr, s
    \param[in] zSize Size of the area to synchronize for device.
    \return a pointer to the allocated memory in the IP address space
 ******************************************************************************/
-static AL_INLINE
+static inline
 void AL_Allocator_SyncForDevice(AL_TAllocator* pAllocator, AL_VADDR pVirtualAddr, size_t zSize)
 {
   if(pAllocator->vtable->pfnSyncForDevice)
@@ -199,7 +199,7 @@ void AL_Allocator_SyncForDevice(AL_TAllocator* pAllocator, AL_VADDR pVirtualAddr
    callbacks
    \return a pointer to the allocated memory in the IP address space
 ******************************************************************************/
-static AL_INLINE
+static inline
 void AL_Allocator_InitCacheCallbacks(AL_TAllocator* pAllocator)
 {
   Rtos_InitCacheCB(pAllocator, (Rtos_MemoryFnCB)AL_Allocator_SyncForCpu, (Rtos_MemoryFnCB)AL_Allocator_SyncForDevice);

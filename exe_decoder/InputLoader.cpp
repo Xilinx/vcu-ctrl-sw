@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -42,6 +42,7 @@ extern "C"
 #include "lib_common/SliceConsts.h"
 #include "lib_common/BufferSeiMeta.h"
 #include "lib_common/Nuts.h"
+#include "lib_common/SEI.h"
 #include "lib_common/AvcUtils.h"
 #include "lib_common/HevcUtils.h"
 }
@@ -58,20 +59,21 @@ struct INalParser
 {
   virtual ~INalParser() = default;
 
-  virtual int ReadNut(uint8_t* pBuf, uint32_t iSize, uint32_t& uCurOffset) = 0;
+  virtual AL_ENut ReadNut(uint8_t const* pBuf, uint32_t iSize, uint32_t& uCurOffset) = 0;
   virtual bool IsAUD(AL_ENut eNut) = 0;
   virtual bool IsVcl(AL_ENut eNut) = 0;
-  virtual bool IsFD(AL_ENut eNut) = 0;
+  virtual bool IsEosOrEob(AL_ENut eNut) = 0;
+  virtual bool IsNewAUStart(AL_ENut eNut) = 0;
 };
 
 /****************************************************************************/
 struct HevcParser final : public INalParser
 {
-  int ReadNut(uint8_t* pBuf, uint32_t iSize, uint32_t& uCurOffset) override
+  AL_ENut ReadNut(uint8_t const* pBuf, uint32_t iSize, uint32_t& uCurOffset) override
   {
     auto NUT = ((pBuf[uCurOffset % iSize] >> 1) & 0x3F);
     uCurOffset += 2; // nal header length is 2 bytes in HEVC
-    return NUT;
+    return AL_ENut(NUT);
   }
 
   bool IsAUD(AL_ENut eNut) override
@@ -84,21 +86,34 @@ struct HevcParser final : public INalParser
     return AL_HEVC_IsVcl(eNut);
   }
 
-  bool IsFD(AL_ENut eNut) override
+  bool IsEosOrEob(AL_ENut eNut) override
   {
-    return eNut == AL_HEVC_NUT_FD;
+    return (eNut == AL_HEVC_NUT_EOS) || (eNut == AL_HEVC_NUT_EOB);
   }
 
+  bool IsNewAUStart(AL_ENut eNut) override
+  {
+    switch(eNut)
+    {
+    case AL_HEVC_NUT_VPS:
+    case AL_HEVC_NUT_SPS:
+    case AL_HEVC_NUT_PPS:
+    case AL_HEVC_NUT_PREFIX_SEI:
+      return true;
+    default:
+      return false;
+    }
+  }
 };
 
 /****************************************************************************/
 struct AvcParser final : public INalParser
 {
-  int ReadNut(uint8_t* pBuf, uint32_t iSize, uint32_t& uCurOffset) override
+  AL_ENut ReadNut(uint8_t const* pBuf, uint32_t iSize, uint32_t& uCurOffset) override
   {
     auto NUT = pBuf[uCurOffset % iSize] & 0x1F;
     uCurOffset += 1; // nal header length is 1 bytes in AVC
-    return NUT;
+    return AL_ENut(NUT);
   }
 
   bool IsAUD(AL_ENut eNut) override
@@ -111,11 +126,25 @@ struct AvcParser final : public INalParser
     return AL_AVC_IsVcl(eNut);
   }
 
-  bool IsFD(AL_ENut eNut) override
+  bool IsEosOrEob(AL_ENut eNut) override
   {
-    return eNut == AL_AVC_NUT_FD;
+    return (eNut == AL_AVC_NUT_EOS) || (eNut == AL_AVC_NUT_EOB);
   }
 
+  bool IsNewAUStart(AL_ENut eNut) override
+  {
+    switch(eNut)
+    {
+    case AL_AVC_NUT_SPS:
+    case AL_AVC_NUT_PPS:
+    case AL_AVC_NUT_PREFIX_SEI:
+    case AL_AVC_NUT_PREFIX:
+    case AL_AVC_NUT_SUB_SPS:
+      return true;
+    default:
+      return false;
+    }
+  }
 };
 
 /****************************************************************************/
@@ -138,15 +167,82 @@ std::unique_ptr<INalParser> getParser(AL_ECodec eCodec)
 }
 
 /****************************************************************************/
-struct NalInfo
+struct FrameInfo
 {
   int32_t numBytes;
   bool endOfFrame;
 };
-}
 
 /****************************************************************************/
-static bool sFindNextStartCode(CircBuffer& BufStream, uint32_t& uCurOffset, uint8_t& uSCsize)
+struct SCInfo
+{
+  uint32_t sizeSC;
+  uint32_t offsetSC;
+};
+
+/****************************************************************************/
+struct NalInfo
+{
+  SCInfo startCode;
+  AL_ENut NUT;
+  uint32_t size;
+};
+}
+
+/******************************************************************************/
+static int NalHeaderSize(AL_ECodec eCodec)
+{
+  switch(eCodec)
+  {
+  case AL_CODEC_AVC:
+    return AL_AVC_NAL_HDR_SIZE;
+  case AL_CODEC_HEVC:
+    return AL_HEVC_NAL_HDR_SIZE;
+  default:
+    return -1;
+  }
+}
+
+/*****************************************************************************/
+static bool isStartCode(uint8_t* pBuf, uint32_t uSize, uint32_t uPos)
+{
+  return (pBuf[uPos % uSize] == 0x00) &&
+         (pBuf[(uPos + 1) % uSize] == 0x00) &&
+         (pBuf[(uPos + 2) % uSize] == 0x01);
+}
+
+/* should only be used when the position is right after the nal header */
+/*****************************************************************************/
+static bool isFirstSlice(uint8_t* pBuf, uint32_t uPos)
+{
+  // in AVC, the first bit of the slice data is 1. (first_mb_in_slice = 0 encoded in ue)
+  // in HEVC, the first bit is 1 too. (first_slice_segment_in_pic_flag = 1 if true))
+  return (pBuf[uPos] & 0x80) != 0;
+}
+
+/*****************************************************************************/
+static uint32_t skipNalHeader(uint32_t uPos, AL_ECodec eCodec, uint32_t uSize)
+{
+  int iNalHdrSize = NalHeaderSize(eCodec);
+  AL_Assert(iNalHdrSize);
+  return (uPos + iNalHdrSize) % uSize; // skip start code + nal header
+}
+
+/*****************************************************************************/
+static bool isFirstSliceNAL(CircBuffer& BufStream, NalInfo nal, AL_ECodec eCodec)
+{
+  uint8_t* pBuf = BufStream.tBuf.pBuf;
+  uint32_t uCur = nal.startCode.offsetSC + nal.startCode.sizeSC - 3;
+  auto iBufSize = BufStream.tBuf.iSize;
+
+  AL_Assert(isStartCode(pBuf, iBufSize, uCur));
+
+  uCur = skipNalHeader(uCur, eCodec, iBufSize);
+  return isFirstSlice(pBuf, uCur);
+}
+
+/*****************************************************************************/
+static bool sFindNextStartCode(CircBuffer& BufStream, NalInfo& nal, uint32_t& uCurOffset)
 {
   int iNumZeros = 0;
   auto iSize = BufStream.tBuf.iSize;
@@ -167,7 +263,12 @@ static bool sFindNextStartCode(CircBuffer& BufStream, uint32_t& uCurOffset, uint
     uint8_t uRead = pBuf[uCur++ % iSize];
 
     if(uRead == 0x01 && iNumZeros >= 2)
+    {
+      if(iNumZeros >= 3)
+        iNumZeros = 3;
+
       break;
+    }
 
     if(uRead == 0x00)
       ++iNumZeros;
@@ -181,51 +282,102 @@ static bool sFindNextStartCode(CircBuffer& BufStream, uint32_t& uCurOffset, uint
     return false;
   }
 
-  uSCsize = iNumZeros + 1;
+  nal.startCode.sizeSC = iNumZeros + 1;
+  nal.startCode.offsetSC = uCur - nal.startCode.sizeSC;
   uCurOffset = uCur;
   return true;
 }
 
 /******************************************************************************/
-static NalInfo SearchStartCodes(CircBuffer Stream, AL_ECodec eCodec, bool bSliceCut)
+static FrameInfo SearchStartCodes(CircBuffer Stream, AL_ECodec eCodec, bool bSliceCut)
 {
-  NalInfo nal {};
+  FrameInfo frame {};
+  NalInfo nalCurrent {};
+
   auto parser = getParser(eCodec);
 
-  uint32_t iOffset = Stream.iOffset;
-  uint32_t iLastSCOffset = 0;
-  uint8_t uSCsize = 0;
+  uint32_t iOffsetNext = Stream.iOffset;
+  uint32_t iOffsetNewAU = Stream.iOffset;
   auto firstVCL = true;
-  auto firstNAL = true;
+  auto firstSlice = false;
+  auto nalNewAU = false;
+  auto const iSize = Stream.tBuf.iSize;
+  uint8_t const* pBuf = Stream.tBuf.pBuf;
 
-  while(sFindNextStartCode(Stream, iOffset, uSCsize))
+  auto endOfStream = !sFindNextStartCode(Stream, nalCurrent, iOffsetNext);
+  nalCurrent.NUT = parser->ReadNut(pBuf, iSize, iOffsetNext);
+
+  while(1)
   {
-    iLastSCOffset = iOffset - uSCsize;
-    auto const iSize = Stream.tBuf.iSize;
-    auto const pBuf = Stream.tBuf.pBuf;
-    auto const NUT = (AL_ENut)parser->ReadNut(pBuf, iSize, iOffset);
+    NalInfo nalNext {};
 
-    if(parser->IsAUD(NUT) && !firstNAL)
-    {
-      nal.endOfFrame = true;
-      break;
-    }
+    endOfStream = !sFindNextStartCode(Stream, nalNext, iOffsetNext);
+    nalCurrent.size = nalNext.startCode.offsetSC - nalCurrent.startCode.offsetSC - nalCurrent.startCode.sizeSC;
+    nalNext.NUT = parser->ReadNut(pBuf, iSize, iOffsetNext);
 
-    if(bSliceCut && parser->IsFD(NUT))
-      nal.endOfFrame = true;
-
-    if(bSliceCut && parser->IsVcl(NUT))
+    if(!parser->IsVcl(nalCurrent.NUT))
     {
       if(!firstVCL)
-        break;
+      {
+        if(parser->IsEosOrEob(nalCurrent.NUT) && !parser->IsEosOrEob(nalNext.NUT))
+        {
+          nalCurrent = nalNext;
+          frame.endOfFrame = true;
+          break;
+        }
+
+        if(parser->IsAUD(nalCurrent.NUT))
+        {
+          frame.endOfFrame = true;
+          break;
+        }
+
+        if(parser->IsNewAUStart(nalCurrent.NUT))
+        {
+          if(!nalNewAU)
+            iOffsetNewAU = nalCurrent.startCode.offsetSC;
+          nalNewAU = true;
+        }
+      }
+    }
+
+    if(parser->IsVcl(nalCurrent.NUT))
+    {
+      int iNalHdrSize = NalHeaderSize(eCodec);
+      AL_Assert(iNalHdrSize > 0);
+
+      if((int)nalCurrent.size > iNalHdrSize)
+      {
+        firstSlice = isFirstSliceNAL(Stream, nalCurrent, eCodec);
+      }
+
+      if(!firstVCL)
+      {
+        if(firstSlice)
+        {
+          frame.endOfFrame = true;
+          break;
+        }
+
+        if(bSliceCut)
+          break;
+
+        if(nalNewAU)
+          nalNewAU = false;
+      }
       firstVCL = false;
     }
-    firstNAL = false;
+
+    if(endOfStream)
+      break;
+    nalCurrent = nalNext;
   }
 
   // Give offset until beginning of next SC
-  nal.numBytes = iLastSCOffset - Stream.iOffset;
-  return nal;
+  if(nalNewAU)
+    nalCurrent.startCode.offsetSC = iOffsetNewAU;
+  frame.numBytes = nalCurrent.startCode.offsetSC - Stream.iOffset;
+  return frame;
 }
 
 /******************************************************************************/
@@ -272,7 +424,7 @@ uint32_t SplitInput::ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream, u
     pAUD = HEVC_AUD;
   }
 
-  NalInfo nal {};
+  FrameInfo frame {};
 
   while(true)
   {
@@ -283,6 +435,7 @@ uint32_t SplitInput::ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream, u
     {
       auto start = (m_CircBuf.iOffset + m_CircBuf.iAvailSize) % m_CircBuf.tBuf.iSize;
       auto freeArea = m_CircBuf.tBuf.iSize - m_CircBuf.iAvailSize;
+
       auto readable = min(freeArea, m_CircBuf.tBuf.iSize - start);
       ifFileStream.read((char*)(m_CircBuf.tBuf.pBuf + start), readable);
       auto size = (uint32_t)ifFileStream.gcount();
@@ -296,41 +449,40 @@ uint32_t SplitInput::ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream, u
       }
     }
 
-    nal = SearchStartCodes(m_CircBuf, m_eCodec, m_bSliceCut);
+    frame = SearchStartCodes(m_CircBuf, m_eCodec, m_bSliceCut);
 
-    if(nal.numBytes < m_CircBuf.iAvailSize)
+    if(frame.numBytes < m_CircBuf.iAvailSize)
       break;
 
     if(m_bEOF)
     {
-      nal.numBytes = m_CircBuf.iAvailSize;
+      frame.numBytes = m_CircBuf.iAvailSize;
       break;
     }
   }
 
-  assert(nal.numBytes <= (int)AL_Buffer_GetSize(pBufStream));
+  assert(frame.numBytes <= (int)AL_Buffer_GetSize(pBufStream));
 
   uint8_t* pBuf = AL_Buffer_GetData(pBufStream);
 
-  if((m_CircBuf.iOffset + nal.numBytes) > (int)m_CircBuf.tBuf.iSize)
+  if((m_CircBuf.iOffset + frame.numBytes) > (int)m_CircBuf.tBuf.iSize)
   {
     auto firstPart = m_CircBuf.tBuf.iSize - m_CircBuf.iOffset;
     Rtos_Memcpy(pBuf, m_CircBuf.tBuf.pBuf + m_CircBuf.iOffset, firstPart);
-    Rtos_Memcpy(pBuf + firstPart, m_CircBuf.tBuf.pBuf, nal.numBytes - firstPart);
+    Rtos_Memcpy(pBuf + firstPart, m_CircBuf.tBuf.pBuf, frame.numBytes - firstPart);
   }
   else
-    Rtos_Memcpy(pBuf, m_CircBuf.tBuf.pBuf + m_CircBuf.iOffset, nal.numBytes);
-
-  m_CircBuf.iAvailSize -= nal.numBytes;
-  m_CircBuf.iOffset = (m_CircBuf.iOffset + nal.numBytes) % m_CircBuf.tBuf.iSize;
+    Rtos_Memcpy(pBuf, m_CircBuf.tBuf.pBuf + m_CircBuf.iOffset, frame.numBytes);
+  m_CircBuf.iAvailSize -= frame.numBytes;
+  m_CircBuf.iOffset = (m_CircBuf.iOffset + frame.numBytes) % m_CircBuf.tBuf.iSize;
 
   AddSeiMetaData(pBufStream);
 
   uBufFlags = AL_STREAM_BUF_FLAG_ENDOFSLICE;
 
-  if(nal.endOfFrame)
+  if(frame.endOfFrame)
     uBufFlags |= AL_STREAM_BUF_FLAG_ENDOFFRAME;
 
-  return nal.numBytes;
+  return frame.numBytes;
 }
 

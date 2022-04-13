@@ -699,3 +699,19 @@
       -- AVC: [0..2]
       -- HEVC: [0..1]
     -- Several minors bugs
+
+2022-03-17 (v1.0.70)
+-------------------
+  Added Features:
+
+  API:
+    -- iMinQp and iMaxQP is now an array per frame type (I-Frame, P-Frame, B-Frame)
+    -- Moving lib_cfg_parsing into lib_app
+    -- GDR API modified
+      -- Gop.FreqRP must be used instead of Gop.FreqIdr
+      -- The command RP must be used instead of KF to restart a pass of GDR
+      -- The command KF allows insertion of an IDR even if GDR is active
+	-- In decoder, errors returned in EndDecoding callback using NULL frame pointers have been replaced by a dedicated error callback, that must be specified at decoder creation. User is also notified about non fatal warnings.
+
+  Fixes:
+    -- Several minors bugs

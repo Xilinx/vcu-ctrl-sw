@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -661,9 +661,9 @@ static void writePpsData(AL_TBitStreamLite* pBS, AL_THevcPps const* pPps)
 /* Interface functions */
 
 /******************************************************************************/
-static void writeVps(AL_TBitStreamLite* pBS, AL_THevcVps const* pVps)
+static void writeVps(AL_TBitStreamLite* pBS, AL_TVps const* pVps)
 {
-  writeVpsData(pBS, pVps);
+  writeVpsData(pBS, &pVps->HevcVPS);
 
   // Write rbsp_trailing_bits.
   AL_BitStreamLite_PutBit(pBS, 1);
@@ -907,7 +907,7 @@ static IRbspWriter writer =
   AL_RbspEncoding_WriteAlternativeTransferCharacteristics,
   AL_RbspEncoding_WriteST2094_10,
   AL_RbspEncoding_WriteST2094_40,
-  AL_RbspEncoding_WriteUserDataUnregistered
+  AL_RbspEncoding_WriteUserDataUnregistered,
 };
 
 IRbspWriter* AL_GetHevcRbspWriter()

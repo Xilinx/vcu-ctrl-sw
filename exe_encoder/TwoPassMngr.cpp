@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -107,8 +107,7 @@ AL_TLookAheadMetaData* AL_TwoPassMngr_CreateAndAttachTwoPassMetaData(AL_TBuffer*
 /***************************************************************************/
 bool AL_TwoPassMngr_HasLookAhead(AL_TEncSettings const& settings)
 {
-  return settings.LookAhead > 0
-  ;
+  return settings.LookAhead > 0;
 }
 
 /***************************************************************************/
@@ -116,29 +115,20 @@ static void setPass1RateControlSettings(AL_TEncChanParam& channel)
 {
   channel.tRCParam.eRCMode = AL_RC_CONST_QP;
   channel.tRCParam.iInitialQP = AL_RC_FIRSTPASS_QP;
-
   channel.tRCParam.eOptions = static_cast<AL_ERateCtrlOption>(channel.tRCParam.eOptions & (~AL_RC_OPT_ENABLE_SKIP));
 }
 
 /***************************************************************************/
 static void setPass1GopSettings(AL_TGopParam& gop)
 {
-  (void)gop;
   gop.eMode = AL_GOP_MODE_LOW_DELAY_P;
   gop.uGopLength = 0;
   gop.uNumB = 0;
 }
 
 /***************************************************************************/
-void AL_TwoPassMngr_SetGlobalSettings(AL_TEncSettings& settings)
+void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings)
 {
-  (void)settings;
-}
-
-/***************************************************************************/
-void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings, AL_HANDLE hBaseHandle)
-{
-  (void)hBaseHandle;
   settings.NumLayer = 1;
   auto& channel = settings.tChParam[0];
   channel.bSubframeLatency = false;
@@ -555,7 +545,6 @@ void LookAheadMngr::ProcessLookAheadParams()
 
   for(int i = 2; i < min(iNextSceneChange, 4); i++)
     pPictureMetaLA->iIPRatio = min(pPictureMetaLA->iIPRatio, ComputeIPRatio(m_fifo[0], m_fifo[i]));
-
 }
 
 /***************************************************************************/

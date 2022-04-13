@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -77,12 +77,12 @@ typedef enum e_GenerateQpMode
   AL_GENERATE_QP_MAX_ENUM, /* sentinel */
 }AL_EGenerateQpMode;
 
-static AL_INLINE bool AL_IsAutoQP(AL_EGenerateQpMode eMode)
+static inline bool AL_IsAutoQP(AL_EGenerateQpMode eMode)
 {
   return eMode & AL_GENERATE_MASK_AUTO_QP;
 }
 
-static AL_INLINE bool AL_HasQpTable(AL_EGenerateQpMode eMode)
+static inline bool AL_HasQpTable(AL_EGenerateQpMode eMode)
 {
   return eMode & AL_GENERATE_MASK_QP_TABLE_EXT;
 }
@@ -105,9 +105,9 @@ static AL_INLINE bool AL_HasQpTable(AL_EGenerateQpMode eMode)
    \param[out] pQPs       Pointer to the buffer that receives the computed QPs
    \param[out] pSegs      Pointer to the buffer that receives the computed Segments
    \note iMinQp <= iMaxQP
-   \return true on success, false on error
+   \return 0 on success, 1 if file is not found, 2 if there is an error in the file
 *****************************************************************************/
-bool GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUPicWidth, int iLCUPicHeight, AL_EProfile eProf, uint8_t uLogMaxCuSize, int iQPTableDepth, const std::string& sQPTablesFolder, int iFrameID, uint8_t* pQPs, uint8_t* pSegs);
+AL_ERR GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUPicWidth, int iLCUPicHeight, AL_EProfile eProf, uint8_t uLogMaxCuSize, int iQPTableDepth, const std::string& sQPTablesFolder, int iFrameID, uint8_t* pQPs, uint8_t* pSegs);
 
 /*************************************************************************//*!
    \brief Fill QP part of the buffer pointed to by pQP with a QP for each
@@ -124,5 +124,5 @@ bool GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP
    \param[out] pQPs       Pointer to the buffer that receives the computed QPs
    \return true on success, false on error
 *****************************************************************************/
-bool GenerateROIBuffer(AL_TRoiMngrCtx* pRoiCtx, std::string const& sRoiFileName, int iLCUPicWidth, int iLCUPicHeight, AL_EProfile eProf, uint8_t uLogMaxCuSize, int iQPTableDepth, int iFrameID, uint8_t* pQPs);
+AL_ERR GenerateROIBuffer(AL_TRoiMngrCtx* pRoiCtx, std::string const& sRoiFileName, int iLCUPicWidth, int iLCUPicHeight, AL_EProfile eProf, uint8_t uLogMaxCuSize, int iQPTableDepth, int iFrameID, uint8_t* pQPs);
 

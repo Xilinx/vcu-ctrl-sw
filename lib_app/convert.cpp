@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -61,6 +61,11 @@ extern "C" {
 static inline uint16_t CONV_8B_TO_10B(uint8_t val)
 {
   return ((uint16_t)val) << 2;
+}
+
+static inline uint16_t CONV_8B_TO_12B(uint8_t val)
+{
+  return ((uint16_t)val) << 4;
 }
 
 static inline uint8_t RND_10B_TO_8B(uint16_t val)
@@ -170,6 +175,17 @@ void I420_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
   AL_PixMapBuffer_SetFourCC(pDst, FOURCC(Y010));
 
   ConvertPixMapPlane<uint8_t, uint16_t>(pSrc, pDst, AL_PLANE_Y, tDim.iWidth, tDim.iHeight, CONV_8B_TO_10B);
+}
+
+/****************************************************************************/
+void I420_To_Y012(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pSrc);
+
+  AL_PixMapBuffer_SetDimension(pDst, tDim);
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(Y012));
+
+  ConvertPixMapPlane<uint8_t, uint16_t>(pSrc, pDst, AL_PLANE_Y, tDim.iWidth, tDim.iHeight, CONV_8B_TO_12B);
 }
 
 /****************************************************************************/
@@ -959,6 +975,49 @@ static void I4XX_To_PX10(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
 }
 
 /****************************************************************************/
+static void I4XX_To_PX12(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzCScale, uint8_t uVrtCScale)
+{
+  // Luma
+  I420_To_Y012(pSrc, pDst);
+
+  // Chroma
+  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pSrc);
+
+  int iPitchSrcU = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_U);
+  int iPitchSrcV = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_V);
+  int iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_UV) / sizeof(uint16_t);
+
+  int iWidthC = (tDim.iWidth + uHrzCScale - 1) / uHrzCScale;
+  int iHeightC = (tDim.iHeight + uVrtCScale - 1) / uVrtCScale;
+
+  uint8_t* pBufInU = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_U);
+  uint8_t* pBufInV = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_V);
+  uint16_t* pBufOut = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
+
+  for(int iH = 0; iH < iHeightC; ++iH)
+  {
+    for(int iW = 0; iW < iWidthC; ++iW)
+    {
+      *pBufOut++ = ((uint16_t)*pBufInU++) << 4;
+      *pBufOut++ = ((uint16_t)*pBufInV++) << 4;
+    }
+
+    pBufInU += iPitchSrcU - iWidthC;
+    pBufInV += iPitchSrcV - iWidthC;
+    pBufOut += iPitchDst - (2 * iWidthC);
+  }
+
+  int iCScale = uHrzCScale * uVrtCScale;
+  switch(iCScale)
+  {
+  case 1: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(P412));
+  case 2: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(P212));
+  case 4: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(P012));
+  default: assert(0 && "Unsupported chroma scale");
+  }
+}
+
+/****************************************************************************/
 void YV12_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 {
   I420_To_P010(pSrc, pDst);
@@ -986,6 +1045,24 @@ void I422_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 void I444_To_P410(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 {
   I4XX_To_PX10(pSrc, pDst, 1, 1);
+}
+
+/****************************************************************************/
+void I420_To_P012(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  I4XX_To_PX12(pSrc, pDst, 2, 2);
+}
+
+/****************************************************************************/
+void I422_To_P212(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  I4XX_To_PX12(pSrc, pDst, 2, 1);
+}
+
+/****************************************************************************/
+void I444_To_P412(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  I4XX_To_PX12(pSrc, pDst, 1, 1);
 }
 
 /****************************************************************************/
@@ -1739,6 +1816,15 @@ void T608_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 }
 
 /****************************************************************************/
+void T608_To_Y012(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pDst);
+  T64_Untile_Plane<uint8_t, uint16_t>(pSrc, pDst, 8, 12, AL_PLANE_Y, tDim);
+
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(Y010));
+}
+
+/****************************************************************************/
 void T608_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 {
   // Luma
@@ -1754,12 +1840,25 @@ void T608_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 }
 
 /****************************************************************************/
-void T608_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+void T608_To_P012(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 {
   // Luma
-  T608_To_Y010(pSrc, pDst);
+  T608_To_Y012(pSrc, pDst);
 
   // Chroma
+  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pDst);
+  tDim.iWidth = ((tDim.iWidth + 1) >> 1) << 1;
+  tDim.iHeight = (tDim.iHeight + 1) >> 1;
+  T64_Untile_Plane<uint8_t, uint16_t>(pSrc, pDst, 8, 12, AL_PLANE_UV, tDim);
+
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(P010));
+}
+
+/****************************************************************************/
+static void Chroma_T608_To_I0XL(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uBitDepth)
+{
+  assert(uBitDepth == 10 || uBitDepth == 12);
+
   int iPitchSrc = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_UV);
   int iPitchDstU = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_U) / sizeof(uint16_t);
   int iPitchDstV = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_V) / sizeof(uint16_t);
@@ -1773,6 +1872,8 @@ void T608_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
   const int iTileW = 64;
   const int iTileH = 4;
+
+  int iShift = uBitDepth == 10 ? 2 : 4;
 
   for(int H = 0; H < tDim.iHeight; H += iTileH)
   {
@@ -1797,28 +1898,28 @@ void T608_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
           uint16_t* pOutU = pDstDataU + (H + h) * iPitchDstU + (W + w) / 2;
           uint16_t* pOutV = pDstDataV + (H + h) * iPitchDstV + (W + w) / 2;
 
-          pOutU[0] = ((uint16_t)pInC[0]) << 2;
-          pOutV[0] = ((uint16_t)pInC[1]) << 2;
-          pOutU[1] = ((uint16_t)pInC[2]) << 2;
-          pOutV[1] = ((uint16_t)pInC[3]) << 2;
+          pOutU[0] = ((uint16_t)pInC[0]) << iShift;
+          pOutV[0] = ((uint16_t)pInC[1]) << iShift;
+          pOutU[1] = ((uint16_t)pInC[2]) << iShift;
+          pOutV[1] = ((uint16_t)pInC[3]) << iShift;
           pOutU += iPitchDstU;
           pOutV += iPitchDstV;
-          pOutU[0] = ((uint16_t)pInC[4]) << 2;
-          pOutV[0] = ((uint16_t)pInC[5]) << 2;
-          pOutU[1] = ((uint16_t)pInC[6]) << 2;
-          pOutV[1] = ((uint16_t)pInC[7]) << 2;
+          pOutU[0] = ((uint16_t)pInC[4]) << iShift;
+          pOutV[0] = ((uint16_t)pInC[5]) << iShift;
+          pOutU[1] = ((uint16_t)pInC[6]) << iShift;
+          pOutV[1] = ((uint16_t)pInC[7]) << iShift;
           pOutU += iPitchDstU;
           pOutV += iPitchDstV;
-          pOutU[0] = ((uint16_t)pInC[8]) << 2;
-          pOutV[0] = ((uint16_t)pInC[9]) << 2;
-          pOutU[1] = ((uint16_t)pInC[10]) << 2;
-          pOutV[1] = ((uint16_t)pInC[11]) << 2;
+          pOutU[0] = ((uint16_t)pInC[8]) << iShift;
+          pOutV[0] = ((uint16_t)pInC[9]) << iShift;
+          pOutU[1] = ((uint16_t)pInC[10]) << iShift;
+          pOutV[1] = ((uint16_t)pInC[11]) << iShift;
           pOutU += iPitchDstU;
           pOutV += iPitchDstV;
-          pOutU[0] = ((uint16_t)pInC[12]) << 2;
-          pOutV[0] = ((uint16_t)pInC[13]) << 2;
-          pOutU[1] = ((uint16_t)pInC[14]) << 2;
-          pOutV[1] = ((uint16_t)pInC[15]) << 2;
+          pOutU[0] = ((uint16_t)pInC[12]) << iShift;
+          pOutV[0] = ((uint16_t)pInC[13]) << iShift;
+          pOutU[1] = ((uint16_t)pInC[14]) << iShift;
+          pOutV[1] = ((uint16_t)pInC[15]) << iShift;
           pInC += 16;
         }
 
@@ -1828,6 +1929,28 @@ void T608_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
       pInC += 16 * (iTileW >> 2) * (iCropH >> 2);
     }
   }
+}
+
+/****************************************************************************/
+void T608_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  // Luma
+  T608_To_Y010(pSrc, pDst);
+
+  // Chroma
+  Chroma_T608_To_I0XL(pSrc, pDst, 10);
+
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I0AL));
+}
+
+/****************************************************************************/
+void T608_To_I0CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  // Luma
+  T608_To_Y012(pSrc, pDst);
+
+  // Chroma
+  Chroma_T608_To_I0XL(pSrc, pDst, 12);
 
   AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I0AL));
 }
@@ -1954,12 +2077,9 @@ void T628_To_NV16(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 }
 
 /****************************************************************************/
-void T628_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+static void Chroma_T628_To_I2XL(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uBitDepth)
 {
-  // Luma
-  T608_To_Y010(pSrc, pDst);
-
-  // Chroma
+  assert(uBitDepth == 10 || uBitDepth == 12);
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pSrc);
   tDim.iWidth = ((tDim.iWidth + 1) >> 1) << 1;
 
@@ -1971,6 +2091,8 @@ void T628_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
   uint16_t* pDstDataU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_U);
   uint16_t* pDstDataV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_V);
 
+  int iShift = uBitDepth == 10 ? 2 : 4;
+
   for(int h = 0; h < tDim.iHeight; h += 4)
   {
     uint8_t* pInC = pSrcDataC + (h >> 2) * iPitchSrc;
@@ -1980,33 +2102,55 @@ void T628_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
       uint16_t* pOutU = pDstDataU + h * iPitchDstU + w / 2;
       uint16_t* pOutV = pDstDataV + h * iPitchDstV + w / 2;
 
-      pOutU[0] = ((uint16_t)pInC[0]) << 2;
-      pOutV[0] = ((uint16_t)pInC[1]) << 2;
-      pOutU[1] = ((uint16_t)pInC[2]) << 2;
-      pOutV[1] = ((uint16_t)pInC[3]) << 2;
+      pOutU[0] = ((uint16_t)pInC[0]) << iShift;
+      pOutV[0] = ((uint16_t)pInC[1]) << iShift;
+      pOutU[1] = ((uint16_t)pInC[2]) << iShift;
+      pOutV[1] = ((uint16_t)pInC[3]) << iShift;
       pOutU += iPitchDstU;
       pOutV += iPitchDstV;
-      pOutU[0] = ((uint16_t)pInC[4]) << 2;
-      pOutV[0] = ((uint16_t)pInC[5]) << 2;
-      pOutU[1] = ((uint16_t)pInC[6]) << 2;
-      pOutV[1] = ((uint16_t)pInC[7]) << 2;
+      pOutU[0] = ((uint16_t)pInC[4]) << iShift;
+      pOutV[0] = ((uint16_t)pInC[5]) << iShift;
+      pOutU[1] = ((uint16_t)pInC[6]) << iShift;
+      pOutV[1] = ((uint16_t)pInC[7]) << iShift;
       pOutU += iPitchDstU;
       pOutV += iPitchDstV;
-      pOutU[0] = ((uint16_t)pInC[8]) << 2;
-      pOutV[0] = ((uint16_t)pInC[9]) << 2;
-      pOutU[1] = ((uint16_t)pInC[10]) << 2;
-      pOutV[1] = ((uint16_t)pInC[11]) << 2;
+      pOutU[0] = ((uint16_t)pInC[8]) << iShift;
+      pOutV[0] = ((uint16_t)pInC[9]) << iShift;
+      pOutU[1] = ((uint16_t)pInC[10]) << iShift;
+      pOutV[1] = ((uint16_t)pInC[11]) << iShift;
       pOutU += iPitchDstU;
       pOutV += iPitchDstV;
-      pOutU[0] = ((uint16_t)pInC[12]) << 2;
-      pOutV[0] = ((uint16_t)pInC[13]) << 2;
-      pOutU[1] = ((uint16_t)pInC[14]) << 2;
-      pOutV[1] = ((uint16_t)pInC[15]) << 2;
+      pOutU[0] = ((uint16_t)pInC[12]) << iShift;
+      pOutV[0] = ((uint16_t)pInC[13]) << iShift;
+      pOutU[1] = ((uint16_t)pInC[14]) << iShift;
+      pOutV[1] = ((uint16_t)pInC[15]) << iShift;
       pInC += 16;
     }
   }
+}
+
+/****************************************************************************/
+void T628_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  // Luma
+  T608_To_Y010(pSrc, pDst);
+
+  // Chroma
+  Chroma_T628_To_I2XL(pSrc, pDst, 10);
 
   AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I2AL));
+}
+
+/****************************************************************************/
+void T628_To_I2CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+{
+  // Luma
+  T608_To_Y012(pSrc, pDst);
+
+  // Chroma
+  Chroma_T628_To_I2XL(pSrc, pDst, 12);
+
+  AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I2CL));
 }
 
 /****************************************************************************/
@@ -3179,6 +3323,9 @@ static const sFourCCToConvFunc ConversionI420FuncArray[] =
     FOURCC(P010), I420_To_P010
   },
   {
+    FOURCC(P010), I420_To_P012
+  },
+  {
     FOURCC(Y010), I420_To_Y010
   },
   {
@@ -3201,6 +3348,9 @@ static const sFourCCToConvFunc ConversionI422FuncArray[] =
     FOURCC(P210), I422_To_P210
   },
   {
+    FOURCC(P212), I422_To_P212
+  },
+  {
     FOURCC(XV20), I422_To_XV20
   },
 };
@@ -3215,6 +3365,9 @@ static const sFourCCToConvFunc ConversionI444FuncArray[] =
   },
   {
     FOURCC(P410), I444_To_P410
+  },
+  {
+    FOURCC(P412), I444_To_P412
   },
 };
 
@@ -3396,6 +3549,9 @@ static const sFourCCToConvFunc ConversionT608FuncArray[] =
     FOURCC(I0AL), T608_To_I0AL
   },
   {
+    FOURCC(I0CL), T608_To_I0CL
+  },
+  {
     FOURCC(I420), T608_To_I420
   },
   {
@@ -3478,6 +3634,9 @@ static const sFourCCToConvFunc ConversionT628FuncArray[] =
 {
   {
     FOURCC(I2AL), T628_To_I2AL
+  },
+  {
+    FOURCC(I2CL), T628_To_I2CL
   },
   {
     FOURCC(I422), T628_To_I422
@@ -3661,6 +3820,9 @@ static const sFourCCToConvFunc ConversionT6m8FuncArray[] =
     FOURCC(Y010), T608_To_Y010
   },
   {
+    FOURCC(Y012), T608_To_Y012
+  },
+  {
     FOURCC(I420), T6m8_To_I420
   },
 };
@@ -3745,8 +3907,6 @@ static const sFourCCToConvFunc ConversionXV20FuncArray[] =
   },
 };
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-
 #define CONV_FOURCC_ARRAY(array) array, ARRAY_SIZE(array)
 
 struct sConvFourCCArray
@@ -3805,12 +3965,12 @@ typedef union
     uint8_t b;
     uint8_t c;
     uint8_t d;
-  };
+  }Value;
 }tUnionFourCC;
 
-static tConvFourCCFunc GetConversionOutFunction(const sConvFourCCArray* pMatchArray, TFourCC tOutFourCC)
+static tConvFourCCFunc GetConversionOutFunction(sConvFourCCArray const* pMatchArray, TFourCC tOutFourCC)
 {
-  const sFourCCToConvFunc* pFourCCConv;
+  sFourCCToConvFunc const* pFourCCConv;
 
   for(unsigned int i = 0; i < pMatchArray->array_size; i++)
   {
@@ -3825,7 +3985,7 @@ static tConvFourCCFunc GetConversionOutFunction(const sConvFourCCArray* pMatchAr
 
 tConvFourCCFunc GetConvFourCCFunc(TFourCC tInFourCC, TFourCC tOutFourCC)
 {
-  const sConvFourCCArray* pMatchArray;
+  sConvFourCCArray const* pMatchArray;
   tUnionFourCC sF;
 
   sF.uFourCC = tInFourCC;
@@ -3845,9 +4005,9 @@ tConvFourCCFunc GetConvFourCCFunc(TFourCC tInFourCC, TFourCC tOutFourCC)
   }
 
   /* T5XX FourCC are handled by T6XX function */
-  if(sF.a == 'T' && sF.b == '5')
+  if(sF.Value.a == 'T' && sF.Value.b == '5')
   {
-    sF.b = '6';
+    sF.Value.b = '6';
     tInFourCC = sF.uFourCC;
   }
 

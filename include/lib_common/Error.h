@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -56,16 +56,18 @@ enum
 {
   /*! The decoder had to conceal some errors in the stream */
   AL_WARN_CONCEAL_DETECT = AL_DEF_WARNING(1),
+  /*! Nal has parameters unsupported by decoder */
+  AL_WARN_UNSUPPORTED_NAL = AL_DEF_WARNING(2),
   /*! Some LCU exceed the maximum allowed bits in the stream */
-  AL_WARN_LCU_OVERFLOW = AL_DEF_WARNING(2),
+  AL_WARN_LCU_OVERFLOW = AL_DEF_WARNING(3),
   /*! Number of slices have been adjusted to be hardware compatible */
-  AL_WARN_NUM_SLICES_ADJUSTED = AL_DEF_WARNING(3),
+  AL_WARN_NUM_SLICES_ADJUSTED = AL_DEF_WARNING(4),
   /*! Sps not compatible with channel settings, decoder discards it */
-  AL_WARN_SPS_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS = AL_DEF_WARNING(4),
+  AL_WARN_SPS_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS = AL_DEF_WARNING(5),
   /*! Sei metadata buffer is too small to contains all sei messages */
-  AL_WARN_SEI_OVERFLOW = AL_DEF_WARNING(5),
+  AL_WARN_SEI_OVERFLOW = AL_DEF_WARNING(6),
   /*! The resolutionFound Callback returns with error */
-  AL_WARN_RES_FOUND_CB = AL_DEF_WARNING(6),
+  AL_WARN_RES_FOUND_CB = AL_DEF_WARNING(7),
 };
 
 enum
@@ -99,19 +101,37 @@ enum
   AL_ERR_CMD_NOT_ALLOWED = AL_DEF_ERROR(17),
   /*! The value associated with the command is invalid (in the current configuration) */
   AL_ERR_INVALID_CMD_VALUE = AL_DEF_ERROR(18),
+  /*! Couldn't mix realtime and non-realtime channels at the sema time */
+  AL_ERR_CHAN_CREATION_MIX_REALTIME = AL_DEF_ERROR(20),
+  /*! The file open failed */
+  AL_ERR_CANNOT_OPEN_FILE = AL_DEF_ERROR(21),
+  /*! ROI disabled */
+  AL_ERR_ROI_DISABLE = AL_DEF_ERROR(22),
+  /*! There are some issues in the QP file */
+  AL_ERR_QPLOAD_DATA = AL_DEF_ERROR(23),
+  AL_ERR_QPLOAD_NOT_ENOUGH_DATA = AL_DEF_ERROR(24),
+  AL_ERR_QPLOAD_SEGMENT_CONFIG = AL_DEF_ERROR(25),
+  AL_ERR_QPLOAD_QP_VALUE = AL_DEF_ERROR(26),
+  AL_ERR_QPLOAD_SEGMENT_INDEX = AL_DEF_ERROR(27),
+  AL_ERR_QPLOAD_FORCE_FLAGS = AL_DEF_ERROR(28),
+  AL_ERR_QPLOAD_BLK_SIZE = AL_DEF_ERROR(29),
+  /*! invalid or unsupported file format */
+  AL_ERR_INVALID_OR_UNSUPPORTED_FILE_FORMAT = AL_DEF_ERROR(30),
+  /*! minimal frame width for HW is not encountered */
+  AL_ERR_REQUEST_INVALID_MIN_WIDTH = AL_DEF_ERROR(31),
 };
 
-static AL_INLINE bool AL_IS_ERROR_CODE(AL_ERR eErrorCode)
+static inline bool AL_IS_ERROR_CODE(AL_ERR eErrorCode)
 {
   return eErrorCode >= AL_ERROR;
 }
 
-static AL_INLINE bool AL_IS_WARNING_CODE(AL_ERR eErrorCode)
+static inline bool AL_IS_WARNING_CODE(AL_ERR eErrorCode)
 {
   return (eErrorCode != AL_SUCCESS) && (eErrorCode < AL_ERROR);
 }
 
-static AL_INLINE bool AL_IS_SUCCESS_CODE(AL_ERR eErrorCode)
+static inline bool AL_IS_SUCCESS_CODE(AL_ERR eErrorCode)
 {
   return eErrorCode == AL_SUCCESS;
 }

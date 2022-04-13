@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -460,7 +460,7 @@ static IRbspWriter writer =
   AL_RbspEncoding_WriteAlternativeTransferCharacteristics,
   AL_RbspEncoding_WriteST2094_10,
   AL_RbspEncoding_WriteST2094_40,
-  AL_RbspEncoding_WriteUserDataUnregistered
+  AL_RbspEncoding_WriteUserDataUnregistered,
 };
 
 IRbspWriter* AL_GetAvcRbspWriter()

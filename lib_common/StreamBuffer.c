@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -74,7 +74,7 @@ int GetPcmVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth)
   /* We round the dimensions according to the maximum LCU size, but then
   compute stream size according the the minimum LCU size. Indeed, smaller LCU
   can give bigger PCM sizes due to rounding */
-  uint32_t uNumLCU = GetBlkNumber(tDim, STREAM_ALLOC_LOG2_MAXCUSIZE);
+  uint32_t uNumLCU = GetSquareBlkNumber(tDim, 1 << STREAM_ALLOC_LOG2_MAXCUSIZE);
   uNumLCU <<= 2 * (STREAM_ALLOC_LOG2_MAXCUSIZE - STREAM_ALLOC_LOG2_MINCUSIZE);
   return GetPCMSize(uNumLCU, STREAM_ALLOC_LOG2_MINCUSIZE, eMode, iBitDepth, false);
 }
@@ -86,7 +86,7 @@ int Hevc_GetMaxVclNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDept
   /* Spec. A.3.2, A.3.3: Number of bits in the macroblock is at most: 5 * RawCtuBits / 3. */
   iLCUSize = (iLCUSize * 5 + 2) / 3;
   // Round at LCU?
-  int iSize = GetBlkNumber(tDim, STREAM_ALLOC_LOG2_MAXCUSIZE) * iLCUSize;
+  int iSize = GetSquareBlkNumber(tDim, 1 << STREAM_ALLOC_LOG2_MAXCUSIZE) * iLCUSize;
   return RoundUp(iSize, HW_IP_BURST_ALIGNMENT);
 }
 

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -55,6 +55,13 @@
    \param[in] pSlice slice header of the current decoded slice
 *****************************************************************************/
 void AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice);
+
+/*************************************************************************//*!
+   \brief Sets the picture structure of the current decoded frame
+   \param[in] pCtx       Pointer to a Picture manager context object
+   \param[in] ePicStruct Picture structure
+*****************************************************************************/
+void AL_AVC_PictMngr_SetCurrentPicStruct(AL_TPictMngrCtx* pCtx, AL_EPicStruct ePicStruct);
 
 /*************************************************************************//*!
    \brief This function updates the reconstructed resolution information

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -96,10 +96,9 @@ int floor_log2(uint16_t n)
 }
 
 /****************************************************************************/
-int GetBlkNumber(AL_TDimension tDim, uint8_t uLog2MaxCuSize)
+int GetBlkNumber(AL_TDimension tDim, uint32_t uBlkWidth, uint32_t uBlkHeight)
 {
-  return ((tDim.iWidth + (1 << uLog2MaxCuSize) - 1) >> uLog2MaxCuSize)
-         * ((tDim.iHeight + (1 << uLog2MaxCuSize) - 1) >> uLog2MaxCuSize);
+  return DivideRoundUp(tDim.iWidth, uBlkWidth) * DivideRoundUp(tDim.iHeight, uBlkHeight);
 }
 
 /****************************************************************************/
@@ -123,3 +122,28 @@ AL_HANDLE AlignedAlloc(AL_TAllocator* pAllocator, const char* pBufName, uint32_t
   return pBuf;
 }
 
+/****************************************************************************/
+int16_t MaxInArray(const int16_t tab[], int arraySize)
+{
+  int16_t max = 0;
+
+  for(int i = 0; i < arraySize; i++)
+  {
+    max = Max(tab[i], max);
+  }
+
+  return max;
+}
+
+/****************************************************************************/
+int16_t MinInArray(const int16_t tab[], int arraySize)
+{
+  int16_t min = 0;
+
+  for(int i = 0; i < arraySize; i++)
+  {
+    min = Min(tab[i], min);
+  }
+
+  return min;
+}

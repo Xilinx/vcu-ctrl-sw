@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -44,16 +44,20 @@
 
 #include "TwoPassMngr.h"
 
-#include "FileUtils.h"
-
 #include <string>
 #include <memory>
 #include <fstream>
 #include <stdexcept>
 #include <map>
 #include <functional>
+#include <algorithm>
 
 #include "RCPlugin.h"
+
+#define NUM_PASS_OUTPUT 1
+
+#define MAX_NUM_REC_OUTPUT (MAX_NUM_LAYER > NUM_PASS_OUTPUT ? MAX_NUM_LAYER : NUM_PASS_OUTPUT)
+#define MAX_NUM_BITSTREAM_OUTPUT NUM_PASS_OUTPUT
 
 static std::string PictTypeToString(AL_ESliceType type)
 {
@@ -71,14 +75,17 @@ static std::string PictTypeToString(AL_ESliceType type)
   return m.at(type);
 }
 
-static bool PreprocessQP(uint8_t* pQPs, AL_EGenerateQpMode eMode, const AL_TEncChanParam& tChParam, const std::string& sQPTablesFolder, int iFrameCountSent)
+static AL_ERR PreprocessQP(uint8_t* pQPs, AL_EGenerateQpMode eMode, const AL_TEncChanParam& tChParam, const std::string& sQPTablesFolder, int iFrameCountSent)
 {
   uint8_t* pSegs = NULL;
 
   auto iQPTableDepth = 0;
 
+  int minMaxQPSize = (int)(sizeof(tChParam.tRCParam.iMaxQP) / sizeof(tChParam.tRCParam.iMaxQP[0]));
+
   return GenerateQPBuffer(eMode, tChParam.tRCParam.iInitialQP,
-                          tChParam.tRCParam.iMinQP, tChParam.tRCParam.iMaxQP,
+                          *std::max_element(tChParam.tRCParam.iMinQP, tChParam.tRCParam.iMinQP + minMaxQPSize),
+                          *std::min_element(tChParam.tRCParam.iMaxQP, tChParam.tRCParam.iMaxQP + minMaxQPSize),
                           AL_GetWidthInLCU(tChParam), AL_GetHeightInLCU(tChParam),
                           tChParam.eProfile, tChParam.uLog2MaxCuSize, iQPTableDepth, sQPTablesFolder,
                           iFrameCountSent, pQPs + EP2_BUF_QP_BY_MB.Offset, pSegs);
@@ -94,9 +101,13 @@ public:
     std::string sRoiFileName;
   };
 
-  QPBuffers(AL_TEncSettings const& settings, AL_EGenerateQpMode mode) :
-    isExternQpTable(((mode & AL_GENERATE_MASK_QP_TABLE_EXT) != AL_GENERATE_UNIFORM_QP)), settings(settings), mode(mode)
+  QPBuffers() {};
+
+  void Configure(AL_TEncSettings const* pSettings, AL_EGenerateQpMode mode)
   {
+    isExternQpTable = AL_IS_QP_TABLE_REQUIRED(pSettings->eQpTableMode) && !AL_IS_AUTO_OR_ADAPTIVE_QP_CTRL(pSettings->eQpCtrlMode);
+    this->pSettings = pSettings;
+    this->mode = mode;
   }
 
   ~QPBuffers()
@@ -140,8 +151,8 @@ private:
       AL_Buffer_Unref(qpBuf);
 
     mQPLayerInfos[iLayerID] = qpLayerInfo;
-    auto& tChParam = settings.tChParam[iLayerID];
-    mQPLayerRoiCtxs[iLayerID] = AL_RoiMngr_Create(tChParam.uEncWidth, tChParam.uEncHeight, tChParam.eProfile, AL_ROI_QUALITY_LOW, AL_ROI_QUALITY_ORDER);
+    auto& tChParam = pSettings->tChParam[iLayerID];
+    mQPLayerRoiCtxs[iLayerID] = AL_RoiMngr_Create(tChParam.uEncWidth, tChParam.uEncHeight, tChParam.eProfile, tChParam.uLog2MaxCuSize, AL_ROI_QUALITY_LOW, AL_ROI_QUALITY_ORDER);
   }
 
   AL_TBuffer* getBufferP(int frameNum, int iLayerID)
@@ -150,42 +161,70 @@ private:
       return nullptr;
 
     auto& layerInfo = mQPLayerInfos[iLayerID];
-    auto& tLayerChParam = settings.tChParam[iLayerID];
+    auto& tLayerChParam = pSettings->tChParam[iLayerID];
 
     AL_TBuffer* pQpBuf = layerInfo.bufPool->GetBuffer();
 
-    bool bRet = false;
+    if(!pQpBuf)
+      throw std::runtime_error("Invalid QP buffer");
+
     std::string sErrorMsg = "Error loading external QP tables.";
 
     if(AL_GENERATE_ROI_QP == (AL_EGenerateQpMode)(mode & AL_GENERATE_MASK_QP_TABLE))
     {
       auto iQPTableDepth = 0;
 
-      if(!GenerateROIBuffer(mQPLayerRoiCtxs[iLayerID], layerInfo.sRoiFileName,
-                            AL_GetWidthInLCU(tLayerChParam), AL_GetHeightInLCU(tLayerChParam),
-                            tLayerChParam.eProfile, tLayerChParam.uLog2MaxCuSize, iQPTableDepth,
-                            frameNum, AL_Buffer_GetData(pQpBuf) + EP2_BUF_QP_BY_MB.Offset))
+      AL_ERR bRetROI = GenerateROIBuffer(mQPLayerRoiCtxs[iLayerID], layerInfo.sRoiFileName,
+                                         AL_GetWidthInLCU(tLayerChParam), AL_GetHeightInLCU(tLayerChParam),
+                                         tLayerChParam.eProfile, tLayerChParam.uLog2MaxCuSize, iQPTableDepth,
+                                         frameNum, AL_Buffer_GetData(pQpBuf) + EP2_BUF_QP_BY_MB.Offset);
+      switch(bRetROI)
       {
-        bRet = false;
+      case AL_SUCCESS:
+        break;
+      case AL_ERR_CANNOT_OPEN_FILE:
         sErrorMsg = "Error loading ROI file.";
+        throw std::runtime_error(sErrorMsg);
       }
     }
     else
-    bRet = PreprocessQP(AL_Buffer_GetData(pQpBuf), mode, tLayerChParam, layerInfo.sQPTablesFolder, frameNum);
-
-    if(!bRet)
     {
-      releaseBuffer(pQpBuf);
-      throw std::runtime_error(sErrorMsg);
+      AL_ERR bRetQP = PreprocessQP(AL_Buffer_GetData(pQpBuf), mode, tLayerChParam, layerInfo.sQPTablesFolder, frameNum);
+
+      auto realeaseQPBuf = [&](std::string sErrorMsg, bool bThrow)
+                           {
+                             (void)sErrorMsg;
+                             releaseBuffer(pQpBuf);
+                             pQpBuf = NULL;
+
+                             if(bThrow)
+                               throw std::runtime_error(sErrorMsg);
+                           };
+      switch(bRetQP)
+      {
+      case AL_SUCCESS:
+        break;
+      case AL_ERR_QPLOAD_DATA:
+        realeaseQPBuf(AL_Codec_ErrorToString(bRetQP), true);
+        break;
+      case AL_ERR_QPLOAD_NOT_ENOUGH_DATA:
+        realeaseQPBuf(AL_Codec_ErrorToString(bRetQP), true);
+        break;
+      case AL_ERR_CANNOT_OPEN_FILE:
+        bool bThrow = false;
+        bThrow = true;
+        realeaseQPBuf("Cannot open QP file.", bThrow);
+        break;
+      }
     }
 
     return pQpBuf;
   }
 
 private:
-  bool const isExternQpTable;
-  AL_TEncSettings const& settings;
-  AL_EGenerateQpMode const mode;
+  bool isExternQpTable;
+  AL_TEncSettings const* pSettings;
+  AL_EGenerateQpMode mode;
   std::map<int, QPLayerInfo> mQPLayerInfos;
   std::map<int, AL_TRoiMngrCtx*> mQPLayerRoiCtxs;
 };
@@ -209,6 +248,12 @@ struct safe_ifstream
   }
 };
 
+static AL_TDimension GetDim(int32_t iWidth, int32_t iHeight)
+{
+  AL_TDimension tDim = { iWidth, iHeight };
+  return tDim;
+}
+
 struct EncoderSink : IFrameSink
 {
   EncoderSink(ConfigFile const& cfg, AL_IEncScheduler* pScheduler, AL_TAllocator* pAllocator
@@ -217,11 +262,12 @@ struct EncoderSink : IFrameSink
     EncCmd(CmdFile.fp, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
     twoPassMngr(cfg.sTwoPassFileName, cfg.Settings.TwoPass, cfg.Settings.bEnableFirstPassSceneChangeDetection, cfg.Settings.tChParam[0].tGopParam.uGopLength,
                 cfg.Settings.tChParam[0].tRCParam.uCPBSize / 90, cfg.Settings.tChParam[0].tRCParam.uInitialRemDelay / 90, cfg.MainInput.FileInfo.FrameRate),
-    qpBuffers{cfg.Settings, cfg.RunInfo.eGenerateQpMode},
     pAllocator{pAllocator},
     pSettings{&cfg.Settings}
   {
     AL_CB_EndEncoding onEndEncoding = { &EncoderSink::EndEncoding, this };
+
+    qpBuffers.Configure(&cfg.Settings, cfg.RunInfo.eGenerateQpMode);
 
     AL_ERR errorCode = AL_Encoder_Create(&hEnc, pScheduler, pAllocator, &cfg.Settings, onEndEncoding);
 
@@ -232,11 +278,16 @@ struct EncoderSink : IFrameSink
       LogWarning("%s\n", AL_Codec_ErrorToString(errorCode));
 
     commandsSender.reset(new CommandsSender(hEnc));
-    BitstreamOutput.reset(new NullFrameSink);
     BitrateOutput.reset(new NullFrameSink);
 
-    for(int i = 0; i < cfg.Settings.NumLayer; ++i)
-      LayerRecOutput[i].reset(new NullFrameSink);
+    for(int i = 0; i < MAX_NUM_REC_OUTPUT; ++i)
+      RecOutput[i].reset(new NullFrameSink);
+
+    for(int i = 0; i < MAX_NUM_BITSTREAM_OUTPUT; i++)
+      BitstreamOutput[i].reset(new NullFrameSink);
+
+    for(int i = 0; i < MAX_NUM_LAYER; i++)
+      m_input_picCount[i] = 0;
 
     m_pictureType = cfg.RunInfo.printPictureType ? AL_SLICE_MAX_ENUM : -1;
 
@@ -245,6 +296,9 @@ struct EncoderSink : IFrameSink
       hdrParser.reset(new HDRParser(cfg.sHDRFileName));
       ReadHDR(0);
     }
+
+    iPendingStreamCnt = 1;
+
   }
 
   void ReadHDR(int iHDRIdx)
@@ -260,7 +314,7 @@ struct EncoderSink : IFrameSink
   ~EncoderSink()
   {
     LogInfo("%d pictures encoded. Average FrameRate = %.4f Fps\n",
-            m_picCount, (m_picCount * 1000.0) / (m_EndTime - m_StartTime));
+            m_input_picCount[0], (m_input_picCount[0] * 1000.0) / (m_EndTime - m_StartTime));
 
     AL_Encoder_Destroy(hEnc);
   }
@@ -277,7 +331,7 @@ struct EncoderSink : IFrameSink
   void PreprocessFrame() override
   {
     commandsSender->Reset();
-    EncCmd.Process(commandsSender.get(), m_picCount);
+    EncCmd.Process(commandsSender.get(), m_input_picCount[0]);
 
     int iIdx;
 
@@ -290,7 +344,7 @@ struct EncoderSink : IFrameSink
 
   void ProcessFrame(AL_TBuffer* Src) override
   {
-    if(m_picCount == 0)
+    if(m_input_picCount[0] == 0)
       m_StartTime = GetPerfTime();
 
     if(!Src)
@@ -298,11 +352,11 @@ struct EncoderSink : IFrameSink
       LogVerbose("Flushing...\n\n");
 
       if(!AL_Encoder_Process(hEnc, nullptr, nullptr))
-        throw std::runtime_error("Failed");
+        CheckErrorAndThrow();
       return;
     }
 
-    DisplayFrameStatus(m_picCount);
+    DisplayFrameStatus(m_input_picCount[0]);
 
     if(twoPassMngr.iPass)
     {
@@ -312,7 +366,7 @@ struct EncoderSink : IFrameSink
         twoPassMngr.GetFrame(pPictureMetaTP);
     }
 
-    AL_TBuffer* QpBuf = qpBuffers.getBuffer(m_picCount);
+    AL_TBuffer* QpBuf = qpBuffers.getBuffer(m_input_picCount[0]);
 
     std::shared_ptr<AL_TBuffer> QpBufShared(QpBuf, [&](AL_TBuffer* pBuf) { qpBuffers.releaseBuffer(pBuf); });
 
@@ -320,19 +374,20 @@ struct EncoderSink : IFrameSink
       RCPlugin_SetNextFrameQP(pSettings, pAllocator);
 
     if(!AL_Encoder_Process(hEnc, Src, QpBuf))
-      throw std::runtime_error("Failed");
+      CheckErrorAndThrow();
 
-    m_picCount++;
+    m_input_picCount[0]++;
   }
 
-  std::unique_ptr<IFrameSink> LayerRecOutput[MAX_NUM_LAYER];
-  std::unique_ptr<IFrameSink> BitstreamOutput;
+  std::unique_ptr<IFrameSink> RecOutput[MAX_NUM_REC_OUTPUT];
+  std::unique_ptr<IFrameSink> BitstreamOutput[MAX_NUM_BITSTREAM_OUTPUT];
   std::unique_ptr<IFrameSink> BitrateOutput;
   AL_HEncoder hEnc;
   bool shouldAddDummySei = false;
 
 private:
-  int m_picCount = 0;
+  int iPendingStreamCnt;
+  int m_input_picCount[MAX_NUM_LAYER] {};
   int m_pictureType = -1;
   uint64_t m_StartTime = 0;
   uint64_t m_EndTime = 0;
@@ -345,6 +400,12 @@ private:
 
   AL_TAllocator* pAllocator;
   AL_TEncSettings const* pSettings;
+
+  void CheckErrorAndThrow()
+  {
+    AL_ERR eErr = AL_Encoder_GetLastError(hEnc);
+    throw std::runtime_error(AL_IS_ERROR_CODE(eErr) ? AL_Codec_ErrorToString(eErr) : "Failed");
+  }
 
   static inline bool isStreamReleased(AL_TBuffer* pStream, AL_TBuffer const* pSrc)
   {
@@ -411,8 +472,12 @@ private:
       AddSei(pStream, true, 18, payload, payloadSize, pStreamMeta->uTemporalID);
     }
 
-    if(pStream)
+    if(pStream == EndOfStream)
+      iPendingStreamCnt--;
+    else
     {
+      int iStreamId = 0;
+
       if(m_pictureType != -1)
       {
         auto const pMeta = (AL_TPictureMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_PICTURE);
@@ -424,11 +489,28 @@ private:
 
       if(pMeta && pMeta->bFilled)
         LogInfo("NumBytes: %i, MinQP: %i, MaxQP: %i, NumSkip: %i, NumIntra: %i\n", pMeta->tRateCtrlStats.uNumBytes, pMeta->tRateCtrlStats.uMinQP, pMeta->tRateCtrlStats.uMaxQP, pMeta->tRateCtrlStats.uNumSkip, pMeta->tRateCtrlStats.uNumIntra);
+
+      BitstreamOutput[iStreamId]->ProcessFrame(pStream);
+
+      if(iStreamId == 0)
+        BitrateOutput->ProcessFrame(pStream);
     }
 
-    BitstreamOutput->ProcessFrame(pStream);
-    BitrateOutput->ProcessFrame(pStream);
     return AL_SUCCESS;
+  }
+
+  void CloseOutputs()
+  {
+    for(int i = 0; i < MAX_NUM_REC_OUTPUT; ++i)
+      RecOutput[i]->ProcessFrame(EndOfStream);
+
+    for(int i = 0; i < MAX_NUM_BITSTREAM_OUTPUT; i++)
+      BitstreamOutput[i]->ProcessFrame(EndOfStream);
+
+    BitrateOutput->ProcessFrame(EndOfStream);
+
+    m_EndTime = GetPerfTime();
+    m_done();
   }
 
   void processOutput(AL_TBuffer* pStream)
@@ -445,7 +527,9 @@ private:
     if(AL_IS_WARNING_CODE(eErr))
       LogWarning("%s\n", AL_Codec_ErrorToString(eErr));
 
-    if(pStream)
+    bool bPushBufferBack = pStream != NULL;
+
+    if(bPushBufferBack)
     {
       auto bRet = AL_Encoder_PutStreamBuffer(hEnc, pStream);
       assert(bRet);
@@ -456,19 +540,18 @@ private:
     while(AL_Encoder_GetRecPicture(hEnc, &RecPic))
     {
       auto buf = RecPic.pBuf;
+      int iRecId = 0;
 
       if(buf)
+      {
         AL_Buffer_InvalidateMemory(buf);
-      LayerRecOutput[0]->ProcessFrame(buf);
+        RecOutput[iRecId]->ProcessFrame(buf);
+      }
       AL_Encoder_ReleaseRecPicture(hEnc, &RecPic);
     }
 
-    if(!pStream)
-    {
-      LayerRecOutput[0]->ProcessFrame(EndOfStream);
-      m_EndTime = GetPerfTime();
-      m_done();
-    }
+    if(iPendingStreamCnt == 0)
+      CloseOutputs();
   }
 
 };

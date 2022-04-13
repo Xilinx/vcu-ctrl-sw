@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -66,7 +66,26 @@ void hevc_profile_tier_level(AL_THevcProfilevel* pPrfLvl, int iMaxSubLayersMinus
   pPrfLvl->general_non_packed_constraint_flag = u(pRP, 1);
   pPrfLvl->general_frame_only_constraint_flag = u(pRP, 1);
 
-  if(pPrfLvl->general_profile_idc == 4 || pPrfLvl->general_profile_compatibility_flag[4])
+  pPrfLvl->general_max_12bit_constraint_flag = 0;
+  pPrfLvl->general_max_10bit_constraint_flag = 0;
+  pPrfLvl->general_max_8bit_constraint_flag = 0;
+  pPrfLvl->general_max_422chroma_constraint_flag = 0;
+  pPrfLvl->general_max_420chroma_constraint_flag = 0;
+  pPrfLvl->general_max_monochrome_constraint_flag = 0;
+  pPrfLvl->general_intra_constraint_flag = 0;
+  pPrfLvl->general_one_picture_only_constraint_flag = 0;
+  pPrfLvl->general_lower_bit_rate_constraint_flag = 0;
+  pPrfLvl->general_max_14bit_constraint_flag = 0;
+  pPrfLvl->general_inbld_flag = 0;
+
+  if(pPrfLvl->general_profile_idc == 4 || pPrfLvl->general_profile_compatibility_flag[4] ||
+     pPrfLvl->general_profile_idc == 5 || pPrfLvl->general_profile_compatibility_flag[5] ||
+     pPrfLvl->general_profile_idc == 6 || pPrfLvl->general_profile_compatibility_flag[6] ||
+     pPrfLvl->general_profile_idc == 7 || pPrfLvl->general_profile_compatibility_flag[7] ||
+     pPrfLvl->general_profile_idc == 8 || pPrfLvl->general_profile_compatibility_flag[8] ||
+     pPrfLvl->general_profile_idc == 9 || pPrfLvl->general_profile_compatibility_flag[9] ||
+     pPrfLvl->general_profile_idc == 10 || pPrfLvl->general_profile_compatibility_flag[10] ||
+     pPrfLvl->general_profile_idc == 11 || pPrfLvl->general_profile_compatibility_flag[11])
   {
     pPrfLvl->general_max_12bit_constraint_flag = u(pRP, 1);
     pPrfLvl->general_max_10bit_constraint_flag = u(pRP, 1);
@@ -78,10 +97,38 @@ void hevc_profile_tier_level(AL_THevcProfilevel* pPrfLvl, int iMaxSubLayersMinus
     pPrfLvl->general_one_picture_only_constraint_flag = u(pRP, 1);
     pPrfLvl->general_lower_bit_rate_constraint_flag = u(pRP, 1);
 
+    if(pPrfLvl->general_profile_idc == 5 || pPrfLvl->general_profile_compatibility_flag[5] ||
+       pPrfLvl->general_profile_idc == 9 || pPrfLvl->general_profile_compatibility_flag[9] ||
+       pPrfLvl->general_profile_idc == 10 || pPrfLvl->general_profile_compatibility_flag[10] ||
+       pPrfLvl->general_profile_idc == 11 || pPrfLvl->general_profile_compatibility_flag[11])
+    {
+      pPrfLvl->general_max_14bit_constraint_flag = u(pRP, 1);
+      skip(pRP, 33); // general_reserved_zero_33bits
+    }
+    else
+      skip(pRP, 34); // general_reserved_zero_34bits
+  }
+  else if(pPrfLvl->general_profile_idc == 2 || pPrfLvl->general_profile_compatibility_flag[2])
+  {
+    skip(pRP, 7); // general_reserved_zero_7bits
+    pPrfLvl->general_one_picture_only_constraint_flag = u(pRP, 1);
     skip(pRP, 35); // general_reserved_zero_35bits
   }
   else
-    skip(pRP, 44); // general_reserved_zero_44bits
+    skip(pRP, 43); // general_reserved_zero_43bits
+
+  if(pPrfLvl->general_profile_idc == 1 || pPrfLvl->general_profile_compatibility_flag[1] ||
+     pPrfLvl->general_profile_idc == 2 || pPrfLvl->general_profile_compatibility_flag[2] ||
+     pPrfLvl->general_profile_idc == 3 || pPrfLvl->general_profile_compatibility_flag[3] ||
+     pPrfLvl->general_profile_idc == 4 || pPrfLvl->general_profile_compatibility_flag[4] ||
+     pPrfLvl->general_profile_idc == 5 || pPrfLvl->general_profile_compatibility_flag[5] ||
+     pPrfLvl->general_profile_idc == 9 || pPrfLvl->general_profile_compatibility_flag[9] ||
+     pPrfLvl->general_profile_idc == 11 || pPrfLvl->general_profile_compatibility_flag[11])
+  {
+    pPrfLvl->general_inbld_flag = u(pRP, 1);
+  }
+  else
+    skip(pRP, 1); // general_reserved_zero_bit
 
   pPrfLvl->general_level_idc = u(pRP, 8);
 
@@ -113,7 +160,26 @@ void hevc_profile_tier_level(AL_THevcProfilevel* pPrfLvl, int iMaxSubLayersMinus
       pPrfLvl->sub_layer_non_packed_constraint_flag[i] = u(pRP, 1);
       pPrfLvl->sub_layer_frame_only_constraint_flag[i] = u(pRP, 1);
 
-      if(pPrfLvl->sub_layer_profile_idc[i] == 4 || pPrfLvl->sub_layer_profile_compatibility_flag[i][4])
+      pPrfLvl->sub_layer_max_12bit_constraint_flag[i] = pPrfLvl->general_max_12bit_constraint_flag;
+      pPrfLvl->sub_layer_max_10bit_constraint_flag[i] = pPrfLvl->general_max_10bit_constraint_flag;
+      pPrfLvl->sub_layer_max_8bit_constraint_flag[i] = pPrfLvl->general_max_8bit_constraint_flag;
+      pPrfLvl->sub_layer_max_422chroma_constraint_flag[i] = pPrfLvl->general_max_422chroma_constraint_flag;
+      pPrfLvl->sub_layer_max_420chroma_constraint_flag[i] = pPrfLvl->general_max_420chroma_constraint_flag;
+      pPrfLvl->sub_layer_max_monochrome_constraint_flag[i] = pPrfLvl->general_max_monochrome_constraint_flag;
+      pPrfLvl->sub_layer_intra_constraint_flag[i] = pPrfLvl->general_intra_constraint_flag;
+      pPrfLvl->sub_layer_one_picture_only_constraint_flag[i] = pPrfLvl->general_one_picture_only_constraint_flag;
+      pPrfLvl->sub_layer_lower_bit_rate_constraint_flag[i] = pPrfLvl->general_lower_bit_rate_constraint_flag;
+      pPrfLvl->sub_layer_max_14bit_constraint_flag[i] = pPrfLvl->general_max_14bit_constraint_flag;
+      pPrfLvl->sub_layer_inbld_flag[i] = pPrfLvl->general_inbld_flag;
+
+      if(pPrfLvl->sub_layer_profile_idc[i] == 4 || pPrfLvl->sub_layer_profile_compatibility_flag[i][4] ||
+         pPrfLvl->sub_layer_profile_idc[i] == 5 || pPrfLvl->sub_layer_profile_compatibility_flag[i][5] ||
+         pPrfLvl->sub_layer_profile_idc[i] == 6 || pPrfLvl->sub_layer_profile_compatibility_flag[i][6] ||
+         pPrfLvl->sub_layer_profile_idc[i] == 7 || pPrfLvl->sub_layer_profile_compatibility_flag[i][7] ||
+         pPrfLvl->sub_layer_profile_idc[i] == 8 || pPrfLvl->sub_layer_profile_compatibility_flag[i][8] ||
+         pPrfLvl->sub_layer_profile_idc[i] == 9 || pPrfLvl->sub_layer_profile_compatibility_flag[i][9] ||
+         pPrfLvl->sub_layer_profile_idc[i] == 10 || pPrfLvl->sub_layer_profile_compatibility_flag[i][10] ||
+         pPrfLvl->sub_layer_profile_idc[i] == 11 || pPrfLvl->sub_layer_profile_compatibility_flag[i][11])
       {
         pPrfLvl->sub_layer_max_12bit_constraint_flag[i] = u(pRP, 1);
         pPrfLvl->sub_layer_max_10bit_constraint_flag[i] = u(pRP, 1);
@@ -125,10 +191,38 @@ void hevc_profile_tier_level(AL_THevcProfilevel* pPrfLvl, int iMaxSubLayersMinus
         pPrfLvl->sub_layer_one_picture_only_constraint_flag[i] = u(pRP, 1);
         pPrfLvl->sub_layer_lower_bit_rate_constraint_flag[i] = u(pRP, 1);
 
+        if(pPrfLvl->sub_layer_profile_idc[i] == 5 || pPrfLvl->sub_layer_profile_compatibility_flag[i][5] ||
+           pPrfLvl->sub_layer_profile_idc[i] == 9 || pPrfLvl->sub_layer_profile_compatibility_flag[i][9] ||
+           pPrfLvl->sub_layer_profile_idc[i] == 10 || pPrfLvl->sub_layer_profile_compatibility_flag[i][10] ||
+           pPrfLvl->sub_layer_profile_idc[i] == 11 || pPrfLvl->sub_layer_profile_compatibility_flag[i][11])
+        {
+          pPrfLvl->sub_layer_max_14bit_constraint_flag[i] = u(pRP, 1);
+          skip(pRP, 33); // sub_layer_reserved_zero_33bits
+        }
+        else
+          skip(pRP, 34); // sub_layer_reserved_zero_34bits
+      }
+      else if(pPrfLvl->sub_layer_profile_idc[i] == 2 || pPrfLvl->sub_layer_profile_compatibility_flag[i][2])
+      {
+        skip(pRP, 7); // sub_layer_reserved_zero_7bits
+        pPrfLvl->sub_layer_one_picture_only_constraint_flag[i] = u(pRP, 1);
         skip(pRP, 35); // sub_layer_reserved_zero_35bits
       }
       else
-        skip(pRP, 44); // sub_layer_reserved_zero_44bits
+        skip(pRP, 43); // sub_layer_reserved_zero_43bits
+
+      if(pPrfLvl->sub_layer_profile_idc[i] == 1 || pPrfLvl->sub_layer_profile_compatibility_flag[i][1] ||
+         pPrfLvl->sub_layer_profile_idc[i] == 2 || pPrfLvl->sub_layer_profile_compatibility_flag[i][2] ||
+         pPrfLvl->sub_layer_profile_idc[i] == 3 || pPrfLvl->sub_layer_profile_compatibility_flag[i][3] ||
+         pPrfLvl->sub_layer_profile_idc[i] == 4 || pPrfLvl->sub_layer_profile_compatibility_flag[i][4] ||
+         pPrfLvl->sub_layer_profile_idc[i] == 5 || pPrfLvl->sub_layer_profile_compatibility_flag[i][5] ||
+         pPrfLvl->sub_layer_profile_idc[i] == 9 || pPrfLvl->sub_layer_profile_compatibility_flag[i][9] ||
+         pPrfLvl->sub_layer_profile_idc[i] == 11 || pPrfLvl->sub_layer_profile_compatibility_flag[i][11])
+      {
+        pPrfLvl->sub_layer_inbld_flag[i] = u(pRP, 1);
+      }
+      else
+        skip(pRP, 1); // sub_layer_reserved_zero_bit
     }
 
     if(pPrfLvl->sub_layer_level_present_flag[i])

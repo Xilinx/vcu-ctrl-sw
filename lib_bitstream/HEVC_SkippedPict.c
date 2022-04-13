@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -223,8 +223,8 @@ static unsigned int AL_sHEVC_GenerateSkippedTileCabac(AL_TBitStreamLite* pBS, bo
 /******************************************************************************/
 int AddAntiEmulSizeInBytes(AL_TBitStreamLite* pBS)
 {
-  int numBytes = (AL_BitStreamLite_GetBitsCount(pBS) + 7) / 8;
-  uint8_t* bitstream = AL_BitStreamLite_GetData(pBS);
+  int const numBytes = BitsToBytes(AL_BitStreamLite_GetBitsCount(pBS));
+  uint8_t const* bitstream = AL_BitStreamLite_GetData(pBS);
 
   int insertedBytes = 0;
   int numConsecutiveZero = 0;
@@ -256,7 +256,6 @@ bool AL_HEVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iWidth, i
   AL_BitStreamLite_Init(&BS, pSkipPict->pData, pSkipPict->iBufSize);
 
   int iPrevBitsCount = 0;
-  int iBitsCount = 0;
   int iBinsCount = 0;
   int iTile = 0;
   int H = iHeight;
@@ -272,13 +271,12 @@ bool AL_HEVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iWidth, i
       int iTileWidth = Min(pTileWidths[iTileColumn] << uLog2MaxCuSize, W);
       int iTileHeight = Min(pTileHeights[iTileRow] << uLog2MaxCuSize, H);
       iBinsCount = AL_sHEVC_GenerateSkippedTileCabac(&BS, bLastTile, iTileWidth, iTileHeight, uLog2MaxCuSize, uMinCuSize, uTileNumLCU);
-      iBitsCount = AL_BitStreamLite_GetBitsCount(&BS) + BytesToBits(AddAntiEmulSizeInBytes(&BS));
+      int iBitsCount = AL_BitStreamLite_GetBitsCount(&BS) + BytesToBits(AddAntiEmulSizeInBytes(&BS));
 
       AL_Assert(((iBitsCount - iPrevBitsCount) % 8) == 0);
+
       pSkipPict->uTileSizes[iTile++] = BitsToBytes(iBitsCount - iPrevBitsCount);
-
       iPrevBitsCount = iBitsCount;
-
       W -= (pTileWidths[iTileColumn] << uLog2MaxCuSize);
     }
 

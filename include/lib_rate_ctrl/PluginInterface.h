@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -70,8 +70,8 @@ typedef struct Plugin_t_RCParam
   uint32_t uTargetBitRate; /*!< The bitrate targeted by the user */
   uint32_t uMaxBitRate; /*!< The maximum bitrate allowed by the user */
   int16_t iInitialQP; /*!< Quality parameter of the first frame (in the absence of more information) */
-  int16_t iMinQP; /*!< Minimum QP that can be used by the rate control implementation */
-  int16_t iMaxQP; /*!< Maximum QP that can be used by the rate control implementation */
+  int16_t iMinQP[AL_MAX_FRAME_TYPE]; /*!< Minimum QP that can be used by the rate control implementation */
+  int16_t iMaxQP[AL_MAX_FRAME_TYPE]; /*!< Maximum QP that can be used by the rate control implementation */
   int16_t uIPDelta; /*!< QP Delta that should be applied between I and P frames */
   int16_t uPBDelta; /*!< QP Delta that should be applied between P and B frames */
   uint32_t eOptions; /*!< Options bitfield. \see AL_ERateCtrlOption for the available flags*/

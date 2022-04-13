@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -46,9 +46,7 @@ struct RCPlugin
 {
   uint32_t capacity;
   uint32_t qpFifo[32];
-  uint32_t head;
   uint32_t tail;
-  uint32_t curQp;
 };
 
 struct RCExampleCtx

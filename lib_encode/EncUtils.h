@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -46,10 +46,41 @@
 
 #include "lib_common/BufferPixMapMeta.h"
 #include "lib_common/PPS.h"
+#include "lib_common/AUD.h"
+#include "lib_common/SliceConsts.h"
+#include "lib_common/VPS.h"
 
 #include "lib_common_enc/Settings.h"
 #include "lib_common_enc/EncSliceStatus.h"
+#include "lib_common_enc/EncPicInfo.h"
 #include "lib_common_enc/EncEPBuffer.h"
+
+#define MAX_SPS_IDS 32
+#define MAX_PPS_IDS (AL_MAX_NUM_B_PICT + 3 + 1)
+
+typedef struct
+{
+  bool bHasBeenSent;
+  int iRefCnt;
+  AL_TDimension size;
+}AL_TSpsCtx;
+
+typedef struct
+{
+  bool bHasBeenSent;
+  int iRefCnt;
+  uint8_t uSpsId;
+  int8_t iQpCrOffset;
+  int8_t iQpCbOffset;
+}AL_TPpsCtx;
+
+typedef struct
+{
+  int iPrevSps;
+  AL_TSpsCtx spsCtx[MAX_SPS_IDS];
+  int iPrevPps;
+  AL_TPpsCtx ppsCtx[MAX_PPS_IDS];
+}AL_THeadersCtx;
 
 typedef struct AL_t_EncPicStatus AL_TEncPicStatus;
 typedef struct AL_t_HLSInfo AL_HLSInfo;
@@ -135,6 +166,7 @@ typedef enum
   VIDEO_FORMAT_UNSPECIFIED,
 }EVUIVideoFormat;
 
+bool isBaseLayer(int iLayer);
 /****************************************************************************/
 void AL_Decomposition(uint32_t* y, uint8_t* x);
 void AL_Reduction(uint32_t* pN, uint32_t* pD);
@@ -143,27 +175,40 @@ void AL_Reduction(uint32_t* pN, uint32_t* pD);
 void AL_UpdateAspectRatio(AL_TVuiParam* pVuiParam, uint32_t uWidth, uint32_t uHeight, AL_EAspectRatio eAspectRatio);
 void AL_UpdateSarAspectRatio(AL_TVuiParam* pVuiParam, uint32_t uWidth, uint32_t uHeight, AL_EAspectRatio eAspectRatio);
 
-bool AL_IsGdrEnabled(AL_TEncSettings const* pSettings);
+bool AL_IsGdrEnabled(AL_TEncChanParam const* pChParam);
 
 AL_TBuffer* AL_GetSrcBufferFromStatus(AL_TEncPicStatus const* pPicStatus);
 
 void AL_UpdateVuiTimingInfo(AL_TVuiParam* pVUI, int iLayerId, AL_TRCParam const* pRCParam, int iTimeScaleFactor);
+int DeduceNumTemporalLayer(AL_TGopParam const* pGop);
+bool HasCuQpDeltaDepthEnabled(AL_TEncSettings const* pSettings, AL_TEncChanParam const* pChParam);
 
 /****************************************************************************/
 void AL_AVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, uint8_t chroma_format_idc, TBufferEP* pBufEP);
 
-void AL_AVC_GenerateSPS(AL_TSps* pSPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize);
-void AL_AVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo);
-void AL_AVC_GeneratePPS(AL_TPps* pPPS, AL_TEncSettings const* pSettings, AL_TSps const* pSPS);
+void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iMaxRef, int iCpbSize);
+void AL_AVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, AL_THeadersCtx* pHdrs);
+bool AL_AVC_UpdateAUD(AL_TAud* pAud, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, int iLayerID);
+void AL_AVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TSps const* pSPS);
 
-bool AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo);
+bool AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, AL_THeadersCtx* pHdrs);
 
 /****************************************************************************/
 void AL_HEVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufEP);
 
-void AL_HEVC_GenerateVPS(AL_THevcVps* pVPS, AL_TEncSettings const* pSettings, int iMaxRef);
-void AL_HEVC_GenerateSPS(AL_TSps* pSPS, AL_TEncSettings const* pSettings, AL_TEncChanParam const* pChanParam, int iMaxRef, int iCpbSize, int iLayerId);
-void AL_HEVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, int iLayerId);
-void AL_HEVC_GeneratePPS(AL_TPps* pPPS, AL_TEncSettings const* pSettings, AL_TEncChanParam const* pChanParam, int iMaxRef, int iLayerId);
+void AL_HEVC_GenerateVPS(AL_TVps* pIVPS, AL_TEncSettings const* pSettings, int iMaxRef);
+void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncChanParam const* pChanParam, int iMaxRef, int iCpbSize, int iLayerId);
+void AL_HEVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, AL_THeadersCtx* pHdrs, int iLayerId);
+bool AL_HEVC_UpdateAUD(AL_TAud* pAud, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, int iLayerID);
+void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TEncChanParam const* pChanParam, int iMaxRef, int iLayerId);
 
-bool AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, int iLayerId);
+bool AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, AL_THeadersCtx* pHdrs, int iLayerId);
+
+uint8_t AL_GetSps(AL_THeadersCtx* pHdrs, uint16_t uWidth, uint16_t uHeight);
+uint8_t AL_GetPps(AL_THeadersCtx* pHdrs, uint8_t uSpsId, int8_t iQpCbOffset, int8_t iQpCrOffset);
+void AL_ReleaseSps(AL_THeadersCtx* pHdrs, uint8_t id);
+void AL_ReleasePps(AL_THeadersCtx* pHdrs, uint8_t id);
+bool AL_IsWriteSps(AL_THeadersCtx* pHdrs, uint8_t id);
+bool AL_IsWritePps(AL_THeadersCtx* pHdrs, uint8_t id);
+AL_TDimension AL_GetPpsDim(AL_THeadersCtx* pHdrs, uint8_t id);
+

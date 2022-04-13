@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -129,6 +129,7 @@ typedef struct t_DpbNode
 
   /* info on the reference picture */
   int32_t iFramePOC; /*!< POC of this reference node */
+  AL_EPicStruct ePicStruct; /*!< Picture structure of this reference node */
   uint32_t slice_pic_order_cnt_lsb;
   AL_EMarkingRef eMarking_flag; /*!< status of this reference node */
 
@@ -355,6 +356,7 @@ uint8_t AL_Dpb_RemoveHead(AL_TDpb* pDpb);
    \brief Insert a new frame buffer in a reference buffer pool
    \param[in,out] pDpb            Pointer to a DPB context object
    \param[in]     iFramePOC       Picture order count of the added frame buffer
+   \param[in]     ePicStruct      Picture structure of the added frame buffer
    \param[in]     uPocLsb         Value used to identify long term reference picture
    \param[in]     uNode           Node index of the added reference
    \param[in]     uFrmID          Frame Buffer index of the added reference
@@ -365,7 +367,7 @@ uint8_t AL_Dpb_RemoveHead(AL_TDpb* pDpb);
    \param[in]     eNUT            Added Nal Unit Type
    \param[in]     uSubpicFlag     Added subpicture flag
 *****************************************************************************/
-void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, uint32_t uPocLsb, uint8_t uNode, uint8_t uFrmID, uint8_t uMvID, uint8_t pic_output_flag, AL_EMarkingRef eMarkingFlag, uint8_t uNonExisting, AL_ENut eNUT, uint8_t uSubpicFlag);
+void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, AL_EPicStruct ePicStruct, uint32_t uPocLsb, uint8_t uNode, uint8_t uFrmID, uint8_t uMvID, uint8_t pic_output_flag, AL_EMarkingRef eMarkingFlag, uint8_t uNonExisting, AL_ENut eNUT, uint8_t uSubpicFlag);
 
 /*************************************************************************//*!
    \brief Update DPB state after a frame decoding
@@ -383,25 +385,28 @@ void AL_Dpb_PictNumberProcess(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice);
 
 /*************************************************************************//*!
    \brief Updates the reference status of the pictures present in the DPB
-   \param[in] pDpb   Pointer to a DPB context object
-   \param[in] pSlice Current slice header
+   \param[in] pDpb          Pointer to a DPB context object
+   \param[in] pSlice        Current slice header
+   \param[in]  iCurFramePOC POC of the current picture
 *****************************************************************************/
-void AL_Dpb_MarkingProcess(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice);
+void AL_Dpb_MarkingProcess(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, int iCurFramePOC);
 
 /*************************************************************************//*!
    \brief Initializes the reference list for a P slice
-   \param[in]  pDpb     Pointer to a DPB context object
-   \param[out] pRefList Pointer on the reference picture list object
+   \param[in]  pDpb           Pointer to a DPB context object
+   \param[in]  eCurrPicStruct Picture structure of the current frame
+   \param[out] pRefList       Pointer on the reference picture list object
 *****************************************************************************/
-void AL_Dpb_InitPSlice_RefList(AL_TDpb* pDpb, TBufferRef* pRefList);
+void AL_Dpb_InitPSlice_RefList(AL_TDpb* pDpb, AL_EPicStruct eCurrPicStruct, TBufferRef* pRefList);
 
 /*************************************************************************//*!
    \brief Initializes the reference list for a B slice
-   \param[in]  pDpb         Pointer to a DPB context object
-   \param[in]  iCurFramePOC POC of the current picture
-   \param[out] pRefList     Pointer on the reference picture list object
+   \param[in]  pDpb           Pointer to a DPB context object
+   \param[in]  iCurFramePOC   POC of the current picture
+   \param[in]  eCurrPicStruct Picture structure of the current frame
+   \param[out] pRefList       Pointer on the reference picture list object
 *****************************************************************************/
-void AL_Dpb_InitBSlice_RefList(AL_TDpb* pDpb, int iCurFramePOC, TBufferListRef* pRefList);
+void AL_Dpb_InitBSlice_RefList(AL_TDpb* pDpb, int iCurFramePOC, AL_EPicStruct eCurrPicStruct, TBufferListRef* pRefList);
 
 /*************************************************************************//*!
    \brief Modifies the reference picture list on short term reference pictures

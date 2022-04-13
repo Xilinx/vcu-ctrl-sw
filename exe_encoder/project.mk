@@ -2,7 +2,6 @@ THIS_EXE_ENCODER:=$(call get-my-dir)
 
 EXE_ENCODER_SRCS:=\
   $(THIS_EXE_ENCODER)/CodecUtils.cpp\
-  $(THIS_EXE_ENCODER)/FileUtils.cpp\
   $(THIS_EXE_ENCODER)/IpDevice.cpp\
   $(THIS_EXE_ENCODER)/container.cpp\
   $(THIS_EXE_ENCODER)/main.cpp\
@@ -10,7 +9,6 @@ EXE_ENCODER_SRCS:=\
   $(THIS_EXE_ENCODER)/sink_bitrate.cpp\
   $(THIS_EXE_ENCODER)/sink_frame_writer.cpp\
   $(THIS_EXE_ENCODER)/sink_md5.cpp\
-  $(THIS_EXE_ENCODER)/MD5.cpp\
   $(THIS_EXE_ENCODER)/EncCmdMngr.cpp\
   $(THIS_EXE_ENCODER)/QPGenerator.cpp\
   $(THIS_EXE_ENCODER)/CommandsSender.cpp\
@@ -21,9 +19,7 @@ ifneq ($(ENABLE_ROI),0)
 endif
 
 
-ifneq ($(ENABLE_TWOPASS),0)
   EXE_ENCODER_SRCS+=$(THIS_EXE_ENCODER)/TwoPassMngr.cpp
-endif
 
 ifneq ($(ENABLE_HIGH_DYNAMIC_RANGE),0)
   EXE_ENCODER_SRCS+=$(THIS_EXE_ENCODER)/HDRParser.cpp
@@ -43,7 +39,7 @@ $(BIN)/$(THIS_EXE_ENCODER)/main.cpp.o: INTROSPECT_FLAGS=-DAL_COMPIL_FLAGS='"$(CF
 $(BIN)/$(THIS_EXE_ENCODER)/main.cpp.o: INTROSPECT_FLAGS+=-DHAS_COMPIL_FLAGS=1
 
 
-$(BIN)/AL_Encoder.exe: $(EXE_ENCODER_OBJ) $(LIB_REFENC_A) $(LIB_REFALLOC_A) $(LIB_ENCODER_A) $(LIB_APP_A) $(LIB_CFG_PARSING_A) $(LIB_CONV_YUV_A)
+$(BIN)/AL_Encoder.exe: $(EXE_ENCODER_OBJ) $(LIB_REFENC_A) $(LIB_REFALLOC_A) $(LIB_ENCODER_A) $(LIB_APP_A) $(LIB_CONV_YUV_A)
 
 TARGETS+=$(BIN)/AL_Encoder.exe
 
@@ -64,7 +60,7 @@ EXE_CFG_PARSER_SRCS:=\
 
 EXE_CFG_PARSER_OBJ:=$(EXE_CFG_PARSER_SRCS:%=$(BIN)/%.o)
 
-$(BIN)/AL_CfgParser.exe: $(EXE_CFG_PARSER_OBJ) $(LIB_ENCODER_A) $(LIB_CFG_PARSING_A)
+$(BIN)/AL_CfgParser.exe: $(EXE_CFG_PARSER_OBJ) $(LIB_ENCODER_A) $(LIB_APP_A)
 
 TARGETS+=$(BIN)/AL_CfgParser.exe
 

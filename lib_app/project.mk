@@ -9,6 +9,10 @@ LIB_APP_SRC:=\
   lib_app/AllocatorTracker.cpp\
   lib_app/YuvIO.cpp\
   lib_app/JsonFile.cpp\
+  lib_app/FileUtils.cpp\
+  lib_app/MD5.cpp\
+  lib_app/Parser.cpp\
+  lib_app/Tokenizer.cpp\
   $(LIB_PERFS_SRC)\
   $(LIB_COMMON_SRC)\
 

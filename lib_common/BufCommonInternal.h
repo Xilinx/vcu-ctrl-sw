@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -67,7 +67,7 @@ typedef struct t_CircBuffer
   int32_t iAvailSize; /*!< Avail Space in Circular Buffer */
 }TCircBuffer;
 
-static AL_INLINE void CircBuffer_ConsumeUpToOffset(AL_TBuffer* stream, int32_t iNewOffset)
+static inline void CircBuffer_ConsumeUpToOffset(AL_TBuffer* stream, int32_t iNewOffset)
 {
   AL_TCircMetaData* pCircMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(stream, AL_META_TYPE_CIRCULAR);
 
@@ -80,7 +80,7 @@ static AL_INLINE void CircBuffer_ConsumeUpToOffset(AL_TBuffer* stream, int32_t i
   AL_Assert(pCircMeta->iAvailSize >= 0);
 }
 
-static AL_INLINE void CircBuffer_Init(TCircBuffer* pBuf)
+static inline void CircBuffer_Init(TCircBuffer* pBuf)
 {
   pBuf->iOffset = 0;
   pBuf->iAvailSize = 0;

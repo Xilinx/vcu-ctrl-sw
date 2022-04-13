@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -37,21 +37,69 @@
 
 #pragma once
 
+#include "lib_rtos/types.h"
+#include "lib_app/utils.h"
 #include <string>
+#include <fstream>
+#include <iostream>
 
-/****************************************************************************/
-void formatFolderPath(std::string& folderPath);
+class CMD5
+{
+public:
+  CMD5();
 
-/****************************************************************************/
-std::string combinePath(const std::string& folder, const std::string& filename);
+  void Update(uint8_t* pBuffer, uint32_t uSize);
+  std::string GetMD5();
 
-/****************************************************************************/
-std::string createFileNameWithID(const std::string& path, const std::string& motif, const std::string& extension, int iFrameID);
+protected:
+  void UpdateBlock(uint32_t* pBlock);
 
-/****************************************************************************/
-#define FROM_HEX_ERROR -1
-int FromHex2(char a, char b);
+  union
+  {
+    uint32_t m_pHash32[4];
+    uint8_t m_pHash8[16];
+  };
 
-/****************************************************************************/
-int FromHex4(char a, char b, char c, char d);
+  AL_64U m_uNumBytes;
 
+  uint8_t m_pBound[64]; // 512 bits
+  uint32_t m_uBound;
+};
+
+struct Md5Calculator
+{
+  Md5Calculator(const std::string& path)
+  {
+    if(!path.empty())
+    {
+      if(path == "stdout")
+        m_pMd5Out = &std::cout;
+      else
+      {
+        OpenOutput(m_Md5File, path);
+        m_pMd5Out = &m_Md5File;
+      }
+    }
+  }
+
+  bool IsFileOpen()
+  {
+    return m_Md5File.is_open();
+  }
+
+  void Md5Output()
+  {
+    auto const sMD5 = m_MD5.GetMD5();
+    * m_pMd5Out << sMD5 << std::endl;
+  }
+
+  CMD5& GetCMD5()
+  {
+    return m_MD5;
+  }
+
+protected:
+  std::ofstream m_Md5File;
+  std::ostream* m_pMd5Out;
+  CMD5 m_MD5;
+};

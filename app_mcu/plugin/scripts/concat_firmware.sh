@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 
-tmpDir=/tmp/plug-firmware-$$
+readonly tmpDir=$(mktemp -d)
 trap "rm -rf $tmpDir" EXIT
 mkdir -p $tmpDir
 

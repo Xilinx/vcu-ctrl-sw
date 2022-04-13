@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -333,11 +333,6 @@ static bool isProfileSupported(uint8_t profile_idc)
   }
 }
 
-static int fieldToFrameHeight(int iFieldHeight)
-{
-  return ((iFieldHeight + 1) * 2) - 1;
-}
-
 AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TRbspParser* pRP, AL_TAvcSps* pSPS)
 {
   skipAllZerosAndTheNextByte(pRP);
@@ -466,8 +461,6 @@ AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TRbspParser* pRP, AL_TAvcSps* pSPS)
       Rtos_Log(AL_LOG_ERROR, "MBAFF is not supported\n");
       return AL_UNSUPPORTED;
     }
-
-    pSPS->pic_height_in_map_units_minus1 = fieldToFrameHeight(pSPS->pic_height_in_map_units_minus1);
   }
 
   // check if NAL isn't empty

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -50,5 +50,6 @@ typedef enum
   AL_HOOK_FBC,
   AL_HOOK_FBD,
   AL_HOOK_ME,
+  AL_HOOK_POSTPROC,
   AL_HOOK_TOP,
 }AL_ECodecHook;

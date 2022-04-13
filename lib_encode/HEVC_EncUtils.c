@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -123,7 +123,7 @@ static void AL_HEVC_SelectScalingList(AL_TSps* pISPS, AL_TEncSettings const* pSe
         {
           int iSizeMatrixID = (iSizeId == 3 && iMatrixId == 3) ? 7 : (iSizeId - 2) * 6 + iMatrixId;
 
-          if(pSettings->DcCoeffFlag[iSizeMatrixID]) // if not in config file, keep default values
+          if(pSettings->DcCoeffFlag) // if not in config file, keep default values
             pSPS->scaling_list_param.scaling_list_dc_coeff[iSizeId - 2][iMatrixId] = pSettings->DcCoeff[iSizeMatrixID];
           else
             pSPS->scaling_list_param.scaling_list_dc_coeff[iSizeId - 2][iMatrixId] = 16;
@@ -184,38 +184,14 @@ void AL_HEVC_PreprocessScalingList(AL_TSCLParam const* pSclLst, TBufferEP* pBufE
 }
 
 /****************************************************************************/
-static int DeduceNumTemporalLayer(AL_TGopParam const* pGop)
+void AL_HEVC_GenerateVPS(AL_TVps* pIVPS, AL_TEncSettings const* pSettings, int iMaxRef)
 {
-  if((pGop->eMode & AL_GOP_FLAG_PYRAMIDAL) == 0)
-    return 1;
-
-  int iNumTemporalLayers;
-  switch(pGop->uNumB)
-  {
-  case 15:
-    iNumTemporalLayers = 5;
-    break;
-  case 7:
-    iNumTemporalLayers = 4;
-    break;
-  default:
-    iNumTemporalLayers = 3;
-    break;
-  }
-
-  if(pGop->eMode & AL_GOP_FLAG_B_ONLY)
-    iNumTemporalLayers--;
-
-  return iNumTemporalLayers;
-}
-
-/****************************************************************************/
-void AL_HEVC_GenerateVPS(AL_THevcVps* pVPS, AL_TEncSettings const* pSettings, int iMaxRef)
-{
+  AL_THevcVps* pVPS = (AL_THevcVps*)pIVPS;
   pVPS->vps_video_parameter_set_id = 0;
   pVPS->vps_base_layer_internal_flag = 1;
   pVPS->vps_base_layer_available_flag = 1;
-  pVPS->vps_max_layers_minus1 = 0;
+  int vps_max_layers_minus1 = 0;
+  pVPS->vps_max_layers_minus1 = vps_max_layers_minus1;
   int const iNumTemporalLayer = DeduceNumTemporalLayer(&pSettings->tChParam[0].tGopParam);
   pVPS->vps_max_sub_layers_minus1 = iNumTemporalLayer - 1;
   pVPS->vps_temporal_id_nesting_flag = 1;
@@ -226,12 +202,11 @@ void AL_HEVC_GenerateVPS(AL_THevcVps* pVPS, AL_TEncSettings const* pSettings, in
 
   for(int i = 0; i < iNumTemporalLayer; ++i)
   {
-    int iNumRef = iMaxRef - (iNumTemporalLayer - 1 - i);
+    int const iNumRef = iMaxRef - (iNumTemporalLayer - 1 - i);
     pVPS->vps_max_dec_pic_buffering_minus1[i] = iNumRef;
     pVPS->vps_max_num_reorder_pics[i] = iNumRef;
+    pVPS->vps_max_latency_increase_plus1[i] = 0;
   }
-
-  pVPS->vps_max_latency_increase_plus1[0] = 0;
 
   pVPS->vps_max_layer_id = 0;
   pVPS->vps_num_layer_sets_minus1 = 0;
@@ -377,12 +352,11 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
 
     for(int i = 0; i < iNumTemporalLayer; ++i)
     {
-      int iNumRef = iMaxRef - (iNumTemporalLayer - 1 - i);
+      int const iNumRef = iMaxRef - (iNumTemporalLayer - 1 - i);
       pSPS->sps_max_dec_pic_buffering_minus1[i] = iNumRef;
       pSPS->sps_max_num_reorder_pics[i] = iNumRef;
+      pSPS->sps_max_latency_increase_plus1[i] = 0;
     }
-
-    pSPS->sps_max_latency_increase_plus1[0] = 0;
   }
 
   pSPS->log2_min_luma_coding_block_size_minus3 = pChParam->uLog2MinCuSize - 3;
@@ -438,16 +412,24 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
 
   pSPS->vui_param.overscan_info_present_flag = 0;
 
-  pSPS->vui_param.video_signal_type_present_flag = 1;
-
+  // Video Signal type
   pSPS->vui_param.video_format = VIDEO_FORMAT_UNSPECIFIED;
-  pSPS->vui_param.video_full_range_flag = 0;
+  pSPS->vui_param.video_full_range_flag = pChParam->bVideoFullRange;
 
-  // Colour parameter information
-  pSPS->vui_param.colour_description_present_flag = 1;
+  // Colour description
   pSPS->vui_param.colour_primaries = AL_H273_ColourDescToColourPrimaries(pSettings->eColourDescription);
   pSPS->vui_param.transfer_characteristics = AL_TransferCharacteristicsToVUIValue(pSettings->eTransferCharacteristics);
   pSPS->vui_param.matrix_coefficients = AL_ColourMatrixCoefficientsToVUIValue(pSettings->eColourMatrixCoeffs);
+
+  pSPS->vui_param.colour_description_present_flag =
+    (pSPS->vui_param.colour_primaries != AL_H273_ColourDescToColourPrimaries(AL_COLOUR_DESC_UNSPECIFIED)) ||
+    (pSPS->vui_param.transfer_characteristics != AL_TransferCharacteristicsToVUIValue(AL_TRANSFER_CHARAC_UNSPECIFIED)) ||
+    (pSPS->vui_param.matrix_coefficients != AL_ColourMatrixCoefficientsToVUIValue(AL_COLOUR_MAT_COEFF_UNSPECIFIED));
+
+  pSPS->vui_param.video_signal_type_present_flag =
+    (pSPS->vui_param.video_format != VIDEO_FORMAT_UNSPECIFIED) ||
+    (pSPS->vui_param.video_full_range_flag != 0) ||
+    pSPS->vui_param.colour_description_present_flag;
 
   if(pSPS->vui_param.matrix_coefficients == 0)
   {
@@ -544,16 +526,7 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
   pPPS->init_qp_minus26 = 0;
   pPPS->constrained_intra_pred_flag = (pChParam->eEncTools & AL_OPT_CONST_INTRA_PRED) ? 1 : 0;
   pPPS->transform_skip_enabled_flag = (pChParam->eEncTools & AL_OPT_TRANSFO_SKIP) ? 1 : 0;
-  pPPS->cu_qp_delta_enabled_flag = (
-    (pSettings->eQpCtrlMode != AL_QP_CTRL_NONE)
-    || (pSettings->eQpTableMode != AL_QP_TABLE_NONE)
-    || (pChParam->tRCParam.eRCMode == AL_RC_LOW_LATENCY)
-    || (pChParam->tRCParam.pMaxPictureSize[AL_SLICE_I] > 0)
-    || (pChParam->tRCParam.pMaxPictureSize[AL_SLICE_P] > 0)
-    || (pChParam->tRCParam.pMaxPictureSize[AL_SLICE_B] > 0)
-    || (pChParam->tRCParam.eRCMode == AL_RC_CAPPED_VBR)
-    || (pChParam->uSliceSize)
-    ) ? 1 : 0;
+  pPPS->cu_qp_delta_enabled_flag = HasCuQpDeltaDepthEnabled(pSettings, pChParam);
   pPPS->diff_cu_qp_delta_depth = pChParam->uCuQPDeltaDepth;
 
   pPPS->pps_cb_qp_offset = pChParam->iCbPicQpOffset;
@@ -572,7 +545,7 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
   pPPS->loop_filter_across_slices_enabled_flag = (pChParam->eEncTools & AL_OPT_LF_X_SLICE) ? 1 : 0;
 
   bool bIsGdr = false;
-  bIsGdr |= AL_IsGdrEnabled(pSettings);
+  bIsGdr |= AL_IsGdrEnabled(pChParam);
 
   AL_HEVC_GenerateFilterParam(pPPS, bIsGdr, pChParam->eEncTools, pChParam->uPpsParam, pChParam->iBetaOffset, pChParam->iTcOffset);
 
@@ -596,8 +569,8 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
 
   if(pPPS->pps_range_extension_flag)
   {
-    pPPS->log2_sao_offset_scale_luma = 2;
-    pPPS->log2_sao_offset_scale_chroma = 2;
+    pPPS->log2_sao_offset_scale_luma = Max(0, AL_GET_BITDEPTH(pChParam->ePicFormat) - 10);
+    pPPS->log2_sao_offset_scale_chroma = pPPS->log2_sao_offset_scale_luma;
   }
 
   if(pPPS->pps_multilayer_extension_flag)
@@ -610,29 +583,42 @@ void AL_HEVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TE
 }
 
 /***************************************************************************/
-void AL_HEVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, int iLayerId)
+void AL_HEVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, AL_THeadersCtx* pHdrs, int iLayerId)
 {
-  if(!pHLSInfo->bResolutionChanged)
+  if(!pPicStatus->bIsFirstSlice)
     return;
+
+  if(!AL_IsWriteSps(pHdrs, pHLSInfo->uSpsId))
+    goto put_sps;
 
   AL_THevcSps* pSPS = (AL_THevcSps*)pISPS;
 
-  AL_TBuffer* pBuf = AL_GetSrcBufferFromStatus(pPicStatus);
-  TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
-  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
-  uint8_t uBitDepth = AL_GetBitDepth(tFourCC);
+  AL_EPicFormat ePicFormat = pSettings->tChParam[iLayerId].ePicFormat;
+  AL_TDimension tDim = AL_GetPpsDim(pHdrs, pHLSInfo->uSpsId);
 
   int MultiLayerExtSpsFlag = AL_HEVC_MultiLayerExtSpsFlag(pSPS, iLayerId);
-  AL_HEVC_GenerateSPS_Format(pSPS, AL_GetChromaMode(tFourCC), uBitDepth, uBitDepth, tDim.iWidth, tDim.iHeight, MultiLayerExtSpsFlag, &pSettings->tChParam[iLayerId]);
-  pSPS->sps_seq_parameter_set_id = pHLSInfo->uNalID;
+  AL_HEVC_GenerateSPS_Format(pSPS, AL_GET_CHROMA_MODE(ePicFormat), AL_GET_BITDEPTH_LUMA(ePicFormat), AL_GET_BITDEPTH_CHROMA(ePicFormat),
+                             tDim.iWidth, tDim.iHeight, MultiLayerExtSpsFlag, &pSettings->tChParam[iLayerId]);
+  pSPS->sps_seq_parameter_set_id = pHLSInfo->uSpsId;
+
+  put_sps:
+  AL_ReleaseSps(pHdrs, pHLSInfo->uSpsId);
 }
 
 /***************************************************************************/
-bool AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, int iLayerId)
+bool AL_HEVC_UpdateAUD(AL_TAud* pAud, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, int iLayerID)
+{
+  pAud->eType = pPicStatus->eType;
+  return pSettings->bEnableAUD && isBaseLayer(iLayerID);
+}
+
+/***************************************************************************/
+bool AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, AL_THeadersCtx* pHdrs, int iLayerId)
 {
   (void)pHLSInfo;
+  (void)pSettings;
+  (void)iLayerId;
   AL_THevcPps* pPPS = (AL_THevcPps*)pIPPS;
-  AL_TEncChanParam const* pChParam = &pSettings->tChParam[iLayerId];
 
   bool bMustWritePPS = false;
 
@@ -658,21 +644,27 @@ bool AL_HEVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TEnc
       pPPS->tile_row_height[iRow] = pTileHeight[iRow];
   }
   pPPS->diff_cu_qp_delta_depth = pPicStatus->uCuQpDeltaDepth;
+  pPPS->pps_seq_parameter_set_id = pHLSInfo->uSpsId;
+  pPPS->pps_pic_parameter_set_id = pHLSInfo->uPpsId;
 
-  if(pHLSInfo->bResolutionChanged)
+  if(pPicStatus->bIsFirstSlice)
   {
-    pPPS->pps_pic_parameter_set_id = pHLSInfo->uNalID;
-    pPPS->pps_seq_parameter_set_id = pHLSInfo->uNalID;
-    bMustWritePPS = true;
+    bMustWritePPS = AL_IsWritePps(pHdrs, pHLSInfo->uPpsId);
+    AL_ReleasePps(pHdrs, pHLSInfo->uPpsId);
   }
+
+  pPPS->pps_cb_qp_offset = pHLSInfo->iCbPicQpOffset;
+  pPPS->pps_cr_qp_offset = pHLSInfo->iCrPicQpOffset;
 
   // For LF offsets, the PPS is updated directly, but we don't force PPS update now (offsets overwriten in slice headers).
   // Will be updated with the next IDR. Works under the assumption that we only insert PPS with IDRs, so that we match the
   // behaviour of the firmware.
   if(pHLSInfo->bLFOffsetChanged)
   {
+    AL_TEncChanParam const* pChParam = &pSettings->tChParam[iLayerId];
     bool bIsGdr = false;
-    bIsGdr |= AL_IsGdrEnabled(pSettings);
+    bIsGdr |= AL_IsGdrEnabled(pChParam);
+
     AL_HEVC_GenerateFilterParam(pPPS, bIsGdr, pChParam->eEncTools, pChParam->uPpsParam, pHLSInfo->iLFBetaOffset, pHLSInfo->iLFTcOffset);
   }
 

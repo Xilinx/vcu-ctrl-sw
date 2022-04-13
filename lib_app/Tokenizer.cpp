@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -35,7 +35,7 @@
 *
 ******************************************************************************/
 
-#include "lib_cfg_parsing/Tokenizer.h"
+#include "lib_app/Tokenizer.h"
 #include <cctype>
 #include <sstream>
 

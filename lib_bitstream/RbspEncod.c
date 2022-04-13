@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -47,12 +47,12 @@
 #include "lib_common/SyntaxConversion.h"
 
 /*****************************************************************************/
-void AL_RbspEncoding_WriteAUD(AL_TBitStreamLite* pBS, AL_ESliceType eSliceType)
+void AL_RbspEncoding_WriteAUD(AL_TBitStreamLite* pBS, AL_TAud const* pAud)
 {
   // 1 - Write primary_pic_type.
 
   static int const SliceTypeToPrimaryPicType[] = { 2, 1, 0, 4, 3, 7, 1, 7, 7 };
-  AL_BitStreamLite_PutU(pBS, 3, SliceTypeToPrimaryPicType[eSliceType]);
+  AL_BitStreamLite_PutU(pBS, 3, SliceTypeToPrimaryPicType[pAud->eType]);
 
   // 2 - Write rbsp_trailing_bits.
 

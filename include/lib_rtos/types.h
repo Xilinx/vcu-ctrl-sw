@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -52,8 +52,6 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 #define __AL_ALIGNED__(x) __attribute__((aligned(x)))
-#define AL_INLINE inline
-#define AL_API extern
 #define AL_DEPRECATED(msg) __attribute__((deprecated(msg)))
 
 #ifndef __cplusplus
@@ -64,8 +62,6 @@
 
 #define __AL_ALIGNED__(x)
 #define __attribute__(x)
-#define AL_INLINE __inline
-#define AL_API extern
 #define AL_DEPRECATED(msg) __declspec(deprecated(msg))
 
 #ifndef __cplusplus
@@ -79,13 +75,12 @@
 typedef uint64_t AL_64U __AL_ALIGNED__ (8); // Ensure that 64bits has same alignment on all platforms
 typedef int64_t AL_64S;
 typedef uint8_t* AL_VADDR; /*!< Virtual address. byte pointer */
+
 typedef uint32_t AL_PADDR; /*!< Physical address, 32-bit address registers */
+
 typedef AL_64U AL_PTR64;
 typedef uint32_t AL_ERR;
 typedef void* AL_HANDLE;
-
-#define AL_MAX_NUM_REF 16
-#define AL_MAX_NUM_B_PICT 15
 
 /*@}*/
 

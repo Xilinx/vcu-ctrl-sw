@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -102,3 +102,9 @@ bool AL_HEVC_IsRASL(AL_ENut eNUT);
    false otherwise
  ***************************************************************************/
 bool AL_HEVC_IsVcl(AL_ENut eNUT);
+
+/*************************************************************************//*!
+   \brief Size of the NAL Header
+   respect to the HEVC specification
+ ***************************************************************************/
+#define AL_HEVC_NAL_HDR_SIZE 5;

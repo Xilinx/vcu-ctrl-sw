@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -51,7 +51,7 @@ extern "C"
 }
 
 bool AL_TwoPassMngr_HasLookAhead(AL_TEncSettings const& settings);
-void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings, AL_HANDLE hBaseHandle);
+void AL_TwoPassMngr_SetPass1Settings(AL_TEncSettings& settings);
 void AL_TwoPassMngr_SetGlobalSettings(AL_TEncSettings& settings);
 AL_TLookAheadMetaData* AL_TwoPassMngr_CreateAndAttachTwoPassMetaData(AL_TBuffer* Src);
 

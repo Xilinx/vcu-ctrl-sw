@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -72,7 +72,7 @@ typedef struct
   AL_MUTEX mutex;
 }AL_Logger;
 
-static AL_INLINE uint32_t AL_Timer_GetTime(AL_Timer* timer)
+static inline uint32_t AL_Timer_GetTime(AL_Timer* timer)
 {
   return timer->vtable->pfnGetTime(timer);
 }

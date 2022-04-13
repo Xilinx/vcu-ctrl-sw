@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -52,80 +52,88 @@
 
 static const int NUMCORE_AUTO = 0;
 
+#define ARRAY_SIZE(x) (int)(sizeof(x) / sizeof((x)[0]))
+
 /***************************************************************************/
-static AL_INLINE size_t BitsToBytes(size_t zBits)
+static inline size_t BitsToBytes(size_t zBits)
 {
   return (zBits + 7) / 8;
 }
 
 /***************************************************************************/
-static AL_INLINE size_t BytesToBits(size_t zBytes)
+static inline size_t BytesToBits(size_t zBytes)
 {
   return zBytes * 8;
 }
 
 /***************************************************************************/
-static AL_INLINE int Clip3(int iVal, int iMin, int iMax)
+static inline int Clip3(int iVal, int iMin, int iMax)
 {
   return ((iVal) < (iMin)) ? (iMin) : ((iVal) > (iMax)) ? (iMax) : (iVal);
 }
 
 /***************************************************************************/
-static AL_INLINE int Max(int iVal1, int iVal2)
+static inline int Max(int iVal1, int iVal2)
 {
   return ((iVal1) < (iVal2)) ? (iVal2) : (iVal1);
 }
 
 /***************************************************************************/
-static AL_INLINE uint32_t UnsignedMax(uint32_t iVal1, uint32_t iVal2)
+static inline uint32_t UnsignedMax(uint32_t iVal1, uint32_t iVal2)
 {
   return ((iVal1) < (iVal2)) ? (iVal2) : (iVal1);
 }
 
 /***************************************************************************/
-static AL_INLINE size_t UnsignedMin(size_t iVal1, size_t iVal2)
+static inline size_t UnsignedMin(size_t iVal1, size_t iVal2)
 {
   return ((iVal1) > (iVal2)) ? (iVal2) : (iVal1);
 }
 
 /***************************************************************************/
-static AL_INLINE int Min(int iVal1, int iVal2)
+static inline int Min(int iVal1, int iVal2)
 {
   return ((iVal1) > (iVal2)) ? (iVal2) : (iVal1);
 }
 
 /***************************************************************************/
-static AL_INLINE int Abs(int iVal)
+static inline int Abs(int iVal)
 {
   return ((iVal) > 0) ? (iVal) : (-(iVal));
 }
 
 /***************************************************************************/
-static AL_INLINE int Sign(int iVal)
+static inline int Sign(int iVal)
 {
   return ((iVal) > 0) ? (1) : (((iVal) < 0) ? (-1) : (0));
 }
 
 /***************************************************************************/
-static AL_INLINE int RoundUp(int iVal, int iRnd)
+static inline int DivideRoundUp(int iVal, int iDiv)
 {
-  return iVal >= 0 ? ((iVal + iRnd - 1) / iRnd) * iRnd : (iVal / iRnd) * iRnd;
+  return iVal >= 0 ? ((iVal + iDiv - 1) / iDiv) : (iVal / iDiv);
 }
 
 /***************************************************************************/
-static AL_INLINE int RoundDown(int iVal, int iRnd)
+static inline int RoundUp(int iVal, int iRnd)
+{
+  return DivideRoundUp(iVal, iRnd) * iRnd;
+}
+
+/***************************************************************************/
+static inline int RoundDown(int iVal, int iRnd)
 {
   return iVal >= 0 ? (iVal / iRnd) * iRnd : ((iVal - iRnd + 1) / iRnd) * iRnd;
 }
 
 /***************************************************************************/
-static AL_INLINE size_t UnsignedRoundUp(size_t zVal, size_t zRnd)
+static inline size_t UnsignedRoundUp(size_t zVal, size_t zRnd)
 {
   return ((zVal + zRnd - 1) / zRnd) * zRnd;
 }
 
 /***************************************************************************/
-static AL_INLINE size_t UnsignedRoundDown(size_t zVal, size_t zRnd)
+static inline size_t UnsignedRoundDown(size_t zVal, size_t zRnd)
 {
   return (zVal / zRnd) * zRnd;
 }
@@ -137,12 +145,16 @@ int ceil_log2(uint16_t n);
 int floor_log2(uint16_t n);
 
 /****************************************************************************/
-int GetBlkNumber(AL_TDimension tDim, uint8_t uLog2MaxCuSize);
+int GetBlkNumber(AL_TDimension tDim, uint32_t uBlkWidth, uint32_t uBlkHeight);
 
-static AL_INLINE int GetBlk128x128(AL_TDimension tDim) { return GetBlkNumber(tDim, 7); }
-static AL_INLINE int GetBlk64x64(AL_TDimension tDim) { return GetBlkNumber(tDim, 6); }
-static AL_INLINE int GetBlk32x32(AL_TDimension tDim) { return GetBlkNumber(tDim, 5); }
-static AL_INLINE int GetBlk16x16(AL_TDimension tDim) { return GetBlkNumber(tDim, 4); }
+/****************************************************************************/
+static inline int GetSquareBlkNumber(AL_TDimension tDim, uint32_t uBlkSize) { return GetBlkNumber(tDim, uBlkSize, uBlkSize); }
+
+/****************************************************************************/
+int16_t MaxInArray(const int16_t tab[], int arraySize);
+
+/****************************************************************************/
+int16_t MinInArray(const int16_t tab[], int arraySize);
 
 /****************************************************************************/
 AL_HANDLE AlignedAlloc(AL_TAllocator* pAllocator, const char* pBufName, uint32_t uSize, uint32_t uAlign, uint32_t* uAllocatedSize, uint32_t* uAlignmentOffset);

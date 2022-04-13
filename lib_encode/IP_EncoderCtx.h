@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -58,29 +58,25 @@
 #include "lib_common_enc/EncSize.h"
 #include "lib_encode/lib_encoder.h"
 #include "lib_common/Fifo.h"
-
-#define MAX_NAL_IDS 15
+#include "lib_encode/EncUtils.h"
 
 typedef struct AL_i_EncScheduler AL_IEncScheduler;
 
 /*************************************************************************//*!
    \brief Structure containing infos for non-vcl nals generation
 *****************************************************************************/
-#define AL_HAS_HLS_DYNAMIC_INFO 1
-
-#if AL_HAS_HLS_DYNAMIC_INFO
 typedef struct AL_t_HLSInfo
 {
-  bool bResolutionChanged;
-  uint8_t uNalID;
-
+  uint8_t uSpsId;
+  uint8_t uPpsId;
   bool bLFOffsetChanged;
   int8_t iLFBetaOffset;
   int8_t iLFTcOffset;
+  int8_t iCbPicQpOffset;
+  int8_t iCrPicQpOffset;
   bool bHDRChanged;
   int8_t iHDRID;
 }AL_HLSInfo;
-#endif
 
 /*************************************************************************//*!
    \brief Frame encoding info structure
@@ -89,9 +85,7 @@ typedef struct AL_t_FrameInfo
 {
   AL_TEncInfo tEncInfo;
   AL_TBuffer* pQpTable;
-#if AL_HAS_HLS_DYNAMIC_INFO
   AL_HLSInfo tHLSUpdateInfo;
-#endif
 }AL_TFrameInfo;
 
 typedef AL_TEncSliceStatus TStreamInfo;
@@ -119,6 +113,7 @@ typedef struct
 
   AL_TSps sps;
   AL_TPps pps;
+  AL_TAud aud;
 
   AL_TSrcBufferChecker srcBufferChecker;
   AL_TEncRequestInfo currentRequestInfo;
@@ -179,10 +174,9 @@ typedef struct AL_t_EncCtx
 
   AL_TLayerCtx tLayerCtx[MAX_NUM_LAYER];
 
-  AL_TDimension nalResolutionsPerID[MAX_NAL_IDS];
-  AL_THevcVps vps;
+  AL_THeadersCtx tHeadersCtx[MAX_NUM_LAYER];
+  AL_TVps vps;
   bool bEndOfStreamReceived[MAX_NUM_LAYER];
-  int iLastIdrId;
 
   int initialCpbRemovalDelay;
   int cpbRemovalDelay;

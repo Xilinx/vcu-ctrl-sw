@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -56,19 +56,23 @@ AL_TNuts CreateHevcNuts(void)
     &GetNalHeaderHevc,
     AL_HEVC_NUT_SPS,
     AL_HEVC_NUT_PPS,
+    AL_HEVC_NUT_VPS,
     AL_HEVC_NUT_AUD,
     AL_HEVC_NUT_FD,
     AL_HEVC_NUT_PREFIX_SEI,
     AL_HEVC_NUT_SUFFIX_SEI,
+    0,
+    0,
   };
   return nuts;
 }
 
-void HEVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayerID, int iPicID, bool bMustWritePPS)
+void HEVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iLayerID, int iPicID, bool bMustWritePPS, bool bMustWriteAUD)
 {
   AL_TNuts nuts = CreateHevcNuts();
   AL_TNalsData nalsData = AL_ExtractNalsData(pCtx, iLayerID, iPicID);
   nalsData.bMustWritePPS = bMustWritePPS;
+  nalsData.bMustWriteAud = bMustWriteAUD;
   AL_TEncChanParam const* pChannel = &pCtx->pSettings->tChParam[0];
   GenerateSections(AL_GetHevcRbspWriter(), nuts, &nalsData, pStream, pPicStatus, iLayerID, pChannel->uNumSlices, pChannel->bSubframeLatency, false);
 }

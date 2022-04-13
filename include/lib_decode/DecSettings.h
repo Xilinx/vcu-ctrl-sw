@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -52,10 +52,14 @@
 #include "lib_common_dec/DecDpbMode.h"
 #include "lib_common_dec/DecSynchro.h"
 
+/*************************************************************************//*!
+   \brief Decoder Input Mode
+   \ingroup Decoder_Settings
+*****************************************************************************/
 typedef enum
 {
-  AL_DEC_UNSPLIT_INPUT, /*!<The input is fed to the decoder without delimitations and the decoder find the decoding unit in the data by himself.*/
-  AL_DEC_SPLIT_INPUT, /*!<The input is fed to the decoder with buffers containing one decoding unit each. */
+  AL_DEC_UNSPLIT_INPUT, /*!< The input is fed to the decoder without delimitations and the decoder find the decoding unit in the data by himself.*/
+  AL_DEC_SPLIT_INPUT, /*!< The input is fed to the decoder with buffers containing one decoding unit each. */
 }AL_EDecInputMode;
 
 /*************************************************************************//*!
@@ -67,6 +71,7 @@ typedef struct
   int iStackSize;       /*!< Size of the command stack handled by the decoder */
   int iStreamBufSize;   /*!< Size of the internal circular stream buffer (0 = default) */
   uint8_t uNumCore;     /*!< Number of core used for the decoding */
+  bool bNonRealtime;    /*!< Specify is a non-realtime channel */
   uint32_t uFrameRate;  /*!< Frame rate value used if syntax element isn't present */
   uint32_t uClkRatio;   /*!< Clock ratio value used if syntax element isn't present */
   AL_ECodec eCodec;     /*!< Specify which codec is used */

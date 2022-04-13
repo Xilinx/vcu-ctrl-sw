@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -116,9 +116,12 @@ typedef struct AL_t_DecSliceParam
   uint32_t uStrAvailSize;
   uint32_t uCompOffset;
   uint32_t uStrOffset;
-  uint32_t entry_point_offset[AL_MAX_ENTRY_POINT + 1];
   uint32_t uParsingId;
 
+  /* Keep this at last position of structure since it allows to copy only
+   * necessary entry_point_offset content.
+   */
+  uint32_t entry_point_offset[AL_MAX_ENTRY_POINT + 1];
 }AL_TDecSliceParam;
 
 /*@}*/

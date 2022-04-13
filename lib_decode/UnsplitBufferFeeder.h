@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -40,5 +40,5 @@
 #include "I_Feeder.h"
 #include "DecoderFeeder.h"
 
-AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, int uMaxBufNum, AL_TAllocator* pAllocator, int iBufferStreamSize, AL_TBuffer* eosBuffer, bool bForceAccessUnitDestroy, AL_CB_Error* errorCallback);
+AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, int uMaxBufNum, AL_TAllocator* pAllocator, int iBufferStreamSize, AL_TBuffer* eosBuffer, bool bForceAccessUnitDestroy);
 

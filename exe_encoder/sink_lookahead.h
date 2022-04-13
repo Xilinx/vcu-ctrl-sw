@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -56,7 +56,6 @@ struct EncoderLookAheadSink : IFrameSink
                        ) :
     CmdFile(cfg.sCmdFileName),
     EncCmd(CmdFile, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
-    qpBuffers{cfg.Settings, cfg.RunInfo.eGenerateQpMode},
     lookAheadMngr(cfg.Settings.LookAhead, cfg.Settings.bEnableFirstPassSceneChangeDetection)
   {
     (void)pBaseSink;
@@ -65,12 +64,12 @@ struct EncoderLookAheadSink : IFrameSink
     RecOutput.reset(new NullFrameSink);
 
     AL_CB_EndEncoding onEndEncoding = { &EncoderLookAheadSink::EndEncoding, this };
-    AL_HANDLE hBaseHandle = nullptr;
-    ConfigFile cfgLA = cfg;
-
-    AL_TwoPassMngr_SetPass1Settings(cfgLA.Settings, hBaseHandle);
+    cfgLA = cfg;
+    AL_TwoPassMngr_SetPass1Settings(cfgLA.Settings);
 
     AL_Settings_CheckCoherency(&cfgLA.Settings, &cfgLA.Settings.tChParam[0], cfgLA.MainInput.FileInfo.FourCC, NULL);
+
+    qpBuffers.Configure(&cfgLA.Settings, cfgLA.RunInfo.eGenerateQpMode);
 
     AL_ERR errorCode = AL_Encoder_Create(&hEnc, pScheduler, pAllocator, &cfgLA.Settings, onEndEncoding);
 
@@ -80,10 +79,13 @@ struct EncoderLookAheadSink : IFrameSink
     commandsSender.reset(new CommandsSender(hEnc));
     m_pictureType = cfg.RunInfo.printPictureType ? AL_SLICE_MAX_ENUM : -1;
 
+    bEnableFirstPassSceneChangeDetection = false;
     bEnableFirstPassSceneChangeDetection = cfg.Settings.bEnableFirstPassSceneChangeDetection;
     EOSFinished = Rtos_CreateEvent(false);
     FifoFlushFinished = Rtos_CreateEvent(false);
     iNumLayer = cfg.Settings.NumLayer;
+
+    iNumFrameEnded = 0;
 
     m_maxpicCount = cfg.RunInfo.iMaxPict;
   }
@@ -136,9 +138,7 @@ struct EncoderLookAheadSink : IFrameSink
     }
 
     if(Src)
-    {
       m_picCount++;
-    }
     else if(iNumLayer == 1)
     {
       // the main process waits for the LookAhead to end so he can flush the fifo
@@ -149,7 +149,6 @@ struct EncoderLookAheadSink : IFrameSink
 
   AL_HEncoder hEnc;
   IFrameSink* next;
-  std::shared_ptr<AL_TBuffer> RecYuv;
   std::unique_ptr<IFrameSink> BitstreamOutput;
   std::unique_ptr<IFrameSink> RecOutput;
 
@@ -159,6 +158,7 @@ private:
   int m_pictureType = -1;
   std::ifstream CmdFile;
   CEncCmdMngr EncCmd;
+  ConfigFile cfgLA;
   QPBuffers qpBuffers;
   std::unique_ptr<CommandsSender> commandsSender;
   LookAheadMngr lookAheadMngr;
@@ -188,17 +188,6 @@ private:
     pThis->AddFifo(const_cast<AL_TBuffer*>(pSrc), pStream);
 
     pThis->processOutputLookAhead(pStream);
-  }
-
-  void LaunchSecondPassDirectly(AL_TBuffer* pSrc)
-  {
-    Rtos_WaitEvent(FifoFlushFinished, AL_WAIT_FOREVER);
-
-    AL_Buffer_Ref(pSrc);
-    lookAheadMngr.m_fifo.push_back(pSrc);
-    ProcessFifo(false, true);
-
-    Rtos_SetEvent(FifoFlushFinished);
   }
 
   void processOutputLookAhead(AL_TBuffer* pStream)
@@ -251,6 +240,7 @@ private:
 
     AL_Buffer_Ref(pSrc);
     lookAheadMngr.m_fifo.push_back(pSrc);
+
     ProcessFifo(false, false);
 
     ++iNumFrameEnded;
@@ -274,7 +264,7 @@ private:
       next->ProcessFrame(NULL);
     }
     // Fifo is full, or fifo must be emptied at EOS
-    else if(isEOS || iNumFrameEnded == iLASize || NoFirstPass)
+    else if((lookAheadMngr.m_fifo.size() != 0) && (isEOS || iNumFrameEnded == iLASize || NoFirstPass))
     {
       iNumFrameEnded--;
       lookAheadMngr.ProcessLookAheadParams();

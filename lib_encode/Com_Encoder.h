@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -60,13 +60,13 @@
    \brief Creates an encoder object
    \return Pointer to the encoder created if succeeded, NULL otherwise
 *****************************************************************************/
-AL_TEncoder* AL_Common_Encoder_Create(AL_TAllocator* pAlloc);
+AL_TEncCtx* AL_Common_Encoder_Create(AL_TAllocator* pAlloc);
 
 /*************************************************************************//*!
    \brief Destroy an encoder object
-   \param[in] pEnc Pointer on the encoder object to destroy
+   \param[in] pEnc Pointer on the encoder context object to destroy
 *****************************************************************************/
-void AL_Common_Encoder_Destroy(AL_TEncoder* pEnc);
+void AL_Common_Encoder_Destroy(AL_TEncCtx* pCtx);
 
 /*************************************************************************//*!
    \brief Creates an encoding channel
@@ -77,7 +77,7 @@ void AL_Common_Encoder_Destroy(AL_TEncoder* pEnc);
    parameters.
    \return Channel creation result
 *****************************************************************************/
-AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncoder* pEnc, AL_IEncScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings);
+AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncCtx* pCtx, AL_IEncScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings);
 
 /*************************************************************************//*!
    \brief The Encoder_NotifySceneChange function informs the encoder that a scene
@@ -86,21 +86,21 @@ AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncoder* pEnc, AL_IEncScheduler* pSch
    \param[in] iAhead Number of frame until the scene change will happen.
    Allowed range is [0..31]
 *****************************************************************************/
-void AL_Common_Encoder_NotifySceneChange(AL_TEncoder* pEnc, int iAhead);
+void AL_Common_Encoder_NotifySceneChange(AL_TEncCtx* pCtx, int iAhead);
 
 /*************************************************************************//*!
    \brief The Encoder_NotifyIsLongTerm function informs the encoder that the
    next reference picture is a long term reference picture
    \param[in] pEnc Handle to an encoder object
 *****************************************************************************/
-void AL_Common_Encoder_NotifyIsLongTerm(AL_TEncoder* pEnc);
+void AL_Common_Encoder_NotifyIsLongTerm(AL_TEncCtx* pCtx);
 
 /*************************************************************************//*!
    \brief The Encoder_NotifyUseLongTerm function informs the encoder that a long
    term reference picture will be used
    \param[in] pEnc Handle to an encoder object
 *****************************************************************************/
-void AL_Common_Encoder_NotifyUseLongTerm(AL_TEncoder* pEnc);
+void AL_Common_Encoder_NotifyUseLongTerm(AL_TEncCtx* pCtx);
 
 /*************************************************************************//*!
    \brief The Encoder_PutStreamBuffer function push a stream buffer to be filled
@@ -108,13 +108,13 @@ void AL_Common_Encoder_NotifyUseLongTerm(AL_TEncoder* pEnc);
    \param[in] pStream The stream buffer to be filled
    \param[in] iLayerID Current layer identifier
 *****************************************************************************/
-bool AL_Common_Encoder_PutStreamBuffer(AL_TEncoder* pEnc, AL_TBuffer* pStream, int iLayerID);
+bool AL_Common_Encoder_PutStreamBuffer(AL_TEncCtx* pCtx, AL_TBuffer* pStream, int iLayerID);
 
 /***************************************************************************/
-bool AL_Common_Encoder_GetRecPicture(AL_TEncoder* pEnc, AL_TRecPic* pRecPic, int iLayerID);
+bool AL_Common_Encoder_GetRecPicture(AL_TEncCtx* pCtx, AL_TRecPic* pRecPic, int iLayerID);
 
 /***************************************************************************/
-void AL_Common_Encoder_ReleaseRecPicture(AL_TEncoder* pEnc, AL_TRecPic* pRecPic, int iLayerID);
+void AL_Common_Encoder_ReleaseRecPicture(AL_TEncCtx* pCtx, AL_TRecPic* pRecPic, int iLayerID);
 
 /*************************************************************************//*!
    \brief The Encoder_Process function allows to push a frame buffer to the
@@ -129,7 +129,20 @@ void AL_Common_Encoder_ReleaseRecPicture(AL_TEncoder* pEnc, AL_TRecPic* pRecPic,
    If the function fails the return value is zero (false)
    \see AL_Encoder_PutStreamBuffer
 *****************************************************************************/
-bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer* pQPTable, int iLayerID);
+bool AL_Common_Encoder_Process(AL_TEncCtx* pCtx, AL_TBuffer* pFrame, AL_TBuffer* pQPTable, int iLayerID);
+
+/*************************************************************************//*!
+   \brief Add a SEI to the stream
+   \param[in] pEnc Pointer on an encoder context object
+   \param[in] pStream The stream buffer, required to possess a stream metadata
+   \param[in] isPrefix Discriminate between prefix and suffix SEI
+   \param[in] iPayloadType SEI payload type. See Annex D.3 of ITU-T
+   \param[in] pPayload Raw data of the SEI payload
+   \param[in] iPayloadSize Size of the raw data payload
+   \param[in] iTempId Temporal id of the raw data payload
+   \return returns the section id
+*****************************************************************************/
+int AL_Common_Encoder_AddSei(AL_TEncCtx* pCtx, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId);
 
 /*************************************************************************//*!
    \brief The Encoder_GetLastError function return the last error if any
@@ -137,7 +150,7 @@ bool AL_Common_Encoder_Process(AL_TEncoder* pEnc, AL_TBuffer* pFrame, AL_TBuffer
    \return if an error occurs the function returns the corresponding error code,
    otherwise, the function returns AL_SUCCESS.
 *****************************************************************************/
-AL_ERR AL_Common_Encoder_GetLastError(AL_TEncoder* pEnc);
+AL_ERR AL_Common_Encoder_GetLastError(AL_TEncCtx* pCtx);
 
 /*************************************************************************//*!
    \brief The Encoder_WaitReadiness function wait until the encoder context object is available
@@ -148,13 +161,31 @@ AL_ERR AL_Common_Encoder_GetLastError(AL_TEncoder* pEnc);
 void AL_Common_Encoder_WaitReadiness(AL_TEncCtx* pCtx);
 
 /*************************************************************************//*!
+   \brief Requests the encoder to change the cost mode flag.
+   \param[in] hEnc Handle to an encoder object
+   \param[in] costMode True to enable cost mode, False to disable cost mode
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Common_Encoder_SetCostMode(AL_TEncCtx* pCtx, bool costMode);
+
+/*************************************************************************//*!
    \brief The AL_Encoder_RestartGop requests the encoder to insert a Keyframe
    and restart a new Gop.
    \param[in] pEnc Pointer on an encoder object
    \return true on success, false on error : call AL_Common_Encoder_GetLastError
    to retrieve the error code
 *****************************************************************************/
-bool AL_Common_Encoder_RestartGop(AL_TEncoder* pEnc);
+bool AL_Common_Encoder_RestartGop(AL_TEncCtx* pCtx);
+
+/*************************************************************************//*!
+   \brief The AL_Encoder_RestartGopRecoveryPoint requests the encoder
+   to start a new pass of Gradual Decoding Refresh
+   \param[in] pEnc Pointer on an encoder object
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError
+   to retrieve the error code
+*****************************************************************************/
+bool AL_Common_Encoder_RestartGopRecoveryPoint(AL_TEncCtx* pCtx);
 
 /*************************************************************************//*!
    \brief The AL_Encoder_SetGopLength changes the GopLength. If the on-going
@@ -167,7 +198,7 @@ bool AL_Common_Encoder_RestartGop(AL_TEncoder* pEnc);
    \return true on success, false on error : call AL_Common_Encoder_GetLastError
    to retrieve the error code
 *****************************************************************************/
-bool AL_Common_Encoder_SetGopLength(AL_TEncoder* pEnc, int iGopLength);
+bool AL_Common_Encoder_SetGopLength(AL_TEncCtx* pCtx, int iGopLength);
 
 /*************************************************************************//*!
    \brief The AL_Encoder_SetGopNumB changes the Number of consecutive B
@@ -177,7 +208,7 @@ bool AL_Common_Encoder_SetGopLength(AL_TEncoder* pEnc, int iGopLength);
    \return true on success, false on error : call AL_Common_Encoder_GetLastError
    to retrieve the error code
 *****************************************************************************/
-bool AL_Common_Encoder_SetGopNumB(AL_TEncoder* pEnc, int iNumB);
+bool AL_Common_Encoder_SetGopNumB(AL_TEncCtx* pCtx, int iNumB);
 
 /*************************************************************************//*!
    \brief Changes the IDR frequency. If the new frequency is shorter than the
@@ -190,17 +221,28 @@ bool AL_Common_Encoder_SetGopNumB(AL_TEncoder* pEnc, int iNumB);
    \return true on success, false on error : call AL_Common_Encoder_GetLastError
    to retrieve the error code
 *****************************************************************************/
-bool AL_Common_Encoder_SetFreqIDR(AL_TEncoder* pEnc, int iFreqIDR);
+bool AL_Common_Encoder_SetFreqIDR(AL_TEncCtx* pCtx, int iFreqIDR);
 
 /*************************************************************************//*!
    \brief The AL_Encoder_SetBitRate changes the target bitrate
    \param[in] pEnc Pointer on an encoder object
-   \param[in] iGopLength New Gop Length
+   \param[in] iBitRate New Target bitrate
    \param[in] iLayerID layer identifier of the channel which will have his bitrate changed
    \return true on success, false on error : call AL_Common_Encoder_GetLastError
    to retrieve the error code
 *****************************************************************************/
-bool AL_Common_Encoder_SetBitRate(AL_TEncoder* pEnc, int iBitRate, int iLayerID);
+bool AL_Common_Encoder_SetBitRate(AL_TEncCtx* pCtx, int iBitRate, int iLayerID);
+
+/*************************************************************************//*!
+   \brief The AL_Encoder_SetMaxBitRate changes the max bitrate
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] iTargetBitRate New Target bitrate
+   \param[in] iMaxBitRate New Max bitrate
+   \param[in] iLayerID layer identifier of the channel which will have his bitrate changed
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError
+   to retrieve the error code
+*****************************************************************************/
+bool AL_Common_Encoder_SetMaxBitRate(AL_TEncCtx* pCtx, int iTargetBitRate, int iMaxBitRate, int iLayerID);
 
 /*************************************************************************//*!
    \brief The AL_Encoder_SetFrameRate changes the encoding frame rate
@@ -212,7 +254,7 @@ bool AL_Common_Encoder_SetBitRate(AL_TEncoder* pEnc, int iBitRate, int iLayerID)
    \note Fps = uFrameRate * 1000 / uClkRatio. for example uFrameRate = 60 and
    uClkRatio = 1001 gives 59.94 fps
 *****************************************************************************/
-bool AL_Common_Encoder_SetFrameRate(AL_TEncoder* pEnc, uint16_t uFrameRate, uint16_t uClkRatio);
+bool AL_Common_Encoder_SetFrameRate(AL_TEncCtx* pCtx, uint16_t uFrameRate, uint16_t uClkRatio);
 
 /*************************************************************************//*!
    \brief Changes the quantization parameter for the next pushed frame
@@ -221,17 +263,18 @@ bool AL_Common_Encoder_SetFrameRate(AL_TEncoder* pEnc, uint16_t uFrameRate, uint
    \return true on success, false on error : call AL_Common_Encoder_GetLastError
    to retrieve the error code
 *****************************************************************************/
-bool AL_Common_Encoder_SetQP(AL_TEncoder* pEnc, int16_t iQP);
+bool AL_Common_Encoder_SetQP(AL_TEncCtx* pCtx, int16_t iQP);
 
 /*************************************************************************//*!
    \brief Changes the bounds of the QP set by the rate control
    \param[in] pEnc Pointer on an encoder object
    \param[in] iMinQP The new QP lower bound
    \param[in] iMaxQP The new QP upper bound
+   \param[in] sliceType The slice type used for the bounds
    \return true on success, false on error : call AL_Encoder_GetLastError to
    retrieve the error code
 *****************************************************************************/
-bool AL_Common_Encoder_SetQPBounds(AL_TEncoder* pEnc, int16_t iMinQP, int16_t iMaxQP);
+bool AL_Common_Encoder_SetQPBounds(AL_TEncCtx* pCtx, int16_t iMinQP, int16_t iMaxQP, AL_ESliceType sliceType);
 
 /*************************************************************************//*!
    \brief Changes the QP delta between I frames and P frames
@@ -240,7 +283,7 @@ bool AL_Common_Encoder_SetQPBounds(AL_TEncoder* pEnc, int16_t iMinQP, int16_t iM
    \return true on success, false on error : call AL_Common_Encoder_GetLastError to
    retrieve the error code
 *****************************************************************************/
-bool AL_Common_Encoder_SetQPIPDelta(AL_TEncoder* pEnc, int16_t uIPDelta);
+bool AL_Common_Encoder_SetQPIPDelta(AL_TEncCtx* pCtx, int16_t uIPDelta);
 
 /*************************************************************************//*!
    \brief Changes the QP delta between P frames and B frames
@@ -249,7 +292,7 @@ bool AL_Common_Encoder_SetQPIPDelta(AL_TEncoder* pEnc, int16_t uIPDelta);
    \return true on success, false on error : call AL_Common_Encoder_GetLastError to
    retrieve the error code
 *****************************************************************************/
-bool AL_Common_Encoder_SetQPPBDelta(AL_TEncoder* pEnc, int16_t uPBDelta);
+bool AL_Common_Encoder_SetQPPBDelta(AL_TEncCtx* pCtx, int16_t uPBDelta);
 
 /*************************************************************************//*!
    \brief Changes the resolution of the input frames to encode from the next
@@ -259,7 +302,7 @@ bool AL_Common_Encoder_SetQPPBDelta(AL_TEncoder* pEnc, int16_t uPBDelta);
    \return true on success, false on error : call AL_Common_Encoder_GetLastError to
    retrieve the error code
 *****************************************************************************/
-bool AL_Common_Encoder_SetInputResolution(AL_TEncoder* pEnc, AL_TDimension tDim);
+bool AL_Common_Encoder_SetInputResolution(AL_TEncCtx* pCtx, AL_TDimension tDim);
 
 /*************************************************************************//*!
    \brief Changes the loop filter beta offset
@@ -268,7 +311,7 @@ bool AL_Common_Encoder_SetInputResolution(AL_TEncoder* pEnc, AL_TDimension tDim)
    \return true on success, false on error : call AL_Common_Encoder_GetLastError to
    retrieve the error code
 *****************************************************************************/
-bool AL_Common_Encoder_SetLoopFilterBetaOffset(AL_TEncoder* pEnc, int8_t iBetaOffset);
+bool AL_Common_Encoder_SetLoopFilterBetaOffset(AL_TEncCtx* pCtx, int8_t iBetaOffset);
 
 /*************************************************************************//*!
    \brief Changes the loop filter TC offset
@@ -277,7 +320,28 @@ bool AL_Common_Encoder_SetLoopFilterBetaOffset(AL_TEncoder* pEnc, int8_t iBetaOf
    \return true on success, false on error : call AL_Common_Encoder_GetLastError to
    retrieve the error code
 *****************************************************************************/
-bool AL_Common_Encoder_SetLoopFilterTcOffset(AL_TEncoder* pEnc, int8_t iTcOffset);
+bool AL_Common_Encoder_SetLoopFilterTcOffset(AL_TEncCtx* pCtx, int8_t iTcOffset);
+
+/*************************************************************************//*!
+   \brief Changes Qp chroma offset
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] iQp1Offset The new Cb chroma offset for avc/hevc/vvc. The new Dc
+   chroma offset for av1.
+   \param[in] iQp2Offset The new Cr chroma offset for avc/hevc/vvc. The new Ac
+   chroma offset for av1.
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Common_Encoder_SetQPChromaOffsets(AL_TEncCtx* pCtx, int8_t iQp1Offset, int8_t iQp2Offset);
+
+/*************************************************************************//*!
+   \brief Enable or Disable AutoQP control
+   \param[in] hEnc Handle to an encoder object
+   \param[in] useAutoQP The boolean to activate the use of AUTO_QP
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Common_Encoder_SetAutoQP(AL_TEncCtx* pCtx, bool useAutoQP);
 
 /*************************************************************************//*!
    \brief Specify HDR SEIs to insert in the bitstream
@@ -286,7 +350,7 @@ bool AL_Common_Encoder_SetLoopFilterTcOffset(AL_TEncoder* pEnc, int8_t iTcOffset
    \return true on success, false on error : call AL_Common_Encoder_GetLastError to
    retrieve the error code
 *****************************************************************************/
-bool AL_Common_Encoder_SetHDRSEIs(AL_TEncoder* pEnc, AL_THDRSEIs* pHDRSEIs);
+bool AL_Common_Encoder_SetHDRSEIs(AL_TEncCtx* pCtx, AL_THDRSEIs* pHDRSEIs);
 
 /*************************************************************************//*!
    \brief The SetME function initializes the motion estimation parameters

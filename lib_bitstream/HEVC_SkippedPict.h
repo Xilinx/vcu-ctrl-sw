@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -53,8 +53,8 @@
    picture slice data
    \param[in] iWidth Encoded picture width
    \param[in] iHeight Encoded picture height
-   \param[in] uLog2MaxCuSize Maximum coding unit Size
-   \param[in] uLog2MinCuSize Minimum coding unit Size
+   \param[in] uLog2MaxCuSize Max size of a coding unit (log2)
+   \param[in] uLog2MinCuSize Min size of a coding unit (log2)
    \param[in] iTileColumns Number of tile columns in the picture
    \param[in] iTileRows Number of tile rows in the picture
    \param[in] pTileWidths Array with the tile column widths

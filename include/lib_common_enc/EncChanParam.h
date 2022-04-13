@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,6 @@
 ******************************************************************************/
 #pragma once
 
-#include "lib_rtos/types.h"
 #include "lib_common/SliceConsts.h"
 #include "lib_common/VideoMode.h"
 #include "lib_common/PicFormat.h"
@@ -70,7 +69,7 @@ typedef enum e_LdaCtrlMode
   AL_LOAD_LDA = 0x80, /*!< used for test purpose */
 }AL_ELdaCtrlMode;
 
-static AL_INLINE bool AL_LdaIsSane(AL_ELdaCtrlMode lda)
+static inline bool AL_LdaIsSane(AL_ELdaCtrlMode lda)
 {
   switch(lda)
   {
@@ -116,41 +115,41 @@ typedef enum __AL_ALIGNED__ (4) AL_e_PictFormat
   AL_444_12BITS = 0x03CC,
 } AL_EPicFormat;
 
-static AL_INLINE int AL_GET_BITDEPTH_LUMA(AL_EPicFormat ePicFormat)
+static inline int AL_GET_BITDEPTH_LUMA(AL_EPicFormat ePicFormat)
 {
   return ePicFormat & 0x000F;
 }
 
-static AL_INLINE int AL_GET_BITDEPTH_CHROMA(AL_EPicFormat ePicFormat)
+static inline int AL_GET_BITDEPTH_CHROMA(AL_EPicFormat ePicFormat)
 {
   return (ePicFormat & 0x00F0) >> 4;
 }
 
-static AL_INLINE int AL_GET_BITDEPTH(AL_EPicFormat ePicFormat)
+static inline int AL_GET_BITDEPTH(AL_EPicFormat ePicFormat)
 {
   return AL_GET_BITDEPTH_LUMA(ePicFormat) > AL_GET_BITDEPTH_CHROMA(ePicFormat) ? AL_GET_BITDEPTH_LUMA(ePicFormat) : AL_GET_BITDEPTH_CHROMA(ePicFormat);
 }
 
-static AL_INLINE AL_EChromaMode AL_GET_CHROMA_MODE(AL_EPicFormat ePicFormat)
+static inline AL_EChromaMode AL_GET_CHROMA_MODE(AL_EPicFormat ePicFormat)
 {
   return (AL_EChromaMode)((ePicFormat & 0x0F00) >> 8);
 }
 
-static AL_INLINE void AL_SET_BITDEPTH_LUMA(AL_EPicFormat* pPicFormat, int iLumaBitDepth)
+static inline void AL_SET_BITDEPTH_LUMA(AL_EPicFormat* pPicFormat, int iLumaBitDepth)
 {
   assert(pPicFormat);
   assert(iLumaBitDepth <= 0xF);
   *pPicFormat = (AL_EPicFormat)((*pPicFormat & 0xFFF0) | (iLumaBitDepth & 0x000F));
 }
 
-static AL_INLINE void AL_SET_BITDEPTH_CHROMA(AL_EPicFormat* pPicFormat, int iChromaBitDepth)
+static inline void AL_SET_BITDEPTH_CHROMA(AL_EPicFormat* pPicFormat, int iChromaBitDepth)
 {
   assert(pPicFormat);
   assert(iChromaBitDepth <= 0xF);
   *pPicFormat = (AL_EPicFormat)((*pPicFormat & 0xFF0F) | ((iChromaBitDepth << 4) & 0x00F0));
 }
 
-static AL_INLINE void AL_SET_BITDEPTH(AL_EPicFormat* pPicFormat, int iBitDepth)
+static inline void AL_SET_BITDEPTH(AL_EPicFormat* pPicFormat, int iBitDepth)
 {
   assert(pPicFormat);
   assert(iBitDepth <= 0xF);
@@ -158,7 +157,7 @@ static AL_INLINE void AL_SET_BITDEPTH(AL_EPicFormat* pPicFormat, int iBitDepth)
   AL_SET_BITDEPTH_CHROMA(pPicFormat, iBitDepth);
 }
 
-static AL_INLINE void AL_SET_CHROMA_MODE(AL_EPicFormat* pPicFormat, AL_EChromaMode eChromaMode)
+static inline void AL_SET_CHROMA_MODE(AL_EPicFormat* pPicFormat, AL_EChromaMode eChromaMode)
 {
   assert(pPicFormat);
   assert((int)eChromaMode <= 0xF);
@@ -185,50 +184,51 @@ typedef enum __AL_ALIGNED__ (4) AL_e_HlsFlag
   AL_PPS_OVERRIDE_LF = 0x00001000,
   AL_PPS_DISABLE_LF = 0x00002000,
   AL_PPS_SLICE_CHROMA_QP_OFFSET_PRES_FLAG = 0x00004000,
+  AL_PPS_CU_QP_DELTA_EN_FLAG = 0x00008000,
 } AL_EHlsFlag;
 
-static AL_INLINE uint32_t AL_GET_SPS_LOG2_MAX_POC(uint32_t uHlsParam)
+static inline uint32_t AL_GET_SPS_LOG2_MAX_POC(uint32_t uHlsParam)
 {
   return (uHlsParam & AL_SPS_LOG2_MAX_POC_MASK) + 1;
 }
 
-static AL_INLINE void AL_SET_SPS_LOG2_MAX_POC(uint32_t* pHlsParam, int iLog2MaxPoc)
+static inline void AL_SET_SPS_LOG2_MAX_POC(uint32_t* pHlsParam, int iLog2MaxPoc)
 {
   assert(pHlsParam);
   assert(iLog2MaxPoc <= 16);
   *pHlsParam = ((*pHlsParam & ~AL_SPS_LOG2_MAX_POC_MASK) | (iLog2MaxPoc - 1));
 }
 
-static AL_INLINE uint32_t AL_GET_SPS_LOG2_MAX_FRAME_NUM(uint32_t uHlsParam)
+static inline uint32_t AL_GET_SPS_LOG2_MAX_FRAME_NUM(uint32_t uHlsParam)
 {
   return (uHlsParam & AL_SPS_LOG2_MAX_FRAME_NUM_MASK) >> 4;
 }
 
-static AL_INLINE void AL_SET_SPS_LOG2_MAX_FRAME_NUM(uint32_t* pHlsParam, int iLog2MaxFrameNum)
+static inline void AL_SET_SPS_LOG2_MAX_FRAME_NUM(uint32_t* pHlsParam, int iLog2MaxFrameNum)
 {
   assert(pHlsParam);
   assert(iLog2MaxFrameNum < 0xF);
   *pHlsParam = ((*pHlsParam & ~AL_SPS_LOG2_MAX_FRAME_NUM_MASK) | (iLog2MaxFrameNum << 4));
 }
 
-static AL_INLINE uint32_t AL_GET_SPS_LOG2_NUM_SHORT_TERM_RPS(uint32_t uHlsParam)
+static inline uint32_t AL_GET_SPS_LOG2_NUM_SHORT_TERM_RPS(uint32_t uHlsParam)
 {
   return (uHlsParam & AL_SPS_LOG2_NUM_SHORT_TERM_RPS_MASK) >> 8;
 }
 
-static AL_INLINE void AL_SET_SPS_LOG2_NUM_SHORT_TERM_RPS(uint32_t* pHlsParam, int iLog2NumShortTermRps)
+static inline void AL_SET_SPS_LOG2_NUM_SHORT_TERM_RPS(uint32_t* pHlsParam, int iLog2NumShortTermRps)
 {
   assert(pHlsParam);
   assert(iLog2NumShortTermRps < 0x3F);
   *pHlsParam = ((*pHlsParam & ~AL_SPS_LOG2_NUM_SHORT_TERM_RPS_MASK) | (iLog2NumShortTermRps << 8));
 }
 
-static AL_INLINE uint32_t AL_GET_SPS_LOG2_NUM_LONG_TERM_RPS(uint32_t uHlsParam)
+static inline uint32_t AL_GET_SPS_LOG2_NUM_LONG_TERM_RPS(uint32_t uHlsParam)
 {
   return (uHlsParam & AL_SPS_LOG2_NUM_LONG_TERM_RPS_MASK) >> 14;
 }
 
-static AL_INLINE void AL_SET_SPS_LOG2_NUM_LONG_TERM_RPS(uint32_t* pHlsParam, int iLog2NumLongTermRps)
+static inline void AL_SET_SPS_LOG2_NUM_LONG_TERM_RPS(uint32_t* pHlsParam, int iLog2NumLongTermRps)
 {
   assert(pHlsParam);
   assert(iLog2NumLongTermRps < 0xFC);
@@ -244,8 +244,10 @@ static AL_INLINE void AL_SET_SPS_LOG2_NUM_LONG_TERM_RPS(uint32_t* pHlsParam, int
 #define AL_GET_PPS_OVERRIDE_LF(HlsParam) (((HlsParam) & AL_PPS_OVERRIDE_LF) >> 12)
 #define AL_GET_PPS_DISABLE_LF(HlsParam) (((HlsParam) & AL_PPS_DISABLE_LF) >> 13)
 #define AL_GET_PPS_SLICE_CHROMA_QP_OFFSET_PRES_FLAG(HlsParam) (((HlsParam) & AL_PPS_SLICE_CHROMA_QP_OFFSET_PRES_FLAG) >> 14)
+#define AL_GET_PPS_CU_QP_DELTA_DEPTH_EN_FLAG(HlsParam) (((HlsParam) & AL_PPS_CU_QP_DELTA_EN_FLAG) >> 15)
+#define AL_GET_PPS_CHROMA_OFFSET_TOOL_EN_FLAG(HlsParam) (((HlsParam) & AL_PPS_CHROMA_TOOL_OFFSET_EN_FLAG) >> 16)
 
-static AL_INLINE uint32_t AL_GET_PPS_NUM_ACT_REF_L0(uint32_t HlsParam)
+static inline uint32_t AL_GET_PPS_NUM_ACT_REF_L0(uint32_t HlsParam)
 {
   uint32_t uNumRefL0Minus1 = (HlsParam & AL_PPS_NUM_ACT_REF_L0) >> 4;
 
@@ -254,7 +256,7 @@ static AL_INLINE uint32_t AL_GET_PPS_NUM_ACT_REF_L0(uint32_t HlsParam)
   return uNumRefL0Minus1;
 }
 
-static AL_INLINE uint32_t AL_GET_PPS_NUM_ACT_REF_L1(uint32_t HlsParam)
+static inline uint32_t AL_GET_PPS_NUM_ACT_REF_L1(uint32_t HlsParam)
 {
   uint32_t uNumRefL1Minus1 = (HlsParam & AL_PPS_NUM_ACT_REF_L1) >> 8;
 
@@ -263,7 +265,7 @@ static AL_INLINE uint32_t AL_GET_PPS_NUM_ACT_REF_L1(uint32_t HlsParam)
   return uNumRefL1Minus1;
 }
 
-static AL_INLINE uint32_t AL_GetNumberOfRef(uint32_t HlsParam)
+static inline uint32_t AL_GetNumberOfRef(uint32_t HlsParam)
 {
   /* this takes advantage of the fact that the number of L0 ref is always
    * bigger than the number of L1 refs */
@@ -354,8 +356,8 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_RCPara
   uint32_t uMaxBitRate; /*!< The maximum bitrate allowed by the user */
   uint32_t uMaxConsecSkip; /*!< The maximum number of consecutive skip picture allowed */
   int16_t iInitialQP; /*!< Quality parameter of the first frame (in the absence of more information) */
-  int16_t iMinQP; /*!< Minimum QP that can be used by the rate control implementation */
-  int16_t iMaxQP; /*!< Maximum QP that can be used by the rate control implementation */
+  int16_t iMinQP[AL_MAX_FRAME_TYPE]; /*!< Minimum QP that can be used by the rate control implementation */
+  int16_t iMaxQP[AL_MAX_FRAME_TYPE]; /*!< Maximum QP that can be used by the rate control implementation */
   int16_t uIPDelta; /*!< QP Delta that should be applied between I and P frames */
   int16_t uPBDelta; /*!< QP Delta that should be applied between P and B frames */
   bool bUseGoldenRef;
@@ -365,10 +367,10 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_RCPara
   uint32_t uNumPel;
   uint16_t uMaxPSNR;
   uint16_t uMaxPelVal;
-  uint32_t pMaxPictureSize[3];
+  uint32_t pMaxPictureSize[AL_MAX_FRAME_TYPE];
 } AL_TRCParam;
 
-static AL_INLINE bool AL_IS_HWRC_ENABLED(AL_TRCParam const* pRCParam)
+static inline bool AL_IS_HWRC_ENABLED(AL_TRCParam const* pRCParam)
 {
   return (pRCParam->eRCMode == AL_RC_LOW_LATENCY)
          || (pRCParam->pMaxPictureSize[AL_SLICE_I] > 0)
@@ -414,6 +416,7 @@ typedef AL_INTROSPECT (category = "debug") struct AL_t_GopParam
   bool bEnableLT;
   uint32_t uFreqLT;
   AL_EGdrMode eGdrMode;
+  uint32_t uFreqRP;
   int8_t tempDQP[4];
 }AL_TGopParam;
 
@@ -477,6 +480,12 @@ typedef enum e_InterP_Filter
 }AL_EInterPFilter;
 
 /*************************************************************************//*!
+   \brief Extended merge candidates for VVC
+*****************************************************************************/
+
+/***************************************************************************/
+
+/*************************************************************************//*!
    \brief Channel parameters structure
 *****************************************************************************/
 typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncChanParam
@@ -500,6 +509,7 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   AL_EVideoMode eVideoMode;
   /* Encoding picture format */
   AL_EPicFormat ePicFormat;
+  bool bVideoFullRange;
   AL_ESrcMode eSrcMode;
   /* Input picture bitdepth */
   uint8_t uSrcBitDepth;
@@ -570,6 +580,7 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   uint16_t uOutputCropPosY;
   bool bUseUniformSliceType;
   AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned;
+
 } AL_TEncChanParam;
 
 /***************************************************************************/
@@ -586,7 +597,7 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
 #define AL_RC_FIRSTPASS_QP 20
 
 /****************************************************************************/
-static AL_INLINE bool AL_IS_CBR(AL_ERateCtrlMode eRcMode)
+static inline bool AL_IS_CBR(AL_ERateCtrlMode eRcMode)
 {
   return eRcMode == AL_RC_CBR;
 }

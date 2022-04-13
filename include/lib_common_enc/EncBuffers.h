@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -52,12 +52,7 @@
 #include "lib_common/BufferPixMapMeta.h"
 
 #include "lib_common_enc/EncChanParam.h"
-
-// EP2 masks
-static int8_t const MASK_QP = (int8_t)0x3F;
-static int8_t const MASK_FORCE_INTRA = (int8_t)0x40;
-static int8_t const MASK_FORCE_MV0 = (int8_t)0x80;
-static int8_t const MASK_FORCE = (int8_t)0xC0;
+#include "lib_common_enc/QPTable.h"
 
 // Encoder Parameter Buf 2 Flag,  Size, Offset
 static const AL_TBufInfo EP2_BUF_QP_CTRL =
@@ -66,18 +61,18 @@ static const AL_TBufInfo EP2_BUF_QP_CTRL =
 }; // only 20 bytes used
 static const AL_TBufInfo EP2_BUF_SEG_CTRL =
 {
-  2, 16, 48
+  2, AL_QPTABLE_SEGMENTS_SIZE, 48
 };
 static const AL_TBufInfo EP2_BUF_QP_BY_MB =
 {
-  4, 0, 64
+  4, 0, 48 + AL_QPTABLE_SEGMENTS_SIZE
 }; // no fixed size
 
 /*************************************************************************//*!
    \brief Retrieves the size of a Encoder parameters buffer 2 (QP Ctrl)
    \param[in] tDim Frame size in pixels
    \param[in] eCodec Codec
-   \param[in] uLog2MaxCuSize Log2 of maximum CU size
+   \param[in] uLog2MaxCuSize Max size of a coding unit (log2)
    \return maximum size (in bytes) needed to store
 *****************************************************************************/
 uint32_t AL_GetAllocSizeEP2(AL_TDimension tDim, AL_ECodec eCodec, uint8_t uLog2MaxCuSize);

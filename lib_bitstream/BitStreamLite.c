@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -105,7 +105,7 @@ void AL_BitStreamLite_EndOfSEIPayload(AL_TBitStreamLite* pBS)
   }
 }
 
-static AL_INLINE void writeData(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32_t uValue)
+static inline void writeData(AL_TBitStreamLite* pBS, uint8_t iNumBits, uint32_t uValue)
 {
   uint32_t byteNum = pBS->iBitCount >> 3;
   uint8_t byteOffset = pBS->iBitCount & 7;
@@ -209,8 +209,19 @@ static void putVclBits(AL_TBitStreamLite* pBS, uint32_t uCodeLength, uint32_t uV
 
 #if defined(__ICL)
 #define bit_scan_reverse _bit_scan_reverse
+#elif defined(__GNUC__) || defined(__clang__)
+static uint32_t bit_scan_reverse_clz(int32_t NN)
+{
+  // This function should never be called with a 0 value because __builtin_clz
+  // result is undefined.
+  AL_Assert(NN != 0);
+
+  return 31 - __builtin_clz(NN);
+}
+
+#define bit_scan_reverse bit_scan_reverse_clz
 #else
-uint32_t bit_scan_reverse_soft(int32_t NN)
+static uint32_t bit_scan_reverse_soft(int32_t NN)
 {
   int32_t i = -1;
 

@@ -33,14 +33,14 @@ endef
 
 $(BIN)/%.cpp.o: %.cpp
 	@mkdir -p $(dir $@)
-	$(Q)$(CXX) $(CFLAGS) $(INTROSPECT_FLAGS) $(INCLUDES) -std=c++11 -fPIC -o $@ -c $<
-	@$(CXX) -MP -MM "$<" -MT "$@" -o "$(BIN)/$*_cpp.deps" $(INCLUDES) $(CFLAGS) -std=c++11 -fPIC
+	$(Q)$(CXX) $(CFLAGS) $(INTROSPECT_FLAGS) $(INCLUDES) -std=gnu++11 -fPIC -o $@ -c $<
+	@$(CXX) -MP -MM "$<" -MT "$@" -o "$(BIN)/$*_cpp.deps" $(INCLUDES) $(CFLAGS) -std=gnu++11 -fPIC
 	@echo "CXX $<"
 
 $(BIN)/%.c.o: %.c
 	@mkdir -p $(dir $@)
-	$(Q)$(CC) $(CFLAGS) -Wstrict-prototypes $(INTROSPECT_FLAGS) $(INCLUDES) -std=gnu99 -fPIC -o $@ -c $<
-	@$(CC) -MP -MM "$<" -MT "$@" -o "$(BIN)/$*_c.deps" $(INCLUDES) $(CFLAGS) -fPIC
+	$(Q)$(CC) $(CFLAGS) -Wstrict-prototypes $(INTROSPECT_FLAGS) $(INCLUDES) -std=gnu11 -fPIC -o $@ -c $<
+	@$(CC) -MP -MM "$<" -MT "$@" -o "$(BIN)/$*_c.deps" $(INCLUDES) $(CFLAGS) -std=gnu11 -fPIC
 	@echo "CC $<"
 
 
@@ -61,8 +61,8 @@ $(BIN)/%.so:
 	@ln -fs "$(@:$(BIN)/%=%).$(VERSION)" $@
 
 clean:
-	$(Q)rm -rf $(BIN)
-	@echo "CLEAN $(BIN)"
+	$(Q)rm -rf $(BIN) $(GENERATED_FILES)
+	@echo "CLEAN $(BIN) $(GENERATED_FILES)"
 
 
 define get-my-dir

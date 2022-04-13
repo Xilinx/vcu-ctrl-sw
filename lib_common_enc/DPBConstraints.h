@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -45,6 +45,7 @@ typedef enum AL_e_GOPMngrType
 {
   AL_GOP_MNGR_DEFAULT,
   AL_GOP_MNGR_CUSTOM,
+  AL_GOP_MNGR_COMMON,
   AL_GOP_MNGR_MAX_ENUM,
 }AL_EGopMngrType;
 
@@ -66,5 +67,5 @@ AL_EGopMngrType AL_GetGopMngrType(AL_EGopCtrlMode eMode, AL_ECodec eCodec, bool 
 
 uint8_t AL_DPBConstraint_GetMaxRef_DefaultGopMngr(const AL_TGopParam* pGopParam, AL_ECodec eCodec, AL_EVideoMode eVideoMode);
 uint8_t AL_DPBConstraint_GetMaxRef_GopMngrCustom(const AL_TGopParam* pGopParam, AL_ECodec eCodec, AL_EVideoMode eVideoMode);
-uint8_t AL_DPBConstraint_GetMaxRef_GopMngrDefaultAom(void);
+uint8_t AL_DPBConstraint_GetMaxRef_GopMngrDefaultAom(const AL_TGopParam* pGopParam);
 

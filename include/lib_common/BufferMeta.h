@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -79,12 +79,12 @@ struct al_t_MetaData
   AL_FCN_MetaClone MetaClone; /*< copy constructor */
 };
 
-static AL_INLINE AL_TMetaData* AL_MetaData_Clone(AL_TMetaData* pMeta)
+static inline AL_TMetaData* AL_MetaData_Clone(AL_TMetaData* pMeta)
 {
   return pMeta->MetaClone(pMeta);
 }
 
-static AL_INLINE bool AL_MetaData_Destroy(AL_TMetaData* pMeta)
+static inline bool AL_MetaData_Destroy(AL_TMetaData* pMeta)
 {
   return pMeta->MetaDestroy(pMeta);
 }

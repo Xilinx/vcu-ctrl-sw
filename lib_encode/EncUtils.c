@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -42,6 +42,12 @@
 #include "EncUtils.h"
 #include "lib_common/Utils.h"
 #include "lib_common_enc/EncPicInfo.h"
+
+/****************************************************************************/
+bool isBaseLayer(int iLayer)
+{
+  return iLayer == 0;
+}
 
 /****************************************************************************/
 void AL_Decomposition(uint32_t* y, uint8_t* x)
@@ -248,9 +254,9 @@ void AL_UpdateAspectRatio(AL_TVuiParam* pVuiParam, uint32_t uWidth, uint32_t uHe
 }
 
 /****************************************************************************/
-bool AL_IsGdrEnabled(AL_TEncSettings const* pSettings)
+bool AL_IsGdrEnabled(AL_TEncChanParam const* pChParam)
 {
-  AL_TGopParam const* pGop = &pSettings->tChParam[0].tGopParam;
+  AL_TGopParam const* pGop = &pChParam[0].tGopParam;
   return (pGop->eGdrMode & AL_GDR_ON) != 0;
 }
 
@@ -270,4 +276,143 @@ void AL_UpdateVuiTimingInfo(AL_TVuiParam* pVUI, int iLayerId, AL_TRCParam const*
   pVUI->vui_time_scale = pRCParam->uFrameRate * 1000 * iTimeScalefactor;
 
   AL_Reduction(&pVUI->vui_time_scale, &pVUI->vui_num_units_in_tick);
+}
+
+/****************************************************************************/
+int DeduceNumTemporalLayer(AL_TGopParam const* pGop)
+{
+  if((pGop->eMode & AL_GOP_FLAG_PYRAMIDAL) == 0)
+    return 1;
+
+  int iNumTemporalLayers;
+  switch(pGop->uNumB)
+  {
+  case 15:
+    iNumTemporalLayers = 5;
+    break;
+  case 7:
+    iNumTemporalLayers = 4;
+    break;
+  default:
+    iNumTemporalLayers = 3;
+    break;
+  }
+
+  if(pGop->eMode & AL_GOP_FLAG_B_ONLY)
+    iNumTemporalLayers--;
+
+  return iNumTemporalLayers;
+}
+
+/****************************************************************************/
+bool HasCuQpDeltaDepthEnabled(AL_TEncSettings const* pSettings, AL_TEncChanParam const* pChParam)
+{
+  return (pSettings->eQpCtrlMode != AL_QP_CTRL_NONE)
+         || (pSettings->eQpTableMode != AL_QP_TABLE_NONE)
+         || (pChParam->tRCParam.eRCMode == AL_RC_LOW_LATENCY)
+         || (pChParam->tRCParam.pMaxPictureSize[AL_SLICE_I] > 0)
+         || (pChParam->tRCParam.pMaxPictureSize[AL_SLICE_P] > 0)
+         || (pChParam->tRCParam.pMaxPictureSize[AL_SLICE_B] > 0)
+         || (pChParam->tRCParam.eRCMode == AL_RC_CAPPED_VBR)
+         || (pChParam->uSliceSize)
+  ;
+}
+
+uint8_t AL_GetSps(AL_THeadersCtx* pHdrs, uint16_t uWidth, uint16_t uHeight)
+{
+  AL_TSpsCtx* pPrev = &pHdrs->spsCtx[pHdrs->iPrevSps];
+  AL_TSpsCtx* pCurrent;
+
+  if(pPrev->size.iWidth == uWidth && pPrev->size.iHeight == uHeight)
+  {
+    pPrev->iRefCnt++;
+    return pHdrs->iPrevSps;
+  }
+
+  pHdrs->iPrevSps = (pHdrs->iPrevSps + 1) % MAX_SPS_IDS;
+  pCurrent = &pHdrs->spsCtx[pHdrs->iPrevSps];
+  AL_Assert(pCurrent->iRefCnt == 0);
+  pCurrent->bHasBeenSent = false;
+  pCurrent->size.iWidth = uWidth;
+  pCurrent->size.iHeight = uHeight;
+  pCurrent->iRefCnt = 1;
+
+  return pHdrs->iPrevSps;
+}
+
+uint8_t AL_GetPps(AL_THeadersCtx* pHdrs, uint8_t uSpsId, int8_t iQpCbOffset, int8_t iQpCrOffset)
+{
+  AL_TPpsCtx* pPrev = &pHdrs->ppsCtx[pHdrs->iPrevPps];
+  AL_TPpsCtx* pCurrent;
+
+  if(pPrev->uSpsId == uSpsId && pPrev->iQpCbOffset == iQpCbOffset && pPrev->iQpCrOffset == iQpCrOffset)
+  {
+    pPrev->iRefCnt++;
+    return pHdrs->iPrevPps;
+  }
+
+  pHdrs->iPrevPps = (pHdrs->iPrevPps + 1) % MAX_PPS_IDS;
+  pCurrent = &pHdrs->ppsCtx[pHdrs->iPrevPps];
+  AL_Assert(pCurrent->iRefCnt == 0);
+  pCurrent->bHasBeenSent = false;
+  pCurrent->uSpsId = uSpsId;
+  pCurrent->iQpCbOffset = iQpCbOffset;
+  pCurrent->iQpCrOffset = iQpCrOffset;
+  pCurrent->iRefCnt = 1;
+
+  return pHdrs->iPrevPps;
+}
+
+void AL_ReleaseSps(AL_THeadersCtx* pHdrs, uint8_t id)
+{
+  AL_TSpsCtx* pSps = pHdrs->spsCtx;
+
+  AL_Assert(id < MAX_SPS_IDS);
+  AL_Assert(pSps[id].iRefCnt > 0);
+
+  pSps[id].bHasBeenSent = true;
+
+  --pSps[id].iRefCnt;
+}
+
+void AL_ReleasePps(AL_THeadersCtx* pHdrs, uint8_t id)
+{
+  AL_TPpsCtx* pPps = pHdrs->ppsCtx;
+
+  AL_Assert(id < MAX_PPS_IDS);
+  AL_Assert(pPps[id].iRefCnt > 0);
+
+  pPps[id].bHasBeenSent = true;
+
+  --pPps[id].iRefCnt;
+}
+
+bool AL_IsWriteSps(AL_THeadersCtx* pHdrs, uint8_t id)
+{
+  AL_TSpsCtx* pSps = pHdrs->spsCtx;
+
+  AL_Assert(id < MAX_SPS_IDS);
+  AL_Assert(pSps[id].iRefCnt > 0);
+
+  return !pSps[id].bHasBeenSent;
+}
+
+bool AL_IsWritePps(AL_THeadersCtx* pHdrs, uint8_t id)
+{
+  AL_TPpsCtx* pPps = pHdrs->ppsCtx;
+
+  AL_Assert(id < MAX_PPS_IDS);
+  AL_Assert(pPps[id].iRefCnt > 0);
+
+  return !pPps[id].bHasBeenSent;
+}
+
+AL_TDimension AL_GetPpsDim(AL_THeadersCtx* pHdrs, uint8_t id)
+{
+  AL_TSpsCtx* pSps = pHdrs->spsCtx;
+
+  AL_Assert(id < MAX_SPS_IDS);
+  AL_Assert(pSps[id].iRefCnt > 0);
+
+  return pSps[id].size;
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -73,25 +73,25 @@ struct AL_t_driver
   const AL_DriverVtable* vtable;
 };
 
-static AL_INLINE
+static inline
 int AL_Driver_Open(AL_TDriver* driver, const char* device)
 {
   return driver->vtable->pfnOpen(driver, device);
 }
 
-static AL_INLINE
+static inline
 void AL_Driver_Close(AL_TDriver* driver, int fd)
 {
   driver->vtable->pfnClose(driver, fd);
 }
 
-static AL_INLINE
+static inline
 AL_EDriverError AL_Driver_PostMessage(AL_TDriver* driver, int fd, long unsigned int messageId, void* data)
 {
   return driver->vtable->pfnPostMessage(driver, fd, messageId, data, true);
 }
 
-static AL_INLINE
+static inline
 AL_EDriverError AL_Driver_PostMessage2(AL_TDriver* driver, int fd, long unsigned int messageId, void* data, bool isBlocking)
 {
   return driver->vtable->pfnPostMessage(driver, fd, messageId, data, isBlocking);

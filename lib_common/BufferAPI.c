@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -79,7 +79,7 @@ static bool isMaxChunkReached(AL_TBufferImpl* pBuf)
   return pBuf->buf.iChunkCnt >= AL_BUFFER_MAX_CHUNK;
 }
 
-static AL_INLINE int8_t addBufferChunk(AL_TBufferImpl* pBuf, AL_HANDLE hChunk, size_t zSize)
+static inline int8_t addBufferChunk(AL_TBufferImpl* pBuf, AL_HANDLE hChunk, size_t zSize)
 {
   if(zSize && !hChunk)
     return AL_BUFFER_BAD_CHUNK;

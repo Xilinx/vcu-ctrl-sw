@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -304,10 +304,10 @@ static void sFrmBufPoolFifo_Init(AL_TFrmBufPool* pPool)
 }
 
 /*************************************************************************/
-static bool sFrmBufPool_Init(AL_TFrmBufPool* pPool, AL_TAllocator* pAllocator, bool bHasRasterFrame)
+static bool sFrmBufPool_Init(AL_TFrmBufPool* pPool, AL_TAllocator* pAllocator, bool bHasSecondOutputFrame)
 {
   (void)pAllocator;
-  (void)bHasRasterFrame;
+  (void)bHasSecondOutputFrame;
 
   pPool->Mutex = Rtos_CreateMutex();
 
@@ -316,7 +316,6 @@ static bool sFrmBufPool_Init(AL_TFrmBufPool* pPool, AL_TAllocator* pAllocator, b
 
   pPool->Event = Rtos_CreateEvent(0);
   pPool->iBufNumber = 0;
-  pPool->isDecommited = false;
 
   if(!pPool->Event)
     goto fail_alloc_sem_free;
@@ -566,6 +565,23 @@ static bool CheckPictMngrInitParameter(AL_TPictMngrParam* pParam)
 }
 
 /*****************************************************************************/
+bool AL_PictMngr_PreInit(AL_TPictMngrCtx* pCtx)
+{
+  if(!pCtx)
+    return false;
+
+  pCtx->FirstInitMutex = Rtos_CreateMutex();
+
+  if(!pCtx->FirstInitMutex)
+    return false;
+
+  pCtx->bFirstInit = false;
+  pCtx->FrmBufPool.isDecommited = false;
+
+  return true;
+}
+
+/*****************************************************************************/
 bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, AL_TPictMngrParam* pParam)
 {
   if(!pCtx)
@@ -577,10 +593,10 @@ bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, AL_TPictMngrParam* pParam)
   if(!sMvBufPool_Init(&pCtx->MvBufPool, pParam->iNumMV))
     return false;
 
-  bool bEnableRasterOutput = false;
+  bool bEnableSecondOutput = false;
   AL_TAllocator* pAllocator = NULL;
 
-  if(!sFrmBufPool_Init(&pCtx->FrmBufPool, pAllocator, bEnableRasterOutput))
+  if(!sFrmBufPool_Init(&pCtx->FrmBufPool, pAllocator, bEnableSecondOutput))
     return false;
 
   AL_TDpbCallback tCallbacks =
@@ -609,7 +625,9 @@ bool AL_PictMngr_Init(AL_TPictMngrCtx* pCtx, AL_TPictMngrParam* pParam)
 
   pCtx->uNumSlice = 0;
   pCtx->iPrevFrameNum = -1;
+  Rtos_GetMutex(pCtx->FirstInitMutex);
   pCtx->bFirstInit = true;
+  Rtos_ReleaseMutex(pCtx->FirstInitMutex);
   pCtx->bForceOutput = pParam->bForceOutput;
 
   pCtx->tOutputPosition = pParam->tOutputPosition;
@@ -632,6 +650,8 @@ void AL_PictMngr_Terminate(AL_TPictMngrCtx* pCtx)
 /*****************************************************************************/
 void AL_PictMngr_Deinit(AL_TPictMngrCtx* pCtx)
 {
+  Rtos_DeleteMutex(pCtx->FirstInitMutex);
+
   if(!pCtx->bFirstInit)
     return;
 
@@ -766,14 +786,14 @@ uint8_t AL_PictMngr_GetLastPicID(AL_TPictMngrCtx* pCtx)
 }
 
 /*****************************************************************************/
-void AL_PictMngr_Insert(AL_TPictMngrCtx* pCtx, int iFramePOC, uint32_t uPocLsb, int iFrameID, uint8_t uMvID, uint8_t pic_output_flag, AL_EMarkingRef eMarkingFlag, uint8_t uNonExisting, AL_ENut eNUT, uint8_t uSubpicFlag)
+void AL_PictMngr_Insert(AL_TPictMngrCtx* pCtx, int iFramePOC, AL_EPicStruct ePicStruct, uint32_t uPocLsb, int iFrameID, uint8_t uMvID, uint8_t pic_output_flag, AL_EMarkingRef eMarkingFlag, uint8_t uNonExisting, AL_ENut eNUT, uint8_t uSubpicFlag)
 {
   uint8_t uNode = AL_Dpb_GetNextFreeNode(&pCtx->DPB);
 
   if(!AL_Dpb_NodeIsReset(&pCtx->DPB, uNode))
     AL_Dpb_Remove(&pCtx->DPB, uNode);
 
-  AL_Dpb_Insert(&pCtx->DPB, iFramePOC, uPocLsb, uNode, iFrameID, uMvID, pic_output_flag, eMarkingFlag, uNonExisting, eNUT, uSubpicFlag);
+  AL_Dpb_Insert(&pCtx->DPB, iFramePOC, ePicStruct, uPocLsb, uNode, iFrameID, uMvID, pic_output_flag, eMarkingFlag, uNonExisting, eNUT, uSubpicFlag);
 }
 
 /***************************************************************************/
@@ -1083,8 +1103,15 @@ void AL_PictMngr_SignalCallbackReleaseIsDone(AL_TPictMngrCtx* pCtx, AL_TBuffer* 
 /*****************************************************************************/
 void AL_PictMngr_DecommitPool(AL_TPictMngrCtx* pCtx)
 {
+  Rtos_GetMutex(pCtx->FirstInitMutex);
+
   if(!pCtx->bFirstInit)
+  {
+    pCtx->FrmBufPool.isDecommited = true;
+    Rtos_ReleaseMutex(pCtx->FirstInitMutex);
     return;
+  }
+  Rtos_ReleaseMutex(pCtx->FirstInitMutex);
 
   sFrmBufPoolFifo_Decommit(&pCtx->FrmBufPool);
 }
@@ -1174,7 +1201,7 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam const* pSP,
     pMV->tMD = pCtx->MvBufPool.pMvBufs[pCtx->uMvID].tMD;
     pPOC->tMD = pCtx->MvBufPool.pPocBufs[pCtx->uMvID].tMD;
 
-    FillPocAndLongtermLists(&pCtx->DPB, pPOC, pSP, pListRef);
+    FillPocAndLongtermLists(&pCtx->DPB, pPOC, (AL_TDecSliceParam const*)pSP, (TBufferListRef const*)pListRef);
   }
 
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pRecs->pFrame);
@@ -1183,12 +1210,13 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam const* pSP,
 
   if(pListAddr && pListAddr->tMD.pVirtualAddr)
   {
-    TRefListOffsets tRefListOffsets = AL_GetRefListOffsets(eChromaOrder);
+    TRefListOffsets tRefListOffsets;
+    AL_GetRefListOffsets(&tRefListOffsets, AL_CODEC_INVALID, eChromaOrder, sizeof(AL_PADDR));
 
     AL_PADDR* pAddr = (AL_PADDR*)pListAddr->tMD.pVirtualAddr;
-    AL_PADDR* pColocMvList = (AL_PADDR*)(((uint32_t*)pListAddr->tMD.pVirtualAddr) + tRefListOffsets.uColocMVOffset);
-    AL_PADDR* pColocPocList = (AL_PADDR*)(((uint32_t*)pListAddr->tMD.pVirtualAddr) + tRefListOffsets.uColocPocOffset);
-    AL_PADDR* pFbcList = (AL_PADDR*)(((uint32_t*)pListAddr->tMD.pVirtualAddr) + tRefListOffsets.uMapOffset);
+    AL_PADDR* pColocMvList = (AL_PADDR*)(pListAddr->tMD.pVirtualAddr + tRefListOffsets.uColocMVOffset);
+    AL_PADDR* pColocPocList = (AL_PADDR*)(pListAddr->tMD.pVirtualAddr + tRefListOffsets.uColocPocOffset);
+    AL_PADDR* pFbcList = (AL_PADDR*)(pListAddr->tMD.pVirtualAddr + tRefListOffsets.uMapOffset);
 
     for(int i = 0; i < PIC_ID_POOL_SIZE; ++i)
     {

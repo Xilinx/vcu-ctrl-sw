@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -58,10 +58,11 @@ struct CIpDeviceParam
   int iSchedulerType;
   ConfigFile* pCfgFile;
   bool bTrackDma = false;
-  int iVqDescr = 0;
 };
 
 /*****************************************************************************/
+static int constexpr NUM_SRC_SYNC_CHANNEL = 4;
+
 class CIpDevice
 {
 public:

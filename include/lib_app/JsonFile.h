@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -61,9 +61,9 @@ struct TJsonValue
   EValueType eType {};
   bool boolValue {};
   int intValue {};
-  std::string stringValue;
-  std::vector<TJsonValue> arrayValue;
-  std::map<std::string, TJsonValue> objectValue;
+  std::string stringValue {};
+  std::vector<TJsonValue> arrayValue {};
+  std::map<std::string, TJsonValue> objectValue {};
 
   /* ------- Constructors -------  */
   TJsonValue() : TJsonValue(JSON_VALUE_BOOL) {};

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -109,7 +109,28 @@ typedef struct
   AL_CB_Display displayCB; /*!< Called when a buffer is ready to be displayed */
   AL_CB_ResolutionFound resolutionFoundCB; /*!< Called when a resolution change occurs */
   AL_CB_ParsedSei parsedSeiCB; /*!< Called when a SEI is parsed */
+  AL_CB_Error errorCB; /*!< Called when an error is encoutered */
 }AL_TDecCallBacks;
+
+/*************************************************************************//*!
+   \brief Select control software architecture
+*****************************************************************************/
+typedef enum
+{
+  AL_LIB_DECODER_ARCH_HOST,
+}AL_ELibDecoderArch;
+
+/*************************************************************************//*!
+   \brief Initialize decoder library
+   \param[in] eArch  decoder library arch to use
+   \return error code specifying why library initialization has failed
+*****************************************************************************/
+AL_ERR AL_Lib_Decoder_Init(AL_ELibDecoderArch eArch);
+
+/*************************************************************************//*!
+   \brief Deinitialize decoder library
+*****************************************************************************/
+void AL_Lib_Decoder_DeInit(void);
 
 /*************************************************************************//*!
    \brief Creates a new instance of the Decoder

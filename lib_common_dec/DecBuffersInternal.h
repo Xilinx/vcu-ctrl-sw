@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -74,7 +74,6 @@ static const int AVC_LCU_CMP_SIZE[4] =
 }; /*!< AVC  LCU compressed max size*/
 
 #define MAX_NB_REF_PLANE 2
-#define MAX_REF_LIST_SIZE (MAX_REF * (2 + 2 * MAX_NB_REF_PLANE)) // in number of list entry
 
 static const int SCLST_SIZE_DEC = 12288;
 
@@ -157,10 +156,13 @@ int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_
 
 /*************************************************************************//*!
    \brief Get offsets to the different data of the reference list buffer
+   \param[out] pOffset the data offsets in the reference list buffer
+   \param[in] eCodec Current codec
    \param[in] eChromaOrder Chroma order
-   \return data offsets in the reference list buffer
+   \param[in] bVirt buffer with Virtual address. physical address otherwise
+   \return total size of the RefListBuffer
 *****************************************************************************/
-TRefListOffsets AL_GetRefListOffsets(AL_EChromaOrder eChromaOrder);
+uint32_t AL_GetRefListOffsets(TRefListOffsets* pOffsets, AL_ECodec eCodec, AL_EChromaOrder eChromaOrder, uint32_t uAddrSize);
 
 int32_t RndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode);
 int32_t RndHeight(int32_t iHeight);

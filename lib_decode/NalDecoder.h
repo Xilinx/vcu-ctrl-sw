@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -38,6 +38,8 @@
 #pragma once
 #include "I_DecoderCtx.h"
 #include "DefaultDecoder.h"
+#include "lib_common_dec/RbspParser.h"
+#include "lib_common/BufferSeiMeta.h"
 
 #include "lib_common_dec/RbspParser.h"
 #include "lib_parsing/Aup.h"
@@ -47,18 +49,19 @@
 typedef struct
 {
   void (* parseDps)(AL_TAup*, AL_TRbspParser*);
-  void (* parseVps)(AL_TAup*, AL_TRbspParser*);
+  AL_PARSE_RESULT (* parseVps)(AL_TAup*, AL_TRbspParser*);
   AL_PARSE_RESULT (* parseSps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
   AL_PARSE_RESULT (* parsePps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
   AL_PARSE_RESULT (* parseAps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
   AL_PARSE_RESULT (* parsePh)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
   bool (* parseSei)(AL_TAup*, AL_TRbspParser*, bool, AL_CB_ParsedSei*, AL_TSeiMetaData* pMeta);
-  void (* decodeSliceData)(AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
+  // return false when there is nothing to process
+  bool (* decodeSliceData)(AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
   bool (* isSliceData)(AL_ENut nut);
   void (* finishPendingRequest)(AL_TDecCtx*);
 }AL_NalParser;
 
-void AL_DecodeOneNal(AL_NonVclNuts, AL_NalParser, AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
+bool AL_DecodeOneNal(AL_NonVclNuts, AL_NalParser, AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
 
 bool HasOngoingFrame(AL_TDecCtx* pCtx);
 

@@ -1,38 +1,10 @@
 LIB_ENCODER_A=$(BIN)/liballegro_encode.a
 LIB_ENCODER_DLL=$(BIN)/liballegro_encode.so
 
-LIB_ENCODE_SRC+=\
-	lib_encode/Com_Encoder.c\
-	lib_encode/Sections.c\
-	lib_encode/NalWriters.c\
-	lib_encode/EncUtils.c\
-	lib_encode/IP_Stream.c\
-	lib_encode/lib_encoder.c\
-	lib_encode/SourceBufferChecker.c\
-	lib_encode/LoadLda.c\
-
-ifneq ($(ENABLE_AVC),0)
-  LIB_ENCODE_SRC+=lib_encode/AVC_EncUtils.c
-	LIB_ENCODE_SRC+=lib_encode/AVC_Encoder.c
-	LIB_ENCODE_SRC+=lib_encode/AVC_Sections.c
-endif
-
-ifneq ($(ENABLE_HEVC),0)
-  LIB_ENCODE_SRC+=lib_encode/HEVC_EncUtils.c
-	LIB_ENCODE_SRC+=lib_encode/HEVC_Encoder.c
-	LIB_ENCODE_SRC+=lib_encode/HEVC_Sections.c
-endif
-
-
-
-
+include lib_encode/project_src.mk
 
 LIB_ISCHEDULER_ENC_A=$(BIN)/liballegro_encscheduler.a
 LIB_ISCHEDULER_ENC_DLL=$(BIN)/liballegro_encscheduler.so
-
-ISCHEDULER_SRC:=\
-  lib_encode/I_EncScheduler.c\
-  lib_encode/EncSchedulerCommon.c\
 
 
 ifneq ($(ENABLE_MCU),0)
@@ -44,7 +16,6 @@ LIB_ISCHEDULER_ENC_SRC:=\
   $(ISCHEDULER_SRC)\
   $(LIB_RATECTRL_SRC)\
   $(LIB_BUF_MNGT_SRC)\
-  $(LIB_SCHEDULER_SRC)\
   $(LIB_SCHEDULER_ENC_SRC)\
   $(LIB_BITSTREAM_SRC)\
 

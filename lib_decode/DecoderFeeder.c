@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -62,7 +62,6 @@ typedef struct AL_TDecoderFeederS
   int32_t keepGoing;
   bool stopped;
   bool endWithAccessUnit;
-  AL_CB_Error errorCallback;
 }AL_TDecoderFeeder;
 
 /* Decoder Feeder Slave structure */
@@ -166,10 +165,7 @@ static void* Slave_EntryPoint(void* userParam)
     bool bRet = Slave_Process(slave, slave->startCodeStreamView);
 
     if(!bRet)
-    {
-      slave->errorCallback.func(slave->errorCallback.userParam);
       break; // exit thread
-    }
   }
 
   return NULL;
@@ -220,7 +216,7 @@ void AL_DecoderFeeder_Reset(AL_TDecoderFeeder* this)
   pMeta->bLastBuffer = false;
 }
 
-AL_TDecoderFeeder* AL_DecoderFeeder_Create(AL_TBuffer* stream, AL_HANDLE hDec, AL_TPatchworker* patchworker, AL_CB_Error* errorCallback)
+AL_TDecoderFeeder* AL_DecoderFeeder_Create(AL_TBuffer* stream, AL_HANDLE hDec, AL_TPatchworker* patchworker)
 {
   AL_TDecoderFeeder* this = Rtos_Malloc(sizeof(*this));
 
@@ -228,7 +224,6 @@ AL_TDecoderFeeder* AL_DecoderFeeder_Create(AL_TBuffer* stream, AL_HANDLE hDec, A
     return NULL;
 
   this->patchworker = patchworker;
-  this->errorCallback = *errorCallback;
 
   this->startCodeStreamView = stream;
   AL_TCircMetaData* pMeta = AL_CircMetaData_Create(0, 0, false);

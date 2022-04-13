@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -266,7 +266,7 @@ void AL_HEVC_PictMngr_EndFrame(AL_TPictMngrCtx* pCtx, uint32_t uPocLsb, AL_ENut 
     }
   }
 
-  AL_PictMngr_Insert(pCtx, pCtx->iCurFramePOC, uPocLsb, pCtx->uRecID, pCtx->uMvID, pic_output_flag, SHORT_TERM_REF, 0, eNUT, 0);
+  AL_PictMngr_Insert(pCtx, pCtx->iCurFramePOC, AL_PS_FRM, uPocLsb, pCtx->uRecID, pCtx->uMvID, pic_output_flag, SHORT_TERM_REF, 0, eNUT, 0);
   AL_Dpb_HEVC_Cleanup(pDpb, pSlice->pSPS->SpsMaxLatency, pSlice->pSPS->sps_max_num_reorder_pics[pSlice->pSPS->sps_max_sub_layers_minus1]);
 }
 

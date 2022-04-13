@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -50,10 +50,10 @@ static void AL_sWriteWord(const uint8_t* pSrc, int iSize, uint32_t* pBuf, const 
     int iOffset3 = pScan ? pScan[iOffset + 3] : iOffset + 3;
 
     uint32_t var = 0;
-    var |= pSrc[iOffset0];
-    var |= pSrc[iOffset1] << 8;
-    var |= pSrc[iOffset2] << 16;
-    var |= pSrc[iOffset3] << 24;
+    var |= (uint32_t)pSrc[iOffset0];
+    var |= (uint32_t)pSrc[iOffset1] << 8;
+    var |= (uint32_t)pSrc[iOffset2] << 16;
+    var |= (uint32_t)pSrc[iOffset3] << 24;
 
     *pBuf++ = var;
   }

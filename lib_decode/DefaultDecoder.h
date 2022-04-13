@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -149,16 +149,18 @@ bool AL_Default_Decoder_AllocMv(AL_TDecCtx* pCtx, int iMVSize, int iPOCSize, int
    \param[in] pCtx decoder context
    \param[in] eError Error to set
    \param[in] iFrameID Id of the erronous frame, -1 if error is not frame-related
+   \param[in] bTriggerCB Specifies if we must trigger the error CB
 *****************************************************************************/
-void AL_Default_Decoder_SetError(AL_TDecCtx* pCtx, AL_ERR eError, int iFrameID);
+void AL_Default_Decoder_SetError(AL_TDecCtx* pCtx, AL_ERR eError, int iFrameID, bool bTriggerCB);
 
 /*************************************************************************//*!
    \brief This function indicates the storage mode of displayed reconstructed frames
    \param[in] pCtx decoder context
+   \param[in] iBitDepth stream bitdepth
    \param[out] pEnableCompression indicates if FBC in enabled for output frames
    \return the output storage mode
 *****************************************************************************/
-AL_EFbStorageMode AL_Default_Decoder_GetDisplayStorageMode(AL_TDecCtx* pCtx, bool* pEnableCompression);
+AL_EFbStorageMode AL_Default_Decoder_GetDisplayStorageMode(AL_TDecCtx* pCtx, int iBitDepth, bool* pEnableCompression);
 
 void AL_Default_Decoder_Destroy(AL_TDecoder* pAbsDec);
 void AL_Default_Decoder_SetParam(AL_TDecoder* pAbsDec, const char* sPrefix, int iFrmID, int iNumFrm, bool bForceCleanBuffers, bool bShouldPrintFrameDelimiter);

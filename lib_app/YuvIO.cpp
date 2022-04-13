@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -455,4 +455,61 @@ int GetFileSize(std::ifstream& File)
   auto size = File.tellg();
   File.seekg(position);
   return size;
+}
+
+/*****************************************************************************/
+static void ComputeMd5Plane(const AL_TBuffer* pBuf, AL_EPlaneId ePlaneType, int iIORowSize, int iHeight, CMD5& pMD5)
+{
+  uint8_t* pTmp = AL_PixMapBuffer_GetPlaneAddress(pBuf, ePlaneType);
+  int iPitch = AL_PixMapBuffer_GetPlanePitch(pBuf, ePlaneType);
+
+  if(iPitch == iIORowSize)
+  {
+    uint32_t uSizeY = iHeight * iIORowSize;
+    pMD5.Update(pTmp, uSizeY);
+  }
+  else
+  {
+    for(int h = 0; h < iHeight; ++h)
+    {
+      pMD5.Update(pTmp, iIORowSize);
+      pTmp += iPitch;
+    }
+  }
+}
+
+/*****************************************************************************/
+/* Computes the MD5sum for each plane (Y,U,V) of the frame using the pMD5 calculator.
+  The 128 bits code will be written in a .md5 file for the whole video when the
+  calculator goes out of scope (its destructor).
+  The function should be applied only for non-interleaved YUV frames.
+*/
+void ComputeMd5SumFrame(AL_TBuffer* pBuf, CMD5& pMD5)
+{
+  TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
+  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
+
+  int iIORowSize = GetIOLumaRowSize(tFourCC, tDim.iWidth);
+  int iHeight = tDim.iHeight;
+
+  ComputeMd5Plane(pBuf, AL_PLANE_Y, iIORowSize, iHeight, pMD5);
+
+  AL_EChromaOrder eChromaOrder = AL_GetChromaOrder(tFourCC);
+
+  if(eChromaOrder == AL_C_ORDER_NO_CHROMA)
+  {
+    return;
+  }
+  iIORowSize = AL_GetChromaPitch(tFourCC, iIORowSize);
+  iHeight = AL_GetChromaHeight(tFourCC, iHeight);
+
+  if(eChromaOrder == AL_C_ORDER_SEMIPLANAR)
+  {
+    ComputeMd5Plane(pBuf, AL_PLANE_UV, iIORowSize, iHeight, pMD5);
+  }
+  else
+  {
+    ComputeMd5Plane(pBuf, eChromaOrder == AL_C_ORDER_U_V ? AL_PLANE_U : AL_PLANE_V, iIORowSize, iHeight, pMD5);
+    ComputeMd5Plane(pBuf, eChromaOrder == AL_C_ORDER_U_V ? AL_PLANE_V : AL_PLANE_U, iIORowSize, iHeight, pMD5);
+  }
 }

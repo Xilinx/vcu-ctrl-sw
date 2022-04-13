@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -49,6 +49,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <vector>
+#include <iomanip>
 
 std::deque<Token> toReversePolish(std::deque<Token>& tokens);
 std::string parseString(std::deque<Token>& tokens);
@@ -208,17 +209,17 @@ static inline std::vector<std::string> noNote()
 
 enum class Section
 {
-  Global,
-  Unknown,
   Input,
   DynamicInput,
   Output,
+  Gop,
+  RateControl,
   Settings,
   Run,
-  Trace,
-  RateControl,
-  Gop,
+  Global,
   Hardware,
+  Trace,
+  Unknown,
 };
 
 static inline std::string toString(Section section)
@@ -318,21 +319,18 @@ static ArithToken<T> createArithToken(Token const& token, T value, bool valid)
 template<typename T>
 static T get(ArithToken<T> const& arith)
 {
-  if(!arith.valid)
-  {
-    Token const& token = arith.token;
-    int base = 10;
-
-    if(token.type == TokenType::HexIntegral)
-      base = 16;
-    else if(token.type == TokenType::Integral)
-      base = 10;
-    else
-      throw TokenError(token, "not an integer");
-    return std::strtol(token.text.c_str(), NULL, base);
-  }
-  else
+  if(arith.valid)
     return arith.value;
+  Token const& token = arith.token;
+  int base = 10;
+
+  if(token.type == TokenType::HexIntegral)
+    base = 16;
+  else if(token.type == TokenType::Integral)
+    base = 10;
+  else
+    throw TokenError(token, "not an integer");
+  return std::strtol(token.text.c_str(), NULL, base);
 }
 
 template<typename T>
@@ -440,7 +438,7 @@ static T getFlags(T* bitfield, uint32_t uMask)
 }
 
 template<typename T>
-static std::string describeEnum(std::map<std::string, T>& availableEnums)
+static std::string describeEnum(std::map<std::string, T> const& availableEnums)
 {
   std::string description = "";
   bool first = true;
@@ -465,10 +463,10 @@ static std::map<std::string, std::string> descriptionEnum(std::map<std::string, 
     description.insert(std::pair<std::string, std::string>(enumDescription.first, enumDescription.second.description));
 
   return description;
-};
+}
 
 template<typename T>
-std::string getDefaultEnumValue(T const& t, std::map<std::string, EnumDescription<int>> availableEnums)
+std::string getDefaultEnumValue(T const& t, std::map<std::string, EnumDescription<int>> const& availableEnums)
 {
   for(auto& it : availableEnums)
   {
@@ -511,8 +509,11 @@ struct CallbackInfo
 struct Callback
 {
   Callback() = default;
-  Callback & operator = (Callback const &) = default;
+  ~Callback() = default;
   Callback(Callback const &) = default;
+  Callback & operator = (Callback const &) = default;
+  Callback(Callback &&) = default;
+  Callback & operator = (Callback &&) = default;
 
   Callback(std::function<void(std::deque<Token> &)> const& func_, std::string const& showName_, std::string const& description_, std::vector<ParameterType> const& types_, std::function<std::string()> defaultValue_, std::vector<std::string> const& notes_, std::vector<CallbackInfo> const& info_) :
     func{func_},
@@ -543,13 +544,21 @@ static int safeToLower(int c)
 }
 
 template<typename T>
+static std::string setPrecision(T value)
+{
+  std::stringstream ss;
+  ss << std::setprecision(2) << std::fixed << value;
+  return ss.str();
+}
+
+template<typename T>
 static std::string describeArith(T min, T max)
 {
   std::stringstream ss;
   ss << "[";
-  ss << min;
+  ss << setPrecision(min);
   ss << ", ";
-  ss << max;
+  ss << setPrecision(max);
   ss << "]";
   return ss.str();
 }
@@ -566,7 +575,6 @@ static std::vector<CallbackInfo> toCallbackInfo(std::vector<ArithInfo<T>> const&
                              });
   }
 
-  assert(!callbackInfo.empty());
   return callbackInfo;
 }
 
@@ -603,7 +611,6 @@ static std::vector<CallbackInfo> toCallbackInfo(std::map<std::string, EnumDescri
     }
   }
 
-  assert(!callbackInfo.empty());
   return callbackInfo;
 }
 
@@ -639,7 +646,6 @@ static inline std::vector<CallbackInfo> mergeCallbackInfo(std::vector<CallbackIn
     }
   }
 
-  assert(!callbackInfo.empty());
   return callbackInfo;
 }
 
@@ -656,8 +662,13 @@ struct ConfigParser
   void updateSection(std::string text);
 
   std::map<Section, std::map<std::string, Callback>> identifiers;
+  enum class IdentifierValidation
+  {
+    NO_CODEC,
+  };
   bool showAdvancedFeature = true;
 
+  void removeIdentifierIf(std::vector<IdentifierValidation> conditions);
   void setAdvanced(Section section, char const* name)
   {
     identifiers[section][tolowerStr(name)].isAdvancedFeature = true;
@@ -676,7 +687,7 @@ struct ConfigParser
   template<typename T, typename U = long long int>
   void addArith(Section section, char const* name, T& t, std::string description = "no description", std::vector<ArithInfo<U>> info =
   {
-    { aomituCodecs(), std::numeric_limits<U>::min(), std::numeric_limits<U>::max() }
+    { allCodecs(), std::numeric_limits<U>::min(), std::numeric_limits<U>::max() }
   })
   {
     std::vector<ParameterType> types {
@@ -851,7 +862,7 @@ struct ConfigParser
   }
 
   template<typename T>
-  void addBool(Section section, char const* name, T& t, std::string description = "no description", std::vector<Codec> codecs = aomituCodecs())
+  void addBool(Section section, char const* name, T& t, std::string description = "no description", std::vector<Codec> codecs = allCodecs())
   {
     std::vector<ParameterType> types {
       ParameterType::String
@@ -979,15 +990,19 @@ struct ConfigParser
     };
   }
 
-  template<typename T, size_t arraySize>
-  void addArray(Section section, char const* name, T(&t)[arraySize], std::string description = "no description", std::vector<Codec> codecs = aomituCodecs())
+  template<typename T, size_t arraySize, typename U = long long int>
+  void addArray(Section section, char const* name, T(&t)[arraySize], std::string description = "no description", std::vector<ArithInfo<U>> info =
+  {
+    { aomituCodecs(), std::numeric_limits<U>::min(), std::numeric_limits<U>::max() }
+  })
   {
     std::vector<ParameterType> types {
       ParameterType::Array
     };
-    std::string available {};
     std::vector<std::string> notes {};
-    std::map<std::string, std::string> availableDescription {};
+    std::vector<CallbackInfo> callbackInfo {
+      toCallbackInfo(info)
+    };
     identifiers[section][tolowerStr(name)] =
     {
       [&](std::deque<Token>& tokens)
@@ -1000,9 +1015,7 @@ struct ConfigParser
       [&t]() -> std::string
       {
         return getDefaultArrayValue(t, arraySize);
-      }, notes, {
-        { codecs, available, availableDescription }
-      }
+      }, notes, callbackInfo
     };
   }
 

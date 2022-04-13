@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -43,12 +43,11 @@
 static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_TBuffer* pStream, int iLayerID, int iPicID)
 {
   AL_UpdateVuiTimingInfo(&pCtx->tLayerCtx[iLayerID].sps.AvcSPS.vui_param, iLayerID, &pCtx->pSettings->tChParam[iLayerID].tRCParam, 2);
-
-  AL_HLSInfo* pHLSInfo = NULL;
-  pHLSInfo = AL_GetHLSInfo(pCtx, iPicID);
-  AL_AVC_UpdateSPS(&pCtx->tLayerCtx[iLayerID].sps, pCtx->pSettings, pPicStatus, pHLSInfo);
-  bool bMustWritePPS = AL_AVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, pPicStatus, pHLSInfo);
-  AVC_GenerateSections(pCtx, pStream, pPicStatus, iPicID, bMustWritePPS);
+  AL_HLSInfo* pHLSInfo = AL_GetHLSInfo(pCtx, iPicID);
+  AL_AVC_UpdateSPS(&pCtx->tLayerCtx[iLayerID].sps, pCtx->pSettings, pPicStatus, pHLSInfo, &pCtx->tHeadersCtx[iLayerID]);
+  bool bMustWritePPS = AL_AVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, pPicStatus, pHLSInfo, &pCtx->tHeadersCtx[iLayerID]);
+  bool bMustWriteAUD = AL_AVC_UpdateAUD(&pCtx->tLayerCtx[iLayerID].aud, pCtx->pSettings, pPicStatus, iLayerID);
+  AVC_GenerateSections(pCtx, pStream, pPicStatus, iPicID, bMustWritePPS, bMustWriteAUD);
 
   pCtx->initialCpbRemovalDelay = pPicStatus->uInitialRemovalDelay;
   pCtx->cpbRemovalDelay += PicStructToFieldNumber[pPicStatus->ePicStruct];
@@ -66,13 +65,6 @@ static bool shouldReleaseSource(AL_TEncPicStatus* p)
   return true;
 }
 
-/****************************************************************************/
-static bool isGdrEnabled(AL_TEncChanParam const* pChParam)
-{
-  AL_TGopParam const* pGop = &pChParam->tGopParam;
-  return (pGop->eGdrMode & AL_GDR_ON) != 0;
-}
-
 static void initHlsSps(AL_TEncChanParam* pChParam, uint32_t* pSpsParam)
 {
   (void)pChParam;
@@ -88,7 +80,7 @@ static void initHlsSps(AL_TEncChanParam* pChParam, uint32_t* pSpsParam)
   if((pChParam->tGopParam.eMode & AL_GOP_FLAG_PYRAMIDAL) && pChParam->tGopParam.uNumB == 15)
     log2_max_frame_num_minus4 = 1;
 
-  else if(isGdrEnabled(pChParam))
+  else if(AL_IsGdrEnabled(pChParam))
     log2_max_frame_num_minus4 = 6; // 6 is to support AVC 8K GDR.
 
   AL_SET_SPS_LOG2_MAX_FRAME_NUM(pSpsParam, log2_max_frame_num_minus4 + 4);

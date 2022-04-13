@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -52,20 +52,34 @@ typedef struct AL_t_ListHead
   containerOf(ptr, type, member)
 
 #define AL_ListFirstEntry(ptr, type, member) \
-  AL_ListEntry((ptr)->pNext, type, member);
+  AL_ListEntry((ptr)->pNext, type, member)
 
-static AL_INLINE int AL_ListEmpty(const AL_ListHead* pHead)
+#define AL_ListNextEntry(pos, member) \
+  AL_ListEntry((pos)->member.pNext, typeof(*(pos)), member)
+
+#define AL_ListForEachEntry(pos, head, member) \
+  for(pos = AL_ListFirstEntry(head, typeof(*pos), member); \
+      &pos->member != (head); \
+      pos = AL_ListNextEntry(pos, member))
+
+#define AL_ListForEachEntrySafe(pos, next, head, member) \
+  for(pos = AL_ListFirstEntry(head, typeof(*pos), member), \
+      next = AL_ListNextEntry(pos, member); \
+      &pos->member != (head); \
+      pos = next, next = AL_ListNextEntry(next, member))
+
+static inline int AL_ListEmpty(const AL_ListHead* pHead)
 {
   return pHead->pNext == pHead;
 }
 
-static AL_INLINE void AL_ListHeadInit(AL_ListHead* pHead)
+static inline void AL_ListHeadInit(AL_ListHead* pHead)
 {
   pHead->pNext = pHead;
   pHead->pPrev = pHead;
 }
 
-static AL_INLINE void __ListAdd(AL_ListHead* pNew, AL_ListHead* pPrev, AL_ListHead* pNext)
+static inline void __ListAdd(AL_ListHead* pNew, AL_ListHead* pPrev, AL_ListHead* pNext)
 {
   pNext->pPrev = pNew;
   pNew->pNext = pNext;
@@ -73,18 +87,18 @@ static AL_INLINE void __ListAdd(AL_ListHead* pNew, AL_ListHead* pPrev, AL_ListHe
   pPrev->pNext = pNew;
 }
 
-static AL_INLINE void AL_ListAddTail(AL_ListHead* pNew, AL_ListHead* pHead)
+static inline void AL_ListAddTail(AL_ListHead* pNew, AL_ListHead* pHead)
 {
   __ListAdd(pNew, pHead->pPrev, pHead);
 }
 
-static AL_INLINE void __ListDel(AL_ListHead* pPrev, AL_ListHead* pNext)
+static inline void __ListDel(AL_ListHead* pPrev, AL_ListHead* pNext)
 {
   pNext->pPrev = pPrev;
   pPrev->pNext = pNext;
 }
 
-static AL_INLINE void AL_ListDel(AL_ListHead* pEntry)
+static inline void AL_ListDel(AL_ListHead* pEntry)
 {
   __ListDel(pEntry->pPrev, pEntry->pNext);
   pEntry->pNext = (AL_ListHead*)AL_POISONOUS1;

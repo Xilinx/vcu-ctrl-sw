@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -75,7 +75,7 @@ typedef enum e_QpCtrlMode
   AL_QP_CTRL_MAX_ENUM,
 }AL_EQpCtrlMode;
 
-static AL_INLINE bool AL_IS_AUTO_OR_ADAPTIVE_QP_CTRL(AL_EQpCtrlMode eMode)
+static inline bool AL_IS_AUTO_OR_ADAPTIVE_QP_CTRL(AL_EQpCtrlMode eMode)
 {
   return (eMode == AL_QP_CTRL_AUTO) || (eMode == AL_QP_CTRL_ADAPTIVE_AUTO);
 }
@@ -91,7 +91,7 @@ typedef enum e_QpTableMode
   AL_QP_TABLE_MAX_ENUM,
 }AL_EQpTableMode;
 
-static AL_INLINE bool AL_IS_QP_TABLE_REQUIRED(AL_EQpTableMode eMode)
+static inline bool AL_IS_QP_TABLE_REQUIRED(AL_EQpTableMode eMode)
 {
   return (eMode == AL_QP_TABLE_RELATIVE) || (eMode == AL_QP_TABLE_ABSOLUTE);
 }
@@ -136,12 +136,13 @@ typedef AL_INTROSPECT (category = "debug") struct t_EncSettings
   uint8_t ScalingList[4][6][64]; /*!< The scaling matrix coeffecients [S][M][C] where S=0 for 4x4, S=1 for 8x8, S=2 for 16x16 and S=3 for 32x32; M=0 for Intra Y, M=1 for Intra U, M=2 for intra V, M=3 for inter Y, M=4 for inter U and M=5 for interV; and where C is the coeffecient index. Note1 in 4x4 only the 16 first coeffecient are used; Note2 in 32x32 only intra Y inter Y matrices are used */
   uint8_t SclFlag[4][6]; /*!< Specifies whether the corresponding ScalingList is valid or not */
   uint8_t DcCoeff[8]; /*!< The DC coeffidients for matrices 16x16 intra Y, 16x16 intra U, 16x16 intra V, 16x16 inter Y, 16x16 inter U, 16x16 inter V, 32x32 intra Y and 32x32 inter Y in that order*/
-  uint8_t DcCoeffFlag[8]; /*!< Specifies whether the corresponding DcCoeff is valid or not */
+  uint8_t DcCoeffFlag; /*!< Specifies whether the corresponding DcCoeff is valid or not */
   bool bEnableWatchdog; /*!< Enable the watchdog interrupt. This parameter should be set to 'false' until further advise */
   int LookAhead; /*!< Enables the lookahead encoding mode (not zero) and specifies the number of frame ahead. This option is exclusive with TwoPass and bEnableFirstPassSceneChangeDetection. */
   int TwoPass; /*!< Enables the dual-pass encoding mode (not zero) and specifies the current pass (1 or 2). This option is exclusive with LookAhead and bEnableFirstPassSceneChangeDetection. */
   bool bEnableFirstPassSceneChangeDetection; /*!< Enables the quick firstpass mode for scene change detection only. This option is exclusive with LookAhead and TwoPass. */
   AL_HANDLE hRcPluginDmaContext; /*!< Handle to the dma buffer given to the rate control plugin to pass user defined data to the plugin. This should be allocated with a dma allocator */
+  bool bDiagnostic; /*!< Additional checks meant for debugging. Not to be used on default usecase. */
 }AL_TEncSettings;
 
 /*************************************************************************//*!

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -49,6 +49,11 @@ TFourCC AL_GetDecFourCC(AL_TPicFormat const picFmt)
   return AL_GetFourCC(picFmt);
 }
 
+AL_EChromaOrder AL_ChromaModeToChromaOrder(AL_EChromaMode eChromaMode)
+{
+  return eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : (eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR);
+}
+
 AL_TPicFormat AL_GetDecPicFormat(AL_EChromaMode eChromaMode, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode, bool bIsCompressed)
 {
   bool b10bPacked = false;
@@ -59,7 +64,7 @@ AL_TPicFormat AL_GetDecPicFormat(AL_EChromaMode eChromaMode, uint8_t uBitDepth, 
     eChromaMode,
     uBitDepth,
     eStorageMode,
-    eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : (eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR),
+    AL_ChromaModeToChromaOrder(eChromaMode),
     bIsCompressed,
     b10bPacked
   };

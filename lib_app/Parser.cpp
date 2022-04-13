@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -35,7 +35,7 @@
 *
 ******************************************************************************/
 
-#include "lib_cfg_parsing/Parser.h"
+#include "lib_app/Parser.h"
 #include <limits>
 #include <algorithm>
 
@@ -81,9 +81,7 @@ std::string parseString(std::deque<Token>& tokens)
   std::stringstream acc {};
 
   for(auto& token : tokens)
-  {
     acc << token.text;
-  }
 
   return acc.str();
 }
@@ -118,7 +116,7 @@ int parseEnum(std::deque<Token>& tokens, std::map<std::string, EnumDescription<i
     {
       std::stringstream acc {};
 
-      for(auto& e : availableEnums)
+      for(auto const& e : availableEnums)
         acc << e.first << ", ";
 
       throw TokenError(token, "Failed to parse enum. Got (" + token.text + "), available values: " + acc.str());
@@ -143,10 +141,10 @@ std::map<std::string, EnumDescription<int>> createBoolEnums(std::vector<Codec> c
 {
   /* we need something that can take a bool */
   std::map<std::string, EnumDescription<int>> boolEnums;
-  boolEnums["TRUE"] = { true, "True", codecs };
-  boolEnums["FALSE"] = { false, "False", codecs };
-  boolEnums["ENABLE"] = { true, "Enable", codecs };
   boolEnums["DISABLE"] = { false, "Disable", codecs };
+  boolEnums["ENABLE"] = { true, "Enable", codecs };
+  boolEnums["FALSE"] = { false, "Same as DISABLE", codecs };
+  boolEnums["TRUE"] = { true, "Same as ENABLE", codecs };
 
   return boolEnums;
 }
@@ -413,7 +411,7 @@ std::string ConfigParser::nearestMatch(std::string const& wrong)
   size_t minDistance = std::numeric_limits<std::size_t>::max();
   try
   {
-    for(auto section : identifiers)
+    for(auto const& section : identifiers)
       for(auto const & right : identifiers.at(section.first))
         if(wrong == right.second.showName)
           otherSectionMatch = wrong + " but in section [" + toString(section.first) + "]";
@@ -443,3 +441,66 @@ std::string ConfigParser::nearestMatch(std::string const& wrong)
   return match;
 }
 
+static void removeIdentifierInSectionCallbackInfoIfNoCodec(Callback& callback)
+{
+  auto& info = callback.info;
+  info.erase(std::remove_if(info.begin(), info.end(), [&](CallbackInfo const& elem) -> bool
+  {
+    return elem.codecs.empty();
+  }
+                            )
+             , info.end()
+             );
+}
+
+static void removeIdentifierInSectionIfNoCallbackInfo(std::map<std::string, Callback>& identifiersInSection)
+{
+  for(auto it = identifiersInSection.begin(), it_next = it; it != identifiersInSection.end(); it = it_next)
+  {
+    ++it_next;
+
+    if(it->second.info.empty())
+      identifiersInSection.erase(it);
+  }
+}
+
+static void removeSectionIfNoIdentifier(std::map<Section, std::map<std::string, Callback>>& identifiers)
+{
+  for(auto it = identifiers.begin(), it_next = it; it != identifiers.end(); it = it_next)
+  {
+    ++it_next;
+
+    if(it->second.empty())
+      identifiers.erase(it);
+  }
+}
+
+static void removeIdentifierIfNoCodec(std::map<Section, std::map<std::string, Callback>>& identifiers)
+{
+  for(auto& identifiersInSection: identifiers)
+  {
+    for(auto& identifierInSection: identifiersInSection.second)
+      removeIdentifierInSectionCallbackInfoIfNoCodec(identifierInSection.second);
+  }
+
+  for(auto& identifiersInSection: identifiers)
+    removeIdentifierInSectionIfNoCallbackInfo(identifiersInSection.second);
+
+  removeSectionIfNoIdentifier(identifiers);
+}
+
+void ConfigParser::removeIdentifierIf(std::vector<IdentifierValidation> conditions)
+{
+  for(auto const& condition: conditions)
+  {
+    switch(condition)
+    {
+    case IdentifierValidation::NO_CODEC:
+    {
+      removeIdentifierIfNoCodec(this->identifiers);
+      break;
+    }
+    default: break;
+    }
+  }
+}

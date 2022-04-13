@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -46,6 +46,7 @@ extern "C"
 
 #include <fstream>
 #include "lib_app/InputFiles.h"
+#include "lib_app/MD5.h"
 
 /* By default, we align allocation dimensions to 8x8 to ensures compatibility with conversion functions.
  * Indeed, they process full 4x4 blocks in tile mode */
@@ -71,5 +72,8 @@ int GetPictureSize(TYUVFileInfo FI);
 
 /*****************************************************************************/
 int GetFileSize(std::ifstream& File);
+
+/*****************************************************************************/
+void ComputeMd5SumFrame(AL_TBuffer* pYUV, CMD5& pMD5);
 
 /*****************************************************************************/

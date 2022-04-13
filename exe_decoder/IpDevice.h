@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -60,7 +60,7 @@ struct CIpDeviceParam
   bool bTrackDma = false;
   uint8_t uNumCore = 0;
   int iHangers = 0;
-  IpCtrlMode ipCtrlMode;
+  AL_EIpCtrlMode ipCtrlMode;
   std::string apbFile;
 };
 

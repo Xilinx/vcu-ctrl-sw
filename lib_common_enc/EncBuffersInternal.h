@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -36,9 +36,10 @@
 ******************************************************************************/
 
 #pragma once
-#include "lib_common_enc/EncBuffers.h"
-#include "lib_common/BufCommonInternal.h"
 #include "EncEPBuffer.h"
+#include "lib_common/SliceConsts.h"
+#include "lib_common/BufCommonInternal.h"
+#include "lib_common_enc/EncBuffers.h"
 #include "lib_common_enc/Lambdas.h"
 #define AL_MAX_LAWINDOWSIZE 0
 #define ENC_MAX_CMD (AL_MAX_NUM_B_PICT + 3 + AL_MAX_LAWINDOWSIZE)
@@ -73,6 +74,16 @@ static const AL_TBufInfo EP3_BUF_RC_LVL =
    \return maximum size (in bytes) needed to store
 *****************************************************************************/
 uint32_t AL_GetAllocSizeEP1(void);
+
+/*************************************************************************//*!
+   \brief Retrieves the size of a Encoder parameters buffer 2 (QP Ctrl)
+   \param[in] tDim Frame size in pixels
+   \param[in] eCodec Codec
+   \param[in] uLog2MaxCuSize Max size of a coding unit (log2)
+   \param[in] uQpLCUGranularity QP block granularity in LCU unit
+   \return maximum size (in bytes) needed to store
+*****************************************************************************/
+uint32_t AL_GetAllocSizeFlexibleEP2(AL_TDimension tDim, AL_ECodec eCodec, uint8_t uLog2MaxCuSize, uint8_t uQpLCUGranularity);
 
 /*************************************************************************//*!
    \brief  Retrieves the size of a Encoder parameters buffer 3 (HW RateCtrl) for one core

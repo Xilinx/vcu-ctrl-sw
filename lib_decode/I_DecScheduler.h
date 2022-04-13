@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -120,7 +120,7 @@ void AL_IDecScheduler_Destroy(AL_IDecScheduler* pThis);
    \return error code explaining why the channel creation failed
    or AL_SUCCESS (See include/lib_common/Error.h)
 *****************************************************************************/
-static AL_INLINE
+static inline
 AL_ERR AL_IDecScheduler_CreateChannel(AL_HANDLE* hChannel, AL_IDecScheduler* pThis, TMemDesc* pMDChParams, AL_TDecScheduler_CB_EndParsing endParsingCallback, AL_TDecScheduler_CB_EndDecoding endDecodingCallback)
 {
   return pThis->vtable->CreateChannel(hChannel, pThis, pMDChParams, endParsingCallback, endDecodingCallback);
@@ -133,7 +133,7 @@ AL_ERR AL_IDecScheduler_CreateChannel(AL_HANDLE* hChannel, AL_IDecScheduler* pTh
    \return error code explaining why the startcode channel creation failed
    or AL_SUCCESS (See include/lib_common/Error.h)
 *****************************************************************************/
-static AL_INLINE
+static inline
 AL_ERR AL_IDecScheduler_CreateStartCodeChannel(AL_HANDLE* hStartCodeChannel, AL_IDecScheduler* pThis)
 {
   return pThis->vtable->CreateStartCodeChannel(hStartCodeChannel, pThis);
@@ -147,7 +147,7 @@ AL_ERR AL_IDecScheduler_CreateStartCodeChannel(AL_HANDLE* hStartCodeChannel, AL_
    \return error code explaining why the startcode channel creation failed
    or AL_SUCCESS (See include/lib_common/Error.h)
 *****************************************************************************/
-static AL_INLINE
+static inline
 AL_ERR AL_IDecScheduler_DestroyStartCodeChannel(AL_IDecScheduler* pThis, AL_HANDLE hStartCodeChannel)
 {
   return pThis->vtable->DestroyStartCodeChannel(pThis, hStartCodeChannel);
@@ -161,7 +161,7 @@ AL_ERR AL_IDecScheduler_DestroyStartCodeChannel(AL_IDecScheduler* pThis, AL_HAND
    \return error code explaining why the startcode channel creation failed
    or AL_SUCCESS (See include/lib_common/Error.h)
 *****************************************************************************/
-static AL_INLINE
+static inline
 AL_ERR AL_IDecScheduler_DestroyChannel(AL_IDecScheduler* pThis, AL_HANDLE hChannel)
 {
   return pThis->vtable->DestroyChannel(pThis, hChannel);
@@ -175,7 +175,7 @@ AL_ERR AL_IDecScheduler_DestroyChannel(AL_IDecScheduler* pThis, AL_HANDLE hChann
    \param[in] callback Start code callback structure
    \return return true
 *****************************************************************************/
-static AL_INLINE
+static inline
 void AL_IDecScheduler_SearchSC(AL_IDecScheduler* pThis, AL_HANDLE hStartCodeChannel, AL_TScParam* pScParam, AL_TScBufferAddrs* pBufferAddrs, AL_TDecScheduler_CB_EndStartCode callback)
 {
   pThis->vtable->SearchSC(pThis, hStartCodeChannel, pScParam, pBufferAddrs, callback);
@@ -189,7 +189,7 @@ void AL_IDecScheduler_SearchSC(AL_IDecScheduler* pThis, AL_HANDLE hStartCodeChan
    \return return true if the decoding launch is successfull
               false otherwise
 *****************************************************************************/
-static AL_INLINE
+static inline
 void AL_IDecScheduler_DecodeOneFrame(AL_IDecScheduler* pThis, AL_HANDLE hChannel, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* pSliceParams)
 {
   pThis->vtable->DecodeOneFrame(pThis, hChannel, pPictParam, pPictAddrs, pSliceParams);
@@ -203,7 +203,7 @@ void AL_IDecScheduler_DecodeOneFrame(AL_IDecScheduler* pThis, AL_HANDLE hChannel
    \return return true if the decoding launch is successfull
               false otherwise
 *****************************************************************************/
-static AL_INLINE
+static inline
 void AL_IDecScheduler_DecodeOneSlice(AL_IDecScheduler* pThis, AL_HANDLE hChannel, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* pSliceParams)
 {
   pThis->vtable->DecodeOneSlice(pThis, hChannel, pPictParam, pPictAddrs, pSliceParams);

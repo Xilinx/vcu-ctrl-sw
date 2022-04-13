@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -57,13 +57,13 @@ struct AL_TRoiNode
 };
 
 /****************************************************************************/
-static AL_INLINE int RoundUp(int iVal, int iRnd)
+static inline int RoundUp(int iVal, int iRnd)
 {
   return (iVal + iRnd - 1) & (~(iRnd - 1));
 }
 
 /***************************************************************************/
-static AL_INLINE int Clip3(int iVal, int iMin, int iMax)
+static inline int Clip3(int iVal, int iMin, int iMax)
 {
   return ((iVal) < (iMin)) ? (iMin) : ((iVal) > (iMax)) ? (iMax) : (iVal);
 }
@@ -287,7 +287,7 @@ static void ComputeROI(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerL
 }
 
 /****************************************************************************/
-AL_TRoiMngrCtx* AL_RoiMngr_Create(int iPicWidth, int iPicHeight, AL_EProfile eProf, AL_ERoiQuality eBkgQuality, AL_ERoiOrder eOrder)
+AL_TRoiMngrCtx* AL_RoiMngr_Create(int iPicWidth, int iPicHeight, AL_EProfile eProf, uint8_t uLog2MaxCuSize, AL_ERoiQuality eBkgQuality, AL_ERoiOrder eOrder)
 {
   AL_TRoiMngrCtx* pCtx = (AL_TRoiMngrCtx*)Rtos_Malloc(sizeof(AL_TRoiMngrCtx));
 
@@ -297,15 +297,15 @@ AL_TRoiMngrCtx* AL_RoiMngr_Create(int iPicWidth, int iPicHeight, AL_EProfile ePr
   pCtx->iMaxQP = AL_IS_AVC(eProf) || AL_IS_HEVC(eProf) ? 31 : 127;
   pCtx->iPicWidth = iPicWidth; // TODO convert Pixel to LCU
   pCtx->iPicHeight = iPicHeight; // TODO convert Pixel to LCU
-  pCtx->uLcuSize = AL_IS_AVC(eProf) ? 4 : AL_IS_HEVC(eProf) ? 5 : 6;
+  pCtx->uLog2MaxCuSize = uLog2MaxCuSize;
 
   pCtx->eBkgQuality = eBkgQuality;
   pCtx->eOrder = eOrder;
   pCtx->pFirstNode = nullptr;
   pCtx->pLastNode = nullptr;
 
-  pCtx->iLcuPicWidth = RoundUp(pCtx->iPicWidth, 1 << pCtx->uLcuSize) >> pCtx->uLcuSize;
-  pCtx->iLcuPicHeight = RoundUp(pCtx->iPicHeight, 1 << pCtx->uLcuSize) >> pCtx->uLcuSize;
+  pCtx->iLcuPicWidth = RoundUp(pCtx->iPicWidth, 1 << pCtx->uLog2MaxCuSize) >> pCtx->uLog2MaxCuSize;
+  pCtx->iLcuPicHeight = RoundUp(pCtx->iPicHeight, 1 << pCtx->uLog2MaxCuSize) >> pCtx->uLog2MaxCuSize;
   pCtx->iNumLCUs = pCtx->iLcuPicWidth * pCtx->iLcuPicHeight;
 
   return pCtx;
@@ -340,10 +340,10 @@ bool AL_RoiMngr_AddROI(AL_TRoiMngrCtx* pCtx, int iPosX, int iPosY, int iWidth, i
   if(iPosX >= pCtx->iPicWidth || iPosY >= pCtx->iPicHeight)
     return false;
 
-  iPosX = iPosX >> pCtx->uLcuSize;
-  iPosY = iPosY >> pCtx->uLcuSize;
-  iWidth = RoundUp(iWidth, 1 << pCtx->uLcuSize) >> pCtx->uLcuSize;
-  iHeight = RoundUp(iHeight, 1 << pCtx->uLcuSize) >> pCtx->uLcuSize;
+  iPosX = iPosX >> pCtx->uLog2MaxCuSize;
+  iPosY = iPosY >> pCtx->uLog2MaxCuSize;
+  iWidth = RoundUp(iWidth, 1 << pCtx->uLog2MaxCuSize) >> pCtx->uLog2MaxCuSize;
+  iHeight = RoundUp(iHeight, 1 << pCtx->uLog2MaxCuSize) >> pCtx->uLog2MaxCuSize;
 
   AL_TRoiNode* pNode = (AL_TRoiNode*)Rtos_Malloc(sizeof(AL_TRoiNode));
 

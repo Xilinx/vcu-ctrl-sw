@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -46,6 +46,7 @@
 #include <cassert>
 #include <stdexcept>
 #include <iostream>
+#include "lib_rtos/types.h"
 
 static inline bool ShouldShowAdvancedFeatures()
 {
@@ -66,6 +67,7 @@ public:
   struct Option
   {
     std::function<void(std::string)> parser;
+    std::string type; /* type of the option */
     std::string desc; /* full formatted description with the name of the option */
     std::string desc_; /* description provided by the user verbatim */
     bool advancedFeature = false;
@@ -180,6 +182,12 @@ public:
     return readUint(word);
   }
 
+  AL_PADDR popPAddr()
+  {
+    auto word = popWord();
+    return readVal<AL_PADDR>(word);
+  }
+
   double popDouble()
   {
     auto word = popWord();
@@ -198,6 +206,7 @@ public:
   void addOption(std::string name, std::function<void(std::string)> func, std::string desc_, std::string const& type = "")
   {
     Option o;
+    o.type = type;
     o.parser = func;
     o.desc_ = desc_;
     o.desc = makeDescription(name, type, desc_);
@@ -215,6 +224,7 @@ public:
                  else
                    *value = customParser(word);
                };
+    o.type = type;
     o.desc_ = desc_;
     o.desc = makeDescription(name, type, desc_);
     insertOption(name, o);
@@ -237,8 +247,9 @@ public:
   void addFlag(std::string name, T* flag, std::string desc_, T value = (T) 1)
   {
     Option o;
+    o.type = "";
     o.desc_ = desc_;
-    o.desc = makeDescription(name, "", desc_);
+    o.desc = makeDescription(name, o.type, desc_);
     o.parser = [=](std::string word)
                {
                  bool checkIsOption = isOption(word);
@@ -252,8 +263,9 @@ public:
   void addInt(std::string name, T* number, std::string desc_)
   {
     Option o;
+    o.type = "number";
     o.desc_ = desc_;
-    o.desc = makeDescription(name, "number", desc_);
+    o.desc = makeDescription(name, o.type, desc_);
     o.parser = [=](std::string word)
                {
                  if(isOption(word))
@@ -268,8 +280,9 @@ public:
   void addUint(std::string name, T* number, std::string desc_)
   {
     Option o;
+    o.type = "number";
     o.desc_ = desc_;
-    o.desc = makeDescription(name, "number", desc_);
+    o.desc = makeDescription(name, o.type, desc_);
     o.parser = [=](std::string word)
                {
                  if(isOption(word))
@@ -280,12 +293,29 @@ public:
     insertOption(name, o);
   }
 
+  void addPAddr(std::string name, AL_PADDR* addr, std::string desc_)
+  {
+    Option o;
+    o.type = "address";
+    o.desc_ = desc_;
+    o.desc = makeDescription(name, o.type, desc_);
+    o.parser = [=](std::string word)
+               {
+                 if(isOption(word))
+                   *addr = popPAddr();
+                 else
+                   *addr = readVal<AL_PADDR>(word);
+               };
+    insertOption(name, o);
+  }
+
   template<typename T>
   void addDouble(std::string name, T* number, std::string desc_)
   {
     Option o;
+    o.type = "number";
     o.desc_ = desc_;
-    o.desc = makeDescription(name, "number", desc_);
+    o.desc = makeDescription(name, o.type, desc_);
     o.parser = [=](std::string word)
                {
                  if(isOption(word))
@@ -299,8 +329,9 @@ public:
   void addString(std::string name, std::string* value, std::string desc_)
   {
     Option o;
+    o.type = "string";
     o.desc_ = desc_;
-    o.desc = makeDescription(name, "string", desc_);
+    o.desc = makeDescription(name, o.type, desc_);
     o.parser = [=](std::string word)
                {
                  if(isOption(word))
@@ -314,8 +345,9 @@ public:
   void addStringVector(std::string name, std::vector<std::string>* vec, std::string desc_)
   {
     Option o;
+    o.type = "string (+)";
     o.desc_ = desc_;
-    o.desc = makeDescription(name, "string (+)", desc_);
+    o.desc = makeDescription(name, o.type, desc_);
     o.parser = [=](std::string word)
                {
                  if(isOption(word))
@@ -330,6 +362,7 @@ public:
   std::map<std::string, Option> options;
   std::map<std::string, std::string> descs;
   std::map<std::string, std::string> sections;
+  std::map<std::string, std::string> types;
   std::string curSection = "";
   std::vector<std::string> displayOrder;
   std::deque<Option> positionals;
@@ -404,6 +437,7 @@ public:
       first = false;
       std::cout << "{" << std::endl;
       std::cout << "\"name\":\"" << name << "\"," << std::endl;
+      std::cout << "\"type\":\"" << jsonEscape(o.type) << "\"," << std::endl;
       std::cout << "\"description\":\"" << jsonEscape(o.desc_) << "\"," << std::endl;
       std::cout << "\"section\":\"" << section << "\"" << std::endl;
       std::cout << "}";
@@ -453,6 +487,7 @@ private:
       positionals.push_back(o);
 
     descs[name] = o.desc;
+    types[name] = o.type;
     sections[name] = curSection;
     displayOrder.push_back(name);
   }

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -261,7 +261,7 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
   if((pChannel->tGopParam.eMode & AL_GOP_FLAG_PYRAMIDAL) && pChannel->tGopParam.uNumB == 15)
     pSPS->log2_max_frame_num_minus4 = 1;
 
-  else if(AL_IsGdrEnabled(pSettings))
+  else if(AL_IsGdrEnabled(&pSettings->tChParam[0]))
     pSPS->log2_max_frame_num_minus4 = 6; // 6 is to support AVC 8K GDR
 
   // frame_mbs_only_flag:
@@ -300,20 +300,31 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int iM
     pSPS->vui_param.overscan_appropriate_flag = 1;
   }
 
-  pSPS->vui_param.video_signal_type_present_flag = 1;
-
+  // Video Signal type
   pSPS->vui_param.video_format = VIDEO_FORMAT_UNSPECIFIED;
 
   if(AL_IS_XAVC_CBG(pChannel->eProfile) && AL_IS_INTRA_PROFILE(pChannel->eProfile))
     pSPS->vui_param.video_format = VIDEO_FORMAT_COMPONENT;
 
-  pSPS->vui_param.video_full_range_flag = 0;
+  pSPS->vui_param.video_full_range_flag = pSettings->tChParam[0].bVideoFullRange;
 
   // Colour parameter information
-  pSPS->vui_param.colour_description_present_flag = 1;
   pSPS->vui_param.colour_primaries = AL_H273_ColourDescToColourPrimaries(pSettings->eColourDescription);
   pSPS->vui_param.transfer_characteristics = AL_TransferCharacteristicsToVUIValue(pSettings->eTransferCharacteristics);
   pSPS->vui_param.matrix_coefficients = AL_ColourMatrixCoefficientsToVUIValue(pSettings->eColourMatrixCoeffs);
+
+  pSPS->vui_param.colour_description_present_flag =
+    (pSPS->vui_param.colour_primaries != AL_H273_ColourDescToColourPrimaries(AL_COLOUR_DESC_UNSPECIFIED)) ||
+    (pSPS->vui_param.transfer_characteristics != AL_TransferCharacteristicsToVUIValue(AL_TRANSFER_CHARAC_UNSPECIFIED)) ||
+    (pSPS->vui_param.matrix_coefficients != AL_ColourMatrixCoefficientsToVUIValue(AL_COLOUR_MAT_COEFF_UNSPECIFIED));
+
+  if(AL_IS_XAVC(pChannel->eProfile))
+    pSPS->vui_param.colour_description_present_flag = 1;
+
+  pSPS->vui_param.video_signal_type_present_flag =
+    (pSPS->vui_param.video_format != VIDEO_FORMAT_UNSPECIFIED) ||
+    (pSPS->vui_param.video_full_range_flag != 0) ||
+    pSPS->vui_param.colour_description_present_flag;
 
   // Timing information
   AL_UpdateVuiTimingInfo(&pSPS->vui_param, 0, &pSettings->tChParam[0].tRCParam, 2);
@@ -401,35 +412,50 @@ void AL_AVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TSp
 }
 
 /***************************************************************************/
-void AL_AVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo)
+void AL_AVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, AL_THeadersCtx* pHdrs)
 {
-  if(!pHLSInfo->bResolutionChanged)
+  if(!pPicStatus->bIsFirstSlice)
     return;
 
-  AL_TAvcSps* pSPS = (AL_TAvcSps*)pISPS;
+  if(!AL_IsWriteSps(pHdrs, pHLSInfo->uSpsId))
+    goto put_sps;
 
-  AL_TBuffer* pBuf = AL_GetSrcBufferFromStatus(pPicStatus);
-  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
+  AL_TAvcSps* pSPS = (AL_TAvcSps*)pISPS;
+  AL_TDimension tDim = AL_GetPpsDim(pHdrs, pHLSInfo->uSpsId);
 
   AL_AVC_GenerateSPS_Resolution(pSPS, tDim.iWidth, tDim.iHeight, pSettings);
 
-  pSPS->seq_parameter_set_id = pHLSInfo->uNalID;
+  pSPS->seq_parameter_set_id = pHLSInfo->uSpsId;
+
+  put_sps:
+  AL_ReleaseSps(pHdrs, pHLSInfo->uSpsId);
 }
 
 /***************************************************************************/
-bool AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo)
+bool AL_AVC_UpdateAUD(AL_TAud* pAud, AL_TEncSettings const* pSettings, AL_TEncPicStatus const* pPicStatus, int iLayerID)
 {
-  (void)pHLSInfo;
+  pAud->eType = pPicStatus->eType;
+  return pSettings->bEnableAUD && isBaseLayer(iLayerID);
+}
+
+/***************************************************************************/
+bool AL_AVC_UpdatePPS(AL_TPps* pIPPS, AL_TEncPicStatus const* pPicStatus, AL_HLSInfo const* pHLSInfo, AL_THeadersCtx* pHdrs)
+{
   AL_TAvcPps* pPPS = (AL_TAvcPps*)pIPPS;
   bool bMustWritePPS = false;
 
   pPPS->pic_init_qp_minus26 = pPicStatus->iPpsQP - 26;
 
-  if(pHLSInfo->bResolutionChanged)
+  pPPS->seq_parameter_set_id = pHLSInfo->uSpsId;
+  pPPS->pic_parameter_set_id = pHLSInfo->uPpsId;
+
+  pPPS->chroma_qp_index_offset = pHLSInfo->iCbPicQpOffset;
+  pPPS->second_chroma_qp_index_offset = pHLSInfo->iCrPicQpOffset;
+
+  if(pPicStatus->bIsFirstSlice)
   {
-    pPPS->pic_parameter_set_id = pHLSInfo->uNalID;
-    pPPS->seq_parameter_set_id = pHLSInfo->uNalID;
-    bMustWritePPS = true;
+    bMustWritePPS = AL_IsWritePps(pHdrs, pHLSInfo->uPpsId);
+    AL_ReleasePps(pHdrs, pHLSInfo->uPpsId);
   }
 
   return bMustWritePPS;

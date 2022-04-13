@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -88,23 +88,23 @@ std::unique_ptr<T> make_unique(Args && ... args)
 
 #endif
 
-enum IpCtrlMode
+enum AL_EIpCtrlMode
 {
-  IPCTRL_MODE_STANDARD,
-  IPCTRL_MODE_TIMERS,
-  IPCTRL_MODE_LOGS,
-  IPCTRL_MODE_TRACE, // codec-agnostic raw register r/w and irq dump
+  AL_IPCTRL_MODE_STANDARD,
+  AL_IPCTRL_MODE_TIMERS,
+  AL_IPCTRL_MODE_LOGS,
+  AL_IPCTRL_MODE_TRACE, // codec-agnostic raw register r/w and irq dump
 };
 
-enum SCHEDULER_TYPE
+enum AL_ESchedulerType
 {
-  SCHEDULER_TYPE_CPU,
-  SCHEDULER_TYPE_MCU,
+  AL_SCHEDULER_TYPE_CPU,
+  AL_SCHEDULER_TYPE_MCU,
 };
 
-enum DEVICE_TYPE
+enum AL_EDeviceType
 {
-  DEVICE_TYPE_AUTO,
-  DEVICE_TYPE_BOARD,
-  DEVICE_TYPE_REFSW,
+  AL_DEVICE_TYPE_AUTO,
+  AL_DEVICE_TYPE_BOARD,
+  AL_DEVICE_TYPE_REFSW,
 };

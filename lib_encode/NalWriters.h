@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -52,10 +52,10 @@ typedef struct t_NalUnit
   AL_TNalHeader header;
 }AL_TNalUnit;
 
-AL_TNalUnit AL_CreateAud(int nut, AL_ESliceType type, int tempId);
+AL_TNalUnit AL_CreateAud(int nut, AL_TAud* aud, int tempId);
 AL_TNalUnit AL_CreateSps(int nut, AL_TSps* sps, int layerId, int tempId);
 AL_TNalUnit AL_CreatePps(int nut, AL_TPps* pps, int layerId, int tempId);
-AL_TNalUnit AL_CreateVps(AL_THevcVps* vps, int tempId);
+AL_TNalUnit AL_CreateVps(int nut, AL_TVps* vps, int tempId);
 
 #include "lib_common_enc/EncPicInfo.h"
 typedef struct t_SeiPrefixAPSCtx

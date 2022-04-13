@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -357,9 +357,15 @@ bool AL_AVC_ParseSliceHeader(AL_TAvcSliceHdr* pSlice, AL_TRbspParser* pRP, AL_TC
     if(pSlice->field_pic_flag)
     {
       pSlice->bottom_field_flag = u(pRP, 1);
-      /* We do not support field (alternate) pictures */
-      Rtos_Log(AL_LOG_ERROR, "Interlaced pictures are not supported\n");
-      return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
+
+      bool bCheckValidity = true;
+
+      if(bCheckValidity)
+      {
+        /* We do not support field (alternate) pictures */
+        Rtos_Log(AL_LOG_ERROR, "Interlaced pictures are not supported\n");
+        return ApplyAvcSPSAndReturn(pSlice, pFallbackPps);
+      }
     }
   }
 
@@ -479,7 +485,7 @@ static void AL_HEVC_sSetDefaultSliceHeader(AL_THevcSliceHdr* pSlice)
   const AL_THevcPps* pPPS = pSlice->pPPS;
   AL_THevcSps* pSPS = pSlice->pSPS;
 
-  Rtos_Memset(pSlice, 0, sizeof(AL_THevcSliceHdr));
+  Rtos_Memset(pSlice, 0, offsetof(AL_THevcSliceHdr, entry_point_offset_minus1));
 
   pSlice->first_slice_segment_in_pic_flag = first_slice_segment_in_pic_flag;
   pSlice->no_output_of_prior_pics_flag = no_output_prior_pics_flag;

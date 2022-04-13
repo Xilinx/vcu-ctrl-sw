@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -44,6 +44,14 @@
 
 #include "lib_rtos/types.h"
 #include "Profiles.h"
+
+#define AL_MAX_NUM_REF 16
+#define AL_MAX_NUM_B_PICT 15
+
+/*************************************************************************//*!
+   \brief Maximum number of frame type i.e. (I, P, B)
+*****************************************************************************/
+#define AL_MAX_FRAME_TYPE 3
 
 /*************************************************************************//*!
    \brief Identifies the slice coding type

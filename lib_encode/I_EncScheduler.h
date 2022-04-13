@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -94,7 +94,7 @@ void AL_IEncScheduler_Destroy(AL_IEncScheduler* pScheduler);
    \param[in] pCBs Pointer to the callbacks (See Scheduler callbacks)
    \return errorcode explaining why the channel creation failed
 *****************************************************************************/
-static AL_INLINE
+static inline
 AL_ERR AL_IEncScheduler_CreateChannel(AL_HANDLE* hChannel, AL_IEncScheduler* pScheduler, TMemDesc* pMDChParam, TMemDesc* pEP1, AL_HANDLE hRcPluginDmaCtx, AL_TEncScheduler_CB_EndEncoding* pCBs)
 {
   return pScheduler->vtable->createChannel(hChannel, pScheduler, pMDChParam, pEP1, hRcPluginDmaCtx, pCBs);
@@ -105,7 +105,7 @@ AL_ERR AL_IEncScheduler_CreateChannel(AL_HANDLE* hChannel, AL_IEncScheduler* pSc
    \param[in] hChannel Channel Identifier
    \return return true
 *****************************************************************************/
-static AL_INLINE
+static inline
 bool AL_IEncScheduler_DestroyChannel(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel)
 {
   return pScheduler->vtable->destroyChannel(pScheduler, hChannel);
@@ -119,7 +119,7 @@ bool AL_IEncScheduler_DestroyChannel(AL_IEncScheduler* pScheduler, AL_HANDLE hCh
    \return return true if the decoding launch is successfull
    false otherwise
 *****************************************************************************/
-static AL_INLINE
+static inline
 bool AL_IEncScheduler_EncodeOneFrame(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel, AL_TEncInfo* pEncInfo, AL_TEncRequestInfo* pReqInfo, AL_TEncPicBufAddrs* pBufferAddrs)
 {
   return pScheduler->vtable->encodeOneFrame(pScheduler, hChannel, pEncInfo, pReqInfo, pBufferAddrs);
@@ -134,7 +134,7 @@ bool AL_IEncScheduler_EncodeOneFrame(AL_IEncScheduler* pScheduler, AL_HANDLE hCh
    \return return true if the buffer could be pushed in the scheduler
    false otherwise
 *****************************************************************************/
-static AL_INLINE
+static inline
 void AL_IEncScheduler_PutStreamBuffer(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel, AL_TBuffer* pStream, AL_64U streamUserPtr, uint32_t uOffset)
 {
   pScheduler->vtable->putStreamBuffer(pScheduler, hChannel, pStream, streamUserPtr, uOffset);
@@ -147,7 +147,7 @@ void AL_IEncScheduler_PutStreamBuffer(AL_IEncScheduler* pScheduler, AL_HANDLE hC
    \return return true if a reconstructed buffer was available
    false otherwise
 *****************************************************************************/
-static AL_INLINE
+static inline
 bool AL_IEncScheduler_GetRecPicture(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel, AL_TRecPic* pRecPic)
 {
   return pScheduler->vtable->getRecPicture(pScheduler, hChannel, pRecPic);
@@ -160,7 +160,7 @@ bool AL_IEncScheduler_GetRecPicture(AL_IEncScheduler* pScheduler, AL_HANDLE hCha
    \return return true if the reconstructed buffer could be released
    false if the buffer is not known in the scheduler
 *****************************************************************************/
-static AL_INLINE
+static inline
 bool AL_IEncScheduler_ReleaseRecPicture(AL_IEncScheduler* pScheduler, AL_HANDLE hChannel, AL_TRecPic* pRecPic)
 {
   return pScheduler->vtable->releaseRecPicture(pScheduler, hChannel, pRecPic);

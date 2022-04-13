@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -58,11 +58,14 @@ AL_TNuts CreateAvcNuts(void)
     &GetNalHeaderAvc,
     AL_AVC_NUT_SPS,
     AL_AVC_NUT_PPS,
+    0, /* VPS does not exist in AVC */
     AL_AVC_NUT_AUD,
     AL_AVC_NUT_FD,
     AL_AVC_NUT_PREFIX_SEI,
     /* sei suffix do not really exist in AVC. use a prefix nut */
     AL_AVC_NUT_PREFIX_SEI,
+    0,
+    0,
   };
   return nuts;
 }
@@ -154,11 +157,12 @@ static void padCodedSliceData(int iCodedSliceSize, AL_TBuffer* pStream, AL_TEncC
   }
 }
 
-void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iPicID, bool bMustWritePPS)
+void AVC_GenerateSections(AL_TEncCtx* pCtx, AL_TBuffer* pStream, AL_TEncPicStatus const* pPicStatus, int iPicID, bool bMustWritePPS, bool bMustWriteAUD)
 {
   AL_TNuts nuts = CreateAvcNuts();
   AL_TNalsData nalsData = AL_ExtractNalsData(pCtx, 0, iPicID);
   nalsData.bMustWritePPS = bMustWritePPS;
+  nalsData.bMustWriteAud = bMustWriteAUD;
   AL_TEncChanParam const* pChannel = &pCtx->pSettings->tChParam[0];
   bool bForceSEIRecoveryPointOnIDR = false;
 

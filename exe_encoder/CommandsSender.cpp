@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -37,6 +37,10 @@
 
 #include "CommandsSender.h"
 
+#include <string.h>
+
+using namespace std;
+
 void CommandsSender::notifySceneChange(int lookAhead)
 {
   AL_Encoder_NotifySceneChange(hEnc, lookAhead);
@@ -61,6 +65,11 @@ void CommandsSender::notifyUseLongTerm()
 void CommandsSender::restartGop()
 {
   CHECK(AL_Encoder_RestartGop(hEnc));
+}
+
+void CommandsSender::restartGopRecoveryPoint()
+{
+  CHECK(AL_Encoder_RestartGopRecoveryPoint(hEnc));
 }
 
 void CommandsSender::setGopLength(int gopLength)
@@ -88,6 +97,11 @@ void CommandsSender::setBitRate(int bitRate)
   CHECK(AL_Encoder_SetBitRate(hEnc, bitRate));
 }
 
+void CommandsSender::setMaxBitRate(int iTargetBitRate, int iMaxBitRate)
+{
+  CHECK(AL_Encoder_SetMaxBitRate(hEnc, iTargetBitRate, iMaxBitRate));
+}
+
 void CommandsSender::setQP(int qp)
 {
   CHECK(AL_Encoder_SetQP(hEnc, qp));
@@ -96,6 +110,21 @@ void CommandsSender::setQP(int qp)
 void CommandsSender::setQPBounds(int iMinQP, int iMaxQP)
 {
   CHECK(AL_Encoder_SetQPBounds(hEnc, iMinQP, iMaxQP));
+}
+
+void CommandsSender::setQPBounds_I(int iMinQP_I, int iMaxQP_I)
+{
+  CHECK(AL_Encoder_SetQPBoundsPerFrameType(hEnc, iMinQP_I, iMaxQP_I, AL_SLICE_I));
+}
+
+void CommandsSender::setQPBounds_P(int iMinQP_P, int iMaxQP_P)
+{
+  CHECK(AL_Encoder_SetQPBoundsPerFrameType(hEnc, iMinQP_P, iMaxQP_P, AL_SLICE_P));
+}
+
+void CommandsSender::setQPBounds_B(int iMinQP_B, int iMaxQP_B)
+{
+  CHECK(AL_Encoder_SetQPBoundsPerFrameType(hEnc, iMinQP_B, iMaxQP_B, AL_SLICE_B));
 }
 
 void CommandsSender::setQPIPDelta(int iQPDelta)
@@ -122,6 +151,21 @@ void CommandsSender::setLFBetaOffset(int iBetaOffset)
 void CommandsSender::setLFTcOffset(int iTcOffset)
 {
   CHECK(AL_Encoder_SetLoopFilterTcOffset(hEnc, iTcOffset));
+}
+
+void CommandsSender::setCostMode(bool bCostMode)
+{
+  CHECK(AL_Encoder_SetCostMode(hEnc, bCostMode));
+}
+
+void CommandsSender::setQPChromaOffsets(int iQp1Offset, int iQp2Offset)
+{
+  CHECK(AL_Encoder_SetQPChromaOffsets(hEnc, iQp1Offset, iQp2Offset));
+}
+
+void CommandsSender::setAutoQP(bool bUseAutoQP)
+{
+  CHECK(AL_Encoder_SetAutoQP(hEnc, bUseAutoQP));
 }
 
 void CommandsSender::setHDRIndex(int iHDRIdx)

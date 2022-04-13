@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -97,11 +97,11 @@ uint8_t AL_DPBConstraint_GetMaxRef_DefaultGopMngr(const AL_TGopParam* pGopParam,
 /****************************************************************************/
 uint8_t AL_DPBConstraint_GetMaxRef_GopMngrCustom(const AL_TGopParam* pGopParam, AL_ECodec eCodec, AL_EVideoMode eVideoMode)
 {
-  uint8_t uNumRef;
+  int iNumRef;
 
   if(pGopParam->uNumB == 0)
   {
-    uNumRef = 1;
+    iNumRef = 1;
   }
   else
   {
@@ -116,21 +116,21 @@ uint8_t AL_DPBConstraint_GetMaxRef_GopMngrCustom(const AL_TGopParam* pGopParam, 
       uPyrLevel++;
     }
 
-    uNumRef = uPyrLevel + 2; // Right B frames + 2 P frames
+    iNumRef = uPyrLevel + 2; // Right B frames + 2 P frames
 
     /* Add 1 in AVC for the current frame */
     if(eCodec == AL_CODEC_AVC)
-      uNumRef++;
+      iNumRef++;
   }
 
   if(pGopParam->bEnableLT)
-    uNumRef++;
+    iNumRef++;
 
   // The current buffer is used as reference when dealing with the second field
   if(eCodec == AL_CODEC_AVC && eVideoMode != AL_VM_PROGRESSIVE)
-    ++uNumRef;
+    ++iNumRef;
 
-  return uNumRef;
+  return iNumRef;
 }
 
 /****************************************************************************/
@@ -146,6 +146,7 @@ uint8_t AL_DPBConstraint_GetMaxDPBSize(const AL_TEncChanParam* pChParam)
     uDPBSize = AL_DPBConstraint_GetMaxRef_DefaultGopMngr(&pChParam->tGopParam, eCodec, pChParam->eVideoMode);
     break;
   case AL_GOP_MNGR_CUSTOM:
+  case AL_GOP_MNGR_COMMON:
     uDPBSize = AL_DPBConstraint_GetMaxRef_GopMngrCustom(&pChParam->tGopParam, eCodec, pChParam->eVideoMode);
     break;
   case AL_GOP_MNGR_MAX_ENUM:

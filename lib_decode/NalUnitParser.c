@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -155,6 +155,7 @@ static void InitNonVclBuf(AL_TDecCtx* pCtx)
   {
     Rtos_Free(pCtx->BufNoAE.tMD.pVirtualAddr);
     pCtx->BufNoAE.tMD.pVirtualAddr = (uint8_t*)Rtos_Malloc(uLengthNAL);
+    AL_Assert(pCtx->BufNoAE.tMD.pVirtualAddr);
     pCtx->BufNoAE.tMD.uSize = uLengthNAL;
   }
 

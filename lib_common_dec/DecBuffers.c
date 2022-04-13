@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -69,35 +69,35 @@ int32_t RndHeight(int32_t iHeight)
 /****************************************************************************/
 int AL_GetAllocSize_HevcCompData(AL_TDimension tDim, AL_EChromaMode eChromaMode)
 {
-  int iBlk16x16 = GetBlk64x64(tDim) * 16;
+  int iBlk16x16 = GetSquareBlkNumber(tDim, 64) * 16;
   return HEVC_LCU_CMP_SIZE[eChromaMode] * iBlk16x16;
 }
 
 /****************************************************************************/
 int AL_GetAllocSize_AvcCompData(AL_TDimension tDim, AL_EChromaMode eChromaMode)
 {
-  int iBlk16x16 = GetBlk16x16(tDim);
+  int iBlk16x16 = GetSquareBlkNumber(tDim, 16);
   return AVC_LCU_CMP_SIZE[eChromaMode] * iBlk16x16;
 }
 
 /****************************************************************************/
 int AL_GetAllocSize_DecCompMap(AL_TDimension tDim)
 {
-  int iBlk16x16 = GetBlk16x16(tDim);
+  int iBlk16x16 = GetSquareBlkNumber(tDim, 16);
   return SIZE_LCU_INFO * iBlk16x16;
 }
 
 /*****************************************************************************/
 int AL_GetAllocSize_HevcMV(AL_TDimension tDim)
 {
-  int iNumBlk = GetBlk64x64(tDim) * 16;
+  int iNumBlk = GetSquareBlkNumber(tDim, 64) * 16;
   return 4 * iNumBlk * sizeof(int32_t);
 }
 
 /*****************************************************************************/
 int AL_GetAllocSize_AvcMV(AL_TDimension tDim)
 {
-  int iNumBlk = GetBlk16x16(tDim);
+  int iNumBlk = GetSquareBlkNumber(tDim, 16);
   return 16 * iNumBlk * sizeof(int32_t);
 }
 
@@ -152,17 +152,28 @@ int AL_DecGetAllocSize_Frame_UV(AL_EFbStorageMode eFbStorage, AL_TDimension tDim
 }
 
 /****************************************************************************/
-TRefListOffsets AL_GetRefListOffsets(AL_EChromaOrder eChromaOrder)
+uint32_t AL_GetRefListOffsets(TRefListOffsets* pOffsets, AL_ECodec eCodec, AL_EChromaOrder eChromaOrder, uint32_t uAddrSize)
 {
   AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES];
   const int iNbPixPlanes = Max(2, AL_Plane_GetBufferPixelPlanes(eChromaOrder, usedPlanes));
-  TRefListOffsets tOffsets =
-  {
-    MAX_REF* iNbPixPlanes, // Colocated MV list addr offset
-    MAX_REF * (iNbPixPlanes + 1), // Colocated POC list addr offset
-    MAX_REF * (iNbPixPlanes + 2), // Fbc map list addr offset
-  };
-  return tOffsets;
+  TRefListOffsets tOffsets;
+  (void)eCodec;
+
+  uint32_t uOffset = uAddrSize * MAX_REF * iNbPixPlanes; // size of RefList Buff Addrs
+
+  tOffsets.uColocPocOffset = uOffset;
+  uOffset += uAddrSize * MAX_REF; // size of coloc POCs Buff Addrs
+
+  tOffsets.uColocMVOffset = uOffset;
+  uOffset += uAddrSize * MAX_REF; // size of coloc MVs Buff Addrs
+
+  tOffsets.uMapOffset = uOffset;
+  uOffset += uAddrSize * MAX_REF * iNbPixPlanes;  // size of RefList Map Addr
+
+  if(pOffsets)
+    *pOffsets = tOffsets;
+
+  return uOffset;
 }
 
 /*****************************************************************************/

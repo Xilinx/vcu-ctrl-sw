@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -40,6 +40,6 @@
 #include "sink.h"
 #include "CfgParser.h"
 
-std::unique_ptr<IFrameSink> createYuvMd5Calculator(std::string path, ConfigFile& cfg_, AL_TBuffer* Yuv_);
+std::unique_ptr<IFrameSink> createYuvMd5Calculator(std::string path, ConfigFile& cfg_);
 std::unique_ptr<IFrameSink> createStreamMd5Calculator(std::string path);
 

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,8 @@
 #include <fstream>
 #include "lib_app/utils.h"
 #include "sink_md5.h"
-#include "MD5.h"
+#include "lib_app/MD5.h"
+#include "lib_app/YuvIO.h"
 #include "CodecUtils.h"
 
 extern "C"
@@ -49,39 +50,14 @@ extern "C"
 
 void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tYuvFourCC);
 
-class Md5Calculator
-{
-protected:
-  Md5Calculator(std::string& path)
-  {
-    if(path == "stdout")
-      m_pMd5Out = &std::cout;
-    else
-    {
-      OpenOutput(m_Md5File, path);
-      m_pMd5Out = &m_Md5File;
-    }
-  }
-
-  void Md5Output()
-  {
-    auto const sMD5 = m_MD5.GetMD5();
-    *m_pMd5Out << sMD5 << std::endl;
-  }
-
-  std::ofstream m_Md5File;
-  std::ostream* m_pMd5Out;
-  CMD5 m_MD5;
-};
-
 class YuvMd5Calculator : public IFrameSink, Md5Calculator
 {
 public:
-  YuvMd5Calculator(std::string& path, ConfigFile& cfg_, AL_TBuffer* Yuv_) :
+  YuvMd5Calculator(std::string& path, ConfigFile& cfg_) :
     Md5Calculator(path),
-    Yuv(Yuv_),
     fourcc(cfg_.RecFourCC)
-  {}
+  {
+  }
 
   void ProcessFrame(AL_TBuffer* pBuf) override
   {
@@ -95,8 +71,9 @@ public:
 
     if(tRecFourCC != fourcc && !AL_IsCompressed(tRecFourCC))
     {
-      RecToYuv(pBuf, Yuv, fourcc);
-      pBuf = Yuv;
+      CheckAndAllocateConversionBuffer(pBuf);
+      RecToYuv(pBuf, m_convYUV.get(), fourcc);
+      pBuf = m_convYUV.get();
     }
 
     int iChunkCnt = AL_Buffer_GetChunkCount(pBuf);
@@ -106,13 +83,34 @@ public:
   }
 
 private:
-  AL_TBuffer* const Yuv;
+  std::shared_ptr<AL_TBuffer> m_convYUV;
   TFourCC const fourcc;
+
+  void CheckAndAllocateConversionBuffer(AL_TBuffer* pBuf)
+  {
+    AL_TDimension tOutputDim = AL_PixMapBuffer_GetDimension(pBuf);
+
+    if(m_convYUV != nullptr)
+    {
+      AL_TDimension tConvDim = AL_PixMapBuffer_GetDimension(m_convYUV.get());
+
+      if(tConvDim.iHeight >= tOutputDim.iHeight && tConvDim.iWidth >= tOutputDim.iWidth)
+        return;
+    }
+
+    AL_TBuffer* pYuv = AllocateDefaultYuvIOBuffer(tOutputDim, fourcc);
+
+    if(pYuv == nullptr)
+      throw std::runtime_error("Couldn't allocate reconstruct conversion buffer");
+
+    m_convYUV = std::shared_ptr<AL_TBuffer>(pYuv, &AL_Buffer_Destroy);
+
+  }
 };
 
-std::unique_ptr<IFrameSink> createYuvMd5Calculator(std::string path, ConfigFile& cfg_, AL_TBuffer* Yuv_)
+std::unique_ptr<IFrameSink> createYuvMd5Calculator(std::string path, ConfigFile& cfg_)
 {
-  return std::unique_ptr<IFrameSink>(new YuvMd5Calculator(path, cfg_, Yuv_));
+  return std::unique_ptr<IFrameSink>(new YuvMd5Calculator(path, cfg_));
 }
 
 class StreamMd5Calculator : public IFrameSink, Md5Calculator

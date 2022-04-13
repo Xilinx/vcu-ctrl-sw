@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -51,10 +51,21 @@ const char* AL_Codec_ErrorToString(AL_ERR eErrorCode)
   case AL_ERR_CHAN_CREATION_NOT_ENOUGH_CORES: return "Channel creation failed, couldn't spread the load on enough cores";
   case AL_ERR_REQUEST_MALFORMED: return "Channel creation failed, request was malformed";
   case AL_ERR_CMD_NOT_ALLOWED: return "Command is not allowed";
+  case AL_ERR_CHAN_CREATION_MIX_REALTIME: return "Cannot mix realtime and non-realtime channel";
+  case AL_ERR_QPLOAD_DATA: return "Error in QP file data.";
+  case AL_ERR_QPLOAD_NOT_ENOUGH_DATA: return "Not enough datas in the provided QP table.";
+  case AL_ERR_QPLOAD_SEGMENT_CONFIG: return "Some segments are configured with an invalid QP in the provided QP table.";
+  case AL_ERR_QPLOAD_QP_VALUE: return "Invalid QPs configured in the provided QP table.";
+  case AL_ERR_QPLOAD_SEGMENT_INDEX: return "Invalid segment indexes found in the provided QP table.";
+  case AL_ERR_QPLOAD_FORCE_FLAGS: return "Some coding units are configured with both force-intra and force-mv0 flags in the provided QP table.";
+  case AL_ERR_QPLOAD_BLK_SIZE: return "Some LCU are configured with invalid min/max block sizes in the provided QP table.";
+  case AL_ERR_INVALID_OR_UNSUPPORTED_FILE_FORMAT: return "Invalid or unsupported file format";
+  case AL_ERR_REQUEST_INVALID_MIN_WIDTH: return "Minimal frame width not reached (2x LCU size)";
   case AL_ERR_INVALID_CMD_VALUE: return "Value associated with the command is invalid";
 
   /* Warnings */
   case AL_WARN_CONCEAL_DETECT: return "Decoder had to conceal some errors in the stream";
+  case AL_WARN_UNSUPPORTED_NAL: return "Some NALs have unsupported features, decoder discarded it";
   case AL_WARN_LCU_OVERFLOW: return "Warning some LCU exceed the maximum allowed bits";
   case AL_WARN_NUM_SLICES_ADJUSTED: return "Warning num slices have been adjusted";
   case AL_WARN_SPS_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS: return "Sps not compatible with channel settings, decoder discarded it";

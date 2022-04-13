@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -39,8 +39,17 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <regex>
 
-#include "FileUtils.h"
+#if defined(__linux__)
+#include <dirent.h>
+#endif
+
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
+#include "lib_app/FileUtils.h"
 
 static const char CurrentDirectory = '.';
 static const char PathSeparator = '/';
@@ -74,6 +83,119 @@ std::string createFileNameWithID(const std::string& path, const std::string& mot
   std::ostringstream filename;
   filename << motif << "_" << iFrameID << extension;
   return combinePath(path, filename.str());
+}
+
+/****************************************************************************/
+bool checkFolder(std::string folderPath)
+{
+  (void)folderPath;
+
+  if(folderPath.compare("") != 0)
+  {
+#if defined(_WIN32)
+
+    WIN32_FIND_DATA FindFolderData;
+    WIN32_FIND_DATA FindFileData;
+    HANDLE hFind;
+    folderPath.resize(folderPath.find_last_not_of("\\/") + 1);
+
+    hFind = FindFirstFile(folderPath.c_str(), &FindFolderData);
+
+    if(hFind == INVALID_HANDLE_VALUE)
+      return false;
+
+    FindClose(hFind);
+#endif
+
+#if defined(__linux__)
+
+    DIR* dir = opendir(folderPath.c_str());
+
+    if(dir == NULL)
+      return false;
+    closedir(dir);
+#endif
+  }
+
+  return true;
+}
+
+/****************************************************************************/
+bool checkFileAvailability(std::string folderPath, std::regex file_regex)
+{
+  (void)file_regex;
+
+  if(folderPath.compare("") == 0)
+  {
+    folderPath = ".";
+  }
+
+#if defined(_WIN32)
+
+  WIN32_FIND_DATA FindFolderData;
+  HANDLE hFind;
+  FILE* fileStream;
+
+  if(folderPath.compare(".") != 0)
+    folderPath.resize(folderPath.find_last_not_of("\\/") + 1);
+
+  hFind = FindFirstFile((folderPath + "\\*").c_str(), &FindFolderData);
+
+  if(hFind == INVALID_HANDLE_VALUE)
+    return false;
+
+  do
+  {
+    std::string file(FindFolderData.cFileName);
+
+    if(std::regex_match(file, file_regex))
+    {
+      std::string file_path = folderPath + "\\" + file;
+
+      if(fopen_s(&fileStream, file_path.c_str(), "r") == 0)
+      {
+        fclose(fileStream);
+        FindClose(hFind);
+        return true;
+      }
+    }
+  }
+  while(FindNextFile(hFind, &FindFolderData));
+
+  FindClose(hFind);
+
+#endif
+
+#if defined(__linux__)
+
+  if(folderPath.back() != '/')
+    folderPath = folderPath + "/";
+
+  struct dirent* entry;
+  DIR* dir = opendir(folderPath.c_str());
+
+  while((entry = readdir(dir)) != NULL)
+  {
+    std::string file(entry->d_name);
+
+    if(std::regex_match(file, file_regex))
+    {
+      std::string file_path = folderPath + file;
+
+      auto pFile = fopen(file_path.c_str(), "r");
+
+      if(pFile)
+      {
+        fclose(pFile);
+        closedir(dir);
+        return true;
+      }
+    }
+  }
+
+#endif
+
+  return false;
 }
 
 /****************************************************************************/

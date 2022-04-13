@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -147,7 +147,7 @@ static const AL_TFeederVtable UnsplitBufferFeederVtable =
   &freeBuf,
 };
 
-AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TAllocator* pAllocator, int iBufferStreamSize, AL_TBuffer* eosBuffer, bool bForceAccessUnitDestroy, AL_CB_Error* errorCallback)
+AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TAllocator* pAllocator, int iBufferStreamSize, AL_TBuffer* eosBuffer, bool bForceAccessUnitDestroy)
 {
   AL_TUnsplitBufferFeeder* this = Rtos_Malloc(sizeof(*this));
 
@@ -172,7 +172,7 @@ AL_TFeeder* AL_UnsplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TAl
   if(!AL_Patchworker_Init(&this->patchworker, stream, &this->fifo))
     goto fail_patchworker_allocation;
 
-  this->decoderFeeder = AL_DecoderFeeder_Create(stream, hDec, &this->patchworker, errorCallback);
+  this->decoderFeeder = AL_DecoderFeeder_Create(stream, hDec, &this->patchworker);
 
   if(!this->decoderFeeder)
     goto fail_decoder_feeder_creation;

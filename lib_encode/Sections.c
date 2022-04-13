@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -45,7 +45,9 @@
 #include "lib_common/Utils.h"
 
 #include "lib_bitstream/AVC_RbspEncod.h"
+#include "lib_encode/AVC_Sections.h"
 #include "lib_bitstream/HEVC_RbspEncod.h"
+#include "lib_encode/HEVC_Sections.h"
 
 #include "lib_assert/al_assert.h"
 
@@ -112,9 +114,9 @@ static void GenerateConfigNalUnits(IRbspWriter* writer, AL_TNalUnit* nals, uint3
     GenerateNal(writer, &bitstream, bitstreamSize, &nals[i], pMetaData, nalsFlags[i], eStartCodeBytesAligned);
 }
 
-static AL_TSeiPrefixAPSCtx createSeiPrefixAPSCtx(AL_TSps* sps, AL_THevcVps* vps)
+static AL_TSeiPrefixAPSCtx createSeiPrefixAPSCtx(AL_TSps* sps, AL_TVps* vps)
 {
-  AL_TSeiPrefixAPSCtx ctx = { sps, vps };
+  AL_TSeiPrefixAPSCtx ctx = { sps, (AL_THevcVps*)vps };
   return ctx;
 }
 
@@ -190,13 +192,13 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, AL_TNalsData const* pN
 
   if(pPicStatus->bIsFirstSlice)
   {
-    AL_TNalUnit nals[9];
-    uint32_t nalsFlags[9];
+    AL_TNalUnit nals[10];
+    uint32_t nalsFlags[10];
     int nalsCount = 0;
 
     if(pNalsData->bMustWriteAud)
     {
-      nals[nalsCount] = AL_CreateAud(nuts.audNut, pPicStatus->eType, pPicStatus->uTempId);
+      nals[nalsCount] = AL_CreateAud(nuts.audNut, pNalsData->aud, pPicStatus->uTempId);
       nalsFlags[nalsCount++] = AL_SECTION_CONFIG_FLAG;
     }
 
@@ -206,7 +208,7 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, AL_TNalsData const* pN
 
     if(bWriteVPS)
     {
-      nals[nalsCount] = AL_CreateVps(pNalsData->vps, pPicStatus->uTempId);
+      nals[nalsCount] = AL_CreateVps(nuts.vpsNut, pNalsData->vps, pPicStatus->uTempId);
       nalsFlags[nalsCount++] = AL_SECTION_CONFIG_FLAG;
     }
 
@@ -372,3 +374,20 @@ int AL_WriteSeiSection(AL_ECodec eCodec, AL_TNuts nuts, AL_TBuffer* pStream, boo
   return sectionId;
 }
 
+bool AL_CreateNuts(AL_TNuts* nuts, AL_EProfile eProfile)
+{
+  (void)nuts, (void)eProfile;
+
+  if(AL_IS_AVC(eProfile))
+  {
+    *nuts = CreateAvcNuts();
+    return true;
+  }
+
+  if(AL_IS_HEVC(eProfile))
+  {
+    *nuts = CreateHevcNuts();
+    return true;
+  }
+  return false;
+}

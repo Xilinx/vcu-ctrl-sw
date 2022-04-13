@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,7 @@
 /****************************************************************************
    -----------------------------------------------------------------------------
  **************************************************************************//*!
-   \addtogroup lib_cfg
+   \addtogroup lib_app
    @{
    \file
  *****************************************************************************/
@@ -62,16 +62,15 @@ extern "C"
 typedef AL_INTROSPECT (category = "debug") struct tCfgRunInfo
 {
   std::string encDevicePath;
-  DEVICE_TYPE iDeviceType;
-  SCHEDULER_TYPE iSchedulerType;
+  AL_EDeviceType iDeviceType;
+  AL_ESchedulerType iSchedulerType;
   bool bLoop;
   int iMaxPict;
   unsigned int iFirstPict;
   unsigned int iScnChgLookAhead;
   std::string sRecMd5Path;
   std::string sStreamMd5Path;
-  int eVQDescr;
-  IpCtrlMode ipCtrlMode;
+  AL_EIpCtrlMode ipCtrlMode;
   std::string logsFile = "";
   std::string apbFile = "";
   bool trackDma = false;
@@ -100,6 +99,19 @@ typedef AL_INTROSPECT (category = "debug") struct tConfigYUVInput
   // happen
   std::string sRoiFileName;
 }TConfigYUVInput;
+
+/*************************************************************************//*!
+   \brief Source format
+*****************************************************************************/
+typedef enum e_SrcFormat
+{
+  AL_SRC_FORMAT_RASTER,
+  AL_SRC_FORMAT_TILE_64x4,
+  AL_SRC_FORMAT_TILE_32x4,
+  AL_SRC_FORMAT_COMP_64x4,
+  AL_SRC_FORMAT_COMP_32x4,
+  AL_SRC_FORMAT_MAX_ENUM,
+}AL_ESrcFormat;
 
 /*************************************************************************//*!
    \brief Whole configuration file
@@ -131,6 +143,9 @@ AL_INTROSPECT(category = "debug") struct ConfigFile
   // \brief FOURCC Code of the reconstructed picture output file
   TFourCC RecFourCC;
 
+  // \brief Source format of encoder input
+  AL_ESrcFormat eSrcFormat;
+
   // \brief Sections RATE_CONTROL and SETTINGS
   AL_TEncSettings Settings;
 
@@ -142,18 +157,33 @@ AL_INTROSPECT(category = "debug") struct ConfigFile
 
 };
 
-/*************************************************************************//*!
-   \brief Parses the specified Cfg File and fill corresponding structures
-   \param[in] sCfgFileName Reference to a string object that specifies
-   the name of the config file
-   \param[inout] cfg Reference to ConfigFile object that will be updated
-   according to the config file content.
-   \param[out] warnStream warning stream
-*****************************************************************************/
-void ParseConfigFile(std::string const& sCfgFileName, ConfigFile& cfg, std::ostream& warnStream = std::cerr, bool debug = false);
-void ParseConfig(std::string const& toParse, ConfigFile& cfg, std::ostream& warnStream = std::cerr, bool debug = false);
-void PrintConfigFileUsage(ConfigFile cfg = {}, bool showAdvancedFeature = true);
-void PrintConfigFileUsageJson(ConfigFile cfg = {}, bool showAdvancedFeature = true);
-void PrintConfig(ConfigFile cfg, bool showAdvancedFeature = true);
+struct Temporary
+{
+  Temporary()
+  {
+  }
+
+  std::string sScalingListFile {};
+  std::string sZapperFile {};
+  TConfigYUVInput TempInput;
+  bool bWidthIsParsed = false;
+  bool bHeightIsParsed = false;
+  bool bNameIsParsed = false;
+  bool bParseLambdaFactors = false;
+
+};
+
+struct CfgParser final
+{
+  void ParseConfigFile(std::string const& sCfgFileName, ConfigFile& cfg, std::ostream& warnStream = std::cerr, bool debug = false);
+  void ParseConfig(std::string const& toParse, ConfigFile& cfg, std::ostream& warnStream = std::cerr, bool debug = false);
+  void PrintConfigFileUsage(ConfigFile cfg = {}, bool showAdvancedFeature = true);
+  void PrintConfigFileUsageJson(ConfigFile cfg = {}, bool showAdvancedFeature = true);
+  void PrintConfig(ConfigFile cfg, bool showAdvancedFeature = true);
+  void PostParsingConfiguration(ConfigFile& cfg, std::ostream& warnStream = std::cerr);
+
+private:
+  Temporary temporaries {};
+};
 /*@}*/
 

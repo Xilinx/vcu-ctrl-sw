@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -59,17 +59,17 @@ typedef enum e_SeiFlag
   AL_SEI_ST2094_40 = 0x00000080,  // !< ST2094_40 (Dynamic HDR)
   // suffix (16 MSBs)
 
-  AL_SEI_ALL = 0xFFFFFFFF, // !< All supported SEI
+  AL_SEI_ALL = ~0x0, // !< All supported SEI
 }AL_ESeiFlag;
 
 /****************************************************************************/
-static AL_INLINE bool AL_HAS_SEI_SUFFIX(AL_ESeiFlag seiFlag)
+static inline bool AL_HAS_SEI_SUFFIX(AL_ESeiFlag seiFlag)
 {
   return (seiFlag & 0xFFFF0000) != 0;
 }
 
 /****************************************************************************/
-static AL_INLINE bool AL_HAS_SEI_PREFIX(AL_ESeiFlag seiFlag)
+static inline bool AL_HAS_SEI_PREFIX(AL_ESeiFlag seiFlag)
 {
   return (seiFlag & 0x0000FFFF) != 0;
 }

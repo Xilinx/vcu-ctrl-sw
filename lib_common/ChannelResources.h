@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -42,11 +42,12 @@ typedef struct
 {
   int minWidth;
   int maxWidth;
+  int lcuSize;
   int resources;
   bool enableMultiCore;
 }AL_CoreConstraint;
 
-void AL_CoreConstraint_Init(AL_CoreConstraint* constraint, int coreFrequency, int margin, int hardwareCyclesCount, int minWidth, int maxWidth);
+void AL_CoreConstraint_Init(AL_CoreConstraint* constraint, int coreFrequency, int margin, int hardwareCyclesCount, int minWidth, int maxWidth, int lcuSize);
 int AL_CoreConstraint_GetExpectedNumberOfCores(AL_CoreConstraint* constraint, int width, int height, int frameRate, int clockRatio);
 int AL_CoreConstraint_GetMinCoresCount(AL_CoreConstraint* constraint, int width);
 

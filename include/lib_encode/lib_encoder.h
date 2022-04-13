@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -86,6 +86,26 @@ typedef struct
   void (* func)(void* pUserParam, AL_TBuffer* pStream, AL_TBuffer const* pSrc, int iLayerID);
   void* userParam;
 }AL_CB_EndEncoding;
+
+/*************************************************************************//*!
+   \brief Select control software architecture
+*****************************************************************************/
+typedef enum
+{
+  AL_LIB_ENCODER_ARCH_HOST,
+}AL_ELibEncoderArch;
+
+/*************************************************************************//*!
+   \brief Initialize encoder library
+   \param[in] eArch  encoder library arch to use
+   \return error code specifying why library initialization has failed
+*****************************************************************************/
+AL_ERR AL_Lib_Encoder_Init(AL_ELibEncoderArch eArch);
+
+/*************************************************************************//*!
+   \brief Deinitialize encoder library
+*****************************************************************************/
+void AL_Lib_Encoder_DeInit(void);
 
 /*************************************************************************//*!
    \brief Creates a new instance of the encoder
@@ -208,12 +228,30 @@ int AL_Encoder_AddSei(AL_HEncoder hEnc, AL_TBuffer* pStream, bool isPrefix, int 
 AL_ERR AL_Encoder_GetLastError(AL_HEncoder hEnc);
 
 /*************************************************************************//*!
+   \brief Requests the encoder to change the cost mode flag.
+   \param[in] hEnc Handle to an encoder object
+   \param[in] costMode True to enable cost mode, False to disable cost mode
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_SetCostMode(AL_HEncoder hEnc, bool costMode);
+
+/*************************************************************************//*!
    \brief Requests the encoder to insert a Keyframe and restart a new Gop.
    \param[in] hEnc Handle to an encoder object
    \return true on success, false on error : call AL_Encoder_GetLastError to
    retrieve the error code
 *****************************************************************************/
 bool AL_Encoder_RestartGop(AL_HEncoder hEnc);
+
+/*************************************************************************//*!
+   \brief Requests the encoder to start a new pass of Gradual Decoding
+   Refresh.
+   \param[in] hEnc Handle to an encoder object
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_RestartGopRecoveryPoint(AL_HEncoder hEnc);
 
 /*************************************************************************//*!
    \brief Changes the GopLength. If the on-going
@@ -261,6 +299,16 @@ bool AL_Encoder_SetFreqIDR(AL_HEncoder hEnc, int iFreqIDR);
 bool AL_Encoder_SetBitRate(AL_HEncoder hEnc, int iBitRate);
 
 /*************************************************************************//*!
+   \brief Changes the max bitrate
+   \param[in] hEnc Handle to an encoder object
+   \param[in] iTargetBitRate New target bitrate in kbps
+   \param[in] iMaxBitRate New maximum bitrate in kbps
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_SetMaxBitRate(AL_HEncoder hEnc, int iTargetBitRate, int iMaxBitRate);
+
+/*************************************************************************//*!
    \brief Changes the encoding frame rate
    \param[in] hEnc Handle to an encoder object
    \param[in] uFrameRate the new frame rate
@@ -290,6 +338,17 @@ bool AL_Encoder_SetQP(AL_HEncoder hEnc, int16_t iQP);
    retrieve the error code
 *****************************************************************************/
 bool AL_Encoder_SetQPBounds(AL_HEncoder hEnc, int16_t iMinQP, int16_t iMaxQP);
+
+/*************************************************************************//*!
+   \brief Changes the bounds of the QP set by the rate control for a slice type
+   \param[in] hEnc Handle to an encoder object
+   \param[in] iMinQP The new QP lower bound
+   \param[in] iMaxQP The new QP upper bound
+   \param[in] sliceType The slice type on which apply the new QPBounds
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_SetQPBoundsPerFrameType(AL_HEncoder hEnc, int16_t iMinQP, int16_t iMaxQP, AL_ESliceType sliceType);
 
 /*************************************************************************//*!
    \brief Changes the QP delta between I frames and P frames
@@ -336,6 +395,28 @@ bool AL_Encoder_SetLoopFilterBetaOffset(AL_HEncoder hEnc, int8_t iBetaOffset);
    retrieve the error code
 *****************************************************************************/
 bool AL_Encoder_SetLoopFilterTcOffset(AL_HEncoder hEnc, int8_t iTcOffset);
+
+/*************************************************************************//*!
+   \brief Changes chroma offsets. change will be applied for current picture
+   and for following pictures in display order.
+   \param[in] hEnc Handle to an encoder object
+   \param[in] iQp1Offset The new Cb chroma offset for avc/hevc/vvc. The new Dc
+   chroma offset for av1.
+   \param[in] iQp2Offset The new Cr chroma offset for avc/hevc/vvc. The new Ac
+   chroma offset for av1.
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_SetQPChromaOffsets(AL_HEncoder hEnc, int8_t iQp1Offset, int8_t iQp2Offset);
+
+/*************************************************************************//*!
+   \brief Enable or Disable AutoQP control
+   \param[in] hEnc Handle to an encoder object
+   \param[in] useAutoQP The boolean to activate the use of AUTO_QP
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_SetAutoQP(AL_HEncoder hEnc, bool useAutoQP);
 
 /*************************************************************************//*!
    \brief Specify HDR SEIs to insert in the bitstream

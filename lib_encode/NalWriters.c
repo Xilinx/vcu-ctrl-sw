@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -44,7 +44,7 @@
 static void audWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void const* param, int layerId)
 {
   (void)layerId;
-  writer->WriteAUD(bitstream, (AL_ESliceType)(uintptr_t)param);
+  writer->WriteAUD(bitstream, param);
 }
 
 AL_TNalUnit AL_CreateNalUnit(void (* Write)(IRbspWriter*, AL_TBitStreamLite*, void const*, int), void const* param, int nut, int nalRefIdc, int layerId, int tempId)
@@ -59,9 +59,9 @@ AL_TNalUnit AL_CreateNalUnit(void (* Write)(IRbspWriter*, AL_TBitStreamLite*, vo
   return nal;
 }
 
-AL_TNalUnit AL_CreateAud(int nut, AL_ESliceType eSliceType, int tempId)
+AL_TNalUnit AL_CreateAud(int nut, AL_TAud* aud, int tempId)
 {
-  AL_TNalUnit nal = AL_CreateNalUnit(&audWrite, (void*)(uintptr_t)eSliceType, nut, 0, 0, tempId);
+  AL_TNalUnit nal = AL_CreateNalUnit(&audWrite, aud, nut, 0, 0, tempId);
   return nal;
 }
 
@@ -94,9 +94,9 @@ static void vpsWrite(IRbspWriter* writer, AL_TBitStreamLite* bitstream, void con
   writer->WriteVPS(bitstream, param);
 }
 
-AL_TNalUnit AL_CreateVps(AL_THevcVps* vps, int tempId)
+AL_TNalUnit AL_CreateVps(int nut, AL_TVps* vps, int tempId)
 {
-  AL_TNalUnit nal = AL_CreateNalUnit(&vpsWrite, vps, AL_HEVC_NUT_VPS, 0, 0, tempId);
+  AL_TNalUnit nal = AL_CreateNalUnit(&vpsWrite, vps, nut, 0, 0, tempId);
   return nal;
 }
 

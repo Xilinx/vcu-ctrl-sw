@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -83,6 +83,21 @@ static void FillConcealValue(AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP)
 }
 
 /******************************************************************************/
+int AL_AVC_GetFrameHeight(AL_TAvcSps const* pSPS, bool bHasFields)
+{
+  return (bHasFields || pSPS->frame_mbs_only_flag) ? (pSPS->pic_height_in_map_units_minus1 + 1) : ((pSPS->pic_height_in_map_units_minus1 + 1) * 2);
+}
+
+/******************************************************************************/
+AL_EPicStruct AL_AVC_GetPicStruct(AL_TAvcSliceHdr const* pSlice)
+{
+  (void)pSlice;
+  AL_EPicStruct ePicStruct = AL_PS_FRM;
+
+  return ePicStruct;
+}
+
+/******************************************************************************/
 void AL_AVC_FillPictParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx* pCtx, AL_TDecPicParam* pPP)
 {
   const AL_TAvcSps* pSps = pSlice->pSPS;
@@ -98,7 +113,7 @@ void AL_AVC_FillPictParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx* 
 
   // Reg 1
   pPP->PicWidth = (pSps->pic_width_in_mbs_minus1 + 1) << 1;
-  pPP->PicHeight = (pSps->pic_height_in_map_units_minus1 + 1) << 1;
+  pPP->PicHeight = AL_AVC_GetFrameHeight(pSps, pSlice->field_pic_flag) << 1;
 
   // Reg 2
   pPP->eEntMode = pPps->entropy_coding_mode_flag ? AL_MODE_CABAC : AL_MODE_CAVLC;
@@ -111,7 +126,7 @@ void AL_AVC_FillPictParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx* 
 
   // StandBy
   pPP->LcuPicWidth = pSps->pic_width_in_mbs_minus1 + 1;
-  pPP->LcuPicHeight = pSps->pic_height_in_map_units_minus1 + 1;
+  pPP->LcuPicHeight = AL_AVC_GetFrameHeight(pSps, pSlice->field_pic_flag);
 
   // Reg 0x10
   if(!pSps->seq_scaling_matrix_present_flag && !pPps->pic_scaling_matrix_present_flag)
@@ -139,7 +154,8 @@ void AL_AVC_FillSliceParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx*
 {
   const AL_TAvcPps* pPps = pSlice->pPPS;
 
-  Rtos_Memset(pSP, 0, sizeof(AL_TDecSliceParam));
+  /* to speed up memset we don't reset entry_point_offset array */
+  Rtos_Memset(pSP, 0, offsetof(AL_TDecSliceParam, entry_point_offset));
 
   // Reg 2
   pSP->CabacInitIdc = pSlice->cabac_init_idc;
@@ -211,6 +227,7 @@ void AL_AVC_FillSliceParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx*
   }
 
   pSP->DependentSlice = false;
+
 }
 
 /******************************************************************************/
@@ -334,6 +351,9 @@ void AL_HEVC_FillPictParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx
 /******************************************************************************/
 void AL_HEVC_FillSliceParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx* pCtx, AL_TDecSliceParam* pSP, bool bConceal)
 {
+  /* to speed up memset we don't reset entry_point_offset array */
+  Rtos_Memset(pSP, 0, offsetof(AL_TDecSliceParam, entry_point_offset));
+
   // fast access
   const AL_THevcPps* pPps = pSlice->pPPS;
 

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -123,6 +123,8 @@ static void Process(AL_TSplitBufferFeeder* this)
 
   AL_HANDLE hDec = this->hDec;
 
+  AL_Buffer_Ref(workBuf);
+
   Rtos_FlushCacheMemory(AL_Buffer_GetData(workBuf), AL_Buffer_GetSize(workBuf));
   AL_WorkPool_PushBack(&this->workPool, workBuf);
 
@@ -149,9 +151,10 @@ static void Process(AL_TSplitBufferFeeder* this)
     if(!IsSuccess(err))
     {
       freeBuf((AL_TFeeder*)this, workBuf);
-      return;
     }
   }
+
+  AL_Buffer_Unref(workBuf);
 }
 
 static void* Process_EntryPoint(void* userParam)

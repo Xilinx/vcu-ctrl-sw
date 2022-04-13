@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2020 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -44,6 +44,7 @@
  *****************************************************************************/
 
 #include "Avc_PictMngr.h"
+#include "lib_common/PixMapBuffer.h"
 #include "lib_common/BufferPixMapMeta.h"
 #include "lib_common/AvcUtils.h"
 
@@ -261,6 +262,12 @@ void AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlic
 }
 
 /*****************************************************************************/
+void AL_AVC_PictMngr_SetCurrentPicStruct(AL_TPictMngrCtx* pCtx, AL_EPicStruct ePicStruct)
+{
+  pCtx->ePicStruct = ePicStruct;
+}
+
+/*****************************************************************************/
 void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_EPicStruct ePicStruct)
 {
   // update cropping information
@@ -327,7 +334,7 @@ void AL_AVC_PictMngr_EndParsing(AL_TPictMngrCtx* pCtx, bool bClearRef, AL_EMarki
     AL_Dpb_Remove(pDpb, uDelete);
   }
 
-  AL_PictMngr_Insert(pCtx, pCtx->iCurFramePOC, 0, pCtx->uRecID, pCtx->uMvID, 1, eMarkingFlag, 0, 0, 0);
+  AL_PictMngr_Insert(pCtx, pCtx->iCurFramePOC, pCtx->ePicStruct, 0, pCtx->uRecID, pCtx->uMvID, 1, eMarkingFlag, 0, 0, 0);
   AL_Dpb_ResetMMCO5(&pCtx->DPB);
 }
 
@@ -373,8 +380,8 @@ void AL_AVC_PictMngr_Fill_Gap_In_FrameNum(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr
         pUnusedSlice.adaptive_ref_pic_marking_mode_flag = 0;
         int iFramePOC = AL_sCalculatePOC(pCtx, &pUnusedSlice);
 
-        AL_PictMngr_Insert(pCtx, iFramePOC, 0, uEndOfList, uEndOfList, 0, SHORT_TERM_REF, 1, 0, 0);
-        AL_Dpb_MarkingProcess(&pCtx->DPB, &pUnusedSlice);
+        AL_PictMngr_Insert(pCtx, iFramePOC, AL_PS_FRM, 0, uEndOfList, uEndOfList, 0, SHORT_TERM_REF, 1, 0, 0);
+        AL_Dpb_MarkingProcess(&pCtx->DPB, &pUnusedSlice, pCtx->iCurFramePOC);
         AL_Dpb_AVC_Cleanup(&pCtx->DPB);
         pCtx->iPrevFrameNum = UnusedShortTermFrameNum;
         UnusedShortTermFrameNum = (UnusedShortTermFrameNum + 1) % uMaxFrameNum;
@@ -386,22 +393,22 @@ void AL_AVC_PictMngr_Fill_Gap_In_FrameNum(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr
 /*****************************************************************************/
 void AL_AVC_PictMngr_InitPictList(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef)
 {
-  for(uint8_t uRef = 0; uRef < 16; ++uRef)
+  for(uint8_t uRef = 0; uRef < MAX_REF; ++uRef)
   {
     (*pListRef)[0][uRef].uNodeID = uEndOfList;
     (*pListRef)[1][uRef].uNodeID = uEndOfList;
   }
 
   if(pSlice->slice_type == AL_SLICE_P || pSlice->slice_type == AL_SLICE_SP)
-    AL_Dpb_InitPSlice_RefList(&pCtx->DPB, &(*pListRef)[0][0]);
+    AL_Dpb_InitPSlice_RefList(&pCtx->DPB, pCtx->ePicStruct, &(*pListRef)[0][0]);
   else if(pSlice->slice_type == AL_SLICE_B)
-    AL_Dpb_InitBSlice_RefList(&pCtx->DPB, pCtx->iCurFramePOC, pListRef);
+    AL_Dpb_InitBSlice_RefList(&pCtx->DPB, pCtx->iCurFramePOC, pCtx->ePicStruct, pListRef);
 }
 
 /*****************************************************************************/
 void AL_AVC_PictMngr_ReorderPictList(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef)
 {
-  int iPicNumPred = pSlice->frame_num;
+  int iPicNumPred = pSlice->frame_num * (1 + pSlice->field_pic_flag) + pSlice->field_pic_flag;
 
   if(pSlice->ref_pic_list_reordering_flag_l0)
   {
@@ -435,7 +442,7 @@ void AL_AVC_PictMngr_ReorderPictList(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSl
     uint8_t uParseShort = 0;
     uint8_t uParseLong = 0;
 
-    iPicNumPred = pSlice->frame_num;
+    iPicNumPred = pSlice->frame_num * (1 + pSlice->field_pic_flag) + pSlice->field_pic_flag;
 
     while(pSlice->reordering_of_pic_nums_idc_l1[uParse] != 3)
     {
