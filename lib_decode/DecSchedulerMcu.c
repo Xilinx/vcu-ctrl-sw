@@ -257,7 +257,7 @@ static void* NotificationThread(void* p)
         Rtos_Log(AL_LOG_ERROR, "Failed to get decode status (error code: %d)\n", err);
     }
     /* If the polling finds an end of operation, it means that the channel was destroyed and we can stop waiting for decoding results. */
-    else if(ctx.revents & AL_POLLHUP)
+    if(ctx.revents & AL_POLLHUP)
     {
       break;
     }
