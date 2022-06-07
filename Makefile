@@ -1,5 +1,4 @@
-CFLAGS+=-O3
-CFLAGS+=-g0
+CFLAGS?=-O3 -g0
 
 SCM_REV:=-D'SCM_REV="$(shell git rev-parse HEAD 2> /dev/null || echo 0)"'
 SCM_BRANCH=-D'SCM_BRANCH="$(shell git rev-parse --abbrev-ref HEAD 2> /dev/null || echo unknown)"'
