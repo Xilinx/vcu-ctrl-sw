@@ -192,7 +192,8 @@ void AL_HEVC_GenerateVPS(AL_TVps* pIVPS, AL_TEncSettings const* pSettings, int i
   pVPS->vps_base_layer_available_flag = 1;
   int vps_max_layers_minus1 = 0;
   pVPS->vps_max_layers_minus1 = vps_max_layers_minus1;
-  int const iNumTemporalLayer = DeduceNumTemporalLayer(&pSettings->tChParam[0].tGopParam);
+  AL_TGopParam const* const pGopParam = &pSettings->tChParam[0].tGopParam;
+  int const iNumTemporalLayer = DeduceNumTemporalLayer(pGopParam);
   pVPS->vps_max_sub_layers_minus1 = iNumTemporalLayer - 1;
   pVPS->vps_temporal_id_nesting_flag = 1;
 
@@ -204,7 +205,8 @@ void AL_HEVC_GenerateVPS(AL_TVps* pIVPS, AL_TEncSettings const* pSettings, int i
   {
     int const iNumRef = iMaxRef - (iNumTemporalLayer - 1 - i);
     pVPS->vps_max_dec_pic_buffering_minus1[i] = iNumRef;
-    pVPS->vps_max_num_reorder_pics[i] = iNumRef;
+    bool const bIsLowDelayP = pGopParam->eMode == AL_GOP_MODE_LOW_DELAY_P;
+    pVPS->vps_max_num_reorder_pics[i] = bIsLowDelayP ? 0 : iNumRef;
     pVPS->vps_max_latency_increase_plus1[i] = 0;
   }
 
@@ -241,7 +243,9 @@ static void AL_HEVC_UpdateHrdParameters(AL_THevcSps* pSPS, AL_TSubHrdParam* pSub
   pSPS->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 = 30;
   pSPS->vui_param.hrd_param.dpb_output_delay_length_minus1 = 30;
 
-  for(int i = 0; i < DeduceNumTemporalLayer(&pSettings->tChParam[0].tGopParam); ++i)
+  AL_TGopParam const* const pGopParam = &pSettings->tChParam[0].tGopParam;
+
+  for(int i = 0; i < DeduceNumTemporalLayer(pGopParam); ++i)
   {
     pSPS->vui_param.hrd_param.fixed_pic_rate_general_flag[i] = 0;
     pSPS->vui_param.hrd_param.fixed_pic_rate_within_cvs_flag[i] = 0;
@@ -322,10 +326,9 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   InitHEVC_Sps(pSPS);
 
   AL_EChromaMode eChromaMode = AL_GET_CHROMA_MODE(pChParam->ePicFormat);
-
   pSPS->sps_video_parameter_set_id = 0;
-
-  int const iNumTemporalLayer = DeduceNumTemporalLayer(&pChParam->tGopParam);
+  AL_TGopParam const* const pGopParam = &pSettings->tChParam[0].tGopParam;
+  int const iNumTemporalLayer = DeduceNumTemporalLayer(pGopParam);
 
   if(iLayerId == 0)
     pSPS->sps_max_sub_layers_minus1 = iNumTemporalLayer - 1;
@@ -354,7 +357,8 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
     {
       int const iNumRef = iMaxRef - (iNumTemporalLayer - 1 - i);
       pSPS->sps_max_dec_pic_buffering_minus1[i] = iNumRef;
-      pSPS->sps_max_num_reorder_pics[i] = iNumRef;
+      bool const bIsLowDelayP = pGopParam->eMode == AL_GOP_MODE_LOW_DELAY_P;
+      pSPS->sps_max_num_reorder_pics[i] = bIsLowDelayP ? 0 : iNumRef;
       pSPS->sps_max_latency_increase_plus1[i] = 0;
     }
   }
