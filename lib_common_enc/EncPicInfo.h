@@ -168,7 +168,7 @@ typedef struct AL_t_EncPicStatus
 
   uint32_t uSumCplx;
 
-  int32_t iTileWidth[AL_ENC_NUM_CORES];
+  int32_t iTileWidth[AL_ENC_NUM_CORES * 1];
   int32_t iTileHeight[AL_MAX_ROWS_TILE];
 
   AL_ERR eErrorCode;
@@ -197,11 +197,6 @@ typedef struct AL_t_EncPicStatus
   AL_EGdrMode eGdrMode;
 
 }AL_TEncPicStatus;
-
-#define AL_ERR_SRC_BUF_NOT_READY AL_DEF_ERROR(20)
-#define AL_ERR_REC_BUF_NOT_READY AL_DEF_ERROR(21)
-#define AL_ERR_INTERM_BUF_NOT_READY AL_DEF_ERROR(22)
-#define AL_ERR_STRM_BUF_NOT_READY AL_DEF_ERROR(23)
 
 /*@}*/
 

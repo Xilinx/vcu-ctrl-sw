@@ -51,5 +51,7 @@ typedef enum
   AL_HOOK_FBD,
   AL_HOOK_ME,
   AL_HOOK_POSTPROC,
+  AL_HOOK_BITSTREAM_FLUSH,
   AL_HOOK_TOP,
 }AL_ECodecHook;
+

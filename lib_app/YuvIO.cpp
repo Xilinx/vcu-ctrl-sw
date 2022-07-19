@@ -40,17 +40,22 @@
 #include <cstring>
 #include <iomanip>
 #include <iostream>
-#include <string>
 #include <cassert>
 #include <climits>
 
-#include "lib_app/utils.h"
 #include "lib_app/YuvIO.h"
 
 extern "C"
 {
 #include "lib_common/PixMapBuffer.h"
 #include "lib_common/BufCommon.h"
+}
+
+/*****************************************************************************/
+
+static inline int RoundUp(int iVal, int iRnd)
+{
+  return (iVal + iRnd - 1) / iRnd * iRnd;
 }
 
 /*****************************************************************************/
@@ -67,14 +72,23 @@ static AL_TDimension GetRoundedDim(AL_TDimension tDimension, int32_t iRndDim)
 }
 
 /*****************************************************************************/
-static uint32_t GetIOLumaRowSize(TFourCC fourCC, uint32_t uWidth)
+static uint32_t GetIOLumaRowSize(TFourCC tFourCC, uint32_t uWidth)
 {
   uint32_t uRowSizeLuma;
 
-  if(AL_Is10bitPacked(fourCC))
+  if(AL_IsNonCompTiled(tFourCC))
+  {
+    AL_EFbStorageMode eStorageMode = AL_GetStorageMode(tFourCC);
+    uint32_t uTileWidth = eStorageMode == AL_FB_TILE_32x4 ? 32 : 64;
+
+    uint32_t uRndWidth = RoundUp(uWidth, uTileWidth);
+    auto iBitDepth = AL_GetBitDepth(tFourCC);
+    uRowSizeLuma = uRndWidth * iBitDepth / 8;
+  }
+  else if(AL_Is10bitPacked(tFourCC))
     uRowSizeLuma = (uWidth + 2) / 3 * 4;
   else
-    uRowSizeLuma = uWidth * AL_GetPixelSize(fourCC);
+    uRowSizeLuma = uWidth * AL_GetPixelSize(tFourCC);
   return uRowSizeLuma;
 }
 
@@ -147,19 +161,6 @@ void GotoFirstPicture(TYUVFileInfo const& FI, std::ifstream& File, unsigned int 
   File.seekg(iPictLen * iFirstPict);
 }
 
-/*****************************************************************************/
-int GotoNextPicture(TYUVFileInfo const& FI, std::ifstream& File, int iEncFrameRate, int iEncPictCount, int iFilePictCount)
-{
-  int iMove = ((iEncPictCount * FI.FrameRate) / iEncFrameRate) - iFilePictCount;
-
-  if(iMove != 0)
-  {
-    int iPictSize = GetPictureSize(FI);
-    File.seekg(iPictSize * iMove, std::ios_base::cur);
-  }
-  return iMove;
-}
-
 typedef struct tPaddingParams
 {
   uint32_t uPadValue;
@@ -172,7 +173,6 @@ typedef struct tPaddingParams
 static TPaddingParams GetColumnPaddingParameters(TFourCC tFourCC, AL_TDimension tDim, int iPitch, uint32_t uFileRowSize, bool isLuma)
 {
   TPaddingParams tPadParams;
-
   tPadParams.uPadValue = isLuma ? 0 : 0x80;
   tPadParams.uNBByteToPad = iPitch - uFileRowSize;
   tPadParams.uFirst32PackPadMask = 0x0;
@@ -234,16 +234,18 @@ static void PadBuffer(char* pTmp, TPaddingParams tPadParams, TFourCC tFourCC)
 }
 
 /*****************************************************************************/
-static void ReadFileLumaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSize, uint32_t uFileNumRow, uint32_t uRoundedNumRow)
+static void ReadFileLuma(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSize, uint32_t uFileNumRow, uint32_t uRoundedNumRow)
 {
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
-  int iPitchY = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_Y);
+  int iPitch = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_Y);
   char* pTmp = reinterpret_cast<char*>(AL_PixMapBuffer_GetPlaneAddress(pBuf, AL_PLANE_Y));
 
-  TPaddingParams tPadParams = GetColumnPaddingParameters(tFourCC, tDim, iPitchY, uFileRowSize, true);
+  TPaddingParams tPadParams = GetColumnPaddingParameters(tFourCC, tDim, iPitch, uFileRowSize, true);
 
-  assert((uint32_t)iPitchY >= uFileRowSize);
+  assert((uint32_t)iPitch >= uFileRowSize);
+  AL_EFbStorageMode eStorageMode = AL_GetStorageMode(tFourCC);
+  bool bTileFormat = eStorageMode == AL_FB_TILE_32x4 || eStorageMode == AL_FB_TILE_64x4;
 
   if(0 == tPadParams.uNBByteToPad)
   {
@@ -253,25 +255,34 @@ static void ReadFileLumaPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32_t u
   }
   else
   {
+    uint32_t uSize = uFileRowSize;
+
+    if(bTileFormat)
+    {
+      int iLinesInPitch = AL_GetNumLinesInPitch(eStorageMode);
+      uint32_t uTileSize = iLinesInPitch * (eStorageMode == AL_FB_TILE_32x4 ? 32 : 64);
+      uSize = RoundUp(uFileRowSize, uTileSize);
+    }
+
     for(uint32_t h = 0; h < uFileNumRow; h++)
     {
-      File.read(pTmp, uFileRowSize);
+      File.read(pTmp, uSize);
       PadBuffer(pTmp + tPadParams.uPaddingOffset, tPadParams, tFourCC);
-      pTmp += iPitchY;
+      pTmp += iPitch;
     }
   }
 
   if(uRoundedNumRow != uFileNumRow)
   {
     uint32_t uRowPadding = uRoundedNumRow - uFileNumRow;
-    tPadParams.uNBByteToPad = uRowPadding * iPitchY;
+    tPadParams.uNBByteToPad = uRowPadding * iPitch;
     tPadParams.uFirst32PackPadMask = 0x0;
     PadBuffer(pTmp, tPadParams, tFourCC);
   }
 }
 
 /*****************************************************************************/
-static void ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, AL_EPlaneId ePlaneType, uint32_t uFileRowSize, uint32_t uFileNumRow, uint32_t uRoundedNumRow)
+static void ReadFileChroma(std::ifstream& File, AL_TBuffer* pBuf, AL_EPlaneId ePlaneType, uint32_t uFileRowSize, uint32_t uFileNumRow, uint32_t uRoundedNumRow)
 {
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
@@ -284,6 +295,8 @@ static void ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, AL_EPlan
   TPaddingParams tPadParams = GetColumnPaddingParameters(tFourCC, tDim, iPitch, uRowSizeC, false);
 
   assert((uint32_t)iPitch >= uRowSizeC);
+  AL_EFbStorageMode eStorageMode = AL_GetStorageMode(tFourCC);
+  bool bTileFormat = eStorageMode == AL_FB_TILE_32x4 || eStorageMode == AL_FB_TILE_64x4;
 
   if(0 == tPadParams.uNBByteToPad)
   {
@@ -293,9 +306,18 @@ static void ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, AL_EPlan
   }
   else
   {
+    uint32_t uSize = uRowSizeC;
+
+    if(bTileFormat)
+    {
+      int iLinesInPitch = AL_GetNumLinesInPitch(eStorageMode);
+      uint32_t uTileSize = iLinesInPitch * (eStorageMode == AL_FB_TILE_32x4 ? 32 : 64);
+      uSize = RoundUp(uRowSizeC, uTileSize);
+    }
+
     for(uint32_t h = 0; h < uNumRowC; h++)
     {
-      File.read(pTmp, uRowSizeC);
+      File.read(pTmp, uSize);
       PadBuffer(pTmp + tPadParams.uPaddingOffset, tPadParams, tFourCC);
       pTmp += iPitch;
     }
@@ -311,56 +333,19 @@ static void ReadFileChromaPlanar(std::ifstream& File, AL_TBuffer* pBuf, AL_EPlan
 }
 
 /*****************************************************************************/
-static void ReadFileChromaSemiPlanar(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSize, uint32_t uFileNumRow, uint32_t uRoundedNumRow)
-{
-  TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
-  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
-  int iPitchUV = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_UV);
-  char* pTmp = reinterpret_cast<char*>(AL_PixMapBuffer_GetPlaneAddress(pBuf, AL_PLANE_UV));
-
-  uint32_t uNumRowC = AL_GetChromaHeight(tFourCC, uFileNumRow);
-  uint32_t uRowSizeC = AL_GetChromaPitch(tFourCC, uFileRowSize);
-  TPaddingParams tPadParams = GetColumnPaddingParameters(tFourCC, tDim, iPitchUV, uRowSizeC, false);
-
-  assert((uint32_t)iPitchUV >= uRowSizeC);
-
-  if(0 == tPadParams.uNBByteToPad)
-  {
-    File.read(pTmp, uRowSizeC * uNumRowC);
-  }
-  else
-  {
-    for(uint32_t h = 0; h < uNumRowC; h++)
-    {
-      File.read(pTmp, uRowSizeC);
-      PadBuffer(pTmp + tPadParams.uPaddingOffset, tPadParams, tFourCC);
-      pTmp += iPitchUV;
-    }
-  }
-
-  if(uRoundedNumRow != uFileNumRow)
-  {
-    uint32_t uRoundedNumRowC = AL_GetChromaHeight(tFourCC, uRoundedNumRow);
-    tPadParams.uNBByteToPad = (uRoundedNumRowC - uNumRowC) * iPitchUV;
-    tPadParams.uFirst32PackPadMask = 0x0;
-    PadBuffer(pTmp, tPadParams, tFourCC);
-  }
-}
-
-/*****************************************************************************/
 static void ReadFile(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSize, uint32_t uFileNumRow, uint32_t uRoundedNumRow)
 {
-  ReadFileLumaPlanar(File, pBuf, uFileRowSize, uFileNumRow, uRoundedNumRow);
+  ReadFileLuma(File, pBuf, uFileRowSize, uFileNumRow, uRoundedNumRow);
 
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
   AL_EChromaOrder eChromaOrder = AL_GetChromaOrder(tFourCC);
 
   if(eChromaOrder == AL_C_ORDER_SEMIPLANAR)
-    ReadFileChromaSemiPlanar(File, pBuf, uFileRowSize, uFileNumRow, uRoundedNumRow);
+    ReadFileChroma(File, pBuf, AL_PLANE_UV, uFileRowSize, uFileNumRow, uRoundedNumRow);
   else if(eChromaOrder != AL_C_ORDER_NO_CHROMA)
   {
-    ReadFileChromaPlanar(File, pBuf, eChromaOrder == AL_C_ORDER_U_V ? AL_PLANE_U : AL_PLANE_V, uFileRowSize, uFileNumRow, uRoundedNumRow);
-    ReadFileChromaPlanar(File, pBuf, eChromaOrder == AL_C_ORDER_U_V ? AL_PLANE_V : AL_PLANE_U, uFileRowSize, uFileNumRow, uRoundedNumRow);
+    ReadFileChroma(File, pBuf, eChromaOrder == AL_C_ORDER_U_V ? AL_PLANE_U : AL_PLANE_V, uFileRowSize, uFileNumRow, uRoundedNumRow);
+    ReadFileChroma(File, pBuf, eChromaOrder == AL_C_ORDER_U_V ? AL_PLANE_V : AL_PLANE_U, uFileRowSize, uFileNumRow, uRoundedNumRow);
   }
 }
 
@@ -372,20 +357,29 @@ bool ReadOneFrameYuv(std::ifstream& File, AL_TBuffer* pBuf, bool bLoop, uint32_t
 
   if((File.peek() == EOF) && !bLoop)
     return false;
-
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
   AL_TDimension tRoundedDim = GetRoundedDim(tDim, uRndDim);
 
   uint32_t uRowSizeLuma = GetIOLumaRowSize(tFourCC, tDim.iWidth);
+  uint32_t uHeightLuma = tDim.iHeight;
+  AL_EFbStorageMode eStorageMode = AL_GetStorageMode(tFourCC);
+  int iLinesInPitch = AL_GetNumLinesInPitch(eStorageMode);
 
-  ReadFile(File, pBuf, uRowSizeLuma, tDim.iHeight, tRoundedDim.iHeight);
+  if(eStorageMode == AL_FB_TILE_32x4 || eStorageMode == AL_FB_TILE_64x4)
+  {
+    uRowSizeLuma *= iLinesInPitch;
+    uHeightLuma /= iLinesInPitch;
+    tRoundedDim.iHeight /= iLinesInPitch;
+  }
+
+  ReadFile(File, pBuf, uRowSizeLuma, uHeightLuma, tRoundedDim.iHeight);
 
   if((File.rdstate() & std::ios::failbit) && bLoop)
   {
     File.clear();
     File.seekg(0, std::ios::beg);
-    ReadFile(File, pBuf, uRowSizeLuma, tDim.iHeight, tRoundedDim.iHeight);
+    ReadFile(File, pBuf, uRowSizeLuma, uHeightLuma, tRoundedDim.iHeight);
   }
 
   if(File.rdstate() & std::ios::failbit)

@@ -37,8 +37,6 @@
 
 #pragma once
 
-#include "lib_app/console.h"
-
 void DisplayFrameStatus(int iFrameNum);
 void DisplayVersionInfo();
 void DisplayBuildInfo();

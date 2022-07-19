@@ -36,11 +36,9 @@
 ******************************************************************************/
 
 #include <fstream>
-#include "lib_app/utils.h"
 #include "sink_md5.h"
 #include "lib_app/MD5.h"
 #include "lib_app/YuvIO.h"
-#include "CodecUtils.h"
 
 extern "C"
 {

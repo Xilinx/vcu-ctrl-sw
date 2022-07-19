@@ -124,7 +124,7 @@ void AL_Encoder_ReleaseRecPicture(AL_HEncoder hEnc, AL_TRecPic* pRecPic)
   if(!pArch)
     return;
 
-  return pArch->vtable->EncoderReleaseRecPicture(hEnc, pRecPic);
+  pArch->vtable->EncoderReleaseRecPicture(hEnc, pRecPic);
 }
 
 /*****************************************************************************/

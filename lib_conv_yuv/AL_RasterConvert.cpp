@@ -47,7 +47,6 @@
 extern "C"
 {
 #include "lib_common/PixMapBuffer.h"
-#include "lib_common_enc/EncBuffers.h"
 #include "lib_common_enc/IpEncFourCC.h"
 }
 

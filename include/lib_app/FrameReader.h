@@ -35,34 +35,45 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \addtogroup lib_base
-   @{
-   \file
- *****************************************************************************/
-#pragma once
+#include <iostream>
+#include <stdexcept>
+#include <fstream>
 
-#include "lib_rtos/types.h"
+#include "lib_common/BufferAPI.h"
 
-/*************************************************************************//*!
-   \brief reference list reordering parameters
-*****************************************************************************/
-typedef struct AL_t_ReorderInfo
+extern "C"
 {
-  uint16_t uModifIdc;
-  uint16_t uAbsDiff;
-}AL_TReorderInfo;
+#include "lib_common/PicFormat.h"
+}
 
-typedef AL_TReorderInfo AL_TReorderInfoList[AL_MAX_NUM_REF];
+#ifndef FRAME_READER
+#define FRAME_READER
 
-typedef struct AL_t_Reorder
+class FrameReader
 {
-  bool bRefPicListModif;
-  AL_TReorderInfoList tReorderList;
-}AL_TReorder[2];
+protected:
+  std::ifstream& m_recFile;
+  bool m_bLoopFile;
+  int m_uTotalFrameCnt;
 
-/****************************************************************************/
-/*@}*/
+  FrameReader(std::ifstream& iRecFile, bool bLoopFrames) :
+    m_recFile(iRecFile),
+    m_bLoopFile(bLoopFrames),
+    m_uTotalFrameCnt(0) {};
+
+public:
+  inline int GetTotalFrameCnt() const { return m_uTotalFrameCnt; }
+
+  virtual bool ReadFrame(AL_TBuffer* pFrameBuffer) = 0;
+
+  virtual void GoToFrame(uint32_t iFrameNb) = 0;
+
+  int GotoNextPicture(int iFileFrameRate, int iEncFrameRate, int iFilePictCount, int iEncPictCount);
+
+  int GetFileSize();
+
+  virtual ~FrameReader() = default;
+};
+
+#endif
 

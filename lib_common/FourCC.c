@@ -266,6 +266,17 @@ bool AL_IsTiled(TFourCC tFourCC)
 }
 
 /*****************************************************************************/
+
+bool AL_IsNonCompTiled(TFourCC tFourCC)
+{
+  AL_EFbStorageMode eStorageMode = AL_GetStorageMode(tFourCC);
+
+  if(eStorageMode == AL_FB_TILE_32x4 || eStorageMode == AL_FB_TILE_64x4)
+    return true;
+  return false;
+}
+
+/*****************************************************************************/
 AL_EFbStorageMode AL_GetStorageMode(TFourCC tFourCC)
 {
   AL_TPicFormat tPicFormat;

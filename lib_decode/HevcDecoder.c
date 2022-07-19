@@ -40,10 +40,8 @@
 #include "DefaultDecoder.h"
 #include "SliceDataParsing.h"
 #include "NalUnitParserPrivate.h"
-#include "NalDecoder.h"
 
 #include "lib_common/Utils.h"
-#include "lib_common/HwScalingList.h"
 #include "lib_common/HevcLevelsLimit.h"
 #include "lib_common/HevcUtils.h"
 #include "lib_common/Error.h"
@@ -115,10 +113,10 @@ static int getMaxBitDepthFromProfile(AL_THevcProfilevel pf)
   if(pf.general_profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_RExt))
     return getMaxRextBitDepth(pf);
 
-  if(pf.general_profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_MAIN))
+  if((pf.general_profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_MAIN)) || (pf.general_profile_compatibility_flag[AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_MAIN)] == 1))
     return 8;
 
-  if(pf.general_profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_MAIN_STILL))
+  if((pf.general_profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_MAIN_STILL)) || (pf.general_profile_compatibility_flag[AL_GET_PROFILE_IDC(AL_PROFILE_HEVC_MAIN_STILL)] == 1))
     return 8;
 
   return 10;
@@ -259,7 +257,7 @@ static bool isIntraProfileSPS(AL_THevcSps const* pSPS)
          (pSPS->profile_and_level.general_profile_idc >= 4 && pSPS->profile_and_level.general_intra_constraint_flag);
 }
 
-static int getMaxDpbBuffers(AL_TStreamSettings const* pSpsSettings, AL_THevcSps const* pSPS)
+static int getMaxDpbBuffers(AL_TStreamSettings const* pSpsSettings, AL_THevcSps const* pSPS, bool bDecodeIntraOnly)
 {
   // Remark: pSpsSettings param should be useless
   // and it should be derived as follow:
@@ -273,13 +271,16 @@ static int getMaxDpbBuffers(AL_TStreamSettings const* pSpsSettings, AL_THevcSps 
     if(AL_IS_INTRA_PROFILE(pSpsSettings->eProfile))
       return 2;
 
+  if(bDecodeIntraOnly)
+    return 2;
+
   return AL_HEVC_GetMaxDPBSize(pSpsSettings->iLevel, pSpsSettings->tDim.iWidth, pSpsSettings->tDim.iHeight);
 }
 
 /*****************************************************************************/
-int AL_HEVC_GetMaxDpbBuffers(AL_TStreamSettings const* pStreamSettings)
+int AL_HEVC_GetMaxDpbBuffers(AL_TStreamSettings const* pStreamSettings, bool bDecodeIntraOnly)
 {
-  return getMaxDpbBuffers(pStreamSettings, NULL);
+  return getMaxDpbBuffers(pStreamSettings, NULL, bDecodeIntraOnly);
 }
 
 /*****************************************************************************/
@@ -382,7 +383,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
   if(!AL_Default_Decoder_AllocPool(pCtx, 0, 0, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap, 0))
     goto fail_alloc;
 
-  int const iDpbMaxBuf = getMaxDpbBuffers(&pCtx->tStreamSettings, pSPS);
+  int const iDpbMaxBuf = getMaxDpbBuffers(&pCtx->tStreamSettings, pSPS, pCtx->bDecodeIntraOnly);
   int iMaxBuf = AL_HEVC_GetMinOutputBuffersNeeded(&pCtx->tStreamSettings, pCtx->iStackSize);
   int iSizeMV = AL_GetAllocSize_HevcMV(pCtx->tStreamSettings.tDim);
   int iSizePOC = POCBUFF_PL_SIZE;
@@ -425,6 +426,7 @@ static bool initChannel(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
   pChan->iWidth = pCtx->tStreamSettings.tDim.iWidth;
   pChan->iHeight = pCtx->tStreamSettings.tDim.iHeight;
   pChan->uLog2MaxCuSize = pSPS->Log2CtbSize;
+  pChan->eMaxChromaMode = pCtx->tStreamSettings.eChroma;
 
   const int iSPSMaxSlices = AL_HEVC_GetMaxNumberOfSlices(pCtx->tStreamSettings.iLevel);
   pChan->iMaxSlices = iSPSMaxSlices;
@@ -792,10 +794,12 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   bool* bFirstIsValid = &pCtx->bFirstIsValid;
   bool* bBeginFrameIsValid = &pCtx->bBeginFrameIsValid;
 
-  if(!bSliceBelongsToSameFrame && HasOngoingFrame(pCtx))
+  if(!bSliceBelongsToSameFrame && AL_Default_Decoder_HasOngoingFrame(pCtx))
   {
     finishPreviousFrame(pCtx);
   }
+
+  pCtx->bIsIFrame &= pSlice->slice_type == AL_SLICE_I;
 
   AL_TDecPicBuffers* pBufs = &pCtx->PoolPB[pCtx->uToggle];
   AL_TDecPicParam* pPP = &pCtx->PoolPP[pCtx->uToggle];
@@ -904,6 +908,9 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
 
   AL_TScl ScalingList = { 0 };
 
+  if(pCtx->bDecodeIntraOnly && !pCtx->bIsIFrame && bIsLastAUNal)
+    isValid = false;
+
   if(isValid)
   {
     if(!(*bFirstIsValid))
@@ -936,7 +943,7 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
       AL_SetConcealParameters(pCtx, pSP);
     }
   }
-  else if((bIsLastAUNal || isFirstSliceSegmentInPicture(pSlice) || bLastSlice) && (*bFirstIsValid) && (*bFirstSliceInFrameIsValid)) /* conceal the current slice data */
+  else if((bIsLastAUNal || isFirstSliceSegmentInPicture(pSlice) || bLastSlice) && (*bFirstIsValid) && (*bFirstSliceInFrameIsValid) && !(pCtx->bDecodeIntraOnly && !pCtx->bIsIFrame)) /* conceal the current slice data */
   {
     concealSlice(pCtx, pPP, pSP, pSlice, true);
 
@@ -951,6 +958,7 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
         AL_CancelFrameBuffers(pCtx);
 
       UpdateContextAtEndOfFrame(pCtx);
+      pCtx->bIsIFrame = true;
     }
 
     return false;
@@ -1052,7 +1060,7 @@ static AL_PARSE_RESULT parseAndApplySPS(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_
     return eParseResult;
   }
 
-  if(HasOngoingFrame(pCtx) && isActiveSPSChanging(&tNewSPS, pIAup->hevcAup.pActiveSPS))
+  if(AL_Default_Decoder_HasOngoingFrame(pCtx) && isActiveSPSChanging(&tNewSPS, pIAup->hevcAup.pActiveSPS))
   {
     // An active SPS should not be modified unless it is the end of the CVS (spec 7.4.2.4).
     // So we consider we received the full frame.
@@ -1064,7 +1072,8 @@ static AL_PARSE_RESULT parseAndApplySPS(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_
   return eParseResult;
 }
 
-AL_NonVclNuts AL_HEVC_GetNonVclNuts(void)
+/*****************************************************************************/
+static AL_NonVclNuts getNonVclNuts(void)
 {
   AL_NonVclNuts nuts =
   {
@@ -1085,24 +1094,28 @@ AL_NonVclNuts AL_HEVC_GetNonVclNuts(void)
 }
 
 /*****************************************************************************/
-bool AL_HEVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIsLastAUNal, int* iNumSlice)
+static bool isNutError(AL_ENut nut)
 {
-  AL_NonVclNuts nuts = AL_HEVC_GetNonVclNuts();
+  if(nut >= AL_HEVC_NUT_ERR)
+    return true;
+  return false;
+}
 
-  AL_NalParser parser =
-  {
-    NULL,
-    AL_HEVC_ParseVPS,
-    parseAndApplySPS,
-    parsePPSandUpdateConcealment,
-    NULL,
-    NULL,
-    AL_HEVC_ParseSEI,
-    decodeSliceData,
-    isSliceData,
-    finishPreviousFrame,
-  };
-  return AL_DecodeOneNal(nuts, parser, pAUP, pCtx, eNUT, bIsLastAUNal, iNumSlice);
+/*****************************************************************************/
+void AL_HEVC_InitParser(AL_NalParser* pParser)
+{
+  pParser->parseDps = NULL;
+  pParser->parseVps = AL_HEVC_ParseVPS;
+  pParser->parseSps = parseAndApplySPS;
+  pParser->parsePps = parsePPSandUpdateConcealment;
+  pParser->parseAps = NULL;
+  pParser->parsePh = NULL;
+  pParser->parseSei = AL_HEVC_ParseSEI;
+  pParser->decodeSliceData = decodeSliceData;
+  pParser->isSliceData = isSliceData;
+  pParser->finishPendingRequest = finishPreviousFrame;
+  pParser->getNonVclNuts = getNonVclNuts;
+  pParser->isNutError = isNutError;
 }
 
 /*****************************************************************************/
@@ -1120,6 +1133,16 @@ void AL_HEVC_InitAUP(AL_THevcAup* pAUP)
 /*****************************************************************************/
 AL_ERR CreateHevcDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB)
 {
-  return AL_CreateDefaultDecoder((AL_TDecoder**)hDec, pScheduler, pAllocator, pSettings, pCB);
+  AL_ERR errorCode = AL_CreateDefaultDecoder((AL_TDecoder**)hDec, pScheduler, pAllocator, pSettings, pCB);
+
+  if(!AL_IS_ERROR_CODE(errorCode))
+  {
+    AL_TDecoder* pDec = *hDec;
+    AL_TDecCtx* pCtx = &pDec->ctx;
+
+    AL_HEVC_InitParser(&pCtx->parser);
+  }
+
+  return errorCode;
 }
 

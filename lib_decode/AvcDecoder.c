@@ -40,14 +40,11 @@
 #include "DefaultDecoder.h"
 #include "SliceDataParsing.h"
 #include "NalUnitParserPrivate.h"
-#include "NalDecoder.h"
 
 #include "lib_common/Utils.h"
-#include "lib_common/HwScalingList.h"
 #include "lib_common/AvcLevelsLimit.h"
 #include "lib_common/AvcUtils.h"
 #include "lib_common/Error.h"
-#include "lib_common/FourCC.h"
 #include "lib_common/SyntaxConversion.h"
 #include "lib_common/HardwareConfig.h"
 
@@ -82,27 +79,45 @@ static AL_TCropInfo extractCropInfo(AL_TAvcSps const* pSPS)
 
   tCropInfo.bCropping = true;
 
-  if(pSPS->chroma_format_idc == 1 || pSPS->chroma_format_idc == 2)
+  int iCropUnitX = 0;
+  int iCropUnitY = 0;
+  switch(pSPS->chroma_format_idc)
   {
-    tCropInfo.uCropOffsetLeft += 2 * pSPS->frame_crop_left_offset;
-    tCropInfo.uCropOffsetRight += 2 * pSPS->frame_crop_right_offset;
-  }
-  else
-  {
-    tCropInfo.uCropOffsetLeft += pSPS->frame_crop_left_offset;
-    tCropInfo.uCropOffsetRight += pSPS->frame_crop_right_offset;
+  case 0:  // monochrome
+    AL_Assert((pSPS->separate_colour_plane_flag == 0) && " pSPS->separate_colour_plane_flag != 0 is not allowed in Monochrome");
+    iCropUnitX = 1;
+    iCropUnitY = 1;
+    break;
+
+  case 1:  // 4:2:0
+    AL_Assert((pSPS->separate_colour_plane_flag == 0) && " pSPS->separate_colour_plane_flag != 0 is not allowed in 4:2:0");
+    iCropUnitX = 2;
+    iCropUnitY = 2;
+    break;
+
+  case 2:  // 4:2:2
+    AL_Assert((pSPS->separate_colour_plane_flag == 0) && " pSPS->separate_colour_plane_flag != 0 is not allowed in 4:2:2");
+    iCropUnitX = 2;
+    iCropUnitY = 1;
+    break;
+
+  case 3:  // 4:4:4
+    iCropUnitX = 1;
+    iCropUnitY = 1;
+    break;
+
+  default:
+    AL_Assert(0 && "invalid pSPS->chroma_format_idc");
   }
 
-  if(pSPS->chroma_format_idc == 1)
-  {
-    tCropInfo.uCropOffsetTop += 2 * pSPS->frame_crop_top_offset;
-    tCropInfo.uCropOffsetBottom += 2 * pSPS->frame_crop_bottom_offset;
-  }
-  else
-  {
-    tCropInfo.uCropOffsetTop += pSPS->frame_crop_top_offset;
-    tCropInfo.uCropOffsetBottom += pSPS->frame_crop_bottom_offset;
-  }
+  iCropUnitY *= (2 - pSPS->frame_mbs_only_flag);
+
+  tCropInfo.uCropOffsetLeft = iCropUnitX * pSPS->frame_crop_left_offset;
+  tCropInfo.uCropOffsetRight = iCropUnitX * pSPS->frame_crop_right_offset;
+
+  tCropInfo.uCropOffsetTop = iCropUnitY * pSPS->frame_crop_top_offset;
+  tCropInfo.uCropOffsetBottom = iCropUnitY * pSPS->frame_crop_bottom_offset;
+
   return tCropInfo;
 }
 
@@ -249,24 +264,24 @@ static AL_TStreamSettings extractStreamSettings(AL_TAvcSps const* pSPS, bool bHa
 }
 
 /******************************************************************************/
-int AL_AVC_GetMaxDpbBuffers(AL_TStreamSettings const* pSpsSettings)
+int AL_AVC_GetMaxDpbBuffers(AL_TStreamSettings const* pSpsSettings, bool bDecodeIntraOnly)
 {
-  if(AL_IS_INTRA_PROFILE(pSpsSettings->eProfile))
+  if(AL_IS_INTRA_PROFILE(pSpsSettings->eProfile) || bDecodeIntraOnly)
     return 2;
 
   return AL_AVC_GetMaxDPBSize(pSpsSettings->iLevel, pSpsSettings->tDim.iWidth, pSpsSettings->tDim.iHeight);
 }
 
-static int getMaxDPBSize(AL_TStreamSettings const* pSpsSettings, int iSPSMaxRefFrames)
+static int getMaxDPBSize(AL_TStreamSettings const* pSpsSettings, int iSPSMaxRefFrames, bool bDecodeIntraOnly)
 {
-  int iDpbMaxBuf = AL_AVC_GetMaxDpbBuffers(pSpsSettings);
+  int iDpbMaxBuf = AL_AVC_GetMaxDpbBuffers(pSpsSettings, bDecodeIntraOnly);
   return Max(iDpbMaxBuf, iSPSMaxRefFrames);
 }
 
 /******************************************************************************/
 static AL_ERR resolutionFound(AL_TDecCtx* pCtx, AL_TStreamSettings const* pSpsSettings, AL_TCropInfo const* pCropInfo, int iSPSMaxRefFrames)
 {
-  int iDpbMaxBuf = getMaxDPBSize(pSpsSettings, iSPSMaxRefFrames);
+  int iDpbMaxBuf = getMaxDPBSize(pSpsSettings, iSPSMaxRefFrames, pCtx->bDecodeIntraOnly);
   int iMaxBuf = AVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, pCtx->iStackSize);
   bool bEnableDisplayCompression;
   AL_EFbStorageMode eDisplayStorageMode = AL_Default_Decoder_GetDisplayStorageMode(pCtx, pSpsSettings->iBitDepth, &bEnableDisplayCompression);
@@ -290,7 +305,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS, bool bHasF
   if(!AL_Default_Decoder_AllocPool(pCtx, 0, 0, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap, 0))
     goto fail_alloc;
 
-  int iDpbMaxBuf = getMaxDPBSize(&pCtx->tStreamSettings, pSPS->max_num_ref_frames * (1 + bHasFields));
+  int iDpbMaxBuf = getMaxDPBSize(&pCtx->tStreamSettings, pSPS->max_num_ref_frames * (1 + bHasFields), pCtx->bDecodeIntraOnly);
   int iMaxBuf = AL_AVC_GetMinOutputBuffersNeeded(&pCtx->tStreamSettings, pCtx->iStackSize);
   int iSizeMV = AL_GetAllocSize_AvcMV(pCtx->tStreamSettings.tDim);
   int iSizePOC = POCBUFF_PL_SIZE;
@@ -332,6 +347,7 @@ static bool initChannel(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
   pChan->iWidth = pCtx->tStreamSettings.tDim.iWidth;
   pChan->iHeight = pCtx->tStreamSettings.tDim.iHeight;
   pChan->uLog2MaxCuSize = AL_CORE_AVC_LOG2_MAX_CU_SIZE;
+  pChan->eMaxChromaMode = pCtx->tStreamSettings.eChroma;
 
   int const iSPSMaxSlices = getMaxNumberOfSlices(pCtx, pSPS);
   pChan->iMaxSlices = iSPSMaxSlices;
@@ -663,8 +679,10 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   bool bCheckDynResChange = pCtx->bIsBuffersAllocated;
   AL_TDimension tLastDim = !pCtx->bIsFirstSPSChecked ? pCtx->tStreamSettings.tDim : extractDimension(pAUP->pActiveSPS, pSlice->field_pic_flag);
 
-  if(!bSliceBelongsToSameFrame && HasOngoingFrame(pCtx))
+  if(!bSliceBelongsToSameFrame && AL_Default_Decoder_HasOngoingFrame(pCtx))
     finishPreviousFrame(pCtx);
+
+  pCtx->bIsIFrame &= pSlice->slice_type == AL_SLICE_I;
 
   AL_TDecPicBuffers* pBufs = &pCtx->PoolPB[pCtx->uToggle];
   AL_TDecPicParam* pPP = &pCtx->PoolPP[pCtx->uToggle];
@@ -761,6 +779,9 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
 
   AL_TScl ScalingList = { 0 };
 
+  if(pCtx->bDecodeIntraOnly && !pCtx->bIsIFrame && bIsLastAUNal)
+    isValid = false;
+
   if(isValid)
   {
     if(!(*bFirstIsValid))
@@ -794,7 +815,7 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
       AL_SetConcealParameters(pCtx, pSP);
     }
   }
-  else if((bIsLastAUNal || !pSlice->first_mb_in_slice || bLastSlice) && (*bFirstIsValid) && (*bFirstSliceInFrameIsValid)) /* conceal the current slice data */
+  else if((bIsLastAUNal || !pSlice->first_mb_in_slice || bLastSlice) && (*bFirstIsValid) && (*bFirstSliceInFrameIsValid) && !(pCtx->bDecodeIntraOnly && !pCtx->bIsIFrame)) /* conceal the current slice data */
   {
     concealSlice(pCtx, pPP, pSP, pSlice, eNUT);
 
@@ -803,12 +824,13 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   }
   else // skip slice
   {
-    if(bIsLastAUNal)
+    if(bIsLastAUNal || (pCtx->bDecodeIntraOnly && !pCtx->bIsIFrame))
     {
       if(*bBeginFrameIsValid)
         AL_CancelFrameBuffers(pCtx);
 
       UpdateContextAtEndOfFrame(pCtx);
+      pCtx->bIsIFrame = true;
     }
 
     return false;
@@ -894,7 +916,7 @@ static AL_PARSE_RESULT parseAndApplySPS(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_
 
   if(eParseResult == AL_OK)
   {
-    if(HasOngoingFrame(pCtx) && isActiveSPSChanging(&tNewSPS, pIAup->avcAup.pActiveSPS))
+    if(AL_Default_Decoder_HasOngoingFrame(pCtx) && isActiveSPSChanging(&tNewSPS, pIAup->avcAup.pActiveSPS))
     {
       // An active SPS should not be modified unless it is the end of the CVS (spec I.7.4.1.2).
       // So we consider we received the full frame.
@@ -907,7 +929,8 @@ static AL_PARSE_RESULT parseAndApplySPS(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_
   return eParseResult;
 }
 
-AL_NonVclNuts AL_AVC_GetNonVclNuts(void)
+/*****************************************************************************/
+static AL_NonVclNuts getNonVclNuts(void)
 {
   AL_NonVclNuts nuts =
   {
@@ -928,24 +951,28 @@ AL_NonVclNuts AL_AVC_GetNonVclNuts(void)
 }
 
 /*****************************************************************************/
-bool AL_AVC_DecodeOneNAL(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool bIsLastAUNal, int* iNumSlice)
+static bool isNutError(AL_ENut nut)
 {
-  AL_NonVclNuts nuts = AL_AVC_GetNonVclNuts();
+  if(nut >= AL_AVC_NUT_ERR)
+    return true;
+  return false;
+}
 
-  AL_NalParser parser =
-  {
-    NULL,
-    NULL,
-    parseAndApplySPS,
-    parsePPSandUpdateConcealment,
-    NULL,
-    NULL,
-    AL_AVC_ParseSEI,
-    decodeSliceData,
-    isSliceData,
-    finishPreviousFrame,
-  };
-  return AL_DecodeOneNal(nuts, parser, pAUP, pCtx, eNUT, bIsLastAUNal, iNumSlice);
+/*****************************************************************************/
+void AL_AVC_InitParser(AL_NalParser* pParser)
+{
+  pParser->parseDps = NULL;
+  pParser->parseVps = NULL;
+  pParser->parseSps = parseAndApplySPS;
+  pParser->parsePps = parsePPSandUpdateConcealment;
+  pParser->parseAps = NULL;
+  pParser->parsePh = NULL;
+  pParser->parseSei = AL_AVC_ParseSEI;
+  pParser->decodeSliceData = decodeSliceData;
+  pParser->isSliceData = isSliceData;
+  pParser->finishPendingRequest = finishPreviousFrame;
+  pParser->getNonVclNuts = getNonVclNuts;
+  pParser->isNutError = isNutError;
 }
 
 /*****************************************************************************/
@@ -964,6 +991,16 @@ void AL_AVC_InitAUP(AL_TAvcAup* pAUP)
 /*****************************************************************************/
 AL_ERR CreateAvcDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB)
 {
-  return AL_CreateDefaultDecoder((AL_TDecoder**)hDec, pScheduler, pAllocator, pSettings, pCB);
+  AL_ERR errorCode = AL_CreateDefaultDecoder((AL_TDecoder**)hDec, pScheduler, pAllocator, pSettings, pCB);
+
+  if(!AL_IS_ERROR_CODE(errorCode))
+  {
+    AL_TDecoder* pDec = *hDec;
+    AL_TDecCtx* pCtx = &pDec->ctx;
+
+    AL_AVC_InitParser(&pCtx->parser);
+  }
+
+  return errorCode;
 }
 

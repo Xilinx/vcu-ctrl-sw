@@ -40,7 +40,6 @@
 #include "lib_common/Utils.h"
 #include "lib_common/SeiInternal.h"
 #include "lib_common_dec/RbspParser.h"
-#include <string.h>
 
 static void initPps(AL_TAvcPps* pPPS)
 {

@@ -43,7 +43,6 @@
 
 extern "C"
 {
-#include "lib_encode/lib_encoder.h"
 }
 using namespace std;
 
@@ -67,7 +66,7 @@ struct BitstreamWriter : IFrameSink
       return;
     }
 
-    m_frameCount += WriteStream(m_file, pStream, &cfg.Settings);
+    m_frameCount += WriteStream(m_file, pStream, &cfg.Settings, hdr_pos, m_iFrameSize);
   }
 
   void printBitrate()
@@ -81,6 +80,8 @@ struct BitstreamWriter : IFrameSink
 
   int m_frameCount = 0;
   ofstream m_file;
+  streampos hdr_pos;
+  int m_iFrameSize = 0;
   ConfigFile const cfg;
 };
 

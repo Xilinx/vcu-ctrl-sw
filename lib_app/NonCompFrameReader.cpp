@@ -35,74 +35,21 @@
 *
 ******************************************************************************/
 
-#pragma once
+#include "lib_app/NonCompFrameReader.h"
 
-#include "lib_common_enc/EncPicInfo.h"
-#include "PictureInfo.h"
-#include "RefInfo.h"
-
-/*************************************************************************//*!
-   \brief Picture parameters structure
-*****************************************************************************/
-typedef struct AL_t_EncPicParam
+NonCompFrameReader::NonCompFrameReader(std::ifstream& iRecFile, TYUVFileInfo& tFileInfo, bool bLoopFrames) :
+  FrameReader(iRecFile, bLoopFrames), m_tFileInfo(tFileInfo), m_uRndDim(DEFAULT_RND_DIM)
 {
-  AL_TEncInfo tEncInfo;
-  AL_TPictureInfo tPicInfo;
-  AL_TRefInfo tRefInfo;
-  AL_TRpsInfo tRpsInfo;
+}
 
-  uint8_t uNumPicTotalCurr;
-  int32_t iLastIdrId;
-}AL_TEncPicParam;
-
-typedef struct
+bool NonCompFrameReader::ReadFrame(AL_TBuffer* pBuffer)
 {
-  AL_64U pStrmUserPtr;
-  uint8_t* pStream_v;
-  AL_PADDR pStream;
-  int32_t iMaxSize;
-  int32_t iOffset;
-  int32_t iStreamPartOffset;
-  uint8_t* pExternalMV_v;
-}AL_EncStreamInfo;
-/*************************************************************************//*!
-   \brief Picture buffers structure
-*****************************************************************************/
-typedef struct AL_t_RecInfo
+  return ReadOneFrameYuv(m_recFile, pBuffer, m_bLoopFile, m_uRndDim);
+}
+
+void NonCompFrameReader::GoToFrame(uint32_t iFrameNb)
 {
-  uint8_t uBitDepth;
-  uint32_t uPitchY;
-  uint32_t uPitchC;
-}AL_TRecInfo;
-
-typedef struct AL_t_RecAddrs
-{
-  AL_PADDR pY;
-  AL_PADDR pMapY;
-  AL_PADDR pC1;
-  AL_PADDR pMapC1;
-}AL_TRecAddrs;
-
-typedef struct AL_t_EncPicBufAddrsFull
-{
-  AL_TEncPicBufAddrs tBasic;
-
-  AL_TRecAddrs tRefAAddrs;
-  AL_TRecAddrs tRefBAddrs;
-  AL_TRecAddrs tRecAddrs;
-
-  AL_PADDR pColoc;
-  AL_PADDR pMV;
-  AL_PADDR pWPP;
-  AL_PADDR pEP1;
-  AL_PADDR pEP3;
-  AL_PADDR pIntermMap;
-  AL_PADDR pIntermData;
-  AL_TRecInfo tRecInfo;
-  AL_EncStreamInfo* pStreamInfo;
-  void* pMV_v;
-  void* pWPP_v;
-  void* pEP3_v;
-  void* pEP1_v;
-}AL_TEncPicBufAddrsFull;
+  int iPictSize = GetPictureSize(m_tFileInfo);
+  m_recFile.seekg(iPictSize * iFrameNb, std::ios_base::cur);
+}
 

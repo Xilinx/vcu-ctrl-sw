@@ -40,7 +40,6 @@
 
 #include <stdio.h>
 
-#include "lib_common/SeiInternal.h"
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/Utils.h"
 
@@ -274,7 +273,10 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, AL_TNalsData const* pN
   AL_TStreamPart* pStreamParts = (AL_TStreamPart*)(AL_Buffer_GetData(pStream) + pPicStatus->uStreamPartOffset);
 
   for(int iPart = 0; iPart < pPicStatus->iNumParts; ++iPart)
-    AddSection(pMetaData, pStreamParts[iPart].uOffset, pStreamParts[iPart].uSize, 0);
+  {
+    AL_ESectionFlags eFlags = AL_SECTION_NO_FLAG;
+    AddSection(pMetaData, pStreamParts[iPart].uOffset, pStreamParts[iPart].uSize, eFlags);
+  }
 
   int offset = getOffsetAfterLastSection(pMetaData);
   AL_TBitStreamLite bs;
@@ -316,8 +318,6 @@ static AL_TSeiExternalCtx createExternalSeiCtx(uint8_t* pPayload, int iPayloadTy
   ctx.iPayloadSize = iPayloadSize;
   return ctx;
 }
-
-#include "lib_common/Utils.h" // For Min
 
 static int createExternalSei(AL_ECodec eCodec, AL_TNuts nuts, AL_TBuffer* pStream, uint32_t uOffset, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId, AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned)
 {

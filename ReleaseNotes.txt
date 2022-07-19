@@ -715,3 +715,25 @@
 
   Fixes:
     -- Several minors bugs
+
+2022-06-30 (v1.0.71)
+-------------------
+  Added Features:
+    -- Decoder:
+      - Decoding Intra Only Frames with '--decode-intraonly'
+    -- Enhance WARNING and ERROR message if the configuration file is not setted correctly
+
+  API:
+    -- Version of the API is now 0.33.0
+    -- lib_app:
+      - Move FrameReader.h and NonCompFrameReader.h into the public API (/include)
+    -- lib_common:
+      - Rename: AL_ERR_CHAN_CREATION_NOT_ENOUGH_CORES -> AL_ERR_CHAN_CREATION_LOAD_DISTRIBUTION
+      - Add: AL_ERR_REQUEST_INVALID_MAX_HEIGHT: when the maximal height for HW is excedeed
+      - Add: AL_ERR_CHAN_CREATION_HW_CAPACITY_EXCEEDED: when the HW capacity is excedeed
+      - Move: AL_TPlaneDescription from PixMapBuffer.h to Planes.h
+      - Rename: AVC_PROFILE_IDC_CAVLC_444 -> AVC_PROFILE_IDC_CAVLC_444_INTRA: since it's an intra only profile
+      - Add: AL_GetMinimalNalSize() function
+
+  Fixes:
+    -- Several minors bugs

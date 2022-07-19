@@ -44,7 +44,6 @@
 #pragma once
 
 #include "lib_common/BufferMeta.h"
-#include "lib_common/SliceConsts.h"
 
 /*************************************************************************//*!
    \brief Scene change enum

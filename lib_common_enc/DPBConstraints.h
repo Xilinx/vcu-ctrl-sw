@@ -37,8 +37,6 @@
 
 #pragma once
 
-#include "lib_rtos/types.h"
-#include "lib_common/SliceConsts.h"
 #include "lib_common_enc/EncChanParam.h"
 
 typedef enum AL_e_GOPMngrType

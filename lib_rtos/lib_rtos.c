@@ -40,7 +40,7 @@
 /****************************************************************************/
 /*** W i n 3 2  &  L i n u x  c o m m o n ***/
 /****************************************************************************/
-#if defined _WIN32 || defined __linux__
+#if defined(_WIN32) || defined(__linux__)
 
 #include <string.h>
 #include <malloc.h>
@@ -320,7 +320,7 @@ int Rtos_DriverPoll(void* drv, Rtos_PollCtx* ctx)
 /****************************************************************************/
 /*** L i n u x ***/
 /****************************************************************************/
-#elif defined __linux__
+#elif defined(__linux__)
 
 #include <sys/time.h>
 #include <sys/prctl.h>
@@ -705,7 +705,7 @@ bool Rtos_ReleaseSemaphore(AL_SEMAPHORE Semaphore)
 
 #endif
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 int32_t Rtos_AtomicIncrement(int32_t* iVal)
 {
   return InterlockedIncrement(iVal);
@@ -742,7 +742,7 @@ void Rtos_InitCacheCB(void* ctx, Rtos_MemoryFnCB pfnInvalCB, Rtos_MemoryFnCB pfn
 
 void Rtos_InvalidateCacheMemory(void* pMem, size_t zSize)
 {
-  Mcu_ClearDcache((uint32_t)((uintptr_t)pMem), zSize);
+  Mcu_ClearDcache(pMem, zSize);
 }
 
 void Rtos_FlushCacheMemory(void* pMem, size_t zSize)

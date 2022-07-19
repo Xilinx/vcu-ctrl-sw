@@ -37,7 +37,6 @@
 
 #pragma once
 
-#include "lib_rtos/types.h"
 #include "lib_rtos/lib_rtos.h"
 
 typedef struct t_Conceal

@@ -124,6 +124,13 @@ bool AL_IsSemiPlanar(TFourCC tFourCC);
 bool AL_IsTiled(TFourCC tFourCC);
 
 /*************************************************************************//*!
+   \brief Returns true if YUV format specified by tFourCC is  non-compressed tile
+   \param[in] tFourCC FourCC format of the current picture
+   \return true if YUV is non compressed tiled according to the tFourCC parameter
+*****************************************************************************/
+bool AL_IsNonCompTiled(TFourCC tFourCC);
+
+/*************************************************************************//*!
    \brief Returns the storage buffer format specified by tFourCC
    \param[in] tFourCC FourCC format of the current picture
    \return the storage buffer format specified by tFourCC

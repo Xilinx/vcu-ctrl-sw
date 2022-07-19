@@ -37,12 +37,10 @@
 
 #include "Com_Encoder.h"
 #include "AVC_Sections.h"
-#include "lib_common/Utils.h"
-#include "lib_common/Error.h"
+#include "lib_common_enc/PictureInfo.h"
 
 static void updateHlsAndWriteSections(AL_TEncCtx* pCtx, AL_TEncPicStatus* pPicStatus, AL_TBuffer* pStream, int iLayerID, int iPicID)
 {
-  AL_UpdateVuiTimingInfo(&pCtx->tLayerCtx[iLayerID].sps.AvcSPS.vui_param, iLayerID, &pCtx->pSettings->tChParam[iLayerID].tRCParam, 2);
   AL_HLSInfo* pHLSInfo = AL_GetHLSInfo(pCtx, iPicID);
   AL_AVC_UpdateSPS(&pCtx->tLayerCtx[iLayerID].sps, pCtx->pSettings, pPicStatus, pHLSInfo, &pCtx->tHeadersCtx[iLayerID]);
   bool bMustWritePPS = AL_AVC_UpdatePPS(&pCtx->tLayerCtx[iLayerID].pps, pPicStatus, pHLSInfo, &pCtx->tHeadersCtx[iLayerID]);

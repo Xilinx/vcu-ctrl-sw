@@ -38,10 +38,9 @@
 #pragma once
 
 #include "lib_common/BufferAPI.h"
-#include "lib_common/BufferCircMeta.h"
 #include "lib_common/Fifo.h"
 
-#include "lib_common_dec/DecBuffersInternal.h"
+#include "lib_common/BufCommonInternal.h"
 
 #define AL_CIRCULAR_BUFFER_SIZE_MARGIN 1
 

@@ -67,7 +67,7 @@ static AL_ERR CreateEncCtx(AL_IEncScheduler* pScheduler, AL_TAllocator* pAlloc, 
     return errorCode;
 
   if(callback.func)
-    pCtx->tLayerCtx[0].callback = callback;
+    pCtx->tLayerCtx[0].tEndEncodingCallback = callback;
 
   return errorCode;
 }

@@ -72,7 +72,7 @@
 #define ENCODER_CORE_FREQUENCY_MARGIN 10
 #endif
 #ifndef ENCODER_CYCLES_FOR_BLK_32X32
-#define ENCODER_CYCLES_FOR_BLK_32X32 4900
+#define ENCODER_CYCLES_FOR_BLK_32X32 { 4900, 4900, 4900, -1 }
 #endif
 #ifndef AL_ENC_NUM_CORES
 #define AL_ENC_NUM_CORES 4
@@ -102,6 +102,6 @@
 
 #define AL_CONFIGURE_COMMANDLINE "./configure --config-blob customers/Xilinx/config.ini"
 #define AL_VERSION_MAJOR 0
-#define AL_VERSION_MINOR 32
+#define AL_VERSION_MINOR 33
 #define AL_VERSION_STEP 0
 

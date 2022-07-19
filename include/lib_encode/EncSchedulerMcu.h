@@ -42,7 +42,6 @@
  *****************************************************************************/
 #pragma once
 
-#include "lib_common/Allocator.h"
 #include "lib_fpga/DmaAllocLinux.h"
 
 typedef struct AL_t_driver AL_TDriver;

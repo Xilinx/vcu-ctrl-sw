@@ -59,14 +59,22 @@ typedef struct AL_tQPTableConstraints
   AL_TIntRange tQPRange;
   AL_TIntRange tMinBlkSizeRange;
   AL_TIntRange tMaxBlkSizeRange;
-  bool bForceIntra;
-  bool bForceMV0;
+  bool bAllowForceIntra;
+  bool bAllowForceMV0;
 }AL_TQPTableConstraints;
 
 /****************************************************************************/
 static bool CheckIntRange(int iVal, AL_TIntRange tRange)
 {
   return tRange.iMinVal <= iVal && iVal <= tRange.iMaxVal;
+}
+
+/*****************************************************************************/
+static void GetRelativeRange(AL_TIntRange* pRange)
+{
+  int iMaxDelta = pRange->iMaxVal - pRange->iMinVal;
+  pRange->iMinVal = -iMaxDelta;
+  pRange->iMaxVal = iMaxDelta;
 }
 
 /****************************************************************************/
@@ -103,33 +111,40 @@ uint32_t AL_QPTable_GetFlexibleSize(AL_TDimension tDim, AL_ECodec eCodec, uint8_
   return (uint32_t)(AL_QPTABLE_SEGMENTS_SIZE) + RoundUp(uMaxSize, 128);
 }
 
-/*****************************************************************************/
-static void CheckValidity_GetQPTableBounds(AL_ECodec eCodec, bool bRelative, int* pQPMin, int* pQPMax)
+/****************************************************************************/
+static int GetEffectiveQPTableDepth(AL_ECodec eCodec, int iQPTableDepth)
 {
-  AL_ParamConstraints_GetQPBounds(eCodec, pQPMin, pQPMax);
+  (void)eCodec;
 
-  if(bRelative)
-  {
-    int iMaxDelta = *pQPMax - *pQPMin;
-    *pQPMin = -iMaxDelta;
-    *pQPMax = iMaxDelta;
-  }
+  return iQPTableDepth;
 }
 
 /*****************************************************************************/
-static void CheckValidity_FillQPTableConstraints(AL_TQPTableConstraints* pQPTableConstraints, AL_ECodec eCodec, int iQPTableDepth, uint8_t uLog2MaxCuSize, bool bRelative)
+static AL_TIntRange CheckValidity_GetQPTableBounds(AL_ECodec eCodec, bool bRelative)
+{
+  AL_TIntRange tRange;
+  AL_ParamConstraints_GetQPBounds(eCodec, &tRange.iMinVal, &tRange.iMaxVal);
+
+  if(bRelative)
+    GetRelativeRange(&tRange);
+
+  return tRange;
+}
+
+/*****************************************************************************/
+static void CheckValidity_FillQPTableConstraints(AL_TQPTableConstraints* pQPTableConstraints, AL_ECodec eCodec, int iQPTableDepth, uint8_t uLog2MaxCuSize, bool bDisIntra, bool bRelative)
 {
   pQPTableConstraints->iQPTableDepth = iQPTableDepth;
   pQPTableConstraints->iMaxDepth = Min(uLog2MaxCuSize - 4, iQPTableDepth);
   pQPTableConstraints->bRelativeQP = bRelative;
   pQPTableConstraints->bAllowTopQP = true;
-  CheckValidity_GetQPTableBounds(eCodec, bRelative, &pQPTableConstraints->tQPRange.iMinVal, &pQPTableConstraints->tQPRange.iMaxVal);
+  pQPTableConstraints->tQPRange = CheckValidity_GetQPTableBounds(eCodec, bRelative);
   pQPTableConstraints->tMinBlkSizeRange.iMinVal = 0;
   pQPTableConstraints->tMinBlkSizeRange.iMaxVal = Min(4, uLog2MaxCuSize - 1);
   pQPTableConstraints->tMaxBlkSizeRange.iMinVal = 0;
   pQPTableConstraints->tMaxBlkSizeRange.iMaxVal = uLog2MaxCuSize - 1;
-  pQPTableConstraints->bForceIntra = false;
-  pQPTableConstraints->bForceMV0 = false;
+  pQPTableConstraints->bAllowForceIntra = !bDisIntra;
+  pQPTableConstraints->bAllowForceMV0 = true;
 }
 
 /*****************************************************************************/
@@ -137,11 +152,13 @@ static AL_ERR CheckValidity_CUQP(const uint8_t* pQPByte, AL_ECodec eCodec, int8_
 {
   bool bCheckNextDepth = iDepth < tConstraints.iMaxDepth;
 
-  {
-    const int16_t MASK_QP_SIGN = 1 << (MASK_QP_NUMBITS - 1);
-    const int16_t QP_COMP = 1 << MASK_QP_NUMBITS;
+  bool bForceIntra, bForceMV0;
 
-    int16_t iVal = (*pQPByte) & MASK_QP;
+  {
+    const int16_t MASK_QP_SIGN = 1 << (MASK_QP_NUMBITS_MICRO - 1);
+    const int16_t QP_COMP = 1 << MASK_QP_NUMBITS_MICRO;
+
+    int16_t iVal = (*pQPByte) & MASK_QP_MICRO;
 
     if(tConstraints.bRelativeQP && (iVal >= MASK_QP_SIGN))
       iVal -= QP_COMP;
@@ -151,8 +168,8 @@ static AL_ERR CheckValidity_CUQP(const uint8_t* pQPByte, AL_ECodec eCodec, int8_
         return AL_ERR_QPLOAD_QP_VALUE;
     }
 
-    tConstraints.bForceIntra |= (*pQPByte) & MASK_FORCE_INTRA;
-    tConstraints.bForceMV0 |= (*pQPByte) & MASK_FORCE_MV0;
+    bForceIntra = (*pQPByte) & (1 << (MASK_QP_NUMBITS_MICRO));
+    bForceMV0 = (*pQPByte) & (1 << (MASK_QP_NUMBITS_MICRO + 1));
 
     if(bCheckNextDepth)
     {
@@ -163,7 +180,13 @@ static AL_ERR CheckValidity_CUQP(const uint8_t* pQPByte, AL_ECodec eCodec, int8_
     }
   }
 
-  if(tConstraints.bForceIntra && tConstraints.bForceMV0)
+  if(bForceIntra)
+    tConstraints.bAllowForceMV0 = false;
+
+  if(bForceMV0)
+    tConstraints.bAllowForceIntra = false;
+
+  if(!tConstraints.bAllowForceIntra && !tConstraints.bAllowForceMV0)
     return AL_ERR_QPLOAD_FORCE_FLAGS;
 
   if(bCheckNextDepth)
@@ -200,10 +223,12 @@ static AL_ERR CheckValidity_QPs(const uint8_t* pQP, AL_TDimension tDim, AL_ECode
 }
 
 /*****************************************************************************/
-AL_ERR AL_QPTable_CheckValidity(const uint8_t* pQPTable, AL_TDimension tDim, AL_ECodec eCodec, int iQPTableDepth, uint8_t uLog2MaxCuSize, bool bRelative)
+AL_ERR AL_QPTable_CheckValidity(const uint8_t* pQPTable, AL_TDimension tDim, AL_ECodec eCodec, int iQPTableDepth, uint8_t uLog2MaxCuSize, bool bDisIntra, bool bRelative)
 {
+  iQPTableDepth = GetEffectiveQPTableDepth(eCodec, iQPTableDepth);
+
   AL_TQPTableConstraints tQPTableConstraints;
-  CheckValidity_FillQPTableConstraints(&tQPTableConstraints, eCodec, iQPTableDepth, uLog2MaxCuSize, bRelative);
+  CheckValidity_FillQPTableConstraints(&tQPTableConstraints, eCodec, iQPTableDepth, uLog2MaxCuSize, bDisIntra, bRelative);
 
   return CheckValidity_QPs(pQPTable + AL_QPTABLE_SEGMENTS_SIZE, tDim, eCodec, uLog2MaxCuSize, tQPTableConstraints);
 }

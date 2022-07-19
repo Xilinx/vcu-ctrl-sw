@@ -45,7 +45,6 @@
 
 #pragma once
 
-#include "lib_rtos/types.h"
 #include "lib_rtos/lib_rtos.h"
 
 #include "lib_common/SliceConsts.h"
@@ -173,16 +172,16 @@ typedef struct t_DPB
   uint8_t uFrmWaiting;
   uint8_t uMvWaiting;
 
-  int pDltFrmIDLst[FRM_BUF_POOL_SIZE];
-  int pDltMvIDLst[MAX_DPB_SIZE];
+  int pDeletedFrmIDLst[FRM_BUF_POOL_SIZE];
+  int pDeletedMvIDLst[MAX_DPB_SIZE];
 
-  int iDltFrmLstHead;
-  int iDltFrmLstTail;
+  int iDeletedFrmLstHead;
+  int iDeletedFrmLstTail;
 
-  int iDltMvLstHead;
-  int iDltMvLstTail;
+  int iDeletedMvLstHead;
+  int iDeletedMvLstTail;
 
-  int iNumDltPic;
+  int iNumDeletedPic;
 
   /* dpb members */
   int iLastDisplayedPOC;

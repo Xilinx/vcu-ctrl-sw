@@ -40,7 +40,6 @@
 #include "lib_common/BufCommonInternal.h"
 #include "lib_common_enc/EncRecBuffer.h"
 #include "lib_common/BufferAPI.h"
-#include "lib_common/BufferPixMapMeta.h"
 #include "EncEPBuffer.h"
 
 /*************************************************************************//*!

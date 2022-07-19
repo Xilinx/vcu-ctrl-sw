@@ -47,8 +47,6 @@
 #include "lib_common/Utils.h"
 #include "lib_common/BufferPixMapMeta.h"
 
-#include "lib_common/StreamBuffer.h"
-#include "lib_common/StreamBufferPrivate.h"
 #include "lib_assert/al_assert.h"
 
 /*****************************************************************************/

@@ -46,11 +46,13 @@ ifneq ($(HAS_CODEC),0)
   LIB_COMMON_SRC+=lib_common/BufferSeiMeta.c
   LIB_COMMON_SRC+=lib_common/BufferStatisticsMeta.c
 
+
   LIB_COMMON_SRC+=lib_common/BufferLookAheadMeta.c
 
 ifneq ($(ENABLE_HIGH_DYNAMIC_RANGE),0)
   LIB_COMMON_SRC+=lib_common/HDR.c
 endif
 endif
+
 
 

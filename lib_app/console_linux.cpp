@@ -43,8 +43,7 @@
 static bool bUseColor = true;
 static bool isAuto = true;
 
-static
-int translateColor(EConColor col)
+static int translateColor(EConColor col)
 {
   switch(col)
   {
@@ -75,7 +74,7 @@ void SetConsoleColor(EConColor eColor)
     bUseColor = isatty(fileno(stdout));
 
   if(bUseColor)
-    printf("\033[%dm", translateColor(eColor));
+    fprintf(stdout, "\033[%dm", translateColor(eColor));
 }
 
 void SetEnableColor(bool bColor)

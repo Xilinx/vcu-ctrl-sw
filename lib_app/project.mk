@@ -13,6 +13,8 @@ LIB_APP_SRC:=\
   lib_app/MD5.cpp\
   lib_app/Parser.cpp\
   lib_app/Tokenizer.cpp\
+  lib_app/FrameReader.cpp\
+  lib_app/NonCompFrameReader.cpp\
   $(LIB_PERFS_SRC)\
   $(LIB_COMMON_SRC)\
 

@@ -55,7 +55,9 @@ uint32_t AL_QPTable_GetFlexibleSize(AL_TDimension tDim, AL_ECodec eCodec, uint8_
    \param[in] eCodec Codec
    \param[in] iQPTableDepth Depth of QP table
    \param[in] uLog2MaxCuSize Max size of a coding unit (log2)
+   \param[in] bDisIntra Disable intra prediction for inter slices
    \param[in] bRelative True if QPs are relative to SliceQP
    \return maximum size (in bytes) needed to store
 *****************************************************************************/
-AL_ERR AL_QPTable_CheckValidity(const uint8_t* pQPTable, AL_TDimension tDim, AL_ECodec eCodec, int iQPTableDepth, uint8_t uLog2MaxCuSize, bool bRelative);
+AL_ERR AL_QPTable_CheckValidity(const uint8_t* pQPTable, AL_TDimension tDim, AL_ECodec eCodec, int iQPTableDepth, uint8_t uLog2MaxCuSize, bool bDisIntra, bool bRelative);
+

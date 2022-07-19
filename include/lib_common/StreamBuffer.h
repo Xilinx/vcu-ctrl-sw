@@ -46,7 +46,7 @@
 #define AL_ENC_MAX_CONFIG_HEADER_SIZE (2 * 1024)
 #define AL_ENC_MAX_HEADER_SIZE (AL_ENC_MAX_CONFIG_HEADER_SIZE + AL_ENC_MAX_SEI_SIZE)
 
-#include "lib_common/SliceConsts.h"
+#include "Profiles.h"
 #include "lib_common/PicFormat.h"
 
 /*************************************************************************//*!
@@ -77,6 +77,18 @@ int AL_GetMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth, AL
    \return maximum size of one NAL unit
 *****************************************************************************/
 int AL_GetMitigatedMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth);
+
+/*************************************************************************//*!
+   \brief Retrieves the minimal memory space needed for the encoder to generate
+   one frame.
+   You should use this function to determine the minimal allocated buffer used for
+   encoding. The user must add space for the slice datas of the frame
+   \param[in] iNumSlices Number of slices in the frame
+   \param[in] eCodec Codec used for encoding
+   \return Minimal size for non-VCL NAL unit, slice header and
+   specific structure to encode one frame
+*****************************************************************************/
+int AL_GetMinimalNalSize(int iNumSlices, AL_ECodec eCodec);
 
 /*@}*/
 

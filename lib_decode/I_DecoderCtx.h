@@ -50,7 +50,7 @@
 #include "lib_parsing/I_PictMngr.h"
 #include "lib_parsing/Concealment.h"
 #include "lib_parsing/Aup.h"
-
+#include "lib_common/BufferSeiMeta.h"
 #include "NalUnitParser.h"
 #include "lib_decode/I_DecScheduler.h"
 #include "lib_decode/lib_decode.h"
@@ -63,6 +63,42 @@ typedef enum AL_e_ChanState
   CHAN_INVALID,
   CHAN_DESTROYING,
 }AL_EChanState;
+
+typedef struct
+{
+  AL_ENut dps;
+  AL_ENut vps;
+  AL_ENut sps;
+  AL_ENut pps;
+  AL_ENut fd;
+  AL_ENut apsPrefix;
+  AL_ENut apsSuffix;
+  AL_ENut ph;
+  AL_ENut seiPrefix;
+  AL_ENut seiSuffix;
+  AL_ENut eos;
+  AL_ENut eob;
+}AL_NonVclNuts;
+
+struct t_Dec_Ctx;
+typedef struct t_Dec_Ctx AL_TDecCtx;
+
+typedef struct
+{
+  void (* parseDps)(AL_TAup*, AL_TRbspParser*);
+  AL_PARSE_RESULT (* parseVps)(AL_TAup*, AL_TRbspParser*);
+  AL_PARSE_RESULT (* parseSps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
+  AL_PARSE_RESULT (* parsePps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
+  AL_PARSE_RESULT (* parseAps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
+  AL_PARSE_RESULT (* parsePh)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
+  bool (* parseSei)(AL_TAup*, AL_TRbspParser*, bool, AL_CB_ParsedSei*, AL_TSeiMetaData* pMeta);
+  // return false when there is nothing to process
+  bool (* decodeSliceData)(AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
+  bool (* isSliceData)(AL_ENut nut);
+  void (* finishPendingRequest)(AL_TDecCtx*);
+  AL_NonVclNuts (* getNonVclNuts)(void);
+  bool (* isNutError)(AL_ENut);
+}AL_NalParser;
 
 /*************************************************************************//*!
    \brief Decoder Context structure
@@ -180,9 +216,13 @@ typedef struct t_Dec_Ctx
 
   int iNumSlicesRemaining;
 
+  bool bDecodeIntraOnly;
+  bool bIsIFrame;
+
   AL_TPosition tOutputPosition;
 
   TMemDesc tMDChanParam;
+  AL_NalParser parser;
 }AL_TDecCtx;
 
 /****************************************************************************/

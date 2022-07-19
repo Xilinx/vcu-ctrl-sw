@@ -44,8 +44,6 @@
 #pragma once
 
 #include "lib_common/BufferMeta.h"
-#include "lib_common/BufferAPI.h"
-#include "lib_rtos/lib_rtos.h"
 
 typedef struct AL_t_internalHandleMetaData AL_TInternalHandleMetaData;
 

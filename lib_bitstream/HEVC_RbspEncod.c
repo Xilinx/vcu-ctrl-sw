@@ -38,7 +38,6 @@
 #include "HEVC_RbspEncod.h"
 #include "RbspEncod.h"
 #include "lib_common/SliceConsts.h"
-#include "lib_common/SliceHeader.h"
 #include "lib_common/Utils.h"
 #include "lib_common/SPS.h"
 #include "lib_common/PPS.h"

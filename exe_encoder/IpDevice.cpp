@@ -38,7 +38,6 @@
 #include <stdexcept>
 
 #include "IpDevice.h"
-#include "lib_app/console.h"
 #include "lib_app/utils.h"
 #include <algorithm>
 
@@ -84,8 +83,11 @@ CIpDevice::~CIpDevice()
   if(m_pScheduler)
     AL_IEncScheduler_Destroy(m_pScheduler);
 
-  if(m_pAllocator)
-    AL_Allocator_Destroy(m_pAllocator);
+  for(auto instId = 0; instId < 1; instId++)
+  {
+    if(m_pAllocator)
+      AL_Allocator_Destroy(m_pAllocator);
+  }
 }
 
 void CIpDevice::Configure(CIpDeviceParam& param)

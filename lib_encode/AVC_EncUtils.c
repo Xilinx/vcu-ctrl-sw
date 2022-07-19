@@ -40,6 +40,7 @@
 #include "lib_common_enc/EncBuffersInternal.h"
 #include "IP_EncoderCtx.h"
 #include "lib_common/SyntaxConversion.h"
+#include "lib_common/Utils.h"
 
 /****************************************************************************/
 static int getScalingListPresentId(int iSizeId, int iIntraInter, int iYCbCr)
@@ -384,8 +385,9 @@ void AL_AVC_GeneratePPS(AL_TPps* pIPPS, AL_TEncSettings const* pSettings, AL_TSp
   pPPS->num_ref_idx_l0_active_minus1 = iNumRef - 1;
   pPPS->num_ref_idx_l1_active_minus1 = iNumRef - 1;
 
-  pPPS->weighted_pred_flag = (pChannel->eWPMode == AL_WP_EXPLICIT) ? 1 : 0;
-  pPPS->weighted_bipred_idc = pChannel->eWPMode;
+  AL_EWPMode eWPMode = AL_WP_DEFAULT;
+  pPPS->weighted_pred_flag = (eWPMode == AL_WP_EXPLICIT) ? 1 : 0;
+  pPPS->weighted_bipred_idc = (eWPMode == AL_WP_DEFAULT) ? 0 : (eWPMode == AL_WP_EXPLICIT) ? 1 : 2;
 
   pPPS->pic_init_qp_minus26 = 0;
   pPPS->pic_init_qs_minus26 = 0;
@@ -417,17 +419,23 @@ void AL_AVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEncP
   if(!pPicStatus->bIsFirstSlice)
     return;
 
-  if(!AL_IsWriteSps(pHdrs, pHLSInfo->uSpsId))
-    goto put_sps;
+  if(AL_IsWriteSps(pHdrs, pHLSInfo->uSpsId) || pHLSInfo->uFrameRate) // In case frame rate update, regenerate the SPS and it will be inserted at next IDR
+  {
+    AL_TAvcSps* pSPS = (AL_TAvcSps*)pISPS;
+    AL_TDimension tDim = AL_GetPpsDim(pHdrs, pHLSInfo->uSpsId);
+    AL_AVC_GenerateSPS_Resolution(pSPS, tDim.iWidth, tDim.iHeight, pSettings);
 
-  AL_TAvcSps* pSPS = (AL_TAvcSps*)pISPS;
-  AL_TDimension tDim = AL_GetPpsDim(pHdrs, pHLSInfo->uSpsId);
+    if(pHLSInfo->uFrameRate)
+    {
+      AL_TRCParam rcParam;
+      rcParam.uFrameRate = pHLSInfo->uFrameRate;
+      rcParam.uClkRatio = pHLSInfo->uClkRatio;
+      AL_UpdateVuiTimingInfo(&pSPS->vui_param, 0, &rcParam, 2);
+    }
 
-  AL_AVC_GenerateSPS_Resolution(pSPS, tDim.iWidth, tDim.iHeight, pSettings);
+    pSPS->seq_parameter_set_id = pHLSInfo->uSpsId;
+  }
 
-  pSPS->seq_parameter_set_id = pHLSInfo->uSpsId;
-
-  put_sps:
   AL_ReleaseSps(pHdrs, pHLSInfo->uSpsId);
 }
 

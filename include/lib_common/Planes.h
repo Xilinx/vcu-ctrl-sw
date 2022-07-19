@@ -45,7 +45,6 @@
 ******************************************************************************/
 #pragma once
 
-#include "lib_rtos/types.h"
 #include "lib_common/PicFormat.h"
 
 /*************************************************************************//*!
@@ -77,6 +76,16 @@ typedef enum AL_e_PlaneId
 #undef AL_PLANE_MAP_LIST
 
 #define AL_MAX_BUFFER_PLANES 6
+
+/*************************************************************************//*!
+   \brief Plane parameters
+*****************************************************************************/
+typedef struct AL_t_PlaneDescription
+{
+  AL_EPlaneId ePlaneId; /*!< Type of plane */
+  int iOffset;          /*!< Offset of the plane from beginning of the buffer (in bytes) */
+  int iPitch;           /*!< Pitch of the plane (in bytes) */
+}AL_TPlaneDescription;
 
 /*************************************************************************//*!
    \brief Check if a plane contains pixel data

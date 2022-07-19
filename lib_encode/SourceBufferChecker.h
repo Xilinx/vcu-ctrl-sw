@@ -37,7 +37,6 @@
 
 #pragma once
 
-#include "lib_rtos/lib_rtos.h"
 #include "lib_common/BufferAPI.h"
 #include "lib_common/FourCC.h"
 #include "lib_common_enc/EncChanParam.h"

@@ -80,11 +80,8 @@ static void sRecBuffers_CleanUp(AL_TRecBuffers* tRecBuffers, AL_TFrmBufPool* pPo
 {
   (void)pPool;
 
-  if(AL_CLEAN_BUFFERS)
-  {
-    AL_Buffer_MemSet(tRecBuffers->pFrame, 0);
+  AL_Buffer_Cleanup(tRecBuffers->pFrame);
 
-  }
 }
 
 /*************************************************************************/

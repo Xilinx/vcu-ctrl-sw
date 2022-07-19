@@ -47,7 +47,6 @@
 #pragma once
 
 #include "lib_rtos/types.h"
-#include "lib_rtos/lib_rtos.h"
 #include "lib_common/BufferMeta.h"
 #include "lib_common/Allocator.h"
 
@@ -327,6 +326,12 @@ void AL_Buffer_InvalidateMemory(const AL_TBuffer* pBuf);
    \param[in] pBuf Pointer to an AL_TBuffer
 *****************************************************************************/
 void AL_Buffer_FlushMemory(const AL_TBuffer* pBuf);
+
+/*************************************************************************//*!
+   \brief Set the memory buffer to zero if configured so
+   \param[in] pBuf Pointer to an AL_TBuffer
+*****************************************************************************/
+void AL_Buffer_Cleanup(AL_TBuffer* pBuf);
 
 /*@}*/
 

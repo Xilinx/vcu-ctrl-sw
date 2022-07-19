@@ -54,7 +54,7 @@ static AL_TMetaData* clone(AL_TMetaData* pBaseMeta)
   AL_TRateCtrlMetaData* pMeta = (AL_TRateCtrlMetaData*)pBaseMeta;
   AL_TRateCtrlMetaData* pNewMeta = create(pMeta->pMVBuf->pAllocator, AL_Buffer_GetSize(pMeta->pMVBuf));
 
-  if(pNewMeta == NULL)
+  if(!pNewMeta)
     return false;
 
   pNewMeta->tRateCtrlStats = pMeta->tRateCtrlStats;
@@ -64,20 +64,14 @@ static AL_TMetaData* clone(AL_TMetaData* pBaseMeta)
   return (AL_TMetaData*)pNewMeta;
 }
 
-static AL_TRateCtrlMetaData* create(AL_TAllocator* pAllocator, uint32_t uBufMVSize)
+static AL_TRateCtrlMetaData* create_with_buf(AL_TBuffer* pMVBuf)
 {
   AL_TRateCtrlMetaData* pMeta = Rtos_Malloc(sizeof(AL_TRateCtrlMetaData));
 
-  if(pMeta == NULL)
+  if(!pMeta)
     return NULL;
 
-  pMeta->pMVBuf = AL_Buffer_Create_And_Allocate(pAllocator, uBufMVSize, &AL_Buffer_Destroy);
-
-  if(pMeta->pMVBuf == NULL)
-  {
-    Rtos_Free(pMeta);
-    return NULL;
-  }
+  pMeta->pMVBuf = pMVBuf;
 
   AL_Buffer_Ref(pMeta->pMVBuf);
 
@@ -90,8 +84,32 @@ static AL_TRateCtrlMetaData* create(AL_TAllocator* pAllocator, uint32_t uBufMVSi
   return pMeta;
 }
 
+static AL_TRateCtrlMetaData* create(AL_TAllocator* pAllocator, uint32_t uBufMVSize)
+{
+  AL_TRateCtrlMetaData* pMeta;
+  AL_TBuffer* pMVBuf;
+
+  pMVBuf = AL_Buffer_Create_And_Allocate(pAllocator, uBufMVSize, &AL_Buffer_Destroy);
+
+  if(!pMVBuf)
+    return NULL;
+
+  pMeta = create_with_buf(pMVBuf);
+
+  if(!pMeta)
+    AL_Buffer_Destroy(pMVBuf);
+
+  return pMeta;
+}
+
 AL_TRateCtrlMetaData* AL_RateCtrlMetaData_Create(AL_TAllocator* pAllocator, AL_TDimension tDim, uint8_t uLog2MaxCuSize, AL_ECodec eCodec)
 {
   uint32_t uSizeMV = AL_GetAllocSize_MV(tDim, uLog2MaxCuSize, eCodec) - MVBUFF_MV_OFFSET;
   return create(pAllocator, uSizeMV);
 }
+
+AL_TRateCtrlMetaData* AL_RateCtrlMetaData_Create_WithBuffer(AL_TBuffer* pMVBuf)
+{
+  return create_with_buf(pMVBuf);
+}
+

@@ -46,8 +46,11 @@ struct RCPlugin
 {
   uint32_t capacity;
   uint32_t qpFifo[32];
+  uint32_t head;
   uint32_t tail;
+  uint32_t curQp;
 };
+static_assert(sizeof(struct RCPlugin) == 36 * sizeof(uint32_t), "");
 
 struct RCExampleCtx
 {
@@ -132,7 +135,7 @@ static void rcPlugin_update(void* pHandle, Plugin_PictureInfo const* pPicInfo, P
 
 static void invalidateCache(struct RCExampleCtx* pCtx, AL_VADDR memory, uint32_t size)
 {
-  pCtx->pMcu->invalidateCache((uint32_t)(uintptr_t)memory, size);
+  pCtx->pMcu->invalidateCache(memory, size);
 }
 
 static void rcPlugin_choosePictureQP(void* pHandle, Plugin_PictureInfo const* pPicInfo, int16_t* pQP)
@@ -147,7 +150,6 @@ static void rcPlugin_choosePictureQP(void* pHandle, Plugin_PictureInfo const* pP
   invalidateCache(pCtx, pCtx->pDmaCtx, pCtx->zDmaSize);
   *pQP = rc->qpFifo[pCtx->tail];
   pCtx->tail = (pCtx->tail + 1) % pCtx->capacity; // update internal state
-  rc->tail = pCtx->tail; // show the internal state of the rc plugin to the user for debug purpose
   char msg[] = "choosepictureqp: qp:0xXXXXXXXX size:0xXXXXXXXX";
   int32ToString(*pQP, msg + 22);
   msg[22 + 8] = ' ';

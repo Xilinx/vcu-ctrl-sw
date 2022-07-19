@@ -40,7 +40,6 @@
 ****************************************************************************/
 #pragma once
 
-#include "lib_rtos/types.h"
 #include "lib_common_enc/EncChanParam.h"
 
 #define LDA_TABLE_SIZE 256 // only 208 bytes used in AVC/HEVC

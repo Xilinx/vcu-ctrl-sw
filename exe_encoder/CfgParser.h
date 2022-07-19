@@ -54,6 +54,7 @@ extern "C"
 
 #include <string>
 #include <vector>
+#include <array>
 #include <iostream>
 
 /*************************************************************************//*!
@@ -89,6 +90,9 @@ typedef AL_INTROSPECT (category = "debug") struct tConfigYUVInput
   // \brief YUV input file name(s)
   std::string YUVFileName;
 
+  // \brief Map file name used when the encoder receives a compressed YUV file.
+  std::string sMapFileName;
+
   // \brief Information relative to the YUV input file
   TYUVFileInfo FileInfo;
 
@@ -118,6 +122,9 @@ typedef enum e_SrcFormat
 *****************************************************************************/
 AL_INTROSPECT(category = "debug") struct ConfigFile
 {
+  // \brief Path to the cfg location
+  std::string sCfgPath;
+
   // \brief Main YUV input
   TConfigYUVInput MainInput;
 

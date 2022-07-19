@@ -37,6 +37,7 @@
 
 #include "lib_common/BufferAPIInternal.h"
 #include "lib_assert/al_assert.h"
+#include "lib_common/BufCommon.h"
 
 #define AL_BUFFER_META_ALLOC_COUNT 4
 // Maximum "estimated" number of metadata for user
@@ -429,3 +430,10 @@ void AL_Buffer_FlushMemory(const AL_TBuffer* pBuf)
 {
   BufferForEachChunk(pBuf, (BufferChunkCB)Rtos_FlushCacheMemory);
 }
+
+void AL_Buffer_Cleanup(AL_TBuffer* pBuf)
+{
+  for(int i = 0; i < pBuf->iChunkCnt; ++i)
+    AL_CleanupMemory(AL_Buffer_GetDataChunk(pBuf, i), AL_Buffer_GetSizeChunk(pBuf, i));
+}
+

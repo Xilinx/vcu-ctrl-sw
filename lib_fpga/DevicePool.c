@@ -40,7 +40,6 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
-#include "lib_rtos/types.h"
 #include "lib_rtos/lib_rtos.h"
 #include "lib_assert/al_assert.h"
 

@@ -98,7 +98,7 @@ typedef struct AL_t_Nal
 typedef struct AL_t_SCStatus
 {
   uint16_t uNumSC;    /* number of Start Code found */
-  uint32_t uNumBytes; /* number of bytes parsed*/
+  uint32_t uNumBytes; /* number of bytes parsed */
 }AL_TScStatus;
 
 /*@}*/

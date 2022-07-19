@@ -36,7 +36,6 @@
 ******************************************************************************/
 
 #pragma once
-#include "lib_rtos/types.h"
 #include "lib_common/Profiles.h"
 
 bool AL_AVC_CheckLevel(int level);

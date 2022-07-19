@@ -47,10 +47,16 @@
 #define AL_QPTABLE_NUM_SEGMENTS 8
 #define AL_QPTABLE_SEGMENTS_SIZE (AL_QPTABLE_NUM_SEGMENTS * 2)
 
-static int8_t const MASK_QP_NUMBITS = (int8_t)6;
-static int8_t const MASK_QP = (int8_t)0x3F;
-static int8_t const MASK_FORCE_INTRA = (int8_t)0x40;
-static int8_t const MASK_FORCE_MV0 = (int8_t)0x80;
-static int8_t const MASK_FORCE = (int8_t)0xC0;
+#define MASK_QP_NUMBITS_MICRO 6
+#define MASK_QP_MICRO ((1 << MASK_QP_NUMBITS_MICRO) - 1)
+
+#define MASK_QP_NUMBITS MASK_QP_NUMBITS_MICRO
+
+#define DEFAULT_LAMBDA_FACT 1 << 5
+#define MASK_QP ((1 << MASK_QP_NUMBITS) - 1)
+#define MASK_FORCE_INTRA (1 << MASK_QP_NUMBITS)
+#define MASK_FORCE_MV0 (1 << (MASK_QP_NUMBITS + 1))
+#define MASK_FORCE (MASK_FORCE_INTRA | MASK_FORCE_MV0)
 
 /*@}*/
+

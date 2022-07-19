@@ -487,19 +487,22 @@ static int32_t AL_Dpb_sLongTermPicNumF(AL_TDpb* pDpb, uint8_t uNodeID)
 }
 
 /*****************************************************************************/
-static void AL_Dpb_sReleaseUnusedBuf(AL_TDpb* pDpb, bool bAll)
+static void AL_Dpb_sReleaseUnusedBuf(AL_TDpb* pDpb)
 {
-  int iNum = pDpb->iNumDltPic ? (bAll ? pDpb->iNumDltPic : 1) : 0;
+  if(pDpb->iNumDeletedPic == 0)
+    return;
+
+  int iNum = pDpb->iNumDeletedPic;
 
   while(iNum--)
   {
     AL_TDpbCallback* cb = &pDpb->tCallbacks;
-    cb->pfnDecrementFrmBuf(cb->pUserParam, pDpb->pDltFrmIDLst[pDpb->iDltFrmLstHead]);
-    cb->pfnDecrementMvBuf(cb->pUserParam, pDpb->pDltMvIDLst[pDpb->iDltMvLstHead]);
+    cb->pfnDecrementFrmBuf(cb->pUserParam, pDpb->pDeletedFrmIDLst[pDpb->iDeletedFrmLstHead]);
+    cb->pfnDecrementMvBuf(cb->pUserParam, pDpb->pDeletedMvIDLst[pDpb->iDeletedMvLstHead]);
 
-    pDpb->iDltFrmLstHead = (pDpb->iDltFrmLstHead + 1) % FRM_BUF_POOL_SIZE;
-    pDpb->iDltMvLstHead = (pDpb->iDltMvLstHead + 1) % MAX_DPB_SIZE;
-    --pDpb->iNumDltPic;
+    pDpb->iDeletedFrmLstHead = (pDpb->iDeletedFrmLstHead + 1) % FRM_BUF_POOL_SIZE;
+    pDpb->iDeletedMvLstHead = (pDpb->iDeletedMvLstHead + 1) % MAX_DPB_SIZE;
+    --pDpb->iNumDeletedPic;
   }
 }
 
@@ -563,11 +566,11 @@ void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, AL_EDpbMode eMode, AL_TDpbCallb
   pDpb->uNumOutputPic = 0;
   pDpb->iLastDisplayedPOC = 0x80000000;
 
-  pDpb->iDltFrmLstHead = 0;
-  pDpb->iDltFrmLstTail = 0;
-  pDpb->iDltMvLstHead = 0;
-  pDpb->iDltMvLstTail = 0;
-  pDpb->iNumDltPic = 0;
+  pDpb->iDeletedFrmLstHead = 0;
+  pDpb->iDeletedFrmLstTail = 0;
+  pDpb->iDeletedMvLstHead = 0;
+  pDpb->iDeletedMvLstTail = 0;
+  pDpb->iNumDeletedPic = 0;
 
   pDpb->Mutex = Rtos_CreateMutex();
 
@@ -580,7 +583,7 @@ void AL_Dpb_Init(AL_TDpb* pDpb, uint8_t uNumRef, AL_EDpbMode eMode, AL_TDpbCallb
 void AL_Dpb_Terminate(AL_TDpb* pDpb)
 {
   Rtos_GetMutex(pDpb->Mutex);
-  AL_Dpb_sReleaseUnusedBuf(pDpb, true);
+  AL_Dpb_sReleaseUnusedBuf(pDpb);
   DispFifo_Deinit(&pDpb->DispFifo);
   Rtos_ReleaseMutex(pDpb->Mutex);
 }
@@ -1117,13 +1120,13 @@ uint8_t AL_Dpb_Remove(AL_TDpb* pDpb, uint8_t uNode)
 
   if(!uNonExisting)
   {
-    pDpb->pDltFrmIDLst[pDpb->iDltFrmLstTail] = uFrmID;
-    pDpb->pDltMvIDLst[pDpb->iDltMvLstTail] = uMvID;
+    pDpb->pDeletedFrmIDLst[pDpb->iDeletedFrmLstTail] = uFrmID;
+    pDpb->pDeletedMvIDLst[pDpb->iDeletedMvLstTail] = uMvID;
 
-    pDpb->iDltFrmLstTail = (pDpb->iDltFrmLstTail + 1) % FRM_BUF_POOL_SIZE;
-    pDpb->iDltMvLstTail = (pDpb->iDltMvLstTail + 1) % MAX_DPB_SIZE;
+    pDpb->iDeletedFrmLstTail = (pDpb->iDeletedFrmLstTail + 1) % FRM_BUF_POOL_SIZE;
+    pDpb->iDeletedMvLstTail = (pDpb->iDeletedMvLstTail + 1) % MAX_DPB_SIZE;
 
-    ++pDpb->iNumDltPic;
+    ++pDpb->iNumDeletedPic;
   }
 
   Rtos_ReleaseMutex(pDpb->Mutex);
@@ -1325,7 +1328,7 @@ void AL_Dpb_EndDecoding(AL_TDpb* pDpb, int iFrmID)
 {
   Rtos_GetMutex(pDpb->Mutex);
 
-  AL_Dpb_sReleaseUnusedBuf(pDpb, false);
+  AL_Dpb_sReleaseUnusedBuf(pDpb);
 
   // Set Frame Availability
   if(DispFifo_GetStatus(&pDpb->DispFifo, iFrmID) == AL_NOT_READY_FOR_OUTPUT)

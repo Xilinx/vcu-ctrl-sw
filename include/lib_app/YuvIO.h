@@ -40,13 +40,13 @@
 extern "C"
 {
 #include "lib_common/FourCC.h"
-#include "lib_rtos/types.h"
 #include "lib_common/BufferAPI.h"
 }
 
 #include <fstream>
 #include "lib_app/InputFiles.h"
 #include "lib_app/MD5.h"
+#include "lib_app/FrameReader.h"
 
 /* By default, we align allocation dimensions to 8x8 to ensures compatibility with conversion functions.
  * Indeed, they process full 4x4 blocks in tile mode */
@@ -57,9 +57,6 @@ AL_TBuffer* AllocateDefaultYuvIOBuffer(AL_TDimension const& tDimension, TFourCC 
 
 /*****************************************************************************/
 void GotoFirstPicture(TYUVFileInfo const& FI, std::ifstream& File, unsigned int iFirstPict = 0);
-
-/*****************************************************************************/
-int GotoNextPicture(TYUVFileInfo const& FI, std::ifstream& File, int iEncFrameRate, int iEncPictCount, int iFilePictCount);
 
 /*****************************************************************************/
 bool ReadOneFrameYuv(std::ifstream& File, AL_TBuffer* pBuf, bool bLoop, uint32_t uRndDim = DEFAULT_RND_DIM);

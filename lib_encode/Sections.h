@@ -36,7 +36,6 @@
 ******************************************************************************/
 
 #pragma once
-#include "lib_common/BufferStreamMeta.h"
 #include "IP_Stream.h"
 #include "lib_bitstream/IRbspWriter.h"
 #include "lib_common_enc/EncPicInfo.h"

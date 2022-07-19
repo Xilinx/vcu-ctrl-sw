@@ -44,9 +44,6 @@
 #pragma once
 
 #include <stdio.h>
-#include "lib_rtos/types.h"
-
-#include "lib_common/Planes.h"
 
 #include "lib_common_dec/DecInfo.h"
 #include "lib_common_dec/DecDpbMode.h"
@@ -89,6 +86,7 @@ typedef struct
   bool bUseIFramesAsSyncPoint; /*!< Allow decoder to sync on I frames if configurations' nals are presents */
   bool bUseEarlyCallback; /*< Lowlat phase 2. This only makes sense with special support for hw synchro */
   AL_EDecInputMode eInputMode; /* Send stream data by decoding unit or feed the library enough data and let it find the units. */
+  bool bDecodeIntraOnly;  /*!< Should the decoder process only I frames  */
 }AL_TDecSettings;
 
 /*************************************************************************//*!

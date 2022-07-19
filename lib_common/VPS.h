@@ -44,7 +44,6 @@
  *****************************************************************************/
 #pragma once
 
-#include "lib_rtos/types.h"
 #include "common_syntax_elements.h"
 
 typedef struct t_RepFormat

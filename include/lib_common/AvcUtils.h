@@ -62,4 +62,5 @@ bool AL_AVC_IsVcl(AL_ENut eNUT);
    \brief Size of the NAL Header
    respect to the AVC specification
  ***************************************************************************/
-#define AL_AVC_NAL_HDR_SIZE 4;
+#define AL_AVC_NAL_HDR_SIZE 4
+

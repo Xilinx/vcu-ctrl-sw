@@ -79,9 +79,6 @@ struct AL_TRoiNode;
 *****************************************************************************/
 struct AL_TRoiMngrCtx
 {
-  int8_t iMinQP;
-  int8_t iMaxQP;
-
   int iPicWidth;
   int iPicHeight;
 
@@ -89,12 +86,16 @@ struct AL_TRoiMngrCtx
   int iLcuPicHeight;
   int iNumLCUs;
   uint8_t uLog2MaxCuSize;
+  int8_t iMinQP;
+  int8_t iMaxQP;
+  bool bIsAOM;
 
   AL_ERoiQuality eBkgQuality;
   AL_ERoiOrder eOrder;
 
   AL_TRoiNode* pFirstNode;
   AL_TRoiNode* pLastNode;
+  int16_t* pDeltaQpSegments;
 };
 
 /*************************************************************************//*!

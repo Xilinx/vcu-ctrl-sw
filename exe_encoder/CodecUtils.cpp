@@ -50,7 +50,6 @@ extern "C"
 {
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/BufferStreamMeta.h"
-#include "lib_common_enc/IpEncFourCC.h"
 }
 
 #include "CodecUtils.h"
@@ -135,7 +134,6 @@ void WriteOneSection(ofstream& File, AL_TBuffer* pStream, AL_TStreamSection* pCu
 
   if(pCurSection->uLength)
   {
-
     uint32_t uRemSize = AL_Buffer_GetSize(pStream) - pCurSection->uOffset;
 
     if(uRemSize < pCurSection->uLength)
@@ -175,8 +173,9 @@ static void FillSectionFillerData(AL_TBuffer* pStream, int iSection, const AL_TE
 }
 
 /*****************************************************************************/
-int WriteStream(ofstream& File, AL_TBuffer* pStream, const AL_TEncSettings* pSettings)
+int WriteStream(ofstream& File, AL_TBuffer* pStream, const AL_TEncSettings* pSettings, std::streampos& iHdrPos, int& iFrameSize)
 {
+  (void)iHdrPos, (void)iFrameSize;
   AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
   auto& tChParam = pSettings->tChParam[0];
 

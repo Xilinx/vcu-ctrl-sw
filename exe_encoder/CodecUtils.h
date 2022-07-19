@@ -41,14 +41,11 @@
 #include <string>
 #include <stdexcept>
 #include <deque>
-#include "lib_app/console.h"
-#include "lib_app/InputFiles.h"
 
 extern "C"
 {
 #include "lib_common/SliceConsts.h"
 #include "lib_common/BufferAPI.h"
-#include "lib_common_enc/EncBuffers.h"
 #include "lib_common_enc/Settings.h"
 }
 
@@ -84,7 +81,7 @@ protected:
 };
 
 /*****************************************************************************/
-int WriteStream(std::ofstream& File, AL_TBuffer* pStream, const AL_TEncSettings* pSettings);
+int WriteStream(std::ofstream& File, AL_TBuffer* pStream, const AL_TEncSettings* pSettings, std::streampos& iHdrPos, int& iFrameSize);
 
 /*****************************************************************************/
 struct ImageSize

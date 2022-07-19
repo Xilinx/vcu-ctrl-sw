@@ -51,7 +51,6 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include "lib_rtos/lib_rtos.h"
 #include "lib_common/Allocator.h"
 #include "lib_common/SliceConsts.h"
 #include "lib_common_enc/RateCtrlStats.h"
@@ -229,7 +228,17 @@ typedef struct t_Mcu_Export_Vtable
    \param[in] memoryBaseAddr The first virtual address of the memory region we want to invalidate
    \param[in] memorySize The size in bytes of the memory region we want to invalidate
 *****************************************************************************/
-  void (* invalidateCache)(uint32_t memoryBaseAddr, uint32_t memorySize);
+  void (* invalidateCache)(AL_VADDR memoryBaseAddr, uint32_t memorySize);
+
+/*************************************************************************//*!
+   \brief When the plugin rate control attempts to put data to a dma buffer
+   allocated on the cpu, care must be taken to flush the data cache so the cpu
+   get the correct data. If the data cache isn't flush, host cpu may access
+   old data.
+   \param[in] memoryBaseAddr The first virtual address of the memory region we want to invalidate
+   \param[in] memorySize The size in bytes of the memory region we want to invalidate
+*****************************************************************************/
+  void (* flushCache)(AL_VADDR memoryBaseAddr, uint32_t memorySize);
 }Mcu_Export_Vtable;
 
 /*************************************************************************/ /*!

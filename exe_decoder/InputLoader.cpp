@@ -39,10 +39,8 @@
 extern "C"
 {
 #include "lib_rtos/lib_rtos.h"
-#include "lib_common/SliceConsts.h"
 #include "lib_common/BufferSeiMeta.h"
 #include "lib_common/Nuts.h"
-#include "lib_common/SEI.h"
 #include "lib_common/AvcUtils.h"
 #include "lib_common/HevcUtils.h"
 }
@@ -444,11 +442,15 @@ uint32_t SplitInput::ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream, u
       if(size == 0)
       {
         m_bEOF = true;
-        Rtos_Memcpy(m_CircBuf.tBuf.pBuf + start, pAUD, iNalAudSize);
-        m_CircBuf.iAvailSize += iNalAudSize;
+
+        if(iNalAudSize)
+        {
+          assert(pAUD);
+          Rtos_Memcpy(m_CircBuf.tBuf.pBuf + start, pAUD, iNalAudSize);
+          m_CircBuf.iAvailSize += iNalAudSize;
+        }
       }
     }
-
     frame = SearchStartCodes(m_CircBuf, m_eCodec, m_bSliceCut);
 
     if(frame.numBytes < m_CircBuf.iAvailSize)
@@ -475,7 +477,6 @@ uint32_t SplitInput::ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream, u
     Rtos_Memcpy(pBuf, m_CircBuf.tBuf.pBuf + m_CircBuf.iOffset, frame.numBytes);
   m_CircBuf.iAvailSize -= frame.numBytes;
   m_CircBuf.iOffset = (m_CircBuf.iOffset + frame.numBytes) % m_CircBuf.tBuf.iSize;
-
   AddSeiMetaData(pBufStream);
 
   uBufFlags = AL_STREAM_BUF_FLAG_ENDOFSLICE;

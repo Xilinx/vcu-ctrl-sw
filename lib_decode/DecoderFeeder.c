@@ -39,8 +39,6 @@
 #include "InternalError.h"
 
 #include "lib_rtos/lib_rtos.h"
-#include "lib_common/Error.h"
-#include "lib_common/Utils.h"
 
 void AL_Default_Decoder_WaitFrameSent(AL_HDecoder hDec, uint32_t uStreamOffset);
 

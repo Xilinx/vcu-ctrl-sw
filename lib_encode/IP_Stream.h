@@ -44,7 +44,6 @@
  *****************************************************************************/
 #pragma once
 
-#include "lib_rtos/types.h"
 #include "lib_bitstream/BitStreamLite.h"
 #include "lib_bitstream/IRbspWriter.h"
 #include "lib_common/BufferStreamMeta.h"

@@ -36,7 +36,7 @@
 ******************************************************************************/
 
 #include "DPBConstraints.h"
-#include "lib_common/Utils.h"
+#include "lib_assert/al_assert.h"
 
 /****************************************************************************/
 uint8_t AL_DPBConstraint_GetMaxRef_DefaultGopMngr(const AL_TGopParam* pGopParam, AL_ECodec eCodec, AL_EVideoMode eVideoMode)
@@ -95,7 +95,7 @@ uint8_t AL_DPBConstraint_GetMaxRef_DefaultGopMngr(const AL_TGopParam* pGopParam,
 
 #define NEXT_PYR_LEVEL_NUMB(uNumBForPyrLevel) (((uNumBForPyrLevel) << 1) + 1)
 /****************************************************************************/
-uint8_t AL_DPBConstraint_GetMaxRef_GopMngrCustom(const AL_TGopParam* pGopParam, AL_ECodec eCodec, AL_EVideoMode eVideoMode)
+uint8_t AL_DPBConstraint_GetMaxRef_GopMngrCustom(AL_TGopParam const* pGopParam, AL_ECodec eCodec, AL_EVideoMode eVideoMode)
 {
   int iNumRef;
 

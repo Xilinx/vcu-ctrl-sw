@@ -176,10 +176,10 @@ private:
 /****************************************************************************
  * Class CEncCmdMngr                                                         *
  *****************************************************************************/
-CEncCmdMngr::CEncCmdMngr(std::istream& CmdInput, int iLookAhead, int iFreqLT)
+CEncCmdMngr::CEncCmdMngr(std::istream& CmdInput, int iLookAhead, uint32_t iFreqLT)
   : m_CmdInput(CmdInput),
   m_iLookAhead(iLookAhead),
-  m_iFreqLT(iFreqLT),
+  m_uFreqLT(iFreqLT),
   m_bHasLT(false)
 {
   Refill(0);
@@ -420,7 +420,7 @@ void CEncCmdMngr::Process(ICommandsSender* sender, int iFrame)
     {
       bRefill = true;
 
-      if(m_Cmds.front().bUseLongTerm && (m_iFreqLT || m_bHasLT))
+      if(m_Cmds.front().bUseLongTerm && (m_uFreqLT || m_bHasLT))
         sender->notifyUseLongTerm();
 
       if(m_Cmds.front().bIsLongTerm)

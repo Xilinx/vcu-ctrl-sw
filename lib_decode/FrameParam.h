@@ -46,8 +46,6 @@
 
 #include "I_DecoderCtx.h"
 
-#include "lib_rtos/types.h"
-
 #include "lib_common/SliceHeader.h"
 
 #include "lib_common_dec/DecSliceParam.h"

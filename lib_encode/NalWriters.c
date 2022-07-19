@@ -36,7 +36,6 @@
 ******************************************************************************/
 
 #include "NalWriters.h"
-#include "lib_common/Nuts.h"
 #include "lib_common/SEI.h"
 #include "lib_bitstream/RbspEncod.h"
 #include "lib_assert/al_assert.h"

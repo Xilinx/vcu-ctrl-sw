@@ -42,7 +42,6 @@
 ******************************************************************************/
 #pragma once
 
-#include "lib_rtos/types.h"
 #include "Profiles.h"
 
 #define AL_MAX_NUM_REF 16

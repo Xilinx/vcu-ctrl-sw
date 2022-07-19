@@ -53,22 +53,6 @@
 
 typedef struct
 {
-  AL_ENut dps;
-  AL_ENut vps;
-  AL_ENut sps;
-  AL_ENut pps;
-  AL_ENut fd;
-  AL_ENut apsPrefix;
-  AL_ENut apsSuffix;
-  AL_ENut ph;
-  AL_ENut seiPrefix;
-  AL_ENut seiSuffix;
-  AL_ENut eos;
-  AL_ENut eob;
-}AL_NonVclNuts;
-
-typedef struct
-{
   AL_TDecCtx ctx;
 }AL_TDecoder;
 
@@ -161,6 +145,12 @@ void AL_Default_Decoder_SetError(AL_TDecCtx* pCtx, AL_ERR eError, int iFrameID, 
    \return the output storage mode
 *****************************************************************************/
 AL_EFbStorageMode AL_Default_Decoder_GetDisplayStorageMode(AL_TDecCtx* pCtx, int iBitDepth, bool* pEnableCompression);
+
+/*************************************************************************//*!
+   \brief This function indicates if there has an ongoing frame
+   \param[in] pCtx decoder context
+*****************************************************************************/
+bool AL_Default_Decoder_HasOngoingFrame(AL_TDecCtx* pCtx);
 
 void AL_Default_Decoder_Destroy(AL_TDecoder* pAbsDec);
 void AL_Default_Decoder_SetParam(AL_TDecoder* pAbsDec, const char* sPrefix, int iFrmID, int iNumFrm, bool bForceCleanBuffers, bool bShouldPrintFrameDelimiter);

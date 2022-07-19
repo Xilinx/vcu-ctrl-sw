@@ -42,8 +42,6 @@
 #include <iostream>
 #include <map>
 #include <memory>
-#include <queue>
-#include <list>
 #include <sstream>
 #include <cstdarg>
 #include <stdexcept>
@@ -71,6 +69,7 @@
 #include "lib_app/FileUtils.h"
 #include "lib_app/plateform.h"
 #include "lib_app/YuvIO.h"
+#include "lib_app/NonCompFrameReader.h"
 #include "lib_assert/al_assert.h"
 
 #include "CodecUtils.h"
@@ -86,16 +85,18 @@ extern "C"
 #include "lib_common/PixMapBuffer.h"
 #include "lib_common/BufferStreamMeta.h"
 #include "lib_common/BufferPictureMeta.h"
-#include "lib_common/BufferLookAheadMeta.h"
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/Error.h"
 #include "lib_encode/lib_encoder.h"
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common_enc/RateCtrlMeta.h"
 #include "lib_common_enc/IpEncFourCC.h"
+#include "lib_common_enc/EncBuffers.h"
 }
 
 #include "lib_conv_yuv/lib_conv_yuv.h"
+#include "lib_conv_yuv/AL_RasterConvert.h"
+
 #include "sink_encoder.h"
 #include "sink_lookahead.h"
 #include "sink_bitstream_writer.h"
@@ -342,6 +343,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg, CfgParser& cfgPars
   }, "Use the same syntax as in the cfg to specify a parameter (Example: --set \"[INPUT] Width = 512\"", "string");
 
   opt.addString("--input,-i", &cfg.MainInput.YUVFileName, "YUV input file");
+  opt.addString("--map,-m", &cfg.MainInput.sMapFileName, "Map input file");
   opt.addString("--output,-o", &cfg.BitstreamFileName, "Compressed output file");
   opt.addString("--output-rec,-r", &cfg.RecFileName, "Output reconstructed YUV file");
   opt.addString("--md5-rec", &cfg.RunInfo.sRecMd5Path, "Filename to the output MD5 of the reconstructed pictures");
@@ -415,24 +417,21 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg, CfgParser& cfgPars
   opt.addFlag("--multi-chunk", &g_MultiChunk, "Allocate source luma and chroma on different memory chunks");
   opt.addInt("--num-core", &cfg.Settings.tChParam[0].uNumCore, "Specifies the number of cores to use (resolution needs to be sufficient)");
 
-  opt.addString("--log", &cfg.RunInfo.logsFile, "A file where log event will be dumped");
-  opt.addInt("--prefetch", &g_numFrameToRepeat, "Prefetch n frames and loop between these frames for max picture count");
-  opt.addFlag("--print-picture-type", &cfg.RunInfo.printPictureType, "Write picture type for each frame in the file", true);
   opt.addFlag("--print-ratectrl-stat", &cfg.RunInfo.printRateCtrlStat, "Write rate-control related statistics for each frame in the file. Only a subset of the statistics is written, more data and motion vectors are also available.", true);
+  opt.addFlag("--print-picture-type", &cfg.RunInfo.printPictureType, "Write picture type for each frame in the file", true);
 
-  opt.addString("--device", &cfg.RunInfo.encDevicePath, "Path of the device file used to talk with the IP. Default is /dev/allegroIP");
-
+  opt.addString("--device", &cfg.RunInfo.encDevicePath, "Path of the driver device file used to talk with the IP. Default is /dev/allegroIP");
   opt.startSection("Misc");
 
   opt.addOption("--color", [&](string)
   {
     SetEnableColor(true);
-  }, "Enable color (Default: Auto)");
+  }, "Enable the display of command line color (Default: Auto)");
 
   opt.addOption("--no-color", [&](string)
   {
     SetEnableColor(false);
-  }, "Disable color");
+  }, "Disable the display of command line color");
 
   opt.addFlag("--quiet,-q", &g_Verbosity, "Do not print anything", 0);
   opt.addInt("--verbosity", &g_Verbosity, "Choose the verbosity level (-q is equivalent to --verbosity 0)");
@@ -480,6 +479,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg, CfgParser& cfgPars
 
   if(AL_IS_STILL_PROFILE(cfg.Settings.tChParam[0].eProfile))
     cfg.RunInfo.iMaxPict = 1;
+
 }
 
 bool checkQPTableFolder(ConfigFile& cfg)
@@ -494,12 +494,12 @@ bool checkQPTableFolder(ConfigFile& cfg)
 
 void ValidateConfig(ConfigFile& cfg)
 {
-  string invalid_settings("Invalid settings, check the [SETTINGS] section of your configuration file or check your commandline (use -h to get help)");
+  string const invalid_settings("Invalid settings, check the [SETTINGS] section of your configuration file or check your commandline (use -h to get help)");
 
   if(cfg.MainInput.YUVFileName.empty())
     throw runtime_error("No YUV input was given, specify it in the [INPUT] section of your configuration file or in your commandline (use -h to get help)");
 
-  if(!cfg.MainInput.sQPTablesFolder.empty() && ((cfg.RunInfo.eGenerateQpMode & AL_GENERATE_MASK_QP_TABLE) != AL_GENERATE_LOAD_QP))
+  if(!cfg.MainInput.sQPTablesFolder.empty() && ((cfg.RunInfo.eGenerateQpMode & AL_GENERATE_QP_TABLE_MASK) != AL_GENERATE_LOAD_QP))
     throw runtime_error("QPTablesFolder can only be specified with Load QP control mode");
 
   SetConsoleColor(CC_RED);
@@ -509,6 +509,8 @@ void ValidateConfig(ConfigFile& cfg)
   if(!g_Verbosity)
     out = NULL;
 
+  auto const MaxLayer = cfg.Settings.NumLayer - 1;
+
   for(int i = 0; i < cfg.Settings.NumLayer; ++i)
   {
     auto const err = AL_Settings_CheckValidity(&cfg.Settings, &cfg.Settings.tChParam[i], out);
@@ -516,11 +518,11 @@ void ValidateConfig(ConfigFile& cfg)
     if(err != 0)
     {
       stringstream ss;
-      ss << err << " errors(s). " << invalid_settings;
+      ss << "Found: " << err << " errors(s). " << invalid_settings;
       throw runtime_error(ss.str());
     }
 
-    if((cfg.RunInfo.eGenerateQpMode & AL_GENERATE_MASK_QP_TABLE) == AL_GENERATE_LOAD_QP)
+    if((cfg.RunInfo.eGenerateQpMode & AL_GENERATE_QP_TABLE_MASK) == AL_GENERATE_LOAD_QP)
     {
       if(!checkQPTableFolder(cfg))
         throw runtime_error("No QP File found");
@@ -529,7 +531,8 @@ void ValidateConfig(ConfigFile& cfg)
     auto const incoherencies = AL_Settings_CheckCoherency(&cfg.Settings, &cfg.Settings.tChParam[i], cfg.MainInput.FileInfo.FourCC, out);
 
     if(incoherencies == -1)
-      throw runtime_error("Fatal coherency error in settings");
+      throw runtime_error("Fatal coherency error in settings (layer[" + to_string(i) + "/" + to_string(MaxLayer) + "])");
+
   }
 
   if(cfg.Settings.TwoPass == 1)
@@ -575,32 +578,31 @@ static shared_ptr<AL_TBuffer> AllocateConversionBuffer(int iWidth, int iHeight, 
   return shared_ptr<AL_TBuffer>(pYuv, &AL_Buffer_Destroy);
 }
 
-bool ReadSourceFrameBuffer(AL_TBuffer* pBuffer, AL_TBuffer* conversionBuffer, ifstream& YuvFile, AL_TDimension tUpdatedDim, uint8_t uSrcBitDepth, ConfigFile const& cfg, IConvSrc* hConv)
+bool ReadSourceFrameBuffer(AL_TBuffer* pBuffer, AL_TBuffer* conversionBuffer, unique_ptr<FrameReader> const& frameReader, AL_TDimension tUpdatedDim, uint8_t uSrcBitDepth, IConvSrc* hConv)
 {
+
   AL_PixMapBuffer_SetDimension(pBuffer, tUpdatedDim);
 
   if(hConv)
   {
     AL_PixMapBuffer_SetDimension(conversionBuffer, tUpdatedDim);
 
-    if(!ReadOneFrameYuv(YuvFile, conversionBuffer, cfg.RunInfo.bLoop))
+    if(!frameReader->ReadFrame(conversionBuffer))
       return false;
     hConv->ConvertSrcBuf(uSrcBitDepth, conversionBuffer, pBuffer);
   }
   else
-  {
-    if(!ReadOneFrameYuv(YuvFile, pBuffer, cfg.RunInfo.bLoop))
-      return false;
-  }
+    return frameReader->ReadFrame(pBuffer);
+
   return true;
 }
 
-shared_ptr<AL_TBuffer> ReadSourceFrame(BaseBufPool* pBufPool, AL_TBuffer* conversionBuffer, ifstream& YuvFile, AL_TDimension tUpdatedDim, uint8_t uSrcBitDepth, ConfigFile const& cfg, IConvSrc* hConv)
+shared_ptr<AL_TBuffer> ReadSourceFrame(BaseBufPool* pBufPool, AL_TBuffer* conversionBuffer, unique_ptr<FrameReader> const& frameReader, AL_TDimension tUpdatedDim, uint8_t uSrcBitDepth, IConvSrc* hConv)
 {
   shared_ptr<AL_TBuffer> sourceBuffer(pBufPool->GetBuffer(), &AL_Buffer_Unref);
   assert(sourceBuffer);
 
-  if(!ReadSourceFrameBuffer(sourceBuffer.get(), conversionBuffer, YuvFile, tUpdatedDim, uSrcBitDepth, cfg, hConv))
+  if(!ReadSourceFrameBuffer(sourceBuffer.get(), conversionBuffer, frameReader, tUpdatedDim, uSrcBitDepth, hConv))
     return nullptr;
   return sourceBuffer;
 }
@@ -623,9 +625,9 @@ bool ConvertSrcBuffer(AL_TEncChanParam& tChParam, TYUVFileInfo& FileInfo, shared
   return shouldConvert;
 }
 
-static int ComputeYPitch(int iWidth, TFourCC tFourCC)
+static int ComputeYPitch(int iWidth, const AL_TPicFormat& tPicFormat)
 {
-  auto iPitch = AL_EncGetMinPitch(iWidth, AL_GetBitDepth(tFourCC), AL_GetStorageMode(tFourCC));
+  auto iPitch = AL_EncGetMinPitch(iWidth, tPicFormat.uBitDepth, tPicFormat.eStorageMode);
 
   if(g_Stride != -1)
   {
@@ -640,14 +642,7 @@ static bool isLastPict(int iPictCount, int iMaxPict)
   return (iPictCount >= iMaxPict) && (iMaxPict != -1);
 }
 
-static void PrepareInput(ifstream& YuvFile, string& YUVFileName, TYUVFileInfo& FileInfo, int iFirstPict)
-{
-  YuvFile.close();
-  OpenInput(YuvFile, YUVFileName);
-  GotoFirstPicture(FileInfo, YuvFile, iFirstPict);
-}
-
-static shared_ptr<AL_TBuffer> GetSrcFrame(int& iReadCount, int iPictCount, ifstream& YuvFile, TYUVFileInfo const& FileInfo, PixMapBufPool& SrcBufPool, AL_TBuffer* Yuv, AL_TEncChanParam const& tChParam, ConfigFile const& cfg, IConvSrc* pSrcConv)
+static shared_ptr<AL_TBuffer> GetSrcFrame(int& iReadCount, int iPictCount, unique_ptr<FrameReader> const& frameReader, TYUVFileInfo const& FileInfo, PixMapBufPool& SrcBufPool, AL_TBuffer* Yuv, AL_TEncChanParam const& tChParam, ConfigFile const& cfg, IConvSrc* pSrcConv)
 {
   shared_ptr<AL_TBuffer> frame;
 
@@ -655,13 +650,13 @@ static shared_ptr<AL_TBuffer> GetSrcFrame(int& iReadCount, int iPictCount, ifstr
   {
     if(cfg.MainInput.FileInfo.FrameRate != tChParam.tRCParam.uFrameRate)
     {
-      iReadCount += GotoNextPicture(FileInfo, YuvFile, tChParam.tRCParam.uFrameRate, iPictCount, iReadCount);
+      iReadCount += frameReader->GotoNextPicture(FileInfo.FrameRate, tChParam.tRCParam.uFrameRate, iPictCount, iReadCount);
     }
 
     AL_TDimension tUpdatedDim = AL_TDimension {
       AL_GetSrcWidth(tChParam), AL_GetSrcHeight(tChParam)
     };
-    frame = ReadSourceFrame(&SrcBufPool, Yuv, YuvFile, tUpdatedDim, tChParam.uSrcBitDepth, cfg, pSrcConv);
+    frame = ReadSourceFrame(&SrcBufPool, Yuv, frameReader, tUpdatedDim, tChParam.uSrcBitDepth, pSrcConv);
 
     iReadCount++;
   }
@@ -716,38 +711,57 @@ static AL_TBufPoolConfig GetQpBufPoolConfig(AL_TEncSettings& Settings, AL_TEncCh
 }
 
 /*****************************************************************************/
-static void ConfigureSrcBufPool(PixMapBufPool& SrcBufPool, TFrameInfo& FrameInfo, AL_ESrcMode eSrcMode)
+struct SrcBufChunk
 {
-  auto const tPicFormat = AL_EncGetSrcPicFormat(FrameInfo.eCMode, FrameInfo.iBitDepth, AL_GetSrcStorageMode(eSrcMode), AL_IsSrcCompressed(eSrcMode));
-  TFourCC tFourCC = AL_GetFourCC(tPicFormat);
+  int iChunkSize;
+  std::vector<AL_TPlaneDescription> vPlaneDesc;
+};
 
-  SrcBufPool.SetFormat(FrameInfo.tDimension, tFourCC);
+struct SrcBufDesc
+{
+  TFourCC tFourCC;
+  std::vector<SrcBufChunk> vChunks;
+};
 
-  int iPitchY = ComputeYPitch(FrameInfo.tDimension.iWidth, tFourCC);
-  int iStrideHeight = g_StrideHeight != -1 ? g_StrideHeight : RoundUp(FrameInfo.tDimension.iHeight, 8);
+static SrcBufDesc GetSrcBufDescription(AL_TDimension tDimension, uint8_t uBitDepth, AL_EChromaMode eCMode, AL_ESrcMode eSrcMode, AL_ECodec eCodec)
+{
+  (void)eCodec;
 
-  vector<AL_TPlaneDescription> vPlaneDesc;
-  int iOffset = 0;
+  auto const tPicFormat = AL_EncGetSrcPicFormat(eCMode, uBitDepth, AL_GetSrcStorageMode(eSrcMode), AL_IsSrcCompressed(eSrcMode));
+
+  SrcBufDesc srcBufDesc =
+  {
+    AL_GetFourCC(tPicFormat), {}
+  };
+
+  int iPitchY = ComputeYPitch(tDimension.iWidth, tPicFormat);
+
+  int iAlignValue = 8;
+
+  int iStrideHeight = g_StrideHeight != -1 ? g_StrideHeight : RoundUp(tDimension.iHeight, iAlignValue);
+
+  SrcBufChunk srcChunk = {};
 
   AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES];
   int iNbPlanes = AL_Plane_GetBufferPixelPlanes(tPicFormat.eChromaOrder, usedPlanes);
 
   for(int iPlane = 0; iPlane < iNbPlanes; iPlane++)
   {
-    int iPitch = usedPlanes[iPlane] == AL_PLANE_Y ? iPitchY : AL_GetChromaPitch(tFourCC, iPitchY);
-    vPlaneDesc.push_back(AL_TPlaneDescription { usedPlanes[iPlane], iOffset, iPitch });
-    iOffset += AL_GetAllocSizeSrc_PixPlane(eSrcMode, iPitchY, iStrideHeight, FrameInfo.eCMode, usedPlanes[iPlane]);
+    int iPitch = usedPlanes[iPlane] == AL_PLANE_Y ? iPitchY : AL_GetChromaPitch(srcBufDesc.tFourCC, iPitchY);
+    srcChunk.vPlaneDesc.push_back(AL_TPlaneDescription { usedPlanes[iPlane], srcChunk.iChunkSize, iPitch });
+    srcChunk.iChunkSize += AL_GetAllocSizeSrc_PixPlane(eSrcMode, iPitchY, iStrideHeight, tPicFormat.eChromaMode, usedPlanes[iPlane]);
 
     if(g_MultiChunk)
     {
-      SrcBufPool.AddChunk(iOffset, vPlaneDesc);
-      vPlaneDesc.clear();
-      iOffset = 0;
+      srcBufDesc.vChunks.push_back(srcChunk);
+      srcChunk = {};
     }
   }
 
   if(!g_MultiChunk)
-    SrcBufPool.AddChunk(iOffset, vPlaneDesc);
+    srcBufDesc.vChunks.push_back(srcChunk);
+
+  return srcBufDesc;
 }
 
 /*****************************************************************************/
@@ -766,13 +780,14 @@ static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, int i
 {
   int smoothingStream = 2;
 
-  auto numStreams = g_defaultMinBuffers + smoothingStream + GetNumBufForGop(Settings);
   AL_TDimension dim = { Settings.tChParam[iLayerID].uEncWidth, Settings.tChParam[iLayerID].uEncHeight };
   uint64_t streamSize = AL_GetMitigatedMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat));
   bool bIsXAVCIntraCBG = AL_IS_XAVC_CBG(Settings.tChParam[0].eProfile) && AL_IS_INTRA_PROFILE(Settings.tChParam[0].eProfile);
 
   if(bIsXAVCIntraCBG)
     streamSize = AL_GetMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat), Settings.tChParam[0].eProfile, Settings.tChParam[0].uLevel);
+
+  auto numStreams = g_defaultMinBuffers + smoothingStream + GetNumBufForGop(Settings);
 
   bool bHasLookAhead;
   bHasLookAhead = AL_TwoPassMngr_HasLookAhead(Settings);
@@ -791,15 +806,17 @@ static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, int i
   {
     numStreams *= Settings.tChParam[0].uNumSlices;
 
-    /* Due to rounding, the slices don't have all the same height. Compute size of the biggest slice */
-    uint64_t lcuSize = 1 << Settings.tChParam[0].uLog2MaxCuSize;
-    uint64_t rndHeight = RoundUp(dim.iHeight, lcuSize);
-    streamSize = streamSize * lcuSize * (1 + rndHeight / (Settings.tChParam[0].uNumSlices * lcuSize)) / rndHeight;
+    {
+      /* Due to rounding, the slices don't have all the same height. Compute size of the biggest slice */
+      uint64_t lcuSize = 1 << Settings.tChParam[0].uLog2MaxCuSize;
+      uint64_t rndHeight = RoundUp(dim.iHeight, lcuSize);
+      streamSize = streamSize * lcuSize * (1 + rndHeight / (Settings.tChParam[0].uNumSlices * lcuSize)) / rndHeight;
 
-    /* we need space for the headers on each slice */
-    streamSize += AL_ENC_MAX_HEADER_SIZE;
-    /* stream size is required to be 32bytes aligned */
-    streamSize = RoundUp(streamSize, 32);
+      /* we need space for the headers on each slice */
+      streamSize += AL_ENC_MAX_HEADER_SIZE;
+      /* stream size is required to be 32bytes aligned */
+      streamSize = RoundUp(streamSize, HW_IP_BURST_ALIGNMENT);
+    }
   }
 
   assert(streamSize <= INT32_MAX);
@@ -821,9 +838,15 @@ static TFrameInfo GetFrameInfo(AL_TEncChanParam& tChParam)
 }
 
 /*****************************************************************************/
-static void InitSrcBufPool(AL_TAllocator* pAllocator, bool shouldConvert, unique_ptr<IConvSrc>& pSrcConv, TFrameInfo& FrameInfo, AL_ESrcMode eSrcMode, int frameBuffersCount, PixMapBufPool& SrcBufPool)
+static void InitSrcBufPool(PixMapBufPool& SrcBufPool, AL_TAllocator* pAllocator, bool shouldConvert, unique_ptr<IConvSrc>& pSrcConv, TFrameInfo& FrameInfo, AL_ESrcMode eSrcMode, int frameBuffersCount, AL_ECodec eCodec)
 {
-  ConfigureSrcBufPool(SrcBufPool, FrameInfo, eSrcMode);
+  auto srcBufDesc = GetSrcBufDescription(FrameInfo.tDimension, FrameInfo.iBitDepth, FrameInfo.eCMode, eSrcMode, eCodec);
+
+  SrcBufPool.SetFormat(FrameInfo.tDimension, srcBufDesc.tFourCC);
+
+  for(auto& vChunk : srcBufDesc.vChunks)
+    SrcBufPool.AddChunk(vChunk.iChunkSize, vChunk.vPlaneDesc);
+
   bool ret = SrcBufPool.Init(pAllocator, frameBuffersCount, "input");
   assert(ret);
 
@@ -834,19 +857,19 @@ static void InitSrcBufPool(AL_TAllocator* pAllocator, bool shouldConvert, unique
 /*****************************************************************************/
 
 /*****************************************************************************/
-struct LayerRessources
+struct LayerResources
 {
   void Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffersCount, int iLayerID, CIpDevice* pDevices, int chanId);
 
-  void PushRessources(ConfigFile& cfg, EncoderSink* enc
-                      , EncoderLookAheadSink* encFirstPassLA
-                      );
+  void PushResources(ConfigFile& cfg, EncoderSink* enc
+                     , EncoderLookAheadSink* encFirstPassLA
+                     );
 
-  void OpenInput(ConfigFile& cfg, AL_HEncoder hEnc);
+  void OpenEncoderInput(ConfigFile& cfg, AL_HEncoder hEnc);
 
   bool SendInput(ConfigFile& cfg, IFrameSink* firstSink, void* pTraceHook);
 
-  bool sendInputFileTo(ifstream& YuvFile, PixMapBufPool& SrcBufPool, AL_TBuffer* Yuv, ConfigFile const& cfg, TYUVFileInfo& FileInfo, IConvSrc* pSrcConv, IFrameSink* sink, int& iPictCount, int& iReadCount);
+  bool sendInputFileTo(unique_ptr<FrameReader>& frameReader, PixMapBufPool& SrcBufPool, AL_TBuffer* Yuv, ConfigFile const& cfg, TYUVFileInfo& FileInfo, IConvSrc* pSrcConv, IFrameSink* sink, int& iPictCount, int& iReadCount);
 
   void ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hEnc);
 
@@ -863,8 +886,10 @@ struct LayerRessources
   vector<uint8_t> RecYuvBuffer;
 
   unique_ptr<IFrameSink> frameWriter;
+  unique_ptr<FrameReader> frameReader;
 
   ifstream YuvFile;
+  ifstream MapFile;
   unique_ptr<IConvSrc> pSrcConv;
 
   int iPictCount = 0;
@@ -875,7 +900,7 @@ struct LayerRessources
   vector<TConfigYUVInput> layerInputs;
 };
 
-void LayerRessources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffersCount, int iLayerID, CIpDevice* pDevices, int chanId)
+void LayerResources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffersCount, int iLayerID, CIpDevice* pDevices, int chanId)
 {
   AL_TEncSettings& Settings = cfg.Settings;
   auto const eSrcMode = SrcFormatToSrcMode(cfg.eSrcFormat);
@@ -936,15 +961,15 @@ void LayerRessources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffer
 
   /* source compression case */
 
-  InitSrcBufPool(pAllocator, shouldConvert, pSrcConv, FrameInfo, eSrcMode, srcBuffersCount, SrcBufPool);
+  InitSrcBufPool(SrcBufPool, pAllocator, shouldConvert, pSrcConv, FrameInfo, eSrcMode, srcBuffersCount, static_cast<AL_ECodec>(AL_GET_CODEC(Settings.tChParam[0].eProfile)));
 
   iPictCount = 0;
   iReadCount = 0;
 }
 
-void LayerRessources::PushRessources(ConfigFile& cfg, EncoderSink* enc
-                                     , EncoderLookAheadSink* encFirstPassLA
-                                     )
+void LayerResources::PushResources(ConfigFile& cfg, EncoderSink* enc
+                                   , EncoderLookAheadSink* encFirstPassLA
+                                   )
 {
   (void)cfg;
   QPBuffers::QPLayerInfo qpInf
@@ -989,20 +1014,20 @@ void LayerRessources::PushRessources(ConfigFile& cfg, EncoderSink* enc
   }
 }
 
-void LayerRessources::OpenInput(ConfigFile& cfg, AL_HEncoder hEnc)
+void LayerResources::OpenEncoderInput(ConfigFile& cfg, AL_HEncoder hEnc)
 {
   ChangeInput(cfg, iInputIdx, hEnc);
 }
 
-bool LayerRessources::SendInput(ConfigFile& cfg, IFrameSink* firstSink, void* pTraceHooker)
+bool LayerResources::SendInput(ConfigFile& cfg, IFrameSink* firstSink, void* pTraceHooker)
 {
   (void)pTraceHooker;
   firstSink->PreprocessFrame();
 
-  return sendInputFileTo(YuvFile, SrcBufPool, SrcYuv.get(), cfg, layerInputs[iInputIdx].FileInfo, pSrcConv.get(), firstSink, iPictCount, iReadCount);
+  return sendInputFileTo(frameReader, SrcBufPool, SrcYuv.get(), cfg, layerInputs[iInputIdx].FileInfo, pSrcConv.get(), firstSink, iPictCount, iReadCount);
 }
 
-bool LayerRessources::sendInputFileTo(ifstream& YuvFile, PixMapBufPool& SrcBufPool, AL_TBuffer* Yuv, ConfigFile const& cfg, TYUVFileInfo& FileInfo, IConvSrc* pSrcConv, IFrameSink* sink, int& iPictCount, int& iReadCount)
+bool LayerResources::sendInputFileTo(unique_ptr<FrameReader>& frameReader, PixMapBufPool& SrcBufPool, AL_TBuffer* Yuv, ConfigFile const& cfg, TYUVFileInfo& FileInfo, IConvSrc* pSrcConv, IFrameSink* sink, int& iPictCount, int& iReadCount)
 {
   if(AL_IS_ERROR_CODE(GetEncoderLastError()))
   {
@@ -1010,7 +1035,7 @@ bool LayerRessources::sendInputFileTo(ifstream& YuvFile, PixMapBufPool& SrcBufPo
     return false;
   }
 
-  shared_ptr<AL_TBuffer> frame = GetSrcFrame(iReadCount, iPictCount, YuvFile, FileInfo, SrcBufPool, Yuv, cfg.Settings.tChParam[0], cfg, pSrcConv);
+  shared_ptr<AL_TBuffer> frame = GetSrcFrame(iReadCount, iPictCount, frameReader, FileInfo, SrcBufPool, Yuv, cfg.Settings.tChParam[0], cfg, pSrcConv);
 
   sink->ProcessFrame(frame.get());
 
@@ -1021,7 +1046,7 @@ bool LayerRessources::sendInputFileTo(ifstream& YuvFile, PixMapBufPool& SrcBufPo
   return true;
 }
 
-void LayerRessources::ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hEnc)
+void LayerResources::ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hEnc)
 {
   (void)hEnc;
 
@@ -1039,7 +1064,18 @@ void LayerRessources::ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hE
 
       AL_Encoder_SetInputResolution(hEnc, inputDim);
     }
-    PrepareInput(YuvFile, layerInputs[iInputIdx].YUVFileName, layerInputs[iInputIdx].FileInfo, cfg.RunInfo.iFirstPict + iReadCount);
+
+    YuvFile.close();
+    OpenInput(YuvFile, layerInputs[iInputIdx].YUVFileName);
+
+    const bool bNonCompInputFormat = cfg.MainInput.sMapFileName.empty();
+
+    if(bNonCompInputFormat)
+    {
+      frameReader = unique_ptr<FrameReader>(new NonCompFrameReader(YuvFile, layerInputs[iInputIdx].FileInfo, cfg.RunInfo.bLoop));
+    }
+    frameReader->GoToFrame(cfg.RunInfo.iFirstPict + iReadCount);
+
   }
 }
 
@@ -1049,7 +1085,7 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
   auto& Settings = cfg.Settings;
   auto& StreamFileName = cfg.BitstreamFileName;
   auto& RunInfo = cfg.RunInfo;
-  vector<LayerRessources> layerRessources(cfg.Settings.NumLayer);
+  vector<LayerResources> layerResources(cfg.Settings.NumLayer);
 
   /* null if not supported */
   void* pTraceHook {};
@@ -1077,12 +1113,13 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
 
   int srcBuffersCount = max(frameBuffersCount, g_numFrameToRepeat);
 
-  for(size_t i = 0; i < layerRessources.size(); i++)
-    layerRessources[i].Init(cfg, frameBuffersCount, srcBuffersCount, i, pIpDevice, chanId);
+  for(size_t i = 0; i < layerResources.size(); i++)
+    layerResources[i].Init(cfg, frameBuffersCount, srcBuffersCount, i, pIpDevice, chanId);
 
   // --------------------------------------------------------------------------------
   // Create Encoder
-  enc.reset(new EncoderSink(cfg, pScheduler, pAllocator
+  enc.reset(new EncoderSink(cfg, pScheduler
+                            , pAllocator
                             ));
 
   IFrameSink* firstSink = enc.get();
@@ -1098,12 +1135,12 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
 
   // --------------------------------------------------------------------------------
   // Push created layer resources
-  for(size_t i = 0; i < layerRessources.size(); i++)
+  for(size_t i = 0; i < layerResources.size(); i++)
   {
-    layerRessources[i].PushRessources(cfg, enc.get()
-                                      ,
-                                      encFirstPassLA.get()
-                                      );
+    layerResources[i].PushResources(cfg, enc.get()
+                                    ,
+                                    encFirstPassLA.get()
+                                    );
   }
 
   enc->BitstreamOutput[0] = createBitstreamWriter(StreamFileName, cfg);
@@ -1122,7 +1159,7 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
   // --------------------------------------------------------------------------------
   // Set Callbacks
   enc->m_InputChanged = ([&](int iInputIdx, int iLayerID) {
-    layerRessources[iLayerID].ChangeInput(cfg, iInputIdx, enc->hEnc);
+    layerResources[iLayerID].ChangeInput(cfg, iInputIdx, enc->hEnc);
   });
 
   enc->m_done = ([&]() {
@@ -1155,14 +1192,14 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
   bool hasInputAndNoError = true;
 
   for(int i = 0; i < Settings.NumLayer; ++i)
-    layerRessources[i].OpenInput(cfg, enc->hEnc);
+    layerResources[i].OpenEncoderInput(cfg, enc->hEnc);
 
   while(hasInputAndNoError)
   {
     AL_64U uBeforeTime = Rtos_GetTime();
 
     for(int i = 0; i < Settings.NumLayer; ++i)
-      hasInputAndNoError = layerRessources[i].SendInput(cfg, firstSink, pTraceHook) && hasInputAndNoError;
+      hasInputAndNoError = layerResources[i].SendInput(cfg, firstSink, pTraceHook) && hasInputAndNoError;
 
     AL_64U uAfterTime = Rtos_GetTime();
 
@@ -1226,7 +1263,9 @@ void SafeMain(int argc, char* argv[])
     SetMoreDefaults(cfg);
 
     if(!RecFileName.empty() || !RunInfo.sRecMd5Path.empty())
+    {
       Settings.tChParam[0].eEncOptions = (AL_EChEncOption)(Settings.tChParam[0].eEncOptions | AL_OPT_FORCE_REC);
+    }
 
     DisplayVersionInfo();
 

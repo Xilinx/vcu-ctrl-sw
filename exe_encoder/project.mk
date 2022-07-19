@@ -27,6 +27,7 @@ endif
 
 
 
+
 EXE_ENCODER_OBJ:=$(EXE_ENCODER_SRCS:%=$(BIN)/%.o)
 
 $(BIN)/$(THIS_EXE_ENCODER)/main.cpp.o: CFLAGS+=$(SCM_REV)
@@ -40,15 +41,16 @@ $(BIN)/$(THIS_EXE_ENCODER)/main.cpp.o: INTROSPECT_FLAGS+=-DHAS_COMPIL_FLAGS=1
 
 
 $(BIN)/AL_Encoder.exe: $(EXE_ENCODER_OBJ) $(LIB_REFENC_A) $(LIB_REFALLOC_A) $(LIB_ENCODER_A) $(LIB_APP_A) $(LIB_CONV_YUV_A)
-
-TARGETS+=$(BIN)/AL_Encoder.exe
+AL_Encoder.exe: $(BIN)/AL_Encoder.exe
+TARGETS+=AL_Encoder.exe
 
 ifneq ($(ENABLE_LIB_ISCHEDULER),0)
 $(BIN)/AL_Encoder.sh: $(BIN)/AL_Encoder.exe
 	@echo "Generate script $@"
 	$(shell echo 'LD_LIBRARY_PATH=$(BIN) $(BIN)/AL_Encoder.exe "$$@"' > $@ && chmod a+x $@)
 
-TARGETS+=$(BIN)/AL_Encoder.sh
+AL_Encoder.sh: $(BIN)/AL_Encoder.sh
+TARGETS+=AL_Encoder.sh
 endif
 
 # for compilation time reduction (we don't need this to be optimized)
@@ -61,8 +63,8 @@ EXE_CFG_PARSER_SRCS:=\
 EXE_CFG_PARSER_OBJ:=$(EXE_CFG_PARSER_SRCS:%=$(BIN)/%.o)
 
 $(BIN)/AL_CfgParser.exe: $(EXE_CFG_PARSER_OBJ) $(LIB_ENCODER_A) $(LIB_APP_A)
-
-TARGETS+=$(BIN)/AL_CfgParser.exe
+AL_CfgParser.exe: $(BIN)/AL_CfgParser.exe
+TARGETS+=AL_CfgParser.exe
 
 exe_encoder_src: $(EXE_ENCODER_SRCS) $(EXE_CFG_PARSER_SRCS)
 	@echo $(EXE_ENCODER_SRCS) $(EXE_CFG_PARSER_SRCS)

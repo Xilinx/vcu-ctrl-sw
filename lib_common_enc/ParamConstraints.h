@@ -37,7 +37,7 @@
 
 #pragma once
 
-#include "lib_common_enc/EncPicParam.h"
+#include "lib_common_enc/EncPicInfo.h"
 #include "lib_common/PicFormat.h"
 
 typedef enum AL_e_CheckResolutionError

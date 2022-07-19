@@ -38,7 +38,6 @@
 #pragma once
 
 #include "lib_common/PPS.h"
-#include "lib_common/SEI.h"
 #include "lib_common/SPS.h"
 #include "lib_common_dec/RbspParser.h"
 #include "Concealment.h"

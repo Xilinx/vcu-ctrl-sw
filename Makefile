@@ -10,6 +10,7 @@ ifneq ($(REQUIRED_MAKE_VERSION), $(firstword $(sort $(MAKE_VERSION) $(REQUIRED_M
 endif
 
 include config.mk
+
 -include delivery.mk
 
 DELIVERY_BUILD_NUMBER?=-D'DELIVERY_BUILD_NUMBER=0'
@@ -89,9 +90,9 @@ endif
 
 
 ifneq ($(ENABLE_ENCODER),0)
-  # AL_Decoder
+  # AL_Encoder
   -include lib_conv_yuv/project.mk
-  include exe_encoder/project.mk
+  -include exe_encoder/project.mk
 endif
 
 ifneq ($(BUILD_EXE_FBC),0)

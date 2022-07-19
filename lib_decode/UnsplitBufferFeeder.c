@@ -39,7 +39,6 @@
 #include "lib_common/Fifo.h"
 #include "lib_rtos/lib_rtos.h"
 
-#include "lib_decode/lib_decode.h"
 #include "Patchworker.h"
 
 typedef struct al_t_UnsplitBufferFeeder

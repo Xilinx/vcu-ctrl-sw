@@ -38,7 +38,6 @@
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common_enc/EncBuffersInternal.h"
 #include "lib_common_enc/Lambdas.h"
-#include <string.h>
 #include <stdio.h>
 
 static const TLambdasTable CUSTOM_LDA_TABLE =

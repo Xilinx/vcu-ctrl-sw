@@ -191,6 +191,18 @@ int AL_DecSettings_CheckValidity(AL_TDecSettings* pSettings, FILE* pOut)
     MSG("The output position doesn't fit the alignement constraints for the current buffer format");
   }
 
+  if(pSettings->bDecodeIntraOnly && !(pSettings->eCodec == AL_CODEC_AVC || pSettings->eCodec == AL_CODEC_HEVC))
+  {
+    ++err;
+    MSG("The decode IntraOnly mode is only available with AVC and HEVC");
+  }
+
+  if(pSettings->bDecodeIntraOnly && !(pSettings->eDecUnit == AL_AU_UNIT))
+  {
+    ++err;
+    MSG("The decode IntraOnly mode is only available in frame latency");
+  }
+
   return err;
 }
 

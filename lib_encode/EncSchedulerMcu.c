@@ -43,8 +43,6 @@
 #include "lib_common_enc/RateCtrlMeta.h"
 
 #include "lib_rtos/lib_rtos.h"
-#include "lib_fpga/DmaAlloc.h"
-#include "lib_common/Error.h"
 
 typedef struct al_t_EncSchedulerMcu
 {
@@ -144,7 +142,9 @@ static AL_ERR API_CreateChannel(AL_HANDLE* hChannel, AL_IEncScheduler* pSchedule
   if(!chan->thread)
     goto fail;
 
+  /* We assume we configure the rec buffers the same way on MCU side */
   SetChannelInfo(&chan->info, (AL_TEncChanParam*)pMDChParam->pVirtualAddr);
+
   *hChannel = (AL_HANDLE)chan;
   return AL_SUCCESS;
 
@@ -301,6 +301,7 @@ static void* WaitForStatus(void* p)
       else
         Rtos_Log(AL_LOG_ERROR, "Failed to get encode status (error code: %d)\n", err);
     }
+
     /* If the polling finds an end of operation, it means that the channel was destroyed and we can stop waiting for encoding results. */
     if(ctx.revents & AL_POLLHUP)
     {

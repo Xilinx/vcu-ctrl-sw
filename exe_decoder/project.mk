@@ -31,7 +31,8 @@ $(BIN)/$(THIS_EXE_DECODER)/CodecUtils.cpp.o: CFLAGS+=$(DELIVERY_DATE)
 $(BIN)/$(THIS_EXE_DECODER)/CodecUtils.cpp.o: INTROSPECT_FLAGS=-DAL_COMPIL_FLAGS='"$(CFLAGS)"'
 $(BIN)/$(THIS_EXE_DECODER)/CodecUtils.cpp.o: INTROSPECT_FLAGS+=-DHAS_COMPIL_FLAGS=1
 
-TARGETS+=$(BIN)/AL_Decoder.exe
+AL_Decoder.exe: $(BIN)/AL_Decoder.exe
+TARGETS+=AL_Decoder.exe
 
 exe_decoder_src: $(EXE_DECODER_SRC)
 	@echo $(EXE_DECODER_SRC)

@@ -44,7 +44,6 @@
  *****************************************************************************/
 #pragma once
 
-#include "lib_rtos/types.h"
 #include "lib_common/BufCommonInternal.h"
 
 #define ANTI_EMUL_GRANULARITY 32

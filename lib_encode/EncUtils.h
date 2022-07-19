@@ -44,14 +44,12 @@
  *****************************************************************************/
 #pragma once
 
-#include "lib_common/BufferPixMapMeta.h"
 #include "lib_common/PPS.h"
 #include "lib_common/AUD.h"
 #include "lib_common/SliceConsts.h"
 #include "lib_common/VPS.h"
 
 #include "lib_common_enc/Settings.h"
-#include "lib_common_enc/EncSliceStatus.h"
 #include "lib_common_enc/EncPicInfo.h"
 #include "lib_common_enc/EncEPBuffer.h"
 

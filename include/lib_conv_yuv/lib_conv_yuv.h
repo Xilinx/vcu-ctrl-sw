@@ -37,6 +37,3 @@
 
 #pragma once
 
-#include "ConvSrc.h"
-
-#include "AL_RasterConvert.h"

@@ -44,9 +44,7 @@
  *****************************************************************************/
 #pragma once
 
-#include "lib_common/ScalingList.h"
 #include "lib_common/common_syntax_elements.h"
-#include "lib_common_dec/DecBuffersInternal.h"
 
 #define MAX_BIT_DEPTH 4
 #define MAX_POC_LSB 12

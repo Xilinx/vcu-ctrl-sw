@@ -44,9 +44,6 @@
  *****************************************************************************/
 #pragma once
 
-#include "lib_rtos/types.h"
-
-#include "lib_common/SliceConsts.h"
 #include "lib_common/BufCommonInternal.h"
 #include "lib_common/BufferAPI.h"
 #include "lib_common_dec/DecBuffers.h"

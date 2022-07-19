@@ -38,7 +38,6 @@
 #pragma once
 
 #include "lib_bitstream/IRbspWriter.h"
-#include "lib_bitstream/SkippedPicture.h"
 #include "IP_Stream.h"
 
 typedef struct t_NalUnit

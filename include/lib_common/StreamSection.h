@@ -42,8 +42,6 @@
  **************************************************************************/
 #pragma once
 
-#include "lib_rtos/types.h"
-
 typedef enum
 {
   AL_SECTION_NO_FLAG = 0, /*< no flag */

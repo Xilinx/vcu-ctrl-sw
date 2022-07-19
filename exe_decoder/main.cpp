@@ -43,12 +43,10 @@
 #include <memory>
 #include <fstream>
 #include <iostream>
-#include <list>
 #include <stdexcept>
 #include <string>
 #include <sstream>
 #include <mutex>
-#include <queue>
 #include <map>
 #include <thread>
 #include <algorithm>
@@ -329,7 +327,7 @@ AL_EProfile parseProfile(string const& sProf)
     { "AVC_HIGH", AL_PROFILE_AVC_HIGH },
     { "AVC_C_HIGH", AL_PROFILE_AVC_C_HIGH },
     { "AVC_PROG_HIGH", AL_PROFILE_AVC_PROG_HIGH },
-    { "AVC_CAVLC_444", AL_PROFILE_AVC_CAVLC_444 },
+    { "AVC_CAVLC_444_INTRA", AL_PROFILE_AVC_CAVLC_444_INTRA },
     { "AVC_HIGH_444_INTRA", AL_PROFILE_AVC_HIGH_444_INTRA },
     { "AVC_HIGH_444_PRED", AL_PROFILE_AVC_HIGH_444_PRED },
     { "XAVC_HIGH10_INTRA_CBG", AL_PROFILE_XAVC_HIGH10_INTRA_CBG },
@@ -504,8 +502,10 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addString("--hdr-file", &Config.hdrFile, "Parse and dump HDR data in the specified file");
 
   string preAllocArgs = "";
-  opt.addString("--prealloc-args", &preAllocArgs, "Specify stream's parameters: '1920x1080:video-mode:422:10:profile-idc:level'.");
+  opt.addString("--prealloc-args", &preAllocArgs, "Specify stream's parameters: 'widthxheight:video-mode:chroma-mode:bit-depth:profile:level' for example '1920x1080:progr:422:10:HEVC_MAIN:5'. video-mode values are: unkwn, progr or inter. Be careful cast is important.");
   opt.addCustom("--output-position", &Config.tDecSettings.tOutputPosition, &CoupleWithSeparator<AL_TPosition, ','>, "Specify the position of the decoded frame in frame buffer");
+
+  opt.addFlag("--decode-intraonly", &Config.tDecSettings.bDecodeIntraOnly, "Decode Only I Frames");
 
   opt.startSection("Run");
 
@@ -537,6 +537,9 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addFlag("--non-realtime", &Config.tDecSettings.bNonRealtime, "Specifies that the channel is a non-realtime channel");
   opt.addInt("-ddrwidth", &Config.tDecSettings.uDDRWidth, "Width of DDR requests (16, 32, 64) (default: 32)");
   opt.addFlag("-nocache", &Config.tDecSettings.bDisableCache, "Inactivate the cache");
+
+  extern std::string g_DecDevicePath;
+  opt.addString("--device", &g_DecDevicePath, "Path of the driver device file used to talk with the IP. Default is /dev/allegroDecodeIP");
 
   opt.addFlag("-noyuv", &Config.bEnableYUVOutput,
               "Disable writing output YUV file",
@@ -1001,16 +1004,18 @@ static void sFrameDecoded(AL_TBuffer* pDecodedFrame, void* pUserParam)
   auto pParam = static_cast<DecodeParam*>(pUserParam);
   auto seis = pParam->displaySeis[pDecodedFrame];
 
+  int const currDecodedFrames = pParam->decodedFrames;
+  pParam->decodedFrames++;
+
   if(pParam->seiSyncOutput)
   {
-    WriteSyncSei(seis, pParam->seiSyncOutput, pParam->decodedFrames);
+    WriteSyncSei(seis, pParam->seiSyncOutput, currDecodedFrames);
 
     for(auto const& pSei: seis)
       AL_MetaData_Destroy((AL_TMetaData*)pSei);
 
     pParam->displaySeis.erase(pDecodedFrame);
   }
-  pParam->decodedFrames++;
 }
 
 /******************************************************************************/
@@ -1048,8 +1053,14 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
 {
   unique_lock<mutex> lock(hMutex);
 
-  AL_ERR err = AL_Decoder_GetFrameError(hDec, pFrame);
-  bool bExitError = AL_IS_ERROR_CODE(err);
+  bool bExitError = false;
+  AL_ERR err = AL_SUCCESS;
+
+  if(hDec)
+  {
+    err = AL_Decoder_GetFrameError(hDec, pFrame);
+    bExitError |= AL_IS_ERROR_CODE(err);
+  }
 
   if(bExitError || isEOS(pFrame, pInfo))
   {
@@ -1146,7 +1157,9 @@ static void showStreamInfo(int BufferNumber, int BufferSize, AL_TStreamSettings 
   ss << "Resolution: " << iWidth << "x" << iHeight << endl;
   ss << "FourCC: " << FourCCToString(tFourCC) << endl;
   ss << "Profile: " << AL_GET_PROFILE_IDC(pSettings->eProfile) << endl;
-  ss << "Level: " << pSettings->iLevel << endl;
+
+  if(pSettings->iLevel != -1)
+    ss << "Level: " << pSettings->iLevel << endl;
   ss << "Bitdepth: " << pSettings->iBitDepth << endl;
 
   if(AL_NeedsCropping(pCropInfo))
@@ -1304,7 +1317,10 @@ struct AsyncFileInput
 
     if(bSplitInput)
     {
-      m_Loader.reset(new SplitInput(bufPool.m_pool.zBufSize, eCodec, bVclSplit));
+
+      if(AL_IS_ITU_CODEC(eCodec))
+        m_Loader.reset(new SplitInput(bufPool.m_pool.zBufSize, eCodec, bVclSplit));
+      assert(m_Loader.get());
     }
     else
       m_Loader.reset(new BasicLoader());
@@ -1496,7 +1512,9 @@ void SafeChannelMain(WorkerConfig& w)
     throw runtime_error("Fatal coherency error in settings, please check your command line.");
 
   AL_HDecoder hDec;
-  auto error = AL_Decoder_Create(&hDec, (AL_IDecScheduler*)pScheduler, pAllocator, &Settings, &CB);
+  AL_ERR error;
+
+  error = AL_Decoder_Create(&hDec, (AL_IDecScheduler*)pScheduler, pAllocator, &Settings, &CB);
 
   if(AL_IS_ERROR_CODE(error))
     throw codec_error(error);

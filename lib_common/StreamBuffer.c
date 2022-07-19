@@ -109,7 +109,7 @@ int AL_GetMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBitDepth, AL
 
   int iMaxNalSize = iMaxPCM + AL_ENC_MAX_HEADER_SIZE + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
 
-  return RoundUp(iMaxNalSize, 32);
+  return RoundUp(iMaxNalSize, HW_IP_BURST_ALIGNMENT);
 }
 
 /****************************************************************************/
@@ -120,6 +120,24 @@ int AL_GetMitigatedMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBit
   int iNumSlices = ((tDim.iHeight + 15) / 16);
   iMaxPCM += AL_ENC_MAX_HEADER_SIZE + (iNumSlices * AL_MAX_SLICE_HEADER_SIZE);
 
-  return RoundUp(iMaxPCM, 32);
+  return RoundUp(iMaxPCM, HW_IP_BURST_ALIGNMENT);
+}
+
+/****************************************************************************/
+int AL_GetMinimalNalSize(int iNumSlices, AL_ECodec eCodec)
+{
+  (void)eCodec;
+
+  bool bHasHeaders = true;
+  int iNumNal = 16;
+
+  int iNonVclSize = bHasHeaders ? RoundUp(AL_ENC_MAX_HEADER_SIZE, HW_IP_BURST_ALIGNMENT) : 0;
+  int iSliceHdrSize = bHasHeaders ? iNumSlices* RoundUp(AL_MAX_SLICE_HEADER_SIZE, HW_IP_BURST_ALIGNMENT) : 0;
+
+  int const AL_ENC_STREAM_PART_SIZE = 2 * sizeof(uint32_t);
+  int iStreamPartSize = RoundUp((iNumSlices + iNumNal) * AL_ENC_STREAM_PART_SIZE, 128);
+  int const iHardwareMinimalBurst = 128;
+
+  return iNonVclSize + iSliceHdrSize + iStreamPartSize + iHardwareMinimalBurst;
 }
 

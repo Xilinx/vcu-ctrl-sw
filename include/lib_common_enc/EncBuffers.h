@@ -47,7 +47,6 @@
 #include "lib_rtos/lib_rtos.h"
 #include "lib_rtos/types.h"
 
-#include "lib_common/SliceConsts.h"
 #include "lib_common/BufCommon.h"
 #include "lib_common/BufferPixMapMeta.h"
 

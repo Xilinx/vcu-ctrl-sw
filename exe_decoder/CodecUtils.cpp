@@ -40,7 +40,6 @@
 #include <cstring>
 #include <iomanip>
 #include <iostream>
-#include <string>
 #include <cassert>
 
 #include "CodecUtils.h"

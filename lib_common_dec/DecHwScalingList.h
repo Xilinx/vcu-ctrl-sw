@@ -44,7 +44,6 @@
  *****************************************************************************/
 #pragma once
 
-#include "lib_rtos/types.h"
 #include "lib_common/ScalingList.h"
 #include "lib_common/PicFormat.h"
 

@@ -36,7 +36,6 @@
 ******************************************************************************/
 
 #pragma once
-#include "lib_rtos/types.h"
 
 int AL_DevicePool_Open(const char* filename);
 int AL_DevicePool_Close(int fd);

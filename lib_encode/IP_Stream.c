@@ -42,7 +42,6 @@
 #include "IP_Stream.h"
 
 #include "lib_common/SliceConsts.h"
-#include "lib_common/Nuts.h"
 #include "lib_common/Utils.h"
 #include "lib_rtos/lib_rtos.h"
 

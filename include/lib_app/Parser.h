@@ -146,6 +146,20 @@ struct EnumDescription
   std::vector<Codec> codecs;
 };
 
+template<class T>
+static inline void SetEnumDescr(std::map<std::string, EnumDescription<T>>& enumDescr, std::string const& key, T const& name, std::string const& descr, std::vector<Codec> const& codecs)
+{
+  auto it = enumDescr.find(key);
+
+  if(it != enumDescr.end())
+  {
+    assert(enumDescr[key].name == name);
+    enumDescr[key].codecs.insert(enumDescr[key].codecs.end(), codecs.begin(), codecs.end());
+  }
+  else
+    enumDescr[key] = { name, descr, codecs };
+}
+
 int parseEnum(std::deque<Token>& tokens, std::map<std::string, EnumDescription<int>> const& availableEnums);
 std::map<std::string, EnumDescription<int>> createBoolEnums(std::vector<Codec> codecs);
 int parseBoolEnum(std::deque<Token>& tokens, std::map<std::string, EnumDescription<int>> boolEnums);
@@ -200,6 +214,18 @@ struct ArithInfo
   std::vector<Codec> codecs;
   T min;
   T max;
+};
+
+template<typename T>
+struct ArithInfoList
+{
+  ArithInfoList(std::vector<Codec> codecs_, std::vector<T>& availableValuesList_) :
+    codecs{codecs_},
+    availableValuesList{availableValuesList_}
+  {}
+
+  std::vector<Codec> codecs;
+  std::vector<T> availableValuesList;
 };
 
 static inline std::vector<std::string> noNote()
@@ -515,13 +541,12 @@ struct Callback
   Callback(Callback &&) = default;
   Callback & operator = (Callback &&) = default;
 
-  Callback(std::function<void(std::deque<Token> &)> const& func_, std::string const& showName_, std::string const& description_, std::vector<ParameterType> const& types_, std::function<std::string()> defaultValue_, std::vector<std::string> const& notes_, std::vector<CallbackInfo> const& info_) :
+  Callback(std::function<void(std::deque<Token> &)> const& func_, std::string const& showName_, std::string const& description_, std::vector<ParameterType> const& types_, std::function<std::string()> defaultValue_, std::vector<CallbackInfo> const& info_) : // , std::vector<std::string> const& notes_
     func{func_},
     showName{showName_},
     description{description_},
     types{types_},
     defaultValue{defaultValue_},
-    notes{notes_},
     info{info_}
   {}
 
@@ -544,10 +569,10 @@ static int safeToLower(int c)
 }
 
 template<typename T>
-static std::string setPrecision(T value)
+static std::string setPrecision(T value, int precision = 2)
 {
   std::stringstream ss;
-  ss << std::setprecision(2) << std::fixed << value;
+  ss << std::setprecision(precision) << std::fixed << value;
   return ss.str();
 }
 
@@ -564,6 +589,23 @@ static std::string describeArith(T min, T max)
 }
 
 template<typename T>
+static std::string describeArithList(std::vector<T> List, int precision = 2)
+{
+  std::stringstream ss;
+  ss << "{";
+  std::string separator = "";
+
+  for(auto it = List.begin(); it != List.end(); ++it)
+  {
+    ss << (separator + setPrecision(*it, precision));
+    separator = ", ";
+  }
+
+  ss << "}";
+  return ss.str();
+}
+
+template<typename T>
 static std::vector<CallbackInfo> toCallbackInfo(std::vector<ArithInfo<T>> const& arithInfo)
 {
   std::vector<CallbackInfo> callbackInfo {};
@@ -572,6 +614,21 @@ static std::vector<CallbackInfo> toCallbackInfo(std::vector<ArithInfo<T>> const&
   {
     if(!info_per_codecs.codecs.empty())
       callbackInfo.push_back({ info_per_codecs.codecs, describeArith(info_per_codecs.min, info_per_codecs.max), {}
+                             });
+  }
+
+  return callbackInfo;
+}
+
+template<typename T>
+static std::vector<CallbackInfo> toCallbackInfo(std::vector<ArithInfoList<T>> const& arithInfo, int precision = 2)
+{
+  std::vector<CallbackInfo> callbackInfo {};
+
+  for(auto const& info_per_codecs : arithInfo)
+  {
+    if(!info_per_codecs.codecs.empty())
+      callbackInfo.push_back({ info_per_codecs.codecs, describeArithList(info_per_codecs.availableValuesList, precision), {}
                              });
   }
 
@@ -685,10 +742,7 @@ struct ConfigParser
   }
 
   template<typename T, typename U = long long int>
-  void addArith(Section section, char const* name, T& t, std::string description = "no description", std::vector<ArithInfo<U>> info =
-  {
-    { allCodecs(), std::numeric_limits<U>::min(), std::numeric_limits<U>::max() }
-  })
+  void addArith(Section section, char const* name, T& t, std::string description, std::vector<ArithInfo<U>> info)
   {
     std::vector<ParameterType> types {
       ParameterType::ArithExpr
@@ -697,7 +751,6 @@ struct ConfigParser
     std::vector<CallbackInfo> callbackInfo {
       toCallbackInfo(info)
     };
-    std::vector<std::string> notes {};
 
     identifiers[section][tolowerStr(name)] =
     {
@@ -708,23 +761,43 @@ struct ConfigParser
       [&t]() -> std::string
       {
         return std::to_string(t);
-      }, notes, callbackInfo
+      }, callbackInfo
+    };
+  }
+
+  template<typename T, typename U>
+  void addArithList(Section section, char const* name, T& t, std::string description, std::vector<ArithInfoList<U>> info, int precision = 2)
+  {
+    std::vector<ParameterType> types {
+      ParameterType::ArithExpr
+    };
+
+    std::vector<CallbackInfo> callbackInfo {
+      toCallbackInfo(info, precision)
+    };
+
+    identifiers[section][tolowerStr(name)] =
+    {
+      [&](std::deque<Token>& tokens)
+      {
+        t = parseArithmetic<U>(tokens);
+      }, name, description, types,
+      [&t]() -> std::string
+      {
+        return std::to_string(t);
+      }, callbackInfo
     };
   }
 
   template<typename T, typename U = long long int, typename Func, typename Func2>
-  void addArithFunc(Section section, char const* name, T& t, Func f, Func2 m, std::string description = "no description", std::vector<ArithInfo<U>> info =
-  {
-    { aomituCodecs(), std::numeric_limits<U>::min(), std::numeric_limits<U>::max() }
-  })
+  void addArithFuncList(Section section, char const* name, T& t, Func f, Func2 m, std::string description, std::vector<ArithInfoList<U>> info, int precision = 2)
   {
     std::vector<ParameterType> types {
       ParameterType::ArithExpr
     };
     std::vector<CallbackInfo> callbackInfo {
-      toCallbackInfo(info)
+      toCallbackInfo(info, precision)
     };
-    std::vector<std::string> notes {};
 
     identifiers[section][tolowerStr(name)] =
     {
@@ -735,16 +808,12 @@ struct ConfigParser
       [&t, m]() -> std::string
       {
         return std::to_string(m(t));
-      }, notes, callbackInfo
+      }, callbackInfo
     };
   }
 
-  /* Here we suppose type T and U are compatible for multiplication */
-  template<typename T, typename U, typename V = long long int>
-  void addArithMultipliedByConstant(Section section, char const* name, T& t, U const& u, std::string description = "no description", std::vector<ArithInfo<V>> info =
-  {
-    { aomituCodecs(), std::numeric_limits<V>::min(), std::numeric_limits<V>::max() }
-  })
+  template<typename T, typename U = long long int, typename Func, typename Func2>
+  void addArithFunc(Section section, char const* name, T& t, Func f, Func2 m, std::string description, std::vector<ArithInfo<U>> info)
   {
     std::vector<ParameterType> types {
       ParameterType::ArithExpr
@@ -752,7 +821,30 @@ struct ConfigParser
     std::vector<CallbackInfo> callbackInfo {
       toCallbackInfo(info)
     };
-    std::vector<std::string> notes {};
+
+    identifiers[section][tolowerStr(name)] =
+    {
+      [&](std::deque<Token>& tokens)
+      {
+        t = f(parseArithmetic<U>(tokens));
+      }, name, description, types,
+      [&t, m]() -> std::string
+      {
+        return std::to_string(m(t));
+      }, callbackInfo
+    };
+  }
+
+  /* Here we suppose type T and U are compatible for multiplication */
+  template<typename T, typename U, typename V = long long int>
+  void addArithMultipliedByConstant(Section section, char const* name, T& t, U const& u, std::string description, std::vector<ArithInfo<V>> info)
+  {
+    std::vector<ParameterType> types {
+      ParameterType::ArithExpr
+    };
+    std::vector<CallbackInfo> callbackInfo {
+      toCallbackInfo(info)
+    };
 
     identifiers[section][tolowerStr(name)] =
     {
@@ -763,18 +855,17 @@ struct ConfigParser
       [&t, u]() -> std::string
       {
         return std::to_string(t / u);
-      }, notes, callbackInfo
+      }, callbackInfo
     };
   }
 
   /* we have to remove type safety on enums because the file takes 16 seconds to compile otherwise ...*/
   template<typename T>
-  void addEnum(Section section, char const* name, T& t, std::map<std::string, EnumDescription<int>> availableEnums, std::string description = "no description")
+  void addEnum(Section section, char const* name, T& t, std::map<std::string, EnumDescription<int>> availableEnums, std::string description)
   {
     std::vector<ParameterType> types {
       ParameterType::String
     };
-    std::vector<std::string> notes {};
 
     identifiers[section][tolowerStr(name)] =
     {
@@ -785,20 +876,16 @@ struct ConfigParser
       [&t, availableEnums]() -> std::string
       {
         return getDefaultEnumValue(t, availableEnums);
-      }, notes, toCallbackInfo(availableEnums)
+      }, toCallbackInfo(availableEnums)
     };
   }
 
   template<typename T, typename U = long long int>
-  void addArithOrEnum(Section section, char const* name, T& t, std::map<std::string, EnumDescription<int>> availableEnums, std::string description = "no description", std::vector<ArithInfo<U>> info =
-  {
-    { aomituCodecs(), std::numeric_limits<U>::min(), std::numeric_limits<U>::max() }
-  })
+  void addArithOrEnum(Section section, char const* name, T& t, std::map<std::string, EnumDescription<int>> availableEnums, std::string description, std::vector<ArithInfo<U>> info)
   {
     std::vector<ParameterType> types {
       ParameterType::String, ParameterType::ArithExpr
     };
-    std::vector<std::string> notes {};
 
     identifiers[section][tolowerStr(name)] =
     {
@@ -821,20 +908,16 @@ struct ConfigParser
         }
 
         return std::to_string(t);
-      }, notes, mergeCallbackInfo(toCallbackInfo(info), toCallbackInfo(availableEnums))
+      }, mergeCallbackInfo(toCallbackInfo(info), toCallbackInfo(availableEnums))
     };
   }
 
   template<typename T, typename U = long long int, typename Func, typename Func2>
-  void addArithFuncOrEnum(Section section, char const* name, T& t, Func f, Func2 m, std::map<std::string, EnumDescription<int>> availableEnums, std::string description = "no description", std::vector<ArithInfo<U>> info =
-  {
-    { aomituCodecs(), std::numeric_limits<U>::min(), std::numeric_limits<U>::max() }
-  })
+  void addArithFuncOrEnum(Section section, char const* name, T& t, Func f, Func2 m, std::map<std::string, EnumDescription<int>> availableEnums, std::string description, std::vector<ArithInfo<U>> info)
   {
     std::vector<ParameterType> types {
       ParameterType::String, ParameterType::ArithExpr
     };
-    std::vector<std::string> notes {};
 
     identifiers[section][tolowerStr(name)] =
     {
@@ -857,18 +940,17 @@ struct ConfigParser
         }
 
         return std::to_string(m(t));
-      }, notes, mergeCallbackInfo(toCallbackInfo(info), toCallbackInfo(availableEnums))
+      }, mergeCallbackInfo(toCallbackInfo(info), toCallbackInfo(availableEnums))
     };
   }
 
   template<typename T>
-  void addBool(Section section, char const* name, T& t, std::string description = "no description", std::vector<Codec> codecs = allCodecs())
+  void addBool(Section section, char const* name, T& t, std::string description, std::vector<Codec> codecs)
   {
     std::vector<ParameterType> types {
       ParameterType::String
     };
     auto availableEnums = createBoolEnums(codecs);
-    std::vector<std::string> notes {};
 
     identifiers[section][tolowerStr(name)] =
     {
@@ -879,17 +961,16 @@ struct ConfigParser
       [&t, availableEnums]() -> std::string
       {
         return getDefaultEnumValue(t, availableEnums);
-      }, notes, toCallbackInfo(availableEnums)
+      }, toCallbackInfo(availableEnums)
     };
   }
 
   template<typename T>
-  void addFlagsFromEnum(Section section, char const* name, T& t, std::map<std::string, EnumDescription<int>> availableEnums, uint32_t uMask, std::string description = "no description")
+  void addFlagsFromEnum(Section section, char const* name, T& t, std::map<std::string, EnumDescription<int>> availableEnums, uint32_t uMask, std::string description)
   {
     std::vector<ParameterType> types {
       ParameterType::String
     };
-    std::vector<std::string> notes {};
 
     identifiers[section][tolowerStr(name)] =
     {
@@ -904,18 +985,17 @@ struct ConfigParser
       {
         T Flags = getFlags(&t, uMask);
         return getDefaultEnumValue(Flags, availableEnums);
-      }, notes, toCallbackInfo(availableEnums)
+      }, toCallbackInfo(availableEnums)
     };
   }
 
   template<typename T>
-  void addFlag(Section section, char const* name, T& t, uint32_t uFlag, std::string description = "no description", std::vector<Codec> codecs = aomituCodecs())
+  void addFlag(Section section, char const* name, T& t, uint32_t uFlag, std::string description, std::vector<Codec> codecs)
   {
     std::vector<ParameterType> types {
       ParameterType::String
     };
     auto availableEnums = createBoolEnums(codecs);
-    std::vector<std::string> notes {};
 
     identifiers[section][tolowerStr(name)] =
     {
@@ -936,17 +1016,16 @@ struct ConfigParser
           return "TRUE";
 
         return "FALSE";
-      }, notes, toCallbackInfo(availableEnums)
+      }, toCallbackInfo(availableEnums)
     };
   }
 
-  void addString(Section section, char const* name, std::string& t, std::string description = "no description", std::vector<Codec> codecs = aomituCodecs())
+  void addString(Section section, char const* name, std::string& t, std::string description, std::vector<Codec> codecs)
   {
     std::vector<ParameterType> types {
       ParameterType::String
     };
     std::string available {};
-    std::vector<std::string> notes {};
     std::map<std::string, std::string> availableDescription {};
     identifiers[section][tolowerStr(name)] =
     {
@@ -958,13 +1037,13 @@ struct ConfigParser
       {
         return t;
       },
-      notes, {
+      {
         { codecs, available, availableDescription }
       }
     };
   }
 
-  void addPath(Section section, char const* name, std::string& t, std::string description = "no description", std::vector<Codec> codecs = aomituCodecs())
+  void addPath(Section section, char const* name, std::string& t, std::string description, std::vector<Codec> codecs)
   {
     std::vector<ParameterType> types {
       ParameterType::String
@@ -972,7 +1051,6 @@ struct ConfigParser
     std::string available {
       "<path>"
     };
-    std::vector<std::string> notes {};
     std::map<std::string, std::string> availableDescription {};
     identifiers[section][tolowerStr(name)] =
     {
@@ -984,22 +1062,18 @@ struct ConfigParser
       {
         return t;
       },
-      notes, {
+      {
         { codecs, available, availableDescription }
       }
     };
   }
 
   template<typename T, size_t arraySize, typename U = long long int>
-  void addArray(Section section, char const* name, T(&t)[arraySize], std::string description = "no description", std::vector<ArithInfo<U>> info =
-  {
-    { aomituCodecs(), std::numeric_limits<U>::min(), std::numeric_limits<U>::max() }
-  })
+  void addArray(Section section, char const* name, T(&t)[arraySize], std::string description, std::vector<ArithInfo<U>> info)
   {
     std::vector<ParameterType> types {
       ParameterType::Array
     };
-    std::vector<std::string> notes {};
     std::vector<CallbackInfo> callbackInfo {
       toCallbackInfo(info)
     };
@@ -1015,17 +1089,12 @@ struct ConfigParser
       [&t]() -> std::string
       {
         return getDefaultArrayValue(t, arraySize);
-      }, notes, callbackInfo
+      }, callbackInfo
     };
   }
 
   template<typename Func, typename Func2>
-  void addCustom(Section section, char const* name, Func func, Func2 defaultVal, std::string description = "no description", std::vector<ParameterType> types = {}, std::vector<CallbackInfo> info =
-  {
-    {
-      aomituCodecs(), "no available", {}
-    }
-  }, std::vector<std::string> notes = noNote())
+  void addCustom(Section section, char const* name, Func func, Func2 defaultVal, std::string description, std::vector<ParameterType> types, std::vector<CallbackInfo> info)
   {
     identifiers[section][tolowerStr(name)] =
     {
@@ -1034,7 +1103,6 @@ struct ConfigParser
       description,
       types,
       defaultVal,
-      notes,
       info
     };
   }

@@ -37,13 +37,10 @@
 
 #pragma once
 
-#include "lib_app/InputFiles.h"
-#include "lib_app/utils.h"
 #include "exe_encoder/CfgParser.h"
 
 extern "C"
 {
-#include "lib_common_enc/Settings.h"
 #include "lib_encode/lib_encoder.h"
 }
 

@@ -45,22 +45,23 @@
 
 #include "EncBuffersInternal.h"
 
-#include <string.h>
 #include "lib_common/Utils.h"
-#include "lib_common/StreamBuffer.h"
-#include "lib_common/StreamBufferPrivate.h"
 
 #include "lib_common_enc/EncBuffers.h"
-#include "lib_common_enc/IpEncFourCC.h"
 #include "lib_common_enc/EncSize.h"
+#include "lib_common_enc/EncPicInfo.h"
 #include "lib_common_enc/QPTableInternal.h"
 
 /****************************************************************************/
-uint32_t AL_GetAllocSizeEP1()
+uint32_t AL_GetAllocSizeEP1(AL_ECodec eCodec)
 {
-  uint32_t uEP1Size = EP1_BUF_LAMBDAS.Size + EP1_BUF_SCL_LST.Size;
+  uint32_t uEP1Size = 0;
+  uEP1Size += EP1_BUF_LAMBDAS.Size;
 
-  return uEP1Size;
+  if(AL_IS_ITU_CODEC(eCodec))
+    uEP1Size += EP1_BUF_SCL_LST.Size;
+
+  return RoundUp(uEP1Size, HW_IP_BURST_ALIGNMENT);
 }
 
 /****************************************************************************/
@@ -154,7 +155,8 @@ uint32_t AL_GetAllocSizeSrc_PixPlane(AL_ESrcMode eSrcFmt, int iPitch, int iStrid
   if(ePlaneId == AL_PLANE_UV)
     iSize = GetChromaAllocSize(eChromaMode, iSize);
 
-  return iSize;
+  static const uint32_t HW_IP_MAX_SRC_BURST = 64 * 4 * 2;
+  return RoundUp(iSize + HW_IP_MAX_SRC_BURST, HW_IP_BURST_ALIGNMENT);
 }
 
 /****************************************************************************/
@@ -183,8 +185,16 @@ uint32_t AL_GetAllocSizeSrc(AL_TDimension tDim, AL_EChromaMode eChromaMode, AL_E
 {
   (void)tDim;
 
-  uint32_t uAllocSizeY = AL_GetAllocSizeSrc_PixPlane(eSrcFmt, iPitch, iStrideHeight, AL_CHROMA_MONO, AL_PLANE_Y);
-  uint32_t uSize = uAllocSizeY + GetChromaAllocSize(eChromaMode, uAllocSizeY);
+  AL_EChromaOrder eChromaOrder = eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR;
+  AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES];
+
+  uint32_t uSize = 0;
+  int iPlanes = AL_Plane_GetBufferPlanes(eChromaOrder, AL_GET_COMP_MODE(eSrcFmt), usedPlanes);
+
+  for(int iPlane = 0; iPlane < iPlanes; iPlane++)
+  {
+    uSize += AL_GetAllocSizeSrc_PixPlane(eSrcFmt, iPitch, iStrideHeight, eChromaMode, usedPlanes[iPlane]);
+  }
 
   return uSize;
 }
@@ -300,6 +310,55 @@ uint32_t AL_GetAllocSize_SliceSize(uint32_t uWidth, uint32_t uHeight, uint32_t u
   uint32_t uSize = (uint32_t)Max(iWidthInLcu * iHeightInLcu * 32, iWidthInLcu * iHeightInLcu * sizeof(uint32_t) + uNumSlices * AL_ENC_NUM_CORES * 128);
   uint32_t uAlignedSize = RoundUp(uSize, 32);
   return uAlignedSize;
+}
+
+/*****************************************************************************/
+uint32_t GetAllocSize_StreamPart(AL_EProfile eProfile, int iNumCores, int iNumSlices, bool bSliceSize)
+{
+  (void)eProfile;
+
+  int iMaxPart = bSliceSize ? AL_MAX_ENC_SLICE : iNumSlices;
+  int iNumNal = 16;
+
+  uint32_t uStreamPartSize = ((iMaxPart * iNumCores) + iNumNal) * sizeof(AL_TStreamPart);
+  uStreamPartSize = RoundUp(uStreamPartSize, 128);
+
+  return uStreamPartSize;
+}
+
+/****************************************************************************/
+static uint32_t GetRecPitch(uint32_t uBitDepth, uint32_t uWidth)
+{
+  int iTileWidth = 64;
+  int iTileHeight = 4;
+
+  if(uBitDepth == 8)
+    return UnsignedRoundUp(uWidth, iTileWidth) * iTileHeight;
+
+  return UnsignedRoundUp(uWidth, iTileWidth) * iTileHeight * uBitDepth / 8;
+}
+
+/****************************************************************************/
+void AL_FillPlaneDesc_EncReference(AL_TPlaneDescription* pPlaneDesc, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bIsAvc, uint8_t uLCUSize, uint16_t uMVVRange, AL_EChEncOption eOptions)
+{
+  (void)eChromaMode, (void)bIsAvc; // if no fbc support
+  AL_EChEncOption eTmpOption = eOptions;
+
+  if(AL_Plane_IsPixelPlane(pPlaneDesc->ePlaneId))
+  {
+    pPlaneDesc->iPitch = GetRecPitch(uBitDepth, tDim.iWidth);
+    pPlaneDesc->iOffset = 0;
+
+    if(pPlaneDesc->ePlaneId != AL_PLANE_Y)
+    {
+      int iPlaneOrder = pPlaneDesc->ePlaneId == AL_PLANE_V ? 2 : 1;
+      pPlaneDesc->iOffset = iPlaneOrder * AL_GetAllocSize_EncReference(tDim, uBitDepth, uLCUSize, AL_CHROMA_MONO, eTmpOption, uMVVRange);
+    }
+
+    return;
+  }
+
+  assert(0);
 }
 
 /*!@}*/

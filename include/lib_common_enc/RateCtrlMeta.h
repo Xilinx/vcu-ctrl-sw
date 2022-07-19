@@ -67,4 +67,12 @@ typedef struct AL_t_RateCtrlMetaData
 *****************************************************************************/
 AL_TRateCtrlMetaData* AL_RateCtrlMetaData_Create(AL_TAllocator* pAllocator, AL_TDimension tDim, uint8_t uLog2MaxCuSize, AL_ECodec eCodec);
 
+/*************************************************************************//*!
+   \brief Create a RateCtrl metadata with buffer for motion vector. Caller must
+   be sure pMVBuf size is correct.
+   \return Pointer to a RateCtrl Metadata if success, NULL otherwise
+*****************************************************************************/
+AL_TRateCtrlMetaData* AL_RateCtrlMetaData_Create_WithBuffer(AL_TBuffer* pMVBuf);
+
 /*@}*/
+

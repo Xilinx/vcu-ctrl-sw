@@ -49,29 +49,33 @@ static int GetMinCoresCount(int width, int maxWidth)
   return divideRoundUp(width, maxWidth);
 }
 
-static int GetCoreResources(int coreFrequency, int margin, int hardwareCyclesCount)
+static int GetCoreResources(int coreFrequency, int margin)
 {
-  return (coreFrequency - (coreFrequency / 100) * margin) / hardwareCyclesCount;
+  return coreFrequency - (coreFrequency / 100) * margin;
 }
 
-static int ChoseCoresCount(int width, int height, int frameRate, int clockRatio, int resourcesByCore, int maxWidth)
+static int ChoseCoresCount(int width, int height, int frameRate, int clockRatio, int resourcesByCore, int maxWidth, int cycles32x32)
 {
-  int channelResources = AL_GetResources(width, height, frameRate, clockRatio);
+  uint64_t channelResources = AL_GetResources(width, height, frameRate, clockRatio, cycles32x32);
   return Max(GetMinCoresCount(width, maxWidth), divideRoundUp(channelResources, resourcesByCore));
 }
 
-void AL_CoreConstraint_Init(AL_CoreConstraint* constraint, int coreFrequency, int margin, int hardwareCyclesCount, int minWidth, int maxWidth, int lcuSize)
+void AL_CoreConstraint_Init(AL_CoreConstraint* constraint, int coreFrequency, int margin, int const* hardwareCyclesCounts, int minWidth, int maxWidth, int lcuSize)
 {
   constraint->minWidth = minWidth;
   constraint->maxWidth = maxWidth;
   constraint->lcuSize = lcuSize;
-  constraint->resources = GetCoreResources(coreFrequency, margin, hardwareCyclesCount);
+  constraint->resources = GetCoreResources(coreFrequency, margin);
+  constraint->cycles32x32[0] = hardwareCyclesCounts[0];
+  constraint->cycles32x32[1] = hardwareCyclesCounts[1];
+  constraint->cycles32x32[2] = hardwareCyclesCounts[2];
+  constraint->cycles32x32[3] = hardwareCyclesCounts[3];
   constraint->enableMultiCore = true;
 }
 
-int AL_CoreConstraint_GetExpectedNumberOfCores(AL_CoreConstraint* constraint, int width, int height, int frameRate, int clockRatio)
+int AL_CoreConstraint_GetExpectedNumberOfCores(AL_CoreConstraint* constraint, int width, int height, int chromaModeIdc, int frameRate, int clockRatio)
 {
-  return ChoseCoresCount(width, height, frameRate, clockRatio, constraint->resources, constraint->maxWidth);
+  return ChoseCoresCount(width, height, frameRate, clockRatio, constraint->resources, constraint->maxWidth, constraint->cycles32x32[chromaModeIdc]);
 }
 
 int AL_CoreConstraint_GetMinCoresCount(AL_CoreConstraint* constraint, int width)
@@ -87,7 +91,7 @@ static int getLcuCount(int width, int height)
   return divideRoundUp(width, lcuPicWidth) * divideRoundUp(height, lcuPicHeight);
 }
 
-int AL_GetResources(int width, int height, int frameRate, int clockRatio)
+uint64_t AL_GetResources(int width, int height, int frameRate, int clockRatio, int cycles32x32)
 {
   if(clockRatio == 0)
     return 0;
@@ -95,7 +99,7 @@ int AL_GetResources(int width, int height, int frameRate, int clockRatio)
   uint64_t lcuCount = getLcuCount(width, height);
   uint64_t dividende = lcuCount * (uint64_t)frameRate;
   uint64_t divisor = (uint64_t)clockRatio;
-  return divideRoundUp(dividende, divisor);
+  return divideRoundUp(dividende, divisor) * (uint64_t)cycles32x32;
 }
 
 static int ToCtb(int val, int ctbSize)

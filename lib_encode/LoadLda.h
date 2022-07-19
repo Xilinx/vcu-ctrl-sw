@@ -36,8 +36,6 @@
 ******************************************************************************/
 
 #pragma once
-#include "lib_common_enc/EncBuffersInternal.h"
-#include "lib_common_enc/Settings.h"
 
 bool LoadLambdaFromFile(char const* lambdaFileName, TBufferEP* pEP);
 

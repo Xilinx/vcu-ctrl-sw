@@ -1,6 +1,5 @@
 LIB_DECODE_SRC+=\
   lib_decode/NalUnitParser.c\
-  lib_decode/NalDecoder.c\
   lib_decode/FrameParam.c\
   lib_decode/SliceDataParsing.c\
   lib_decode/DefaultDecoder.c\

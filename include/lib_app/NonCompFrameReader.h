@@ -35,19 +35,19 @@
 *
 ******************************************************************************/
 
-/****************************************************************************
-   -----------------------------------------------------------------------------
- **************************************************************************//*!
-   \file
-   \defgroup lib_bitstream lib_bitstream
-   @{
- *****************************************************************************/
-#pragma once
+#include "lib_app/FrameReader.h"
+#include "lib_app/YuvIO.h"
 
-#include "BitStreamLite.h"
-#include "AVC_RbspEncod.h"
-#include "AVC_SkippedPict.h"
-#include "HEVC_RbspEncod.h"
-#include "HEVC_SkippedPict.h"
-/*@}*/
+class NonCompFrameReader : public FrameReader
+{
+private:
+  TYUVFileInfo& m_tFileInfo;
+  uint32_t m_uRndDim;
+
+public:
+  NonCompFrameReader(std::ifstream& File, TYUVFileInfo& tFileInfo, bool bLoopFrames);
+  virtual bool ReadFrame(AL_TBuffer* pFrameBuffer);
+  virtual void GoToFrame(uint32_t iFrameNb);
+  void SetRndDim(uint32_t uRndDim) { m_uRndDim = uRndDim; };
+};
 

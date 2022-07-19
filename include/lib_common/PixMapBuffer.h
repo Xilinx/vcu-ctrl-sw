@@ -46,16 +46,6 @@
 #include "lib_common/BufferAPI.h"
 
 /*************************************************************************//*!
-   \brief Plane parameters
-*****************************************************************************/
-typedef struct AL_t_PlaneDescription
-{
-  AL_EPlaneId ePlaneId; /*!< Type of plane */
-  int iOffset;          /*!< Offset of the plane from beginning of the buffer chunk (in bytes) */
-  int iPitch;           /*!< Pitch of the plane (in bytes) */
-}AL_TPlaneDescription;
-
-/*************************************************************************//*!
    \brief Creates an AL_TBuffer meant to store pixel planes.
    \param[in] pAllocator Pointer to an Allocator.
    \param[in] pCallBack is called after the buffer reference count reaches zero

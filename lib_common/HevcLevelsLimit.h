@@ -36,7 +36,6 @@
 ******************************************************************************/
 
 #pragma once
-#include "lib_rtos/types.h"
 #include "LevelLimit.h"
 
 bool AL_HEVC_CheckLevel(int level);

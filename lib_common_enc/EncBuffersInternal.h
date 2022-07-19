@@ -73,7 +73,7 @@ static const AL_TBufInfo EP3_BUF_RC_LVL =
    \brief  Retrieves the size of a QP parameters buffer 1 (Lda + SclMtx)
    \return maximum size (in bytes) needed to store
 *****************************************************************************/
-uint32_t AL_GetAllocSizeEP1(void);
+uint32_t AL_GetAllocSizeEP1(AL_ECodec eCodec);
 
 /*************************************************************************//*!
    \brief Retrieves the size of a Encoder parameters buffer 2 (QP Ctrl)
@@ -160,10 +160,24 @@ uint32_t AL_GetAllocSize_SliceSize(uint32_t uWidth, uint32_t uHeight, uint32_t u
 
 /*************************************************************************//*!
    \brief Retrieves the size of a stream part size buffer
-   \param[in] iLCUPicHeight Frame Height in pixel
+   \param[in] eProfile Encoding profile
+   \param[in] iNumCores Number of cores used to encode the frame
    \param[in] iNumSlices Number of slices within the frame
-   \param[in] iSliceSize Number of byte per slice or zero if not used
+   \param[in] bSliceSize True if frame is encode in slice size mode
    \return the size (in bytes) needed for the entry_points size buffer
 *****************************************************************************/
-uint32_t GetAllocSize_StreamPart(int iLCUPicHeight, int iNumSlices, int iSliceSize);
+uint32_t GetAllocSize_StreamPart(AL_EProfile eProfile, int iNumCores, int iNumSlices, bool bSliceSize);
+
+/*************************************************************************//*!
+   \brief Retrieves plane description of the reference buffer
+   \param[in] pPlaneDesc Plane description to fill
+   \param[in] tDim Frame dimensions
+   \param[in] eChromaMode Chroma Mode
+   \param[in] uBitDepth YUV bit-depth
+   \param[in] bIsAvc AVC Codec
+   \param[in] uLCUSize Max size of a coding unit
+   \param[in] uMVVRange extra buffer lines used for reconstructed buffering
+   \param[in] eOptions Encoding option flags
+*****************************************************************************/
+void AL_FillPlaneDesc_EncReference(AL_TPlaneDescription* pPlaneDesc, AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_t uBitDepth, bool bIsAvc, uint8_t uLCUSize, uint16_t uMVVRange, AL_EChEncOption eOptions);
 

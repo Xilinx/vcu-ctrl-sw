@@ -77,8 +77,6 @@ static std::string PictTypeToString(AL_ESliceType type)
 
 static AL_ERR PreprocessQP(uint8_t* pQPs, AL_EGenerateQpMode eMode, const AL_TEncChanParam& tChParam, const std::string& sQPTablesFolder, int iFrameCountSent)
 {
-  uint8_t* pSegs = NULL;
-
   auto iQPTableDepth = 0;
 
   int minMaxQPSize = (int)(sizeof(tChParam.tRCParam.iMaxQP) / sizeof(tChParam.tRCParam.iMaxQP[0]));
@@ -88,7 +86,7 @@ static AL_ERR PreprocessQP(uint8_t* pQPs, AL_EGenerateQpMode eMode, const AL_TEn
                           *std::min_element(tChParam.tRCParam.iMaxQP, tChParam.tRCParam.iMaxQP + minMaxQPSize),
                           AL_GetWidthInLCU(tChParam), AL_GetHeightInLCU(tChParam),
                           tChParam.eProfile, tChParam.uLog2MaxCuSize, iQPTableDepth, sQPTablesFolder,
-                          iFrameCountSent, pQPs + EP2_BUF_QP_BY_MB.Offset, pSegs);
+                          iFrameCountSent, pQPs + EP2_BUF_SEG_CTRL.Offset);
 }
 
 class QPBuffers
@@ -105,7 +103,7 @@ public:
 
   void Configure(AL_TEncSettings const* pSettings, AL_EGenerateQpMode mode)
   {
-    isExternQpTable = AL_IS_QP_TABLE_REQUIRED(pSettings->eQpTableMode) && !AL_IS_AUTO_OR_ADAPTIVE_QP_CTRL(pSettings->eQpCtrlMode);
+    isExternQpTable = AL_IS_QP_TABLE_REQUIRED(pSettings->eQpTableMode);
     this->pSettings = pSettings;
     this->mode = mode;
   }
@@ -152,7 +150,7 @@ private:
 
     mQPLayerInfos[iLayerID] = qpLayerInfo;
     auto& tChParam = pSettings->tChParam[iLayerID];
-    mQPLayerRoiCtxs[iLayerID] = AL_RoiMngr_Create(tChParam.uEncWidth, tChParam.uEncHeight, tChParam.eProfile, tChParam.uLog2MaxCuSize, AL_ROI_QUALITY_LOW, AL_ROI_QUALITY_ORDER);
+    mQPLayerRoiCtxs[iLayerID] = AL_RoiMngr_Create(tChParam.uEncWidth, tChParam.uEncHeight, tChParam.eProfile, tChParam.uLog2MaxCuSize, AL_ROI_QUALITY_MEDIUM, AL_ROI_QUALITY_ORDER);
   }
 
   AL_TBuffer* getBufferP(int frameNum, int iLayerID)
@@ -170,7 +168,7 @@ private:
 
     std::string sErrorMsg = "Error loading external QP tables.";
 
-    if(AL_GENERATE_ROI_QP == (AL_EGenerateQpMode)(mode & AL_GENERATE_MASK_QP_TABLE))
+    if(AL_GENERATE_ROI_QP == (AL_EGenerateQpMode)(mode & AL_GENERATE_QP_TABLE_MASK))
     {
       auto iQPTableDepth = 0;
 
@@ -178,13 +176,16 @@ private:
                                          AL_GetWidthInLCU(tLayerChParam), AL_GetHeightInLCU(tLayerChParam),
                                          tLayerChParam.eProfile, tLayerChParam.uLog2MaxCuSize, iQPTableDepth,
                                          frameNum, AL_Buffer_GetData(pQpBuf) + EP2_BUF_QP_BY_MB.Offset);
-      switch(bRetROI)
+
+      if(bRetROI != AL_SUCCESS)
       {
-      case AL_SUCCESS:
-        break;
-      case AL_ERR_CANNOT_OPEN_FILE:
-        sErrorMsg = "Error loading ROI file.";
-        throw std::runtime_error(sErrorMsg);
+        releaseBuffer(pQpBuf);
+        switch(bRetROI)
+        {
+        case AL_ERR_CANNOT_OPEN_FILE:
+          sErrorMsg = "Error loading ROI file.";
+          throw std::runtime_error(sErrorMsg);
+        }
       }
     }
     else
@@ -248,15 +249,10 @@ struct safe_ifstream
   }
 };
 
-static AL_TDimension GetDim(int32_t iWidth, int32_t iHeight)
-{
-  AL_TDimension tDim = { iWidth, iHeight };
-  return tDim;
-}
-
 struct EncoderSink : IFrameSink
 {
-  EncoderSink(ConfigFile const& cfg, AL_IEncScheduler* pScheduler, AL_TAllocator* pAllocator
+  EncoderSink(ConfigFile const& cfg, AL_IEncScheduler* pScheduler
+              , AL_TAllocator* pAllocator
               ) :
     CmdFile(cfg.sCmdFileName, false),
     EncCmd(CmdFile.fp, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
@@ -265,11 +261,13 @@ struct EncoderSink : IFrameSink
     pAllocator{pAllocator},
     pSettings{&cfg.Settings}
   {
-    AL_CB_EndEncoding onEndEncoding = { &EncoderSink::EndEncoding, this };
+    AL_CB_EndEncoding onEncoding = { &EncoderSink::EndEncoding, this };
 
     qpBuffers.Configure(&cfg.Settings, cfg.RunInfo.eGenerateQpMode);
 
-    AL_ERR errorCode = AL_Encoder_Create(&hEnc, pScheduler, pAllocator, &cfg.Settings, onEndEncoding);
+    AL_ERR errorCode;
+
+    errorCode = AL_Encoder_Create(&hEnc, pScheduler, pAllocator, &cfg.Settings, onEncoding);
 
     if(AL_IS_ERROR_CODE(errorCode))
       throw codec_error(AL_Codec_ErrorToString(errorCode), errorCode);

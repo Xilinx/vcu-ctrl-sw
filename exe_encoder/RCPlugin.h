@@ -39,8 +39,6 @@
 
 extern "C"
 {
-#include "lib_rtos/lib_rtos.h"
-#include "lib_encode/lib_encoder.h"
 }
 
 #include <stdexcept>

@@ -50,7 +50,6 @@
 
 #include <cassert>
 #include <cstring>
-#include <map>
 #include "lib_app/convert.h"
 
 extern "C" {

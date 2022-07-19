@@ -40,6 +40,7 @@
 #include "lib_common_enc/EncBuffersInternal.h"
 #include "IP_EncoderCtx.h"
 #include "lib_common/SyntaxConversion.h"
+#include "lib_common/Utils.h"
 
 /****************************************************************************/
 static void AL_sUpdateProfileTierLevel(AL_THevcProfilevel* pPTL, AL_TEncChanParam const* pChParam, bool profilePresentFlag, int iLayerId)
@@ -592,20 +593,28 @@ void AL_HEVC_UpdateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TEnc
   if(!pPicStatus->bIsFirstSlice)
     return;
 
-  if(!AL_IsWriteSps(pHdrs, pHLSInfo->uSpsId))
-    goto put_sps;
+  if(AL_IsWriteSps(pHdrs, pHLSInfo->uSpsId) || pHLSInfo->uFrameRate) // In case frame rate update, regenerate the SPS and it will be inserted at next IDR
+  {
+    AL_THevcSps* pSPS = (AL_THevcSps*)pISPS;
 
-  AL_THevcSps* pSPS = (AL_THevcSps*)pISPS;
+    AL_EPicFormat ePicFormat = pSettings->tChParam[iLayerId].ePicFormat;
+    AL_TDimension tDim = AL_GetPpsDim(pHdrs, pHLSInfo->uSpsId);
 
-  AL_EPicFormat ePicFormat = pSettings->tChParam[iLayerId].ePicFormat;
-  AL_TDimension tDim = AL_GetPpsDim(pHdrs, pHLSInfo->uSpsId);
+    int MultiLayerExtSpsFlag = AL_HEVC_MultiLayerExtSpsFlag(pSPS, iLayerId);
+    AL_HEVC_GenerateSPS_Format(pSPS, AL_GET_CHROMA_MODE(ePicFormat), AL_GET_BITDEPTH_LUMA(ePicFormat), AL_GET_BITDEPTH_CHROMA(ePicFormat),
+                               tDim.iWidth, tDim.iHeight, MultiLayerExtSpsFlag, &pSettings->tChParam[iLayerId]);
 
-  int MultiLayerExtSpsFlag = AL_HEVC_MultiLayerExtSpsFlag(pSPS, iLayerId);
-  AL_HEVC_GenerateSPS_Format(pSPS, AL_GET_CHROMA_MODE(ePicFormat), AL_GET_BITDEPTH_LUMA(ePicFormat), AL_GET_BITDEPTH_CHROMA(ePicFormat),
-                             tDim.iWidth, tDim.iHeight, MultiLayerExtSpsFlag, &pSettings->tChParam[iLayerId]);
-  pSPS->sps_seq_parameter_set_id = pHLSInfo->uSpsId;
+    if(pHLSInfo->uFrameRate)
+    {
+      AL_TRCParam rcParam;
+      rcParam.uFrameRate = pHLSInfo->uFrameRate;
+      rcParam.uClkRatio = pHLSInfo->uClkRatio;
+      AL_UpdateVuiTimingInfo(&pSPS->vui_param, 0, &rcParam, 1);
+    }
 
-  put_sps:
+    pSPS->sps_seq_parameter_set_id = pHLSInfo->uSpsId;
+  }
+
   AL_ReleaseSps(pHdrs, pHLSInfo->uSpsId);
 }
 

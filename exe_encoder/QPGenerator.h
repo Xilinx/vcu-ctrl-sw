@@ -51,21 +51,17 @@ typedef enum e_GenerateQpMode
 {
   // exclusive modes
   AL_GENERATE_UNIFORM_QP = 0x00, /*!< default behaviour */
-  AL_GENERATE_RAMP_QP = 0x02, /*!< used for test purpose */
-  AL_GENERATE_RANDOM_QP = 0x03, /*!< used for test purpose */
-  AL_GENERATE_LOAD_QP = 0x04, /*!< used for test purpose */
-  AL_GENERATE_BORDER_QP = 0x05, /*!< used for test purpose */
-  AL_GENERATE_ROI_QP = 0x06,
-  AL_GENERATE_MASK_QP_TABLE = 0x07,
+  AL_GENERATE_LOAD_QP = 0x01, /*!< used for test purpose */
+  AL_GENERATE_ROI_QP = 0x02,
+  AL_GENERATE_QP_TABLE_MASK = 0x03,
 
-  // additional modes
-  AL_GENERATE_RANDOM_SKIP = 0x20, /*!< used for test purpose */
-  AL_GENERATE_RANDOM_I_ONLY = 0x40, /*!< used for test purpose */
+  // test modes
+  AL_GENERATE_RANDOM_QP = 0x04, /*!< used for test purpose */
+  AL_GENERATE_RANDOM_I_ONLY = 0x80, /*!< used for test purpose */
+  AL_GENERATE_RANDOM_SKIP = 0x10, /*!< used for test purpose */
+  AL_GENERATE_QP_TABLE_RANDOM_MASK = 0xFC,
 
-  AL_GENERATE_BORDER_SKIP = 0x100,
-  AL_GENERATE_FULL_SKIP = 0x200,
-
-  AL_GENERATE_MASK_QP_TABLE_EXT = 0x367,
+  AL_GENERATE_QP_TABLE_MASK_EXT = AL_GENERATE_QP_TABLE_MASK | AL_GENERATE_QP_TABLE_RANDOM_MASK,
 
   // Auto QP
   AL_GENERATE_AUTO_QP = 0x400, /*!< compute Qp by MB on the fly */
@@ -84,7 +80,7 @@ static inline bool AL_IsAutoQP(AL_EGenerateQpMode eMode)
 
 static inline bool AL_HasQpTable(AL_EGenerateQpMode eMode)
 {
-  return eMode & AL_GENERATE_MASK_QP_TABLE_EXT;
+  return eMode & AL_GENERATE_QP_TABLE_MASK_EXT;
 }
 
 /*************************************************************************//*!
@@ -102,12 +98,11 @@ static inline bool AL_HasQpTable(AL_EGenerateQpMode eMode)
    \param[in]  sQPTablesFolder In case QP are loaded from files, path to the folder
                containing the QP table files
    \param[in]  iFrameID   Frame identifier
-   \param[out] pQPs       Pointer to the buffer that receives the computed QPs
-   \param[out] pSegs      Pointer to the buffer that receives the computed Segments
+   \param[out] pQPTable       Pointer to the buffer that receives the QP Table
    \note iMinQp <= iMaxQP
    \return 0 on success, 1 if file is not found, 2 if there is an error in the file
 *****************************************************************************/
-AL_ERR GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUPicWidth, int iLCUPicHeight, AL_EProfile eProf, uint8_t uLogMaxCuSize, int iQPTableDepth, const std::string& sQPTablesFolder, int iFrameID, uint8_t* pQPs, uint8_t* pSegs);
+AL_ERR GenerateQPBuffer(AL_EGenerateQpMode eMode, int16_t iSliceQP, int16_t iMinQP, int16_t iMaxQP, int iLCUPicWidth, int iLCUPicHeight, AL_EProfile eProf, uint8_t uLogMaxCuSize, int iQPTableDepth, const std::string& sQPTablesFolder, int iFrameID, uint8_t* pQPTable);
 
 /*************************************************************************//*!
    \brief Fill QP part of the buffer pointed to by pQP with a QP for each

@@ -46,14 +46,14 @@
 
 struct CEncCmdMngr
 {
-  CEncCmdMngr(std::istream& CmdInput, int iLookAhead, int iFreqLT);
+  CEncCmdMngr(std::istream& CmdInput, int iLookAhead, uint32_t uFreqLT);
 
   void Process(ICommandsSender* sender, int iFrame);
 
 private:
   std::istream& m_CmdInput;
   int const m_iLookAhead;
-  int const m_iFreqLT;
+  uint32_t const m_uFreqLT;
   bool m_bHasLT;
   std::string m_sBufferedLine;
 

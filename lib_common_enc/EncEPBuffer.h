@@ -38,7 +38,6 @@
 #pragma once
 
 #include "lib_common/MemDesc.h"
-#include "lib_rtos/types.h"
 
 /*************************************************************************//*!
    \brief Buffer with encoder parameters content

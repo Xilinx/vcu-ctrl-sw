@@ -107,4 +107,5 @@ bool AL_HEVC_IsVcl(AL_ENut eNUT);
    \brief Size of the NAL Header
    respect to the HEVC specification
  ***************************************************************************/
-#define AL_HEVC_NAL_HDR_SIZE 5;
+#define AL_HEVC_NAL_HDR_SIZE 5
+

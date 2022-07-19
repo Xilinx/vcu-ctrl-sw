@@ -40,8 +40,6 @@
 
 #include "allegro_ioctl_mcu_enc.h"
 #include "lib_common_enc/EncPicInfo.h"
-#include "lib_common_enc/EncChanParam.h"
-#include "lib_common/BufferAPI.h"
 #include "lib_common/MemDesc.h"
 
 #define DCACHE_OFFSET 0x80000000

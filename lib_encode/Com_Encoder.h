@@ -46,15 +46,10 @@
 #pragma once
 
 #include "Encoder.h"
-#include "EncUtils.h"
 #include "IP_EncoderCtx.h"
 
-#include "lib_rtos/lib_rtos.h"
 #include "lib_encode/I_EncScheduler.h"
-#include "lib_common/SEI.h"
 #include "lib_common/HDR.h"
-#include "lib_common_enc/EncBuffersInternal.h"
-#include "lib_bitstream/SkippedPicture.h"
 
 /*************************************************************************//*!
    \brief Creates an encoder object
@@ -114,7 +109,7 @@ bool AL_Common_Encoder_PutStreamBuffer(AL_TEncCtx* pCtx, AL_TBuffer* pStream, in
 bool AL_Common_Encoder_GetRecPicture(AL_TEncCtx* pCtx, AL_TRecPic* pRecPic, int iLayerID);
 
 /***************************************************************************/
-void AL_Common_Encoder_ReleaseRecPicture(AL_TEncCtx* pCtx, AL_TRecPic* pRecPic, int iLayerID);
+bool AL_Common_Encoder_ReleaseRecPicture(AL_TEncCtx* pCtx, AL_TRecPic* pRecPic, int iLayerID);
 
 /*************************************************************************//*!
    \brief The Encoder_Process function allows to push a frame buffer to the

@@ -37,8 +37,6 @@
 
 #include "CommandsSender.h"
 
-#include <string.h>
-
 using namespace std;
 
 void CommandsSender::notifySceneChange(int lookAhead)

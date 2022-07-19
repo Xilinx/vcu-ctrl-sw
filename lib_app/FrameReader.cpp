@@ -35,33 +35,26 @@
 *
 ******************************************************************************/
 
-#pragma once
-#include "I_DecoderCtx.h"
-#include "DefaultDecoder.h"
-#include "lib_common_dec/RbspParser.h"
-#include "lib_common/BufferSeiMeta.h"
+#include "lib_app/FrameReader.h"
 
-#include "lib_common_dec/RbspParser.h"
-#include "lib_parsing/Aup.h"
-#include "lib_common/BufferSeiMeta.h"
-#include "lib_common/Nuts.h"
+#include <fstream>
 
-typedef struct
+int FrameReader::GetFileSize()
 {
-  void (* parseDps)(AL_TAup*, AL_TRbspParser*);
-  AL_PARSE_RESULT (* parseVps)(AL_TAup*, AL_TRbspParser*);
-  AL_PARSE_RESULT (* parseSps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
-  AL_PARSE_RESULT (* parsePps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
-  AL_PARSE_RESULT (* parseAps)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
-  AL_PARSE_RESULT (* parsePh)(AL_TAup*, AL_TRbspParser*, AL_TDecCtx*);
-  bool (* parseSei)(AL_TAup*, AL_TRbspParser*, bool, AL_CB_ParsedSei*, AL_TSeiMetaData* pMeta);
-  // return false when there is nothing to process
-  bool (* decodeSliceData)(AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
-  bool (* isSliceData)(AL_ENut nut);
-  void (* finishPendingRequest)(AL_TDecCtx*);
-}AL_NalParser;
+  auto position = m_recFile.tellg();
+  m_recFile.seekg(0, std::ios_base::end);
+  auto size = m_recFile.tellg();
+  m_recFile.seekg(position);
+  return size;
+}
 
-bool AL_DecodeOneNal(AL_NonVclNuts, AL_NalParser, AL_TAup*, AL_TDecCtx*, AL_ENut, bool, int*);
+int FrameReader::GotoNextPicture(int iFileFrameRate, int iEncFrameRate, int iEncPictCount, int iFilePictCount)
+{
+  const int iMove = ((iEncPictCount * iFileFrameRate) / iEncFrameRate) - iFilePictCount;
 
-bool HasOngoingFrame(AL_TDecCtx* pCtx);
+  if(iMove)
+    this->GoToFrame(iMove);
+
+  return iMove;
+}
 

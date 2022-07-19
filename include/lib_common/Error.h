@@ -94,7 +94,7 @@ enum
   /*! Couldn't spread the load on enough cores (a special case of ERROR_RESOURCE_UNAVAILABLE)
    * or the load can't be spread so much (each core has a requirement on the minimal number
    * of resources it can handle) */
-  AL_ERR_CHAN_CREATION_NOT_ENOUGH_CORES = AL_DEF_ERROR(15),
+  AL_ERR_CHAN_CREATION_LOAD_DISTRIBUTION = AL_DEF_ERROR(15),
   /*! Some parameters in the request have an invalid value */
   AL_ERR_REQUEST_MALFORMED = AL_DEF_ERROR(16),
   /*! The command is not allowed in some configuration */
@@ -119,6 +119,10 @@ enum
   AL_ERR_INVALID_OR_UNSUPPORTED_FILE_FORMAT = AL_DEF_ERROR(30),
   /*! minimal frame width for HW is not encountered */
   AL_ERR_REQUEST_INVALID_MIN_WIDTH = AL_DEF_ERROR(31),
+  /*! maximal frame height for HW is excedeed */
+  AL_ERR_REQUEST_INVALID_MAX_HEIGHT = AL_DEF_ERROR(32),
+  /*! HW capacity is excedeed */
+  AL_ERR_CHAN_CREATION_HW_CAPACITY_EXCEEDED = AL_DEF_ERROR(33),
 };
 
 static inline bool AL_IS_ERROR_CODE(AL_ERR eErrorCode)

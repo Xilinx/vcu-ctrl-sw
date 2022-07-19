@@ -47,7 +47,6 @@
 
 #include "lib_rtos/types.h"
 #include "lib_common_enc/EncPicInfo.h"
-#include "lib_common_enc/EncChanParam.h"
 #include "lib_common_enc/EncRecBuffer.h"
 #include "lib_common/BufferAPI.h"
 #include "lib_common/MemDesc.h"

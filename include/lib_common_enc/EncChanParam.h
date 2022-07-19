@@ -365,6 +365,7 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_RCPara
   int16_t uGoldenRefFrequency;
   AL_ERateCtrlOption eOptions; /*!< Options bitfield. \see AL_ERateCtrlOption for the available flags*/
   uint32_t uNumPel;
+  uint16_t uMinPSNR;
   uint16_t uMaxPSNR;
   uint16_t uMaxPelVal;
   uint32_t pMaxPictureSize[AL_MAX_FRAME_TYPE];
@@ -414,6 +415,7 @@ typedef AL_INTROSPECT (category = "debug") struct AL_t_GopParam
   uint8_t uFreqGoldenRef;
   uint32_t uFreqIDR; /*!< Frequency of the Instantaneous Decoding Refresh Picture. This is also used to determine the GDR frequency */
   bool bEnableLT;
+  bool bWriteAvcHdrSvcExt;
   uint32_t uFreqLT;
   AL_EGdrMode eGdrMode;
   uint32_t uFreqRP;
@@ -557,9 +559,7 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   uint8_t uMaxTransfoDepthIntra;
   uint8_t uMaxTransfoDepthInter;
 
-  // For AVC
   AL_EEntropyMode eEntropyMode;
-  AL_EWPMode eWPMode;
 
   AL_TRCParam tRCParam; /*!< Rate control parameters */
   AL_TGopParam tGopParam; /*!< Group of Pictures parameters */

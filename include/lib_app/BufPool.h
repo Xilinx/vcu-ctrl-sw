@@ -48,7 +48,6 @@
 extern "C" {
 #endif
 
-#include "lib_rtos/types.h"
 #include "lib_common/Allocator.h"
 #include "lib_common/BufferAPI.h"
 #include "lib_common/BufferMeta.h"

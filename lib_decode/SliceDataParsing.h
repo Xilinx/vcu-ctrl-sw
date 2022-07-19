@@ -45,8 +45,6 @@
 #pragma once
 
 #include "lib_common/ScalingList.h"
-#include "lib_common/SPS.h"
-#include "lib_common/PPS.h"
 #include "lib_common/SliceHeader.h"
 #include "lib_parsing/I_PictMngr.h"
 #include "lib_decode/I_DecoderCtx.h"

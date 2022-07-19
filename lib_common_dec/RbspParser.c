@@ -43,9 +43,7 @@
    \file
  *****************************************************************************/
 #include "RbspParser.h"
-#include <string.h>
 
-#include "lib_common/Utils.h"
 #include "lib_common_dec/DecBuffersInternal.h"
 #include "lib_assert/al_assert.h"
 

@@ -41,7 +41,6 @@
    \file
  *****************************************************************************/
 #pragma once
-#include "lib_rtos/types.h"
 
 typedef enum
 {

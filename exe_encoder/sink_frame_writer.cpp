@@ -39,15 +39,12 @@
 
 #include <cassert>
 
-#include "CodecUtils.h"
-
 #include "lib_app/YuvIO.h"
 #include "lib_app/convert.h"
 #include "lib_app/utils.h"
 
 extern "C"
 {
-#include "lib_encode/lib_encoder.h"
 #include "lib_common/PixMapBuffer.h"
 #include "lib_common_enc/IpEncFourCC.h"
 }

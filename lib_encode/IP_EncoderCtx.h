@@ -47,16 +47,12 @@
 #include "Sections.h"
 #include "lib_encode/lib_encoder.h"
 #include "lib_rtos/lib_rtos.h"
-#include "lib_bitstream/lib_bitstream.h"
-#include "IP_Stream.h"
 #include "SourceBufferChecker.h"
 #include "lib_common_enc/EncPicInfo.h"
 #include "lib_common_enc/EncBuffersInternal.h"
-#include "lib_common_enc/PictureInfo.h"
 #include "lib_common_enc/EncSliceStatus.h"
 #include "lib_common_enc/EncSliceBuffer.h"
 #include "lib_common_enc/EncSize.h"
-#include "lib_encode/lib_encoder.h"
 #include "lib_common/Fifo.h"
 #include "lib_encode/EncUtils.h"
 
@@ -74,6 +70,8 @@ typedef struct AL_t_HLSInfo
   int8_t iLFTcOffset;
   int8_t iCbPicQpOffset;
   int8_t iCrPicQpOffset;
+  int16_t uFrameRate;
+  int16_t uClkRatio;
   bool bHDRChanged;
   int8_t iHDRID;
 }AL_HLSInfo;
@@ -126,7 +124,7 @@ typedef struct
   TMemDesc tMDChParam;
 
   AL_TCbUserParam callback_user_param;
-  AL_CB_EndEncoding callback;
+  AL_CB_EndEncoding tEndEncodingCallback;
 }AL_TLayerCtx;
 
 typedef struct
@@ -194,6 +192,7 @@ typedef struct AL_t_EncCtx
   AL_THDRPool tHDRPool;
 
   AL_MUTEX Mutex;
+
   AL_SEMAPHORE PendingEncodings; // tracks the count of jobs sent to the scheduler
 
   AL_IEncScheduler* pScheduler;

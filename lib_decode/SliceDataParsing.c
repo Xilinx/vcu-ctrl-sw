@@ -45,7 +45,6 @@
 
 #include "SliceDataParsing.h"
 #include "I_DecoderCtx.h"
-#include "FrameParam.h"
 
 #include "lib_decode/lib_decode.h"
 #include "lib_decode/I_DecScheduler.h"
@@ -233,6 +232,8 @@ static void decodeOneSlice(AL_TDecCtx* pCtx, uint16_t uSliceID, AL_TDecPicBuffer
   pSP_v->uParsingId = uSliceID;
   AL_IDecScheduler_DecodeOneSlice(pCtx->pScheduler, pCtx->hChannel, &pCtx->PoolPP[pCtx->uToggle], pBufAddrs, &SliceParam);
 }
+
+/*****************************************************************************/
 
 /*****************************************************************************/
 void AL_LaunchSliceDecoding(AL_TDecCtx* pCtx, bool bIsLastAUNal, bool hasPreviousSlice)

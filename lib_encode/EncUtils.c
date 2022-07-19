@@ -318,6 +318,7 @@ bool HasCuQpDeltaDepthEnabled(AL_TEncSettings const* pSettings, AL_TEncChanParam
   ;
 }
 
+/****************************************************************************/
 uint8_t AL_GetSps(AL_THeadersCtx* pHdrs, uint16_t uWidth, uint16_t uHeight)
 {
   AL_TSpsCtx* pPrev = &pHdrs->spsCtx[pHdrs->iPrevSps];
@@ -340,6 +341,7 @@ uint8_t AL_GetSps(AL_THeadersCtx* pHdrs, uint16_t uWidth, uint16_t uHeight)
   return pHdrs->iPrevSps;
 }
 
+/****************************************************************************/
 uint8_t AL_GetPps(AL_THeadersCtx* pHdrs, uint8_t uSpsId, int8_t iQpCbOffset, int8_t iQpCrOffset)
 {
   AL_TPpsCtx* pPrev = &pHdrs->ppsCtx[pHdrs->iPrevPps];
@@ -363,6 +365,7 @@ uint8_t AL_GetPps(AL_THeadersCtx* pHdrs, uint8_t uSpsId, int8_t iQpCbOffset, int
   return pHdrs->iPrevPps;
 }
 
+/****************************************************************************/
 void AL_ReleaseSps(AL_THeadersCtx* pHdrs, uint8_t id)
 {
   AL_TSpsCtx* pSps = pHdrs->spsCtx;
@@ -375,6 +378,7 @@ void AL_ReleaseSps(AL_THeadersCtx* pHdrs, uint8_t id)
   --pSps[id].iRefCnt;
 }
 
+/****************************************************************************/
 void AL_ReleasePps(AL_THeadersCtx* pHdrs, uint8_t id)
 {
   AL_TPpsCtx* pPps = pHdrs->ppsCtx;
@@ -387,6 +391,7 @@ void AL_ReleasePps(AL_THeadersCtx* pHdrs, uint8_t id)
   --pPps[id].iRefCnt;
 }
 
+/****************************************************************************/
 bool AL_IsWriteSps(AL_THeadersCtx* pHdrs, uint8_t id)
 {
   AL_TSpsCtx* pSps = pHdrs->spsCtx;
@@ -397,6 +402,7 @@ bool AL_IsWriteSps(AL_THeadersCtx* pHdrs, uint8_t id)
   return !pSps[id].bHasBeenSent;
 }
 
+/****************************************************************************/
 bool AL_IsWritePps(AL_THeadersCtx* pHdrs, uint8_t id)
 {
   AL_TPpsCtx* pPps = pHdrs->ppsCtx;
@@ -407,6 +413,7 @@ bool AL_IsWritePps(AL_THeadersCtx* pHdrs, uint8_t id)
   return !pPps[id].bHasBeenSent;
 }
 
+/****************************************************************************/
 AL_TDimension AL_GetPpsDim(AL_THeadersCtx* pHdrs, uint8_t id)
 {
   AL_TSpsCtx* pSps = pHdrs->spsCtx;

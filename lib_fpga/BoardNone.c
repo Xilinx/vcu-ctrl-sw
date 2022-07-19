@@ -36,7 +36,6 @@
 ******************************************************************************/
 
 #include <stdio.h>
-#include "lib_rtos/types.h"
 #include "lib_fpga/Board.h"
 #include "lib_common/Allocator.h"
 
