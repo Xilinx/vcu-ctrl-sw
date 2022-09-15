@@ -155,8 +155,7 @@ uint32_t AL_GetAllocSizeSrc_PixPlane(AL_ESrcMode eSrcFmt, int iPitch, int iStrid
   if(ePlaneId == AL_PLANE_UV)
     iSize = GetChromaAllocSize(eChromaMode, iSize);
 
-  static const uint32_t HW_IP_MAX_SRC_BURST = 64 * 4 * 2;
-  return RoundUp(iSize + HW_IP_MAX_SRC_BURST, HW_IP_BURST_ALIGNMENT);
+  return RoundUp(iSize, HW_IP_BURST_ALIGNMENT);
 }
 
 /****************************************************************************/
