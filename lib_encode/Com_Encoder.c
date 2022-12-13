@@ -1444,7 +1444,7 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
   AL_Assert(pStreamMeta);
   pStreamMeta->uTemporalID = pPicStatus->uTempId;
 
-  if(!AL_IS_ERROR_CODE(pPicStatus->eErrorCode))
+  if(!AL_IS_ERROR_CODE(pPicStatus->eErrorCode) || (pPicStatus->eErrorCode == AL_ERR_WATCHDOG_TIMEOUT))
   {
     Rtos_GetMutex(pCtx->Mutex);
     pCtx->encoder.updateHlsAndWriteSections(pCtx, pPicStatus, pStream, iLayerID, iPoolID);
