@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -64,7 +51,7 @@ static void DispFifo_Deinit(AL_TDispFifo* pFifo)
   (void)pFifo;
 }
 
-static bool DispFifo_IsEmpty(AL_TDispFifo* fifo)
+static bool DispFifo_IsEmpty(AL_TDispFifo const* fifo)
 {
   uint8_t uEnd = (fifo->uFirstFrm + fifo->uNumFrm) % FRM_BUF_POOL_SIZE;
   uint8_t uBegin = fifo->uFirstFrm;
@@ -79,7 +66,7 @@ static void DispFifo_Queue(AL_TDispFifo* fifo, uint8_t uFrmID, uint32_t uPicLate
   fifo->pPicLatency[uFrmID] = uPicLatency;
 }
 
-static uint8_t DispFifo_Peek(AL_TDispFifo* fifo)
+static uint8_t DispFifo_Peek(AL_TDispFifo const* fifo)
 {
   return fifo->pFrmIDs[fifo->uFirstFrm];
 }
@@ -98,7 +85,7 @@ static uint8_t DispFifo_Dequeue(AL_TDispFifo* fifo)
   return uFrmID;
 }
 
-static AL_EPicStatus DispFifo_GetStatus(AL_TDispFifo* fifo, uint8_t uFrmID)
+static AL_EPicStatus DispFifo_GetStatus(AL_TDispFifo const* fifo, uint8_t uFrmID)
 {
   return fifo->pFrmStatus[uFrmID];
 }
@@ -171,7 +158,7 @@ static void AL_Dpb_sAddToDisplayList(AL_TDpb* pDpb, uint8_t uNode)
 }
 
 /*****************************************************************************/
-static void AL_Dpb_sSlidingWindowMarking(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice)
+static void AL_Dpb_sSlidingWindowMarking(AL_TDpb* pDpb, AL_TAvcSliceHdr const* pSlice)
 {
   uint8_t uPic = pDpb->uHeadDecOrder;
   uint8_t uPosMin = 0;
@@ -222,7 +209,7 @@ static void AL_Dpb_sSetPicToUnused(AL_TDpb* pDpb, uint8_t uNode)
 }
 
 /*****************************************************************************/
-static void AL_Dpb_sShortTermToUnused(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t iIdx)
+static void AL_Dpb_sShortTermToUnused(AL_TDpb* pDpb, AL_TAvcSliceHdr const* pSlice, uint8_t iIdx)
 {
   AL_TDpbNode* pNodes = pDpb->Nodes;
   uint8_t uCurPos = pDpb->uCurRef;
@@ -245,7 +232,7 @@ static void AL_Dpb_sShortTermToUnused(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, ui
 
 /*****************************************************************************/
 /*8.2.5.4.2*/
-static void AL_Dpb_sLongTermToUnused(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t iIdx)
+static void AL_Dpb_sLongTermToUnused(AL_TDpb* pDpb, AL_TAvcSliceHdr const* pSlice, uint8_t iIdx)
 {
   uint8_t uPic = pDpb->uHeadDecOrder;
   AL_TDpbNode* pNodes = pDpb->Nodes;
@@ -303,7 +290,7 @@ static void AL_Dpb_sSwitchLongTermPlace(AL_TDpb* pDpb, uint8_t iRef)
 }
 
 /*****************************************************************************/
-static void AL_Dpb_sLongTermFrameIdxToAShortTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t iIdx_long_term_frame, uint8_t iIdx_diff_pic_num)
+static void AL_Dpb_sLongTermFrameIdxToAShortTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr const* pSlice, uint8_t iIdx_long_term_frame, uint8_t iIdx_diff_pic_num)
 {
   uint8_t uPic = pDpb->uHeadDecOrder;
   uint8_t uPic_num = uEndOfList;
@@ -342,7 +329,7 @@ static void AL_Dpb_sLongTermFrameIdxToAShortTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr*
 }
 
 /*****************************************************************************/
-static void AL_Dpb_sDecodingMaxLongTermFrameIdx(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t iIdx)
+static void AL_Dpb_sDecodingMaxLongTermFrameIdx(AL_TDpb* pDpb, AL_TAvcSliceHdr const* pSlice, uint8_t iIdx)
 {
   uint8_t uPic = pDpb->uHeadDecOrder;
   AL_TDpbNode* pNodes = pDpb->Nodes;
@@ -362,7 +349,7 @@ static void AL_Dpb_sDecodingMaxLongTermFrameIdx(AL_TDpb* pDpb, AL_TAvcSliceHdr* 
 }
 
 /*****************************************************************************/
-static void AL_Dpb_sSetAllPicAsUnused(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice)
+static void AL_Dpb_sSetAllPicAsUnused(AL_TDpb* pDpb, AL_TAvcSliceHdr const* pSlice)
 {
   AL_TDpbNode* pNodes = pDpb->Nodes;
   uint8_t iCurRef = pDpb->uCurRef;
@@ -393,7 +380,7 @@ static void AL_Dpb_sSetAllPicAsUnused(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice)
 }
 
 /*****************************************************************************/
-static void AL_Dpb_sAssignLongTermFrameIdx(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t iIdx, int iCurFramePOC)
+static void AL_Dpb_sAssignLongTermFrameIdx(AL_TDpb* pDpb, AL_TAvcSliceHdr const* pSlice, uint8_t iIdx, int iCurFramePOC)
 {
   uint8_t uPic = pDpb->uHeadDecOrder;
   AL_TDpbNode* pNodes = pDpb->Nodes;
@@ -422,7 +409,7 @@ static void AL_Dpb_sAssignLongTermFrameIdx(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlic
 }
 
 /*****************************************************************************/
-static void AL_Dpb_sAdaptiveMemoryControlMarking(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, int iCurFramePOC)
+static void AL_Dpb_sAdaptiveMemoryControlMarking(AL_TDpb* pDpb, AL_TAvcSliceHdr const* pSlice, int iCurFramePOC)
 {
   uint8_t uMmcoIdx = 0;
   uint8_t idx1 = 0, idx2 = 0, idx3 = 0, idx4 = 0;
@@ -463,9 +450,9 @@ static void AL_Dpb_sAdaptiveMemoryControlMarking(AL_TDpb* pDpb, AL_TAvcSliceHdr*
 }
 
 /*****************************************************************************/
-static int32_t AL_Dpb_sPicNumF(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t uNodeID)
+static int32_t AL_Dpb_sPicNumF(AL_TDpb const* pDpb, AL_TAvcSliceHdr const* pSlice, uint8_t uNodeID)
 {
-  AL_TDpbNode* pNodes = pDpb->Nodes;
+  AL_TDpbNode const* pNodes = pDpb->Nodes;
   int32_t iMaxFrameNum = 1 << (pSlice->pSPS->log2_max_frame_num_minus4 + 4);
 
   if(uNodeID == uEndOfList)
@@ -475,9 +462,9 @@ static int32_t AL_Dpb_sPicNumF(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t u
 }
 
 /*****************************************************************************/
-static int32_t AL_Dpb_sLongTermPicNumF(AL_TDpb* pDpb, uint8_t uNodeID)
+static int32_t AL_Dpb_sLongTermPicNumF(AL_TDpb const* pDpb, uint8_t uNodeID)
 {
-  AL_TDpbNode* pNodes = pDpb->Nodes;
+  AL_TDpbNode const* pNodes = pDpb->Nodes;
   int32_t iMaxLongTermFrameIdx = pDpb->MaxLongTermFrameIdx;
 
   if(uNodeID == uEndOfList) // undefined reference
@@ -595,59 +582,59 @@ void AL_Dpb_Deinit(AL_TDpb* pDpb)
 }
 
 /*****************************************************************************/
-uint8_t AL_Dpb_GetRefCount(AL_TDpb* pDpb)
+uint8_t AL_Dpb_GetRefCount(AL_TDpb const* pDpb)
 {
   return pDpb->uCountRef;
 }
 
 /*****************************************************************************/
-uint8_t AL_Dpb_GetPicCount(AL_TDpb* pDpb)
+uint8_t AL_Dpb_GetPicCount(AL_TDpb const* pDpb)
 {
   return pDpb->uCountPic;
 }
 
 /*****************************************************************************/
-uint8_t AL_Dpb_GetHeadPOC(AL_TDpb* pDpb)
+uint8_t AL_Dpb_GetHeadPOC(AL_TDpb const* pDpb)
 {
   return pDpb->uHeadPOC;
 }
 
 /*****************************************************************************/
-uint8_t AL_Dpb_GetNextPOC(AL_TDpb* pDpb, uint8_t uNode)
+uint8_t AL_Dpb_GetNextPOC(AL_TDpb const* pDpb, uint8_t uNode)
 {
   AL_Assert(uNode < MAX_DPB_SIZE);
   return pDpb->Nodes[uNode].uNextPOC;
 }
 
 /*****************************************************************************/
-uint8_t AL_Dpb_GetOutputFlag(AL_TDpb* pDpb, uint8_t uNode)
+uint8_t AL_Dpb_GetOutputFlag(AL_TDpb const* pDpb, uint8_t uNode)
 {
   AL_Assert(uNode < MAX_DPB_SIZE);
   return pDpb->Nodes[uNode].pic_output_flag;
 }
 
 /*****************************************************************************/
-uint8_t AL_Dpb_GetNumOutputPict(AL_TDpb* pDpb)
+uint8_t AL_Dpb_GetNumOutputPict(AL_TDpb const* pDpb)
 {
   return pDpb->uNumOutputPic;
 }
 
 /*****************************************************************************/
-uint8_t AL_Dpb_GetMarkingFlag(AL_TDpb* pDpb, uint8_t uNode)
+uint8_t AL_Dpb_GetMarkingFlag(AL_TDpb const* pDpb, uint8_t uNode)
 {
   AL_Assert(uNode < MAX_DPB_SIZE);
   return pDpb->Nodes[uNode].eMarking_flag;
 }
 
 /*************************************************************************/
-uint32_t AL_Dpb_GetPicLatency_FromNode(AL_TDpb* pDpb, uint8_t uNode)
+uint32_t AL_Dpb_GetPicLatency_FromNode(AL_TDpb const* pDpb, uint8_t uNode)
 {
   AL_Assert(uNode < MAX_DPB_SIZE);
   return pDpb->Nodes[uNode].uPicLatency;
 }
 
 /*************************************************************************/
-uint8_t AL_Dpb_GetPicID_FromNode(AL_TDpb* pDpb, uint8_t uNode)
+uint8_t AL_Dpb_GetPicID_FromNode(AL_TDpb const* pDpb, uint8_t uNode)
 {
   if(uNode == uEndOfList)
     return UndefID;
@@ -657,7 +644,7 @@ uint8_t AL_Dpb_GetPicID_FromNode(AL_TDpb* pDpb, uint8_t uNode)
 }
 
 /*************************************************************************/
-uint8_t AL_Dpb_GetMvID_FromNode(AL_TDpb* pDpb, uint8_t uNode)
+uint8_t AL_Dpb_GetMvID_FromNode(AL_TDpb const* pDpb, uint8_t uNode)
 {
   if(uNode == uEndOfList)
     return UndefID;
@@ -667,7 +654,7 @@ uint8_t AL_Dpb_GetMvID_FromNode(AL_TDpb* pDpb, uint8_t uNode)
 }
 
 /*************************************************************************/
-uint8_t AL_Dpb_GetFrmID_FromNode(AL_TDpb* pDpb, uint8_t uNode)
+uint8_t AL_Dpb_GetFrmID_FromNode(AL_TDpb const* pDpb, uint8_t uNode)
 {
   if(uNode == uEndOfList)
     return UndefID;
@@ -677,7 +664,7 @@ uint8_t AL_Dpb_GetFrmID_FromNode(AL_TDpb* pDpb, uint8_t uNode)
 }
 
 /*************************************************************************/
-uint8_t AL_Dpb_GetPicStruct_FromNode(AL_TDpb* pDpb, uint8_t uNode)
+uint8_t AL_Dpb_GetPicStruct_FromNode(AL_TDpb const* pDpb, uint8_t uNode)
 {
   if(uNode == uEndOfList)
     return UndefID;
@@ -687,7 +674,7 @@ uint8_t AL_Dpb_GetPicStruct_FromNode(AL_TDpb* pDpb, uint8_t uNode)
 }
 
 /*************************************************************************/
-uint8_t AL_Dpb_GetLastPicID(AL_TDpb* pDpb)
+uint8_t AL_Dpb_GetLastPicID(AL_TDpb const* pDpb)
 {
   Rtos_GetMutex(pDpb->Mutex);
 
@@ -708,7 +695,7 @@ uint8_t AL_Dpb_GetLastPicID(AL_TDpb* pDpb)
 }
 
 /*************************************************************************/
-uint8_t AL_Dpb_GetNumRef(AL_TDpb* pDpb)
+uint8_t AL_Dpb_GetNumRef(AL_TDpb const* pDpb)
 {
   return pDpb->uNumRef;
 }
@@ -753,13 +740,13 @@ void AL_Dpb_BeginNewSeq(AL_TDpb* pDpb)
 }
 
 /*************************************************************************/
-bool AL_Dpb_NodeIsReset(AL_TDpb* pDpb, uint8_t uNode)
+bool AL_Dpb_NodeIsReset(AL_TDpb const* pDpb, uint8_t uNode)
 {
   return pDpb->Nodes[uNode].bIsReset;
 }
 
 /*************************************************************************/
-bool AL_Dpb_LastHasMMCO5(AL_TDpb* pDpb)
+bool AL_Dpb_LastHasMMCO5(AL_TDpb const* pDpb)
 {
   return pDpb->bLastHasMMCO5;
 }
@@ -783,7 +770,7 @@ uint8_t AL_Dpb_ConvertPicIDToNodeID(AL_TDpb const* pDpb, uint8_t uPicID)
 }
 
 /*************************************************************************/
-uint8_t AL_Dpb_GetNextFreeNode(AL_TDpb* pDpb)
+uint8_t AL_Dpb_GetNextFreeNode(AL_TDpb const* pDpb)
 {
   uint8_t uNew = 0;
 
@@ -798,7 +785,7 @@ uint8_t AL_Dpb_GetNextFreeNode(AL_TDpb* pDpb)
 }
 
 /*****************************************************************************/
-void AL_Dpb_FillList(AL_TDpb* pDpb, uint8_t uL0L1, TBufferListRef const* pListRef, int32_t* pPocList, uint32_t* pLongTermList, uint32_t* pSubpicList)
+void AL_Dpb_FillList(AL_TDpb const* pDpb, uint8_t uL0L1, TBufferListRef const* pListRef, int32_t* pPocList, uint32_t* pLongTermList, uint32_t* pSubpicList)
 {
   Rtos_GetMutex(pDpb->Mutex);
 
@@ -822,7 +809,7 @@ void AL_Dpb_FillList(AL_TDpb* pDpb, uint8_t uL0L1, TBufferListRef const* pListRe
 }
 
 /*************************************************************************/
-uint8_t AL_Dpb_SearchPocLsb(AL_TDpb* pDpb, uint32_t poc_lsb)
+uint8_t AL_Dpb_SearchPocLsb(AL_TDpb const* pDpb, uint32_t poc_lsb)
 {
   Rtos_GetMutex(pDpb->Mutex);
 
@@ -840,12 +827,12 @@ uint8_t AL_Dpb_SearchPocLsb(AL_TDpb* pDpb, uint32_t poc_lsb)
 }
 
 /*****************************************************************************/
-uint8_t AL_Dpb_SearchPOC(AL_TDpb* pDpb, int iPOC)
+uint8_t AL_Dpb_SearchPOC(AL_TDpb const* pDpb, int iPOC)
 {
   Rtos_GetMutex(pDpb->Mutex);
 
   uint8_t uParse = pDpb->uHeadPOC;
-  AL_TDpbNode* pNodes = pDpb->Nodes;
+  AL_TDpbNode const* pNodes = pDpb->Nodes;
 
   while(uParse != uEndOfList)
   {
@@ -893,7 +880,7 @@ void AL_Dpb_Display(AL_TDpb* pDpb, uint8_t uNode)
 }
 
 /*************************************************************************/
-uint8_t AL_Dpb_GetDisplayBuffer(AL_TDpb* pDpb)
+uint8_t AL_Dpb_GetDisplayBuffer(AL_TDpb const* pDpb)
 {
   Rtos_GetMutex(pDpb->Mutex);
 
@@ -1302,13 +1289,13 @@ void AL_Dpb_Insert(AL_TDpb* pDpb, int iFramePOC, AL_EPicStruct ePicStruct, uint3
 }
 
 /*****************************************************************************/
-static bool AL_Dpb_sIsNoReordering(AL_TDpb* pDpb)
+static bool AL_Dpb_sIsNoReordering(AL_TDpb const* pDpb)
 {
   return pDpb->eMode == AL_DPB_NO_REORDERING;
 }
 
 /*****************************************************************************/
-static uint8_t Dpb_GetNodeFromFrmID(AL_TDpb* pDpb, int iFrameID)
+static uint8_t Dpb_GetNodeFromFrmID(AL_TDpb const* pDpb, int iFrameID)
 {
   AL_TDpbNode const* pNodes = pDpb->Nodes;
   uint8_t uNode = pDpb->uHeadDecOrder;
@@ -1349,7 +1336,7 @@ void AL_Dpb_EndDecoding(AL_TDpb* pDpb, int iFrmID)
 }
 
 /*****************************************************************************/
-void AL_Dpb_PictNumberProcess(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice)
+void AL_Dpb_PictNumberProcess(AL_TDpb* pDpb, AL_TAvcSliceHdr const* pSlice)
 {
   uint8_t uPicID = pDpb->uHeadDecOrder;
   AL_TDpbNode* pNodes = pDpb->Nodes;
@@ -1383,7 +1370,7 @@ void AL_Dpb_PictNumberProcess(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice)
 }
 
 /******************************************************************************/
-void AL_Dpb_MarkingProcess(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, int iCurFramePOC)
+void AL_Dpb_MarkingProcess(AL_TDpb* pDpb, AL_TAvcSliceHdr const* pSlice, int iCurFramePOC)
 {
   AL_TDpbNode* pNodes = pDpb->Nodes;
   uint8_t uCurPos = pDpb->uCurRef;
@@ -1423,11 +1410,11 @@ void AL_Dpb_MarkingProcess(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, int iCurFrame
 }
 
 /*****************************************************************************/
-void AL_Dpb_InitPSlice_RefList(AL_TDpb* pDpb, AL_EPicStruct eCurrPicStruct, TBufferRef* pRefList)
+void AL_Dpb_InitPSlice_RefList(AL_TDpb const* pDpb, AL_EPicStruct eCurrPicStruct, TBufferRef* pRefList)
 {
   (void)eCurrPicStruct;
   Rtos_GetMutex(pDpb->Mutex);
-  AL_TDpbNode* pNodes = pDpb->Nodes;
+  AL_TDpbNode const* pNodes = pDpb->Nodes;
   AL_TDpbNode NodeShortTerm[MAX_REF], NodeLongTerm[MAX_REF];
   AL_TDpbNode NodeShortTermReordered[MAX_REF], NodeLongTermReordered[MAX_REF];
   AL_TDpbNode* pNodeTemp;
@@ -1472,10 +1459,10 @@ void AL_Dpb_InitPSlice_RefList(AL_TDpb* pDpb, AL_EPicStruct eCurrPicStruct, TBuf
 }
 
 /*****************************************************************************/
-void AL_Dpb_InitBSlice_RefList(AL_TDpb* pDpb, int iCurFramePOC, AL_EPicStruct eCurrPicStruct, TBufferListRef* pListRef)
+void AL_Dpb_InitBSlice_RefList(AL_TDpb const* pDpb, int iCurFramePOC, AL_EPicStruct eCurrPicStruct, TBufferListRef* pListRef)
 {
   Rtos_GetMutex(pDpb->Mutex);
-  AL_TDpbNode* pNodes = pDpb->Nodes;
+  AL_TDpbNode const* pNodes = pDpb->Nodes;
   AL_TDpbNode NodeShortTermPOCGreat[MAX_REF], NodeShortTermPOCLess[MAX_REF], NodeLongTerm[MAX_REF];
   AL_TDpbNode NodeShortTermPOCL0[MAX_REF], NodeShortTermPOCL1[MAX_REF];
   AL_TDpbNode NodeShortTermPOCL0Reordered[MAX_REF], NodeShortTermPOCL1Reordered[MAX_REF], NodeLongTermReordered[MAX_REF];
@@ -1592,7 +1579,7 @@ void AL_Dpb_InitBSlice_RefList(AL_TDpb* pDpb, int iCurFramePOC, AL_EPicStruct eC
 }
 
 /*****************************************************************************/
-void AL_Dpb_ModifShortTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, int iPicNumIdc, uint8_t uOffset, int iL0L1, uint8_t* pRefIdx, int* pPicNumPred, TBufferListRef* pListRef)
+void AL_Dpb_ModifShortTerm(AL_TDpb const* pDpb, AL_TAvcSliceHdr const* pSlice, int iPicNumIdc, uint8_t uOffset, int iL0L1, uint8_t* pRefIdx, int* pPicNumPred, TBufferListRef* pListRef)
 {
   int32_t iMaxFrameNum = (1 << (pSlice->pSPS->log2_max_frame_num_minus4 + 4)) * (1 + pSlice->field_pic_flag);
   int iDiffPicNum = iL0L1 ? pSlice->abs_diff_pic_num_minus1_l1[uOffset] + 1 :
@@ -1601,7 +1588,7 @@ void AL_Dpb_ModifShortTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, int iPicNumId
   uint8_t uNumRef = iL0L1 ? pSlice->num_ref_idx_l1_active_minus1 + 1 :
                     pSlice->num_ref_idx_l0_active_minus1 + 1;
 
-  AL_TDpbNode* pNodes = pDpb->Nodes;
+  AL_TDpbNode const* pNodes = pDpb->Nodes;
 
   int iPicNumNoWrap;
 
@@ -1644,7 +1631,7 @@ void AL_Dpb_ModifShortTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, int iPicNumId
 }
 
 /*****************************************************************************/
-void AL_Dpb_ModifLongTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t uOffset, int iL0L1, uint8_t* pRefIdx, TBufferListRef* pListRef)
+void AL_Dpb_ModifLongTerm(AL_TDpb const* pDpb, AL_TAvcSliceHdr const* pSlice, uint8_t uOffset, int iL0L1, uint8_t* pRefIdx, TBufferListRef* pListRef)
 {
   uint8_t uNumRef = iL0L1 ? pSlice->num_ref_idx_l1_active_minus1 + 1 : pSlice->num_ref_idx_l0_active_minus1 + 1;
 
@@ -1654,7 +1641,7 @@ void AL_Dpb_ModifLongTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t uOffse
   int64_t const iLongTermPicNum = iL0L1 ? pSlice->long_term_pic_num_l1[uOffset] : pSlice->long_term_pic_num_l0[uOffset];
   AL_EPicStruct ePicStruct = AL_PS_FRM;
 
-  AL_TDpbNode* pNodes = pDpb->Nodes;
+  AL_TDpbNode const* pNodes = pDpb->Nodes;
   uint8_t uCpt = pDpb->uHeadDecOrder;
 
   while(uCpt != uEndOfList)
@@ -1683,13 +1670,13 @@ void AL_Dpb_ModifLongTerm(AL_TDpb* pDpb, AL_TAvcSliceHdr* pSlice, uint8_t uOffse
 }
 
 /*****************************************************************************/
-int AL_Dpb_GetNumExistingRef(AL_TDpb* pDpb, TBufferListRef* pListRef)
+int AL_Dpb_GetNumExistingRef(AL_TDpb const* pDpb, TBufferListRef const* pListRef)
 {
   int iNumExisting = 0;
 
   for(int l = 0; l < 2; ++l) // L0/L1
   {
-    TBufferRef* pRef = (*pListRef)[l];
+    TBufferRef const* pRef = (*pListRef)[l];
 
     while(pRef->uNodeID != uEndOfList)
     {

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -476,6 +463,9 @@ AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_TRbspParser* pRP, AL_THevcSps* pSPS)
 
   int sps_id = ue(pRP);
 
+  if(sps_id >= AL_HEVC_MAX_SPS)
+    pSPS->sps_seq_parameter_set_id = AL_SPS_UNKNOWN_ID;
+
   COMPLY(sps_id < AL_HEVC_MAX_SPS);
 
   pSPS->bConceal = true;
@@ -613,6 +603,9 @@ AL_PARSE_RESULT AL_HEVC_ParseSPS(AL_TRbspParser* pRP, AL_THevcSps* pSPS)
     // check if NAL isn't empty
     COMPLY(more_rbsp_data(pRP));
     AL_HEVC_short_term_ref_pic_set(pSPS, i, pRP);
+
+    pSPS->sps_max_dec_pic_buffering_minus1[pSPS->sps_max_sub_layers_minus1] =
+      Max(pSPS->sps_max_dec_pic_buffering_minus1[pSPS->sps_max_sub_layers_minus1], pSPS->NumDeltaPocs[i]);
   }
 
   pSPS->long_term_ref_pics_present_flag = u(pRP, 1);
@@ -727,8 +720,8 @@ void AL_HEVC_short_term_ref_pic_set(AL_THevcSps* pSPS, uint8_t RefIdx, AL_TRbspP
   }
   else
   {
-    pRefPicSet->num_negative_pics = Clip3(ue(pRP), 0, pSPS->sps_max_dec_pic_buffering_minus1[pSPS->sps_max_sub_layers_minus1]);
-    pRefPicSet->num_positive_pics = Clip3(ue(pRP), 0, pSPS->sps_max_dec_pic_buffering_minus1[pSPS->sps_max_sub_layers_minus1]);
+    pRefPicSet->num_negative_pics = ue(pRP);
+    pRefPicSet->num_positive_pics = ue(pRP);
 
     for(uint8_t j = 0; j < pRefPicSet->num_negative_pics; ++j)
     {
@@ -1103,3 +1096,40 @@ bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB
   return true;
 }
 
+/*****************************************************************************/
+AL_TCropInfo AL_HEVC_GetCropInfo(AL_THevcSps const* pSPS)
+{
+  // update cropping information
+  AL_TCropInfo cropInfo =
+  {
+    0
+  };
+  cropInfo.bCropping = pSPS->conformance_window_flag;
+
+  if(pSPS->conformance_window_flag)
+  {
+    if(pSPS->chroma_format_idc == 1 || pSPS->chroma_format_idc == 2)
+    {
+      cropInfo.uCropOffsetLeft += 2 * pSPS->conf_win_left_offset;
+      cropInfo.uCropOffsetRight += 2 * pSPS->conf_win_right_offset;
+    }
+    else
+    {
+      cropInfo.uCropOffsetLeft += pSPS->conf_win_left_offset;
+      cropInfo.uCropOffsetRight += pSPS->conf_win_right_offset;
+    }
+
+    if(pSPS->chroma_format_idc == 1)
+    {
+      cropInfo.uCropOffsetTop += 2 * pSPS->conf_win_top_offset;
+      cropInfo.uCropOffsetBottom += 2 * pSPS->conf_win_bottom_offset;
+    }
+    else
+    {
+      cropInfo.uCropOffsetTop += pSPS->conf_win_top_offset;
+      cropInfo.uCropOffsetBottom += pSPS->conf_win_bottom_offset;
+    }
+  }
+
+  return cropInfo;
+}

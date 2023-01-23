@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -794,3 +781,54 @@ bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB_
   return true;
 }
 
+/*****************************************************************************/
+AL_TCropInfo AL_AVC_GetCropInfo(AL_TAvcSps const* pSPS)
+{
+  AL_TCropInfo tCropInfo = { false, 0, 0, 0, 0 };
+
+  if(!pSPS->frame_cropping_flag)
+    return tCropInfo;
+
+  tCropInfo.bCropping = true;
+
+  int iCropUnitX = 0;
+  int iCropUnitY = 0;
+  switch(pSPS->chroma_format_idc)
+  {
+  case 0:  // monochrome
+    AL_Assert((pSPS->separate_colour_plane_flag == 0) && " pSPS->separate_colour_plane_flag != 0 is not allowed in Monochrome");
+    iCropUnitX = 1;
+    iCropUnitY = 1;
+    break;
+
+  case 1:  // 4:2:0
+    AL_Assert((pSPS->separate_colour_plane_flag == 0) && " pSPS->separate_colour_plane_flag != 0 is not allowed in 4:2:0");
+    iCropUnitX = 2;
+    iCropUnitY = 2;
+    break;
+
+  case 2:  // 4:2:2
+    AL_Assert((pSPS->separate_colour_plane_flag == 0) && " pSPS->separate_colour_plane_flag != 0 is not allowed in 4:2:2");
+    iCropUnitX = 2;
+    iCropUnitY = 1;
+    break;
+
+  case 3:  // 4:4:4
+    iCropUnitX = 1;
+    iCropUnitY = 1;
+    break;
+
+  default:
+    AL_Assert(0 && "invalid pSPS->chroma_format_idc");
+  }
+
+  iCropUnitY *= (2 - pSPS->frame_mbs_only_flag);
+
+  tCropInfo.uCropOffsetLeft = iCropUnitX * pSPS->frame_crop_left_offset;
+  tCropInfo.uCropOffsetRight = iCropUnitX * pSPS->frame_crop_right_offset;
+
+  tCropInfo.uCropOffsetTop = iCropUnitY * pSPS->frame_crop_top_offset;
+  tCropInfo.uCropOffsetBottom = iCropUnitY * pSPS->frame_crop_bottom_offset;
+
+  return tCropInfo;
+}

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,33 +9,19 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
-#include <cassert>
 #include <cstdlib>
 #include <cstdarg>
 #include <cstring>
@@ -45,6 +31,8 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <stdexcept>
+#include <string>
 
 extern "C"
 {
@@ -153,13 +141,18 @@ void WriteOneSection(ofstream& File, AL_TBuffer* pStream, AL_TStreamSection* pCu
 /*****************************************************************************/
 static void FillSectionFillerData(AL_TBuffer* pStream, int iSection, const AL_TEncChanParam* pChannelParam)
 {
-  assert(AL_IS_AVC(pChannelParam->eProfile) || AL_IS_HEVC(pChannelParam->eProfile));
+  (void)pChannelParam;
+
+  if(!AL_IS_AVC(pChannelParam->eProfile) && !AL_IS_HEVC(pChannelParam->eProfile))
+    throw runtime_error("Codec must be either AVC or HEVC");
 
   AL_TStreamMetaData* pStreamMeta = (AL_TStreamMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_STREAM);
   AL_TStreamSection* pSection = &pStreamMeta->pSections[iSection];
 
   uint32_t uLength = pSection->uLength;
-  assert(uLength > 4);
+
+  if(uLength <= 4)
+    throw runtime_error("Section length(" + to_string(uLength) + ") must be higher than 4");
 
   uint8_t* pData = AL_Buffer_GetData(pStream) + pSection->uOffset;
 
@@ -169,7 +162,8 @@ static void FillSectionFillerData(AL_TBuffer* pStream, int iSection, const AL_TE
   if(uLength > 0)
     Rtos_Memset(pData, 0xFF, uLength);
 
-  assert(pData[uLength] == 0x80);
+  if(pData[uLength] != 0x80)
+    throw runtime_error("pData[uLength] must end with 0x80");
 }
 
 /*****************************************************************************/

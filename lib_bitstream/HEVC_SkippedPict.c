@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -247,7 +234,7 @@ int AddAntiEmulSizeInBytes(AL_TBitStreamLite* pBS)
 }
 
 /******************************************************************************/
-bool AL_HEVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iWidth, int iHeight, uint8_t uLog2MaxCuSize, uint8_t uMinCuSize, int iTileColumns, int iTileRows, uint16_t* pTileWidths, uint16_t* pTileHeights)
+bool AL_HEVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iWidth, int iHeight, uint8_t uLog2MaxCuSize, uint8_t uMinCuSize, int iTileColumns, int iTileRows, uint16_t* pTileWidths, uint16_t* pTileHeights, bool bSliceSplit)
 {
   if(!pSkipPict || !pSkipPict->pData)
     return false;
@@ -260,32 +247,52 @@ bool AL_HEVC_GenerateSkippedPicture(AL_TSkippedPicture* pSkipPict, int iWidth, i
   int iTile = 0;
   int H = iHeight;
 
+  AL_TSkippedSlice* pSkippedSlice = NULL;
+
   for(int iTileRow = 0; iTileRow < iTileRows; ++iTileRow)
   {
+    if(bSliceSplit || iTileRow == 0)
+    {
+      pSkippedSlice = &pSkipPict->tSkippedSlice[pSkipPict->iNumSlices];
+      pSkippedSlice->uOffset = BitsToBytes(AL_BitStreamLite_GetBitsCount(&BS));
+      pSkippedSlice->uSize = 0;
+      pSkippedSlice->uNumTiles = 0;
+    }
+
     int W = iWidth;
 
     for(int iTileColumn = 0; iTileColumn < iTileColumns; ++iTileColumn)
     {
-      bool bLastTile = (iTileColumn == (iTileColumns - 1)) && (iTileRow == (iTileRows - 1));
+      bool bLastTile = iTileColumn == (iTileColumns - 1);
+
+      if(!bSliceSplit)
+        bLastTile = bLastTile && (iTileRow == (iTileRows - 1));
+
       uint32_t uTileNumLCU = pTileWidths[iTileColumn] * pTileHeights[iTileRow];
       int iTileWidth = Min(pTileWidths[iTileColumn] << uLog2MaxCuSize, W);
       int iTileHeight = Min(pTileHeights[iTileRow] << uLog2MaxCuSize, H);
       iBinsCount = AL_sHEVC_GenerateSkippedTileCabac(&BS, bLastTile, iTileWidth, iTileHeight, uLog2MaxCuSize, uMinCuSize, uTileNumLCU);
+
       int iBitsCount = AL_BitStreamLite_GetBitsCount(&BS) + BytesToBits(AddAntiEmulSizeInBytes(&BS));
-
       AL_Assert(((iBitsCount - iPrevBitsCount) % 8) == 0);
-
       pSkipPict->uTileSizes[iTile++] = BitsToBytes(iBitsCount - iPrevBitsCount);
       iPrevBitsCount = iBitsCount;
+
+      pSkippedSlice->uNumTiles++;
+
       W -= (pTileWidths[iTileColumn] << uLog2MaxCuSize);
+    }
+
+    if(bSliceSplit || iTileRow == (iTileRows - 1))
+    {
+      pSkippedSlice->uSize = BitsToBytes(AL_BitStreamLite_GetBitsCount(&BS)) - pSkippedSlice->uOffset;
+      pSkipPict->iNumSlices++;
     }
 
     H -= (pTileHeights[iTileRow] << uLog2MaxCuSize);
   }
 
-  pSkipPict->iNumBits = AL_BitStreamLite_GetBitsCount(&BS);
   pSkipPict->iNumBins = iBinsCount;
-  pSkipPict->iNumTiles = iTileColumns * iTileRows;
 
   AL_BitStreamLite_Deinit(&BS);
 

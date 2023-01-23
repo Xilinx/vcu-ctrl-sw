@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -53,12 +40,12 @@ typedef struct AL_TDecoderFeederS
   AL_HANDLE hDec;
   AL_TPatchworker* patchworker;
   /* set when the slave thread might have work to do */
-  AL_EVENT incomingWorkEvent;
+  AL_SEMAPHORE incomingWorkSem;
 
   AL_THREAD slave;
   AL_TBuffer* startCodeStreamView;
-  int32_t keepGoing;
-  bool stopped;
+  Rtos_AtomicInt keepGoing;
+  bool decoderHasBeenFlushed;
   bool endWithAccessUnit;
 }AL_TDecoderFeeder;
 
@@ -73,7 +60,7 @@ static bool CircBuffer_IsFull(AL_TBuffer* pBuf)
 
 static bool shouldKeepGoing(AL_TDecoderFeeder* slave)
 {
-  int32_t keepGoing = Rtos_AtomicDecrement(&slave->keepGoing);
+  Rtos_AtomicInt keepGoing = Rtos_AtomicDecrement(&slave->keepGoing);
   Rtos_AtomicIncrement(&slave->keepGoing);
   return keepGoing >= 0 || !slave->endWithAccessUnit;
 }
@@ -81,6 +68,7 @@ static bool shouldKeepGoing(AL_TDecoderFeeder* slave)
 static bool Slave_Process(DecoderFeederSlave* slave, AL_TBuffer* startCodeStreamView)
 {
   AL_HANDLE hDec = slave->hDec;
+  bool bIsIncomingWorkSignaled = false;
 
   uint32_t uNewOffset = AL_Decoder_GetDecodedStrOffset(hDec);
 
@@ -89,23 +77,31 @@ static bool Slave_Process(DecoderFeederSlave* slave, AL_TBuffer* startCodeStream
   uint32_t uTransferedBytes = AL_Patchworker_Transfer(slave->patchworker);
 
   if(uTransferedBytes)
-    Rtos_SetEvent(slave->incomingWorkEvent);
+  {
+    bIsIncomingWorkSignaled = true;
+    Rtos_ReleaseSemaphore(slave->incomingWorkSem);
+  }
 
   AL_TCircMetaData* pMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(startCodeStreamView, AL_META_TYPE_CIRCULAR);
   pMeta->iAvailSize += uTransferedBytes;
   pMeta->bLastBuffer = AL_Patchworker_IsAllDataTransfered(slave->patchworker);
 
   // Decode
-  UNIT_ERROR eErr = AL_Decoder_TryDecodeOneUnit(hDec, startCodeStreamView);
+  UNIT_ERROR const eErr = AL_Decoder_TryDecodeOneUnit(hDec, startCodeStreamView);
 
   if(eErr == ERR_UNIT_INVALID_CHANNEL || eErr == ERR_UNIT_DYNAMIC_ALLOC)
     return false;
 
   if(eErr == SUCCESS_ACCESS_UNIT || eErr == SUCCESS_NAL_UNIT)
   {
-    slave->stopped = false;
+    slave->decoderHasBeenFlushed = false;
     slave->endWithAccessUnit = (eErr == SUCCESS_ACCESS_UNIT);
-    Rtos_SetEvent(slave->incomingWorkEvent);
+
+    if(!bIsIncomingWorkSignaled)
+    {
+      bIsIncomingWorkSignaled = true;
+      Rtos_ReleaseSemaphore(slave->incomingWorkSem);
+    }
   }
 
   if(eErr == ERR_UNIT_NOT_FOUND)
@@ -130,14 +126,18 @@ static bool Slave_Process(DecoderFeederSlave* slave, AL_TBuffer* startCodeStream
         }
       }
 
-      Rtos_SetEvent(slave->incomingWorkEvent);
+      if(!bIsIncomingWorkSignaled)
+      {
+        bIsIncomingWorkSignaled = true;
+        Rtos_ReleaseSemaphore(slave->incomingWorkSem);
+      }
     }
 
     // Leave when end of input [all the data were processed in the previous TryDecodeOneUnit]
     if(AL_Patchworker_IsAllDataTransfered(slave->patchworker))
     {
       AL_Decoder_InternalFlush(slave->hDec);
-      slave->stopped = true;
+      slave->decoderHasBeenFlushed = true;
     }
   }
 
@@ -151,11 +151,22 @@ static void* Slave_EntryPoint(void* userParam)
 
   while(1)
   {
-    Rtos_WaitEvent(slave->incomingWorkEvent, AL_WAIT_FOREVER);
+    Rtos_GetSemaphore(slave->incomingWorkSem, AL_WAIT_FOREVER);
 
     if(!shouldKeepGoing(slave))
     {
-      if(!slave->stopped)
+      while(Rtos_GetSemaphore(slave->incomingWorkSem, AL_NO_WAIT))
+      {
+        bool bRet = Slave_Process(slave, slave->startCodeStreamView);
+
+        if(!bRet)
+        {
+          Rtos_Log(AL_LOG_CRITICAL, "Slave_Process returned error.\n");
+          break;
+        }
+      }
+
+      if(!slave->decoderHasBeenFlushed)
         AL_Decoder_InternalFlush(slave->hDec);
       break;
     }
@@ -163,7 +174,10 @@ static void* Slave_EntryPoint(void* userParam)
     bool bRet = Slave_Process(slave, slave->startCodeStreamView);
 
     if(!bRet)
+    {
+      Rtos_Log(AL_LOG_CRITICAL, "Slave_Process returned error. Exiting thread.\n");
       break; // exit thread
+    }
   }
 
   return NULL;
@@ -184,7 +198,7 @@ static void DestroySlave(AL_TDecoderFeeder* this)
     return;
 
   Rtos_AtomicDecrement(&this->keepGoing); /* Will be propagated to the slave */
-  Rtos_SetEvent(this->incomingWorkEvent);
+  Rtos_ReleaseSemaphore(this->incomingWorkSem);
 
   Rtos_JoinThread(this->slave);
   Rtos_DeleteThread(this->slave);
@@ -195,14 +209,14 @@ void AL_DecoderFeeder_Destroy(AL_TDecoderFeeder* this)
   if(!this)
     return;
   DestroySlave(this);
-  Rtos_DeleteEvent(this->incomingWorkEvent);
+  Rtos_DeleteSemaphore(this->incomingWorkSem);
   AL_Buffer_Destroy(this->startCodeStreamView);
   Rtos_Free(this);
 }
 
 void AL_DecoderFeeder_Process(AL_TDecoderFeeder* this)
 {
-  Rtos_SetEvent(this->incomingWorkEvent);
+  Rtos_ReleaseSemaphore(this->incomingWorkSem);
 }
 
 void AL_DecoderFeeder_Reset(AL_TDecoderFeeder* this)
@@ -235,13 +249,13 @@ AL_TDecoderFeeder* AL_DecoderFeeder_Create(AL_TBuffer* stream, AL_HANDLE hDec, A
     goto fail_;
   }
 
-  this->incomingWorkEvent = Rtos_CreateEvent(false);
+  this->incomingWorkSem = Rtos_CreateSemaphore(0);
 
-  if(!this->incomingWorkEvent)
+  if(!this->incomingWorkSem)
     goto fail_;
 
   this->keepGoing = 1;
-  this->stopped = true;
+  this->decoderHasBeenFlushed = false;
   this->endWithAccessUnit = true;
   this->hDec = hDec;
 
@@ -251,7 +265,7 @@ AL_TDecoderFeeder* AL_DecoderFeeder_Create(AL_TBuffer* stream, AL_HANDLE hDec, A
   return this;
 
   cleanup:
-  Rtos_DeleteEvent(this->incomingWorkEvent);
+  Rtos_DeleteSemaphore(this->incomingWorkSem);
   fail_:
   Rtos_Free(this);
   return NULL;

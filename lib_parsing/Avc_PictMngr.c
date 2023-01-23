@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -44,12 +31,13 @@
  *****************************************************************************/
 
 #include "Avc_PictMngr.h"
+#include "AvcParser.h"
 #include "lib_common/PixMapBuffer.h"
 #include "lib_common/BufferPixMapMeta.h"
 #include "lib_common/AvcUtils.h"
 
 /*****************************************************************************/
-static void AL_sGetPocType0(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
+static void AL_sGetPocType0(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr const* pSlice)
 {
   int iPrevPocMSB = 0;
   uint32_t uPrevPocLSB = 0;
@@ -89,7 +77,7 @@ static void AL_sGetPocType0(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 }
 
 /*****************************************************************************/
-static void AL_sGetPocType1(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
+static void AL_sGetPocType1(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr const* pSlice)
 {
   int iExpectedDeltaPerPicOrderCntCycle = 0;
   bool bIsIDR = AL_AVC_IsIDR(pSlice->nal_unit_type);
@@ -147,7 +135,7 @@ static void AL_sGetPocType1(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 }
 
 /*****************************************************************************/
-static void AL_sGetPocType2(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
+static void AL_sGetPocType2(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr const* pSlice)
 {
   bool bIsIDR = AL_AVC_IsIDR(pSlice->nal_unit_type);
 
@@ -186,12 +174,12 @@ static void AL_sGetPocType2(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 }
 
 /*****************************************************************************/
-static void AL_AVC_sFillWPCoeff(AL_VADDR pDataWP, AL_TAvcSliceHdr* pSlice, uint8_t uL0L1)
+static void AL_AVC_sFillWPCoeff(AL_VADDR pDataWP, AL_TAvcSliceHdr const* pSlice, uint8_t uL0L1)
 {
   uint8_t uNumRefIdx = (uL0L1 ? pSlice->num_ref_idx_l1_active_minus1 : pSlice->num_ref_idx_l0_active_minus1) + 1;
   uint32_t* pWP = (uint32_t*)(pDataWP + (uL0L1 * WP_ONE_SET_SIZE));
 
-  AL_TWPCoeff* pWpCoeff = &pSlice->pred_weight_table.tWpCoeff[uL0L1];
+  AL_TWPCoeff const* pWpCoeff = &pSlice->pred_weight_table.tWpCoeff[uL0L1];
 
   for(int i = 0; i < uNumRefIdx; ++i)
   {
@@ -212,7 +200,7 @@ static void AL_AVC_sFillWPCoeff(AL_VADDR pDataWP, AL_TAvcSliceHdr* pSlice, uint8
 }
 
 /*****************************************************************************/
-static void AL_sBuildWPCoeff(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice, TBuffer* pWP)
+static void AL_sBuildWPCoeff(AL_TPictMngrCtx const* pCtx, AL_TAvcSliceHdr const* pSlice, TBuffer* pWP)
 {
   AL_VADDR pDataWP = pWP->tMD.pVirtualAddr + (pCtx->uNumSlice * WP_SLICE_SIZE);
   Rtos_Memset(pDataWP, 0, WP_SLICE_SIZE);
@@ -229,7 +217,7 @@ static void AL_sBuildWPCoeff(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice, TBu
 }
 
 /*****************************************************************************/
-static int32_t AL_sCalculatePOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
+static int32_t AL_sCalculatePOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr const* pSlice)
 {
   switch(pSlice->pSPS->pic_order_cnt_type)
   {
@@ -254,7 +242,7 @@ static int32_t AL_sCalculatePOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 }
 
 /*****************************************************************************/
-void AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
+void AL_AVC_PictMngr_SetCurrentPOC(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr const* pSlice)
 {
   int32_t iCurPoc = AL_sCalculatePOC(pCtx, pSlice);
 
@@ -270,38 +258,7 @@ void AL_AVC_PictMngr_SetCurrentPicStruct(AL_TPictMngrCtx* pCtx, AL_EPicStruct eP
 /*****************************************************************************/
 void AL_AVC_PictMngr_UpdateRecInfo(AL_TPictMngrCtx* pCtx, AL_TAvcSps const* pSPS, AL_EPicStruct ePicStruct)
 {
-  // update cropping information
-  AL_TCropInfo cropInfo =
-  {
-    0
-  };
-  cropInfo.bCropping = pSPS->frame_cropping_flag;
-
-  if(pSPS->frame_cropping_flag)
-  {
-    if(pSPS->chroma_format_idc == 1 || pSPS->chroma_format_idc == 2)
-    {
-      cropInfo.uCropOffsetLeft += 2 * pSPS->frame_crop_left_offset;
-      cropInfo.uCropOffsetRight += 2 * pSPS->frame_crop_right_offset;
-    }
-    else
-    {
-      cropInfo.uCropOffsetLeft += pSPS->frame_crop_left_offset;
-      cropInfo.uCropOffsetRight += pSPS->frame_crop_right_offset;
-    }
-
-    if(pSPS->chroma_format_idc == 1)
-    {
-      cropInfo.uCropOffsetTop += 2 * pSPS->frame_crop_top_offset;
-      cropInfo.uCropOffsetBottom += 2 * pSPS->frame_crop_bottom_offset;
-    }
-    else
-    {
-      cropInfo.uCropOffsetTop += pSPS->frame_crop_top_offset;
-      cropInfo.uCropOffsetBottom += pSPS->frame_crop_bottom_offset;
-    }
-  }
-
+  AL_TCropInfo cropInfo = AL_AVC_GetCropInfo(pSPS);
   AL_PictMngr_UpdateDisplayBufferCrop(pCtx, pCtx->uRecID, cropInfo);
   AL_PictMngr_UpdateDisplayBufferPicStruct(pCtx, pCtx->uRecID, ePicStruct);
 }
@@ -345,7 +302,7 @@ void AL_AVC_PictMngr_CleanDPB(AL_TPictMngrCtx* pCtx)
 }
 
 /***************************************************************************/
-bool AL_AVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam* pSP, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef, TBuffer* pListVirtAddr, TBuffer* pListAddr, TBufferPOC* pPOC, TBufferMV* pMV, TBuffer* pWP, AL_TRecBuffers* pRecs)
+bool AL_AVC_PictMngr_GetBuffers(AL_TPictMngrCtx const* pCtx, AL_TDecSliceParam const* pSP, AL_TAvcSliceHdr const* pSlice, TBufferListRef const* pListRef, TBuffer* pListVirtAddr, TBuffer* pListAddr, TBufferPOC* pPOC, TBufferMV* pMV, TBuffer* pWP, AL_TRecBuffers* pRecs)
 {
   if(!AL_PictMngr_GetBuffers(pCtx, pSP, pListRef, pListVirtAddr, pListAddr, pPOC, pMV, pRecs))
     return false;
@@ -357,7 +314,7 @@ bool AL_AVC_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam* pSP, A
 }
 
 /*****************************************************************************/
-void AL_AVC_PictMngr_Fill_Gap_In_FrameNum(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice)
+void AL_AVC_PictMngr_Fill_Gap_In_FrameNum(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr const* pSlice)
 {
   uint32_t uMaxFrameNum = 1 << (pSlice->pSPS->log2_max_frame_num_minus4 + 4);
 
@@ -391,7 +348,7 @@ void AL_AVC_PictMngr_Fill_Gap_In_FrameNum(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr
 }
 
 /*****************************************************************************/
-void AL_AVC_PictMngr_InitPictList(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef)
+void AL_AVC_PictMngr_InitPictList(AL_TPictMngrCtx const* pCtx, AL_TAvcSliceHdr const* pSlice, TBufferListRef* pListRef)
 {
   for(uint8_t uRef = 0; uRef < MAX_REF; ++uRef)
   {
@@ -406,7 +363,7 @@ void AL_AVC_PictMngr_InitPictList(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice
 }
 
 /*****************************************************************************/
-void AL_AVC_PictMngr_ReorderPictList(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSlice, TBufferListRef* pListRef)
+void AL_AVC_PictMngr_ReorderPictList(AL_TPictMngrCtx const* pCtx, AL_TAvcSliceHdr const* pSlice, TBufferListRef* pListRef)
 {
   int iPicNumPred = pSlice->frame_num * (1 + pSlice->field_pic_flag) + pSlice->field_pic_flag;
 
@@ -464,7 +421,7 @@ void AL_AVC_PictMngr_ReorderPictList(AL_TPictMngrCtx* pCtx, AL_TAvcSliceHdr* pSl
 }
 
 /*****************************************************************************/
-int AL_AVC_PictMngr_GetNumExistingRef(AL_TPictMngrCtx* pCtx, TBufferListRef* pListRef)
+int AL_AVC_PictMngr_GetNumExistingRef(AL_TPictMngrCtx const* pCtx, TBufferListRef const* pListRef)
 {
   return AL_Dpb_GetNumExistingRef(&pCtx->DPB, pListRef);
 }

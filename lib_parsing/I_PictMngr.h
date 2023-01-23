@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -46,6 +33,7 @@
 
 #include "lib_common/BufferAPI.h"
 #include "lib_common/SliceHeader.h"
+#include "lib_common/Error.h"
 
 #include "lib_common_dec/DecSliceParam.h"
 #include "lib_common_dec/DecInfo.h"
@@ -238,21 +226,21 @@ void AL_PictMngr_UnlockRefID(AL_TPictMngrCtx* pCtx, uint8_t uNumRef, uint8_t* pR
    \param[in] pCtx Pointer to a Picture manager context object
    \return return the current decoded frame identifier
 *****************************************************************************/
-uint8_t AL_PictMngr_GetCurrentFrmID(AL_TPictMngrCtx* pCtx);
+uint8_t AL_PictMngr_GetCurrentFrmID(AL_TPictMngrCtx const* pCtx);
 
 /*************************************************************************//*!
    \brief Retrieves the current decoded frame's motion-vectors buffer identifier
    \param[in] pCtx Pointer to a Picture manager context object
    \return return the current decoded frame's motion-vectors buffer identifier
 *****************************************************************************/
-uint8_t AL_PictMngr_GetCurrentMvID(AL_TPictMngrCtx* pCtx);
+uint8_t AL_PictMngr_GetCurrentMvID(AL_TPictMngrCtx const* pCtx);
 
 /*************************************************************************//*!
    \brief Retrieves the POC of the current decoded frame
    \param[in] pCtx Pointer to a Picture manager context object
    \return return the POC value of the current decoded frame
 *****************************************************************************/
-int32_t AL_PictMngr_GetCurrentPOC(AL_TPictMngrCtx* pCtx);
+int32_t AL_PictMngr_GetCurrentPOC(AL_TPictMngrCtx const* pCtx);
 
 /*************************************************************************//*!
    \brief This function prepares the Picture Manager context to new frame
@@ -291,7 +279,7 @@ void AL_PictMngr_UpdateDPBInfo(AL_TPictMngrCtx* pCtx, uint8_t uMaxRef);
    \return returns the Pic ID of the last inserted frame
         0xFF if the DPB is empty
 *****************************************************************************/
-uint8_t AL_PictMngr_GetLastPicID(AL_TPictMngrCtx* pCtx);
+uint8_t AL_PictMngr_GetLastPicID(AL_TPictMngrCtx const* pCtx);
 
 /*************************************************************************//*!
    \brief This function insert a decoded frame into the DPB
@@ -324,7 +312,7 @@ void AL_PictMngr_EndDecoding(AL_TPictMngrCtx* pCtx, int iFrameID);
    \return Pointer on the picture buffer to be displayed if it exists
    NULL otherwise
 *****************************************************************************/
-AL_TBuffer* AL_PictMngr_GetDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo, bool* pStartsNewCVS);
+AL_TBuffer* AL_PictMngr_GetDisplayBuffer(AL_TPictMngrCtx const* pCtx, AL_TInfoDecode* pInfo, bool* pStartsNewCVS);
 AL_TBuffer* AL_PictMngr_ForceDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode* pInfo, bool* pStartsNewCVS, int iFrameID);
 
 /*************************************************************************//*!
@@ -341,7 +329,7 @@ bool AL_PictMngr_PutDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TBuffer* pBuf);
    \param[in]  iFrameID  Frame ID
    \return Picture buffer's pointer
 *****************************************************************************/
-AL_TBuffer* AL_PictMngr_GetDisplayBufferFromID(AL_TPictMngrCtx* pCtx, int iFrameID);
+AL_TBuffer* AL_PictMngr_GetDisplayBufferFromID(AL_TPictMngrCtx const* pCtx, int iFrameID);
 
 /*************************************************************************//*!
    \brief This function returns the reconstructed picture buffer associated to iFrameID
@@ -349,7 +337,7 @@ AL_TBuffer* AL_PictMngr_GetDisplayBufferFromID(AL_TPictMngrCtx* pCtx, int iFrame
    \param[in]  iFrameID  Frame ID
    \return Picture buffer's pointer
 *****************************************************************************/
-AL_TBuffer* AL_PictMngr_GetRecBufferFromID(AL_TPictMngrCtx* pCtx, int iFrameID);
+AL_TBuffer* AL_PictMngr_GetRecBufferFromID(AL_TPictMngrCtx const* pCtx, int iFrameID);
 
 /*************************************************************************//*!
    \brief This function returns the reconstructed picture buffer associated to a displayed buffer
@@ -358,7 +346,7 @@ AL_TBuffer* AL_PictMngr_GetRecBufferFromID(AL_TPictMngrCtx* pCtx, int iFrameID);
    \param[out] pInfo     Pointer to retrieve information about the decoded frame
    \return Reconstructed picture buffer's pointer
 *****************************************************************************/
-AL_TBuffer* AL_PictMngr_GetRecBufferFromDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TBuffer* pDisplayBuf, AL_TInfoDecode* pInfo);
+AL_TBuffer* AL_PictMngr_GetRecBufferFromDisplayBuffer(AL_TPictMngrCtx const* pCtx, AL_TBuffer const* pDisplayBuf, AL_TInfoDecode* pInfo);
 
 /*************************************************************************//*!
    \brief This function returns the encoding error status associated to a display or rec buffer
@@ -367,7 +355,7 @@ AL_TBuffer* AL_PictMngr_GetRecBufferFromDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_
    \param[out] pError    Pointer to the error status
    \return true if error status found, false if pointer to buffer not found
 *****************************************************************************/
-bool AL_PictMngr_GetFrameEncodingError(AL_TPictMngrCtx* pCtx, AL_TBuffer* pBuf, AL_ERR* pError);
+bool AL_PictMngr_GetFrameEncodingError(AL_TPictMngrCtx const* pCtx, AL_TBuffer const* pBuf, AL_ERR* pError);
 
 void AL_PictMngr_UpdateDisplayBufferCRC(AL_TPictMngrCtx* pCtx, int iFrameID, uint32_t uCRC);
 void AL_PictMngr_UpdateDisplayBufferCrop(AL_TPictMngrCtx* pCtx, int iFrameID, AL_TCropInfo tCrop);
@@ -380,7 +368,7 @@ void AL_PictMngr_DecommitPool(AL_TPictMngrCtx* pCtx);
 void AL_PictMngr_UnlockID(AL_TPictMngrCtx* pCtx, int iFrameID, int iMotionVectorID);
 
 /*****************************************************************************/
-bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam const* pSP, TBufferListRef* pListRef, TBuffer* pListVirtAddr, TBuffer* pListAddr, TBufferPOC* pPOC, TBufferMV* pMV, AL_TRecBuffers* pRecs);
+bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx const* pCtx, AL_TDecSliceParam const* pSP, TBufferListRef const* pListRef, TBuffer* pListVirtAddr, TBuffer* pListAddr, TBufferPOC* pPOC, TBufferMV* pMV, AL_TRecBuffers* pRecs);
 
 /*@}*/
 

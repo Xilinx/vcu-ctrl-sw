@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -45,7 +32,10 @@
 
 #pragma once
 
+#include "I_DecSchedulerInfo.h"
+
 #include "lib_rtos/types.h"
+#include "lib_common/Error.h"
 
 #include "lib_common/MemDesc.h"
 
@@ -64,13 +54,13 @@ typedef struct
 /****************************************************************************/
 typedef struct
 {
-  void (* func)(void* pUserParam, AL_TDecPicStatus* pPicStatus);
+  void (* func)(void* pUserParam, AL_TDecPicStatus const* pPicStatus);
   void* userParam;
 }AL_TDecScheduler_CB_EndDecoding;
 
 typedef struct
 {
-  void (* func)(void* pUserParam, AL_TScStatus* pScdStatus);
+  void (* func)(void* pUserParam, AL_TScStatus const* pScdStatus);
   void* userParam;
 }AL_TDecScheduler_CB_EndStartCode;
 
@@ -100,7 +90,8 @@ typedef struct AL_i_DecSchedulerVtable
   void (* SearchSC)(AL_IDecScheduler* pScheduler, AL_HANDLE hStartCodeChannel, AL_TScParam* pScParam, AL_TScBufferAddrs* pBufferAddrs, AL_TDecScheduler_CB_EndStartCode callback);
   void (* DecodeOneFrame)(AL_IDecScheduler* pScheduler, AL_HANDLE hChannel, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* pSliceParams);
   void (* DecodeOneSlice)(AL_IDecScheduler* pScheduler, AL_HANDLE hChannel, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* pSliceParams);
-
+  void (* Get)(AL_IDecScheduler const* pScheduler, AL_EIDecSchedulerInfo info, void* pParam);
+  void (* Set)(AL_IDecScheduler* pScheduler, AL_EIDecSchedulerInfo info, void const* pParam);
 }AL_IDecSchedulerVtable;
 
 /*************************************************************************//*!
@@ -207,6 +198,18 @@ static inline
 void AL_IDecScheduler_DecodeOneSlice(AL_IDecScheduler* pThis, AL_HANDLE hChannel, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* pSliceParams)
 {
   pThis->vtable->DecodeOneSlice(pThis, hChannel, pPictParam, pPictAddrs, pSliceParams);
+}
+
+static inline
+void AL_IDecScheduler_Get(AL_IDecScheduler const* pThis, AL_EIDecSchedulerInfo eInfo, void* pParam)
+{
+  pThis->vtable->Get(pThis, eInfo, pParam);
+}
+
+static inline
+void AL_IDecScheduler_Set(AL_IDecScheduler* pThis, AL_EIDecSchedulerInfo eInfo, void const* pParam)
+{
+  pThis->vtable->Set(pThis, eInfo, pParam);
 }
 
 /*@}*/

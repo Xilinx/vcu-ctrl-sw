@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -281,19 +268,19 @@ static inline uint32_t AL_GetNumberOfRef(uint32_t HlsParam)
 typedef enum __AL_ALIGNED__ (4) AL_e_ChEncOptions
 {
   AL_OPT_NONE = 0x00000000,
-  AL_OPT_QP_TAB_RELATIVE = 0x00000001,
-  AL_OPT_FIX_PREDICTOR = 0x00000002,
-  AL_OPT_CUSTOM_LDA = 0x00000004,
-  AL_OPT_ENABLE_AUTO_QP = 0x00000008,
-  AL_OPT_ADAPT_AUTO_QP = 0x00000010,
-  AL_OPT_FORCE_REC = 0x00000040,
-  AL_OPT_FORCE_MV_OUT = 0x00000080,
-  AL_OPT_LOWLAT_SYNC = 0x00000100,
-  AL_OPT_LOWLAT_INT = 0x00000200,
-  AL_OPT_HIGH_FREQ = 0x00002000,
-  AL_OPT_SCENE_CHANGE_DETECTION = 0x00004000,
-  AL_OPT_FORCE_MV_CLIP = 0x00020000,
-  AL_OPT_RDO_COST_MODE = 0x00040000,
+  AL_OPT_QP_TAB_RELATIVE = 0x00000001, /*!< External QP tables provide relative delta-QPs to add for each block on top of the frame-QP */
+  AL_OPT_FIX_PREDICTOR = 0x00000002, /*!< Validation option: always centers the motion estimation window on the current LCU position */
+  AL_OPT_CUSTOM_LDA = 0x00000004, /*!< INTERNAL PARAMETER - Do not tune */
+  AL_OPT_ENABLE_AUTO_QP = 0x00000008, /*!< On each block, adapt the block-QP according to the block complexity, using static complexity thresholds */
+  AL_OPT_ADAPT_AUTO_QP = 0x00000010, /*!< Complexity thresholds of Auto-QP are adjusted during stream encoding, depending on past frame complexities */
+  AL_OPT_FORCE_REC = 0x00000040, /*!< Force reconstructed buffers to be outputed by HW even if not used as a reference later. Necessary to get the reconstructed YUV stream. */
+  AL_OPT_FORCE_MV_OUT = 0x00000080, /*!< Force motion vector buffers to be outputed by HW */
+  AL_OPT_LOWLAT_SYNC = 0x00000100, /*!< Special synchronization mode for AVC low latency encoding */
+  AL_OPT_LOWLAT_INT = 0x00000200, /*!< Special mode for sub-frame latency encoding. You get an interrupt on each slice instead of on each frame. */
+  AL_OPT_HIGH_FREQ = 0x00002000,  /*!< DEPRECATED */
+  AL_OPT_SCENE_CHANGE_DETECTION = 0x00004000, /*!< Scene change detection based on a lookahead encoding */
+  AL_OPT_FORCE_MV_CLIP = 0x00020000, /*!< Forces motion vector clipping in ranges specified in channel parameters */
+  AL_OPT_RDO_COST_MODE = 0x00040000, /*!< Reinforces the influence of the chrominance in the RDO choice */
 } AL_EChEncOption;
 
 /*************************************************************************//*!
@@ -301,14 +288,14 @@ typedef enum __AL_ALIGNED__ (4) AL_e_ChEncOptions
 *****************************************************************************/
 typedef enum __AL_ALIGNED__ (4) AL_e_ChEncTools
 {
-  AL_OPT_WPP = 0x00000001,
-  AL_OPT_TILE = 0x00000002,
-  AL_OPT_LF = 0x00000004,
-  AL_OPT_LF_X_SLICE = 0x00000008,
-  AL_OPT_LF_X_TILE = 0x00000010,
-  AL_OPT_SCL_LST = 0x00000020,
-  AL_OPT_CONST_INTRA_PRED = 0x00000040,
-  AL_OPT_TRANSFO_SKIP = 0x00000080,
+  AL_OPT_WPP = 0x00000001, /*!< DEPRECATED */
+  AL_OPT_TILE = 0x00000002, /*!< INTERNAL PARAMETER - Do not tune */
+  AL_OPT_LF = 0x00000004, /*!< Enables loop filter */
+  AL_OPT_LF_X_SLICE = 0x00000008, /*!< Enables loop filter across slices */
+  AL_OPT_LF_X_TILE = 0x00000010, /*!< Enables loop filter across tiles */
+  AL_OPT_SCL_LST = 0x00000020, /*!< INTERNAL PARAMETER - Do not tune */
+  AL_OPT_CONST_INTRA_PRED = 0x00000040, /*!< Specifies the value of constrained_intra_pred_flag syntax element */
+  AL_OPT_TRANSFO_SKIP = 0x00000080, /*!< Enables the transform skip encoding mode */
 } AL_EChEncTool;
 
 /*************************************************************************//*!
@@ -524,6 +511,8 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   uint32_t uSpsParam;
   uint32_t uPpsParam;
 
+  bool bForcePpsIdToZero;
+
   /* Encoding tools parameters */
   AL_EChEncOption eEncOptions;
   AL_EChEncTool eEncTools;
@@ -534,6 +523,9 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   int8_t iCrSliceQpOffset;
   int8_t iCbPicQpOffset;
   int8_t iCrPicQpOffset;
+
+  uint8_t WeightedPred; // unused for encoder yet
+  bool Direct8x8Infer;
 
   uint8_t uCuQPDeltaDepth;
   uint8_t uCabacInitIdc;
@@ -558,6 +550,7 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   uint8_t uLog2MinTuSize;
   uint8_t uMaxTransfoDepthIntra;
   uint8_t uMaxTransfoDepthInter;
+  bool StrongIntraSmooth; // HEVC only
 
   AL_EEntropyMode eEntropyMode;
 
@@ -599,7 +592,8 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
 /****************************************************************************/
 static inline bool AL_IS_CBR(AL_ERateCtrlMode eRcMode)
 {
-  return eRcMode == AL_RC_CBR;
+  bool bIsCbr = eRcMode == AL_RC_CBR;
+  return bIsCbr;
 }
 
 /*@}*/

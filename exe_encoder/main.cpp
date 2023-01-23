@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,34 +9,20 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
 #include <climits>
-#include <cassert>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -70,7 +56,6 @@
 #include "lib_app/plateform.h"
 #include "lib_app/YuvIO.h"
 #include "lib_app/NonCompFrameReader.h"
-#include "lib_assert/al_assert.h"
 
 #include "CodecUtils.h"
 #include "sink.h"
@@ -600,7 +585,9 @@ bool ReadSourceFrameBuffer(AL_TBuffer* pBuffer, AL_TBuffer* conversionBuffer, un
 shared_ptr<AL_TBuffer> ReadSourceFrame(BaseBufPool* pBufPool, AL_TBuffer* conversionBuffer, unique_ptr<FrameReader> const& frameReader, AL_TDimension tUpdatedDim, uint8_t uSrcBitDepth, IConvSrc* hConv)
 {
   shared_ptr<AL_TBuffer> sourceBuffer(pBufPool->GetBuffer(), &AL_Buffer_Unref);
-  assert(sourceBuffer);
+
+  if(sourceBuffer == nullptr)
+    throw runtime_error("sourceBuffer must exist");
 
   if(!ReadSourceFrameBuffer(sourceBuffer.get(), conversionBuffer, frameReader, tUpdatedDim, uSrcBitDepth, hConv))
     return nullptr;
@@ -631,7 +618,8 @@ static int ComputeYPitch(int iWidth, const AL_TPicFormat& tPicFormat)
 
   if(g_Stride != -1)
   {
-    assert(g_Stride >= iPitch);
+    if(g_Stride < iPitch)
+      throw runtime_error("g_Stride(" + to_string(g_Stride) + ") must be higher or equal than iPitch(" + to_string(iPitch) + ")");
     iPitch = g_Stride;
   }
   return iPitch;
@@ -776,18 +764,29 @@ static uint8_t GetNumBufForGop(AL_TEncSettings Settings)
 }
 
 /*****************************************************************************/
-static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, int iLayerID)
+static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, int iLayerID, uint8_t uNumCore, int iForcedStreamBufferSize)
 {
-  int smoothingStream = 2;
+  (void)uNumCore;
+
+  int numStreams;
 
   AL_TDimension dim = { Settings.tChParam[iLayerID].uEncWidth, Settings.tChParam[iLayerID].uEncHeight };
-  uint64_t streamSize = AL_GetMitigatedMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat));
-  bool bIsXAVCIntraCBG = AL_IS_XAVC_CBG(Settings.tChParam[0].eProfile) && AL_IS_INTRA_PROFILE(Settings.tChParam[0].eProfile);
+  uint64_t streamSize = iForcedStreamBufferSize;
 
-  if(bIsXAVCIntraCBG)
-    streamSize = AL_GetMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat), Settings.tChParam[0].eProfile, Settings.tChParam[0].uLevel);
+  if(streamSize == 0)
+  {
+    streamSize = AL_GetMitigatedMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat));
 
-  auto numStreams = g_defaultMinBuffers + smoothingStream + GetNumBufForGop(Settings);
+    bool bIsXAVCIntraCBG = AL_IS_XAVC_CBG(Settings.tChParam[0].eProfile) && AL_IS_INTRA_PROFILE(Settings.tChParam[0].eProfile);
+
+    if(bIsXAVCIntraCBG)
+      streamSize = AL_GetMaxNalSize(dim, AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat), AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat), Settings.tChParam[0].eProfile, Settings.tChParam[0].uLevel);
+  }
+
+  {
+    static const int smoothingStream = 2;
+    numStreams = g_defaultMinBuffers + smoothingStream + GetNumBufForGop(Settings);
+  }
 
   bool bHasLookAhead;
   bHasLookAhead = AL_TwoPassMngr_HasLookAhead(Settings);
@@ -819,7 +818,8 @@ static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, int i
     }
   }
 
-  assert(streamSize <= INT32_MAX);
+  if(streamSize > INT32_MAX)
+    throw runtime_error("streamSize(" + to_string(streamSize) + ") must be lower or equal than INT32_MAX(" + to_string(INT32_MAX) + ")");
 
   AL_TMetaData* pMetaData = (AL_TMetaData*)AL_StreamMetaData_Create(AL_MAX_SECTION);
   return GetBufPoolConfig("stream", pMetaData, streamSize, numStreams);
@@ -838,7 +838,7 @@ static TFrameInfo GetFrameInfo(AL_TEncChanParam& tChParam)
 }
 
 /*****************************************************************************/
-static void InitSrcBufPool(PixMapBufPool& SrcBufPool, AL_TAllocator* pAllocator, bool shouldConvert, unique_ptr<IConvSrc>& pSrcConv, TFrameInfo& FrameInfo, AL_ESrcMode eSrcMode, int frameBuffersCount, AL_ECodec eCodec)
+static void InitSrcBufPool(PixMapBufPool& SrcBufPool, AL_TAllocator* pAllocator, TFrameInfo& FrameInfo, AL_ESrcMode eSrcMode, int frameBuffersCount, AL_ECodec eCodec)
 {
   auto srcBufDesc = GetSrcBufDescription(FrameInfo.tDimension, FrameInfo.iBitDepth, FrameInfo.eCMode, eSrcMode, eCodec);
 
@@ -847,11 +847,10 @@ static void InitSrcBufPool(PixMapBufPool& SrcBufPool, AL_TAllocator* pAllocator,
   for(auto& vChunk : srcBufDesc.vChunks)
     SrcBufPool.AddChunk(vChunk.iChunkSize, vChunk.vPlaneDesc);
 
-  bool ret = SrcBufPool.Init(pAllocator, frameBuffersCount, "input");
-  assert(ret);
+  bool const ret = SrcBufPool.Init(pAllocator, frameBuffersCount, "input");
 
-  if(!shouldConvert)
-    pSrcConv.reset(nullptr);
+  if(!ret)
+    throw std::runtime_error("src buf pool must succeed init");
 }
 
 /*****************************************************************************/
@@ -859,7 +858,7 @@ static void InitSrcBufPool(PixMapBufPool& SrcBufPool, AL_TAllocator* pAllocator,
 /*****************************************************************************/
 struct LayerResources
 {
-  void Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffersCount, int iLayerID, CIpDevice* pDevices, int chanId);
+  void Init(ConfigFile& cfg, AL_TEncoderInfo tEncInfo, int iLayerID, CIpDevice* pDevices, int chanId);
 
   void PushResources(ConfigFile& cfg, EncoderSink* enc
                      , EncoderLookAheadSink* encFirstPassLA
@@ -870,6 +869,8 @@ struct LayerResources
   bool SendInput(ConfigFile& cfg, IFrameSink* firstSink, void* pTraceHook);
 
   bool sendInputFileTo(unique_ptr<FrameReader>& frameReader, PixMapBufPool& SrcBufPool, AL_TBuffer* Yuv, ConfigFile const& cfg, TYUVFileInfo& FileInfo, IConvSrc* pSrcConv, IFrameSink* sink, int& iPictCount, int& iReadCount);
+
+  unique_ptr<FrameReader> InitializeFrameReader(ConfigFile& cfg, ifstream& YuvFile, string sYuvFileName, ifstream& MapFile, string sMapFileName, TYUVFileInfo& FileInfo);
 
   void ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hEnc);
 
@@ -900,11 +901,10 @@ struct LayerResources
   vector<TConfigYUVInput> layerInputs;
 };
 
-void LayerResources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffersCount, int iLayerID, CIpDevice* pDevices, int chanId)
+void LayerResources::Init(ConfigFile& cfg, AL_TEncoderInfo tEncInfo, int iLayerID, CIpDevice* pDevices, int chanId)
 {
   AL_TEncSettings& Settings = cfg.Settings;
-  auto const eSrcMode = SrcFormatToSrcMode(cfg.eSrcFormat);
-  Settings.tChParam[iLayerID].eSrcMode = eSrcMode;
+  auto const eSrcMode = Settings.tChParam[iLayerID].eSrcMode;
 
   (void)chanId;
   this->iLayerID = iLayerID;
@@ -915,7 +915,12 @@ void LayerResources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffers
   }
 
   AL_TAllocator* pAllocator = pDevices->GetAllocator();
-  StreamBufPoolConfig = GetStreamBufPoolConfig(Settings, iLayerID);
+
+  // --------------------------------------------------------------------------------
+  // Stream Buffers
+  // --------------------------------------------------------------------------------
+  int iForcedStreamBufSize = 0;
+  StreamBufPoolConfig = GetStreamBufPoolConfig(Settings, iLayerID, tEncInfo.uNumCore, iForcedStreamBufSize);
   StreamBufPool.Init(pAllocator, StreamBufPoolConfig);
 
   bool bUsePictureMeta = false;
@@ -926,9 +931,13 @@ void LayerResources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffers
   if(iLayerID == 0 && bUsePictureMeta)
   {
     AL_TMetaData* pMeta = (AL_TMetaData*)AL_PictureMetaData_Create();
-    assert(pMeta);
-    bool bRet = StreamBufPool.AddMetaData(pMeta);
-    assert(bRet);
+
+    if(pMeta == nullptr)
+      throw std::runtime_error("Meta must be created");
+    bool const bRet = StreamBufPool.AddMetaData(pMeta);
+
+    if(!bRet)
+      throw std::runtime_error("Meta must be added in stream pool");
     Rtos_Free(pMeta);
   }
 
@@ -936,16 +945,35 @@ void LayerResources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffers
   {
     AL_TDimension tDim = { Settings.tChParam[iLayerID].uEncWidth, Settings.tChParam[iLayerID].uEncHeight };
     AL_TMetaData* pMeta = (AL_TMetaData*)AL_RateCtrlMetaData_Create(pAllocator, tDim, Settings.tChParam[iLayerID].uLog2MaxCuSize, AL_GET_CODEC(Settings.tChParam[iLayerID].eProfile));
-    assert(pMeta);
-    bool bRet = StreamBufPool.AddMetaData(pMeta);
-    assert(bRet);
+
+    if(pMeta == nullptr)
+      throw std::runtime_error("Meta must be created");
+    bool const bRet = StreamBufPool.AddMetaData(pMeta);
+
+    if(!bRet)
+      throw std::runtime_error("Meta must be added in stream pool");
     Rtos_Free(pMeta);
+  }
+
+  // --------------------------------------------------------------------------------
+  // Tunning Input Buffers
+  // --------------------------------------------------------------------------------
+  int frameBuffersCount = g_defaultMinBuffers + GetNumBufForGop(Settings);
+
+  {
+    frameBuffersCount = g_defaultMinBuffers + GetNumBufForGop(Settings);
+
+    if(AL_TwoPassMngr_HasLookAhead(Settings))
+      frameBuffersCount += Settings.LookAhead + (GetNumBufForGop(Settings) * 2);
+
   }
 
   AL_TBufPoolConfig poolConfig = GetQpBufPoolConfig(Settings, Settings.tChParam[iLayerID], frameBuffersCount);
   QpBufPool.Init(pAllocator, poolConfig);
 
-  // Input/Output Format conversion
+  // --------------------------------------------------------------------------------
+  // Application Input/Output Format conversion
+  // --------------------------------------------------------------------------------
   bool shouldConvert = ConvertSrcBuffer(Settings.tChParam[iLayerID], layerInputs[iInputIdx].FileInfo, SrcYuv);
 
   string LayerRecFileName = cfg.RecFileName;
@@ -959,9 +987,17 @@ void LayerResources::Init(ConfigFile& cfg, int frameBuffersCount, int srcBuffers
   TFrameInfo FrameInfo = GetFrameInfo(Settings.tChParam[iLayerID]);
   pSrcConv = CreateSrcConverter(FrameInfo, cfg.eSrcFormat, Settings.tChParam[iLayerID]);
 
-  /* source compression case */
+  // --------------------------------------------------------------------------------
+  // Source Buffers
+  // --------------------------------------------------------------------------------
+  int srcBuffersCount = max(frameBuffersCount, g_numFrameToRepeat);
 
-  InitSrcBufPool(SrcBufPool, pAllocator, shouldConvert, pSrcConv, FrameInfo, eSrcMode, srcBuffersCount, static_cast<AL_ECodec>(AL_GET_CODEC(Settings.tChParam[0].eProfile)));
+  InitSrcBufPool(SrcBufPool, pAllocator, FrameInfo, eSrcMode, srcBuffersCount, static_cast<AL_ECodec>(AL_GET_CODEC(Settings.tChParam[0].eProfile)));
+
+  if(!shouldConvert)
+  {
+    pSrcConv.reset(nullptr);
+  }
 
   iPictCount = 0;
   iReadCount = 0;
@@ -982,7 +1018,9 @@ void LayerResources::PushResources(ConfigFile& cfg, EncoderSink* enc
   enc->AddQpBufPool(qpInf, iLayerID);
 
   if(AL_TwoPassMngr_HasLookAhead(cfg.Settings))
+  {
     encFirstPassLA->AddQpBufPool(qpInf, iLayerID);
+  }
 
   if(frameWriter)
     enc->RecOutput[iLayerID] = move(frameWriter);
@@ -990,7 +1028,9 @@ void LayerResources::PushResources(ConfigFile& cfg, EncoderSink* enc
   for(int i = 0; i < (int)StreamBufPoolConfig.uNumBuf; ++i)
   {
     AL_TBuffer* pStream = StreamBufPool.GetBuffer(AL_BUF_MODE_NONBLOCK);
-    assert(pStream);
+
+    if(pStream == nullptr)
+      throw runtime_error("pStream must exist");
 
     AL_HEncoder hEnc = enc->hEnc;
 
@@ -1009,7 +1049,9 @@ void LayerResources::PushResources(ConfigFile& cfg, EncoderSink* enc
 
       bRet = AL_Encoder_PutStreamBuffer(hEnc, pStream);
     }
-    assert(bRet);
+
+    if(!bRet)
+      throw std::runtime_error("bRet must be true");
     AL_Buffer_Unref(pStream);
   }
 }
@@ -1046,6 +1088,27 @@ bool LayerResources::sendInputFileTo(unique_ptr<FrameReader>& frameReader, PixMa
   return true;
 }
 
+unique_ptr<FrameReader> LayerResources::InitializeFrameReader(ConfigFile& cfg, ifstream& YuvFile, string sYuvFileName, ifstream& MapFile, string sMapFileName, TYUVFileInfo& FileInfo)
+{
+  (void)(MapFile);
+
+  unique_ptr<FrameReader> pFrameReader;
+  bool bUseCompFormat = AL_IsCompressed(FileInfo.FourCC);
+  bool bIsMapFileEmpty = sMapFileName.empty();
+
+  if(bUseCompFormat && bIsMapFileEmpty)
+    throw runtime_error("Providing a map file is mandatory when using compressed input.");
+
+  YuvFile.close();
+  OpenInput(YuvFile, sYuvFileName);
+
+  if(bIsMapFileEmpty)
+    pFrameReader = unique_ptr<FrameReader>(new NonCompFrameReader(YuvFile, FileInfo, cfg.RunInfo.bLoop));
+  pFrameReader->GoToFrame(cfg.RunInfo.iFirstPict + iReadCount);
+
+  return pFrameReader;
+}
+
 void LayerResources::ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hEnc)
 {
   (void)hEnc;
@@ -1065,16 +1128,11 @@ void LayerResources::ChangeInput(ConfigFile& cfg, int iInputIdx, AL_HEncoder hEn
       AL_Encoder_SetInputResolution(hEnc, inputDim);
     }
 
-    YuvFile.close();
-    OpenInput(YuvFile, layerInputs[iInputIdx].YUVFileName);
-
-    const bool bNonCompInputFormat = cfg.MainInput.sMapFileName.empty();
-
-    if(bNonCompInputFormat)
-    {
-      frameReader = unique_ptr<FrameReader>(new NonCompFrameReader(YuvFile, layerInputs[iInputIdx].FileInfo, cfg.RunInfo.bLoop));
-    }
-    frameReader->GoToFrame(cfg.RunInfo.iFirstPict + iReadCount);
+    frameReader = InitializeFrameReader(cfg, YuvFile,
+                                        layerInputs[iInputIdx].YUVFileName,
+                                        MapFile,
+                                        cfg.MainInput.sMapFileName,
+                                        layerInputs[iInputIdx].FileInfo);
 
   }
 }
@@ -1105,18 +1163,6 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
   });
 
   // --------------------------------------------------------------------------------
-  // Allocate Layers resources
-  int frameBuffersCount = g_defaultMinBuffers + GetNumBufForGop(Settings);
-
-  if(AL_TwoPassMngr_HasLookAhead(Settings))
-    frameBuffersCount += Settings.LookAhead + (GetNumBufForGop(Settings) * 2);
-
-  int srcBuffersCount = max(frameBuffersCount, g_numFrameToRepeat);
-
-  for(size_t i = 0; i < layerResources.size(); i++)
-    layerResources[i].Init(cfg, frameBuffersCount, srcBuffersCount, i, pIpDevice, chanId);
-
-  // --------------------------------------------------------------------------------
   // Create Encoder
   enc.reset(new EncoderSink(cfg, pScheduler
                             , pAllocator
@@ -1126,17 +1172,20 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
 
   if(AL_TwoPassMngr_HasLookAhead(cfg.Settings))
   {
-    encFirstPassLA.reset(new EncoderLookAheadSink(cfg, enc.get(), pScheduler, pAllocator
-                                                  ));
+    encFirstPassLA.reset(new EncoderLookAheadSink(cfg, enc.get(), pScheduler, pAllocator));
 
     encFirstPassLA->next = firstSink;
     firstSink = encFirstPassLA.get();
   }
 
   // --------------------------------------------------------------------------------
-  // Push created layer resources
+  // Allocate/Push Layers resources
+  AL_TEncoderInfo tEncInfo;
+  AL_Encoder_GetInfo(enc->hEnc, &tEncInfo);
+
   for(size_t i = 0; i < layerResources.size(); i++)
   {
+    layerResources[i].Init(cfg, tEncInfo, i, pIpDevice, chanId);
     layerResources[i].PushResources(cfg, enc.get()
                                     ,
                                     encFirstPassLA.get()
@@ -1186,7 +1235,6 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
     prefetch->next = firstSink;
     firstSink = prefetch.get();
     RunInfo.iMaxPict = g_numFrameToRepeat;
-    frameBuffersCount = max(frameBuffersCount, g_numFrameToRepeat);
   }
 
   bool hasInputAndNoError = true;
@@ -1267,6 +1315,11 @@ void SafeMain(int argc, char* argv[])
       Settings.tChParam[0].eEncOptions = (AL_EChEncOption)(Settings.tChParam[0].eEncOptions | AL_OPT_FORCE_REC);
     }
 
+    AL_ESrcMode eSrcMode = SrcFormatToSrcMode(cfg.eSrcFormat);
+
+    for(uint8_t uLayer = 0; uLayer < cfg.Settings.NumLayer; uLayer++)
+      Settings.tChParam[uLayer].eSrcMode = eSrcMode;
+
     DisplayVersionInfo();
 
     ValidateConfig(cfg);
@@ -1288,10 +1341,11 @@ void SafeMain(int argc, char* argv[])
   param.bTrackDma = RunInfo.trackDma;
 
   auto pIpDevice = shared_ptr<CIpDevice>(new CIpDevice);
-  pIpDevice->Configure(param);
 
   if(!pIpDevice)
     throw runtime_error("Can't create IpDevice");
+
+  pIpDevice->Configure(param);
 
   exception_ptr pError;
   ChannelMain(cfg, pIpDevice.get(), param, pError, 0);

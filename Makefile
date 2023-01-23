@@ -51,7 +51,6 @@ include base.mk
 -include lib_app/project.mk #lib_common and lib_perfs dependency
 
 
-BUILD_LIB_FBC=0
 BUILD_EXE_FBC=0
 BUILD_EXE_FBD=0
 
@@ -65,7 +64,7 @@ ifneq ($(ENABLE_ENCODER),0)
 -include lib_encode/project.mk
 endif
 
-ifneq ($(BUILD_LIB_FBC),0)
+ifneq ($(BUILD_EXE_FBC),0)
   -include lib_fbc_standalone/project.mk
 endif
 
@@ -113,9 +112,11 @@ ifneq ($(ENABLE_PERF),0)
   -include exe_perf_monitor/project.mk
 endif
 
+ifneq ($(ENABLE_ENCODER),0)
 ifneq ($(ENABLE_SYNC_IP),0)
 ifeq ($(findstring linux,$(TARGET)),linux)
   -include exe_sync_ip/project.mk
+endif
 endif
 endif
 

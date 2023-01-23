@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -42,7 +29,7 @@
  *************************************************************************/
 typedef enum e_NalUnitType
 {
-  AL_AVC_UNDEF_NUT = 0,
+  AL_AVC_NUT_UNSPEC_0 = 0,
   AL_AVC_NUT_VCL_NON_IDR = 1,
   AL_AVC_NUT_VCL_IDR = 5,
   AL_AVC_NUT_PREFIX_SEI = 6,
@@ -55,7 +42,22 @@ typedef enum e_NalUnitType
   AL_AVC_NUT_SPS_EXT = 13,
   AL_AVC_NUT_PREFIX = 14,
   AL_AVC_NUT_SUB_SPS = 15,
-  AL_AVC_NUT_SUFFIX_SEI = 24, /* nal_unit_type : [24..31] -> Content Unspecified */
+  AL_AVC_NUT_DPS = 16,
+  AL_AVC_NUT_RSV17 = 17,
+  AL_AVC_NUT_RSV18 = 18,
+  AL_AVC_NUT_AUX = 19,
+  AL_AVC_NUT_EXT = 20,
+  AL_AVC_NUT_3D_EXT = 21,
+  AL_AVC_NUT_RSV22 = 22,
+  AL_AVC_NUT_RSV23 = 23,
+  AL_AVC_NUT_UNSPEC_24 = 24,
+  AL_AVC_NUT_UNSPEC_25 = 25,
+  AL_AVC_NUT_UNSPEC_26 = 26,
+  AL_AVC_NUT_UNSPEC_27 = 27,
+  AL_AVC_NUT_UNSPEC_28 = 28,
+  AL_AVC_NUT_UNSPEC_29 = 29,
+  AL_AVC_NUT_UNSPEC_30 = 30,
+  AL_AVC_NUT_UNSPEC_31 = 31,
   AL_AVC_NUT_ERR = 32,
   AL_HEVC_NUT_TRAIL_N = 0,
   AL_HEVC_NUT_TRAIL_R = 1,
@@ -98,6 +100,29 @@ typedef enum e_NalUnitType
   AL_HEVC_NUT_FD = 38,
   AL_HEVC_NUT_PREFIX_SEI = 39,
   AL_HEVC_NUT_SUFFIX_SEI = 40,
+  AL_HEVC_NUT_RSV_NVCL41 = 41,
+  AL_HEVC_NUT_RSV_NVCL42 = 42,
+  AL_HEVC_NUT_RSV_NVCL43 = 43,
+  AL_HEVC_NUT_RSV_NVCL44 = 44,
+  AL_HEVC_NUT_RSV_NVCL45 = 45,
+  AL_HEVC_NUT_RSV_NVCL46 = 46,
+  AL_HEVC_NUT_RSV_NVCL47 = 47,
+  AL_HEVC_NUT_UNSPEC_48 = 48,
+  AL_HEVC_NUT_UNSPEC_49 = 49,
+  AL_HEVC_NUT_UNSPEC_50 = 50,
+  AL_HEVC_NUT_UNSPEC_51 = 51,
+  AL_HEVC_NUT_UNSPEC_52 = 52,
+  AL_HEVC_NUT_UNSPEC_53 = 53,
+  AL_HEVC_NUT_UNSPEC_54 = 54,
+  AL_HEVC_NUT_UNSPEC_55 = 55,
+  AL_HEVC_NUT_UNSPEC_56 = 56,
+  AL_HEVC_NUT_UNSPEC_57 = 57,
+  AL_HEVC_NUT_UNSPEC_58 = 58,
+  AL_HEVC_NUT_UNSPEC_59 = 59,
+  AL_HEVC_NUT_UNSPEC_60 = 60,
+  AL_HEVC_NUT_UNSPEC_61 = 61,
+  AL_HEVC_NUT_UNSPEC_62 = 62,
+  AL_HEVC_NUT_UNSPEC_63 = 63,
   AL_HEVC_NUT_ERR = 64,
   AL_NUT_ERR = ~0,
 }AL_ENut;

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,34 +9,21 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
 #include "EncCmdMngr.h"
-#include <cassert>
+#include <stdexcept>
 
 using namespace std;
 
@@ -106,7 +93,7 @@ struct CCmdTokenizer
     size_t sUpperPos = m_sVal.find(']');
 
     if(sLowerPos != 0 || sSplitPos == std::string::npos || sSplitPos <= sLowerPos || sUpperPos == std::string::npos || sUpperPos <= sSplitPos)
-      return tBounds;
+      throw std::runtime_error("bad range syntax for line " + m_sLine);
 
     tBounds.min = atof(m_sVal.substr(1, sSplitPos - 1).c_str());
     tBounds.max = atof(m_sVal.substr(sSplitPos + 1, sUpperPos - (sSplitPos + 1)).c_str());
@@ -124,7 +111,8 @@ struct CCmdTokenizer
 
     size_t lower = sLowerPos + 1;
 
-    assert(((sLowerPos != std::string::npos) && (sUpperPos != std::string::npos)) && "missing parentheses");
+    if((sLowerPos == std::string::npos) || (sUpperPos == std::string::npos))
+      throw std::runtime_error("missing parentheses in dynamic commands");
 
     if(last_element_detection != std::string::npos)
     {
@@ -296,6 +284,9 @@ bool CEncCmdMngr::ParseCmd(std::string sLine, TFrmCmd& Cmd, bool bSameFrame)
     {
       Cmd.bChangeBitRate = true;
       Cmd.iBitRate = int(Tok.GetValue()) * 1000;
+
+      if(Cmd.iBitRate == 0)
+        throw std::runtime_error("New dynamic bitrate must not be null");
     }
     else if(Tok == "BR.MaxBR")
     {
@@ -303,6 +294,9 @@ bool CEncCmdMngr::ParseCmd(std::string sLine, TFrmCmd& Cmd, bool bSameFrame)
       TBounds tBounds = Tok.GetValueBounds();
       Cmd.iTargetBitRate = tBounds.min * 1000;
       Cmd.iMaxBitRate = tBounds.max * 1000;
+
+      if(Cmd.iTargetBitRate == 0 || Cmd.iMaxBitRate == 0)
+        throw std::runtime_error("New dynamic target bitrate must not be null");
     }
     else if(Tok == "Fps")
     {
@@ -376,6 +370,26 @@ bool CEncCmdMngr::ParseCmd(std::string sLine, TFrmCmd& Cmd, bool bSameFrame)
     {
       Cmd.bSetCostMode = true;
       Cmd.bCostMode = Tok.GetValueList().front().compare("true") == 0;
+    }
+    else if(Tok == "MaxPictureSize")
+    {
+      Cmd.bMaxPictureSize = true;
+      Cmd.iMaxPictureSize = int(Tok.GetValue()) * 1000;
+    }
+    else if(Tok == "MaxPictureSize.I")
+    {
+      Cmd.bMaxPictureSize_I = true;
+      Cmd.iMaxPictureSize_I = int(Tok.GetValue()) * 1000;
+    }
+    else if(Tok == "MaxPictureSize.P")
+    {
+      Cmd.bMaxPictureSize_P = true;
+      Cmd.iMaxPictureSize_P = int(Tok.GetValue()) * 1000;
+    }
+    else if(Tok == "MaxPictureSize.B")
+    {
+      Cmd.bMaxPictureSize_B = true;
+      Cmd.iMaxPictureSize_B = int(Tok.GetValue()) * 1000;
     }
     else if(Tok == "QPChromaOffsets")
     {
@@ -485,6 +499,18 @@ void CEncCmdMngr::Process(ICommandsSender* sender, int iFrame)
 
       if(m_Cmds.front().bSetCostMode)
         sender->setCostMode(m_Cmds.front().bCostMode);
+
+      if(m_Cmds.front().bMaxPictureSize)
+        sender->setMaxPictureSize(m_Cmds.front().iMaxPictureSize);
+
+      if(m_Cmds.front().bMaxPictureSize_I)
+        sender->setMaxPictureSize_I(m_Cmds.front().iMaxPictureSize_I);
+
+      if(m_Cmds.front().bMaxPictureSize_P)
+        sender->setMaxPictureSize_P(m_Cmds.front().iMaxPictureSize_P);
+
+      if(m_Cmds.front().bMaxPictureSize_B)
+        sender->setMaxPictureSize_B(m_Cmds.front().iMaxPictureSize_B);
 
       if(m_Cmds.front().bChangeQPChromaOffsets)
         sender->setQPChromaOffsets(m_Cmds.front().iQp1Offset, m_Cmds.front().iQp2Offset);

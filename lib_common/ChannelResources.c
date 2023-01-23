@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -107,8 +94,9 @@ static int ToCtb(int val, int ctbSize)
   return divideRoundUp(val, ctbSize);
 }
 
-bool AL_Constraint_NumCoreIsSane(int width, int numCore, int log2MaxCuSize, AL_NumCoreDiagnostic* diagnostic)
+bool AL_Constraint_NumCoreIsSane(AL_ECodec codec, int width, int numCore, int log2MaxCuSize, AL_NumCoreDiagnostic* diagnostic)
 {
+  (void)codec;
   /*
    * Hardware limitation, for each core, we need at least:
    * -> 3 CTB for VP9 / HEVC64
@@ -116,11 +104,14 @@ bool AL_Constraint_NumCoreIsSane(int width, int numCore, int log2MaxCuSize, AL_N
    * -> 5 MB for AVC
    * Each core starts on a tile.
    * Tiles are aligned on 64 bytes.
+   * For JPEG, each core works on a different frame.
    */
+
+  int corePerFrame = numCore;
 
   int ctbSize = 1 << log2MaxCuSize;
   int const MIN_CTB_PER_CORE = 9 - log2MaxCuSize;
-  int widthPerCoreInCtb = ToCtb(width / numCore, ctbSize);
+  int widthPerCoreInCtb = ToCtb(width / corePerFrame, ctbSize);
 
   int offset = 0;
   int roundedOffset = 0; // A core needs to starts at a 64 bytes aligned offset
@@ -128,7 +119,7 @@ bool AL_Constraint_NumCoreIsSane(int width, int numCore, int log2MaxCuSize, AL_N
   if(diagnostic)
     Rtos_Memset(diagnostic, 0, sizeof(*diagnostic));
 
-  for(int core = 0; core < numCore; ++core)
+  for(int core = 0; core < corePerFrame; ++core)
   {
     offset = roundedOffset;
     int curCoreMinWidthInCtb = MIN_CTB_PER_CORE * ctbSize;

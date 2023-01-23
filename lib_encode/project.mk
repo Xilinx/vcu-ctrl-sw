@@ -50,7 +50,6 @@ endif
 
 ifneq ($(ENABLE_LIB_ISCHEDULER),0)
   LIB_ENCODER_OBJ+=$(LIB_ISCHEDULER_ENC_DLL)
-  # because we still want to show these as the lib_encoder_src
   LIB_ISCHEDULER_ENC_SRC_SHOW=$(LIB_ISCHEDULER_ENC_SRC)
 else
   LIB_ENCODER_SRC+=$(LIB_ISCHEDULER_ENC_SRC)

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -79,7 +66,7 @@ static inline int GetWidthRound(AL_EFbStorageMode eStorageMode)
 int32_t ComputeRndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode, int iBurstAlignment)
 {
   int32_t iVal = 0;
-  int iRndWidth = RoundUp(iWidth, GetWidthRound(eFrameBufferStorageMode));
+  int const iRndWidth = RoundUp(iWidth, GetWidthRound(eFrameBufferStorageMode));
   switch(eFrameBufferStorageMode)
   {
   case AL_FB_RASTER:
@@ -112,8 +99,10 @@ int32_t ComputeRndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFr
 int AL_GetChromaPitch(TFourCC tFourCC, int iLumaPitch)
 {
   AL_TPicFormat tPicFormat;
-  bool bSuccess = AL_GetPicFormat(tFourCC, &tPicFormat);
-  AL_Assert(bSuccess);
+  bool const bSuccess = AL_GetPicFormat(tFourCC, &tPicFormat);
+
+  if(!bSuccess)
+    return -1;
 
   if(tPicFormat.eChromaMode == AL_CHROMA_MONO)
     return 0;
@@ -134,8 +123,10 @@ int AL_GetChromaPitch(TFourCC tFourCC, int iLumaPitch)
 int AL_GetChromaWidth(TFourCC tFourCC, int iLumaWidth)
 {
   AL_TPicFormat tPicFormat;
-  bool bSuccess = AL_GetPicFormat(tFourCC, &tPicFormat);
-  AL_Assert(bSuccess);
+  bool const bSuccess = AL_GetPicFormat(tFourCC, &tPicFormat);
+
+  if(!bSuccess)
+    return -1;
 
   if(tPicFormat.eChromaMode == AL_CHROMA_MONO)
     return 0;
@@ -150,6 +141,9 @@ int AL_GetChromaHeight(TFourCC tFourCC, int iLumaHeight)
 {
   AL_EChromaMode eChromaMode = AL_GetChromaMode(tFourCC);
 
+  if(eChromaMode == AL_CHROMA_MAX_ENUM)
+    return -1;
+
   if(eChromaMode == AL_CHROMA_MONO)
     return 0;
 
@@ -162,6 +156,11 @@ int AL_CLEAN_BUFFERS = 0;
 void AL_CleanupMemory(void* pDst, size_t uSize)
 {
   if(AL_CLEAN_BUFFERS)
+  {
     Rtos_Memset(pDst, 0, uSize);
+#ifdef COMPILE_FOR_MCU
+    Rtos_FlushCacheMemory(pDst, uSize);
+#endif
+  }
 }
 

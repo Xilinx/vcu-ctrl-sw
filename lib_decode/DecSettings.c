@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -136,6 +123,7 @@ void AL_DecSettings_SetDefaults(AL_TDecSettings* pSettings)
   pSettings->tStream.iBitDepth = STREAM_SETTING_UNKNOWN;
   pSettings->tStream.eProfile = STREAM_SETTING_UNKNOWN;
   pSettings->tStream.iLevel = STREAM_SETTING_UNKNOWN;
+  pSettings->tStream.bDecodeIntraOnly = false;
 }
 
 /***************************************************************************/
@@ -145,10 +133,12 @@ int AL_DecSettings_CheckValidity(AL_TDecSettings* pSettings, FILE* pOut)
 
   int err = 0;
 
-  if(pSettings->uNumCore > AL_DEC_NUM_CORES)
+  uint8_t uMaxNumCore = AL_DEC_NUM_CORES;
+
+  if(pSettings->uNumCore > uMaxNumCore)
   {
     ++err;
-    MSG("Invalid parameter: NumCore. The width should at least be 256 pixels per core for HEVC conformance.");
+    MSGF("Invalid parameter: NumCore. You can use up to %d core(s) for this codec.", uMaxNumCore);
   }
 
   if(pSettings->uDDRWidth != 16 && pSettings->uDDRWidth != 32 && pSettings->uDDRWidth != 64)
@@ -191,13 +181,13 @@ int AL_DecSettings_CheckValidity(AL_TDecSettings* pSettings, FILE* pOut)
     MSG("The output position doesn't fit the alignement constraints for the current buffer format");
   }
 
-  if(pSettings->bDecodeIntraOnly && !(pSettings->eCodec == AL_CODEC_AVC || pSettings->eCodec == AL_CODEC_HEVC))
+  if(pSettings->tStream.bDecodeIntraOnly && !(pSettings->eCodec == AL_CODEC_AVC || pSettings->eCodec == AL_CODEC_HEVC || pSettings->eCodec == AL_CODEC_VVC))
   {
     ++err;
-    MSG("The decode IntraOnly mode is only available with AVC and HEVC");
+    MSG("The decode IntraOnly mode is only available with AVC, HEVC and VVC");
   }
 
-  if(pSettings->bDecodeIntraOnly && !(pSettings->eDecUnit == AL_AU_UNIT))
+  if(pSettings->tStream.bDecodeIntraOnly && !(pSettings->eDecUnit == AL_AU_UNIT))
   {
     ++err;
     MSG("The decode IntraOnly mode is only available in frame latency");
@@ -213,10 +203,12 @@ int AL_DecSettings_CheckCoherency(AL_TDecSettings* pSettings, FILE* pOut)
 
   int numIncoherency = 0;
 
-  if(pSettings->iStackSize < 1)
+  int iMinStackSize = 1;
+
+  if(pSettings->iStackSize < iMinStackSize)
   {
-    MSG("!! Stack size must be greater or equal than 1. Adjusting parameter !!");
-    pSettings->iStackSize = 1;
+    MSGF("!! Stack size must be greater or equal than %d. Adjusting parameter !!", iMinStackSize);
+    pSettings->iStackSize = iMinStackSize;
     ++numIncoherency;
   }
 

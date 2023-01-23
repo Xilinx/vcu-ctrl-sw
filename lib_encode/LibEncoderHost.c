@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -115,10 +102,18 @@ static void AL_Encoder_Destroy_Host(AL_HEncoder hEnc)
 }
 
 /****************************************************************************/
+static bool AL_Encoder_GetInfo_Host(AL_HEncoder hEnc, AL_TEncoderInfo* pEncInfo)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  return AL_Common_Encoder_GetInfo(pEnc->pCtx, pEncInfo);
+}
+
+/****************************************************************************/
 static void AL_Encoder_NotifySceneChange_Host(AL_HEncoder hEnc, int iAhead)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
   AL_Common_Encoder_NotifySceneChange(pEnc->pCtx, iAhead);
+
 }
 
 /****************************************************************************/
@@ -190,10 +185,28 @@ static bool AL_Encoder_SetCostMode_Host(AL_HEncoder hEnc, bool costMode)
 }
 
 /****************************************************************************/
+static bool AL_Encoder_SetMaxPictureSize_Host(AL_HEncoder hEnc, uint32_t uMaxPictureSize)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  return AL_Common_Encoder_SetMaxPictureSize(pEnc->pCtx, uMaxPictureSize, AL_SLICE_I) &&
+         AL_Common_Encoder_SetMaxPictureSize(pEnc->pCtx, uMaxPictureSize, AL_SLICE_P) &&
+         AL_Common_Encoder_SetMaxPictureSize(pEnc->pCtx, uMaxPictureSize, AL_SLICE_B);
+}
+
+/****************************************************************************/
+static bool AL_Encoder_SetMaxPictureSizePerFrameType_Host(AL_HEncoder hEnc, uint32_t uMaxPictureSize, AL_ESliceType sliceType)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  return AL_Common_Encoder_SetMaxPictureSize(pEnc->pCtx, uMaxPictureSize, sliceType);
+}
+
+/****************************************************************************/
 static bool AL_Encoder_RestartGop_Host(AL_HEncoder hEnc)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
-  return AL_Common_Encoder_RestartGop(pEnc->pCtx);
+  bool bStatus = AL_Common_Encoder_RestartGop(pEnc->pCtx);
+
+  return bStatus;
 }
 
 /****************************************************************************/
@@ -207,7 +220,9 @@ static bool AL_Encoder_RestartGopRecoveryPoint_Host(AL_HEncoder hEnc)
 static bool AL_Encoder_SetGopLength_Host(AL_HEncoder hEnc, int iGopLength)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
-  return AL_Common_Encoder_SetGopLength(pEnc->pCtx, iGopLength);
+  bool bStatus = AL_Common_Encoder_SetGopLength(pEnc->pCtx, iGopLength);
+
+  return bStatus;
 }
 
 /****************************************************************************/
@@ -335,6 +350,7 @@ static AL_IEncArchVtable vtable =
   .Deinit = AL_Deinit_Host,
   .EncoderCreate = AL_Encoder_Create_Host,
   .EncoderDestroy = AL_Encoder_Destroy_Host,
+  .EncoderGetInfo = AL_Encoder_GetInfo_Host,
   .EncoderNotifySceneChange = AL_Encoder_NotifySceneChange_Host,
   .EncoderNotifyIsLongTerm = AL_Encoder_NotifyIsLongTerm_Host,
   .EncoderNotifyUseLongTerm = AL_Encoder_NotifyUseLongTerm_Host,
@@ -345,6 +361,8 @@ static AL_IEncArchVtable vtable =
   .EncoderAddSei = AL_Encoder_AddSei_Host,
   .EncoderGetLastError = AL_Encoder_GetLastError_Host,
   .EncoderSetCostMode = AL_Encoder_SetCostMode_Host,
+  .EncoderSetMaxPictureSize = AL_Encoder_SetMaxPictureSize_Host,
+  .EncoderSetMaxPictureSizePerFrameType = AL_Encoder_SetMaxPictureSizePerFrameType_Host,
   .EncoderRestartGop = AL_Encoder_RestartGop_Host,
   .EncoderRestartGopRecoveryPoint = AL_Encoder_RestartGopRecoveryPoint_Host,
   .EncoderSetGopLength = AL_Encoder_SetGopLength_Host,

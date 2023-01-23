@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -40,11 +27,13 @@
 #include <cstring>
 #include <iomanip>
 #include <iostream>
-#include <cassert>
 #include <climits>
+#include <stdexcept>
+#include <string>
 
 #include "lib_app/YuvIO.h"
 
+using namespace std;
 extern "C"
 {
 #include "lib_common/PixMapBuffer.h"
@@ -95,14 +84,15 @@ static uint32_t GetIOLumaRowSize(TFourCC tFourCC, uint32_t uWidth)
 /*****************************************************************************/
 AL_TBuffer* AllocateDefaultYuvIOBuffer(AL_TDimension const& tDimension, TFourCC tFourCC, uint32_t uRndDim)
 {
-  assert(AL_IsCompressed(tFourCC) == false);
+  if(AL_IsCompressed(tFourCC))
+    throw runtime_error("Compressed FourCC cannot be used");
 
   AL_TBuffer* pBuf = AL_PixMapBuffer_Create(AL_GetDefaultAllocator(), NULL, tDimension, tFourCC);
 
   if(pBuf == nullptr)
     return nullptr;
 
-  std::vector<AL_TPlaneDescription> vPlaneDesc;
+  vector<AL_TPlaneDescription> vPlaneDesc;
   int iSrcSize = 0;
 
   AL_TDimension tRoundedDim = GetRoundedDim(tDimension, uRndDim);
@@ -155,7 +145,7 @@ int GetPictureSize(TYUVFileInfo FI)
 }
 
 /*****************************************************************************/
-void GotoFirstPicture(TYUVFileInfo const& FI, std::ifstream& File, unsigned int iFirstPict)
+void GotoFirstPicture(TYUVFileInfo const& FI, ifstream& File, unsigned int iFirstPict)
 {
   int64_t const iPictLen = GetPictureSize(FI);
   File.seekg(iPictLen * iFirstPict);
@@ -183,7 +173,8 @@ static TPaddingParams GetColumnPaddingParameters(TFourCC tFourCC, AL_TDimension 
 
     if(AL_Is10bitPacked(tFourCC))
     {
-      assert(AL_GetBitDepth(tFourCC) == 10);
+      if(AL_GetBitDepth(tFourCC) != 10)
+        throw runtime_error("BitDepth (" + to_string(AL_GetBitDepth(tFourCC)) + ") should be equal to 10");
       tPadParams.uPadValue = tPadParams.uPadValue | (tPadParams.uPadValue << 10) | (tPadParams.uPadValue << 20);
       switch(tDim.iWidth % 3)
       {
@@ -220,21 +211,21 @@ static void PadBuffer(char* pTmp, TPaddingParams tPadParams, TFourCC tFourCC)
       tPadParams.uNBByteToPad -= sizeof(uint32_t);
     }
 
-    std::fill_n(pTmp32, tPadParams.uNBByteToPad / sizeof(uint32_t), tPadParams.uPadValue);
+    fill_n(pTmp32, tPadParams.uNBByteToPad / sizeof(uint32_t), tPadParams.uPadValue);
   }
   else if(AL_GetBitDepth(tFourCC) > 8)
   {
     // Pitch % 32 == 0 && rowsize % 2 == 0 => iNbByteToPad % 2 == 0
-    std::fill_n((uint16_t*)pTmp, tPadParams.uNBByteToPad / sizeof(uint16_t), tPadParams.uPadValue);
+    fill_n((uint16_t*)pTmp, tPadParams.uNBByteToPad / sizeof(uint16_t), tPadParams.uPadValue);
   }
   else
   {
-    std::fill_n(pTmp, tPadParams.uNBByteToPad, tPadParams.uPadValue);
+    fill_n(pTmp, tPadParams.uNBByteToPad, tPadParams.uPadValue);
   }
 }
 
 /*****************************************************************************/
-static void ReadFileLuma(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSize, uint32_t uFileNumRow, uint32_t uRoundedNumRow)
+static void ReadFileLuma(ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSize, uint32_t uFileNumRow, uint32_t uRoundedNumRow)
 {
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
@@ -243,7 +234,9 @@ static void ReadFileLuma(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRo
 
   TPaddingParams tPadParams = GetColumnPaddingParameters(tFourCC, tDim, iPitch, uFileRowSize, true);
 
-  assert((uint32_t)iPitch >= uFileRowSize);
+  if(static_cast<decltype(uFileRowSize)>(iPitch) < uFileRowSize)
+    throw runtime_error("iPitch should be higher or equal than uFileRowSize");
+
   AL_EFbStorageMode eStorageMode = AL_GetStorageMode(tFourCC);
   bool bTileFormat = eStorageMode == AL_FB_TILE_32x4 || eStorageMode == AL_FB_TILE_64x4;
 
@@ -282,7 +275,7 @@ static void ReadFileLuma(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRo
 }
 
 /*****************************************************************************/
-static void ReadFileChroma(std::ifstream& File, AL_TBuffer* pBuf, AL_EPlaneId ePlaneType, uint32_t uFileRowSize, uint32_t uFileNumRow, uint32_t uRoundedNumRow)
+static void ReadFileChroma(ifstream& File, AL_TBuffer* pBuf, AL_EPlaneId ePlaneType, uint32_t uFileRowSize, uint32_t uFileNumRow, uint32_t uRoundedNumRow)
 {
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
@@ -294,7 +287,9 @@ static void ReadFileChroma(std::ifstream& File, AL_TBuffer* pBuf, AL_EPlaneId eP
 
   TPaddingParams tPadParams = GetColumnPaddingParameters(tFourCC, tDim, iPitch, uRowSizeC, false);
 
-  assert((uint32_t)iPitch >= uRowSizeC);
+  if(static_cast<decltype(uRowSizeC)>(iPitch) < uRowSizeC)
+    throw runtime_error("iPitch should be higher or equal than uRowSizeC");
+
   AL_EFbStorageMode eStorageMode = AL_GetStorageMode(tFourCC);
   bool bTileFormat = eStorageMode == AL_FB_TILE_32x4 || eStorageMode == AL_FB_TILE_64x4;
 
@@ -333,7 +328,7 @@ static void ReadFileChroma(std::ifstream& File, AL_TBuffer* pBuf, AL_EPlaneId eP
 }
 
 /*****************************************************************************/
-static void ReadFile(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSize, uint32_t uFileNumRow, uint32_t uRoundedNumRow)
+static void ReadFile(ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSize, uint32_t uFileNumRow, uint32_t uRoundedNumRow)
 {
   ReadFileLuma(File, pBuf, uFileRowSize, uFileNumRow, uRoundedNumRow);
 
@@ -350,10 +345,10 @@ static void ReadFile(std::ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSiz
 }
 
 /*****************************************************************************/
-bool ReadOneFrameYuv(std::ifstream& File, AL_TBuffer* pBuf, bool bLoop, uint32_t uRndDim)
+bool ReadOneFrameYuv(ifstream& File, AL_TBuffer* pBuf, bool bLoop, uint32_t uRndDim)
 {
   if(!pBuf || !File.is_open())
-    throw std::runtime_error("invalid argument");
+    throw runtime_error("invalid argument");
 
   if((File.peek() == EOF) && !bLoop)
     return false;
@@ -375,21 +370,21 @@ bool ReadOneFrameYuv(std::ifstream& File, AL_TBuffer* pBuf, bool bLoop, uint32_t
 
   ReadFile(File, pBuf, uRowSizeLuma, uHeightLuma, tRoundedDim.iHeight);
 
-  if((File.rdstate() & std::ios::failbit) && bLoop)
+  if((File.rdstate() & ios::failbit) && bLoop)
   {
     File.clear();
-    File.seekg(0, std::ios::beg);
+    File.seekg(0, ios::beg);
     ReadFile(File, pBuf, uRowSizeLuma, uHeightLuma, tRoundedDim.iHeight);
   }
 
-  if(File.rdstate() & std::ios::failbit)
-    throw std::runtime_error("not enough data for a complete frame");
+  if(File.rdstate() & ios::failbit)
+    throw runtime_error("not enough data for a complete frame");
 
   return true;
 }
 
 /*****************************************************************************/
-static void WritePlane(std::ofstream& File, const AL_TBuffer* pBuf, AL_EPlaneId ePlaneType, int iIORowSize, int iHeight)
+static void WritePlane(ofstream& File, const AL_TBuffer* pBuf, AL_EPlaneId ePlaneType, int iIORowSize, int iNumRowInPitch, int iHeight)
 {
   char* pTmp = (char*)AL_PixMapBuffer_GetPlaneAddress(pBuf, ePlaneType);
   int iPitch = AL_PixMapBuffer_GetPlanePitch(pBuf, ePlaneType);
@@ -401,16 +396,16 @@ static void WritePlane(std::ofstream& File, const AL_TBuffer* pBuf, AL_EPlaneId 
   }
   else
   {
-    for(int h = 0; h < iHeight; h++)
+    for(int h = 0; h < iHeight; h += iNumRowInPitch)
     {
-      File.write(pTmp, iIORowSize);
+      File.write(pTmp, iIORowSize * iNumRowInPitch);
       pTmp += iPitch;
     }
   }
 }
 
 /*****************************************************************************/
-bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf)
+bool WriteOneFrame(ofstream& File, const AL_TBuffer* pBuf)
 {
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
@@ -419,8 +414,11 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf)
     return false;
 
   int iIORowSize = GetIOLumaRowSize(tFourCC, tDim.iWidth);
+  AL_EFbStorageMode eStorageMode = AL_GetStorageMode(tFourCC);
+  int iRowsInPitch = AL_GetNumLinesInPitch(eStorageMode);
+
   int iHeight = tDim.iHeight;
-  WritePlane(File, pBuf, AL_PLANE_Y, iIORowSize, iHeight);
+  WritePlane(File, pBuf, AL_PLANE_Y, iIORowSize, iRowsInPitch, iHeight);
 
   AL_EChromaOrder eChromaOrder = AL_GetChromaOrder(tFourCC);
 
@@ -431,21 +429,21 @@ bool WriteOneFrame(std::ofstream& File, const AL_TBuffer* pBuf)
   iHeight = AL_GetChromaHeight(tFourCC, iHeight);
 
   if(eChromaOrder == AL_C_ORDER_SEMIPLANAR)
-    WritePlane(File, pBuf, AL_PLANE_UV, iIORowSize, iHeight);
+    WritePlane(File, pBuf, AL_PLANE_UV, iIORowSize, iRowsInPitch, iHeight);
   else
   {
-    WritePlane(File, pBuf, eChromaOrder == AL_C_ORDER_U_V ? AL_PLANE_U : AL_PLANE_V, iIORowSize, iHeight);
-    WritePlane(File, pBuf, eChromaOrder == AL_C_ORDER_U_V ? AL_PLANE_V : AL_PLANE_U, iIORowSize, iHeight);
+    WritePlane(File, pBuf, eChromaOrder == AL_C_ORDER_U_V ? AL_PLANE_U : AL_PLANE_V, iIORowSize, iRowsInPitch, iHeight);
+    WritePlane(File, pBuf, eChromaOrder == AL_C_ORDER_U_V ? AL_PLANE_V : AL_PLANE_U, iIORowSize, iRowsInPitch, iHeight);
   }
 
   return true;
 }
 
 /*****************************************************************************/
-int GetFileSize(std::ifstream& File)
+int GetFileSize(ifstream& File)
 {
   auto position = File.tellg();
-  File.seekg(0, std::ios_base::end);
+  File.seekg(0, ios_base::end);
   auto size = File.tellg();
   File.seekg(position);
   return size;

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -96,6 +83,14 @@ typedef enum
 }AL_ELibEncoderArch;
 
 /*************************************************************************//*!
+   \brief Information on created encoder
+*****************************************************************************/
+typedef struct
+{
+  uint8_t uNumCore; /*< number of cores used for encoding */
+}AL_TEncoderInfo;
+
+/*************************************************************************//*!
    \brief Initialize encoder library
    \param[in] eArch  encoder library arch to use
    \return error code specifying why library initialization has failed
@@ -127,6 +122,14 @@ AL_ERR AL_Encoder_Create(AL_HEncoder* hEnc, AL_IEncScheduler* pScheduler, AL_TAl
    \see AL_Encoder_Create
 *****************************************************************************/
 void AL_Encoder_Destroy(AL_HEncoder hEnc);
+
+/*************************************************************************//*!
+   \brief Get information on created encoder
+   \param[in] hEnc Handle to an encoder object
+   \param[out] pEncInfo pEncInfo pointer to structure filled with encoder info
+   \return true if succeed, false otherwise
+*****************************************************************************/
+bool AL_Encoder_GetInfo(AL_HEncoder hEnc, AL_TEncoderInfo* pEncInfo);
 
 /*************************************************************************//*!
    \brief Informs the encoder that a scene change will shortly happen.
@@ -235,6 +238,25 @@ AL_ERR AL_Encoder_GetLastError(AL_HEncoder hEnc);
    retrieve the error code
 *****************************************************************************/
 bool AL_Encoder_SetCostMode(AL_HEncoder hEnc, bool costMode);
+
+/*************************************************************************//*!
+   \brief Changes the max picture size set by the rate control
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] uMaxPictureSize The new maximum picture size
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_SetMaxPictureSize(AL_HEncoder hEnc, uint32_t uMaxPictureSize);
+
+/*************************************************************************//*!
+   \brief Changes the max picture size set by the rate control
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] uMaxPictureSize The new maximum picture size
+   \param[in] sliceType The slice type used for the max picture size
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_SetMaxPictureSizePerFrameType(AL_HEncoder hEnc, uint32_t uMaxPictureSize, AL_ESliceType sliceType);
 
 /*************************************************************************//*!
    \brief Requests the encoder to insert a Keyframe and restart a new Gop.

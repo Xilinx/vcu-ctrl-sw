@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -286,8 +273,13 @@ static bool InitIDPool(AL_TIDPool* pPool, int iPoolSize)
 /***************************************************************************/
 static AL_TFrameInfo* GetNextFrameInfo(AL_TFrameInfoPool* pFrameInfoPool)
 {
-  bool bNextPoolIDAvailable = GetNextPoolId(&pFrameInfoPool->tIDPool);
-  AL_Assert(bNextPoolIDAvailable);
+  bool const bNextPoolIDAvailable = GetNextPoolId(&pFrameInfoPool->tIDPool);
+
+  if(!bNextPoolIDAvailable)
+  {
+    AL_Assert(bNextPoolIDAvailable);
+    return NULL;
+  }
   return &pFrameInfoPool->FrameInfos[pFrameInfoPool->tIDPool.iCurID];
 }
 
@@ -319,8 +311,13 @@ static AL_THDRSEIs* GetNextHDRSEIs(AL_THDRPool* pHDRPool)
   if(pHDRPool->tIDPool.iCurID != INVALID_POOL_ID)
     DecrRefCount(pHDRPool, pHDRPool->tIDPool.iCurID);
 
-  bool bNextPoolIDAvailable = GetNextPoolId(&pHDRPool->tIDPool);
-  AL_Assert(bNextPoolIDAvailable);
+  bool const bNextPoolIDAvailable = GetNextPoolId(&pHDRPool->tIDPool);
+
+  if(!bNextPoolIDAvailable)
+  {
+    AL_Assert(bNextPoolIDAvailable);
+    return NULL;
+  }
   pHDRPool->uRefCount[pHDRPool->tIDPool.iCurID] = 1;
   return GetHDRSEIs(pHDRPool, pHDRPool->tIDPool.iCurID);
 }
@@ -555,8 +552,13 @@ bool AL_Common_Encoder_Process(AL_TEncCtx* pCtx, AL_TBuffer* pFrame, AL_TBuffer*
 
   AL_TEncChanParam* pChParam = &pCtx->pSettings->tChParam[iLayerID];
   AL_TPicFormat tPicFormat;
-  bool bSuccess = AL_GetPicFormat(AL_PixMapBuffer_GetFourCC(pFrame), &tPicFormat);
-  AL_Assert(bSuccess);
+  bool const bSuccess = AL_GetPicFormat(AL_PixMapBuffer_GetFourCC(pFrame), &tPicFormat);
+
+  if(!bSuccess)
+  {
+    AL_Assert(bSuccess);
+    return false;
+  }
 
   Rtos_FlushCacheMemory(AL_Buffer_GetData(pFrame), AL_Buffer_GetSize(pFrame));
 
@@ -950,11 +952,18 @@ void AL_Common_Encoder_Destroy(AL_TEncCtx* pCtx)
   Rtos_Free(pCtx);
 }
 
+/***************************************************************************/
+bool AL_Common_Encoder_GetInfo(AL_TEncCtx* pCtx, AL_TEncoderInfo* pEncInfo)
+{
+  pEncInfo->uNumCore = pCtx->pSettings->tChParam[pCtx->pSettings->NumLayer - 1].uNumCore;
+  return true;
+}
+
 #define AL_RETURN_ERROR(e) { AL_Common_SetError(pCtx, e); return false; }
 #define AL_CRIT_SECTION_RETURN_ERROR(mutex, e) { Rtos_ReleaseMutex(mutex); \
                                                  AL_Common_SetError(pCtx, e); \
                                                  return false; }
-
+/***************************************************************************/
 bool AL_Common_Encoder_SetCostMode(AL_TEncCtx* pCtx, bool costMode)
 {
 
@@ -969,6 +978,31 @@ bool AL_Common_Encoder_SetCostMode(AL_TEncCtx* pCtx, bool costMode)
       pCtx->pSettings->tChParam[i].eEncOptions &= ~AL_OPT_RDO_COST_MODE;
 
     pReqInfo->smartParams.costMode = costMode;
+  }
+
+  return true;
+}
+
+/****************************************************************************/
+static void setRcGopParams(AL_TEncCtx* pCtx, int iLayerID)
+{
+  AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[iLayerID]);
+  pReqInfo->eReqOptions |= AL_OPT_UPDATE_RC_GOP_PARAMS;
+
+  pReqInfo->smartParams.rc = pCtx->pSettings->tChParam[iLayerID].tRCParam;
+  pReqInfo->smartParams.gop = pCtx->pSettings->tChParam[iLayerID].tGopParam;
+}
+
+/****************************************************************************/
+bool AL_Common_Encoder_SetMaxPictureSize(AL_TEncCtx* pCtx, uint32_t uMaxPictureSize, AL_ESliceType sliceType)
+{
+  for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
+  {
+    if(pCtx->pSettings->tChParam[i].tRCParam.pMaxPictureSize[sliceType] == 0)
+      return false;
+
+    pCtx->pSettings->tChParam[i].tRCParam.pMaxPictureSize[sliceType] = uMaxPictureSize;
+    setRcGopParams(pCtx, i);
   }
 
   return true;
@@ -1021,21 +1055,11 @@ bool AL_Common_Encoder_RestartGopRecoveryPoint(AL_TEncCtx* pCtx)
 }
 
 /****************************************************************************/
-static void setRcGopParams(AL_TEncCtx* pCtx, int iLayerID)
-{
-  AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[iLayerID]);
-  pReqInfo->eReqOptions |= AL_OPT_UPDATE_RC_GOP_PARAMS;
-
-  pReqInfo->smartParams.rc = pCtx->pSettings->tChParam[iLayerID].tRCParam;
-  pReqInfo->smartParams.gop = pCtx->pSettings->tChParam[iLayerID].tGopParam;
-}
-
-/****************************************************************************/
 bool AL_Common_Encoder_SetGopLength(AL_TEncCtx* pCtx, int iGopLength)
 {
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
   {
-    bool bCmdValid = (pCtx->pSettings->tChParam[i].tGopParam.eMode & AL_GOP_FLAG_DEFAULT) == 0;
+    bool bCmdValid = (pCtx->pSettings->tChParam[i].tGopParam.eMode & AL_GOP_FLAG_DEFAULT) != 0;
 
     if(!bCmdValid)
       AL_RETURN_ERROR(AL_ERR_CMD_NOT_ALLOWED);
@@ -1070,7 +1094,7 @@ bool AL_Common_Encoder_SetFreqIDR(AL_TEncCtx* pCtx, int iFreqIDR)
 {
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
   {
-    bool bCmdValid = (pCtx->pSettings->tChParam[i].tGopParam.eMode & AL_GOP_FLAG_DEFAULT) == 0;
+    bool bCmdValid = (pCtx->pSettings->tChParam[i].tGopParam.eMode & AL_GOP_FLAG_DEFAULT) != 0;
 
     if(!bCmdValid)
       AL_RETURN_ERROR(AL_ERR_CMD_NOT_ALLOWED);
@@ -1153,13 +1177,6 @@ bool AL_Common_Encoder_SetQP(AL_TEncCtx* pCtx, int16_t iQP)
 {
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
   {
-    if(pCtx->pSettings->tChParam[i].tRCParam.eRCMode != AL_RC_BYPASS &&
-       !AL_IS_CBR(pCtx->pSettings->tChParam[i].tRCParam.eRCMode) &&
-       pCtx->pSettings->tChParam[i].tRCParam.eRCMode != AL_RC_VBR)
-    {
-      AL_RETURN_ERROR(AL_ERR_CMD_NOT_ALLOWED);
-    }
-
     AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[i]);
     pReqInfo->eReqOptions |= AL_OPT_SET_QP;
     pReqInfo->smartParams.iQPSet = iQP;

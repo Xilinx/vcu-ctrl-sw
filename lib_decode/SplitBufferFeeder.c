@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -57,11 +44,10 @@ typedef struct al_t_SplitBufferFeeder
 
   AL_EVENT incomingWorkEvent;
   AL_THREAD process;
-  int32_t numInputBuf;
-  int32_t keepGoing;
+  Rtos_AtomicInt numInputBuf;
+  Rtos_AtomicInt keepGoing;
   AL_MUTEX lock;
   bool eos;
-  bool stopped;
   AL_TBuffer* pEOSBuffer;
   bool bEOSParsingCB;
 }AL_TSplitBufferFeeder;
@@ -89,14 +75,14 @@ static void freeBuf(AL_TFeeder* hFeeder, AL_TBuffer* pBuf)
 
 static bool HasInputBuffer(AL_TSplitBufferFeeder* this)
 {
-  int32_t numInputBuf = Rtos_AtomicDecrement(&this->numInputBuf);
+  Rtos_AtomicInt numInputBuf = Rtos_AtomicDecrement(&this->numInputBuf);
   Rtos_AtomicIncrement(&this->numInputBuf);
   return numInputBuf >= 0;
 }
 
 static bool shouldKeepGoing(AL_TSplitBufferFeeder* this)
 {
-  int32_t keepGoing = Rtos_AtomicDecrement(&this->keepGoing);
+  Rtos_AtomicInt keepGoing = Rtos_AtomicDecrement(&this->keepGoing);
   Rtos_AtomicIncrement(&this->keepGoing);
   return keepGoing >= 0;
 }
@@ -112,12 +98,12 @@ static bool IsSuccess(UNIT_ERROR err)
   return (err == SUCCESS_ACCESS_UNIT) || (err == SUCCESS_NAL_UNIT);
 }
 
-static void Process(AL_TSplitBufferFeeder* this)
+static bool Process(AL_TSplitBufferFeeder* this)
 {
   AL_TBuffer* workBuf = AL_Fifo_Dequeue(&this->inputFifo, AL_NO_WAIT);
 
   if(!workBuf)
-    return;
+    return true;
 
   Rtos_AtomicDecrement(&this->numInputBuf);
 
@@ -125,12 +111,12 @@ static void Process(AL_TSplitBufferFeeder* this)
 
   AL_Buffer_Ref(workBuf);
 
-  size_t bufSize = AL_Buffer_GetSize(workBuf);
+  size_t const bufSize = AL_Buffer_GetSize(workBuf);
 
   Rtos_FlushCacheMemory(AL_Buffer_GetData(workBuf), bufSize);
   AL_WorkPool_PushBack(&this->workPool, workBuf);
 
-  UNIT_ERROR err = bufSize ? AL_Decoder_TryDecodeOneUnit(hDec, workBuf) : ERR_UNIT_NOT_FOUND;
+  UNIT_ERROR const err = bufSize ? AL_Decoder_TryDecodeOneUnit(hDec, workBuf) : ERR_UNIT_NOT_FOUND;
 
   signal((AL_TFeeder*)this);
 
@@ -144,20 +130,17 @@ static void Process(AL_TSplitBufferFeeder* this)
       // so we free it here.
       freeBuf((AL_TFeeder*)this, workBuf);
     }
-    this->stopped = true;
     AL_Decoder_InternalFlush(this->hDec);
   }
   else
   {
-    this->stopped = false;
-
     if(!IsSuccess(err))
-    {
       freeBuf((AL_TFeeder*)this, workBuf);
-    }
   }
 
   AL_Buffer_Unref(workBuf);
+
+  return err != ERR_UNIT_INVALID_CHANNEL;
 }
 
 static void* Process_EntryPoint(void* userParam)
@@ -171,13 +154,10 @@ static void* Process_EntryPoint(void* userParam)
 
     // if we still have input buffers, we want to handle them before exiting
     if(!shouldKeepGoing(this) && !HasInputBuffer(this))
-    {
-      if(!this->stopped)
-        AL_Decoder_InternalFlush(this->hDec);
       break;
-    }
 
-    Process(this);
+    if(!Process(this))
+      break;
   }
 
   return NULL;
@@ -254,11 +234,11 @@ static void destroy_process(AL_TFeeder* hFeeder)
   Rtos_GetMutex(this->lock);
   // if you flushed and didn't send another buffer after that, you asked for eos
   // and we will process all the previous buffers.
-  bool eos = this->eos;
+  bool const bShouldProcessAllStreamBuffers = this->eos;
   Rtos_ReleaseMutex(this->lock);
 
   // we weren't asked to flush, just drop all the remaining buffers.
-  if(!eos)
+  if(!bShouldProcessAllStreamBuffers)
   {
     AL_TBuffer* workBuf = AL_Fifo_Dequeue(&this->inputFifo, AL_NO_WAIT);
 
@@ -374,7 +354,6 @@ AL_TFeeder* AL_SplitBufferFeeder_Create(AL_HANDLE hDec, int iMaxBufNum, AL_TBuff
   this->pEOSBuffer = pEOSBuffer;
   this->numInputBuf = 0;
   this->keepGoing = 1;
-  this->stopped = true;
   this->bEOSParsingCB = bEOSParsingCB;
 
   if(iMaxBufNum <= 0 || !AL_Fifo_Init(&this->inputFifo, iMaxBufNum))

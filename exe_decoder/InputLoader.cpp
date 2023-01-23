@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -46,7 +33,7 @@ extern "C"
 }
 #include <algorithm>
 #include <memory>
-#include <cassert>
+#include <stdexcept>
 
 using namespace std;
 
@@ -97,6 +84,18 @@ struct HevcParser final : public INalParser
     case AL_HEVC_NUT_SPS:
     case AL_HEVC_NUT_PPS:
     case AL_HEVC_NUT_PREFIX_SEI:
+    case AL_HEVC_NUT_RSV_NVCL41:
+    case AL_HEVC_NUT_RSV_NVCL42:
+    case AL_HEVC_NUT_RSV_NVCL43:
+    case AL_HEVC_NUT_RSV_NVCL44:
+    case AL_HEVC_NUT_UNSPEC_48:
+    case AL_HEVC_NUT_UNSPEC_49:
+    case AL_HEVC_NUT_UNSPEC_50:
+    case AL_HEVC_NUT_UNSPEC_51:
+    case AL_HEVC_NUT_UNSPEC_52:
+    case AL_HEVC_NUT_UNSPEC_53:
+    case AL_HEVC_NUT_UNSPEC_54:
+    case AL_HEVC_NUT_UNSPEC_55:
       return true;
     default:
       return false;
@@ -146,22 +145,17 @@ struct AvcParser final : public INalParser
 };
 
 /****************************************************************************/
-std::unique_ptr<INalParser> getParser(AL_ECodec eCodec)
+unique_ptr<INalParser> getParser(AL_ECodec eCodec)
 {
-  std::unique_ptr<INalParser> parser;
   switch(eCodec)
   {
-  case AL_CODEC_AVC:
-    parser.reset(new AvcParser);
-    break;
-  case AL_CODEC_HEVC:
-    parser.reset(new HevcParser);
-    break;
+  case AL_CODEC_AVC: return unique_ptr<INalParser>(new AvcParser);
+  case AL_CODEC_HEVC: return unique_ptr<INalParser>(new HevcParser);
   default:
-    break;
+    throw runtime_error("codec unsupported!");
   }
 
-  return parser;
+  return nullptr;
 }
 
 /****************************************************************************/
@@ -222,7 +216,9 @@ static bool isFirstSlice(uint8_t* pBuf, uint32_t uPos)
 static uint32_t skipNalHeader(uint32_t uPos, AL_ECodec eCodec, uint32_t uSize)
 {
   int iNalHdrSize = NalHeaderSize(eCodec);
-  AL_Assert(iNalHdrSize);
+
+  if(iNalHdrSize <= 0)
+    throw runtime_error("iNalHdrSize must be positive!");
   return (uPos + iNalHdrSize) % uSize; // skip start code + nal header
 }
 
@@ -233,7 +229,10 @@ static bool isFirstSliceNAL(CircBuffer& BufStream, NalInfo nal, AL_ECodec eCodec
   uint32_t uCur = nal.startCode.offsetSC + nal.startCode.sizeSC - 3;
   auto iBufSize = BufStream.tBuf.iSize;
 
-  AL_Assert(isStartCode(pBuf, iBufSize, uCur));
+  bool const bIsStartCode = isStartCode(pBuf, iBufSize, uCur);
+
+  if(!bIsStartCode)
+    throw runtime_error("bIsStartCode must be true!");
 
   uCur = skipNalHeader(uCur, eCodec, iBufSize);
   return isFirstSlice(pBuf, uCur);
@@ -342,7 +341,9 @@ static FrameInfo SearchStartCodes(CircBuffer Stream, AL_ECodec eCodec, bool bSli
     if(parser->IsVcl(nalCurrent.NUT))
     {
       int iNalHdrSize = NalHeaderSize(eCodec);
-      AL_Assert(iNalHdrSize > 0);
+
+      if(iNalHdrSize <= 0)
+        throw runtime_error("iNalHdrSize must be positive!");
 
       if((int)nalCurrent.size > iNalHdrSize)
       {
@@ -445,7 +446,9 @@ uint32_t SplitInput::ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream, u
 
         if(iNalAudSize)
         {
-          assert(pAUD);
+          if(pAUD == nullptr)
+            throw runtime_error("pAUD cannot be NULL!");
+
           Rtos_Memcpy(m_CircBuf.tBuf.pBuf + start, pAUD, iNalAudSize);
           m_CircBuf.iAvailSize += iNalAudSize;
         }
@@ -463,7 +466,8 @@ uint32_t SplitInput::ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream, u
     }
   }
 
-  assert(frame.numBytes <= (int)AL_Buffer_GetSize(pBufStream));
+  if(frame.numBytes > (int)AL_Buffer_GetSize(pBufStream))
+    throw runtime_error("frame.numBytes must be lower or equal than bufStream size!");
 
   uint8_t* pBuf = AL_Buffer_GetData(pBufStream);
 

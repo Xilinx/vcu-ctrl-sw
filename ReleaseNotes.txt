@@ -737,3 +737,21 @@
 
   Fixes:
     -- Several minors bugs
+
+2022-12-08 (v1.0.72)
+-------------------
+  Added Features:
+
+  API:
+    -- Version of the API is now 0.34.0
+    -- Decoder:
+      - bDecodeIntraOnly is now part of AL_TStreamSettings
+
+  Fixes:
+    -- Licensing
+    -- Decoder:
+      - Split-input:
+        * Streams concealment
+        * Potential deadlock if channel isn't created due to resource shortage
+      - Decode Intra only should now use a correct amount of buffers
+    -- Several minors bugs

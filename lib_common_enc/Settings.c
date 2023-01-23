@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -481,14 +468,11 @@ void AL_Settings_SetDefaultRCParam(AL_TRCParam* pRCParam)
   pRCParam->uMaxPelVal = 255;
   pRCParam->uMinPSNR = 3300;
   pRCParam->uMaxPSNR = 4200;
-  pRCParam->eOptions = 0;
+  pRCParam->eOptions = AL_RC_OPT_NONE;
 
   pRCParam->bUseGoldenRef = true;
   pRCParam->uGoldenRefFrequency = 10;
   pRCParam->uPGoldenDelta = 2;
-  pRCParam->pMaxPictureSize[AL_SLICE_I] = 0;
-  pRCParam->pMaxPictureSize[AL_SLICE_P] = 0;
-  pRCParam->pMaxPictureSize[AL_SLICE_B] = 0;
   pRCParam->uMaxConsecSkip = UINT32_MAX;
 }
 
@@ -504,20 +488,15 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   Rtos_Memset(pSettings, 0, sizeof(*pSettings));
 
   AL_TEncChanParam* pChan = &pSettings->tChParam[0];
-  pChan->uEncWidth = 0;
-  pChan->uEncHeight = 0;
-
-  pChan->uSrcWidth = 0;
-  pChan->uSrcHeight = 0;
+  pChan->Direct8x8Infer = true;
+  pChan->StrongIntraSmooth = true;
 
   pChan->eProfile = AL_DEFAULT_PROFILE;
   pChan->uLevel = 51;
-  pChan->uTier = 0; // MAIN_TIER
   pChan->eEncTools = AL_OPT_LF | AL_OPT_LF_X_SLICE | AL_OPT_LF_X_TILE;
   pChan->eEncOptions |= AL_OPT_RDO_COST_MODE;
 
   pChan->ePicFormat = AL_420_8BITS;
-  pChan->bVideoFullRange = false;
   pChan->uSrcBitDepth = 8;
 
   AL_TGopParam* pGop = &pChan->tGopParam;
@@ -553,6 +532,7 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 
   pSettings->eQpCtrlMode = AL_QP_CTRL_NONE;
   pSettings->eQpTableMode = AL_QP_TABLE_NONE;
+
   pChan->eLdaCtrlMode = AL_AUTO_LDA;
   AL_Assert(sizeof(pChan->LdaFactors) == sizeof(LAMBDA_FACTORS));
   Rtos_Memcpy(pChan->LdaFactors, LAMBDA_FACTORS, sizeof(LAMBDA_FACTORS));
@@ -564,7 +544,6 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pChan->pMeRange[AL_SLICE_P][1] = -1; // Vert
   pChan->pMeRange[AL_SLICE_B][0] = -1; // Horz
   pChan->pMeRange[AL_SLICE_B][1] = -1; // Vert
-  pChan->uMVVRange = 0;
   pChan->uLog2MaxCuSize = HEVC_MAX_CTB_SIZE;
   pChan->uLog2MinCuSize = MIN_CU_SIZE;
   pChan->uLog2MaxTuSize = 5; // 32x32
@@ -578,18 +557,10 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
 
   pChan->eSrcMode = AL_SRC_RASTER;
 
-  pSettings->LookAhead = 0;
-  pSettings->TwoPass = 0;
-  pSettings->bEnableFirstPassSceneChangeDetection = false;
-
   pChan->eVideoMode = AL_VM_PROGRESSIVE;
 
   pChan->MaxNumMergeCand = 5;
 
-  pChan->uOutputCropPosX = 0;
-  pChan->uOutputCropPosY = 0;
-  pChan->uOutputCropWidth = 0;
-  pChan->uOutputCropHeight = 0;
   pChan->eStartCodeBytesAligned = AL_START_CODE_AUTO;
 
 #if (defined(ANDROID) || defined(__ANDROID_API__))
@@ -666,8 +637,8 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
 
   if(pChParam->bEnableSrcCrop)
   {
-    const int HStep = AL_GET_BITDEPTH(pChParam->ePicFormat) == 10 ? 24 : 32; // In 10-bit there are 24 samples every 32 bytes
-    const int VStep = 1; // should be 2 in 4:2:0 but customer requires it to be 1 in any case !
+    int HStep = AL_GET_BITDEPTH(pChParam->ePicFormat) == 10 ? 24 : 32; // In 10-bit there are 24 samples every 32 bytes
+    int VStep = 1; // should be 2 in 4:2:0 but customer requires it to be 1 in any case !
 
     if((pChParam->uSrcCropPosX % HStep) || (pChParam->uSrcCropPosY % VStep))
     {
@@ -722,7 +693,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   {
     AL_NumCoreDiagnostic diagnostic;
 
-    if(!AL_Constraint_NumCoreIsSane(pChParam->uEncWidth, pChParam->uNumCore, pChParam->uLog2MaxCuSize, &diagnostic))
+    if(!AL_Constraint_NumCoreIsSane(AL_GET_CODEC(pChParam->eProfile), pChParam->uEncWidth, pChParam->uNumCore, pChParam->uLog2MaxCuSize, &diagnostic))
     {
       ++err;
       MSGF_ERROR("Invalid parameter: NumCore. The width should at least be %d CTB per core. With the specified number of core, it is %d CTB per core. (Multi core alignement constraint might be the reason of this error if the CTB are equal)", diagnostic.requiredWidthInCtbPerCore, diagnostic.actualWidthInCtbPerCore);
@@ -825,7 +796,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     }
   }
 
-  int iMaxSlices = (pChParam->uEncHeight + (iCTBSize / 2)) / iCTBSize;
+  int iMaxSlices = (pChParam->uEncHeight + iCTBSize - 1) / iCTBSize;
 
   if((pChParam->uNumSlices < 1) || (pChParam->uNumSlices > iMaxSlices) || (pChParam->uNumSlices > AL_MAX_ENC_SLICE) || ((pChParam->bSubframeLatency) && (pChParam->uNumSlices > AL_MAX_SLICES_SUBFRAME)))
   {
@@ -865,6 +836,11 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   {
     ++err;
     MSG_ERROR("LCU64x64 encoding is currently limited to resolution higher or equal to 72x72!");
+  }
+  else if(eResError == CERROR_RES_ALIGNMENT)
+  {
+    ++err;
+    MSG_ERROR("In AV1 or VP9 Profile, resolution must be multiple of 8!");
   }
 
   int iNumB = pChParam->tGopParam.uNumB;
@@ -988,6 +964,12 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     }
   }
 
+  if(pSettings->bDependentSlice && AL_GET_CODEC(pChParam->eProfile) != AL_CODEC_HEVC)
+  {
+    err++;
+    MSG_ERROR("The parameter DependentSlice is only available for HEVC");
+  }
+
   return err;
 }
 
@@ -1023,6 +1005,7 @@ bool checkChromaCoherency(AL_EChromaMode eChroma, AL_EProfile eProfile)
 /***************************************************************************/
 bool checkProfileCoherency(int iBitDepth, AL_EChromaMode eChroma, AL_EProfile eProfile)
 {
+
   if(!checkBitDepthCoherency(iBitDepth, eProfile))
     return false;
 
@@ -1109,6 +1092,8 @@ AL_EProfile getAvcMinimumProfile(int iBitDepth, AL_EChromaMode eChroma)
 
     break;
   }
+  case 12:
+    return AL_PROFILE_AVC_HIGH_444_PRED;
   default:
     AL_Assert(0);
   }
@@ -1249,8 +1234,8 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
       pChParam->uCuQPDeltaDepth = pChParam->uLog2MaxCuSize - pChParam->uLog2MinCuSize;
     }
 
-    if((pChParam->uLog2MaxCuSize == 6 && (pChParam->uCuQPDeltaDepth > 3 || pChParam->uCuQPDeltaDepth > 3)) &&
-       (pChParam->uLog2MaxCuSize != 6 && (pChParam->uCuQPDeltaDepth > 2)))
+    if((pChParam->uLog2MaxCuSize == 6 && pChParam->uCuQPDeltaDepth > 3) &&
+       (pChParam->uLog2MaxCuSize != 6 && pChParam->uCuQPDeltaDepth > 2))
     {
       MSG_WARNING("CuQpDeltaDepth is too high!");
       ++numIncoherency;
@@ -1303,12 +1288,16 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
   }
 
   if(pChParam->tGopParam.uNumB > 0)
-    if((pChParam->tRCParam.uPBDelta > 0) ^ (pChParam->tRCParam.uIPDelta > 0))
+  {
+    int16_t iDefaultDelta = AL_IS_ITU_CODEC(AL_GET_CODEC(pChParam->eProfile)) ? 0 : 1;
+
+    if((pChParam->tRCParam.uPBDelta >= iDefaultDelta) ^ (pChParam->tRCParam.uIPDelta >= iDefaultDelta))
     {
       MSG_WARNING("Both or none of PBDelta and IPDelta parameters must be set at the same time. They will be adjusted.");
       pChParam->tRCParam.uPBDelta = -1;
       pChParam->tRCParam.uIPDelta = -1;
     }
+  }
 
   int16_t iMeMinVRange;
   int16_t iMeMaxRange[2][2];
@@ -1436,6 +1425,13 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
       ++numIncoherency;
     }
 
+  }
+
+  if(pChParam->bForcePpsIdToZero && !(pChParam->tGopParam.eMode & AL_GOP_FLAG_LOW_DELAY) && (pChParam->tGopParam.uNumB != 0))
+  {
+    pChParam->bForcePpsIdToZero = false;
+    MSG_WARNING("ForcePpsIdToZero can't be used with the reordered B-Frames. It will be disabled");
+    ++numIncoherency;
   }
 
   int const MAX_LOW_DELAY_B_GOP_LENGTH = 4;
@@ -1582,7 +1578,9 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     if(iNumCore == NUMCORE_AUTO)
       iNumCore = AL_CoreConstraint_GetExpectedNumberOfCores(&constraint, pChParam->uEncWidth, pChParam->uEncHeight, AL_GET_CHROMA_MODE(pChParam->ePicFormat), pChParam->tRCParam.uFrameRate * 1000, pChParam->tRCParam.uClkRatio);
 
-    if(iNumCore > 1 && pChParam->uNumSlices > AL_HEVC_GetMaxTileRows(pChParam->uLevel))
+    bool bHasTile = iNumCore > 1;
+
+    if(bHasTile && pChParam->uNumSlices > AL_HEVC_GetMaxTileRows(pChParam->uLevel))
     {
       pChParam->uNumSlices = Clip3(pChParam->uNumSlices, 1, AL_HEVC_GetMaxTileRows(pChParam->uLevel));
       MSG_WARNING("With this Configuration, this NumSlices cannot be set");

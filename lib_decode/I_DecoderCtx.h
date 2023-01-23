@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -63,6 +50,14 @@ typedef enum AL_e_ChanState
   CHAN_INVALID,
   CHAN_DESTROYING,
 }AL_EChanState;
+
+typedef enum
+{
+  SEND_NAL_UNTIL_LAST_VCL,
+  SEND_REORDERED_SUFFIX,
+  SEND_LAST_VCL,
+  SEND_REMAINING_NAL,
+}AL_DecodeNalStep;
 
 typedef struct
 {
@@ -98,6 +93,9 @@ typedef struct
   void (* finishPendingRequest)(AL_TDecCtx*);
   AL_NonVclNuts (* getNonVclNuts)(void);
   bool (* isNutError)(AL_ENut);
+  // use in Split Input
+  // return true if the Nal should be reordered to be send before sending the last Vcl Nal
+  bool (* canNalBeReordered)(AL_ENut);
 }AL_NalParser;
 
 /*************************************************************************//*!
@@ -184,6 +182,7 @@ typedef struct t_Dec_Ctx
 
   // error concealment context
   AL_TConceal tConceal;
+  uint16_t uConcealMaxFps; // Clipping of framerate for stream having corrupted or invalid SPS header
 
   // tile data management
   uint16_t uCurTileID;      // Tile offset of the current tile within the frame
@@ -216,7 +215,6 @@ typedef struct t_Dec_Ctx
 
   int iNumSlicesRemaining;
 
-  bool bDecodeIntraOnly;
   bool bIsIFrame;
 
   AL_TPosition tOutputPosition;

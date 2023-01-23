@@ -10,13 +10,13 @@ LIB_ENCODE_SRC+=\
 	lib_encode/LoadLda.c\
 
 
-ifneq ($(ENABLE_AVC),0)
+ifneq ($(ENABLE_ENC_AVC),0)
   LIB_ENCODE_SRC+=lib_encode/AVC_EncUtils.c
 	LIB_ENCODE_SRC+=lib_encode/AVC_Encoder.c
 	LIB_ENCODE_SRC+=lib_encode/AVC_Sections.c
 endif
 
-ifneq ($(ENABLE_HEVC),0)
+ifneq ($(ENABLE_ENC_HEVC),0)
   LIB_ENCODE_SRC+=lib_encode/HEVC_EncUtils.c
 	LIB_ENCODE_SRC+=lib_encode/HEVC_Encoder.c
 	LIB_ENCODE_SRC+=lib_encode/HEVC_Sections.c

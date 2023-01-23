@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -706,24 +693,24 @@ bool Rtos_ReleaseSemaphore(AL_SEMAPHORE Semaphore)
 #endif
 
 #if defined(_MSC_VER)
-int32_t Rtos_AtomicIncrement(int32_t* iVal)
+Rtos_AtomicInt Rtos_AtomicIncrement(Rtos_AtomicInt* iVal)
 {
   return InterlockedIncrement(iVal);
 }
 
-int32_t Rtos_AtomicDecrement(int32_t* iVal)
+Rtos_AtomicInt Rtos_AtomicDecrement(Rtos_AtomicInt* iVal)
 {
   return InterlockedDecrement(iVal);
 }
 
 #else
 
-int32_t Rtos_AtomicIncrement(int32_t* iVal)
+Rtos_AtomicInt Rtos_AtomicIncrement(Rtos_AtomicInt* iVal)
 {
   return __sync_add_and_fetch(iVal, 1);
 }
 
-int32_t Rtos_AtomicDecrement(int32_t* iVal)
+Rtos_AtomicInt Rtos_AtomicDecrement(Rtos_AtomicInt* iVal)
 {
   return __sync_sub_and_fetch(iVal, 1);
 }

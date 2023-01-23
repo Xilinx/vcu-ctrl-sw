@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,36 +9,23 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
 #include "TwoPassMngr.h"
 #include <stdexcept>
+#include <string>
 #include <algorithm>
-#include <cassert>
 #include <iostream>
 
 #define SEQUENCE_SIZE_MAX 1000
@@ -97,8 +84,9 @@ AL_TLookAheadMetaData* AL_TwoPassMngr_CreateAndAttachTwoPassMetaData(AL_TBuffer*
   if(!pPictureMetaTP)
   {
     pPictureMetaTP = AL_LookAheadMetaData_Create();
-    bool success = AL_Buffer_AddMetaData(Src, reinterpret_cast<AL_TMetaData*>(pPictureMetaTP));
-    assert(success);
+
+    if(AL_Buffer_AddMetaData(Src, reinterpret_cast<AL_TMetaData*>(pPictureMetaTP)) == false)
+      throw runtime_error("Add meta shouldn't fail!");
   }
   AL_LookAheadMetaData_Reset(pPictureMetaTP);
   return pPictureMetaTP;
@@ -331,9 +319,15 @@ void TwoPassMngr::ComputeTwoPass()
 void TwoPassMngr::ComputeComplexity()
 {
   auto iSequenceSize = static_cast<int>(tFrames.size());
-  assert(iSequenceSize > 0);
-  assert(iSequenceSize <= SEQUENCE_SIZE_MAX);
-  assert(iCpbLevel >= iInitialLevel);
+
+  if(iSequenceSize <= 0)
+    throw runtime_error("iSequenceSize(" + to_string(iSequenceSize) + ") must be higher than 0");
+
+  if(iSequenceSize > SEQUENCE_SIZE_MAX)
+    throw runtime_error("iSequenceSize(" + to_string(iSequenceSize) + ") must be lower than SEQUENCE_SIZE_MAX(" + to_string(SEQUENCE_SIZE_MAX) + ")");
+
+  if(iCpbLevel < iInitialLevel)
+    throw runtime_error("iCpbLevel(" + to_string(iCpbLevel) + ") should be higher or equal than iInitialLevel(" + to_string(iInitialLevel) + ")");
 
   if(iGopSize == 0 || iSequenceSize == 0)
     return;
@@ -509,7 +503,9 @@ int LookAheadMngr::GetNextSceneChange()
 void LookAheadMngr::ProcessLookAheadParams()
 {
   int iFifoSize = static_cast<int>(m_fifo.size());
-  assert(iFifoSize > 0);
+
+  if(iFifoSize <= 0)
+    throw runtime_error("iFifoSize(" + to_string(iFifoSize) + ") must be higher than 0");
 
   auto pPictureMetaLA = (AL_TLookAheadMetaData*)AL_Buffer_GetMetaData(m_fifo[0], AL_META_TYPE_LOOKAHEAD);
 

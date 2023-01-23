@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -41,7 +28,6 @@
 #include <string>
 #include <map>
 #include <vector>
-#include <cassert>
 
 using namespace std;
 
@@ -53,11 +39,11 @@ struct AllocatorTracker
   const AL_AllocatorVtable* vtable;
   AL_TAllocator* realAllocator;
   map<string, vector<size_t>> allocs;
-  int size = 0;
+  uint64_t size = 0;
   int mode = summaryMode;
 };
 
-static int bytes_to_megabytes(int bytes)
+static int bytes_to_megabytes(uint64_t bytes)
 {
   return bytes / (1024 * 1024);
 }
@@ -72,22 +58,25 @@ static bool destroy(AL_TAllocator* handle)
   {
     for(auto& alloc : self->allocs)
     {
-      auto sizes = alloc.second;
-      auto firstSize = sizes.at(0);
-      auto totalSize = 0;
+      auto const sizes = alloc.second;
+      auto const firstSize = sizes.at(0);
+      uint64_t totalSize = 0;
 
       /* buffer with the same name should have the same size */
       if(alloc.first != "unknown")
       {
-        for(auto& size : sizes)
-          assert(size == firstSize);
+        for(auto const& size : sizes)
+        {
+          if(size != firstSize)
+            return false;
+        }
       }
 
       cout << setfill(' ') << setw(24) << left << alloc.first;
       size_t curSize = 0;
       auto numElem = 0;
 
-      for(auto& size : sizes)
+      for(auto const& size : sizes)
       {
         if(curSize != size)
         {

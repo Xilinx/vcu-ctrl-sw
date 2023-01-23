@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -49,12 +36,6 @@
 #include "lib_encode/HEVC_Sections.h"
 
 #include "lib_assert/al_assert.h"
-
-static void AddSection(AL_TStreamMetaData* pMeta, uint32_t uOffset, uint32_t uLength, uint32_t uFlags)
-{
-  int iSection = AL_StreamMetaData_AddSection(pMeta, uOffset, uLength, uFlags);
-  AL_Assert(iSection >= 0);
-}
 
 static int getBytesOffset(AL_TBitStreamLite* pStream)
 {
@@ -99,7 +80,7 @@ static void GenerateNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, int b
   /* we should always be able to write the configuration nals as we reserved
    * enough space for them */
   AL_Assert(size >= 0);
-  AddSection(pMeta, start, size, uFlags);
+  AL_StreamMetaData_AddSection(pMeta, start, size, uFlags);
 }
 
 static void GenerateConfigNalUnits(IRbspWriter* writer, AL_TNalUnit* nals, uint32_t* nalsFlags, int nalsCount, AL_TBuffer* pStream, AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned)
@@ -275,7 +256,7 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, AL_TNalsData const* pN
   for(int iPart = 0; iPart < pPicStatus->iNumParts; ++iPart)
   {
     AL_ESectionFlags eFlags = AL_SECTION_NO_FLAG;
-    AddSection(pMetaData, pStreamParts[iPart].uOffset, pStreamParts[iPart].uSize, eFlags);
+    AL_StreamMetaData_AddSection(pMetaData, pStreamParts[iPart].uOffset, pStreamParts[iPart].uSize, eFlags);
   }
 
   int offset = getOffsetAfterLastSection(pMetaData);
@@ -300,11 +281,11 @@ void GenerateSections(IRbspWriter* writer, AL_TNuts nuts, AL_TNalsData const* pN
     if(iWritten < pPicStatus->iFiller)
       Rtos_Log(AL_LOG_CRITICAL, "[WARNING] Filler data (%i) doesn't fit in the current buffer. Clip it to %i !\n", pPicStatus->iFiller, iWritten);
 
-    AddSection(pMetaData, offset, iWritten, bDontFill ? AL_SECTION_APP_FILLER_FLAG : AL_SECTION_FILLER_FLAG);
+    AL_StreamMetaData_AddSection(pMetaData, offset, iWritten, bDontFill ? AL_SECTION_APP_FILLER_FLAG : AL_SECTION_FILLER_FLAG);
   }
 
   if(pPicStatus->bIsLastSlice)
-    AddSection(pMetaData, 0, 0, AL_SECTION_END_FRAME_FLAG);
+    AL_StreamMetaData_AddSection(pMetaData, 0, 0, AL_SECTION_END_FRAME_FLAG);
 
   if(pPicStatus->bIsIDR)
     AddFlagsToAllSections(pMetaData, AL_SECTION_SYNC_FLAG);

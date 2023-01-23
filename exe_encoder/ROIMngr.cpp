@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,39 +9,29 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
 #include "ROIMngr.h"
-#include <cassert>
+
+#include <stdexcept>
 
 extern "C"
 {
 #include "lib_rtos/lib_rtos.h"
 }
+
+using namespace std;
 
 struct AL_TRoiNode
 {
@@ -89,7 +79,8 @@ static void PushBack(AL_TRoiMngrCtx* pCtx, AL_TRoiNode* pNode)
 {
   if(pCtx->pFirstNode)
   {
-    assert(pCtx->pLastNode);
+    if(!pCtx->pLastNode)
+      throw runtime_error("last node must be true");
     pNode->pPrev = pCtx->pLastNode;
     pNode->pNext = nullptr;
     pCtx->pLastNode->pNext = pNode;
@@ -97,7 +88,8 @@ static void PushBack(AL_TRoiMngrCtx* pCtx, AL_TRoiNode* pNode)
   }
   else
   {
-    assert(!pCtx->pLastNode);
+    if(pCtx->pLastNode)
+      throw runtime_error("last node must be false");
     pNode->pPrev = nullptr;
     pNode->pNext = nullptr;
     pCtx->pFirstNode = pCtx->pLastNode = pNode;
@@ -427,7 +419,8 @@ bool AL_RoiMngr_AddROI(AL_TRoiMngrCtx* pCtx, int iPosX, int iPosY, int iWidth, i
 /****************************************************************************/
 void AL_RoiMngr_FillBuff(AL_TRoiMngrCtx* pCtx, int iNumQPPerLCU, int iNumBytesPerLCU, uint8_t* pQPs, int iLcuQpOffset)
 {
-  assert(pQPs);
+  if(pQPs == nullptr)
+    throw runtime_error("pQPs buffer must exist");
   uint16_t uDeltaQP = GetNewDeltaQP(pCtx->eBkgQuality);
   uint16_t uBkgQPOrSegId = uDeltaQP;
 

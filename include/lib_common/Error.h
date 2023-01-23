@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -49,11 +36,14 @@
 
 #include "lib_rtos/types.h"
 
-#define AL_DEF_WARNING(N) ((AL_ERR)(0x00 + (N)))
-#define AL_DEF_ERROR(N) ((AL_ERR)(0x80 + (N)))
+#define AL_DEF_WARNING(N) (0x00 + (N))
+#define AL_DEF_ERROR(N) (0x80 + (N))
 
-enum
+typedef enum
 {
+  /*! The operation succeeded without encountering any error */
+  AL_SUCCESS = 0,
+
   /*! The decoder had to conceal some errors in the stream */
   AL_WARN_CONCEAL_DETECT = AL_DEF_WARNING(1),
   /*! Nal has parameters unsupported by decoder */
@@ -68,12 +58,21 @@ enum
   AL_WARN_SEI_OVERFLOW = AL_DEF_WARNING(6),
   /*! The resolutionFound Callback returns with error */
   AL_WARN_RES_FOUND_CB = AL_DEF_WARNING(7),
-};
+  /*! Sps bitdepth not compatible with channel settings, decoder discards it */
+  AL_WARN_SPS_BITDEPTH_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS = AL_DEF_WARNING(8),
+  /*! Sps level not compatible with channel settings, decoder discards it */
+  AL_WARN_SPS_LEVEL_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS = AL_DEF_WARNING(9),
+  /*! Sps chroma mode not compatible with channel settings, decoder discards it */
+  AL_WARN_SPS_CHROMA_MODE_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS = AL_DEF_WARNING(10),
+  /*! Sps sequence mode (progressive/interlaced) not compatible with channel settings, decoder discards it */
+  AL_WARN_SPS_INTERLACE_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS = AL_DEF_WARNING(11),
+  /*! Sps resolution not compatible with channel settings, decoder discards it */
+  AL_WARN_SPS_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS = AL_DEF_WARNING(12),
+  /*! Sps minimal resolution not compatible with channel settings, decoder discards it */
+  AL_WARN_SPS_MIN_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS = AL_DEF_WARNING(13),
+  /*! Arbitrary Slice Order or Flexible Macroblock Reordering features are not supported, decoder discards it */
+  AL_WARN_ASO_FMO_NOT_SUPPORTED = AL_DEF_WARNING(14),
 
-enum
-{
-  /*! The operation succeeded without encountering any error */
-  AL_SUCCESS = ((AL_ERR)0x00000000),
   /*! Unknown error */
   AL_ERROR = AL_DEF_ERROR(0),
   /*! Couldn't allocate a resource because no memory was left
@@ -123,7 +122,7 @@ enum
   AL_ERR_REQUEST_INVALID_MAX_HEIGHT = AL_DEF_ERROR(32),
   /*! HW capacity is excedeed */
   AL_ERR_CHAN_CREATION_HW_CAPACITY_EXCEEDED = AL_DEF_ERROR(33),
-};
+}AL_ERR;
 
 static inline bool AL_IS_ERROR_CODE(AL_ERR eErrorCode)
 {

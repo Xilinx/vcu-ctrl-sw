@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -48,9 +35,12 @@
 // - For semi-planar format and 10-12 bits precision : the reference used is
 // https://docs.microsoft.com/en-us/windows/win32/medfound/10-bit-and-16-bit-yuv-video-formats
 
-#include <cassert>
+#include <stdexcept>
 #include <cstring>
+#include <string>
+#include <algorithm>
 #include "lib_app/convert.h"
+#include "lib_app/CompFrameCommon.h"
 
 extern "C" {
 #include "lib_common/PixMapBuffer.h"
@@ -377,8 +367,11 @@ void Y800_To_XV10(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
   int iPitchSrcY = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_Y);
   int iPitchDstY = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_Y);
 
-  assert(iPitchDstY % 4 == 0);
-  assert(iPitchDstY >= (tDim.iWidth + 2) / 3 * 4);
+  if((iPitchDstY % 4) != 0)
+    throw std::runtime_error("iPitchDstY (" + std::to_string(iPitchDstY) + ") should be aligned to 4");
+
+  if(iPitchDstY < ((((tDim.iWidth + 2) / 3) * 4)))
+    throw std::runtime_error("iPitchDstY (" + std::to_string(iPitchDstY) + ") should be higher than" + std::to_string((((tDim.iWidth + 2) / 3) * 4)));
 
   uint8_t* pSrcData = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_Y);
   uint8_t* pDstData = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_Y);
@@ -424,7 +417,8 @@ static void Set_XV_ChromaComponent(AL_TBuffer* pDstBuf, int iHrzScale, int iVrtS
   uint8_t* pDstData = AL_PixMapBuffer_GetPlaneAddress(pDstBuf, AL_PLANE_UV);
   int iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDstBuf, AL_PLANE_UV);
 
-  assert(iPitchDst % 4 == 0);
+  if((iPitchDst % 4) != 0)
+    throw std::runtime_error("iPitchDst (" + std::to_string(iPitchDst) + ") should be aligned to 4");
 
   for(int h = 0; h < iHeightC; h++)
   {
@@ -484,8 +478,11 @@ static void SemiPlanar_To_XV_OneComponent(AL_TBuffer const* pSrcBuf, AL_TBuffer*
   if(!bProcessY)
     iDstWidth *= 2;
 
-  assert(iPitchDst % 4 == 0);
-  assert(iPitchDst >= (iDstWidth + 2) / 3 * 4);
+  if((iPitchDst % 4) != 0)
+    throw std::runtime_error("iPitchDst (" + std::to_string(iPitchDst) + ") should be aligned to 4");
+
+  if(iPitchDst < ((((iDstWidth + 2) / 3) * 4)))
+    throw std::runtime_error("iPitchDst (" + std::to_string(iPitchDst) + ") should be higher than" + std::to_string((((iDstWidth + 2) / 3) * 4)));
 
   for(int h = 0; h < iDstHeight; h++)
   {
@@ -969,7 +966,7 @@ static void I4XX_To_PX10(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   case 1: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(P410));
   case 2: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(P210));
   case 4: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(P010));
-  default: assert(0 && "Unsupported chroma scale");
+  default: throw std::runtime_error("Unsupported chroma scale");
   }
 }
 
@@ -1012,7 +1009,7 @@ static void I4XX_To_PX12(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   case 1: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(P412));
   case 2: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(P212));
   case 4: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(P012));
-  default: assert(0 && "Unsupported chroma scale");
+  default: throw std::runtime_error("Unsupported chroma scale");
   }
 }
 
@@ -1120,8 +1117,11 @@ static void I42X_To_XVXX(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   int iSrcPitchV = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_V);
   int iDstPitch = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_UV);
 
-  assert(iDstPitch % 4 == 0);
-  assert(iDstPitch >= (tDim.iWidth + 2) / 3 * 4);
+  if((iDstPitch % 4) != 0)
+    throw std::runtime_error("iDstPitch (" + std::to_string(iDstPitch) + ") should be aligned to 4");
+
+  if(iDstPitch < ((((tDim.iWidth + 2) / 3) * 4)))
+    throw std::runtime_error("iDstPitch (" + std::to_string(iDstPitch) + ") should be higher than" + std::to_string((((tDim.iWidth + 2) / 3) * 4)));
 
   uint8_t* pSrcDataU = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_U);
   uint8_t* pSrcDataV = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_V);
@@ -1230,7 +1230,7 @@ static void IXAL_To_NVXX(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   case 1: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(NV24));
   case 2: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(NV16));
   case 4: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(NV12));
-  default: assert(0 && "Unsupported chroma scale");
+  default: throw std::runtime_error("Unsupported chroma scale");
   }
 }
 
@@ -1341,8 +1341,11 @@ static void IXAL_To_XVXX(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   uint32_t uSrcPitchChromaV = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_V);
   uint32_t uDstPitchChroma = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_UV);
 
-  assert(uDstPitchChroma % 4 == 0);
-  assert(uDstPitchChroma >= (uint32_t)(tDim.iWidth + 2) / 3 * 4);
+  if((uDstPitchChroma % 4) != 0)
+    throw std::runtime_error("uDstPitchChroma (" + std::to_string(uDstPitchChroma) + ") should be aligned to 4");
+
+  if(uDstPitchChroma < ((((static_cast<decltype(uDstPitchChroma)>(tDim.iWidth) + 2) / 3) * 4)))
+    throw std::runtime_error("uDstPitchChroma (" + std::to_string(uDstPitchChroma) + ") should be higher than" + std::to_string((((static_cast<decltype(uDstPitchChroma)>(tDim.iWidth) + 2) / 3) * 4)));
 
   int iWidthC = (tDim.iWidth + uHrzCScale - 1) / uHrzCScale;
   int iHeightC = (tDim.iHeight + uVrtCScale - 1) / uVrtCScale;
@@ -1856,7 +1859,8 @@ void T608_To_P012(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 /****************************************************************************/
 static void Chroma_T608_To_I0XL(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uBitDepth)
 {
-  assert(uBitDepth == 10 || uBitDepth == 12);
+  if(uBitDepth != 10 && uBitDepth != 12)
+    throw std::runtime_error("uBitDepth(" + std::to_string(uBitDepth) + ") must be equal to 10 or 12");
 
   int iPitchSrc = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_UV);
   int iPitchDstU = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_U) / sizeof(uint16_t);
@@ -1996,11 +2000,13 @@ static void Tile_To_XV_OneComponent(AL_TBuffer const* pSrcBuf, AL_TBuffer* pDstB
   int iPitchSrc = AL_PixMapBuffer_GetPlanePitch(pSrcBuf, ePlaneID);
   int iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDstBuf, ePlaneID);
 
-  assert(iPitchDst % 4 == 0);
+  if((iPitchDst % 4) != 0)
+    throw std::runtime_error("iPitchDst (" + std::to_string(iPitchDst) + ") should be aligned to 4");
 
   if(bProcessY)
   {
-    assert(iPitchDst >= (tDim.iWidth + 2) / 3 * 4);
+    if(iPitchDst < ((((tDim.iWidth + 2) / 3) * 4)))
+      throw std::runtime_error("iPitchDst (" + std::to_string(iPitchDst) + ") should be higher than" + std::to_string((((tDim.iWidth + 2) / 3) * 4)));
   }
 
   for(int h = 0; h < iDstHeight; h++)
@@ -2078,7 +2084,9 @@ void T628_To_NV16(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 /****************************************************************************/
 static void Chroma_T628_To_I2XL(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uBitDepth)
 {
-  assert(uBitDepth == 10 || uBitDepth == 12);
+  if(uBitDepth != 10 && uBitDepth != 12)
+    throw std::runtime_error("uBitDepth(" + std::to_string(uBitDepth) + ") must be equal to 10 or 12");
+
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pSrc);
   tDim.iWidth = ((tDim.iWidth + 1) >> 1) << 1;
 
@@ -2585,7 +2593,8 @@ static void XVXX_To_I42X(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   int iPitchDstU = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_U);
   int iPitchDstV = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_V);
 
-  assert(iPitchSrc % 4 == 0);
+  if((iPitchSrc % 4) != 0)
+    throw std::runtime_error("iPitchSrc (" + std::to_string(iPitchSrc) + ") should be aligned to 4");
 
   uint8_t* pSrcData = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
   uint8_t* pDstDataU = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_U);
@@ -2643,7 +2652,8 @@ void XV10_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
   int iPitchSrc = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_Y);
   int iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_Y);
 
-  assert(iPitchSrc % 4 == 0);
+  if((iPitchSrc % 4) != 0)
+    throw std::runtime_error("iPitchSrc (" + std::to_string(iPitchSrc) + ") should be aligned to 4");
 
   uint8_t* pSrcData = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_Y);
   uint8_t* pDstData = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_Y);
@@ -2685,7 +2695,8 @@ void XV10_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
   int iPitchSrc = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_Y);
   int iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_Y);
 
-  assert(iPitchSrc % 4 == 0);
+  if((iPitchSrc % 4) != 0)
+    throw std::runtime_error("iPitchSrc (" + std::to_string(iPitchSrc) + ") should be aligned to 4");
 
   uint8_t* pSrcData = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_Y);
   uint8_t* pDstData = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_Y);
@@ -2774,7 +2785,8 @@ void XVXX_To_NV1X(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzCScale, 
   int iPitchSrc = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_UV);
   int iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_UV);
 
-  assert(iPitchSrc % 4 == 0);
+  if((iPitchSrc % 4) != 0)
+    throw std::runtime_error("iPitchSrc (" + std::to_string(iPitchSrc) + ") should be aligned to 4");
 
   uint8_t* pSrcData = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
   uint8_t* pDstData = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
@@ -2835,7 +2847,8 @@ static void XVXX_To_PX10(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   int iPitchSrc = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_UV);
   int iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_UV);
 
-  assert(iPitchSrc % 4 == 0);
+  if((iPitchSrc % 4) != 0)
+    throw std::runtime_error("iPitchSrc (" + std::to_string(iPitchSrc) + ") should be aligned to 4");
 
   uint8_t* pSrcData = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
   uint8_t* pDstData = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
@@ -2905,7 +2918,8 @@ static void XVXX_To_IXAL(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   int iPitchDstU = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_U);
   int iPitchDstV = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_U);
 
-  assert(iPitchSrc % 4 == 0);
+  if((iPitchSrc % 4) != 0)
+    throw std::runtime_error("iPitchSrc (" + std::to_string(iPitchSrc) + ") should be aligned to 4");
 
   uint8_t* pSrcData = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
   uint8_t* pDstDataU = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_U);
@@ -3061,7 +3075,7 @@ static void NVXX_To_IXAL(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   case 1: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I4AL));
   case 2: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I2AL));
   case 4: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(I0AL));
-  default: assert(0 && "Unsupported chroma scale");
+  default: throw std::runtime_error("Unsupported chroma scale");
   }
 }
 
@@ -3118,7 +3132,7 @@ static void NVXX_To_PX10(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   case 1: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(P410));
   case 2: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(P210));
   case 4: return (void)AL_PixMapBuffer_SetFourCC(pDst, FOURCC(P010));
-  default: assert(0 && "Unsupported chroma scale");
+  default: throw std::runtime_error("Unsupported chroma scale");
   }
 }
 
@@ -3158,7 +3172,8 @@ static void NV1X_To_XVXX(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   int iPitchSrc = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_UV);
   int iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_UV);
 
-  assert(iPitchSrc % 4 == 0);
+  if((iPitchSrc % 4) != 0)
+    throw std::runtime_error("iPitchSrc (" + std::to_string(iPitchSrc) + ") should be aligned to 4");
 
   for(int h = 0; h < iHeightC; h++)
   {
@@ -3205,15 +3220,16 @@ void NV16_To_XV20(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 // Copy buffer without any planar conversion (semi-planar to semi_planar,
 // planar to planar)
 // Manage correctly the different chroma mode
-void CopyPixMapBuffer(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
+bool CopyPixMapBuffer(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 {
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pSrc);
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pSrc);
 
   AL_TPicFormat tPicFormat;
-  bool bSuccess = AL_GetPicFormat(tFourCC, &tPicFormat);
+  bool const bSuccess = AL_GetPicFormat(tFourCC, &tPicFormat);
 
-  assert(bSuccess && !tPicFormat.b10bPacked && !tPicFormat.bCompressed);
+  if(!bSuccess || tPicFormat.b10bPacked || tPicFormat.bCompressed)
+    return false;
 
   AL_PixMapBuffer_SetFourCC(pDst, tFourCC);
   AL_PixMapBuffer_SetDimension(pDst, tDim);
@@ -3223,7 +3239,7 @@ void CopyPixMapBuffer(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
   // Chroma
   if(tPicFormat.eChromaMode == AL_CHROMA_MONO)
-    return;
+    return true;
 
   int iChromaWidth = tDim.iWidth;
   int iChromaHeight = tPicFormat.eChromaMode == AL_CHROMA_4_2_0 ? (tDim.iHeight + 1) / 2 : tDim.iHeight;
@@ -3236,7 +3252,7 @@ void CopyPixMapBuffer(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
       iChromaWidth = ((iChromaWidth + 1) / 2) * 2;
 
     CopyPixMapPlane(pSrc, pDst, AL_PLANE_UV, iChromaWidth, iChromaHeight, tPicFormat.uBitDepth);
-    return;
+    return true;
   }
 
   if(tPicFormat.eChromaMode != AL_CHROMA_4_4_4)
@@ -3244,6 +3260,7 @@ void CopyPixMapBuffer(AL_TBuffer const* pSrc, AL_TBuffer* pDst)
 
   CopyPixMapPlane(pSrc, pDst, AL_PLANE_U, iChromaWidth, iChromaHeight, tPicFormat.uBitDepth);
   CopyPixMapPlane(pSrc, pDst, AL_PLANE_V, iChromaWidth, iChromaHeight, tPicFormat.uBitDepth);
+  return true;
 }
 
 struct sFourCCToConvFunc

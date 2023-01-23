@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -127,7 +114,8 @@ static void convertToNV12(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(I420): return I420_To_NV12(pSrcIn, pSrcOut);
   case FOURCC(IYUV): return IYUV_To_NV12(pSrcIn, pSrcOut);
   case FOURCC(YV12): return YV12_To_NV12(pSrcIn, pSrcOut);
-  case FOURCC(NV12): return CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(NV12): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
   case FOURCC(P010): return P010_To_NV12(pSrcIn, pSrcOut);
   case FOURCC(I0AL): return I0AL_To_NV12(pSrcIn, pSrcOut);
   default: return NoConversionFound(inFourCC, FOURCC(NV12));
@@ -141,7 +129,8 @@ static void convertToNV16(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   {
   case FOURCC(I422): return I422_To_NV16(pSrcIn, pSrcOut);
   case FOURCC(YV16): return I422_To_NV16(pSrcIn, pSrcOut);
-  case FOURCC(NV16): return CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(NV16): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
   case FOURCC(I2AL): return I2AL_To_NV16(pSrcIn, pSrcOut);
   default: return NoConversionFound(inFourCC, FOURCC(NV16));
   }
@@ -154,7 +143,8 @@ static void convertToNV24(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   {
   case FOURCC(I444): return I444_To_NV24(pSrcIn, pSrcOut);
   case FOURCC(I4AL): return I4AL_To_NV24(pSrcIn, pSrcOut);
-  case FOURCC(NV24): return CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(NV24): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
   default: return NoConversionFound(inFourCC, FOURCC(NV24));
   }
 }
@@ -220,7 +210,8 @@ static void convertToP010(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(IYUV): return IYUV_To_P010(pSrcIn, pSrcOut);
   case FOURCC(YV12): return YV12_To_P010(pSrcIn, pSrcOut);
   case FOURCC(NV12): return NV12_To_P010(pSrcIn, pSrcOut);
-  case FOURCC(P010): return CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(P010): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
   case FOURCC(I0AL): return I0AL_To_P010(pSrcIn, pSrcOut);
   default: return NoConversionFound(inFourCC, FOURCC(P010));
   }
@@ -231,7 +222,8 @@ static void convertToP012(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
 {
   switch(inFourCC)
   {
-  case FOURCC(P012): return CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(P012): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
   case FOURCC(I0CL): return I0CL_To_P012(pSrcIn, pSrcOut);
   default: return NoConversionFound(inFourCC, FOURCC(P012));
   }
@@ -244,7 +236,8 @@ static void convertToP210(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   {
   case FOURCC(I422): return I422_To_P210(pSrcIn, pSrcOut);
   case FOURCC(YV16): return I422_To_P210(pSrcIn, pSrcOut);
-  case FOURCC(P210): return CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(P210): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
   case FOURCC(I2AL): return I2AL_To_P210(pSrcIn, pSrcOut);
   case FOURCC(NV16): return NV16_To_P210(pSrcIn, pSrcOut);
   default: return NoConversionFound(inFourCC, FOURCC(P210));
@@ -257,7 +250,8 @@ static void convertToP212(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   switch(inFourCC)
   {
   case FOURCC(I2CL): return I2CL_To_P212(pSrcIn, pSrcOut);
-  case FOURCC(P212): return CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(P212): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
   default: return NoConversionFound(inFourCC, FOURCC(P212));
   }
 }
@@ -270,7 +264,8 @@ static void convertToP410(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(NV24): return NV24_To_P410(pSrcIn, pSrcOut);
   case FOURCC(I444): return I444_To_P410(pSrcIn, pSrcOut);
   case FOURCC(I4AL): return I4AL_To_P410(pSrcIn, pSrcOut);
-  case FOURCC(P410): return CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(P410): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
   default: return NoConversionFound(inFourCC, FOURCC(P410));
   }
 }

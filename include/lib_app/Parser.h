@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -39,7 +26,6 @@
 #include "Tokenizer.h"
 
 #include <algorithm>
-#include <cassert>
 #include <deque>
 #include <functional>
 #include <limits>
@@ -87,6 +73,7 @@ static inline std::vector<Codec> filterCodecs(std::vector<Codec> inputCodecs)
 
   for(auto const& codec: inputCodecs)
   {
+    (void)codec;
 
     if(codec == Codec::Hevc)
       filteredCodecs.push_back(Codec::Hevc);
@@ -153,7 +140,8 @@ static inline void SetEnumDescr(std::map<std::string, EnumDescription<T>>& enumD
 
   if(it != enumDescr.end())
   {
-    assert(enumDescr[key].name == name);
+    if(enumDescr[key].name != name)
+      throw std::runtime_error("enumDescr[key].name should be equal to name");
     enumDescr[key].codecs.insert(enumDescr[key].codecs.end(), codecs.begin(), codecs.end());
   }
   else
@@ -208,7 +196,10 @@ struct ArithInfo
     max{max_}
   {
     if(!codecs_.empty())
-      assert(min < max);
+    {
+      if(min >= max)
+        throw std::runtime_error("min(" + std::to_string(min) + ") must be lower than max(" + std::to_string(max) + ")");
+    }
   }
 
   std::vector<Codec> codecs;

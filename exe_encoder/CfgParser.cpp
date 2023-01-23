@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -40,7 +27,6 @@
 #include "lib_app/JsonFile.h"
 
 #include <algorithm>
-#include <cassert>
 #include <climits>
 #include <cstring>
 #include <deque>
@@ -176,9 +162,9 @@ static map<string, EnumDescription<int>> const getInputFourCCs()
 
 static int constexpr CODEC_MAX_CTB_SIZE = 5; // 32x32
 static int constexpr CODEC_MIN_CTB_SIZE = 5; // 32x32
-static int constexpr MIN_CU_SIZE = 3;
 
 static int constexpr AVC_MAX_CU_SIZE = 4; // 16x16
+
 vector<ArithInfo<int>> heightInfo {
   {
     isOnlyCodec(Codec::Avc), 96, 4096
@@ -380,6 +366,8 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
   autoEnum["AUTO"] = { -1, "The Parameter is determined by the software to be the best fit of the HDR", aomituCodecs() };
   map<string, EnumDescription<int>> sliceQPEnum;
   sliceQPEnum["AUTO"] = { -1, "The Slice Quantization Parameter is determined by the software to be the best fit of the HDR", aomituCodecs() };
+#if !AL_ENABLE_LA_MV_ONLY
+#endif
   vector<ArithInfo<int>> qpArithInfo {
     {
       filterCodecs({ Codec::Hevc, Codec::Avc }), 0, 51
@@ -439,19 +427,21 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
   parser.addArithOrEnum(curSection, "MinQP.B", RCParam.iMinQP[AL_SLICE_B], autoEnum, "Minimum QP value allowed for B slices. This parameter is especially useful when using VBR rate control. In VBR, the value AUTO can be used to let the encoder select the MinQP according to SliceQP", qpArithInfo);
   parser.addArithFunc<decltype(RCParam.uInitialRemDelay), double>(curSection, "InitialDelay", RCParam.uInitialRemDelay, [](double value)
   {
-    return (decltype(RCParam.uInitialRemDelay))(value * 90000);
-  }, [](decltype(RCParam.uInitialRemDelay) value) { return (double)value / 90000; }, "Specifies the initial removal delay as specified in the HRD model, in seconds.", {
-    { aomituCodecs(), 0, 240000 },
+    return (decltype(RCParam.uInitialRemDelay))(value * 90000.f);
+  }, [](decltype(RCParam.uInitialRemDelay) value) { return (double)value / 90000.f; }, "Specifies the initial removal delay as specified in the HRD model, in seconds.", {
+    { aomituCodecs(), 0, (800000.f * 4000.f) / 90000.f },
   });
   parser.addNote(curSection, "InitialDelay", "Not used when RateCtrlMode = CONST_QP. The InitialDelay can't be greater than the max CPBSize value. Therefore, the max value above can be different.");
+  parser.addNote(curSection, "InitialDelay", "If you're not using a configuration file, uInitialRemDelay must be multipled by 90000");
   parser.addSeeAlso(curSection, "InitialDelay", { curSection, "RateCtrlMode" });
   parser.addArithFunc<decltype(RCParam.uCPBSize), double>(curSection, "CPBSize", RCParam.uCPBSize, [](double value)
   {
-    return (decltype(RCParam.uCPBSize))(value * 90000);
-  }, [](decltype(RCParam.uCPBSize) value) { return (double)value / 90000; }, "Specifies the size of the Coded Picture Buffer as specified in the HRD model, in seconds.", {
-    { aomituCodecs(), 0, 240000 },
+    return (decltype(RCParam.uCPBSize))(value * 90000.f);
+  }, [](decltype(RCParam.uCPBSize) value) { return (double)value / 90000.f; }, "Specifies the size of the Coded Picture Buffer as specified in the HRD model, in seconds.", {
+    { aomituCodecs(), 0, (800000.f * 4000.f) / 90000.f },
   });
   parser.addNote(curSection, "CPBSize", "Not used when RateCtrlMode = CONST_QP. The max value depends on multiple paramters configuration. Therefore, it can be different from the value written above.");
+  parser.addNote(curSection, "CPBSize", "If you're not using a configuration file, uCPBSize must be multipled by 90000");
   parser.addSeeAlso(curSection, "CPBSize", { curSection, "RateCtrlMode" });
   parser.addArithOrEnum(curSection, "IPDelta", RCParam.uIPDelta, autoEnum, "IPDelta corresponds to the value we add to the QP of the frame I in order to have the QP of the frame P", {
     { filterCodecs({ Codec::Avc, Codec::Hevc }), 0, 51 },
@@ -548,7 +538,8 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
   parser.addFlag(curSection, "SCPrevention", RCParam.eOptions, AL_RC_OPT_SC_PREVENTION, "Enable Scene Change Prevention. Limits the QP diminution to be able to keep encode efficiency in case of a scene change.", aomituCodecs());
   parser.addNote(curSection, "SCPrevention", "When there is no scene change, the quality can be deteriorated");
   parser.addArith(curSection, "MaxConsecutiveSkip", RCParam.uMaxConsecSkip, "Maximum consecutive skip pictures allowed", {
-    { aomituCodecs(), 0, UINT32_MAX },
+    { ituCodecs(), 0, UINT32_MAX },
+    { aomCodecs(), 0, 15 },
   });
 }
 
@@ -628,6 +619,7 @@ static void populateGopSection(ConfigParser& parser, ConfigFile& cfg)
 
 static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Temporary& temp, std::ostream& warnStream)
 {
+  (void)temp;
   (void)warnStream;
   auto curSection = Section::Settings;
   map<string, EnumDescription<int>> profiles;
@@ -858,10 +850,10 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
     if(AL_HasQpTable(cfg.RunInfo.eGenerateQpMode))
     {
       bool isRelativeTable = ((cfg.RunInfo.eGenerateQpMode & AL_GENERATE_RELATIVE_QP) != 0);
-      settings.eQpTableMode = isRelativeTable ? AL_QP_TABLE_RELATIVE : AL_QP_TABLE_ABSOLUTE;
 
-      if(cfg.RunInfo.eGenerateQpMode == AL_GENERATE_ROI_QP)
-        settings.eQpTableMode = AL_QP_TABLE_RELATIVE;
+      isRelativeTable = isRelativeTable || (cfg.RunInfo.eGenerateQpMode & AL_GENERATE_ROI_QP);
+
+      settings.eQpTableMode = isRelativeTable ? AL_QP_TABLE_RELATIVE : AL_QP_TABLE_ABSOLUTE;
     }
   }, [qpctrls, &cfg]()
   {
@@ -967,7 +959,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   parser.addBool(curSection, "SliceLat", cfg.Settings.tChParam[0].bSubframeLatency, "Enables slice latency mode", allCodecs());
   parser.addBool(curSection, "LowLatInterrupt", cfg.Settings.tChParam[0].bSubframeLatency, "DEPRECATED. Enables interrupt at slice level instead of frame level for low latency encoding. This parameter is use for validation purpose only", allCodecs());
 
-  if(AL_ENC_NUM_CORES > 1)
+  if(AL_ENC_NUM_CORES > 1 || AL_ENC_NUM_CORE_JPEG > 1)
   {
     map<string, EnumDescription<int>> numCoreEnums;
     numCoreEnums["AUTO"] = { 0, "The number of cores is selected automatically", aomituCodecs() };
@@ -1027,7 +1019,7 @@ static void populateRunSection(ConfigParser& parser, ConfigFile& cfg)
   });
   parser.addNote(curSection, "FirstPicture", "Allowed values: integer value between 0 and the number of pictures in the input YUV file.");
   parser.addArith(curSection, "ScnChgLookAhead", cfg.RunInfo.iScnChgLookAhead, "When CmdFile is used with defined Scene change position, this parameter specifies how many frame in advance, the notification should be send to the encoder.", {
-    { aomituCodecs(), 0, 1000 },
+    { aomituCodecs(), 1, 1000 },
   });
   parser.addNote(curSection, "ScnChgLookAhead", "Allowed values: integer value between 0 and Gop.Length.");
   parser.addSeeAlso(curSection, "ScnChgLookAhead", { Section::Input, "CmdFile" });

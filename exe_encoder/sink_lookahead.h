@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2008-2022 Allegro DVT2.  All rights reserved.
+* Copyright (C) 2015-2022 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -9,29 +9,16 @@
 * copies of the Software, and to permit persons to whom the Software is
 * furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX OR ALLEGRO DVT2 BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
-*
-* Except as contained in this notice, the name of  Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-*
-* Except as contained in this notice, the name of Allegro DVT2 shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Allegro DVT2.
 *
 ******************************************************************************/
 
@@ -52,8 +39,7 @@
 */
 struct EncoderLookAheadSink : IFrameSink
 {
-  EncoderLookAheadSink(ConfigFile const& cfg, EncoderSink* pBaseSink, AL_IEncScheduler* pScheduler, AL_TAllocator* pAllocator
-                       ) :
+  EncoderLookAheadSink(ConfigFile const& cfg, EncoderSink* pBaseSink, AL_IEncScheduler* pScheduler, AL_TAllocator* pAllocator) :
     CmdFile(cfg.sCmdFileName),
     EncCmd(CmdFile, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
     lookAheadMngr(cfg.Settings.LookAhead, cfg.Settings.bEnableFirstPassSceneChangeDetection)
@@ -119,8 +105,9 @@ struct EncoderLookAheadSink : IFrameSink
       if(!pPictureMetaLA)
       {
         pPictureMetaLA = AL_LookAheadMetaData_Create();
-        bool ret = AL_Buffer_AddMetaData(Src, (AL_TMetaData*)pPictureMetaLA);
-        assert(ret);
+
+        if(AL_Buffer_AddMetaData(Src, (AL_TMetaData*)pPictureMetaLA) == false)
+          throw std::runtime_error("Add metadata shouldn't fail!");
       }
       AL_LookAheadMetaData_Reset(pPictureMetaLA);
 
@@ -206,8 +193,8 @@ private:
 
     if(pStream)
     {
-      auto bRet = AL_Encoder_PutStreamBuffer(hEnc, pStream);
-      assert(bRet);
+      if(AL_Encoder_PutStreamBuffer(hEnc, pStream) == false)
+        throw std::runtime_error("PutStreamBuffer shouldn't fail");
     }
 
     AL_TRecPic RecPic;
@@ -232,7 +219,9 @@ private:
 
     bool bIsRepeat = false;
     AL_TPictureMetaData* pPictureMeta = (AL_TPictureMetaData*)AL_Buffer_GetMetaData(pStream, AL_META_TYPE_PICTURE);
-    assert(pPictureMeta);
+
+    if(pPictureMeta == nullptr)
+      throw std::runtime_error("pPictureMeta buffer must exist");
     bIsRepeat = pPictureMeta->eType == AL_SLICE_REPEAT;
 
     if(bIsRepeat)
