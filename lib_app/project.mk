@@ -43,6 +43,7 @@ liballegro_app_dll: $(LIB_APP_DLL)
 liballegro_app_a: $(LIB_APP_A)
 
 TARGETS+=liballegro_app_dll
+CFLAGS+=-Wno-date-time
 
 
 liballegro_app_src: $(LIB_APP_SRC)
