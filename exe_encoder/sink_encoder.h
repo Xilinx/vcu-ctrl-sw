@@ -1,4 +1,9 @@
 /******************************************************************************
+* The VCU_MCU_firmware files distributed with this project are provided in binary
+* form under the following license; source files are not provided.
+*
+* While the following license is similar to the MIT open-source license,
+* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2022 Allegro DVT2
 *
