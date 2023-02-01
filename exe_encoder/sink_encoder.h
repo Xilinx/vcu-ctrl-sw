@@ -5,7 +5,7 @@
 * While the following license is similar to the MIT open-source license,
 * it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
-* Copyright (C) 2015-2022 Allegro DVT2
+* Copyright (C) 2015-2023 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
