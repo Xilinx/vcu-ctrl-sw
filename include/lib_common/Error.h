@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -123,9 +118,9 @@ typedef enum
   AL_ERR_INVALID_OR_UNSUPPORTED_FILE_FORMAT = AL_DEF_ERROR(30),
   /*! minimal frame width for HW is not encountered */
   AL_ERR_REQUEST_INVALID_MIN_WIDTH = AL_DEF_ERROR(31),
-  /*! maximal frame height for HW is excedeed */
+  /*! maximal frame height for HW is exceeded */
   AL_ERR_REQUEST_INVALID_MAX_HEIGHT = AL_DEF_ERROR(32),
-  /*! HW capacity is excedeed */
+  /*! HW capacity is exceeded */
   AL_ERR_CHAN_CREATION_HW_CAPACITY_EXCEEDED = AL_DEF_ERROR(33),
 }AL_ERR;
 

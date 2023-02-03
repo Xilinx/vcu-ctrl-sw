@@ -2,7 +2,7 @@ LIB_DECODE_SRC+=\
   lib_decode/NalUnitParser.c\
   lib_decode/FrameParam.c\
   lib_decode/DefaultDecoder.c\
-  lib_decode/LibDecodeHost.c\
+  lib_decode/LibDecoderHost.c\
   lib_decode/lib_decode.c\
   lib_decode/UnsplitBufferFeeder.c\
   lib_decode/Patchworker.c\

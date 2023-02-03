@@ -270,7 +270,7 @@
     user. This also removes DecBuffers.h, DecPicParam.h, DecSliceParam.h, StartCodeParam.h
     -- Rename AL_Decoder_PutDecPict -> AL_Decoder_PutDisplayPicture
     -- Remove AL_Decoder_ForceStop API. This is now automatically done when you destroy the decoder
-    whithout calling AL_Decoder_Flush
+    without calling AL_Decoder_Flush
     -- Remove AL_Decoder_GetDecPict from decoder API
     -- Remove AL_Decoder_ReleaseDecPict from decoder API. You should use AL_Decoder_PutDisplayPicture
     instead.
@@ -374,7 +374,7 @@
     -- Version of the API is now 0.13.0
     -- Add a new decoder parameter settings called 'bSplitInput': it enables the decoder 1-to-1
     -- Add missing 'AL_' on structs/enums
-    -- Remove unneded functions
+    -- Remove unneeded functions
     -- Add new metadatas:
         - retrieve input buffer when using the new input buffers management
         - retrieve sync SEI
@@ -606,7 +606,7 @@
         - Add DecCallbacks.h
     -- Add missing AL_OPT_NONE
     -- Rename: AL_SRC_NVX -> AL_SRC_RASTER
-    -- AL_EncRecBuffer_FillPlaneDesc need 3 more parameters: uLcuSize, uMVVRange, eOtpions
+    -- AL_EncRecBuffer_FillPlaneDesc need 3 more parameters: uLcuSize, uMVVRange, eOptions
 
   Fixes:
     -- Fix IO read/write for all formats
@@ -686,7 +686,7 @@
     -- Rename iProfileIdc -> eProfile:
       -- easier for user
       -- use 'AL_EProfile' instead of 'int'
-      -- reduce underlaying memory allocated
+      -- reduce underlying memory allocated
     -- Use AL_Decoder_PushStreamBuffer instead of AL_Decoder_PushBuffer
       -- Flag added:
           - AL_STREAM_BUF_FLAG_UNKNOWN = 0x0, /*!< Stream buffer content is unknown */
@@ -721,7 +721,7 @@
   Added Features:
     -- Decoder:
       - Decoding Intra Only Frames with '--decode-intraonly'
-    -- Enhance WARNING and ERROR message if the configuration file is not setted correctly
+    -- Enhance WARNING and ERROR message if the configuration file is not set correctly
 
   API:
     -- Version of the API is now 0.33.0
@@ -729,8 +729,8 @@
       - Move FrameReader.h and NonCompFrameReader.h into the public API (/include)
     -- lib_common:
       - Rename: AL_ERR_CHAN_CREATION_NOT_ENOUGH_CORES -> AL_ERR_CHAN_CREATION_LOAD_DISTRIBUTION
-      - Add: AL_ERR_REQUEST_INVALID_MAX_HEIGHT: when the maximal height for HW is excedeed
-      - Add: AL_ERR_CHAN_CREATION_HW_CAPACITY_EXCEEDED: when the HW capacity is excedeed
+      - Add: AL_ERR_REQUEST_INVALID_MAX_HEIGHT: when the maximal height for HW is exceeded
+      - Add: AL_ERR_CHAN_CREATION_HW_CAPACITY_EXCEEDED: when the HW capacity is exceeded
       - Move: AL_TPlaneDescription from PixMapBuffer.h to Planes.h
       - Rename: AVC_PROFILE_IDC_CAVLC_444 -> AVC_PROFILE_IDC_CAVLC_444_INTRA: since it's an intra only profile
       - Add: AL_GetMinimalNalSize() function
@@ -739,7 +739,7 @@
     -- Several minors bugs
 
 2022-12-08 (v1.0.72)
--------------------
+--------------------
   Added Features:
 
   API:
@@ -754,4 +754,30 @@
         * Streams concealment
         * Potential deadlock if channel isn't created due to resource shortage
       - Decode Intra only should now use a correct amount of buffers
+    -- Several minors bugs
+
+2023-01-27 (v1.0.73)
+--------------------
+  Added Features:
+    -- Decoder:
+      - Getter and Setter for scheduler
+    -- Encoder:
+      - Add Set QP offset
+
+  API:
+    -- Version of the API is now 0.35.0
+    -- Conv YUV:
+      - rename CRasterSrcConv -> CYuvSrcConv
+    -- Encoder:
+      - merge AL_EColourDescription, AL_ETransferCharacteristics, AL_EColourMatrixCoefficients a single structure: AL_TColorConfig
+      - add AL_Encoder_SetQPOffset. It adds an offset to the current QP. Only available while using RateCtrlMode = CONST_QP
+    -- Decoder:
+      - add AL_IDecScheduler_Get, AL_IDecScheduler_Set as scheduler getter and setter
+
+  Fixes:
+    -- Licensing
+    -- Tons of typos
+    -- Encoder:
+      - L2Prefetch issues
+      - Skip + B Frames + Interlaced
     -- Several minors bugs

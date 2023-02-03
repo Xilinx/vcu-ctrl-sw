@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -278,8 +273,8 @@ typedef enum __AL_ALIGNED__ (4) AL_e_ChEncOptions
   AL_OPT_CUSTOM_LDA = 0x00000004, /*!< INTERNAL PARAMETER - Do not tune */
   AL_OPT_ENABLE_AUTO_QP = 0x00000008, /*!< On each block, adapt the block-QP according to the block complexity, using static complexity thresholds */
   AL_OPT_ADAPT_AUTO_QP = 0x00000010, /*!< Complexity thresholds of Auto-QP are adjusted during stream encoding, depending on past frame complexities */
-  AL_OPT_FORCE_REC = 0x00000040, /*!< Force reconstructed buffers to be outputed by HW even if not used as a reference later. Necessary to get the reconstructed YUV stream. */
-  AL_OPT_FORCE_MV_OUT = 0x00000080, /*!< Force motion vector buffers to be outputed by HW */
+  AL_OPT_FORCE_REC = 0x00000040, /*!< Force reconstructed buffers to be outputted by HW even if not used as a reference later. Necessary to get the reconstructed YUV stream. */
+  AL_OPT_FORCE_MV_OUT = 0x00000080, /*!< Force motion vector buffers to be outputted by HW */
   AL_OPT_LOWLAT_SYNC = 0x00000100, /*!< Special synchronization mode for AVC low latency encoding */
   AL_OPT_LOWLAT_INT = 0x00000200, /*!< Special mode for sub-frame latency encoding. You get an interrupt on each slice instead of on each frame. */
   AL_OPT_HIGH_FREQ = 0x00002000,  /*!< DEPRECATED */
@@ -568,6 +563,7 @@ typedef AL_INTROSPECT (category = "debug") struct __AL_ALIGNED__ (4) AL_t_EncCha
   uint16_t uMVVRange;
 
   int8_t MaxNumMergeCand;
+
   uint32_t zRcPluginDmaSize; /*!< Size of the rate control plugin dma buffer (user defined data can be given using this buffer) */
   AL_64U pRcPluginDmaContext; /*!< Physical address of the rate control plugin dma buffer (This is filled by the library, see AL_TEncSettings.hRcPluginDmaContext for the handle you need to allocate in dma) */
 

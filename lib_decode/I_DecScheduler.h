@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -37,17 +32,14 @@
 
 #pragma once
 
-#include "I_DecSchedulerInfo.h"
-
 #include "lib_rtos/types.h"
 #include "lib_common/Error.h"
-
 #include "lib_common/MemDesc.h"
-
 #include "lib_common_dec/StartCodeParam.h"
 #include "lib_common_dec/DecChanParam.h"
 #include "lib_common_dec/DecSliceParam.h"
 #include "lib_common_dec/DecPicParam.h"
+#include "lib_decode/I_DecSchedulerInfo.h"
 
 /****************************************************************************/
 typedef struct
@@ -101,9 +93,18 @@ typedef struct AL_i_DecSchedulerVtable
 
 /*************************************************************************//*!
    \brief De-initializes the scheduler
-   \return return true
 *****************************************************************************/
 void AL_IDecScheduler_Destroy(AL_IDecScheduler* pThis);
+
+/*************************************************************************//*!
+   \brief Scheduler getter
+*****************************************************************************/
+void AL_IDecScheduler_Get(AL_IDecScheduler const* pThis, AL_EIDecSchedulerInfo eInfo, void* pParam);
+
+/*************************************************************************//*!
+   \brief Scheduler setter
+*****************************************************************************/
+void AL_IDecScheduler_Set(AL_IDecScheduler* pThis, AL_EIDecSchedulerInfo eInfo, void const* pParam);
 
 /*************************************************************************//*!
    \brief Channel creation
@@ -203,18 +204,6 @@ static inline
 void AL_IDecScheduler_DecodeOneSlice(AL_IDecScheduler* pThis, AL_HANDLE hChannel, AL_TDecPicParam* pPictParam, AL_TDecPicBufferAddrs* pPictAddrs, TMemDesc* pSliceParams)
 {
   pThis->vtable->DecodeOneSlice(pThis, hChannel, pPictParam, pPictAddrs, pSliceParams);
-}
-
-static inline
-void AL_IDecScheduler_Get(AL_IDecScheduler const* pThis, AL_EIDecSchedulerInfo eInfo, void* pParam)
-{
-  pThis->vtable->Get(pThis, eInfo, pParam);
-}
-
-static inline
-void AL_IDecScheduler_Set(AL_IDecScheduler* pThis, AL_EIDecSchedulerInfo eInfo, void const* pParam)
-{
-  pThis->vtable->Set(pThis, eInfo, pParam);
 }
 
 /*@}*/

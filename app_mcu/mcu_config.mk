@@ -39,4 +39,3 @@ LDFLAGS+=-g0
 # To make it possible to check the final firmware even if the section overlap
 # We already have an external script checking the sections for overlap on good configurations.
 LDFLAGS+=-Wl,--no-check-sections
-

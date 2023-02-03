@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -52,6 +47,8 @@ typedef struct t_RbspParser
   uint8_t uZeroBytesCount;
 
   uint8_t* pBuffer;
+  int32_t iBufOutSize;
+
   const uint8_t* pByte;
 
   uint8_t* pBufIn;
@@ -64,11 +61,12 @@ typedef struct t_RbspParser
 /*************************************************************************//*!
    \brief The InitRbspParser function intializes a Rbsp Parser structure
    \param[in]  pStream       Pointer to the circular stream buffer
-   \param[in]  pBuffer       Pointer to the buffer with the antiemulated bits of the NAL unit
+   \param[in]  pNoAEBuffer   Pointer to the buffer with the no antiemulated bits of the NAL unit
+   \param[in]  iNoAESize     Size of the no anti emulated buffer
    \param[in]  bHasSC        Flag which specifies with the stream has start code delimiters
    \param[out] pRP           Pointer to the rbsp parser structure that will be initialized
 *****************************************************************************/
-void InitRbspParser(TCircBuffer const* pStream, uint8_t* pBuffer, bool bHasSC, AL_TRbspParser* pRP);
+void InitRbspParser(TCircBuffer const* pStream, uint8_t* pNoAESizeBuffer, int32_t iNoAESize, bool bHasSC, AL_TRbspParser* pRP);
 
 /*************************************************************************//*!
    \brief The read_bit function read the bit_index'th bit of the current NAL

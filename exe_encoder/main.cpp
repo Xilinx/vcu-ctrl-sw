@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -673,7 +668,7 @@ unique_ptr<IConvSrc> CreateSrcConverter(TFrameInfo const& FrameInfo, AL_ESrcForm
   switch(eSrcFormat)
   {
   case AL_SRC_FORMAT_RASTER:
-    return make_unique<CRasterConv>(FrameInfo);
+    return make_unique<CYuvSrcConv>(FrameInfo);
   default:
     throw runtime_error("Unsupported source conversion.");
   }

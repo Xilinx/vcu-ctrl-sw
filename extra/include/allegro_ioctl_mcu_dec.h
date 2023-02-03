@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -41,6 +36,8 @@
 #define AL_MCU_WAIT_FOR_START_CODE _IOWR('q', 9, struct al5_scstatus)
 #define GET_DMA_FD        _IOWR('q', 13, struct al5_dma_info)
 #define AL_MCU_DECODE_ONE_SLICE _IOWR('q', 18, struct al5_decode_msg)
+#define AL_MCU_GET _IOWR('q', 20, struct al5_params)
+#define AL_MCU_SET _IOWR('q', 21, struct al5_params)
 
 struct al5_dma_info
 {

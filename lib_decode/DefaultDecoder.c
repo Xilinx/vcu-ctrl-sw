@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -895,7 +890,7 @@ bool AL_DecodeOneNal(AL_TAup* pAUP, AL_TDecCtx* pCtx, AL_ENut nut, bool bIsLastA
       return false;
     }
 
-    AL_TRbspParser rp = pMeta ? getParserOnNonVclNal(pCtx, AL_SeiMetaData_GetBuffer(pMeta)) : getParserOnNonVclNalInternalBuf(pCtx);
+    AL_TRbspParser rp = pMeta ? getParserOnNonVclNal(pCtx, AL_SeiMetaData_GetBuffer(pMeta), pCtx->BufNoAE.tMD.uSize) : getParserOnNonVclNalInternalBuf(pCtx);
 
     if(!parser.parseSei(pAUP, &rp, bIsPrefix, &pCtx->tDecCB.parsedSeiCB, pMeta))
       AL_Default_Decoder_SetError(pCtx, AL_WARN_SEI_OVERFLOW, -1, true);

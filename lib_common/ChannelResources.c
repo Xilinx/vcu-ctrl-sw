@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -104,18 +99,23 @@ bool AL_Constraint_NumCoreIsSane(AL_ECodec codec, int width, int numCore, int lo
   (void)codec;
   /*
    * Hardware limitation, for each core, we need at least:
-   * -> 3 CTB for VP9 / HEVC64
-   * -> 4 CTB for HEVC32
+   * -> 3 CTB for VP9
+   * -> 4 CTB for HEVC64
+   * -> 8 CTB for HEVC32
    * -> 5 MB for AVC
    * Each core starts on a tile.
-   * Tiles are aligned on 64 bytes.
+   * Tiles are aligned on 64 pixels for FBC tile constraint.
    * For JPEG, each core works on a different frame.
    */
 
   int corePerFrame = numCore;
 
   int ctbSize = 1 << log2MaxCuSize;
-  int const MIN_CTB_PER_CORE = 9 - log2MaxCuSize;
+  int MIN_CTB_PER_CORE = 9 - log2MaxCuSize;
+
+  if(codec == AL_CODEC_HEVC && numCore >= 2)
+    MIN_CTB_PER_CORE = 256 >> log2MaxCuSize; // HEVC tiles must be at least 256 pixels wide
+
   int widthPerCoreInCtb = ToCtb(width / corePerFrame, ctbSize);
 
   int offset = 0;

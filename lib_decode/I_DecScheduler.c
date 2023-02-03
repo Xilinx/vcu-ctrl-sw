@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -32,4 +27,14 @@
 void AL_IDecScheduler_Destroy(AL_IDecScheduler* pThis)
 {
   pThis->vtable->Destroy(pThis);
+}
+
+void AL_IDecScheduler_Get(AL_IDecScheduler const* pThis, AL_EIDecSchedulerInfo eInfo, void* pParam)
+{
+  pThis->vtable->Get(pThis, eInfo, pParam);
+}
+
+void AL_IDecScheduler_Set(AL_IDecScheduler* pThis, AL_EIDecSchedulerInfo eInfo, void const* pParam)
+{
+  pThis->vtable->Set(pThis, eInfo, pParam);
 }

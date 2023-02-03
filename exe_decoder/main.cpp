@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -554,6 +549,9 @@ static Config ParseCommandLine(int argc, char* argv[])
   opt.addInt("--max-frames", &Config.iMaxFrames, "Abort after max number of decoded frames (approximative abort)");
   opt.addInt("-loop", &Config.iLoop, "Number of Decoding loop (optional)");
   opt.addInt("--timeout", &Config.iTimeoutInSeconds, "Specify timeout in seconds");
+
+  bool dummyNextChan; // As the --next-channel is parsed elsewhere, this option is only used to add the description in the usage
+  opt.addFlag("--next-chan", &dummyNextChan, "Start the configuration of a new decoding channel. The options that are applied on all channels must be specified in the first channel.");
 
   opt.addCustom("--exit-on", &Config.eExitCondition, parseExitOn, "Specifify early exit condition (e/error, w/warning)");
 
@@ -1156,7 +1154,7 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
     return;
   }
 
-  if(isReleaseFrame(pFrame, pInfo))
+  if(isReleaseFrame(pFrame, pInfo) || hDec == NULL)
     return;
 
   bool bIsExpectedStorageMode = (pInfo->eFbStorageMode == eMainOutputStorageMode);
@@ -1191,7 +1189,7 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
     }
   }
 
-  if(bIsExpectedStorageMode && hDec)
+  if(bIsExpectedStorageMode)
   {
     bool const bAdded = AL_Decoder_PutDisplayPicture(hDec, pFrame);
 
@@ -1418,6 +1416,8 @@ struct AsyncFileInput
   AsyncFileInput(AL_HDecoder hDec_, string path, BufPool& bufPool_, bool bSplitInput, AL_ECodec eCodec, bool bVclSplit)
     : hDec(hDec_), bufPool(bufPool_)
   {
+    (void)eCodec;
+
     exit = false;
     OpenInput(ifFileStream, path);
 
@@ -1486,7 +1486,7 @@ private:
   thread m_thread;
 };
 
-constexpr int MAX_CHANNELS = 1;
+constexpr int MAX_CHANNELS = 32;
 
 int GetChannelsArgv(vector<char*>* argvChannels, int argc, char** argv)
 {
@@ -1786,9 +1786,33 @@ void SafeMain(int argc, char** argv)
     if(errorChannels[maxChan])
       std::rethrow_exception(errorChannels[maxChan]);
   }
+  // multichannel case
   else
   {
-    throw std::runtime_error("Local multichannel isn't supported in this configuration");
+    for(int chan = 0; chan <= maxChan; ++chan)
+    {
+      WorkerConfig w
+      {
+        &cfgChannels[chan],
+        pIpDevice.get(),
+        bUseBoard,
+      };
+
+      workerConfigs[chan] = w;
+      worker[chan] = std::thread(&ChannelMain, std::ref(workerConfigs[chan]), std::ref(errorChannels[chan]));
+    }
+
+    for(int chan = 0; chan <= maxChan; ++chan)
+      worker[chan].join();
+
+    for(int chan = 0; chan <= maxChan; ++chan)
+    {
+      if(errorChannels[chan])
+      {
+        cerr << "Channel " << chan << " has errors" << endl;
+        std::rethrow_exception(errorChannels[chan]);
+      }
+    }
   }
   AL_Lib_Decoder_DeInit();
 }

@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -318,6 +313,11 @@ bool CEncCmdMngr::ParseCmd(std::string sLine, TFrmCmd& Cmd, bool bSameFrame)
       Cmd.bChangeQP = true;
       Cmd.iQP = int(Tok.GetValue());
     }
+    else if(Tok == "QPOffset")
+    {
+      Cmd.bChangeQPOffset = true;
+      Cmd.iQPOffset = int(Tok.GetValue());
+    }
     else if(Tok == "QPBounds")
     {
       Cmd.bChangeQPBounds = true;
@@ -492,6 +492,9 @@ void CEncCmdMngr::Process(ICommandsSender* sender, int iFrame)
 
       if(m_Cmds.front().bChangeQP)
         sender->setQP(m_Cmds.front().iQP);
+
+      if(m_Cmds.front().bChangeQPOffset)
+        sender->setQPOffset(m_Cmds.front().iQPOffset);
 
       if(m_Cmds.front().bChangeResolution)
         sender->setDynamicInput(m_Cmds.front().iInputIdx);

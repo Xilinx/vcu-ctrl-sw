@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -205,6 +200,60 @@ void T64A_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T64C_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T64C_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T64C_To_I4CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+
+void Y010_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void Y012_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P010_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void Y800_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void NV12_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I0AL_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I0CL_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I420_To_T6m8(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I420_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void IYUV_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void YV12_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I420_To_T60A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I420_To_T60C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void IYUV_To_T60A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void YV12_To_T60A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I0AL_To_T60A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I0AL_To_T6mA(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I0CL_To_T60C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I0CL_To_T6mC(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I0AL_To_T60C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void Y800_To_T60A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void Y800_To_T60C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void Y010_To_T60A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void Y010_To_T60C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void Y012_To_T60C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void NV12_To_T60A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P010_To_T60A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void Y800_To_T62A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void Y800_To_T62C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void Y012_To_T62C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void Y010_To_T62A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I2AL_To_T62A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I2CL_To_T62C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I2AL_To_T62C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I422_To_T62C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I422_To_T62A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void NV16_To_T62A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P210_To_T62A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P212_To_T62C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I444_To_T648(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I444_To_T64A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I4AL_To_T648(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I4AL_To_T64A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I4CL_To_T64C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I4AL_To_T64C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I444_To_T64C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void Y800_To_T628(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void Y010_To_T628(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I422_To_T628(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void NV16_To_T628(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I2AL_To_T628(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I2CL_To_T628(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P210_To_T628(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void XV10_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void XV10_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);

@@ -1,6 +1,11 @@
 /******************************************************************************
+* The VCU_MCU_firmware files distributed with this project are provided in binary
+* form under the following license; source files are not provided.
 *
-* Copyright (C) 2015-2022 Allegro DVT2
+* While the following license is similar to the MIT open-source license,
+* it is NOT the MIT open source license or any other OSI-approved open-source license.
+*
+* Copyright (C) 2015-2023 Allegro DVT2
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -76,7 +81,7 @@ typedef struct Plugin_t_GopParam
 }Plugin_GopParam;
 
 /*************************************************************************//*!
-    \brief Informations about the picture and how it was/will be added in the stream.
+    \brief Information about the picture and how it was/will be added in the stream.
 *****************************************************************************/
 typedef struct Plugin_t_PictureInfo
 {
@@ -162,7 +167,7 @@ typedef struct t_RC_Plugin_Vtable
 
    \param[in] pHandle Pointer to the plugin rate control context
    \param[in] pPicInfo Contains information about the picture that was encoded
-   \param[in] pStatus Contains the statistics of the picture that was encoded. Informations about how it was encoded and some metrics
+   \param[in] pStatus Contains the statistics of the picture that was encoded. Information about how it was encoded and some metrics
    \param[in] iPictureSize Size of the picture that was encoded
    \param[in] bSkipped Specifies if the current picture has been skipped or not
    \param[in] iFillerSize Size of the filler bytes region
@@ -173,7 +178,7 @@ typedef struct t_RC_Plugin_Vtable
    \brief Returns the QP (Quality Parameter) that will be used by the hardware to encode the current picture
    This QP will influence the size of the encoded version of the current picture.
    \param[in] pHandle Pointer to the plugin rate control context
-   \param[in] pPicInfo Contains informations about the picture that will be encoded
+   \param[in] pPicInfo Contains information about the picture that will be encoded
    \param[out] pQP Pointer which receives the new QP for the current picture encoding
 *****************************************************************************/
   void (* choosePictureQP)(void* pHandle, Plugin_PictureInfo const* pPicInfo, int16_t* pQP);

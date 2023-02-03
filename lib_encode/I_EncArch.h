@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -72,6 +67,7 @@ typedef struct AL_i_EncArchVtable
   bool (* EncoderSetMaxBitRate)(AL_HEncoder hEnc, int iTargetBitRate, int iMaxBitRate);
   bool (* EncoderSetFrameRate)(AL_HEncoder hEnc, uint16_t uFrameRate, uint16_t uClkRatio);
   bool (* EncoderSetQP)(AL_HEncoder hEnc, int16_t iQP);
+  bool (* EncoderSetQPOffset)(AL_HEncoder hEnc, int16_t iQPOffset);
   bool (* EncoderSetQPBounds)(AL_HEncoder hEnc, int16_t iMinQP, int16_t iMaxQP);
   bool (* EncoderSetQPBoundsPerFrameType)(AL_HEncoder hEnc, int16_t iMinQP, int16_t iMaxQP, AL_ESliceType sliceType);
   bool (* EncoderSetQPIPDelta)(AL_HEncoder hEnc, int16_t uIPDelta);

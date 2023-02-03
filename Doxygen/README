@@ -1,8 +1,7 @@
 To generate doxygen documentation
 =================================
-1) Install doxygen 
+1) Install doxygen
 2) Generate the html documentation :
    - Launch doxygen
       ./doxygen.sh
 3) Browse the html documentation starting from doc/html/index.html
-  

@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -531,9 +526,9 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pSettings->bEnableAUD = true;
   pSettings->eEnableFillerData = AL_FILLER_ENC;
   pSettings->eAspectRatio = AL_ASPECT_RATIO_AUTO;
-  pSettings->eColourDescription = AL_COLOUR_DESC_UNSPECIFIED;
-  pSettings->eTransferCharacteristics = AL_TRANSFER_CHARAC_UNSPECIFIED;
-  pSettings->eColourMatrixCoeffs = AL_COLOUR_MAT_COEFF_UNSPECIFIED;
+  pSettings->tColorConfig.eColourDescription = AL_COLOUR_DESC_UNSPECIFIED;
+  pSettings->tColorConfig.eTransferCharacteristics = AL_TRANSFER_CHARAC_UNSPECIFIED;
+  pSettings->tColorConfig.eColourMatrixCoeffs = AL_COLOUR_MAT_COEFF_UNSPECIFIED;
 
   pSettings->eQpCtrlMode = AL_QP_CTRL_NONE;
   pSettings->eQpTableMode = AL_QP_TABLE_NONE;
@@ -896,10 +891,14 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     MSG_ERROR("Invalid parameter: VideoMode");
   }
 
-  if(pChParam->eVideoMode != AL_VM_PROGRESSIVE && (!AL_IS_HEVC(pChParam->eProfile) && !AL_IS_AVC(pChParam->eProfile)))
+  if(pChParam->eVideoMode != AL_VM_PROGRESSIVE)
   {
-    ++err;
-    MSG_ERROR("Interlaced Video mode is not supported in this profile");
+    if(!AL_IS_HEVC(pChParam->eProfile) && !AL_IS_AVC(pChParam->eProfile))
+    {
+      ++err;
+      MSG_ERROR("Interlaced Video mode is not supported in this profile");
+    }
+
   }
 
   if(pSettings->LookAhead < 0)
@@ -973,6 +972,17 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
   {
     err++;
     MSG_ERROR("The parameter DependentSlice is only available for HEVC");
+  }
+
+  if(pChParam->bSubframeLatency && AL_IS_AVC(pChParam->eProfile))
+  {
+    int const iCTBSize = (1 << pChParam->uLog2MaxCuSize);
+
+    if((pChParam->uEncHeight / iCTBSize) < (int)pChParam->uNumCore)
+    {
+      ++err;
+      MSG_ERROR("In SliceLat and with AVC, the encoding height must be equal to (CTB size) * (numCore)");
+    }
   }
 
   return err;
@@ -1522,7 +1532,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
   }
 
-  if(AL_IS_HEVC(pChParam->eProfile) || AL_IS_AVC(pChParam->eProfile))
+  if(AL_HAS_LEVEL(pChParam->eProfile))
   {
     uint8_t uMinLevel = AL_sSettings_GetMinLevel(pChParam);
 
@@ -1546,12 +1556,15 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
       }
       pChParam->uLevel = uMinLevel;
     }
+  }
 
-    if(AL_IS_HEVC(pChParam->eProfile) && pChParam->uLevel < 40 && pChParam->uTier)
-    {
-      pChParam->uTier = 0;
-    }
+  if(AL_IS_HEVC(pChParam->eProfile) && pChParam->uLevel < 40 && pChParam->uTier)
+  {
+    pChParam->uTier = 0;
+  }
 
+  if(AL_IS_HEVC(pChParam->eProfile) || AL_IS_AVC(pChParam->eProfile))
+  {
     if(pChParam->tRCParam.eRCMode != AL_RC_CONST_QP)
     {
       uint64_t uCPBSize = ((AL_64U)pChParam->tRCParam.uCPBSize * pChParam->tRCParam.uMaxBitRate) / 90000LL;

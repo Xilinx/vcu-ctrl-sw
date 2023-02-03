@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -273,6 +268,13 @@ static bool AL_Encoder_SetQP_Host(AL_HEncoder hEnc, int16_t iQP)
 }
 
 /****************************************************************************/
+static bool AL_Encoder_SetQPOffset_Host(AL_HEncoder hEnc, int16_t iQPOffset)
+{
+  AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
+  return AL_Common_Encoder_SetQPOffset(pEnc->pCtx, iQPOffset);
+}
+
+/****************************************************************************/
 static bool AL_Encoder_SetQPBounds_Host(AL_HEncoder hEnc, int16_t iMinQP, int16_t iMaxQP)
 {
   AL_TEncoder* pEnc = (AL_TEncoder*)hEnc;
@@ -377,6 +379,7 @@ static AL_IEncArchVtable vtable =
   .EncoderSetMaxBitRate = AL_Encoder_SetMaxBitRate_Host,
   .EncoderSetFrameRate = AL_Encoder_SetFrameRate_Host,
   .EncoderSetQP = AL_Encoder_SetQP_Host,
+  .EncoderSetQPOffset = AL_Encoder_SetQPOffset_Host,
   .EncoderSetQPBounds = AL_Encoder_SetQPBounds_Host,
   .EncoderSetQPBoundsPerFrameType = AL_Encoder_SetQPBoundsPerFrameType_Host,
   .EncoderSetQPIPDelta = AL_Encoder_SetQPIPDelta_Host,

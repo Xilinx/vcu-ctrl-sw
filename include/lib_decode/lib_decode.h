@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -50,8 +45,8 @@
 #include "lib_common/Error.h"
 
 #include "lib_common_dec/DecCallbacks.h"
-
 #include "lib_decode/DecSettings.h"
+#include "lib_decode/I_DecSchedulerInfo.h"
 
 /*************************************************************************//*!
     \brief Virtual interface used to access the scheduler of the Decoder IP.
@@ -59,7 +54,10 @@
     \see AL_DecSchedulerCpu_Create and AL_DecSchedulerMcu_Create if available to get concrete implementations of this interface.
 *****************************************************************************/
 typedef struct AL_i_DecScheduler AL_IDecScheduler;
+
 void AL_IDecScheduler_Destroy(AL_IDecScheduler* pThis);
+void AL_IDecScheduler_Get(AL_IDecScheduler const* pThis, AL_EIDecSchedulerInfo eInfo, void* pParam);
+void AL_IDecScheduler_Set(AL_IDecScheduler* pThis, AL_EIDecSchedulerInfo eInfo, void const* pParam);
 
 typedef enum
 {
@@ -101,7 +99,7 @@ typedef struct
   AL_CB_Display displayCB; /*!< Called when a buffer is ready to be displayed */
   AL_CB_ResolutionFound resolutionFoundCB; /*!< Called when a resolution change occurs */
   AL_CB_ParsedSei parsedSeiCB; /*!< Called when a SEI is parsed */
-  AL_CB_Error errorCB; /*!< Called when an error is encoutered */
+  AL_CB_Error errorCB; /*!< Called when an error is encountered */
 }AL_TDecCallBacks;
 
 /*************************************************************************//*!
@@ -137,7 +135,7 @@ void AL_Lib_Decoder_DeInit(void);
 AL_ERR AL_Decoder_Create(AL_HDecoder* hDec, AL_IDecScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
 
 /*************************************************************************//*!
-   \brief Releases all allocated and/or owned ressources
+   \brief Releases all allocated and/or owned resources
    \param[in] hDec Handle to Decoder object previously created with AL_Decoder_Create
    \see AL_Decoder_Create
 *****************************************************************************/
@@ -206,7 +204,7 @@ AL_ERR AL_Decoder_GetFrameError(AL_HDecoder hDec, AL_TBuffer* pBuf);
    the stream settings will assert.
    Internal buffers of the decoder are normally allocated after determining
    what kind of stream is being decoded. If you know the stream settings
-   in advance, you can override this behavior by giving these informations at
+   in advance, you can override this behavior by giving these information at
    the decoder creation and calling AL_Decoder_PreallocateBuffers.
    Giving wrong information about the stream will lead to undefined behaviour.
    Calling this function will reduce the memory footprint of the decoder and

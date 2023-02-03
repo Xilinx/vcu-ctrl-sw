@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -270,6 +265,15 @@ bool AL_Encoder_SetQP(AL_HEncoder hEnc, int16_t iQP)
     return false;
 
   return pArch->vtable->EncoderSetQP(hEnc, iQP);
+}
+
+/*****************************************************************************/
+bool AL_Encoder_SetQPOffset(AL_HEncoder hEnc, int16_t iQPOffset)
+{
+  if(!pArch)
+    return false;
+
+  return pArch->vtable->EncoderSetQPOffset(hEnc, iQPOffset);
 }
 
 /*****************************************************************************/

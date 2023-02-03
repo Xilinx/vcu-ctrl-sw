@@ -57,4 +57,3 @@ FAQ
   This is expected, the plugin program doesn't have the main / _start function as it is called from the firmware. This isn't dependant on PL_DDR or DDR_HI address.
 
 * To use the plugin rate control, specify RateCtrlMode = PLUGIN in the configuration file, or add --set "[RATE_CONTROL] RateCtrlMode = PLUGIN" to the commandline. You can also use --ratectrl-mode PLUGIN.
-

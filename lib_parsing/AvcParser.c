@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -32,6 +27,7 @@
 #include "lib_common/Utils.h"
 #include "lib_common/SeiInternal.h"
 #include "lib_common_dec/RbspParser.h"
+#include "SeiParser.h"
 
 static void initPps(AL_TAvcPps* pPPS)
 {
@@ -324,6 +320,7 @@ static bool isProfileSupported(uint8_t profile_idc)
   }
 }
 
+/*****************************************************************************/
 AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TRbspParser* pRP, AL_TAvcSps* pSPS)
 {
   skipAllZerosAndTheNextByte(pRP);
@@ -483,7 +480,8 @@ AL_PARSE_RESULT AL_AVC_ParseSPS(AL_TRbspParser* pRP, AL_TAvcSps* pSPS)
   return AL_OK;
 }
 
-static bool sei_buffering_period(AL_TRbspParser* pRP, AL_TAvcSps* pSpsTable, AL_TAvcBufPeriod* pBufPeriod, AL_TAvcSps** pActiveSps)
+/*****************************************************************************/
+static bool SeiBufferingPeriod(AL_TRbspParser* pRP, AL_TAvcSps* pSpsTable, AL_TAvcBufPeriod* pBufPeriod, AL_TAvcSps** pActiveSps)
 {
   AL_TAvcSps* pSPS = NULL;
 
@@ -525,263 +523,44 @@ static bool sei_buffering_period(AL_TRbspParser* pRP, AL_TAvcSps* pSpsTable, AL_
 }
 
 /*****************************************************************************/
-static bool sei_pic_timing(AL_TRbspParser* pRP, AL_TAvcSps* pSPS, AL_TAvcPicTiming* pPicTiming)
+static bool ParseSeiPayload(SeiParserParam* p, AL_TRbspParser* pRP, AL_ESeiPayloadType ePayloadType, int iPayloadSize, bool* bCanSendToUser, bool* bParsed)
 {
-  uint8_t time_offset_length = 0;
-
-  if(pSPS == NULL || pSPS->bConceal)
-    return false;
-
-  if(pSPS->vui_param.hrd_param.nal_hrd_parameters_present_flag)
+  (void)iPayloadSize;
+  bool bParsingOk = true;
+  *bCanSendToUser = true;
+  *bParsed = true;
+  AL_TAvcAup* aup = &p->pIAup->avcAup;
+  switch(ePayloadType)
   {
-    uint8_t syntax_size = pSPS->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 + 1;
-    pPicTiming->cpb_removal_delay = u(pRP, syntax_size);
-
-    syntax_size = pSPS->vui_param.hrd_param.dpb_output_delay_length_minus1 + 1;
-    pPicTiming->dpb_output_delay = u(pRP, syntax_size);
-
-    time_offset_length = pSPS->vui_param.hrd_param.time_offset_length;
+  case SEI_PTYPE_BUFFERING_PERIOD:
+  {
+    AL_TAvcBufPeriod tBufferingPeriod;
+    bParsingOk = SeiBufferingPeriod(pRP, aup->pSPS, &tBufferingPeriod, &aup->pActiveSPS);
+    break;
   }
-  else if(pSPS->vui_param.hrd_param.vcl_hrd_parameters_present_flag)
-  {
-    uint8_t syntax_size = pSPS->vui_param.hrd_param.au_cpb_removal_delay_length_minus1 + 1;
-    pPicTiming->cpb_removal_delay = u(pRP, syntax_size);
-
-    syntax_size = pSPS->vui_param.hrd_param.dpb_output_delay_length_minus1 + 1;
-    pPicTiming->dpb_output_delay = u(pRP, syntax_size);
-
-    time_offset_length = pSPS->vui_param.hrd_param.time_offset_length;
+  default:
+    *bCanSendToUser = false;
+    *bParsed = false;
+    break;
   }
 
-  if(pSPS->vui_param.pic_struct_present_flag)
-  {
-    const int NumClockTS[] =
-    {
-      1, 1, 1, 2, 2, 3, 3, 2, 3
-    }; // Table D-1
-    AL_TSeiClockTS* pClockTS;
-
-    pPicTiming->pic_struct = u(pRP, 4);
-
-    for(uint8_t iter = 0; iter < NumClockTS[pPicTiming->pic_struct]; ++iter)
-    {
-      pClockTS = &pPicTiming->clock_ts[iter];
-
-      pClockTS->clock_time_stamp_flag = u(pRP, 1);
-
-      if(pClockTS->clock_time_stamp_flag)
-      {
-        pClockTS->ct_type = u(pRP, 2);
-        pClockTS->nuit_field_based_flag = u(pRP, 1);
-        pClockTS->counting_type = u(pRP, 5);
-        pClockTS->full_time_stamp_flag = u(pRP, 1);
-        pClockTS->discontinuity_flag = u(pRP, 1);
-        pClockTS->cnt_dropped_flag = u(pRP, 1);
-        pClockTS->n_frames = u(pRP, 8);
-
-        if(pClockTS->full_time_stamp_flag)
-        {
-          pClockTS->seconds_value = u(pRP, 6);
-          pClockTS->minutes_value = u(pRP, 6);
-          pClockTS->hours_value = u(pRP, 5);
-        }
-        else
-        {
-          pClockTS->seconds_flag = u(pRP, 1);
-
-          if(pClockTS->seconds_flag)
-          {
-            pClockTS->seconds_value = u(pRP, 6);  /* range 0..59 */
-            pClockTS->minutes_flag = u(pRP, 1);
-
-            if(pClockTS->minutes_flag)
-            {
-              pClockTS->minutes_value = u(pRP, 6); /* 0..59 */
-
-              pClockTS->hours_flag = u(pRP, 1);
-
-              if(pClockTS->hours_flag)
-                pClockTS->hours_value = u(pRP, 5); /* 0..23 */
-            }
-          }
-        }
-        pClockTS->time_offset = i(pRP, time_offset_length);
-      } // clock_timestamp_flag
-    }
-  }
-
-  return byte_alignment(pRP);
+  return bParsingOk;
 }
-
-/*****************************************************************************/
-static bool sei_recovery_point(AL_TRbspParser* pRP, AL_TRecoveryPoint* pRecoveryPoint)
-{
-  Rtos_Memset(pRecoveryPoint, 0, sizeof(*pRecoveryPoint));
-
-  pRecoveryPoint->recovery_cnt = ue(pRP);
-  pRecoveryPoint->exact_match = u(pRP, 1);
-  pRecoveryPoint->broken_link = u(pRP, 1);
-
-  /*changing_slice_group_idc = */ u(pRP, 2);
-
-  return byte_alignment(pRP);
-}
-
-#define SEI_PTYPE_BUFFERING_PERIOD 0
-#define SEI_PTYPE_USER_DATA_UNREGISTERED 5
-
-#define CONTIUE_PARSE_OR_SKIP(ParseCmd) \
-  bRet = ParseCmd; \
-  if(!bRet) \
-  { \
-    uOffset = offset(pRP) - uOffset; \
-    if(uOffset > payload_size << 3) \
-      return false; \
-    skip(pRP, (payload_size << 3) - uOffset); \
-    break; \
-  }
-
-#define PARSE_OR_SKIP(ParseCmd) \
-  uint32_t uOffset = offset(pRP); \
-  bool bRet; \
-  CONTIUE_PARSE_OR_SKIP(ParseCmd)
 
 /*****************************************************************************/
 bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB_ParsedSei* cb, AL_TSeiMetaData* pMeta)
 {
-  AL_TAvcSei sei;
-  AL_TAvcAup* aup = &pIAup->avcAup;
-  sei.present_flags = 0;
-
   skipAllZerosAndTheNextByte(pRP);
 
   u(pRP, 8); // Skip NUT
 
+  SeiParserParam tSeiParserParam = { pIAup, bIsPrefix, cb, pMeta };
+  SeiParserCB tSeiParserCb = { ParseSeiPayload, &tSeiParserParam };
+
   while(more_rbsp_data(pRP))
-  {
-    uint32_t payload_type = 0;
-    uint32_t payload_size = 0;
+    ParseSeiHeader(pRP, &tSeiParserCb);
 
-    // get payload type
-    if(!byte_aligned(pRP))
-      return false;
-
-    uint8_t byte = getbyte(pRP);
-
-    while(byte == 0xff)
-    {
-      payload_type += 255;
-      byte = getbyte(pRP);
-    }
-
-    payload_type += byte;
-
-    // get payload size
-    byte = getbyte(pRP);
-
-    while(byte == 0xff)
-    {
-      payload_size += 255;
-      byte = getbyte(pRP);
-    }
-
-    payload_size += byte;
-
-    bool bCBAndSEIMeta = true; // Don't call CB or add in SEI metadata for HDR related SEIs, HDR settings are provided through dedicated metadata
-
-    /* get payload data address, at this point we may not have the whole payload
-     * data loaded in the rbsp parser */
-    uint8_t* payload_data = get_raw_data(pRP);
-    switch(payload_type)
-    {
-    case SEI_PTYPE_BUFFERING_PERIOD: // buffering_period parsing
-    {
-      PARSE_OR_SKIP(sei_buffering_period(pRP, aup->pSPS, &sei.buffering_period, &aup->pActiveSPS))
-      sei.present_flags |= AL_SEI_BP;
-      break;
-    }
-    case SEI_PTYPE_PIC_TIMING: // picture_timing parsing
-    {
-      PARSE_OR_SKIP(sei_pic_timing(pRP, aup->pActiveSPS, &sei.picture_timing))
-      sei.present_flags |= AL_SEI_PT;
-      break;
-    }
-    case SEI_PTYPE_USER_DATA_UNREGISTERED: // user_data_unregistered parsing
-    {
-      skip(pRP, payload_size << 3); // skip data
-      break;
-    }
-    case SEI_PTYPE_RECOVERY_POINT: // picture_timing parsing
-    {
-      PARSE_OR_SKIP(sei_recovery_point(pRP, &sei.recovery_point));
-      pIAup->iRecoveryCnt = sei.recovery_point.recovery_cnt + 1; // +1 for non-zero value when SEI_RP is present
-      break;
-    }
-    case SEI_PTYPE_MASTERING_DISPLAY_COLOUR_VOLUME:
-    {
-      PARSE_OR_SKIP(sei_mastering_display_colour_volume(&pIAup->tParsedHDRSEIs.tMDCV, pRP));
-      pIAup->tParsedHDRSEIs.bHasMDCV = true;
-      bCBAndSEIMeta = false;
-      break;
-    }
-    case SEI_PTYPE_CONTENT_LIGHT_LEVEL:
-    {
-      PARSE_OR_SKIP(sei_content_light_level(&pIAup->tParsedHDRSEIs.tCLL, pRP));
-      pIAup->tParsedHDRSEIs.bHasCLL = true;
-      bCBAndSEIMeta = false;
-      break;
-    }
-    case SEI_PTYPE_ALTERNATIVE_TRANSFER_CHARACTERISTICS:
-    {
-      PARSE_OR_SKIP(sei_alternative_transfer_characteristics(&pIAup->tParsedHDRSEIs.tATC, pRP));
-      pIAup->tParsedHDRSEIs.bHasATC = true;
-      bCBAndSEIMeta = false;
-      break;
-    }
-    case SEI_PTYPE_USER_DATA_REGISTERED:
-    {
-      AL_EUserDataRegisterSEIType eSEIType;
-      PARSE_OR_SKIP((eSEIType = sei_user_data_registered(pRP, payload_size)) != AL_UDR_SEI_UNKNOWN);
-      switch(eSEIType)
-      {
-      case AL_UDR_SEI_ST2094_10:
-      {
-        CONTIUE_PARSE_OR_SKIP(sei_st2094_10(&pIAup->tParsedHDRSEIs.tST2094_10, pRP));
-        pIAup->tParsedHDRSEIs.bHasST2094_10 = true;
-        break;
-      }
-      case AL_UDR_SEI_ST2094_40:
-      {
-        CONTIUE_PARSE_OR_SKIP(sei_st2094_40(&pIAup->tParsedHDRSEIs.tST2094_40, pRP));
-        pIAup->tParsedHDRSEIs.bHasST2094_40 = true;
-        break;
-      }
-      default:
-      {
-        AL_Assert(0);
-        break;
-      }
-      }
-
-      bCBAndSEIMeta = false;
-      break;
-    }
-    default: // payload not supported
-    {
-      skip(pRP, payload_size << 3); // skip data
-      break;
-    }
-    }
-
-    if(bCBAndSEIMeta && pMeta)
-    {
-      if(!AL_SeiMetaData_AddPayload(pMeta, (AL_TSeiMessage) {bIsPrefix, payload_type, payload_data, payload_size }))
-        return false;
-    }
-
-    if(bCBAndSEIMeta && cb->func)
-      cb->func(bIsPrefix, payload_type, payload_data, payload_size, cb->userParam);
-  }
+  rbsp_trailing_bits(pRP);
 
   return true;
 }

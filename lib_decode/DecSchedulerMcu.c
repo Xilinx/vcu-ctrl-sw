@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -635,10 +630,36 @@ static void API_DecodeOneSlice(AL_IDecScheduler* pScheduler, AL_HANDLE hChannel,
     Rtos_Log(AL_LOG_ERROR, "Failed to decode one slice (error code: %d)\n", error);
 }
 
-static void GetSchedulerCoreInfo(DecSchedulerMcuCtx const* pSchedulerCtx, AL_TISchedulerCore* pCore)
+static void GetSchedulerCoreInfo(DecSchedulerMcuCtx const* pThis, AL_TISchedulerCore* pCore)
 {
-  (void)pSchedulerCtx;
-  (void)pCore;
+  int const fd = AL_Driver_Open(pThis->driver, pThis->deviceFile);
+
+  if(fd < 0)
+  {
+    Rtos_Log(AL_LOG_ERROR, "Couldn't open device file '%s' while creating channel: '%s'\n", pThis->deviceFile, strerror(errno));
+    return;
+  }
+
+  struct al5_params msg;
+  AL_EIDecSchedulerInfo eInfo = AL_ISCHEDULER_CORE;
+  msg.opaque[0] = eInfo;
+  memcpy(&msg.opaque[sizeof(eInfo) / sizeof(*msg.opaque)], pCore, sizeof(*pCore));
+
+  static_assert(sizeof(eInfo) + sizeof(*pCore) <= sizeof(msg.opaque), "Driver core structure struct is too small");
+  msg.size = sizeof(eInfo) + sizeof(*pCore);
+
+  AL_EDriverError const error = AL_Driver_PostMessage(pThis->driver, fd, AL_MCU_GET, &msg);
+
+  if(error != DRIVER_SUCCESS)
+  {
+    Rtos_Log(AL_LOG_ERROR, "Failed to get parameter '%s', (error code: '%d')\n", ToStringIDecSchedulerInfo(AL_ISCHEDULER_CORE), error);
+    AL_Driver_Close(pThis->driver, fd);
+    return;
+  }
+
+  memcpy(pCore, &msg.opaque[1], sizeof(*pCore));
+
+  AL_Driver_Close(pThis->driver, fd);
 }
 
 static void API_Get(AL_IDecScheduler const* pScheduler, AL_EIDecSchedulerInfo info, void* pParam)

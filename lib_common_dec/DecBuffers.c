@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -92,6 +87,12 @@ int AL_GetAllocSize_AvcMV(AL_TDimension tDim)
 }
 
 /****************************************************************************/
+static AL_EChromaOrder GetChromaOrder(AL_EChromaMode eChromaMode)
+{
+  return eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : (eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR);
+}
+
+/****************************************************************************/
 static int GetChromaAllocSize(AL_EChromaMode eChromaMode, int iAllocSizeY)
 {
   switch(eChromaMode)
@@ -115,8 +116,7 @@ static int GetChromaAllocSize(AL_EChromaMode eChromaMode, int iAllocSizeY)
 /*****************************************************************************/
 int AL_DecGetAllocSize_Frame_PixPlane(AL_EFbStorageMode eFbStorage, AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode, AL_EPlaneId ePlaneId)
 {
-  AL_EChromaOrder eChromaOrder = eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA :
-                                 (eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR);
+  AL_EChromaOrder eChromaOrder = GetChromaOrder(eChromaMode);
 
   if(!AL_Plane_Exists(eChromaOrder, false, ePlaneId))
     return 0;
@@ -169,10 +169,16 @@ uint32_t AL_GetRefListOffsets(TRefListOffsets* pOffsets, AL_ECodec eCodec, AL_EC
 /*****************************************************************************/
 int AL_DecGetAllocSize_Frame(AL_TDimension tDim, int iPitch, AL_EChromaMode eChromaMode, bool bFbCompression, AL_EFbStorageMode eFbStorageMode)
 {
-  (void)bFbCompression;
+  uint32_t uSize = 0;
+  AL_EChromaOrder eChromaOrder = GetChromaOrder(eChromaMode);
 
-  uint32_t uAllocSizeY = AL_DecGetAllocSize_Frame_PixPlane(eFbStorageMode, tDim, iPitch, eChromaMode, AL_PLANE_Y);
-  uint32_t uSize = uAllocSizeY + GetChromaAllocSize(eChromaMode, uAllocSizeY);
+  AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES];
+  int iNbPlanes = AL_Plane_GetBufferPlanes(eChromaOrder, bFbCompression, usedPlanes);
+
+  for(int iPlane = 0; iPlane < iNbPlanes; iPlane++)
+  {
+    uSize += AL_DecGetAllocSize_Frame_PixPlane(eFbStorageMode, tDim, iPitch, eChromaMode, usedPlanes[iPlane]);
+  }
 
   return uSize;
 }

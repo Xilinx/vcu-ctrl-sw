@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -45,7 +40,7 @@ extern "C"
 using namespace std;
 
 /*****************************************************************************/
-CRasterConv::CRasterConv(TFrameInfo const& FrameInfo) :
+CYuvSrcConv::CYuvSrcConv(TFrameInfo const& FrameInfo) :
   m_FrameInfo(FrameInfo)
 {
 }
@@ -276,11 +271,205 @@ static void convertToP410(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
 }
 
 /*****************************************************************************/
-void CRasterConv::ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut)
+static void convertToT608(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
+  switch(inFourCC)
+  {
+  case FOURCC(I0AL): return I0AL_To_T608(pSrcIn, pSrcOut);
+  case FOURCC(I0CL): return I0CL_To_T608(pSrcIn, pSrcOut);
+  case FOURCC(I420): return I420_To_T608(pSrcIn, pSrcOut);
+  case FOURCC(IYUV): return IYUV_To_T608(pSrcIn, pSrcOut);
+  case FOURCC(NV12): return NV12_To_T608(pSrcIn, pSrcOut);
+  case FOURCC(P010): return P010_To_T608(pSrcIn, pSrcOut);
+  case FOURCC(Y010): return Y010_To_T608(pSrcIn, pSrcOut);
+  case FOURCC(Y012): return Y012_To_T608(pSrcIn, pSrcOut);
+  case FOURCC(Y800): return Y800_To_T608(pSrcIn, pSrcOut);
+  case FOURCC(YV12): return YV12_To_T608(pSrcIn, pSrcOut);
+
+  case FOURCC(T608): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
+  default: return NoConversionFound(inFourCC, FOURCC(T608));
+  }
+}
+
+/*****************************************************************************/
+static void convertToT60A(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+{
+  switch(inFourCC)
+  {
+  case FOURCC(I0AL): return I0AL_To_T60A(pSrcIn, pSrcOut);
+  case FOURCC(I420): return I420_To_T60A(pSrcIn, pSrcOut);
+  case FOURCC(IYUV): return IYUV_To_T60A(pSrcIn, pSrcOut);
+  case FOURCC(NV12): return NV12_To_T60A(pSrcIn, pSrcOut);
+  case FOURCC(P010): return P010_To_T60A(pSrcIn, pSrcOut);
+  case FOURCC(Y010): return Y010_To_T60A(pSrcIn, pSrcOut);
+  case FOURCC(Y800): return Y800_To_T60A(pSrcIn, pSrcOut);
+  case FOURCC(YV12): return YV12_To_T60A(pSrcIn, pSrcOut);
+
+  case FOURCC(T60A): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
+  default: return NoConversionFound(inFourCC, FOURCC(T60A));
+  }
+}
+
+/*****************************************************************************/
+static void convertToT60C(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+{
+  switch(inFourCC)
+  {
+  case FOURCC(I0AL): return I0AL_To_T60C(pSrcIn, pSrcOut);
+  case FOURCC(I0CL): return I0CL_To_T60C(pSrcIn, pSrcOut);
+  case FOURCC(I420): return I420_To_T60C(pSrcIn, pSrcOut);
+  case FOURCC(Y010): return Y010_To_T60C(pSrcIn, pSrcOut);
+  case FOURCC(Y012): return Y012_To_T60C(pSrcIn, pSrcOut);
+  case FOURCC(Y800): return Y800_To_T60C(pSrcIn, pSrcOut);
+
+  case FOURCC(T60C): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
+  default: return NoConversionFound(inFourCC, FOURCC(T60C));
+  }
+}
+
+/*****************************************************************************/
+static void convertToT628(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+{
+  switch(inFourCC)
+  {
+  case FOURCC(I2AL): return I2AL_To_T628(pSrcIn, pSrcOut);
+  case FOURCC(I2CL): return I2CL_To_T628(pSrcIn, pSrcOut);
+  case FOURCC(I422): return I422_To_T628(pSrcIn, pSrcOut);
+  case FOURCC(NV16): return NV16_To_T628(pSrcIn, pSrcOut);
+  case FOURCC(P210): return P210_To_T628(pSrcIn, pSrcOut);
+  case FOURCC(Y010): return Y010_To_T628(pSrcIn, pSrcOut);
+  case FOURCC(Y800): return Y800_To_T628(pSrcIn, pSrcOut);
+
+  case FOURCC(T628): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
+  default: return NoConversionFound(inFourCC, FOURCC(T628));
+  }
+}
+
+/*****************************************************************************/
+static void convertToT62A(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+{
+  switch(inFourCC)
+  {
+  case FOURCC(I2AL): return I2AL_To_T62A(pSrcIn, pSrcOut);
+  case FOURCC(I422): return I422_To_T62A(pSrcIn, pSrcOut);
+  case FOURCC(NV16): return NV16_To_T62A(pSrcIn, pSrcOut);
+  case FOURCC(P210): return P210_To_T62A(pSrcIn, pSrcOut);
+  case FOURCC(Y010): return Y010_To_T62A(pSrcIn, pSrcOut);
+  case FOURCC(Y800): return Y800_To_T62A(pSrcIn, pSrcOut);
+
+  case FOURCC(T62A): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
+  default: return NoConversionFound(inFourCC, FOURCC(T62A));
+  }
+}
+
+/*****************************************************************************/
+static void convertToT62C(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+{
+  switch(inFourCC)
+  {
+  case FOURCC(I2AL): return I2AL_To_T62C(pSrcIn, pSrcOut);
+  case FOURCC(I2CL): return I2CL_To_T62C(pSrcIn, pSrcOut);
+  case FOURCC(I422): return I422_To_T62C(pSrcIn, pSrcOut);
+  case FOURCC(P212): return P212_To_T62C(pSrcIn, pSrcOut);
+  case FOURCC(Y012): return Y012_To_T62C(pSrcIn, pSrcOut);
+  case FOURCC(Y800): return Y800_To_T62C(pSrcIn, pSrcOut);
+
+  case FOURCC(T62C): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
+  default: return NoConversionFound(inFourCC, FOURCC(T62C));
+  }
+}
+
+/*****************************************************************************/
+static void convertToT648(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+{
+  switch(inFourCC)
+  {
+  case FOURCC(I444): return I444_To_T648(pSrcIn, pSrcOut);
+  case FOURCC(I4AL): return I4AL_To_T648(pSrcIn, pSrcOut);
+
+  case FOURCC(T648): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
+  default: return NoConversionFound(inFourCC, FOURCC(T648));
+  }
+}
+
+/*****************************************************************************/
+static void convertToT64A(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+{
+  switch(inFourCC)
+  {
+  case FOURCC(I444): return I444_To_T64A(pSrcIn, pSrcOut);
+  case FOURCC(I4AL): return I4AL_To_T64A(pSrcIn, pSrcOut);
+
+  case FOURCC(T64A): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
+  default: return NoConversionFound(inFourCC, FOURCC(T64A));
+  }
+}
+
+/*****************************************************************************/
+static void convertToT64C(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+{
+  switch(inFourCC)
+  {
+  case FOURCC(I444): return I444_To_T64C(pSrcIn, pSrcOut);
+  case FOURCC(I4AL): return I4AL_To_T64C(pSrcIn, pSrcOut);
+  case FOURCC(I4CL): return I4CL_To_T64C(pSrcIn, pSrcOut);
+
+  case FOURCC(T64C): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
+  default: return NoConversionFound(inFourCC, FOURCC(T64C));
+  }
+}
+
+/*****************************************************************************/
+static void convertToT6m8(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+{
+  switch(inFourCC)
+  {
+  case FOURCC(I420): return I420_To_T6m8(pSrcIn, pSrcOut);
+  case FOURCC(T6m8): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
+  default: return NoConversionFound(inFourCC, FOURCC(T64C));
+  }
+}
+
+/*****************************************************************************/
+static void convertToT6mA(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+{
+  switch(inFourCC)
+  {
+  case FOURCC(I0AL): return I0AL_To_T6mA(pSrcIn, pSrcOut);
+  case FOURCC(T6mA): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
+  default: return NoConversionFound(inFourCC, FOURCC(T64C));
+  }
+}
+
+/*****************************************************************************/
+static void convertToT6mC(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+{
+  switch(inFourCC)
+  {
+  case FOURCC(I0CL): return I0CL_To_T6mC(pSrcIn, pSrcOut);
+  case FOURCC(T6mC): CopyPixMapBuffer(pSrcIn, pSrcOut);
+    return;
+  default: return NoConversionFound(inFourCC, FOURCC(T64C));
+  }
+}
+
+/*****************************************************************************/
+void CYuvSrcConv::ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut)
+{
+  (void)uBitDepth;
   TFourCC tFourCCIn = AL_PixMapBuffer_GetFourCC(pSrcIn);
-  auto const picFmt = AL_EncGetSrcPicFormat(m_FrameInfo.eCMode, uBitDepth, AL_FB_RASTER, false);
-  TFourCC tSrcOutFourCC = AL_GetFourCC(picFmt);
+  TFourCC tSrcOutFourCC = AL_PixMapBuffer_GetFourCC(pSrcOut);
   switch(tSrcOutFourCC)
   {
   case FOURCC(Y800): return convertToY800(pSrcIn, tFourCCIn, pSrcOut);
@@ -297,6 +486,68 @@ void CRasterConv::ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_
   case FOURCC(P210): return convertToP210(pSrcIn, tFourCCIn, pSrcOut);
   case FOURCC(P212): return convertToP212(pSrcIn, tFourCCIn, pSrcOut);
   case FOURCC(P410): return convertToP410(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(T608): return convertToT608(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(T60A): return convertToT60A(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(T60C): return convertToT60C(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(T628): return convertToT628(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(T62A): return convertToT62A(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(T62C): return convertToT62C(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(T648): return convertToT648(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(T64A): return convertToT64A(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(T64C): return convertToT64C(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(T6m8): return convertToT6m8(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(T6mA): return convertToT6mA(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(T6mC): return convertToT6mC(pSrcIn, tFourCCIn, pSrcOut);
+
+  case FOURCC(T508):
+    convertToT608(pSrcIn, tFourCCIn, pSrcOut);
+    AL_PixMapBuffer_SetFourCC(pSrcOut, FOURCC(T508));
+    return;
+  case FOURCC(T50A):
+    convertToT60A(pSrcIn, tFourCCIn, pSrcOut);
+    AL_PixMapBuffer_SetFourCC(pSrcOut, FOURCC(T50A));
+    return;
+  case FOURCC(T50C):
+    convertToT60C(pSrcIn, tFourCCIn, pSrcOut);
+    AL_PixMapBuffer_SetFourCC(pSrcOut, FOURCC(T50C));
+    return;
+  case FOURCC(T528):
+    convertToT628(pSrcIn, tFourCCIn, pSrcOut);
+    AL_PixMapBuffer_SetFourCC(pSrcOut, FOURCC(T528));
+    return;
+  case FOURCC(T52A):
+    convertToT62A(pSrcIn, tFourCCIn, pSrcOut);
+    AL_PixMapBuffer_SetFourCC(pSrcOut, FOURCC(T52A));
+    return;
+  case FOURCC(T52C):
+    convertToT62C(pSrcIn, tFourCCIn, pSrcOut);
+    AL_PixMapBuffer_SetFourCC(pSrcOut, FOURCC(T52C));
+    return;
+  case FOURCC(T548):
+    convertToT648(pSrcIn, tFourCCIn, pSrcOut);
+    AL_PixMapBuffer_SetFourCC(pSrcOut, FOURCC(T548));
+    return;
+  case FOURCC(T54A):
+    convertToT64A(pSrcIn, tFourCCIn, pSrcOut);
+    AL_PixMapBuffer_SetFourCC(pSrcOut, FOURCC(T54A));
+    return;
+  case FOURCC(T54C):
+    convertToT64C(pSrcIn, tFourCCIn, pSrcOut);
+    AL_PixMapBuffer_SetFourCC(pSrcOut, FOURCC(T54C));
+    return;
+  case FOURCC(T5m8):
+    convertToT6m8(pSrcIn, tFourCCIn, pSrcOut);
+    AL_PixMapBuffer_SetFourCC(pSrcOut, FOURCC(T5m8));
+    return;
+  case FOURCC(T5mA):
+    convertToT6mA(pSrcIn, tFourCCIn, pSrcOut);
+    AL_PixMapBuffer_SetFourCC(pSrcOut, FOURCC(T5mA));
+    return;
+  case FOURCC(T5mC):
+    convertToT6mC(pSrcIn, tFourCCIn, pSrcOut);
+    AL_PixMapBuffer_SetFourCC(pSrcOut, FOURCC(T5mC));
+    return;
+
   default: return NoConversionFound(tFourCCIn, tSrcOutFourCC);
   }
 }

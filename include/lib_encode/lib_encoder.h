@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -188,7 +183,7 @@ void AL_Encoder_ReleaseRecPicture(AL_HEncoder hEnc, AL_TRecPic* pRecPic);
    or more if the user wants to create his own sections (to add SEI inside
    the stream for example)
    \return return true if the buffer was successfully pushed. false if an error
-   occured
+   occurred
 *****************************************************************************/
 bool AL_Encoder_PutStreamBuffer(AL_HEncoder hEnc, AL_TBuffer* pStream);
 
@@ -229,7 +224,7 @@ bool AL_Encoder_Process(AL_HEncoder hEnc, AL_TBuffer* pFrame, AL_TBuffer* pQpTab
 int AL_Encoder_AddSei(AL_HEncoder hEnc, AL_TBuffer* pStream, bool isPrefix, int iPayloadType, uint8_t* pPayload, int iPayloadSize, int iTempId);
 
 /*************************************************************************//*!
-   \brief Return an error code when an error has occured during encoding,
+   \brief Return an error code when an error has occurred during encoding,
    otherwise the function returns AL_SUCCESS.
    \param[in] hEnc Handle to an encoder object
 *****************************************************************************/
@@ -355,6 +350,15 @@ bool AL_Encoder_SetFrameRate(AL_HEncoder hEnc, uint16_t uFrameRate, uint16_t uCl
    retrieve the error code
 *****************************************************************************/
 bool AL_Encoder_SetQP(AL_HEncoder hEnc, int16_t iQP);
+
+/*************************************************************************//*!
+   \brief Add an offset to the current QP. Only available while using RateCtrlMode = CONST_QP
+   \param[in] hEnc Handle to an encoder object
+   \param[in] iQPOffset The new quantization parameter offset
+   \return true on success, false on error : call AL_Encoder_GetLastError to
+   retrieve the error code
+*****************************************************************************/
+bool AL_Encoder_SetQPOffset(AL_HEncoder hEnc, int16_t iQPOffset);
 
 /*************************************************************************//*!
    \brief Changes the bounds of the QP set by the rate control

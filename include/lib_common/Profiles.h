@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -63,6 +58,8 @@ typedef enum AL_e_Codec
   AL_CODEC_VP9 = 3,
   AL_CODEC_JPEG = 4,
   AL_CODEC_VVC = 5,
+  AL_CODEC_MPEG2 = 6,
+  AL_CODEC_AVC_I = 7,
   AL_CODEC_INVALID, /* sentinel */
 }AL_ECodec;
 
@@ -149,6 +146,18 @@ static inline int AL_GET_PROFILE_IDC(AL_EProfile eProfile)
 #define AL_GET_CS_FLAGS(Prof) ((Prof & 0x00FFFF00) >> 8)
 
 /****************************************************************************/
+static inline bool AL_HAS_LEVEL(AL_EProfile eProfile)
+{
+  AL_ECodec eCodec = AL_GET_CODEC(eProfile);
+  switch(eCodec)
+  {
+  case AL_CODEC_AVC: return true;
+  case AL_CODEC_HEVC: return true;
+  default: return false;
+  }
+}
+
+/****************************************************************************/
 static inline bool AL_IS_VP9(AL_EProfile eProfile)
 {
   (void)eProfile;
@@ -177,6 +186,18 @@ static inline bool AL_IS_AOM_CODEC(AL_ECodec eCodec)
 }
 
 /****************************************************************************/
+static inline bool AL_IS_D105_CODEC(AL_ECodec eCodec)
+{
+  return ((eCodec) == AL_CODEC_MPEG2) || ((eCodec) == AL_CODEC_AVC_I);
+}
+
+/****************************************************************************/
+static inline bool AL_IS_LIB_MVD_CODEC(AL_ECodec eCodec)
+{
+  return AL_IS_AOM_CODEC(eCodec) || AL_IS_D105_CODEC(eCodec);
+}
+
+/****************************************************************************/
 static inline bool AL_IS_JPEG(AL_EProfile eProfile)
 {
   (void)eProfile;
@@ -194,6 +215,11 @@ static inline bool AL_IS_AVC(AL_EProfile eProfile)
 static inline bool AL_IS_HEVC(AL_EProfile eProfile)
 {
   return AL_GET_CODEC(eProfile) == AL_CODEC_HEVC;
+}
+
+static inline bool AL_IS_ITU(AL_EProfile eProfile)
+{
+  return AL_IS_AVC(eProfile) || AL_IS_HEVC(eProfile);
 }
 
 /****************************************************************************/

@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -32,6 +27,7 @@
 #include "lib_common/Utils.h"
 #include "lib_common/SeiInternal.h"
 #include "lib_common_dec/RbspParser.h"
+#include "SeiParser.h"
 
 #define CONCEAL_LEVEL_IDC 60 * 3
 
@@ -832,7 +828,7 @@ AL_PARSE_RESULT AL_HEVC_ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 }
 
 /*****************************************************************************/
-static bool sei_active_parameter_sets(AL_TRbspParser* pRP, AL_THevcAup* aup, uint8_t* pSpsId)
+static bool SeiActiveParameterSets(AL_TRbspParser* pRP, AL_THevcAup* aup, uint8_t* pSpsId)
 {
   uint8_t active_video_parameter_set_id = u(pRP, 4);
   /*self_Containd_cvs_flag =*/ u(pRP, 1);
@@ -856,7 +852,7 @@ static bool sei_active_parameter_sets(AL_TRbspParser* pRP, AL_THevcAup* aup, uin
 }
 
 /*****************************************************************************/
-static bool sei_pic_timing(AL_TRbspParser* pRP, AL_THevcSps* pSPS, AL_THevcPicTiming* pPicTiming)
+static bool SeiPicTiming(AL_TRbspParser* pRP, AL_THevcSps* pSPS, AL_THevcPicTiming* pPicTiming)
 {
   if(pSPS == NULL || pSPS->bConceal)
     return false;
@@ -913,186 +909,65 @@ static bool sei_pic_timing(AL_TRbspParser* pRP, AL_THevcSps* pSPS, AL_THevcPicTi
 }
 
 /*****************************************************************************/
-static bool sei_recovery_point(AL_TRbspParser* pRP, AL_TRecoveryPoint* pRecoveryPoint)
+static bool ParseSeiPayload(SeiParserParam* p, AL_TRbspParser* pRP, AL_ESeiPayloadType ePayloadType, int iPayloadSize, bool* bCanSendToUser, bool* bParsed)
 {
-  Rtos_Memset(pRecoveryPoint, 0, sizeof(*pRecoveryPoint));
+  bool bParsingOk = true;
+  AL_THevcAup* aup = &p->pIAup->hevcAup;
+  *bCanSendToUser = true;
+  *bParsed = true;
+  switch(ePayloadType)
+  {
+  case SEI_PTYPE_PIC_TIMING: // picture_timing parsing
+  {
+    if(aup->pActiveSPS)
+    {
+      AL_THevcPicTiming tPictureTiming;
+      bParsingOk = SeiPicTiming(pRP, aup->pActiveSPS, &tPictureTiming);
+      ;
 
-  pRecoveryPoint->recovery_cnt = se(pRP);
-  pRecoveryPoint->exact_match = u(pRP, 1);
-  pRecoveryPoint->broken_link = u(pRP, 1);
+      if(bParsingOk)
+        aup->ePicStruct = tPictureTiming.pic_struct;
+    }
+    else
+      skip(pRP, iPayloadSize << 3);
+    break;
+  }
+  case SEI_PTYPE_ACTIVE_PARAMETER_SETS:
+  {
+    uint8_t uSpsId;
+    bParsingOk = SeiActiveParameterSets(pRP, aup, &uSpsId);
 
-  return byte_alignment(pRP);
-}
+    if(uSpsId >= AL_HEVC_MAX_SPS)
+      bParsingOk = false;
 
-#define SEI_PTYPE_ACTIVE_PARAMETER_SETS 129
-
-#define CONTIUE_PARSE_OR_SKIP(ParseCmd) \
-  bRet = ParseCmd; \
-  if(!bRet) \
-  { \
-    uOffset = offset(pRP) - uOffset; \
-    if(uOffset > (uint32_t)payload_size << 3) \
-      return false; \
-    skip(pRP, (payload_size << 3) - uOffset); \
-    break; \
+    if(bParsingOk && !aup->pSPS[uSpsId].bConceal)
+      aup->pActiveSPS = &aup->pSPS[uSpsId];
+    break;
+  }
+  default:
+  {
+    *bParsed = false;
+    *bCanSendToUser = false;
+    break;
+  }
   }
 
-#define PARSE_OR_SKIP(ParseCmd) \
-  uint32_t uOffset = offset(pRP); \
-  bool bRet; \
-  CONTIUE_PARSE_OR_SKIP(ParseCmd)
+  return bParsingOk;
+}
 
 /*****************************************************************************/
 bool AL_HEVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB_ParsedSei* cb, AL_TSeiMetaData* pMeta)
 {
-  AL_THevcSei sei;
-  AL_THevcAup* aup = &pIAup->hevcAup;
-  sei.present_flags = 0;
-
   skipAllZerosAndTheNextByte(pRP);
 
   u(pRP, 16); // Skip NUT + temporal_id
 
+  SeiParserParam tUserParam = { pIAup, bIsPrefix, cb, pMeta };
+  SeiParserCB tSeiParserCb = { ParseSeiPayload, &tUserParam };
+
   do
   {
-    uint32_t payload_type = 0;
-    int32_t payload_size = 0;
-
-    // get payload type
-    if(!byte_aligned(pRP))
-      return false;
-
-    uint8_t byte = getbyte(pRP);
-
-    while(byte == 0xff)
-    {
-      payload_type += 255;
-      byte = getbyte(pRP);
-    }
-
-    payload_type += byte;
-
-    // get payload size
-    byte = getbyte(pRP);
-
-    while(byte == 0xff)
-    {
-      payload_size += 255;
-      byte = getbyte(pRP);
-    }
-
-    uint32_t offsetBefore = offset(pRP);
-
-    payload_size += byte;
-
-    bool bCBAndSEIMeta = true; // Don't call CB or add in SEI metadata for HDR related SEIs, HDR settings are provided through dedicated metadata
-
-    /* get payload data address, at this point we may not have the whole payload
-     * data loaded in the rbsp parser */
-    uint8_t* payload_data = get_raw_data(pRP);
-    switch(payload_type)
-    {
-    case SEI_PTYPE_PIC_TIMING: // picture_timing parsing
-    {
-      if(aup->pActiveSPS)
-      {
-        PARSE_OR_SKIP(sei_pic_timing(pRP, aup->pActiveSPS, &sei.picture_timing));
-        sei.present_flags |= AL_SEI_PT;
-        aup->ePicStruct = sei.picture_timing.pic_struct;
-      }
-      else
-        skip(pRP, payload_size << 3);
-      break;
-    }
-    case SEI_PTYPE_RECOVERY_POINT: // picture_timing parsing
-    {
-      PARSE_OR_SKIP(sei_recovery_point(pRP, &sei.recovery_point));
-      pIAup->iRecoveryCnt = sei.recovery_point.recovery_cnt + 1; // +1 for non-zero value when AL_SEI_RP is present
-      break;
-    }
-    case SEI_PTYPE_ACTIVE_PARAMETER_SETS:
-    {
-      uint8_t uSpsId;
-      PARSE_OR_SKIP(sei_active_parameter_sets(pRP, aup, &uSpsId));
-
-      if(uSpsId >= AL_HEVC_MAX_SPS)
-        return false;
-
-      if(!aup->pSPS[uSpsId].bConceal)
-        aup->pActiveSPS = &aup->pSPS[uSpsId];
-      break;
-    }
-    case SEI_PTYPE_MASTERING_DISPLAY_COLOUR_VOLUME:
-    {
-      PARSE_OR_SKIP(sei_mastering_display_colour_volume(&pIAup->tParsedHDRSEIs.tMDCV, pRP));
-      pIAup->tParsedHDRSEIs.bHasMDCV = true;
-      bCBAndSEIMeta = false;
-      break;
-    }
-    case SEI_PTYPE_CONTENT_LIGHT_LEVEL:
-    {
-      PARSE_OR_SKIP(sei_content_light_level(&pIAup->tParsedHDRSEIs.tCLL, pRP));
-      pIAup->tParsedHDRSEIs.bHasCLL = true;
-      bCBAndSEIMeta = false;
-      break;
-    }
-    case SEI_PTYPE_ALTERNATIVE_TRANSFER_CHARACTERISTICS:
-    {
-      PARSE_OR_SKIP(sei_alternative_transfer_characteristics(&pIAup->tParsedHDRSEIs.tATC, pRP));
-      pIAup->tParsedHDRSEIs.bHasATC = true;
-      bCBAndSEIMeta = false;
-      break;
-    }
-    case SEI_PTYPE_USER_DATA_REGISTERED:
-    {
-      AL_EUserDataRegisterSEIType eSEIType;
-      PARSE_OR_SKIP((eSEIType = sei_user_data_registered(pRP, payload_size)) != AL_UDR_SEI_UNKNOWN);
-      switch(eSEIType)
-      {
-      case AL_UDR_SEI_ST2094_10:
-      {
-        CONTIUE_PARSE_OR_SKIP(sei_st2094_10(&pIAup->tParsedHDRSEIs.tST2094_10, pRP));
-        pIAup->tParsedHDRSEIs.bHasST2094_10 = true;
-        break;
-      }
-      case AL_UDR_SEI_ST2094_40:
-      {
-        CONTIUE_PARSE_OR_SKIP(sei_st2094_40(&pIAup->tParsedHDRSEIs.tST2094_40, pRP));
-        pIAup->tParsedHDRSEIs.bHasST2094_40 = true;
-        break;
-      }
-      default:
-      {
-        AL_Assert(0);
-        break;
-      }
-      }
-
-      bCBAndSEIMeta = false;
-      break;
-    }
-    default: // payload not supported
-    {
-      skip(pRP, payload_size << 3); // skip data
-      break;
-    }
-    }
-
-    if(bCBAndSEIMeta && pMeta)
-    {
-      if(!AL_SeiMetaData_AddPayload(pMeta, (AL_TSeiMessage) {bIsPrefix, payload_type, payload_data, payload_size }))
-        return false;
-    }
-
-    if(bCBAndSEIMeta && cb->func)
-      cb->func(bIsPrefix, payload_type, payload_data, payload_size, cb->userParam);
-
-    uint32_t offsetAfter = offset(pRP);
-    // Skip payload extension data if any
-    int32_t remainingPayload = (payload_size << 3) - (int32_t)(offsetAfter - offsetBefore);
-
-    if(remainingPayload > 0)
-      skip(pRP, remainingPayload);
+    ParseSeiHeader(pRP, &tSeiParserCb);
   }
   while(more_rbsp_data(pRP));
 

@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -1232,13 +1227,15 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx const* pCtx, AL_TDecSliceParam const
     {
       uint8_t uNodeID = AL_Dpb_ConvertPicIDToNodeID(&pCtx->DPB, i);
 
-      if(uNodeID == UndefID
-         && pSP->eSliceType == AL_SLICE_CONCEAL
-         && pSP->ValidConceal
-         && pCtx->DPB.uCountPic)
-        uNodeID = AL_Dpb_ConvertPicIDToNodeID(&pCtx->DPB, pSP->ConcealPicID);
+      if(uNodeID == UndefID)
+      {
+        if(pSP->ValidConceal && pCtx->DPB.uCountPic)
+          uNodeID = AL_Dpb_ConvertPicIDToNodeID(&pCtx->DPB, pSP->ConcealPicID);
+      }
 
       AL_TBuffer* pRefBuf = NULL;
+      TBufferMV const* pRefMV = NULL;
+      TBufferPOC const* pRefPOC = NULL;
 
       if(uNodeID != UndefID)
       {
@@ -1246,17 +1243,15 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx const* pCtx, AL_TDecSliceParam const
         uint8_t uMvID = AL_Dpb_GetMvID_FromNode(&pCtx->DPB, uNodeID);
         AL_TRecBuffers pBufs = sFrmBufPool_GetBufferFromID(&pCtx->FrmBufPool, iFrameID);
         pRefBuf = pBufs.pFrame;
-        pColocMvList[i] = pCtx->MvBufPool.pMvBufs[uMvID].tMD.uPhysicalAddr;
-        pColocPocList[i] = pCtx->MvBufPool.pPocBufs[uMvID].tMD.uPhysicalAddr;
-
+        pRefMV = &pCtx->MvBufPool.pMvBufs[uMvID];
+        pRefPOC = &pCtx->MvBufPool.pPocBufs[uMvID];
       }
       else
       {
         // Use current Rec & MV Buffers to avoid non existing ref/coloc
         pRefBuf = pRecs->pFrame;
-        pColocMvList[i] = pMV->tMD.uPhysicalAddr;
-        pColocPocList[i] = pPOC->tMD.uPhysicalAddr;
-
+        pRefMV = pMV;
+        pRefPOC = pPOC;
       }
 
       pAddr[i] = AL_PixMapBuffer_GetPlanePhysicalAddress(pRefBuf, AL_PLANE_Y);
@@ -1266,6 +1261,10 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx const* pCtx, AL_TDecSliceParam const
 
       pFbcList[i] = 0;
       pFbcList[PIC_ID_POOL_SIZE + i] = 0;
+
+      pColocMvList[i] = pRefMV->tMD.uPhysicalAddr;
+      pColocPocList[i] = pRefPOC->tMD.uPhysicalAddr;
+
     }
   }
   return true;

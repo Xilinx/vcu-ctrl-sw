@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -44,7 +39,7 @@
 #include "lib_common/HDR.h"
 
 /*************************************************************************//*!
-   \brief Aspect Ratio identifer
+   \brief Aspect Ratio identifier
 *****************************************************************************/
 typedef enum e_AspectRatio
 {
@@ -99,6 +94,13 @@ typedef enum e_ScalingList
   AL_SCL_MAX_ENUM, /* sentinel */
 }AL_EScalingList;
 
+typedef struct t_ColorConfig
+{
+  AL_EColourDescription eColourDescription; /*!< Indicates the chromaticity coordinates of the source primaries in terms of the CIE 1931 definition. */
+  AL_ETransferCharacteristics eTransferCharacteristics; /*!< Specifies the reference opto-electronic transfer characteristic function */
+  AL_EColourMatrixCoefficients eColourMatrixCoeffs; /*!< Specifies the matrix coefficients used in deriving luma and chroma signals from RGB */
+}AL_TColorConfig;
+
 /*************************************************************************//*!
    \brief Encoder Parameters
 *****************************************************************************/
@@ -109,18 +111,16 @@ typedef AL_INTROSPECT (category = "debug") struct t_EncSettings
   AL_EFillerCtrlMode eEnableFillerData; /*!< Allows Filler Data Nal unit insertion when needed (CBR) */
   uint32_t uEnableSEI; /*!< Bit-field specifying which SEI message have to be inserted. see AL_SeiFlag for a list of the supported SEI messages */
 
+  AL_TColorConfig tColorConfig;
   AL_EAspectRatio eAspectRatio; /*!< Specifies the sample aspect ratio of the luma samples. */
-  AL_EColourDescription eColourDescription; /*!< Indicates the chromaticity coordinates of the source primaries in terms of the CIE 1931 definition. */
-  AL_ETransferCharacteristics eTransferCharacteristics; /*!< Specifies the reference opto-electronic transfer characteristic function */
-  AL_EColourMatrixCoefficients eColourMatrixCoeffs; /*!< Specifies the matrix coefficients used in deriving luma and chroma signals from RGB */
   AL_EScalingList eScalingList; /*!< Specifies which kind of scaling matrices is used for encoding. When set to AL_SCL_CUSTOM, the customized value shall be provided int the ScalingList and DCcoeff parameters below*/
   bool bDependentSlice; /*!< Enable the dependent slice mode */
 
   bool bDisIntra; /*!< Disable Intra preiction Mode in P or B slice (validation purpose only) */
   bool bForceLoad; /*!< Specifies if the work buffers are reloaded each time by the IP, recommended value : true */
   int32_t iPrefetchLevel2; /*!< Specifies the size of the L2 prefetch memory */
-  uint16_t uClipHrzRange; /*!< Specifies the Horizontal motion vector range. Note: this range can be further reduce by the encoder accroding to various constraints*/
-  uint16_t uClipVrtRange; /*!< Specifies the Vertical motion vector range. Note: this range can be further reduce by the encoder accroding to various constraints*/
+  uint16_t uClipHrzRange; /*!< Specifies the Horizontal motion vector range. Note: this range can be further reduce by the encoder according to various constraints*/
+  uint16_t uClipVrtRange; /*!< Specifies the Vertical motion vector range. Note: this range can be further reduce by the encoder according to various constraints*/
   AL_EQpCtrlMode eQpCtrlMode; /*!< Specifies the QP control mode inside a frame; see AL_EQpCtrlMode for available modes */
   AL_EQpTableMode eQpTableMode; /*!< Specifies the QP table mode. See AL_EQpTableMode for available modes */
   int NumView; /*!< Specifies the number of view when multi-view encoding is supported. */

@@ -41,4 +41,3 @@ clean:
 	$(Q)rm -rf $(ROOT_BIN)
 
 include $(shell test -d $(BIN) && find $(BIN) -name "*.dep")
-

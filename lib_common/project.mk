@@ -34,6 +34,7 @@ endif
 
 
 
+
 ifneq ($(HAS_CODEC),0)
   LIB_COMMON_SRC+=lib_common/LevelLimit.c
   LIB_COMMON_SRC+=lib_common/StreamBuffer.c
@@ -53,6 +54,5 @@ ifneq ($(ENABLE_HIGH_DYNAMIC_RANGE),0)
   LIB_COMMON_SRC+=lib_common/HDR.c
 endif
 endif
-
 
 

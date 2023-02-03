@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -678,8 +673,9 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   parser.addEnum(curSection, "Tier", cfg.Settings.tChParam[0].uTier, tiers, "Specifies the tier to which the bitstream conforms");
   parser.addArith(curSection, "NumSlices", cfg.Settings.tChParam[0].uNumSlices, "Number of slices used for each frame. Each slice contains one or more full LCU row(s) and they are spread over the frame as regularly as possible", {
     { isOnlyCodec(Codec::Avc), 1, 4096 / GetBlkSizeInv(AVC_MAX_CU_SIZE) },
-    { filterCodecs({ Codec::Hevc, Codec::Vvc }), 1, 4096 / GetBlkSizeInv(CODEC_MAX_CTB_SIZE) },
+    { filterCodecs({ Codec::Hevc, Codec::Vvc }), 1, 4096 / GetBlkSizeInv(CODEC_MIN_CTB_SIZE) },
   });
+  parser.addNote(curSection, "NumSlices", "The maximum value is determined according to the maximum picture height and the minimum LCU size. The maximum value may no be reachable as the number of slices are also depdendent to the level conformance and multicore encoding for instance.");
   map<string, EnumDescription<int>> sliceSizeEnums;
   sliceSizeEnums["DISABLE"] = { 0, "Disable Slice size", ituCodecs() };
   parser.addArithFuncOrEnum<decltype(cfg.Settings.tChParam[0].uSliceSize), int>(curSection, "SliceSize", cfg.Settings.tChParam[0].uSliceSize, [](int sliceSize)
@@ -746,7 +742,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   colourDescriptions["COLOUR_DESC_SMPTE_RP_431"] = { AL_COLOUR_DESC_SMPTE_RP_431, "SMPTE RP.431", ituCodecs() };
   colourDescriptions["COLOUR_DESC_SMPTE_EG_432"] = { AL_COLOUR_DESC_SMPTE_EG_432, "SMPTE EG.432", ituCodecs() };
   colourDescriptions["COLOUR_DESC_EBU_3213"] = { AL_COLOUR_DESC_EBU_3213, "EBU.3213", ituCodecs() };
-  parser.addEnum(curSection, "ColourDescription", cfg.Settings.eColourDescription, colourDescriptions, "Defines the colorimetry information that is written in the SPS/VUI header");
+  parser.addEnum(curSection, "ColourDescription", cfg.Settings.tColorConfig.eColourDescription, colourDescriptions, "Defines the colorimetry information that is written in the SPS/VUI header");
 
   map<string, EnumDescription<int>> transferCharacteristics;
   transferCharacteristics["TRANSFER_BT_709"] = { AL_TRANSFER_CHARAC_BT_709, "Rec. ITU-R BT.709-6", ituCodecs() };
@@ -766,7 +762,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   transferCharacteristics["TRANSFER_BT_2100_PQ"] = { AL_TRANSFER_CHARAC_BT_2100_PQ, "Rec. ITU-R BT.2100-2 perceptual quantization (PQ) system", ituCodecs() };
   transferCharacteristics["TRANSFER_SMPTE_428"] = { AL_TRANSFER_CHARAC_SMPTE_428, "Society of Motion Picture and Television Engineers ST 428-1", ituCodecs() };
   transferCharacteristics["TRANSFER_BT_2100_HLG"] = { AL_TRANSFER_CHARAC_BT_2100_HLG, "Rec. ITU-R BT.2100-2 hybrid log-gamma (HLG) system", ituCodecs() };
-  parser.addEnum(curSection, "TransferCharac", cfg.Settings.eTransferCharacteristics, transferCharacteristics, "Specifies the reference opto-electronic transfer characteristic function (HDR setting)");
+  parser.addEnum(curSection, "TransferCharac", cfg.Settings.tColorConfig.eTransferCharacteristics, transferCharacteristics, "Specifies the reference opto-electronic transfer characteristic function (HDR setting)");
 
   map<string, EnumDescription<int>> colourMatrices;
   colourMatrices["COLOUR_MAT_GBR"] = { AL_COLOUR_MAT_COEFF_GBR, "", ituCodecs() };
@@ -783,7 +779,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   colourMatrices["COLOUR_MAT_CHROMA_DERIVED_NCLS"] = { AL_COLOUR_MAT_COEFF_CHROMA_DERIVED_NCLS, "", ituCodecs() };
   colourMatrices["COLOUR_MAT_CHROMA_DERIVED_CLS"] = { AL_COLOUR_MAT_COEFF_CHROMA_DERIVED_CLS, "", ituCodecs() };
   colourMatrices["COLOUR_MAT_BT_2100_ICTCP"] = { AL_COLOUR_MAT_COEFF_BT_2100_ICTCP, "", ituCodecs() };
-  parser.addEnum(curSection, "ColourMatrix", cfg.Settings.eColourMatrixCoeffs, colourMatrices, "Specifies the matrix coefficients used in deriving luma and chroma signals from RGB (HDR setting)");
+  parser.addEnum(curSection, "ColourMatrix", cfg.Settings.tColorConfig.eColourMatrixCoeffs, colourMatrices, "Specifies the matrix coefficients used in deriving luma and chroma signals from RGB (HDR setting)");
 
   map<string, EnumDescription<int>> chromaModes;
   SetEnumDescr<int>(chromaModes, "CHROMA_MONO", AL_CHROMA_MONO, "The stream is encoded in monochrome", allCodecs());

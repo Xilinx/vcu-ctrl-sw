@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -29,20 +24,8 @@
 
 #pragma once
 
-/*************************************************************************//*!
-   \brief Core Information structure
-*****************************************************************************/
-typedef struct
-{
-  int iCoreFrequency;
-  int iMaxVideoResourcePerCore;
-  int iVideoResource[AL_DEC_NUM_CORES];
-}AL_TISchedulerCore;
+#include "lib_decode/I_DecArch.h"
 
-/****************************************************************************/
-typedef enum
-{
-  AL_ISCHEDULER_CORE, /*!< reference: AL_TISchedulerCore */
-  AL_ISCHEDULER_CHANNEL_TRACE_CALLBACK, /*!< reference: AL_TIDecSchedulerChannelTraceCallback */
-  AL_ISCHEDULER_MAX_ENUM,
-}AL_EIDecSchedulerInfo;
+extern AL_IDecArch decHost;
+
+AL_IDecArch* LibDecodeHostGet(void);

@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -37,7 +32,7 @@
 
 #include "lib_rtos/types.h"
 /*************************************************************************//*!
-   \brief Colour Description identifer (See ISO/IEC 23091-4 or ITU-T H.273)
+   \brief Colour Description identifier (See ISO/IEC 23091-4 or ITU-T H.273)
 *****************************************************************************/
 typedef enum e_ColourDescription
 {
@@ -58,7 +53,7 @@ typedef enum e_ColourDescription
 }AL_EColourDescription;
 
 /************************************//*!
-   \brief Transfer Function identifer
+   \brief Transfer Function identifier
 ****************************************/
 typedef enum e_TransferCharacteristics
 {

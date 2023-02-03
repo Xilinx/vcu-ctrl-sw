@@ -36,4 +36,3 @@ liballegro_decode_src: $(LIB_DECODER_SRC)
 
 
 .PHONY: liballegro_decode liballegro_decode_dll liballegro_decode_a liballegro_decode_src
-

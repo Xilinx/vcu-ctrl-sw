@@ -18,4 +18,3 @@ if has git; then
 fi
 
 echo -n "$res"
-

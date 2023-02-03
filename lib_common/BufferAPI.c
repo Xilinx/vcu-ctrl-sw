@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -376,6 +371,21 @@ AL_PADDR AL_Buffer_GetPhysicalAddressChunk(const AL_TBuffer* hBuf, int iChunkIdx
     return 0;
 
   return AL_Allocator_GetPhysicalAddr(hBuf->pAllocator, hBuf->hBufs[iChunkIdx]);
+}
+
+/****************************************************************************/
+AL_VADDR AL_Buffer_GetVirtualAddress(const AL_TBuffer* hBuf)
+{
+  return AL_Buffer_GetVirtualAddressChunk(hBuf, 0);
+}
+
+/****************************************************************************/
+AL_VADDR AL_Buffer_GetVirtualAddressChunk(const AL_TBuffer* hBuf, int iChunkIdx)
+{
+  if(!AL_Buffer_HasChunk(hBuf, iChunkIdx))
+    return 0;
+
+  return AL_Allocator_GetVirtualAddr(hBuf->pAllocator, hBuf->hBufs[iChunkIdx]);
 }
 
 /****************************************************************************/

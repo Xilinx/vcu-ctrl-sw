@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -97,6 +92,7 @@ typedef enum
   AL_OPT_SET_LF_OFFSETS = 0x00400,
   AL_OPT_SET_AUTO_QP = 0x08000,
   AL_OPT_UPDATE_AUTO_QP_VALUES = 0x20000,
+  AL_OPT_SET_QP_OFFSET = 0x40000,
   AL_OPT_RECOVERY_POINT = 0x10000,
 }AL_ERequestEncOption;
 
@@ -110,6 +106,7 @@ typedef struct
   AL_TRCParam rc;
   AL_TGopParam gop;
   int16_t iQPSet;
+  int16_t iQPOffset;
   int8_t iLFBetaOffset;
   int8_t iLFTcOffset;
   bool costMode;

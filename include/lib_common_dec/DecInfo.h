@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -60,7 +55,7 @@ typedef struct t_CropInfo
 {
   bool bCropping;         /*!< Cropping information present flag    */
   uint32_t uCropOffsetLeft;   /*!< Left   offset of the cropping window */
-  uint32_t uCropOffsetRight;  /*!< Rigth  offset of the cropping window */
+  uint32_t uCropOffsetRight;  /*!< Right  offset of the cropping window */
   uint32_t uCropOffsetTop;    /*!< Top    offset of the cropping window */
   uint32_t uCropOffsetBottom; /*!< Bottom offset of the cropping window */
 }AL_TCropInfo;

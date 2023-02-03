@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -269,6 +264,15 @@ bool AL_Common_Encoder_SetFrameRate(AL_TEncCtx* pCtx, uint16_t uFrameRate, uint1
    to retrieve the error code
 *****************************************************************************/
 bool AL_Common_Encoder_SetQP(AL_TEncCtx* pCtx, int16_t iQP);
+
+/*************************************************************************//*!
+   \brief Changes the QP Delta if the RateCtrlMode is set to CONST_QP
+   \param[in] pEnc Pointer on an encoder object
+   \param[in] iQP The new quantization parameter
+   \return true on success, false on error : call AL_Common_Encoder_GetLastError
+   to retrieve the error code
+*****************************************************************************/
+bool AL_Common_Encoder_SetQPOffset(AL_TEncCtx* pCtx, int16_t iQPOffset);
 
 /*************************************************************************//*!
    \brief Changes the bounds of the QP set by the rate control

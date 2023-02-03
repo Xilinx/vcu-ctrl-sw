@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -74,7 +69,7 @@ int AL_GetMitigatedMaxNalSize(AL_TDimension tDim, AL_EChromaMode eMode, int iBit
    \brief Retrieves the minimal memory space needed for the encoder to generate
    one frame.
    You should use this function to determine the minimal allocated buffer used for
-   encoding. The user must add space for the slice datas of the frame
+   encoding. The user must add space for the slice data of the frame
    \param[in] iNumSlices Number of slices in the frame
    \param[in] eCodec Codec used for encoding
    \return Minimal size for non-VCL NAL unit, slice header and

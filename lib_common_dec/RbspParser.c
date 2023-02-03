@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -86,7 +81,7 @@ static uint32_t al_log2(uint32_t value)
 /*****************************************************************************/
 static void remove_trailing_bits(AL_TRbspParser* pRP)
 {
-  uint32_t i = pRP->iTrailingBitOneIndex;
+  uint32_t i = pRP->iTrailingBitOneIndex - 1;
 
   while(read_bit(pRP, i) == 0 && i >= 1)
     --i;
@@ -110,9 +105,12 @@ static bool fetch_data(AL_TRbspParser* pRP)
   if(finished_fetching(pRP))
     return false;
 
-  uint32_t uWrite = 0;
+  int const byte_offset = (int)(pRP->iTrailingBitOneIndex >> 3);
 
-  int byte_offset = (int)(pRP->iTrailingBitOneIndex >> 3);
+  if(byte_offset >= pRP->iBufOutSize)
+    return false;
+
+  uint32_t uWrite = 0;
   uint8_t* pBuf = pRP->pBufIn;
   uint8_t* pBufOut = &pRP->pBuffer[byte_offset];
 
@@ -124,7 +122,7 @@ static bool fetch_data(AL_TRbspParser* pRP)
 
   // Replaces in pBuffer all sequences such as 0x00 0x00 0x03 0xZZ with 0x00 0x00 0xZZ (0x03 removal)
   // iff 0xZZ == 0x00 or 0x01 or 0x02 or 0x03.
-  for(uint32_t uRead = uOffset; uRead < uEnd && pRP->iBufInAvailSize > 0; ++uRead)
+  for(uint32_t uRead = uOffset; (uRead < uEnd) && (pRP->iBufInAvailSize > 0) && ((uWrite + byte_offset) < (uint32_t)pRP->iBufOutSize); ++uRead)
   {
     pRP->iBufInOffset = (pRP->iBufInOffset + 1) % pRP->iBufInSize;
     --pRP->iBufInAvailSize;
@@ -164,16 +162,17 @@ static bool fetch_data(AL_TRbspParser* pRP)
 }
 
 /*****************************************************************************/
-void InitRbspParser(TCircBuffer const* pStream, uint8_t* pBuffer, bool bHasSC, AL_TRbspParser* pRP)
+void InitRbspParser(TCircBuffer const* pStream, uint8_t* pNoAEBuffer, int32_t iNoAESize, bool bHasSC, AL_TRbspParser* pRP)
 {
-  pRP->pBuffer = pBuffer;
+  pRP->pBuffer = pNoAEBuffer;
+  pRP->iBufOutSize = iNoAESize;
 
   pRP->iTotalBitIndex = 0;
   pRP->iTrailingBitOneIndex = 0;
   pRP->iTrailingBitOneIndexConceal = 0;
   pRP->uNumScDetect = 0;
   pRP->uZeroBytesCount = 0;
-  pRP->pByte = pBuffer;
+  pRP->pByte = pRP->pBuffer;
 
   pRP->pBufIn = pStream->tMD.pVirtualAddr;
   pRP->iBufInSize = pStream->tMD.uSize;

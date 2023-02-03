@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -31,10 +26,10 @@
 
 #include "ConvSrc.h"
 
-struct CRasterConv : public IConvSrc
+struct CYuvSrcConv : public IConvSrc
 {
-  explicit CRasterConv(TFrameInfo const& FrameInfo);
-  virtual ~CRasterConv() override = default;
+  explicit CYuvSrcConv(TFrameInfo const& FrameInfo);
+  virtual ~CYuvSrcConv() override = default;
 
   virtual void ConvertSrcBuf(uint8_t uBitDepth, AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut) override;
 

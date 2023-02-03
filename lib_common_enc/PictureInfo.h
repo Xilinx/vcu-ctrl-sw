@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -87,11 +82,13 @@ typedef struct AL_t_PictureInfo
 
   int32_t iDpbOutputDelay;
   uint8_t uRefPicSetIdx;
-  int8_t iQpOffset;
+  int8_t iGopMngrQpOffset;
   int32_t iRecoveryCnt;
 
   bool bForceQp;
   int8_t iQpSet;
+  bool bRateCtrlQpOffset;
+  int8_t iRateCtrlQpOffset;
 
   uint16_t uGdrPos; /*!< Gradual Refresh position */
   AL_EGdrMode eGdrMode; /*!< Gradual Refresh Mode */

@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -143,7 +138,7 @@ int AL_PixMapMetaData_GetChromaSize(AL_TPixMapMetaData* pMeta)
   if(eCMode == AL_CHROMA_MONO)
     return 0;
 
-  int const iHeightC = AL_GetChromaHeight(eCMode, pMeta->tDim.iHeight);
+  int const iHeightC = AL_GetChromaHeight(pMeta->tFourCC, pMeta->tDim.iHeight);
 
   if(AL_IsTiled(pMeta->tFourCC))
     return pMeta->tPlanes[AL_PLANE_UV].iPitch * iHeightC / 4;

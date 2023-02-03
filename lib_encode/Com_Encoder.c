@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -406,8 +401,12 @@ static uint8_t UpdateEncoderInfos(AL_TEncCtx* pCtx, AL_TEncInfo* pEI, AL_TEncCha
     pEI->uPpsId = AL_GetPps(&pCtx->tHeadersCtx[iLayerID], uSpsId, pChParam->iCbPicQpOffset, pChParam->iCrPicQpOffset);
     Rtos_ReleaseMutex(pCtx->Mutex);
   }
-  pEI->iQp1Offset = pChParam->iCbPicQpOffset;
-  pEI->iQp2Offset = pChParam->iCrPicQpOffset;
+
+  if(!AL_IS_AOM(pChParam->eProfile))
+  {
+    pEI->iQp1Offset = pChParam->iCbPicQpOffset;
+    pEI->iQp2Offset = pChParam->iCrPicQpOffset;
+  }
 
   return uSpsId;
 }
@@ -596,7 +595,9 @@ bool AL_Common_Encoder_Process(AL_TEncCtx* pCtx, AL_TBuffer* pFrame, AL_TBuffer*
   }
 
   addresses.tSrcInfo.uBitDepth = tPicFormat.uBitDepth;
-  addresses.tSrcInfo.uFormat = AL_GET_SRC_FMT(pChParam->eSrcMode);
+  AL_ESrcMode srcMode = pChParam->eSrcMode;
+
+  addresses.tSrcInfo.uFormat = AL_GET_SRC_FMT(srcMode);
 
   AL_Buffer_Ref(pFrame);
   pEI->SrcHandle = (AL_64U)(uintptr_t)pFrame;
@@ -1191,6 +1192,19 @@ bool AL_Common_Encoder_SetQP(AL_TEncCtx* pCtx, int16_t iQP)
 }
 
 /****************************************************************************/
+bool AL_Common_Encoder_SetQPOffset(AL_TEncCtx* pCtx, int16_t iQPOffset)
+{
+  for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
+  {
+    AL_TEncRequestInfo* pReqInfo = getCurrentCommands(&pCtx->tLayerCtx[i]);
+    pReqInfo->eReqOptions |= AL_OPT_SET_QP_OFFSET;
+    pReqInfo->smartParams.iQPOffset = iQPOffset;
+  }
+
+  return true;
+}
+
+/****************************************************************************/
 bool AL_Common_Encoder_SetQPBounds(AL_TEncCtx* pCtx, int16_t iMinQP, int16_t iMaxQP, AL_ESliceType sliceType)
 {
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
@@ -1466,7 +1480,7 @@ static void EndEncoding(void* pUserParam, AL_TEncPicStatus* pPicStatus, AL_64U s
   AL_Assert(pStreamMeta);
   pStreamMeta->uTemporalID = pPicStatus->uTempId;
 
-  if(!AL_IS_ERROR_CODE(pPicStatus->eErrorCode) || (pPicStatus->eErrorCode == AL_ERR_WATCHDOG_TIMEOUT))
+  if(!AL_IS_ERROR_CODE(pPicStatus->eErrorCode))
   {
     Rtos_GetMutex(pCtx->Mutex);
     pCtx->encoder.updateHlsAndWriteSections(pCtx, pPicStatus, pStream, iLayerID, iPoolID);

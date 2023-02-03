@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -226,7 +221,7 @@ void* AL_Buffer_GetUserData(AL_TBuffer* pBuf);
    return a pointer to the first chunk.
    \param[in] pBuf Pointer to an AL_TBuffer
    \return Returns a pointer to the memory wrapped by the AL_TBuffer if
-   successfull, NULL otherwise
+   successful, NULL otherwise
 *****************************************************************************/
 uint8_t* AL_Buffer_GetData(const AL_TBuffer* pBuf);
 
@@ -235,7 +230,7 @@ uint8_t* AL_Buffer_GetData(const AL_TBuffer* pBuf);
    \param[in] pBuf Pointer to an AL_TBuffer
    \param[in] iChunkIdx Index of the chunk
    \return Returns a pointer to the chunk memory wrapped by the AL_TBuffer if
-   successfull, NULL otherwise
+   successful, NULL otherwise
 *****************************************************************************/
 uint8_t* AL_Buffer_GetDataChunk(const AL_TBuffer* pBuf, int iChunkIdx);
 
@@ -243,7 +238,7 @@ uint8_t* AL_Buffer_GetDataChunk(const AL_TBuffer* pBuf, int iChunkIdx);
    \brief Gets the buffer size. If the buffer contains multiple chunks,
    return the size of the first chunk.
    \param[in] pBuf Pointer to an AL_TBuffer
-   \return Returns the buffer size if successfull, 0 otherwise
+   \return Returns the buffer size if successful, 0 otherwise
 *****************************************************************************/
 size_t AL_Buffer_GetSize(const AL_TBuffer* pBuf);
 
@@ -251,7 +246,7 @@ size_t AL_Buffer_GetSize(const AL_TBuffer* pBuf);
    \brief Gets the size of a chunk.
    \param[in] pBuf Pointer to an AL_TBuffer
    \param[in] iChunkIdx Index of the chunk
-   \return  Returns the chunk size if successfull, 0 otherwise
+   \return  Returns the chunk size if successful, 0 otherwise
 *****************************************************************************/
 size_t AL_Buffer_GetSizeChunk(const AL_TBuffer* pBuf, int iChunkIdx);
 
@@ -259,7 +254,7 @@ size_t AL_Buffer_GetSizeChunk(const AL_TBuffer* pBuf, int iChunkIdx);
    \brief Binds a metadata to a buffer
 
    Adds the pMeta pointer to the metadata of pBuf. Metadata object are associated
-   with a buffer and provid context regarding how the buffer should be processed.
+   with a buffer and provide context regarding how the buffer should be processed.
    It is inadvisable to add more than one metadata of a given type.
    The buffer takes ownership of the metadata.
 

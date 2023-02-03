@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -414,9 +409,9 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
   pSPS->vui_param.video_full_range_flag = pChParam->bVideoFullRange;
 
   // Colour description
-  pSPS->vui_param.colour_primaries = AL_H273_ColourDescToColourPrimaries(pSettings->eColourDescription);
-  pSPS->vui_param.transfer_characteristics = AL_TransferCharacteristicsToVUIValue(pSettings->eTransferCharacteristics);
-  pSPS->vui_param.matrix_coefficients = AL_ColourMatrixCoefficientsToVUIValue(pSettings->eColourMatrixCoeffs);
+  pSPS->vui_param.colour_primaries = AL_H273_ColourDescToColourPrimaries(pSettings->tColorConfig.eColourDescription);
+  pSPS->vui_param.transfer_characteristics = AL_TransferCharacteristicsToVUIValue(pSettings->tColorConfig.eTransferCharacteristics);
+  pSPS->vui_param.matrix_coefficients = AL_ColourMatrixCoefficientsToVUIValue(pSettings->tColorConfig.eColourMatrixCoeffs);
 
   pSPS->vui_param.colour_description_present_flag =
     (pSPS->vui_param.colour_primaries != AL_H273_ColourDescToColourPrimaries(AL_COLOUR_DESC_UNSPECIFIED)) ||

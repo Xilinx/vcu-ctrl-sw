@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -91,7 +86,7 @@ AL_TPixMapMetaData* AL_PixMapMetaData_Clone(AL_TPixMapMetaData* pMeta);
    \param[in] pMeta A pointer the pixmap metadata
    \param[in] tPlane plane parameters
    \param[in] ePlaneId plane type
-   \return Returns true if plane sucessfully added, false otherwise
+   \return Returns true if plane successfully added, false otherwise
 *****************************************************************************/
 bool AL_PixMapMetaData_AddPlane(AL_TPixMapMetaData* pMeta, AL_TPlane tPlane, AL_EPlaneId ePlaneId);
 

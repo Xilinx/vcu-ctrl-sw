@@ -1,9 +1,4 @@
 /******************************************************************************
-* The VCU_MCU_firmware files distributed with this project are provided in binary
-* form under the following license; source files are not provided.
-*
-* While the following license is similar to the MIT open-source license,
-* it is NOT the MIT open source license or any other OSI-approved open-source license.
 *
 * Copyright (C) 2015-2023 Allegro DVT2
 *
@@ -44,6 +39,7 @@ struct ICommandsSender
   virtual void setBitRate(int bitRate) = 0;
   virtual void setMaxBitRate(int iTargetBitRate, int iMaxBitRate) = 0;
   virtual void setQP(int qp) = 0;
+  virtual void setQPOffset(int iQpOffset) = 0;
   virtual void setQPBounds(int iMinQP, int iMaxQP) = 0;
   virtual void setQPBounds_I(int iMinQP_I, int iMaxQP_I) = 0;
   virtual void setQPBounds_P(int iMinQP_P, int iMaxQP_P) = 0;

@@ -3,4 +3,3 @@ PLUGIN_FIRMWARE_SRC:=\
 
 plugin_src: $(PLUGIN_FIRMWARE_SRC)
 	@echo $(PLUGIN_FIRMWARE_SRC)
-
