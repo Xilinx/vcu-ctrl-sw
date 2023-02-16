@@ -173,6 +173,18 @@ bool AL_PixMapBuffer_SetDimension(AL_TBuffer* pBuf, AL_TDimension tDim)
   return true;
 }
 
+bool AL_PixMapBuffer_UpdateDimension(AL_TBuffer* pBuf, AL_TDimension tDim, int chunkIdx, const AL_TPlaneDescription* pPlDescriptions, int iNbPlanes)
+{
+  AL_TPixMapMetaData* pMeta = (AL_TPixMapMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_PIXMAP);
+
+  if(pMeta == NULL)
+    return false;
+
+  AddPlanesToMeta(pMeta, chunkIdx, pPlDescriptions, iNbPlanes);
+
+  return AL_PixMapBuffer_SetDimension(pBuf, tDim);
+}
+
 TFourCC AL_PixMapBuffer_GetFourCC(AL_TBuffer const* pBuf)
 {
   AL_TPixMapMetaData* pMeta = (AL_TPixMapMetaData*)AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_PIXMAP);
