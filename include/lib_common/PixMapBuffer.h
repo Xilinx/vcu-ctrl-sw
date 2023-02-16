@@ -126,6 +126,17 @@ AL_TDimension AL_PixMapBuffer_GetDimension(AL_TBuffer const* pBuf);
 bool AL_PixMapBuffer_SetDimension(AL_TBuffer* pBuf, AL_TDimension tDim);
 
 /*************************************************************************//*!
+   \brief Update the dimension of the frame stored in the AL_TBuffer and all meta data
+   \param[in] pBuf Pointer to the AL_TBuffer
+   \param[in] tDim The new dimension
+   \param[in] chunkIdx Buffer chunk id 
+   \param[in] pPlDescriptions Pointer to a list a planes description
+   \param[in] iNbPlanes Number of planes of the list
+   \return Returns true if dimension was correctly set, false otherwise
+*****************************************************************************/
+bool AL_PixMapBuffer_UpdateDimension(AL_TBuffer* pBuf, AL_TDimension tDim, int chunkIdx, const AL_TPlaneDescription* pPlDescriptions, int iNbPlanes);
+
+/*************************************************************************//*!
    \brief Get the FourCC of the frame stored in the AL_TBuffer
    \param[in] pBuf Pointer to the AL_TBuffer
    \return Returns the FourCC of the frame if successful, 0 otherwise
