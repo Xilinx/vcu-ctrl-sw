@@ -1,26 +1,5 @@
-/******************************************************************************
-*
-* Copyright (C) 2015-2023 Allegro DVT2
-*
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in all
-* copies or substantial portions of the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-* SOFTWARE.
-*
-******************************************************************************/
+// SPDX-FileCopyrightText: © 2023 Allegro DVT <github-ip@allegrodvt.com>
+// SPDX-License-Identifier: MIT
 
 /****************************************************************************
    -----------------------------------------------------------------------------
@@ -766,6 +745,12 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     }
   }
 
+  if(AL_IS_AV1(pChParam->eProfile) && AL_IS_HWRC_ENABLED(&pChParam->tRCParam))
+  {
+    ++err;
+    MSG_ERROR("Hardware Rate Control (LOW_LATENCY or MaxPictureSize) is not supported in AV1");
+  }
+
   if(pChParam->tRCParam.eRCMode == AL_RC_LOW_LATENCY)
   {
     if(pChParam->tGopParam.uNumB > 0)
@@ -1182,12 +1167,18 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
   if(pChParam->tGopParam.eGdrMode != AL_GDR_OFF)
   {
-    if((pSettings->uEnableSEI & AL_SEI_RP) == 0)
+    bool bCheckSEI = false;
+
+    if(AL_IS_AVC(pChParam->eProfile))
+      bCheckSEI = true;
+
+    if(AL_IS_HEVC(pChParam->eProfile))
+      bCheckSEI = true;
+
+    if(bCheckSEI && (pSettings->uEnableSEI & AL_SEI_RP) == 0)
     {
-      {
-        pSettings->uEnableSEI |= AL_SEI_RP;
-        MSG_WARNING("Force Recovery Point SEI in GDR");
-      }
+      pSettings->uEnableSEI |= AL_SEI_RP;
+      MSG_WARNING("Force Recovery Point SEI in GDR");
     }
 
     if(bIsLoopFilterEnable)

@@ -1,26 +1,5 @@
-/******************************************************************************
-*
-* Copyright (C) 2015-2023 Allegro DVT2
-*
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in all
-* copies or substantial portions of the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-* SOFTWARE.
-*
-******************************************************************************/
+// SPDX-FileCopyrightText: © 2023 Allegro DVT <github-ip@allegrodvt.com>
+// SPDX-License-Identifier: MIT
 
 #include "I_PictMngr.h"
 
@@ -321,8 +300,29 @@ static bool sFrmBufPool_Init(AL_TFrmBufPool* pPool, AL_TAllocator* pAllocator, b
 }
 
 /*************************************************************************/
+static void sEnsureRecBufferAreRemoved(AL_TFrmBufPool* pPool)
+{
+  for(int i = 0; i < FRM_BUF_POOL_SIZE; i++)
+  {
+    if(pPool->array[i].iAccessCnt == 0)
+    {
+      AL_TRecBuffers tBuffers = sFrmBufPool_GetBufferFromID(pPool, i);
+      sFrmBufPool_RemoveID(pPool, i);
+      sRecBuffers_Release(&tBuffers, pPool);
+    }
+
+    AL_Assert(pPool->array[i].iAccessCnt == -1);
+  }
+}
+
+/*************************************************************************/
 static void sFrmBufPool_Deinit(AL_TFrmBufPool* pPool)
 {
+  AL_Assert(pPool->iFifoHead == -1);
+  AL_Assert(pPool->iFifoTail == -1);
+
+  sEnsureRecBufferAreRemoved(pPool);
+
   Rtos_DeleteEvent(pPool->Event);
   Rtos_DeleteMutex(pPool->Mutex);
 }
