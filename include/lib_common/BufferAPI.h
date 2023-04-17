@@ -299,5 +299,16 @@ void AL_Buffer_FlushMemory(const AL_TBuffer* pBuf);
 *****************************************************************************/
 void AL_Buffer_Cleanup(AL_TBuffer* pBuf);
 
+/*************************************************************************//*!
+   \brief Shallow copy the AL_TBuffer
+
+   It copies everything but the pCallBack. This is because user certainly only want to have pointer to underlying data with its own metadata
+
+   \param[in] pCopy Pointer to an AL_TBuffer
+   \param[in] pCallBack is called after the buffer reference count reaches zero
+   \return Returns a shallow copy of pCopy if successful. Returns NULL otherwise
+*****************************************************************************/
+AL_TBuffer* AL_Buffer_ShallowCopy(AL_TBuffer const* pCopy, PFN_RefCount_CallBack pCallBack);
+
 /*@}*/
 

@@ -781,3 +781,19 @@
       - L2Prefetch issues
       - Skip + B Frames + Interlaced
     -- Several minors bugs
+
+2023-04-06 (v1.0.74)
+--------------------
+  Added Features:
+    -- AL_Buffer_ShallowCopy: It copies everything but the pCallBack. This is because user certainly only want to have pointer to underlying data with its own metadata
+    -- Improves dynamic resolution change by checking buffer size instead of dimension
+
+  API:
+    -- Version of the API is now 0.36.0
+
+  Fixes:
+    -- Licensing: 'Allegro DVT2' legal name is now 'Allegro DVT'
+    -- Tons of typos
+    -- Decoder:
+      - Performances issues
+    -- Several minors bugs

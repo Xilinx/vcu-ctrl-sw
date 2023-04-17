@@ -101,7 +101,7 @@ static int getMaxNumberOfSlices(AL_TDecCtx const* pCtx, AL_TAvcSps const* pSPS)
 }
 
 /*****************************************************************************/
-static AL_ERR isSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, bool bHasFields, AL_TStreamSettings const* pStreamSettings)
+static AL_ERR isSPSCompatibleWithStreamSettings(AL_TDecCtx const* pCtx, AL_TAvcSps const* pSPS, bool bHasFields, AL_TStreamSettings const* pStreamSettings)
 {
   int iSPSLumaBitDepth = pSPS->bit_depth_luma_minus8 + 8;
 
@@ -119,6 +119,20 @@ static AL_ERR isSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, bool bHa
     return AL_WARN_SPS_BITDEPTH_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
 
   AL_TDimension tSPSDim = extractDimension(pSPS, bHasFields);
+
+  static const int32_t iMinResolution = AL_CORE_MIN_CU_NB << AL_CORE_AVC_LOG2_MAX_CU_SIZE;
+
+  if(tSPSDim.iWidth < iMinResolution)
+  {
+    Rtos_Log(AL_LOG_ERROR, "Invalid resolution : minimum width is 2 CTBs.\n");
+    return AL_WARN_SPS_MIN_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
+  }
+
+  if(tSPSDim.iHeight < iMinResolution)
+  {
+    Rtos_Log(AL_LOG_ERROR, "Invalid resolution : minimum height is 2 CTBs.\n");
+    return AL_WARN_SPS_MIN_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
+  }
 
   if(pStreamSettings->iLevel > 0)
   {
@@ -141,30 +155,34 @@ static AL_ERR isSPSCompatibleWithStreamSettings(AL_TAvcSps const* pSPS, bool bHa
     return AL_WARN_SPS_CHROMA_MODE_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
   }
 
-  if((pStreamSettings->tDim.iWidth > 0) && (pStreamSettings->tDim.iWidth < tSPSDim.iWidth))
+  // check SPS Dimensions against the size of the configured buffer
+  // The check should be made against the internal buffer, not the resulting secondOutput/postProc buffer
+  if(pCtx->bIsBuffersAllocated)
   {
-    Rtos_Log(AL_LOG_ERROR, "Invalid resolution. Width greater than initial setting in decoder.\n");
-    return AL_WARN_SPS_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
-  }
+    AL_EFbStorageMode eDisplayStorageMode = pCtx->pChanParam->eFBStorageMode;
+    bool bEnableDisplayCompression = pCtx->pChanParam->bFrameBufferCompression;
 
-  static const int32_t iMinResolution = AL_CORE_MIN_CU_NB << AL_CORE_AVC_LOG2_MAX_CU_SIZE;
+    AL_TDimension tMinBuffDim = AL_PictMngr_GetMinBufferDim(&pCtx->PictMngr, eDisplayStorageMode);
+    int iMinBufferSize = AL_PictMngr_GetMinBufferSize(&pCtx->PictMngr);
+    int iMinBuffRequired = AL_GetAllocSize_Frame(tSPSDim, eSPSChromaMode, iSPSMaxBitDepth, bEnableDisplayCompression, eDisplayStorageMode);
 
-  if(tSPSDim.iWidth < iMinResolution)
-  {
-    Rtos_Log(AL_LOG_ERROR, "Invalid resolution : minimum width is 2 CTBs.\n");
-    return AL_WARN_SPS_MIN_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
-  }
+    if((iMinBufferSize > 0) && (iMinBufferSize < iMinBuffRequired))
+    {
+      Rtos_Log(AL_LOG_ERROR, "Invalid resolution. SPS dimensions Require Buffer Size greater than initial buffer configuration in decoder.\n");
+      return AL_WARN_SPS_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
+    }
 
-  if((pStreamSettings->tDim.iHeight > 0) && (pStreamSettings->tDim.iHeight < tSPSDim.iHeight))
-  {
-    Rtos_Log(AL_LOG_ERROR, "Invalid resolution. Height greater than initial setting in decoder.\n");
-    return AL_WARN_SPS_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
-  }
+    if((pStreamSettings->tDim.iWidth > 0) && (tMinBuffDim.iWidth < tSPSDim.iWidth))
+    {
+      Rtos_Log(AL_LOG_ERROR, "Invalid resolution. SPS Width greater than initial buffer configuration in decoder.\n");
+      return AL_WARN_SPS_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
+    }
 
-  if(tSPSDim.iHeight < iMinResolution)
-  {
-    Rtos_Log(AL_LOG_ERROR, "Invalid resolution : minimum height is 2 CTBs.\n");
-    return AL_WARN_SPS_MIN_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
+    if((pStreamSettings->tDim.iHeight > 0) && (tMinBuffDim.iHeight < tSPSDim.iHeight))
+    {
+      Rtos_Log(AL_LOG_ERROR, "Invalid resolution. SPS Height greater than initial buffer configuration in decoder.\n");
+      return AL_WARN_SPS_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
+    }
   }
 
   if(((pStreamSettings->eSequenceMode != AL_SM_MAX_ENUM) && pStreamSettings->eSequenceMode != AL_SM_UNKNOWN) && (pStreamSettings->eSequenceMode != AL_SM_PROGRESSIVE))
@@ -210,8 +228,10 @@ static AL_ERR resolutionFound(AL_TDecCtx* pCtx, AL_TStreamSettings const* pSpsSe
   int iMaxBuf = AVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, pCtx->iStackSize, pCtx->tStreamSettings.bDecodeIntraOnly);
   bool bEnableDisplayCompression;
   AL_EFbStorageMode eDisplayStorageMode = AL_Default_Decoder_GetDisplayStorageMode(pCtx, pSpsSettings->iBitDepth, &bEnableDisplayCompression);
-  int iSizeYuv = AL_GetAllocSize_Frame(pSpsSettings->tDim, pSpsSettings->eChroma, pSpsSettings->iBitDepth, bEnableDisplayCompression, eDisplayStorageMode);
 
+  AL_TDimension tOutputDim = pSpsSettings->tDim;
+
+  int iSizeYuv = AL_GetAllocSize_Frame(tOutputDim, pSpsSettings->eChroma, pSpsSettings->iBitDepth, bEnableDisplayCompression, eDisplayStorageMode);
   return pCtx->tDecCB.resolutionFoundCB.func(iMaxBuf, iSizeYuv, pSpsSettings, pCropInfo, pCtx->tDecCB.resolutionFoundCB.userParam);
 }
 
@@ -328,7 +348,7 @@ static bool initSlice(AL_TDecCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 
   if(!pCtx->bIsFirstSPSChecked)
   {
-    AL_ERR const ret = isSPSCompatibleWithStreamSettings(pSlice->pSPS, pSlice->field_pic_flag, &pCtx->tStreamSettings);
+    AL_ERR const ret = isSPSCompatibleWithStreamSettings(pCtx, pSlice->pSPS, pSlice->field_pic_flag, &pCtx->tStreamSettings);
 
     if(ret != AL_SUCCESS)
     {
@@ -661,7 +681,7 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   {
     int const spsid = sliceSpsId(pAUP->pPPS, pSlice);
     AL_TAvcSps* pSPS = &pAUP->pSPS[spsid];
-    AL_ERR const ret = isSPSCompatibleWithStreamSettings(pSPS, pSlice->field_pic_flag, &pCtx->tStreamSettings);
+    AL_ERR const ret = isSPSCompatibleWithStreamSettings(pCtx, pSPS, pSlice->field_pic_flag, &pCtx->tStreamSettings);
     isValid = ret == AL_SUCCESS;
     AL_TStreamSettings spsSettings = extractStreamSettings(pSPS, pSlice->field_pic_flag, pCtx->tStreamSettings.bDecodeIntraOnly);
 

@@ -2092,7 +2092,7 @@ AL_ERR AL_CreateDefaultDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler,
 }
 
 /*****************************************************************************/
-AL_EFbStorageMode AL_Default_Decoder_GetDisplayStorageMode(AL_TDecCtx* pCtx, int iBitDepth, bool* pEnableCompression)
+AL_EFbStorageMode AL_Default_Decoder_GetDisplayStorageMode(AL_TDecCtx const* pCtx, int iBitDepth, bool* pEnableCompression)
 {
   (void)iBitDepth;
   AL_EFbStorageMode eDisplayStorageMode = pCtx->pChanParam->eFBStorageMode;

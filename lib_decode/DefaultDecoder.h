@@ -110,7 +110,7 @@ void AL_Default_Decoder_SetError(AL_TDecCtx* pCtx, AL_ERR eError, int iFrameID, 
    \param[out] pEnableCompression indicates if FBC in enabled for output frames
    \return the output storage mode
 *****************************************************************************/
-AL_EFbStorageMode AL_Default_Decoder_GetDisplayStorageMode(AL_TDecCtx* pCtx, int iBitDepth, bool* pEnableCompression);
+AL_EFbStorageMode AL_Default_Decoder_GetDisplayStorageMode(AL_TDecCtx const* pCtx, int iBitDepth, bool* pEnableCompression);
 
 /*************************************************************************//*!
    \brief This function indicates if there has an ongoing frame

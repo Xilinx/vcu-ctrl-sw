@@ -303,6 +303,20 @@ AL_TBuffer* AL_PictMngr_ForceDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDecode
 bool AL_PictMngr_PutDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TBuffer* pBuf);
 
 /*************************************************************************//*!
+   \brief This function returns the Minimum frame buffer size
+   \param[in] pCtx   Pointer to a Picture manager context object
+   \return int framebuffer size
+*****************************************************************************/
+int AL_PictMngr_GetMinBufferSize(AL_TPictMngrCtx const* pCtx);
+
+/*************************************************************************//*!
+   \brief This function returns the Minimum frame buffer dimensions
+   \param[in] pCtx   Pointer to a Picture manager context object
+   \return AL_TDimension Actual framebuffer pitch and Height
+*****************************************************************************/
+AL_TDimension AL_PictMngr_GetMinBufferDim(AL_TPictMngrCtx const* pCtx, AL_EFbStorageMode eDisplayStorageMode);
+
+/*************************************************************************//*!
    \brief This function returns the display picture buffer associated to iFrameID
    \param[in]  pCtx      Pointer to a Picture manager context object
    \param[in]  iFrameID  Frame ID

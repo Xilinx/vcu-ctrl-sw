@@ -621,7 +621,7 @@ static Config ParseCommandLine(int argc, char* argv[])
   if(bMainOutputCompression)
   {
     if(bCertCRC)
-      throw runtime_error("Certification CRC unavaible with fbc");
+      throw runtime_error("Certification CRC unavailable with fbc");
     bCertCRC = false;
   }
 
@@ -1095,6 +1095,13 @@ static bool isReleaseFrame(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
 }
 
 /******************************************************************************/
+static void freeWithoutDestroyingMemory(AL_TBuffer* buffer)
+{
+  buffer->iChunkCnt = 0;
+  AL_Buffer_Destroy(buffer);
+}
+
+/******************************************************************************/
 static void sFrameDisplay(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo, void* pUserParam)
 {
   auto pDisplay = reinterpret_cast<Display*>(pUserParam);
@@ -1146,6 +1153,20 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
     if(!AL_Buffer_GetData(pFrame))
       throw runtime_error("Data buffer is null");
 
+    AL_TBuffer* pDisplayFrame = AL_Buffer_ShallowCopy(pFrame, &freeWithoutDestroyingMemory);
+    auto scopepDisplayFrame = scopeExit([&]() {
+      AL_Buffer_Unref(pDisplayFrame);
+    });
+    AL_Buffer_Ref(pDisplayFrame);
+    AL_TPixMapMetaData* pOrigMeta = (AL_TPixMapMetaData*)AL_Buffer_GetMetaData(pFrame, AL_META_TYPE_PIXMAP);
+    AL_TPixMapMetaData* pMeta = AL_PixMapMetaData_Clone(pOrigMeta);
+
+    if(pMeta == NULL)
+      throw runtime_error("Clone of pMeta was not created!");
+
+    if(!AL_Buffer_AddMetaData(pDisplayFrame, (AL_TMetaData*)pMeta))
+      throw runtime_error("Cloned pMeta did not get added!\n");
+
     int iCurrentBitDepth = max(pInfo->uBitDepthY, pInfo->uBitDepthC);
 
     if(iBitDepth == OUTPUT_BD_FIRST)
@@ -1155,14 +1176,21 @@ void Display::Process(AL_TBuffer* pFrame, AL_TInfoDecode* pInfo)
 
     int iEffectiveBitDepth = iBitDepth == OUTPUT_BD_STREAM ? iCurrentBitDepth : iBitDepth;
 
-    ProcessFrame(*pFrame, *pInfo, iEffectiveBitDepth, tOutputFourCC);
+    ProcessFrame(*pDisplayFrame, *pInfo, iEffectiveBitDepth, tOutputFourCC);
 
     if(bIsExpectedStorageMode)
     {
-      auto pHDR = (AL_THDRMetaData*)AL_Buffer_GetMetaData(pFrame, AL_META_TYPE_HDR);
+      AL_THDRMetaData* pOrigHDRMeta = (AL_THDRMetaData*)AL_Buffer_GetMetaData(pFrame, AL_META_TYPE_HDR);
 
-      if(pHDR != nullptr && pHDRWriter != nullptr)
-        pHDRWriter->WriteHDRSEIs(pHDR->eColourDescription, pHDR->eTransferCharacteristics, pHDR->eColourMatrixCoeffs, pHDR->tHDRSEIs);
+      if(pOrigHDRMeta != NULL)
+      {
+        AL_THDRMetaData pHDRMeta;
+        AL_HDRMetaData_Copy(pOrigHDRMeta, &pHDRMeta);
+
+        if(pHDRWriter != nullptr)
+          pHDRWriter->WriteHDRSEIs(pHDRMeta.eColourDescription, pHDRMeta.eTransferCharacteristics, pHDRMeta.eColourMatrixCoeffs, pHDRMeta.tHDRSEIs);
+      }
+
       // TODO: increase only when last frame
       DisplayFrameStatus(NumFrames);
     }
@@ -1375,11 +1403,11 @@ static AL_ERR sResolutionFound(int BufferNumber, int BufferSizeLib, AL_TStreamSe
 
 /******************************************************************************/
 
-void ShowStatistics(double durationInSeconds, int iNumFrameConceal, int decodedFrameNumber, bool timeoutOccured)
+void ShowStatistics(double durationInSeconds, int iNumFrameConceal, int decodedFrameNumber, bool timeoutOccurred)
 {
   string guard = "Decoded time = ";
 
-  if(timeoutOccured)
+  if(timeoutOccurred)
     guard = "TIMEOUT = ";
 
   auto msg = guard + "%.4f s;  Decoding FrameRate ~ %.4f Fps; Frame(s) conceal = %d\n";
@@ -1649,7 +1677,7 @@ void SafeChannelMain(WorkerConfig& w)
 
   // Initial stream buffer filling
   auto const uBegin = GetPerfTime();
-  bool timeoutOccured = false;
+  bool timeoutOccurred = false;
 
   for(int iLoop = 0; iLoop < Config.iLoop; ++iLoop)
   {
@@ -1665,7 +1693,7 @@ void SafeChannelMain(WorkerConfig& w)
 
     if(!Rtos_WaitEvent(display.hExitMain, timeout))
     {
-      timeoutOccured = true;
+      timeoutOccurred = true;
     }
     bufPool.Decommit();
   }
@@ -1682,7 +1710,7 @@ void SafeChannelMain(WorkerConfig& w)
     throw runtime_error("No frame decoded");
 
   auto const duration = (uEnd - uBegin) / 1000.0;
-  ShowStatistics(duration, display.iNumFrameConceal, tDecodeParam.decodedFrames, timeoutOccured);
+  ShowStatistics(duration, display.iNumFrameConceal, tDecodeParam.decodedFrames, timeoutOccurred);
 }
 
 static void ChannelMain(WorkerConfig& w, std::exception_ptr& exception)

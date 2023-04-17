@@ -5,11 +5,10 @@
 #include <stdexcept>
 #include <fstream>
 
-#include "lib_common/BufferAPI.h"
-
 extern "C"
 {
 #include "lib_common/PicFormat.h"
+#include "lib_common/BufferAPI.h"
 }
 
 #ifndef FRAME_READER

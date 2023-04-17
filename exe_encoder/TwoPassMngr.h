@@ -27,7 +27,7 @@ AL_TLookAheadMetaData* AL_TwoPassMngr_CreateAndAttachTwoPassMetaData(AL_TBuffer*
 
 /*
 ** Struct for TwoPass management
-** Writes First Pass informations on the logfile
+** Writes First Pass information on the logfile
 ** Reads and computes the logfile for the Second Pass
 */
 struct TwoPassMngr

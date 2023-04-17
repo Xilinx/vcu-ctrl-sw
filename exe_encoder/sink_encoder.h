@@ -160,30 +160,30 @@ private:
     {
       AL_ERR bRetQP = PreprocessQP(AL_Buffer_GetData(pQpBuf), mode, tLayerChParam, layerInfo.sQPTablesFolder, frameNum);
 
-      auto realeaseQPBuf = [&](std::string sErrorMsg, bool bThrow)
-                           {
-                             (void)sErrorMsg;
-                             releaseBuffer(pQpBuf);
-                             pQpBuf = NULL;
+      auto releaseQPBuf = [&](std::string sErrorMsg, bool bThrow)
+                          {
+                            (void)sErrorMsg;
+                            releaseBuffer(pQpBuf);
+                            pQpBuf = NULL;
 
-                             if(bThrow)
-                               throw std::runtime_error(sErrorMsg);
-                           };
+                            if(bThrow)
+                              throw std::runtime_error(sErrorMsg);
+                          };
       switch(bRetQP)
       {
       case AL_SUCCESS:
         break;
       case AL_ERR_QPLOAD_DATA:
-        realeaseQPBuf(AL_Codec_ErrorToString(bRetQP), true);
+        releaseQPBuf(AL_Codec_ErrorToString(bRetQP), true);
         break;
       case AL_ERR_QPLOAD_NOT_ENOUGH_DATA:
-        realeaseQPBuf(AL_Codec_ErrorToString(bRetQP), true);
+        releaseQPBuf(AL_Codec_ErrorToString(bRetQP), true);
         break;
       case AL_ERR_CANNOT_OPEN_FILE:
       {
         bool bThrow = false;
         bThrow = true;
-        realeaseQPBuf("Cannot open QP file.", bThrow);
+        releaseQPBuf("Cannot open QP file.", bThrow);
         break;
       }
       default:

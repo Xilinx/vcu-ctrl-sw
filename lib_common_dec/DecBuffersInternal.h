@@ -122,10 +122,10 @@ int AL_GetAllocSize_Frame(AL_TDimension tDim, AL_EChromaMode eChromaMode, uint8_
    \param[out] pOffset the data offsets in the reference list buffer
    \param[in] eCodec Current codec
    \param[in] eChromaOrder Chroma order
-   \param[in] bVirt buffer with Virtual address. physical address otherwise
-   \return total size of the RefListBuffer
+   \param[in] uAddrSizeInBytes References list's buffer address size in bytes.
+   \return the total size of the RefListBuffer
 *****************************************************************************/
-uint32_t AL_GetRefListOffsets(TRefListOffsets* pOffsets, AL_ECodec eCodec, AL_EChromaOrder eChromaOrder, uint32_t uAddrSize);
+uint32_t AL_GetRefListOffsets(TRefListOffsets* pOffsets, AL_ECodec eCodec, AL_EChromaOrder eChromaOrder, uint8_t uAddrSizeInBytes);
 
 int32_t RndPitch(int32_t iWidth, uint8_t uBitDepth, AL_EFbStorageMode eFrameBufferStorageMode);
 int32_t RndHeight(int32_t iHeight);

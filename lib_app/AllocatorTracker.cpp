@@ -1,7 +1,10 @@
 // SPDX-FileCopyrightText: © 2023 Allegro DVT <github-ip@allegrodvt.com>
 // SPDX-License-Identifier: MIT
 
+extern "C"
+{
 #include "lib_common/Allocator.h"
+}
 #include <iostream>
 #include <iomanip>
 #include <string>

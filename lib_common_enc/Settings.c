@@ -1511,6 +1511,13 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     ++numIncoherency;
   }
 
+  if(pChParam->tGopParam.bEnableLT && pChParam->tGopParam.uFreqLT <= 0)
+  {
+    pChParam->tGopParam.uFreqLT = pChParam->tGopParam.uGopLength;
+    MSG_WARNING("Setting long term frequency to gop length as long term is enabled");
+    ++numIncoherency;
+  }
+
   if(pChParam->tGopParam.eMode & AL_GOP_FLAG_PYRAMIDAL)
   {
     if(pChParam->tGopParam.bEnableLT)

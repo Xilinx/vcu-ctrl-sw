@@ -13,7 +13,7 @@
 ** The encoding settings are adapted for the first pass
 ** LookAhead Metadata is created and filled during the encoding
 ** Frames are stocked in a fifo after the first pass
-** More informations are filled in the metadata while in the fifo (scene change, complexity)
+** More information are filled in the metadata while in the fifo (scene change, complexity)
 ** The frames are then sent to the real EncoderSink for the second pass, with first pass info in the metadata
 */
 struct EncoderLookAheadSink : IFrameSink

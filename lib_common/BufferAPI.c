@@ -69,6 +69,8 @@ static bool initData(AL_TBufferImpl* pBuf, AL_TAllocator* pAllocator, PFN_RefCou
   pBuf->iAllocedMetaCount = 0;
   pBuf->iRefCount = 0;
   pBuf->buf.iChunkCnt = 0;
+  Rtos_Memset(pBuf->buf.zSizes, 0, sizeof(pBuf->buf.zSizes));
+  Rtos_Memset(pBuf->buf.hBufs, 0, sizeof(pBuf->buf.hBufs));
 
   pBuf->pLock = Rtos_CreateMutex();
 
@@ -154,6 +156,28 @@ AL_TBuffer* AL_Buffer_WrapData(uint8_t* pData, size_t zSize, PFN_RefCount_CallBa
 AL_TBuffer* AL_Buffer_Create(AL_TAllocator* pAllocator, AL_HANDLE hBuf, size_t zSize, PFN_RefCount_CallBack pCallBack)
 {
   return createBufferWithOneChunk(pAllocator, hBuf, zSize, pCallBack);
+}
+
+AL_TBuffer* AL_Buffer_ShallowCopy(AL_TBuffer const* pCopy, PFN_RefCount_CallBack pCallBack)
+{
+  if(!pCopy)
+    return NULL;
+
+  AL_TBuffer* pBuf = createEmptyBuffer(pCopy->pAllocator, pCallBack);
+
+  if(pBuf == NULL)
+    return NULL;
+
+  for(int i = 0; i < AL_BUFFER_MAX_CHUNK; i++)
+  {
+    if(addBufferChunk((AL_TBufferImpl*)pBuf, pCopy->hBufs[i], pCopy->zSizes[i]) == AL_BUFFER_BAD_CHUNK)
+    {
+      AL_Buffer_Destroy(pBuf);
+      return NULL;
+    }
+  }
+
+  return pBuf;
 }
 
 AL_TBuffer* AL_Buffer_Create_And_AllocateNamed(AL_TAllocator* pAllocator, size_t zSize, PFN_RefCount_CallBack pCallBack, char const* name)

@@ -4,11 +4,11 @@
 #pragma once
 #include <functional>
 #include "lib_app/utils.h"
-#include "lib_common_dec/DecChanParam.h"
 
 extern "C"
 {
 #include "lib_decode/lib_decode.h"
+#include "lib_common_dec/DecChanParam.h"
 }
 
 typedef struct AL_t_Allocator AL_TAllocator;

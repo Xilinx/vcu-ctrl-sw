@@ -121,23 +121,23 @@ int AL_DecGetAllocSize_Frame_UV(AL_EFbStorageMode eFbStorage, AL_TDimension tDim
 }
 
 /****************************************************************************/
-uint32_t AL_GetRefListOffsets(TRefListOffsets* pOffsets, AL_ECodec eCodec, AL_EChromaOrder eChromaOrder, uint32_t uAddrSize)
+uint32_t AL_GetRefListOffsets(TRefListOffsets* pOffsets, AL_ECodec eCodec, AL_EChromaOrder eChromaOrder, uint8_t uAddrSizeInBytes)
 {
   AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES];
   const int iNbPixPlanes = Max(2, AL_Plane_GetBufferPixelPlanes(eChromaOrder, usedPlanes));
   TRefListOffsets tOffsets;
   (void)eCodec;
 
-  uint32_t uOffset = uAddrSize * MAX_REF * iNbPixPlanes; // size of RefList Buff Addrs
+  uint32_t uOffset = uAddrSizeInBytes * MAX_REF * iNbPixPlanes; // size of RefList Buff Addrs
 
   tOffsets.uColocPocOffset = uOffset;
-  uOffset += uAddrSize * MAX_REF; // size of coloc POCs Buff Addrs
+  uOffset += uAddrSizeInBytes * MAX_REF; // size of coloc POCs Buff Addrs
 
   tOffsets.uColocMVOffset = uOffset;
-  uOffset += uAddrSize * MAX_REF; // size of coloc MVs Buff Addrs
+  uOffset += uAddrSizeInBytes * MAX_REF; // size of coloc MVs Buff Addrs
 
   tOffsets.uMapOffset = uOffset;
-  uOffset += uAddrSize * MAX_REF * iNbPixPlanes;  // size of RefList Map Addr
+  uOffset += uAddrSizeInBytes * MAX_REF * iNbPixPlanes;  // size of RefList Map Addr
 
   if(pOffsets)
     *pOffsets = tOffsets;

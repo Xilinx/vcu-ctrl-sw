@@ -69,6 +69,7 @@ struct AL_TRoiMngrCtx
    \param[in] iPicWidth Source width
    \param[in] iPicHeight Source Height
    \param[in] eProf Codec profile
+   \param[in] uLog2MaxCuSize Max size of a coding unit (log2)
    \param[in] eBkgQuality Default quality applied to the background
    \param[in] eOrder ROI priority
    \returns Pointer to the ROI Manager context created
@@ -95,7 +96,6 @@ void AL_RoiMngr_Clear(AL_TRoiMngrCtx* pCtx);
    \param[in] iWidth Width of the ROI
    \param[in] iHeight Height of the ROI
    \param[in] eQuality Quality of the ROI
-   \param[in] pCtx Pointer to the ROI Manager context
    \return True if the ROI was successfully added
 *****************************************************************************/
 bool AL_RoiMngr_AddROI(AL_TRoiMngrCtx* pCtx, int iPosX, int iPosY, int iWidth, int iHeight, AL_ERoiQuality eQuality);

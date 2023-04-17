@@ -388,7 +388,7 @@ static void writeScalingListData(AL_TBitStreamLite* pBS, AL_THevcSps const* pSps
 
           if(iTmpCoeff > 127)
             iTmpCoeff -= 256;
-          else if(iTmpCoeff < -127)
+          else if(iTmpCoeff < -128)
             iTmpCoeff += 256;
           AL_BitStreamLite_PutSE(pBS, iTmpCoeff);
           uPrevCoef = pSps->scaling_list_param.ScalingList[iSizeId][iMatrixId][pScanOrder[uCoeff]];

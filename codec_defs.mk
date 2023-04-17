@@ -13,6 +13,8 @@ INCLUDES+=-Iinclude/traces
 INCLUDES+=-I./extra/include
 
 CFLAGS+=-pedantic
+CFLAGS+=-pedantic-errors
+CFLAGS+=-Werror=pedantic
 CFLAGS+=-Werror
 CFLAGS+=-Wall -Wextra
 CFLAGS+=-DAL_ENABLE_64BIT=$(ENABLE_64BIT)

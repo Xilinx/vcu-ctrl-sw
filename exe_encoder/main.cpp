@@ -577,8 +577,11 @@ shared_ptr<AL_TBuffer> ReadSourceFrame(BaseBufPool* pBufPool, AL_TBuffer* conver
 bool ConvertSrcBuffer(AL_TEncChanParam& tChParam, TYUVFileInfo& FileInfo, shared_ptr<AL_TBuffer>& SrcYuv)
 {
   auto eChromaMode = AL_GET_CHROMA_MODE(tChParam.ePicFormat);
-  auto const picFmt = AL_EncGetSrcPicFormat(eChromaMode, tChParam.uSrcBitDepth, AL_GetSrcStorageMode(tChParam.eSrcMode),
-                                            AL_IsSrcCompressed(tChParam.eSrcMode));
+
+  auto eStorageMode = AL_GetSrcStorageMode(tChParam.eSrcMode);
+  auto bIsCompressed = AL_IsSrcCompressed(tChParam.eSrcMode);
+
+  auto const picFmt = AL_EncGetSrcPicFormat(eChromaMode, tChParam.uSrcBitDepth, eStorageMode, bIsCompressed);
   bool shouldConvert = IsConversionNeeded(FileInfo.FourCC, picFmt);
 
   if(shouldConvert)
@@ -936,7 +939,7 @@ void LayerResources::Init(ConfigFile& cfg, AL_TEncoderInfo tEncInfo, int iLayerI
   }
 
   // --------------------------------------------------------------------------------
-  // Tunning Input Buffers
+  // Tuning Input Buffers
   // --------------------------------------------------------------------------------
   int frameBuffersCount = g_defaultMinBuffers + GetNumBufForGop(Settings);
 

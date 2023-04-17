@@ -3,6 +3,7 @@
 
 #include "I_PictMngr.h"
 
+#include <limits.h>
 #include "lib_common_dec/DecBuffersInternal.h"
 #include "lib_common/Error.h"
 #include "lib_common/PixMapBufferInternal.h"
@@ -1052,6 +1053,71 @@ static bool sFrmBufPool_FillRecBuffer(AL_TFrmBufPool* pPool, AL_TBuffer* pDispla
   AL_Buffer_Ref(pDisplayBuf);
 
   return true;
+}
+
+static int sFrmBufPool_GetMinBufferSize(AL_TFrmBufPool const* pPool)
+{
+  int iMinSize = INT_MAX;
+
+  Rtos_GetMutex(pPool->Mutex);
+  {
+    for(int iFrameID = 0; iFrameID < pPool->iBufNumber; ++iFrameID)
+    {
+      if(sRecBuffers_AreNull(&pPool->array[iFrameID].tRecBuffers))
+        continue;
+
+      AL_TRecBuffers tBuffers = sFrmBufPool_GetBufferFromID(pPool, iFrameID);
+      AL_TBuffer const* pBuf = sRecBuffers_GetDisplayBuffer(&tBuffers, pPool);
+
+      iMinSize = Min(iMinSize, (int)AL_Buffer_GetSize(pBuf));
+    }
+  }
+  Rtos_ReleaseMutex(pPool->Mutex);
+
+  return iMinSize;
+}
+
+static AL_TDimension sFrmBufPool_GetMinBufferDim(AL_TFrmBufPool const* pPool, AL_EFbStorageMode eDisplayStorageMode)
+{
+  int iMinPitch = INT_MAX;
+  int iMinHeight = INT_MAX;
+
+  Rtos_GetMutex(pPool->Mutex);
+
+  {
+    for(int iFrameID = 0; iFrameID < pPool->iBufNumber; ++iFrameID)
+    {
+      if(sRecBuffers_AreNull(&pPool->array[iFrameID].tRecBuffers))
+        continue;
+
+      AL_TRecBuffers tBuffers = sFrmBufPool_GetBufferFromID(pPool, iFrameID);
+      AL_TBuffer const* pBuf = sRecBuffers_GetDisplayBuffer(&tBuffers, pPool);
+
+      int const iPitchY = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_Y);
+      iMinPitch = Min(iMinPitch, iPitchY);
+
+      AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
+      iMinHeight = Min(iMinHeight, (int)RndHeight(tDim.iHeight));
+    }
+
+    iMinPitch = iMinPitch / AL_GetNumLinesInPitch(eDisplayStorageMode);
+  }
+
+  AL_TDimension tMinDim = { iMinPitch, iMinHeight };
+  Rtos_ReleaseMutex(pPool->Mutex);
+  return tMinDim;
+}
+
+/*************************************************************************/
+int AL_PictMngr_GetMinBufferSize(AL_TPictMngrCtx const* pCtx)
+{
+  return sFrmBufPool_GetMinBufferSize(&pCtx->FrmBufPool);
+}
+
+/*************************************************************************/
+AL_TDimension AL_PictMngr_GetMinBufferDim(AL_TPictMngrCtx const* pCtx, AL_EFbStorageMode eDisplayStorageMode)
+{
+  return sFrmBufPool_GetMinBufferDim(&pCtx->FrmBufPool, eDisplayStorageMode);
 }
 
 /*************************************************************************/

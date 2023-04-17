@@ -983,7 +983,8 @@ bool AL_Common_Encoder_SetMaxPictureSize(AL_TEncCtx* pCtx, uint32_t uMaxPictureS
 {
   for(int i = 0; i < pCtx->pSettings->NumLayer; ++i)
   {
-    if(pCtx->pSettings->tChParam[i].tRCParam.pMaxPictureSize[sliceType] == 0)
+    // MaxPictureSize can't be enable or disable dynamically. It needs to be enable in cfg file, to change the value
+    if(pCtx->pSettings->tChParam[i].tRCParam.pMaxPictureSize[sliceType] == 0 || uMaxPictureSize == 0)
       return false;
 
     pCtx->pSettings->tChParam[i].tRCParam.pMaxPictureSize[sliceType] = uMaxPictureSize;

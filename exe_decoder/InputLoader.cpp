@@ -385,7 +385,7 @@ uint32_t SplitInput::ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream, u
 {
   uBufFlags = AL_STREAM_BUF_FLAG_UNKNOWN;
 
-  size_t iNalAudSize = 0;
+  int iNalAudSize = 0;
   uint8_t const* pAUD = NULL;
   uint8_t const AVC_AUD[] = { 0, 0, 1, 0x09, 0x80 };
 
@@ -412,14 +412,25 @@ uint32_t SplitInput::ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream, u
     if(!m_bEOF)
     {
       auto start = (m_CircBuf.iOffset + m_CircBuf.iAvailSize) % m_CircBuf.tBuf.iSize;
-      auto freeArea = m_CircBuf.tBuf.iSize - m_CircBuf.iAvailSize;
+      auto readable = m_CircBuf.tBuf.iSize - m_CircBuf.iAvailSize;
+      auto size = 0;
 
-      auto readable = min(freeArea, m_CircBuf.tBuf.iSize - start);
-      ifFileStream.read((char*)(m_CircBuf.tBuf.pBuf + start), readable);
-      auto size = (uint32_t)ifFileStream.gcount();
+      if(start + readable > m_CircBuf.tBuf.iSize)
+      {
+        ifFileStream.read((char*)(m_CircBuf.tBuf.pBuf + start), m_CircBuf.tBuf.iSize - start);
+        size += ifFileStream.gcount();
+        ifFileStream.read((char*)(m_CircBuf.tBuf.pBuf), readable - size);
+        size += ifFileStream.gcount();
+      }
+      else
+      {
+        ifFileStream.read((char*)(m_CircBuf.tBuf.pBuf + start), readable);
+        size += ifFileStream.gcount();
+      }
+
       m_CircBuf.iAvailSize += size;
 
-      if(size == 0)
+      if(size < readable && iNalAudSize <= readable - size)
       {
         m_bEOF = true;
 
@@ -428,7 +439,16 @@ uint32_t SplitInput::ReadStream(istream& ifFileStream, AL_TBuffer* pBufStream, u
           if(pAUD == nullptr)
             throw runtime_error("pAUD cannot be NULL!");
 
-          Rtos_Memcpy(m_CircBuf.tBuf.pBuf + start, pAUD, iNalAudSize);
+          start = (m_CircBuf.iOffset + m_CircBuf.iAvailSize) % m_CircBuf.tBuf.iSize;
+
+          if(start + iNalAudSize > m_CircBuf.tBuf.iSize)
+          {
+            Rtos_Memcpy(m_CircBuf.tBuf.pBuf + start, pAUD, m_CircBuf.tBuf.iSize - start);
+            Rtos_Memcpy(m_CircBuf.tBuf.pBuf, pAUD + m_CircBuf.tBuf.iSize - start, iNalAudSize - m_CircBuf.tBuf.iSize + start);
+          }
+          else
+            Rtos_Memcpy(m_CircBuf.tBuf.pBuf + start, pAUD, iNalAudSize);
+
           m_CircBuf.iAvailSize += iNalAudSize;
         }
       }

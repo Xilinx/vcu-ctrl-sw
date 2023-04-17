@@ -178,7 +178,7 @@ static void populateInputSection(ConfigParser& parser, ConfigFile& cfg)
   parser.addPath(curSection, "MapFile", cfg.MainInput.sMapFileName, "The map file name", allCodecs());
   parser.addArith(curSection, "Width", cfg.MainInput.FileInfo.PictWidth, "Frame width in pixels.", widthInfo);
   parser.addArith(curSection, "Height", cfg.MainInput.FileInfo.PictHeight, "Frame height in pixels.", heightInfo);
-  auto constexpr resolutionNote = "Allowed value can be lower/higher, however some contraints are added.";
+  auto constexpr resolutionNote = "Allowed value can be lower/higher, however some constraints are added.";
   parser.addNote(curSection, "Width", resolutionNote);
   parser.addNote(curSection, "Height", resolutionNote);
 
@@ -411,7 +411,7 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
     { aomituCodecs(), 0, (800000.f * 4000.f) / 90000.f },
   });
   parser.addNote(curSection, "InitialDelay", "Not used when RateCtrlMode = CONST_QP. The InitialDelay can't be greater than the max CPBSize value. Therefore, the max value above can be different.");
-  parser.addNote(curSection, "InitialDelay", "If you're not using a configuration file, uInitialRemDelay must be multipled by 90000");
+  parser.addNote(curSection, "InitialDelay", "If you're not using a configuration file, uInitialRemDelay must be multiplied by 90000");
   parser.addSeeAlso(curSection, "InitialDelay", { curSection, "RateCtrlMode" });
   parser.addArithFunc<decltype(RCParam.uCPBSize), double>(curSection, "CPBSize", RCParam.uCPBSize, [](double value)
   {
@@ -419,8 +419,8 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
   }, [](decltype(RCParam.uCPBSize) value) { return (double)value / 90000.f; }, "Specifies the size of the Coded Picture Buffer as specified in the HRD model, in seconds.", {
     { aomituCodecs(), 0, (800000.f * 4000.f) / 90000.f },
   });
-  parser.addNote(curSection, "CPBSize", "Not used when RateCtrlMode = CONST_QP. The max value depends on multiple paramters configuration. Therefore, it can be different from the value written above.");
-  parser.addNote(curSection, "CPBSize", "If you're not using a configuration file, uCPBSize must be multipled by 90000");
+  parser.addNote(curSection, "CPBSize", "Not used when RateCtrlMode = CONST_QP. The max value depends on multiple parameters configuration. Therefore, it can be different from the value written above.");
+  parser.addNote(curSection, "CPBSize", "If you're not using a configuration file, uCPBSize must be multiplied by 90000");
   parser.addSeeAlso(curSection, "CPBSize", { curSection, "RateCtrlMode" });
   parser.addArithOrEnum(curSection, "IPDelta", RCParam.uIPDelta, autoEnum, "IPDelta corresponds to the value we add to the QP of the frame I in order to have the QP of the frame P", {
     { filterCodecs({ Codec::Avc, Codec::Hevc }), 0, 51 },
@@ -654,7 +654,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
     { isOnlyCodec(Codec::Avc), 1, 4096 / GetBlkSizeInv(AVC_MAX_CU_SIZE) },
     { filterCodecs({ Codec::Hevc, Codec::Vvc }), 1, 4096 / GetBlkSizeInv(CODEC_MIN_CTB_SIZE) },
   });
-  parser.addNote(curSection, "NumSlices", "The maximum value is determined according to the maximum picture height and the minimum LCU size. The maximum value may no be reachable as the number of slices are also depdendent to the level conformance and multicore encoding for instance.");
+  parser.addNote(curSection, "NumSlices", "The maximum value is determined according to the maximum picture height and the minimum LCU size. The maximum value may no be reachable as the number of slices are also dependent to the level conformance and multicore encoding for instance.");
   map<string, EnumDescription<int>> sliceSizeEnums;
   sliceSizeEnums["DISABLE"] = { 0, "Disable Slice size", ituCodecs() };
   parser.addArithFuncOrEnum<decltype(cfg.Settings.tChParam[0].uSliceSize), int>(curSection, "SliceSize", cfg.Settings.tChParam[0].uSliceSize, [](int sliceSize)
@@ -676,7 +676,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   parser.addSeeAlso(curSection, "SubframeLatency", { curSection, "NumSlices" });
   parser.addBool(curSection, "UniformSliceType", cfg.Settings.tChParam[0].bUseUniformSliceType, "Enable uniform slice types encoding. This means that all the slices will have the same type. The encoder will use a slice_type between 5 and 9.", isOnlyCodec(Codec::Avc));
   map<string, EnumDescription<int>> startCodeBytesAligned;
-  startCodeBytesAligned["SC_AUTO"] = { AL_START_CODE_AUTO, "Software select the start code bytes aligment", ituCodecs() };
+  startCodeBytesAligned["SC_AUTO"] = { AL_START_CODE_AUTO, "Software select the start code bytes alignment", ituCodecs() };
   startCodeBytesAligned["SC_3_BYTES"] = { AL_START_CODE_3_BYTES, "Force start code 3-bytes alignment: 0x00 0x00 0x01", ituCodecs() };
   startCodeBytesAligned["SC_4_BYTES"] = { AL_START_CODE_4_BYTES, "Force start code 4-bytes alignment: 0x00 0x00 0x00 0x01", ituCodecs() };
   parser.addEnum(curSection, "StartCode", cfg.Settings.tChParam[0].eStartCodeBytesAligned, startCodeBytesAligned, "Start code size alignment");
@@ -685,11 +685,11 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   seis["SEI_BP"] = { AL_SEI_BP, "Buffering Period SEI", ituCodecs() };
   seis["SEI_PT"] = { AL_SEI_PT, "Picture Timing SEI", ituCodecs() };
   seis["SEI_RP"] = { AL_SEI_RP, "Recovery Point SEI", ituCodecs() };
-  seis["SEI_MDCV"] = { AL_SEI_MDCV, "", ituCodecs() };
-  seis["SEI_CLL"] = { AL_SEI_CLL, "", ituCodecs() };
-  seis["SEI_ATC"] = { AL_SEI_ATC, "", ituCodecs() };
-  seis["SEI_ST2094_10"] = { AL_SEI_ST2094_10, "", ituCodecs() };
-  seis["SEI_ST2094_40"] = { AL_SEI_ST2094_40, "", ituCodecs() };
+  seis["SEI_MDCV"] = { AL_SEI_MDCV, "Mastering Display Colour Volume SEI", ituCodecs() };
+  seis["SEI_CLL"] = { AL_SEI_CLL, "Content Light Level SEI", ituCodecs() };
+  seis["SEI_ATC"] = { AL_SEI_ATC, "Alternative Transfer Characteristics SEI", ituCodecs() };
+  seis["SEI_ST2094_10"] = { AL_SEI_ST2094_10, "ST2094-10 SEI", ituCodecs() };
+  seis["SEI_ST2094_40"] = { AL_SEI_ST2094_40, "ST2094-40 SEI", ituCodecs() };
   seis["SEI_ALL"] = { (int)AL_SEI_ALL, "means SEI_PT | SEI_BP | SEI_RP", ituCodecs() };
   parser.addEnum(curSection, "EnableSEI", cfg.Settings.uEnableSEI, seis, "Determines which Supplemental Enhancement Information are sent with the stream");
   parser.addBool(curSection, "EnableAUD", cfg.Settings.bEnableAUD, "Determines if Access Unit Delimiter are added to the stream or not", ituCodecs());
@@ -744,20 +744,20 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   parser.addEnum(curSection, "TransferCharac", cfg.Settings.tColorConfig.eTransferCharacteristics, transferCharacteristics, "Specifies the reference opto-electronic transfer characteristic function (HDR setting)");
 
   map<string, EnumDescription<int>> colourMatrices;
-  colourMatrices["COLOUR_MAT_GBR"] = { AL_COLOUR_MAT_COEFF_GBR, "", ituCodecs() };
-  colourMatrices["COLOUR_MAT_BT_709"] = { AL_COLOUR_MAT_COEFF_BT_709, "", ituCodecs() };
-  colourMatrices["COLOUR_MAT_UNSPECIFIED"] = { AL_COLOUR_MAT_COEFF_UNSPECIFIED, "", ituCodecs() };
-  colourMatrices["COLOUR_MAT_USFCC_CFR"] = { AL_COLOUR_MAT_COEFF_USFCC_CFR, "", ituCodecs() };
-  colourMatrices["COLOUR_MAT_BT_601_625"] = { AL_COLOUR_MAT_COEFF_BT_601_625, "", ituCodecs() };
-  colourMatrices["COLOUR_MAT_BT_601_525"] = { AL_COLOUR_MAT_COEFF_BT_601_525, "", ituCodecs() };
-  colourMatrices["COLOUR_MAT_BT_SMPTE_240M"] = { AL_COLOUR_MAT_COEFF_BT_SMPTE_240M, "", ituCodecs() };
-  colourMatrices["COLOUR_MAT_BT_YCGCO"] = { AL_COLOUR_MAT_COEFF_BT_YCGCO, "", ituCodecs() };
-  colourMatrices["COLOUR_MAT_BT_2100_YCBCR"] = { AL_COLOUR_MAT_COEFF_BT_2100_YCBCR, "", ituCodecs() };
-  colourMatrices["COLOUR_MAT_BT_2020_CLS"] = { AL_COLOUR_MAT_COEFF_BT_2020_CLS, "", ituCodecs() };
-  colourMatrices["COLOUR_MAT_SMPTE_2085"] = { AL_COLOUR_MAT_COEFF_SMPTE_2085, "", ituCodecs() };
-  colourMatrices["COLOUR_MAT_CHROMA_DERIVED_NCLS"] = { AL_COLOUR_MAT_COEFF_CHROMA_DERIVED_NCLS, "", ituCodecs() };
-  colourMatrices["COLOUR_MAT_CHROMA_DERIVED_CLS"] = { AL_COLOUR_MAT_COEFF_CHROMA_DERIVED_CLS, "", ituCodecs() };
-  colourMatrices["COLOUR_MAT_BT_2100_ICTCP"] = { AL_COLOUR_MAT_COEFF_BT_2100_ICTCP, "", ituCodecs() };
+  colourMatrices["COLOUR_MAT_GBR"] = { AL_COLOUR_MAT_COEFF_GBR, "Use GBR coefficients colour matrix", ituCodecs() };
+  colourMatrices["COLOUR_MAT_BT_709"] = { AL_COLOUR_MAT_COEFF_BT_709, "Use BT-709 coefficients colour matrix", ituCodecs() };
+  colourMatrices["COLOUR_MAT_UNSPECIFIED"] = { AL_COLOUR_MAT_COEFF_UNSPECIFIED, "Use unspecified coefficients colour matrix", ituCodecs() };
+  colourMatrices["COLOUR_MAT_USFCC_CFR"] = { AL_COLOUR_MAT_COEFF_USFCC_CFR, "Use USFCC-CFR coefficients colour matrix", ituCodecs() };
+  colourMatrices["COLOUR_MAT_BT_601_625"] = { AL_COLOUR_MAT_COEFF_BT_601_625, "Use BT-601-605 coefficients colour matrix", ituCodecs() };
+  colourMatrices["COLOUR_MAT_BT_601_525"] = { AL_COLOUR_MAT_COEFF_BT_601_525, "Use BT-601-525 coefficients colour matrix", ituCodecs() };
+  colourMatrices["COLOUR_MAT_BT_SMPTE_240M"] = { AL_COLOUR_MAT_COEFF_BT_SMPTE_240M, "Use BT-SMPTE-240M coefficients colour matrix", ituCodecs() };
+  colourMatrices["COLOUR_MAT_BT_YCGCO"] = { AL_COLOUR_MAT_COEFF_BT_YCGCO, "Use YCGCO coefficients colour matrix", ituCodecs() };
+  colourMatrices["COLOUR_MAT_BT_2100_YCBCR"] = { AL_COLOUR_MAT_COEFF_BT_2100_YCBCR, "Use BT-2100-YCBCR coefficients colour matrix", ituCodecs() };
+  colourMatrices["COLOUR_MAT_BT_2020_CLS"] = { AL_COLOUR_MAT_COEFF_BT_2020_CLS, "Use BT-2020-CLS coefficients colour matrix", ituCodecs() };
+  colourMatrices["COLOUR_MAT_SMPTE_2085"] = { AL_COLOUR_MAT_COEFF_SMPTE_2085, "Use SMPTE-2085 coefficients colour matrix", ituCodecs() };
+  colourMatrices["COLOUR_MAT_CHROMA_DERIVED_NCLS"] = { AL_COLOUR_MAT_COEFF_CHROMA_DERIVED_NCLS, "Use chroma derived NCLS coefficients colour matrix", ituCodecs() };
+  colourMatrices["COLOUR_MAT_CHROMA_DERIVED_CLS"] = { AL_COLOUR_MAT_COEFF_CHROMA_DERIVED_CLS, "Use chroma derived CLS coefficients colour matrix", ituCodecs() };
+  colourMatrices["COLOUR_MAT_BT_2100_ICTCP"] = { AL_COLOUR_MAT_COEFF_BT_2100_ICTCP, "Use BT-2100-ICTCP coefficients colour matrix", ituCodecs() };
   parser.addEnum(curSection, "ColourMatrix", cfg.Settings.tColorConfig.eColourMatrixCoeffs, colourMatrices, "Specifies the matrix coefficients used in deriving luma and chroma signals from RGB (HDR setting)");
 
   map<string, EnumDescription<int>> chromaModes;
@@ -1701,8 +1701,8 @@ void CfgParser::PrintConfigFileUsageJson(ConfigFile cfg, bool showAdvancedFeatur
 
         jsonInfoInternalObject.AddValue("codecs", jsonCodecsArray);
 
-        TJsonValue jsonAvaiable(info->available);
-        jsonInfoInternalObject.AddValue("available", jsonAvaiable);
+        TJsonValue jsonAvailable(info->available);
+        jsonInfoInternalObject.AddValue("available", jsonAvailable);
 
         TJsonValue jsonEnumsObject(TJsonValue::JSON_VALUE_OBJECT);
 
