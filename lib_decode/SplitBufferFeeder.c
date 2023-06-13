@@ -90,18 +90,17 @@ static bool Process(AL_TSplitBufferFeeder* this)
 
   AL_Buffer_Ref(workBuf);
 
-  size_t const bufSize = AL_Buffer_GetSize(workBuf);
+  AL_TCircMetaData* pMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(workBuf, AL_META_TYPE_CIRCULAR);
+  AL_Assert(pMeta);
 
-  Rtos_FlushCacheMemory(AL_Buffer_GetData(workBuf), bufSize);
+  Rtos_FlushCacheMemory(AL_Buffer_GetData(workBuf) + pMeta->iOffset, pMeta->iAvailSize);
   AL_WorkPool_PushBack(&this->workPool, workBuf);
 
-  UNIT_ERROR const err = bufSize ? AL_Decoder_TryDecodeOneUnit(hDec, workBuf) : ERR_UNIT_NOT_FOUND;
+  UNIT_ERROR const err = pMeta->iAvailSize ? AL_Decoder_TryDecodeOneUnit(hDec, workBuf) : ERR_UNIT_NOT_FOUND;
 
   signal((AL_TFeeder*)this);
 
-  AL_TCircMetaData* pMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(workBuf, AL_META_TYPE_CIRCULAR);
-
-  if(pMeta && pMeta->bLastBuffer)
+  if(pMeta->bLastBuffer)
   {
     if(!this->bEOSParsingCB || !IsSuccess(err))
     {

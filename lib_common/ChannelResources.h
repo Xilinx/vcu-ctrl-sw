@@ -24,7 +24,7 @@ uint64_t AL_GetResources(int width, int height, int frameRate, int clockRatio, i
 typedef struct
 {
   int requiredWidthInCtbPerCore;
-  int actualWidthInCtbPerCore; /* calculated without taking the alignement of the cores in consideration */
+  int actualWidthInCtbPerCore; /* calculated without taking the alignment of the cores in consideration */
 }AL_NumCoreDiagnostic;
 
 bool AL_Constraint_NumCoreIsSane(AL_ECodec codec, int width, int numCore, int log2MaxCuSize, AL_NumCoreDiagnostic* diagnostic);

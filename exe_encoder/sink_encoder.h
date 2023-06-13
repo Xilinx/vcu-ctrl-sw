@@ -10,6 +10,8 @@
 
 #include "TwoPassMngr.h"
 
+#include "lib_app/convert.h"
+
 #include <string>
 #include <memory>
 #include <fstream>
@@ -226,7 +228,7 @@ struct EncoderSink : IFrameSink
   EncoderSink(ConfigFile const& cfg, AL_IEncScheduler* pScheduler
               , AL_TAllocator* pAllocator) :
     CmdFile(cfg.sCmdFileName, false),
-    EncCmd(CmdFile.fp, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT),
+    EncCmd(CmdFile.fp, cfg.RunInfo.iScnChgLookAhead, cfg.Settings.tChParam[0].tGopParam.uFreqLT), m_cfg(cfg),
     twoPassMngr(cfg.sTwoPassFileName, cfg.Settings.TwoPass, cfg.Settings.bEnableFirstPassSceneChangeDetection, cfg.Settings.tChParam[0].tGopParam.uGopLength,
                 cfg.Settings.tChParam[0].tRCParam.uCPBSize / 90, cfg.Settings.tChParam[0].tRCParam.uInitialRemDelay / 90, cfg.MainInput.FileInfo.FrameRate),
     pAllocator{pAllocator},
@@ -247,7 +249,6 @@ struct EncoderSink : IFrameSink
       LogWarning("%s\n", AL_Codec_ErrorToString(errorCode));
 
     commandsSender.reset(new CommandsSender(hEnc));
-    BitrateOutput.reset(new NullFrameSink);
 
     for(int i = 0; i < MAX_NUM_REC_OUTPUT; ++i)
       RecOutput[i].reset(new NullFrameSink);
@@ -350,7 +351,6 @@ struct EncoderSink : IFrameSink
 
   std::unique_ptr<IFrameSink> RecOutput[MAX_NUM_REC_OUTPUT];
   std::unique_ptr<IFrameSink> BitstreamOutput[MAX_NUM_BITSTREAM_OUTPUT];
-  std::unique_ptr<IFrameSink> BitrateOutput;
   AL_HEncoder hEnc;
   bool shouldAddDummySei = false;
 
@@ -362,6 +362,7 @@ private:
   uint64_t m_EndTime = 0;
   safe_ifstream CmdFile;
   CEncCmdMngr EncCmd;
+  ConfigFile const& m_cfg;
   TwoPassMngr twoPassMngr;
   QPBuffers qpBuffers;
   std::unique_ptr<CommandsSender> commandsSender;
@@ -460,9 +461,6 @@ private:
         LogInfo("NumBytes: %i, MinQP: %i, MaxQP: %i, NumSkip: %i, NumIntra: %i\n", pMeta->tRateCtrlStats.uNumBytes, pMeta->tRateCtrlStats.uMinQP, pMeta->tRateCtrlStats.uMaxQP, pMeta->tRateCtrlStats.uNumSkip, pMeta->tRateCtrlStats.uNumIntra);
 
       BitstreamOutput[iStreamId]->ProcessFrame(pStream);
-
-      if(iStreamId == 0)
-        BitrateOutput->ProcessFrame(pStream);
     }
 
     return AL_SUCCESS;
@@ -470,16 +468,44 @@ private:
 
   void CloseOutputs()
   {
-    for(int i = 0; i < MAX_NUM_REC_OUTPUT; ++i)
-      RecOutput[i]->ProcessFrame(EndOfStream);
-
-    for(int i = 0; i < MAX_NUM_BITSTREAM_OUTPUT; i++)
-      BitstreamOutput[i]->ProcessFrame(EndOfStream);
-
-    BitrateOutput->ProcessFrame(EndOfStream);
-
     m_EndTime = GetPerfTime();
     m_done();
+  }
+
+  void CheckAndAllocateConversionBuffer(AL_TBuffer* pBuf, std::shared_ptr<AL_TBuffer>& pConvYUV)
+  {
+    AL_TDimension tOutputDim = AL_PixMapBuffer_GetDimension(pBuf);
+
+    if(pConvYUV != nullptr)
+    {
+      AL_TDimension tConvDim = AL_PixMapBuffer_GetDimension(pConvYUV.get());
+
+      if(tConvDim.iHeight >= tOutputDim.iHeight && tConvDim.iWidth >= tOutputDim.iWidth)
+        return;
+    }
+
+    AL_TBuffer* pYuv = AllocateDefaultYuvIOBuffer(tOutputDim, m_cfg.RecFourCC);
+
+    if(pYuv == nullptr)
+      assert("Couldn't allocate reconstruct conversion buffer");
+
+    pConvYUV = std::shared_ptr<AL_TBuffer>(pYuv, &AL_Buffer_Destroy);
+
+  }
+
+  void RecToYuv(AL_TBuffer const* pRec, AL_TBuffer* pYuv, TFourCC tYuvFourCC)
+  {
+    TFourCC tRecFourCC = AL_PixMapBuffer_GetFourCC(pRec);
+    tConvFourCCFunc pFunc = GetConvFourCCFunc(tRecFourCC, tYuvFourCC);
+
+    AL_PixMapBuffer_SetDimension(pYuv, AL_PixMapBuffer_GetDimension(pRec));
+
+    if(!pFunc)
+      assert("Can't find a conversion function suitable for format");
+
+    if(AL_IsTiled(tRecFourCC) == false)
+      assert("FourCC must be in Tile mode");
+    return pFunc(pRec, pYuv);
   }
 
   void processOutput(AL_TBuffer* pStream)
@@ -516,7 +542,23 @@ private:
       if(buf)
       {
         AL_Buffer_InvalidateMemory(buf);
-        RecOutput[iRecId]->ProcessFrame(buf);
+
+        TFourCC fourCC = AL_PixMapBuffer_GetFourCC(buf);
+
+        if(AL_IsCompressed(fourCC))
+          RecOutput[iRecId]->ProcessFrame(buf);
+        else
+        {
+          if(AL_PixMapBuffer_GetFourCC(buf) != m_cfg.RecFourCC)
+          {
+            std::shared_ptr<AL_TBuffer> bufPostConv;
+            CheckAndAllocateConversionBuffer(buf, bufPostConv);
+            RecToYuv(buf, bufPostConv.get(), m_cfg.RecFourCC);
+            RecOutput[iRecId]->ProcessFrame(bufPostConv.get());
+          }
+          else
+            RecOutput[iRecId]->ProcessFrame(buf);
+        }
       }
       AL_Encoder_ReleaseRecPicture(hEnc, &RecPic);
     }

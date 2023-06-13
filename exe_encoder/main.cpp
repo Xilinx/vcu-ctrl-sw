@@ -34,10 +34,11 @@
 #include "lib_app/FileUtils.h"
 #include "lib_app/plateform.h"
 #include "lib_app/YuvIO.h"
-#include "lib_app/NonCompFrameReader.h"
+#include "lib_app/UnCompFrameReader.h"
+#include "lib_app/UnCompFrameWriter.h"
+#include "lib_app/CompFrameCommon.h"
 
 #include "CodecUtils.h"
-#include "sink.h"
 #include "IpDevice.h"
 
 #include "resource.h"
@@ -51,6 +52,7 @@ extern "C"
 #include "lib_common/BufferPictureMeta.h"
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/Error.h"
+#include "lib_common/RoundUp.h"
 #include "lib_encode/lib_encoder.h"
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common_enc/RateCtrlMeta.h"
@@ -62,11 +64,11 @@ extern "C"
 #include "lib_conv_yuv/AL_RasterConvert.h"
 
 #include "sink_encoder.h"
+#include "sink_yuv_md5.h"
 #include "sink_lookahead.h"
 #include "sink_bitstream_writer.h"
 #include "sink_bitrate.h"
-#include "sink_frame_writer.h"
-#include "sink_md5.h"
+#include "lib_app/SinkStreamMd5.h"
 #include "sink_repeater.h"
 #include "QPGenerator.h"
 
@@ -81,33 +83,21 @@ static bool g_MultiChunk = false;
 using namespace std;
 
 /*****************************************************************************/
-/* duplicated from Utils.h as we can't take these from inside the libraries */
-static inline int RoundUp(int iVal, int iRnd)
-{
-  return (iVal + iRnd - 1) / iRnd * iRnd;
-}
-
-static inline uint32_t UnsignedRoundUp(uint32_t uVal, int iRnd)
-{
-  return ((uVal + iRnd - 1) / iRnd) * iRnd;
-}
-
 AL_HANDLE AlignedAlloc(AL_TAllocator* pAllocator, char const* pBufName, uint32_t uSize, uint32_t uAlign, uint32_t* uAllocatedSize, uint32_t* uAlignmentOffset)
 {
-  AL_HANDLE pBuf = NULL;
   *uAllocatedSize = 0;
   *uAlignmentOffset = 0;
 
   uSize += uAlign;
 
-  pBuf = AL_Allocator_AllocNamed(pAllocator, uSize, pBufName);
+  auto pBuf = AL_Allocator_AllocNamed(pAllocator, uSize, pBufName);
 
-  if(NULL == pBuf)
-    return NULL;
+  if(pBuf == nullptr)
+    return nullptr;
 
   *uAllocatedSize = uSize;
   AL_PADDR pAddr = AL_Allocator_GetPhysicalAddr(pAllocator, pBuf);
-  *uAlignmentOffset = UnsignedRoundUp(pAddr, uAlign) - pAddr;
+  *uAlignmentOffset = AL_PhysAddrRoundUp(pAddr, uAlign) - pAddr;
 
   return pBuf;
 }
@@ -275,7 +265,7 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg, CfgParser& cfgPars
   stringstream warning;
   auto opt = CommandLineParser([&](string word)
   {
-    if(word == "-cfg" || word == "-cfg-permissive")
+    if(word == "-cfg" || word == "-cfg-permissive" || word == "--cfg" || word == "--cfg-permissive")
     {
       if(DoNotAcceptCfg)
         throw runtime_error("Configuration files should be specified first, use -h to get help");
@@ -288,14 +278,14 @@ void ParseCommandLine(int argc, char** argv, ConfigFile& cfg, CfgParser& cfgPars
   opt.addFlag("--help-json", &helpJson, "Show this help (json)");
   opt.addFlag("--version", &version, "Show version");
 
-  opt.addOption("-cfg", [&](string)
+  opt.addOption("--cfg,-cfg", [&](string)
   {
     auto const cfgPath = opt.popWord();
     cfg.strict_mode = true;
     cfgParser.ParseConfigFile(cfgPath, cfg, warning);
   }, "Specify configuration file", "string");
 
-  opt.addOption("-cfg-permissive", [&](string)
+  opt.addOption("--cfg-permissive,-cfg-permissive", [&](string)
   {
     auto const cfgPath = opt.popWord();
     cfgParser.ParseConfigFile(cfgPath, cfg, warning);
@@ -472,7 +462,7 @@ void ValidateConfig(ConfigFile& cfg)
   FILE* out = stdout;
 
   if(!g_Verbosity)
-    out = NULL;
+    out = nullptr;
 
   auto const MaxLayer = cfg.Settings.NumLayer - 1;
 
@@ -624,7 +614,7 @@ static shared_ptr<AL_TBuffer> GetSrcFrame(int& iReadCount, int iPictCount, uniqu
       iReadCount += frameReader->GotoNextPicture(FileInfo.FrameRate, tChParam.tRCParam.uFrameRate, iPictCount, iReadCount);
     }
 
-    AL_TDimension tUpdatedDim = AL_TDimension {
+    auto tUpdatedDim = AL_TDimension {
       AL_GetSrcWidth(tChParam), AL_GetSrcHeight(tChParam)
     };
     frame = ReadSourceFrame(&SrcBufPool, Yuv, frameReader, tUpdatedDim, tChParam.uSrcBitDepth, pSrcConv);
@@ -676,7 +666,7 @@ static AL_TBufPoolConfig GetQpBufPoolConfig(AL_TEncSettings& Settings, AL_TEncCh
   if(AL_IS_QP_TABLE_REQUIRED(Settings.eQpTableMode))
   {
     AL_TDimension tDim = { tChParam.uEncWidth, tChParam.uEncHeight };
-    poolConfig = GetBufPoolConfig("qp-ext", NULL, AL_GetAllocSizeEP2(tDim, static_cast<AL_ECodec>(AL_GET_CODEC(tChParam.eProfile)), tChParam.uLog2MaxCuSize), frameBuffersCount);
+    poolConfig = GetBufPoolConfig("qp-ext", nullptr, AL_GetAllocSizeEP2(tDim, static_cast<AL_ECodec>(AL_GET_CODEC(tChParam.eProfile)), tChParam.uLog2MaxCuSize), frameBuffersCount);
   }
   return poolConfig;
 }
@@ -709,7 +699,7 @@ static SrcBufDesc GetSrcBufDescription(AL_TDimension tDimension, uint8_t uBitDep
 
   int iAlignValue = 8;
 
-  int iStrideHeight = g_StrideHeight != -1 ? g_StrideHeight : RoundUp(tDimension.iHeight, iAlignValue);
+  int iStrideHeight = g_StrideHeight != -1 ? g_StrideHeight : AL_RoundUp(tDimension.iHeight, iAlignValue);
 
   SrcBufChunk srcChunk = {};
 
@@ -790,21 +780,21 @@ static AL_TBufPoolConfig GetStreamBufPoolConfig(AL_TEncSettings& Settings, int i
 
     {
       /* Due to rounding, the slices don't have all the same height. Compute size of the biggest slice */
-      uint64_t lcuSize = 1 << Settings.tChParam[0].uLog2MaxCuSize;
-      uint64_t rndHeight = RoundUp(dim.iHeight, lcuSize);
+      uint64_t lcuSize = 1ll << Settings.tChParam[0].uLog2MaxCuSize;
+      uint64_t rndHeight = AL_RoundUp(dim.iHeight, lcuSize);
       streamSize = streamSize * lcuSize * (1 + rndHeight / (Settings.tChParam[0].uNumSlices * lcuSize)) / rndHeight;
 
       /* we need space for the headers on each slice */
       streamSize += AL_ENC_MAX_HEADER_SIZE;
       /* stream size is required to be 32bytes aligned */
-      streamSize = RoundUp(streamSize, HW_IP_BURST_ALIGNMENT);
+      streamSize = AL_RoundUp(streamSize, HW_IP_BURST_ALIGNMENT);
     }
   }
 
   if(streamSize > INT32_MAX)
     throw runtime_error("streamSize(" + to_string(streamSize) + ") must be lower or equal than INT32_MAX(" + to_string(INT32_MAX) + ")");
 
-  AL_TMetaData* pMetaData = (AL_TMetaData*)AL_StreamMetaData_Create(AL_MAX_SECTION);
+  auto pMetaData = (AL_TMetaData*)AL_StreamMetaData_Create(AL_MAX_SECTION);
   return GetBufPoolConfig("stream", pMetaData, streamSize, numStreams);
 }
 
@@ -913,7 +903,7 @@ void LayerResources::Init(ConfigFile& cfg, AL_TEncoderInfo tEncInfo, int iLayerI
 
   if(iLayerID == 0 && bUsePictureMeta)
   {
-    AL_TMetaData* pMeta = (AL_TMetaData*)AL_PictureMetaData_Create();
+    auto pMeta = (AL_TMetaData*)AL_PictureMetaData_Create();
 
     if(pMeta == nullptr)
       throw std::runtime_error("Meta must be created");
@@ -927,7 +917,7 @@ void LayerResources::Init(ConfigFile& cfg, AL_TEncoderInfo tEncInfo, int iLayerI
   if(cfg.RunInfo.printRateCtrlStat)
   {
     AL_TDimension tDim = { Settings.tChParam[iLayerID].uEncWidth, Settings.tChParam[iLayerID].uEncHeight };
-    AL_TMetaData* pMeta = (AL_TMetaData*)AL_RateCtrlMetaData_Create(pAllocator, tDim, Settings.tChParam[iLayerID].uLog2MaxCuSize, AL_GET_CODEC(Settings.tChParam[iLayerID].eProfile));
+    auto pMeta = (AL_TMetaData*)AL_RateCtrlMetaData_Create(pAllocator, tDim, Settings.tChParam[iLayerID].uLog2MaxCuSize, AL_GET_CODEC(Settings.tChParam[iLayerID].eProfile));
 
     if(pMeta == nullptr)
       throw std::runtime_error("Meta must be created");
@@ -958,14 +948,6 @@ void LayerResources::Init(ConfigFile& cfg, AL_TEncoderInfo tEncInfo, int iLayerI
   // Application Input/Output Format conversion
   // --------------------------------------------------------------------------------
   bool shouldConvert = ConvertSrcBuffer(Settings.tChParam[iLayerID], layerInputs[iInputIdx].FileInfo, SrcYuv);
-
-  string LayerRecFileName = cfg.RecFileName;
-
-  if(!LayerRecFileName.empty())
-  {
-
-    frameWriter = createFrameWriter(LayerRecFileName, cfg, iLayerID);
-  }
 
   TFrameInfo FrameInfo = GetFrameInfo(Settings.tChParam[iLayerID]);
   pSrcConv = CreateSrcConverter(FrameInfo, cfg.eSrcFormat, Settings.tChParam[iLayerID]);
@@ -1006,7 +988,7 @@ void LayerResources::PushResources(ConfigFile& cfg, EncoderSink* enc
   }
 
   if(frameWriter)
-    enc->RecOutput[iLayerID] = move(frameWriter);
+    enc->RecOutput[iLayerID] = std::move(frameWriter);
 
   for(int i = 0; i < (int)StreamBufPoolConfig.uNumBuf; ++i)
   {
@@ -1086,7 +1068,7 @@ unique_ptr<FrameReader> LayerResources::InitializeFrameReader(ConfigFile& cfg, i
   OpenInput(YuvFile, sYuvFileName);
 
   if(bIsMapFileEmpty)
-    pFrameReader = unique_ptr<FrameReader>(new NonCompFrameReader(YuvFile, FileInfo, cfg.RunInfo.bLoop));
+    pFrameReader = unique_ptr<FrameReader>(new UnCompFrameReader(YuvFile, FileInfo, cfg.RunInfo.bLoop));
   pFrameReader->GoToFrame(cfg.RunInfo.iFirstPict + iReadCount);
 
   return pFrameReader;
@@ -1168,25 +1150,52 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
 
   for(size_t i = 0; i < layerResources.size(); i++)
   {
+    auto multisinkRec = unique_ptr<MultiSink>(new MultiSink);
     layerResources[i].Init(cfg, tEncInfo, i, pIpDevice, chanId);
     layerResources[i].PushResources(cfg, enc.get()
                                     ,
                                     encFirstPassLA.get()
                                     );
+
+    // Rec file creation
+    string LayerRecFileName = cfg.RecFileName;
+
+    if(!LayerRecFileName.empty())
+    {
+
+      std::shared_ptr<ofstream> m_RecFile(new ofstream(LayerRecFileName, ios::binary));
+
+      if(!m_RecFile->is_open())
+        throw runtime_error("Invalid output file");
+
+      std::unique_ptr<IFrameSink> recOutput;
+      {
+        recOutput = std::unique_ptr<UnCompFrameWriter>(new UnCompFrameWriter(m_RecFile, AL_FB_RASTER, AL_OUTPUT_MAIN));
+      }
+
+      multisinkRec->addSink(recOutput);
+    }
+    enc->RecOutput[i] = std::move(multisinkRec);
   }
 
-  enc->BitstreamOutput[0] = createBitstreamWriter(StreamFileName, cfg);
+  auto multisink = unique_ptr<MultiSink>(new MultiSink);
+
+  std::unique_ptr<IFrameSink> bitstreamOutput = createBitstreamWriter(StreamFileName, cfg);
+  multisink->addSink(bitstreamOutput);
 
   if(!RunInfo.sStreamMd5Path.empty())
   {
-    auto multisink = unique_ptr<MultiSink>(new MultiSink);
-    multisink->sinks.push_back(move(enc->BitstreamOutput[0]));
-    multisink->sinks.push_back(createStreamMd5Calculator(RunInfo.sStreamMd5Path));
-    enc->BitstreamOutput[0] = move(multisink);
+    std::unique_ptr<IFrameSink> md5Calculator = createStreamMd5Calculator(RunInfo.sStreamMd5Path);
+    multisink->addSink(md5Calculator);
   }
 
   if(!RunInfo.bitrateFile.empty())
-    enc->BitrateOutput = createBitrateWriter(RunInfo.bitrateFile, cfg);
+  {
+    std::unique_ptr<IFrameSink> bitrateOutput = createBitrateWriter(RunInfo.bitrateFile, cfg);
+    multisink->addSink(bitrateOutput);
+  }
+
+  enc->BitstreamOutput[0] = std::move(multisink);
 
   // --------------------------------------------------------------------------------
   // Set Callbacks
@@ -1203,10 +1212,11 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
     for(int iLayerID = 0; iLayerID < Settings.NumLayer; ++iLayerID)
     {
       auto multisink = unique_ptr<MultiSink>(new MultiSink);
-      multisink->sinks.push_back(move(enc->RecOutput[iLayerID]));
+      multisink->addSink(enc->RecOutput[iLayerID]);
       string LayerMd5FileName = RunInfo.sRecMd5Path;
-      multisink->sinks.push_back(createYuvMd5Calculator(LayerMd5FileName, cfg));
-      enc->RecOutput[iLayerID] = move(multisink);
+      std::unique_ptr<IFrameSink> md5Calculator = createYuvMd5Calculator(LayerMd5FileName, cfg);
+      multisink->addSink(md5Calculator);
+      enc->RecOutput[iLayerID] = std::move(multisink);
     }
   }
 

@@ -37,17 +37,17 @@ static inline uint16_t CONV_8B_TO_12B(uint8_t val)
 
 static inline uint8_t RND_10B_TO_8B(uint16_t val)
 {
-  return (uint8_t)(((val) >= 0x3FC) ? 0xFF : (((val) + 2) >> 2));
+  return (uint8_t)((val >= 0x3FC) ? 0xFF : ((val + 2) >> 2));
 }
 
 static inline uint8_t RND_12B_TO_8B(uint16_t val)
 {
-  return (uint8_t)(((val) >= 0xFF0) ? 0xFF : (((val) + 8) >> 4));
+  return (uint8_t)((val >= 0xFF0) ? 0xFF : ((val + 8) >> 4));
 }
 
 static inline uint16_t RND_12B_TO_10B(uint16_t val)
 {
-  return (uint16_t)(((val) >= 0xFFC) ? 0x3FF : (((val) + 2) >> 2));
+  return (uint16_t)((val >= 0xFFC) ? 0x3FF : ((val + 2) >> 2));
 }
 
 static inline uint16_t COPY(uint16_t val)
@@ -79,8 +79,8 @@ void ConvertPixMapPlane(AL_TBuffer const* pSrc, AL_TBuffer* pDst, AL_EPlaneId eP
 {
   int iPitchSrc = AL_PixMapBuffer_GetPlanePitch(pSrc, ePlaneType) / sizeof(TSrc);
   int iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, ePlaneType) / sizeof(TDst);
-  TSrc* pSrcData = (TSrc*)AL_PixMapBuffer_GetPlaneAddress(pSrc, ePlaneType);
-  TDst* pDstData = (TDst*)AL_PixMapBuffer_GetPlaneAddress(pDst, ePlaneType);
+  auto pSrcData = (TSrc*)AL_PixMapBuffer_GetPlaneAddress(pSrc, ePlaneType);
+  auto pDstData = (TDst*)AL_PixMapBuffer_GetPlaneAddress(pDst, ePlaneType);
 
   for(int iH = 0; iH < iHeight; iH++)
   {
@@ -97,7 +97,7 @@ template<typename T>
 void SetPixMapPlane(AL_TBuffer* pDst, AL_EPlaneId ePlaneType, int iWidth, int iHeight, T uVal)
 {
   int iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, ePlaneType) / sizeof(T);
-  T* pDstData = (T*)AL_PixMapBuffer_GetPlaneAddress(pDst, ePlaneType);
+  auto pDstData = (T*)AL_PixMapBuffer_GetPlaneAddress(pDst, ePlaneType);
 
   for(int iH = 0; iH < iHeight; iH++)
   {
@@ -537,15 +537,15 @@ static void SemiPlanarToPlanar_1XTo8b(AL_TBuffer const* pSrc, AL_TBuffer* pDst, 
     int iWidth = (tDim.iWidth + uHrzCScale - 1) / uHrzCScale;
     int iHeight = (tDim.iHeight + uVrtCScale - 1) / uVrtCScale;
 
-    uint16_t* pBufInC = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
-    uint8_t* pBufOutU = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_U);
-    uint8_t* pBufOutV = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_V);
+    auto pBufInC = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
+    auto pBufOutU = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_U);
+    auto pBufOutV = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_V);
 
     for(int iH = 0; iH < iHeight; ++iH)
     {
       for(int iW = 0; iW < iWidth; ++iW)
       {
-        pBufOutU[iW] = RND_FUNC(pBufInC[(iW << 1)]);
+        pBufOutU[iW] = RND_FUNC(pBufInC[iW << 1]);
         pBufOutV[iW] = RND_FUNC(pBufInC[(iW << 1) + 1]);
       }
 
@@ -573,15 +573,15 @@ static void SemiPlanarToPlanar_1XTo1X(AL_TBuffer const* pSrc, AL_TBuffer* pDst, 
     int iWidth = (tDim.iWidth + uHrzCScale - 1) / uHrzCScale;
     int iHeight = (tDim.iHeight + uVrtCScale - 1) / uVrtCScale;
 
-    uint16_t* pBufInC = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
-    uint16_t* pBufOutU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_U);
-    uint16_t* pBufOutV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_V);
+    auto pBufInC = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
+    auto pBufOutU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_U);
+    auto pBufOutV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_V);
 
     for(int iH = 0; iH < iHeight; ++iH)
     {
       for(int iW = 0; iW < iWidth; ++iW)
       {
-        pBufOutU[iW] = RND_FUNC(pBufInC[(iW << 1)]);
+        pBufOutU[iW] = RND_FUNC(pBufInC[iW << 1]);
         pBufOutV[iW] = RND_FUNC(pBufInC[(iW << 1) + 1]);
       }
 
@@ -921,9 +921,9 @@ static void I4XX_To_PX10(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   int iWidthC = (tDim.iWidth + uHrzCScale - 1) / uHrzCScale;
   int iHeightC = (tDim.iHeight + uVrtCScale - 1) / uVrtCScale;
 
-  uint8_t* pBufInU = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_U);
-  uint8_t* pBufInV = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_V);
-  uint16_t* pBufOut = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
+  auto pBufInU = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_U);
+  auto pBufInV = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_V);
+  auto pBufOut = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
 
   for(int iH = 0; iH < iHeightC; ++iH)
   {
@@ -964,9 +964,9 @@ static void I4XX_To_PX12(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   int iWidthC = (tDim.iWidth + uHrzCScale - 1) / uHrzCScale;
   int iHeightC = (tDim.iHeight + uVrtCScale - 1) / uVrtCScale;
 
-  uint8_t* pBufInU = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_U);
-  uint8_t* pBufInV = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_V);
-  uint16_t* pBufOut = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
+  auto pBufInU = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_U);
+  auto pBufInV = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_V);
+  auto pBufOut = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
 
   for(int iH = 0; iH < iHeightC; ++iH)
   {
@@ -1185,9 +1185,9 @@ static void IXAL_To_NVXX(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   uint32_t uPitchSrcV = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_V) / sizeof(uint16_t);
   uint32_t uPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_UV);
 
-  uint16_t* pBufInU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_U);
-  uint16_t* pBufInV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_V);
-  uint8_t* pBufOut = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
+  auto pBufInU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_U);
+  auto pBufInV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_V);
+  auto pBufOut = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
 
   for(int iH = 0; iH < iHeightC; ++iH)
   {
@@ -1246,9 +1246,9 @@ static void IXYL_To_PX1Y(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   uint32_t uPitchSrcV = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_V) / sizeof(uint16_t);
   uint32_t uPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_UV) / sizeof(uint16_t);
 
-  uint16_t* pBufInU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_U);
-  uint16_t* pBufInV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_V);
-  uint16_t* pBufOut = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
+  auto pBufInU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_U);
+  auto pBufInV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_V);
+  auto pBufOut = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
 
   for(int iH = 0; iH < iHeightC; ++iH)
   {
@@ -1721,8 +1721,8 @@ static void T64_Untile_Plane(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t b
       Untile4x4Block = Untile4x4Block8bTo8b;
   }
 
-  SrcType* pSrcData = (SrcType*)AL_PixMapBuffer_GetPlaneAddress(pSrc, ePlaneId);
-  DstType* pDstData = (DstType*)AL_PixMapBuffer_GetPlaneAddress(pDst, ePlaneId);
+  auto pSrcData = (SrcType*)AL_PixMapBuffer_GetPlaneAddress(pSrc, ePlaneId);
+  auto pDstData = (DstType*)AL_PixMapBuffer_GetPlaneAddress(pDst, ePlaneId);
   int iPitchSrc = AL_PixMapBuffer_GetPlanePitch(pSrc, ePlaneId) / sizeof(SrcType);
   int iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, ePlaneId) / sizeof(DstType);
 
@@ -1843,9 +1843,10 @@ static void Chroma_T608_To_I0XL(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_
   int iPitchSrc = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_UV);
   int iPitchDstU = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_U) / sizeof(uint16_t);
   int iPitchDstV = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_V) / sizeof(uint16_t);
-  uint8_t* pSrcData = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
-  uint16_t* pDstDataU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_U);
-  uint16_t* pDstDataV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_V);
+
+  auto pSrcData = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
+  auto pDstDataU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_U);
+  auto pDstDataV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_V);
 
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pDst);
   tDim.iWidth = ((tDim.iWidth + 1) >> 1) << 1;
@@ -2072,9 +2073,9 @@ static void Chroma_T628_To_I2XL(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_
   int iPitchDstU = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_U) / sizeof(uint16_t);
   int iPitchDstV = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_V) / sizeof(uint16_t);
 
-  uint8_t* pSrcDataC = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
-  uint16_t* pDstDataU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_U);
-  uint16_t* pDstDataV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_V);
+  auto pSrcDataC = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
+  auto pDstDataU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_U);
+  auto pDstDataV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_V);
 
   int iShift = uBitDepth == 10 ? 2 : 4;
 
@@ -2208,9 +2209,9 @@ static void T6XX_To_4XX(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t bdIn, 
   int iPitchDstU = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_U) / sizeof(DstType);
   int iPitchDstV = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_V) / sizeof(DstType);
 
-  uint16_t* pSrcData = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
-  DstType* pDstDataU = (DstType*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_U);
-  DstType* pDstDataV = (DstType*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_V);
+  auto pSrcData = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
+  auto pDstDataU = (DstType*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_U);
+  auto pDstDataV = (DstType*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_V);
 
   for(int h = 0; h < iHeightC; h += 4)
   {
@@ -2717,8 +2718,8 @@ static void Plane_Tile_T64(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t bdI
       Tile4x4Block = Tile4x4Block8bTo8b;
   }
 
-  SrcType* pSrcData = (SrcType*)AL_PixMapBuffer_GetPlaneAddress(pSrc, ePlaneId);
-  DstType* pDstData = (DstType*)AL_PixMapBuffer_GetPlaneAddress(pDst, ePlaneId);
+  auto pSrcData = (SrcType*)AL_PixMapBuffer_GetPlaneAddress(pSrc, ePlaneId);
+  auto pDstData = (DstType*)AL_PixMapBuffer_GetPlaneAddress(pDst, ePlaneId);
   int iPitchSrc = AL_PixMapBuffer_GetPlanePitch(pSrc, ePlaneId) / sizeof(SrcType);
   int iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, ePlaneId) / sizeof(DstType);
 
@@ -2767,9 +2768,9 @@ static void Chroma_I0XL_To_T608(AL_TBuffer const* pDst, AL_TBuffer* pSrc, uint8_
   int iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_UV);
   int iPitchSrcU = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_U) / sizeof(uint16_t);
   int iPitchSrcV = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_V) / sizeof(uint16_t);
-  uint8_t* pDstData = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
-  uint16_t* pSrcDataU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_U);
-  uint16_t* pSrcDataV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_V);
+  auto pDstData = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
+  auto pSrcDataU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_U);
+  auto pSrcDataV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_V);
 
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pSrc);
   tDim.iWidth = ((tDim.iWidth + 1) >> 1) << 1;
@@ -3143,9 +3144,9 @@ static void From_4XX_To_T6XX(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t b
   int iPitchSrcU = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_U) / sizeof(SrcType);
   int iPitchSrcV = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_V) / sizeof(SrcType);
 
-  uint16_t* pDstData = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
-  SrcType* pSrcDataU = (SrcType*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_U);
-  SrcType* pSrcDataV = (SrcType*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_V);
+  auto pDstData = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
+  auto pSrcDataU = (SrcType*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_U);
+  auto pSrcDataV = (SrcType*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_V);
 
   for(int h = 0; h < iHeightC; h += 4)
   {
@@ -3556,9 +3557,9 @@ static void Chroma_I2XL_To_T628(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_
   int iPitchSrcU = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_U) / sizeof(uint16_t);
   int iPitchSrcV = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_V) / sizeof(uint16_t);
 
-  uint8_t* pDstDataC = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
-  uint16_t* pSrcDataU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_U);
-  uint16_t* pSrcDataV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_V);
+  auto pDstDataC = AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
+  auto pSrcDataU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_U);
+  auto pSrcDataV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_V);
 
   int iShift = uBitDepth == 10 ? 2 : 4;
 
@@ -4067,7 +4068,7 @@ static void NVXX_To_I4XX(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   {
     for(int iW = 0; iW < iWidthC; ++iW)
     {
-      pBufOutU[iW] = pBufInC[(iW << 1)];
+      pBufOutU[iW] = pBufInC[iW << 1];
       pBufOutV[iW] = pBufInC[(iW << 1) + 1];
     }
 
@@ -4127,15 +4128,15 @@ static void NVXX_To_IXAL(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   int iPitchDstU = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_U) / sizeof(uint16_t);
   int iPitchDstV = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_V) / sizeof(uint16_t);
 
-  uint8_t* pBufIn = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
-  uint16_t* pBufOutU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_U);
-  uint16_t* pBufOutV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_V);
+  auto pBufIn = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
+  auto pBufOutU = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_U);
+  auto pBufOutV = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_V);
 
   for(int iH = 0; iH < iHeightC; ++iH)
   {
     for(int iW = 0; iW < iWidthC; ++iW)
     {
-      pBufOutU[iW] = ((uint16_t)pBufIn[(iW << 1)]) << 2;
+      pBufOutU[iW] = ((uint16_t)pBufIn[iW << 1]) << 2;
       pBufOutV[iW] = ((uint16_t)pBufIn[(iW << 1) + 1]) << 2;
     }
 
@@ -4183,8 +4184,8 @@ static void NVXX_To_PX10(AL_TBuffer const* pSrc, AL_TBuffer* pDst, uint8_t uHrzC
   I420_To_Y010(pSrc, pDst);
 
   // Chroma
-  uint8_t* pBufIn = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
-  uint16_t* pBufOut = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
+  auto pBufIn = AL_PixMapBuffer_GetPlaneAddress(pSrc, AL_PLANE_UV);
+  auto pBufOut = (uint16_t*)AL_PixMapBuffer_GetPlaneAddress(pDst, AL_PLANE_UV);
 
   int iPitchSrc = AL_PixMapBuffer_GetPlanePitch(pSrc, AL_PLANE_UV);
   int iPitchDst = AL_PixMapBuffer_GetPlanePitch(pDst, AL_PLANE_UV) / sizeof(uint16_t);

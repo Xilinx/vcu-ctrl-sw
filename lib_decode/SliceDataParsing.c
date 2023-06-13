@@ -61,7 +61,8 @@ static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam const* pPP, AL
 {
   (void)pPP;
 
-  int const iMaxBitDepth = pCtx->tStreamSettings.iBitDepth;
+  AL_TStreamSettings const* pStreamSettings = &pCtx->tStreamSettings;
+  int const iMaxBitDepth = pStreamSettings->iBitDepth;
   AL_TBuffer* pRec = pCtx->pRecs.pFrame;
 
   uint32_t uPitch = AL_PixMapBuffer_GetPlanePitch(pRec, AL_PLANE_Y);
@@ -80,7 +81,7 @@ static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam const* pPP, AL
     break;
   case 12: uPictureBitDepth = 0x1;
     break;
-  default: assert(false);
+  default: AL_Assert(false);
   }
 
   uPictureBitDepth <<= iDec2RecBitDepthOffset;

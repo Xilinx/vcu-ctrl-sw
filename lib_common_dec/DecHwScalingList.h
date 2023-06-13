@@ -65,7 +65,7 @@ static const int AL_HEVC_DEC_SCL_ORDER_4x4[16] =
 };
 
 /*************************************************************************//*!
-   \brief Dumps Hardware formated decoder scaling list into buffer of bytes
+   \brief Dumps Hardware formatted decoder scaling list into buffer of bytes
    \param[in]  pSclLst Pointer to  Scaling list to dump
    \param[in]  eCMode  Chroma subsampling
    \param[out] pBuf    Pointer to buffer that receives the scaling list
@@ -74,7 +74,7 @@ static const int AL_HEVC_DEC_SCL_ORDER_4x4[16] =
 extern void AL_AVC_WriteDecHwScalingList(AL_TScl const* pSclLst, AL_EChromaMode eCMode, uint8_t* pBuf);
 
 /*************************************************************************//*!
-   \brief Dumps Hardware formated decoder scaling list into buffer of bytes
+   \brief Dumps Hardware formatted decoder scaling list into buffer of bytes
    \param[in]  pSclLst Pointer to  Scaling list to dump
    \param[out] pBuf    Pointer to buffer that receives the scaling list
                      matrices data

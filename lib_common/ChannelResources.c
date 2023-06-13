@@ -51,7 +51,7 @@ int AL_CoreConstraint_GetMinCoresCount(AL_CoreConstraint* constraint, int width)
 
 static int getLcuCount(int width, int height)
 {
-  /* Fixed LCU Size chosen for resources calculs */
+  /* Fixed LCU Size chosen for resources calculus */
   int const lcuPicHeight = 32;
   int const lcuPicWidth = 32;
   return divideRoundUp(width, lcuPicWidth) * divideRoundUp(height, lcuPicHeight);

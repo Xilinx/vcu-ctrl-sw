@@ -4,7 +4,7 @@
 #pragma once
 
 #include <string>
-#include "sink.h"
+#include "lib_app/Sink.h"
 #include "CfgParser.h"
 
 std::unique_ptr<IFrameSink> createBitstreamWriter(std::string path, ConfigFile const& cfg);

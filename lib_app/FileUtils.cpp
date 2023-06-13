@@ -61,7 +61,6 @@ bool checkFolder(std::string folderPath)
 #if defined(_WIN32)
 
     WIN32_FIND_DATA FindFolderData;
-    WIN32_FIND_DATA FindFileData;
     HANDLE hFind;
     folderPath.resize(folderPath.find_last_not_of("\\/") + 1);
 

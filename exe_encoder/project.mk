@@ -7,8 +7,7 @@ EXE_ENCODER_SRCS:=\
   $(THIS_EXE_ENCODER)/main.cpp\
   $(THIS_EXE_ENCODER)/sink_bitstream_writer.cpp\
   $(THIS_EXE_ENCODER)/sink_bitrate.cpp\
-  $(THIS_EXE_ENCODER)/sink_frame_writer.cpp\
-  $(THIS_EXE_ENCODER)/sink_md5.cpp\
+  $(THIS_EXE_ENCODER)/sink_yuv_md5.cpp\
   $(THIS_EXE_ENCODER)/EncCmdMngr.cpp\
   $(THIS_EXE_ENCODER)/QPGenerator.cpp\
   $(THIS_EXE_ENCODER)/CommandsSender.cpp\

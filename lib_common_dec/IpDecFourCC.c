@@ -17,7 +17,7 @@ TFourCC AL_GetDecFourCC(AL_TPicFormat const picFmt)
 
 AL_EChromaOrder AL_ChromaModeToChromaOrder(AL_EChromaMode eChromaMode)
 {
-  return eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : (eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR);
+  return GetChromaOrder(eChromaMode);
 }
 
 AL_TPicFormat AL_GetDecPicFormat(AL_EChromaMode eChromaMode, uint8_t uBitDepth, AL_EFbStorageMode eStorageMode, bool bIsCompressed)

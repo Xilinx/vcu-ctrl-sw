@@ -10,5 +10,3 @@ AL_EChromaMode AL_HWConfig_Enc_GetSupportedChromaMode(void);
 int AL_HWConfig_Enc_GetSupportedBitDepth(void);
 int AL_HWConfig_Enc_GetSupportedL2PBitDepth(void);
 
-AL_EChromaMode AL_HWConfig_Dec_GetSupportedChromaMode(void);
-int AL_HWConfig_Dec_GetSupportedBitDepth(void);

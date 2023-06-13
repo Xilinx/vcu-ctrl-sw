@@ -38,7 +38,7 @@ typedef struct t_RbspParser
 }AL_TRbspParser;
 
 /*************************************************************************//*!
-   \brief The InitRbspParser function intializes a Rbsp Parser structure
+   \brief The InitRbspParser function initializes a Rbsp Parser structure
    \param[in]  pStream       Pointer to the circular stream buffer
    \param[in]  pNoAEBuffer   Pointer to the buffer with the no antiemulated bits of the NAL unit
    \param[in]  iNoAESize     Size of the no anti emulated buffer
@@ -67,7 +67,7 @@ bool byte_aligned(AL_TRbspParser* pRP);
    \brief The simple_byte_alignment function set the current bitstream offset to
    the next byte boundary, checking all bits are set to a specified value
    \param[in] pRP Pointer to NAL parser
-   \param[in] expected_bit Expected value for the aligment bits
+   \param[in] expected_bit Expected value for the alignment bits
    \return return true if the bit value conditions are met
    false otherwise
 *****************************************************************************/

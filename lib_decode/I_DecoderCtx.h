@@ -190,6 +190,7 @@ typedef struct t_Dec_Ctx
   bool bIsBuffersAllocated;
   bool bUseIFramesAsSyncPoint;
   AL_TStreamSettings tStreamSettings;
+  AL_TStreamSettings tInitialStreamSettings;
   AL_TBuffer* eosBuffer;
 
   int iNumSlicesRemaining;

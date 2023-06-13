@@ -13,11 +13,12 @@
 #include "lib_common/AvcUtils.h"
 #include "lib_common/Error.h"
 #include "lib_common/SyntaxConversion.h"
-#include "lib_common/HardwareConfig.h"
 
 #include "lib_common_dec/RbspParser.h"
 #include "lib_common_dec/DecInfo.h"
 #include "lib_common_dec/Defines_mcu.h"
+#include "lib_common_dec/DecHardwareConfig.h"
+#include "lib_common_dec/StreamSettingsInternal.h"
 #include "lib_common_dec/HDRMeta.h"
 
 #include "lib_decode/I_DecSchedulerInfo.h"
@@ -39,8 +40,10 @@ static AL_TDimension extractDimension(AL_TAvcSps const* pSPS, bool bHasFields)
 }
 
 /*************************************************************************/
-static int getMaxBitDepthFromProfile(int profile_idc)
+static int getMaxBitDepthFromSPSProfile(AL_TAvcSps const* pSPS)
 {
+  int profile_idc = pSPS->profile_idc;
+
   if(
     (profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_AVC_BASELINE))
     || (profile_idc == AL_GET_PROFILE_IDC(AL_PROFILE_AVC_MAIN))
@@ -56,19 +59,23 @@ static int getMaxBitDepthFromProfile(int profile_idc)
 }
 
 /*************************************************************************/
-static int getMaxBitDepth(AL_TAvcSps const* pSPS)
+static int getMaxBitDepthFromSPSPBitDepth(AL_TAvcSps const* pSPS)
 {
   int iSPSLumaBitDepth = pSPS->bit_depth_luma_minus8 + 8;
   int iSPSChromaBitDepth = pSPS->bit_depth_chroma_minus8 + 8;
   int iMaxSPSBitDepth = Max(iSPSLumaBitDepth, iSPSChromaBitDepth);
   int iMaxBitDepth = iMaxSPSBitDepth;
 
-  iMaxBitDepth = Max(iMaxSPSBitDepth, getMaxBitDepthFromProfile(pSPS->profile_idc));
-
   if((iMaxBitDepth % 2) != 0)
     iMaxBitDepth++;
 
   return iMaxBitDepth;
+}
+
+/*************************************************************************/
+static int getMaxBitDepth(AL_TAvcSps const* pSPS)
+{
+  return Max(getMaxBitDepthFromSPSPBitDepth(pSPS), getMaxBitDepthFromSPSProfile(pSPS));
 }
 
 /*************************************************************************/
@@ -101,91 +108,108 @@ static int getMaxNumberOfSlices(AL_TDecCtx const* pCtx, AL_TAvcSps const* pSPS)
 }
 
 /*****************************************************************************/
-static AL_ERR isSPSCompatibleWithStreamSettings(AL_TDecCtx const* pCtx, AL_TAvcSps const* pSPS, bool bHasFields, AL_TStreamSettings const* pStreamSettings)
+static AL_ERR isSPSCompatibleWithHardware(AL_TAvcSps const* pSPS, bool bHasFields)
 {
-  int iSPSLumaBitDepth = pSPS->bit_depth_luma_minus8 + 8;
-
-  if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSLumaBitDepth))
-    return AL_WARN_SPS_BITDEPTH_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
-
-  int iSPSChromaBitDepth = pSPS->bit_depth_chroma_minus8 + 8;
-
-  if((pStreamSettings->iBitDepth > 0) && (pStreamSettings->iBitDepth < iSPSChromaBitDepth))
-    return AL_WARN_SPS_BITDEPTH_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
-
   int iSPSMaxBitDepth = getMaxBitDepth(pSPS);
 
   if(iSPSMaxBitDepth > AL_HWConfig_Dec_GetSupportedBitDepth())
+  {
+    Rtos_Log(AL_LOG_ERROR, "Bitdepth '%i' is not supported by the HARDWARE. Maximum supported bitdepth is '%i'.\n", iSPSMaxBitDepth, AL_HWConfig_Dec_GetSupportedBitDepth());
     return AL_WARN_SPS_BITDEPTH_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
+  }
 
   AL_TDimension tSPSDim = extractDimension(pSPS, bHasFields);
 
-  static const int32_t iMinResolution = AL_CORE_MIN_CU_NB << AL_CORE_AVC_LOG2_MAX_CU_SIZE;
+  int32_t iMinResolution = AL_CORE_MIN_CU_NB << AL_CORE_AVC_LOG2_MAX_CU_SIZE;
 
   if(tSPSDim.iWidth < iMinResolution)
   {
-    Rtos_Log(AL_LOG_ERROR, "Invalid resolution : minimum width is 2 CTBs.\n");
+    Rtos_Log(AL_LOG_ERROR, "Width '%i' is not supported by the HARDWARE. Minimum supported width is '%i'.\n", tSPSDim.iWidth, iMinResolution);
     return AL_WARN_SPS_MIN_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
   }
 
   if(tSPSDim.iHeight < iMinResolution)
   {
-    Rtos_Log(AL_LOG_ERROR, "Invalid resolution : minimum height is 2 CTBs.\n");
+    Rtos_Log(AL_LOG_ERROR, "Height '%i' is not supported by the HARDWARE. Minimum supported height is '%i'.\n", tSPSDim.iHeight, iMinResolution);
     return AL_WARN_SPS_MIN_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
-  }
-
-  if(pStreamSettings->iLevel > 0)
-  {
-    int iSPSLevel = pSPS->constraint_set3_flag ? 9 : pSPS->level_idc; /* We treat constraint set 3 as a level 9 */
-    int iCurDPBSize = AL_AVC_GetMaxDPBSize(pStreamSettings->iLevel, pStreamSettings->tDim.iWidth, pStreamSettings->tDim.iHeight, 0, false, false);
-    int iNewDPBSize = AL_AVC_GetMaxDPBSize(iSPSLevel, tSPSDim.iWidth, tSPSDim.iHeight, 0, false, false);
-
-    if(iNewDPBSize > iCurDPBSize)
-      return AL_WARN_SPS_LEVEL_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
   }
 
   AL_EChromaMode eSPSChromaMode = (AL_EChromaMode)pSPS->chroma_format_idc;
 
   if(eSPSChromaMode > AL_HWConfig_Dec_GetSupportedChromaMode())
-    return AL_WARN_SPS_CHROMA_MODE_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
-
-  if((pStreamSettings->eChroma != AL_CHROMA_MAX_ENUM) && (pStreamSettings->eChroma < eSPSChromaMode))
   {
-    Rtos_Log(AL_LOG_ERROR, "Invalid chroma-mode, incompatible with initial setting used for allocation.\n");
+    Rtos_Log(AL_LOG_ERROR, "Chromamode '%i' is not supported by the HARDWARE. Maximum chromamode supported is '%i'.\n", eSPSChromaMode, AL_HWConfig_Dec_GetSupportedChromaMode());
+    return AL_WARN_SPS_CHROMA_MODE_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
+  }
+
+  return AL_SUCCESS;
+}
+
+/*****************************************************************************/
+static AL_ERR isSPSCompatibleWithStreamSettings(AL_TDecCtx const* pCtx, AL_TAvcSps const* pSPS, bool bHasFields, AL_TStreamSettings const* pStreamSettings)
+{
+  if(!CheckStreamSettings(pStreamSettings))
+    return AL_ERR_REQUEST_MALFORMED;
+
+  int iSPSLumaBitDepth = pSPS->bit_depth_luma_minus8 + 8;
+
+  if(pStreamSettings->iBitDepth < iSPSLumaBitDepth)
+  {
+    Rtos_Log(AL_LOG_ERROR, "Bitdepth luma '%i' is not supported by the CHANNEL. Maximum supported bitdepth is '%i'.\n", iSPSLumaBitDepth, pStreamSettings->iBitDepth);
+    return AL_WARN_SPS_BITDEPTH_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
+  }
+
+  int iSPSChromaBitDepth = pSPS->bit_depth_chroma_minus8 + 8;
+
+  if(pStreamSettings->iBitDepth < iSPSChromaBitDepth)
+  {
+    Rtos_Log(AL_LOG_ERROR, "Bitdepth chroma '%i' is not supported by the CHANNEL. Maximum supported bitdepth is '%i'.\n", iSPSChromaBitDepth, pStreamSettings->iBitDepth);
+    return AL_WARN_SPS_BITDEPTH_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
+  }
+
+  AL_TDimension tSPSDim = extractDimension(pSPS, bHasFields);
+
+  int iSPSLevel = pSPS->constraint_set3_flag ? 9 : pSPS->level_idc; /* We treat constraint set 3 as a level 9 */
+  int iCurDPBSize = AL_AVC_GetMaxDPBSize(pStreamSettings->iLevel, pStreamSettings->tDim.iWidth, pStreamSettings->tDim.iHeight, 0, false, false);
+  int iNewDPBSize = AL_AVC_GetMaxDPBSize(iSPSLevel, tSPSDim.iWidth, tSPSDim.iHeight, 0, false, false);
+
+  if(iNewDPBSize > iCurDPBSize)
+    return AL_WARN_SPS_LEVEL_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
+
+  AL_EChromaMode eSPSChromaMode = (AL_EChromaMode)pSPS->chroma_format_idc;
+
+  if(pStreamSettings->eChroma < eSPSChromaMode)
+  {
+    Rtos_Log(AL_LOG_ERROR, "Chromamode '%i' is not supported by the CHANNEL. Maximum chromamode supported is '%i'.\n", eSPSChromaMode, pStreamSettings->eChroma);
     return AL_WARN_SPS_CHROMA_MODE_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
   }
 
   // check SPS Dimensions against the size of the configured buffer
   // The check should be made against the internal buffer, not the resulting secondOutput/postProc buffer
-  if(pCtx->bIsBuffersAllocated)
+  AL_EFbStorageMode eDisplayStorageMode = pCtx->pChanParam->eFBStorageMode;
+  bool bEnableDisplayCompression = pCtx->pChanParam->bFrameBufferCompression;
+  int iMinBufferSize = AL_PictMngr_GetMinBufferSize(&pCtx->PictMngr);
+  int iMinBuffRequired = AL_GetAllocSize_Frame(tSPSDim, eSPSChromaMode, getMaxBitDepthFromSPSPBitDepth(pSPS), bEnableDisplayCompression, eDisplayStorageMode);
+
+  if(iMinBufferSize < iMinBuffRequired)
   {
-    AL_EFbStorageMode eDisplayStorageMode = pCtx->pChanParam->eFBStorageMode;
-    bool bEnableDisplayCompression = pCtx->pChanParam->bFrameBufferCompression;
-
-    AL_TDimension tMinBuffDim = AL_PictMngr_GetMinBufferDim(&pCtx->PictMngr, eDisplayStorageMode);
-    int iMinBufferSize = AL_PictMngr_GetMinBufferSize(&pCtx->PictMngr);
-    int iMinBuffRequired = AL_GetAllocSize_Frame(tSPSDim, eSPSChromaMode, iSPSMaxBitDepth, bEnableDisplayCompression, eDisplayStorageMode);
-
-    if((iMinBufferSize > 0) && (iMinBufferSize < iMinBuffRequired))
-    {
-      Rtos_Log(AL_LOG_ERROR, "Invalid resolution. SPS dimensions Require Buffer Size greater than initial buffer configuration in decoder.\n");
-      return AL_WARN_SPS_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
-    }
-
-    if((pStreamSettings->tDim.iWidth > 0) && (tMinBuffDim.iWidth < tSPSDim.iWidth))
-    {
-      Rtos_Log(AL_LOG_ERROR, "Invalid resolution. SPS Width greater than initial buffer configuration in decoder.\n");
-      return AL_WARN_SPS_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
-    }
-
-    if((pStreamSettings->tDim.iHeight > 0) && (tMinBuffDim.iHeight < tSPSDim.iHeight))
-    {
-      Rtos_Log(AL_LOG_ERROR, "Invalid resolution. SPS Height greater than initial buffer configuration in decoder.\n");
-      return AL_WARN_SPS_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
-    }
+    Rtos_Log(AL_LOG_ERROR, "Buffer size '%i' is not supported by the CHANNEL. Minimum buffer size is '%i'.\n", iMinBuffRequired, iMinBufferSize);
+    return AL_WARN_SPS_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
   }
 
-  if(((pStreamSettings->eSequenceMode != AL_SM_MAX_ENUM) && pStreamSettings->eSequenceMode != AL_SM_UNKNOWN) && (pStreamSettings->eSequenceMode != AL_SM_PROGRESSIVE))
+  if(pStreamSettings->tDim.iWidth < tSPSDim.iWidth)
+  {
+    Rtos_Log(AL_LOG_ERROR, "Width '%i' is not supported by the CHANNEL. Maximum supported width is '%i'.\n", tSPSDim.iWidth, pStreamSettings->tDim.iWidth);
+    return AL_WARN_SPS_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
+  }
+
+  if(pStreamSettings->tDim.iHeight < tSPSDim.iHeight)
+  {
+    Rtos_Log(AL_LOG_ERROR, "Height '%i' is not supported by the CHANNEL. Maximum supported height is '%i'.\n", tSPSDim.iHeight, pStreamSettings->tDim.iHeight);
+    return AL_WARN_SPS_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
+  }
+
+  if((pStreamSettings->eSequenceMode != AL_SM_UNKNOWN) && (pStreamSettings->eSequenceMode != AL_SM_PROGRESSIVE))
     return AL_WARN_SPS_INTERLACE_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
 
   return AL_SUCCESS;
@@ -195,7 +219,7 @@ static AL_ERR isSPSCompatibleWithStreamSettings(AL_TDecCtx const* pCtx, AL_TAvcS
 extern int AVC_GetMinOutputBuffersNeeded(int iDpbMaxBuf, int iStack, bool bDecodeIntraOnly);
 
 /******************************************************************************/
-static AL_TStreamSettings extractStreamSettings(AL_TAvcSps const* pSPS, bool bHasFields, bool bDecodeIntraOnly)
+static void extractStreamSettings(AL_TAvcSps const* pSPS, AL_TStreamSettings* pStreamSettings, bool bHasFields)
 {
   uint32_t uFlags = (pSPS->constraint_set0_flag |
                      (pSPS->constraint_set1_flag << 1) |
@@ -204,35 +228,33 @@ static AL_TStreamSettings extractStreamSettings(AL_TAvcSps const* pSPS, bool bHa
                      (pSPS->constraint_set4_flag << 4) |
                      (pSPS->constraint_set5_flag << 5));
 
-  AL_TStreamSettings tStreamSettings;
-  tStreamSettings.tDim = extractDimension(pSPS, bHasFields);
-  tStreamSettings.eChroma = (AL_EChromaMode)pSPS->chroma_format_idc;
-  tStreamSettings.iBitDepth = getMaxBitDepth(pSPS);
-  tStreamSettings.iLevel = pSPS->constraint_set3_flag ? 9 : pSPS->level_idc;
-  tStreamSettings.eProfile = AL_PROFILE_AVC | pSPS->profile_idc | AL_CS_FLAGS(uFlags);
-  tStreamSettings.eSequenceMode = AL_SM_PROGRESSIVE;
-  tStreamSettings.bDecodeIntraOnly = bDecodeIntraOnly;
-  return tStreamSettings;
+  pStreamSettings->tDim = extractDimension(pSPS, bHasFields);
+  pStreamSettings->eChroma = (AL_EChromaMode)pSPS->chroma_format_idc;
+  pStreamSettings->iBitDepth = getMaxBitDepthFromSPSPBitDepth(pSPS);
+  pStreamSettings->iLevel = pSPS->constraint_set3_flag ? 9 : pSPS->level_idc;
+  pStreamSettings->eProfile = AL_PROFILE_AVC | pSPS->profile_idc | AL_CS_FLAGS(uFlags);
+  pStreamSettings->eSequenceMode = AL_SM_PROGRESSIVE;
+  pStreamSettings->iMaxRef = AL_AVC_GetMaxDPBSize(pStreamSettings->iLevel, pStreamSettings->tDim.iWidth, pStreamSettings->tDim.iHeight, AL_IS_INTRA_PROFILE(pStreamSettings->eProfile), AL_IS_STILL_PROFILE(pStreamSettings->eProfile), pStreamSettings->bDecodeIntraOnly);
 }
 
 /******************************************************************************/
-int AL_AVC_GetMaxDpbBuffers(AL_TStreamSettings const* pSpsSettings, int iSPSMaxRefFrames)
+int AL_AVC_GetMaxDpbBuffers(AL_TStreamSettings const* pCurrentStreamSettings, int iSPSMaxRefFrames)
 {
-  return AL_AVC_GetMaxDPBSize(pSpsSettings->iLevel, pSpsSettings->tDim.iWidth, pSpsSettings->tDim.iHeight, iSPSMaxRefFrames, AL_IS_INTRA_PROFILE(pSpsSettings->eProfile), pSpsSettings->bDecodeIntraOnly);
+  return AL_AVC_GetMaxDPBSize(pCurrentStreamSettings->iLevel, pCurrentStreamSettings->tDim.iWidth, pCurrentStreamSettings->tDim.iHeight, iSPSMaxRefFrames, AL_IS_INTRA_PROFILE(pCurrentStreamSettings->eProfile), pCurrentStreamSettings->bDecodeIntraOnly);
 }
 
 /******************************************************************************/
-static AL_ERR resolutionFound(AL_TDecCtx* pCtx, AL_TStreamSettings const* pSpsSettings, AL_TCropInfo const* pCropInfo, int iSPSMaxRefFrames)
+static AL_ERR resolutionFound(AL_TDecCtx* pCtx, AL_TStreamSettings const* pCurrentStreamSettings, AL_TCropInfo const* pCropInfo, int iSPSMaxRefFrames)
 {
-  int iDpbMaxBuf = AL_AVC_GetMaxDpbBuffers(pSpsSettings, iSPSMaxRefFrames);
-  int iMaxBuf = AVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, pCtx->iStackSize, pCtx->tStreamSettings.bDecodeIntraOnly);
   bool bEnableDisplayCompression;
-  AL_EFbStorageMode eDisplayStorageMode = AL_Default_Decoder_GetDisplayStorageMode(pCtx, pSpsSettings->iBitDepth, &bEnableDisplayCompression);
+  AL_EFbStorageMode eDisplayStorageMode = AL_Default_Decoder_GetDisplayStorageMode(pCtx, pCurrentStreamSettings->iBitDepth, &bEnableDisplayCompression);
 
-  AL_TDimension tOutputDim = pSpsSettings->tDim;
+  AL_TDimension tOutputDim = pCurrentStreamSettings->tDim;
 
-  int iSizeYuv = AL_GetAllocSize_Frame(tOutputDim, pSpsSettings->eChroma, pSpsSettings->iBitDepth, bEnableDisplayCompression, eDisplayStorageMode);
-  return pCtx->tDecCB.resolutionFoundCB.func(iMaxBuf, iSizeYuv, pSpsSettings, pCropInfo, pCtx->tDecCB.resolutionFoundCB.userParam);
+  int iDpbMaxBuf = AL_AVC_GetMaxDpbBuffers(pCurrentStreamSettings, iSPSMaxRefFrames);
+  int iMaxBuf = AVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, pCtx->iStackSize, pCurrentStreamSettings->bDecodeIntraOnly);
+  int iSizeYuv = AL_GetAllocSize_Frame(tOutputDim, pCurrentStreamSettings->eChroma, pCurrentStreamSettings->iBitDepth, bEnableDisplayCompression, eDisplayStorageMode);
+  return pCtx->tDecCB.resolutionFoundCB.func(iMaxBuf, iSizeYuv, pCurrentStreamSettings, pCropInfo, pCtx->tDecCB.resolutionFoundCB.userParam);
 }
 
 /******************************************************************************/
@@ -240,20 +262,22 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS, bool bHasF
 {
   int const iNumMBs = (pSPS->pic_width_in_mbs_minus1 + 1) * AL_AVC_GetFrameHeight(pSPS, bHasFields);
   (void)iNumMBs;
-  AL_Assert(iNumMBs == ((pCtx->tStreamSettings.tDim.iWidth / 16) * (pCtx->tStreamSettings.tDim.iHeight / 16)));
+  AL_TStreamSettings const* pStreamSettings = &pCtx->tStreamSettings;
+  AL_Assert(iNumMBs == ((pStreamSettings->tDim.iWidth / 16) * (pStreamSettings->tDim.iHeight / 16)));
+
   int iSPSMaxSlices = getMaxNumberOfSlices(pCtx, pSPS) + 1; // One more for conceal slice
   int iSizeWP = iSPSMaxSlices * WP_SLICE_SIZE;
   int iSizeSP = iSPSMaxSlices * sizeof(AL_TDecSliceParam);
-  int iSizeCompData = AL_GetAllocSize_AvcCompData(pCtx->tStreamSettings.tDim, pCtx->tStreamSettings.eChroma);
-  int iSizeCompMap = AL_GetAllocSize_DecCompMap(pCtx->tStreamSettings.tDim);
+  int iSizeCompData = AL_GetAllocSize_AvcCompData(pStreamSettings->tDim, pStreamSettings->eChroma);
+  int iSizeCompMap = AL_GetAllocSize_DecCompMap(pStreamSettings->tDim);
   AL_ERR error = AL_ERR_NO_MEMORY;
 
   if(!AL_Default_Decoder_AllocPool(pCtx, 0, 0, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap, 0))
     goto fail_alloc;
 
-  int iDpbMaxBuf = AL_AVC_GetMaxDpbBuffers(&pCtx->tStreamSettings, pSPS->max_num_ref_frames * (1 + bHasFields));
-  int iMaxBuf = AL_AVC_GetMinOutputBuffersNeeded(&pCtx->tStreamSettings, pCtx->iStackSize);
-  int iSizeMV = AL_GetAllocSize_AvcMV(pCtx->tStreamSettings.tDim);
+  int iDpbMaxBuf = AL_AVC_GetMaxDpbBuffers(pStreamSettings, pSPS->max_num_ref_frames * (1 + bHasFields));
+  int iMaxBuf = AL_AVC_GetMinOutputBuffersNeeded(pStreamSettings, pCtx->iStackSize);
+  int iSizeMV = AL_GetAllocSize_AvcMV(pStreamSettings->tDim);
   int iSizePOC = POCBUFF_PL_SIZE;
 
   if(!AL_Default_Decoder_AllocMv(pCtx, iSizeMV, iSizePOC, iMaxBuf))
@@ -264,7 +288,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS, bool bHasF
     iDpbMaxBuf,
     pCtx->eDpbMode,
     pCtx->pChanParam->eFBStorageMode,
-    getMaxBitDepth(pSPS),
+    pStreamSettings->iBitDepth,
     iMaxBuf,
     iSizeMV,
     pCtx->pChanParam->bUseEarlyCallback,
@@ -275,7 +299,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS, bool bHasF
 
   AL_TCropInfo tCropInfo = AL_AVC_GetCropInfo(pSPS);
 
-  error = resolutionFound(pCtx, &pCtx->tStreamSettings, &tCropInfo, pSPS->max_num_ref_frames * (1 + bHasFields));
+  error = resolutionFound(pCtx, pStreamSettings, &tCropInfo, pSPS->max_num_ref_frames * (1 + bHasFields));
 
   if(AL_IS_ERROR_CODE(error))
     goto fail_alloc;
@@ -291,10 +315,11 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS, bool bHasF
 static bool initChannel(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS)
 {
   AL_TDecChanParam* pChan = pCtx->pChanParam;
-  pChan->iWidth = pCtx->tStreamSettings.tDim.iWidth;
-  pChan->iHeight = pCtx->tStreamSettings.tDim.iHeight;
+  AL_TStreamSettings const* pStreamSettings = &pCtx->tStreamSettings;
+  pChan->iWidth = pStreamSettings->tDim.iWidth;
+  pChan->iHeight = pStreamSettings->tDim.iHeight;
   pChan->uLog2MaxCuSize = AL_CORE_AVC_LOG2_MAX_CU_SIZE;
-  pChan->eMaxChromaMode = pCtx->tStreamSettings.eChroma;
+  pChan->eMaxChromaMode = pStreamSettings->eChroma;
 
   int const iSPSMaxSlices = getMaxNumberOfSlices(pCtx, pSPS);
   pChan->iMaxSlices = iSPSMaxSlices;
@@ -348,7 +373,7 @@ static bool initSlice(AL_TDecCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 
   if(!pCtx->bIsFirstSPSChecked)
   {
-    AL_ERR const ret = isSPSCompatibleWithStreamSettings(pCtx, pSlice->pSPS, pSlice->field_pic_flag, &pCtx->tStreamSettings);
+    AL_ERR const ret = !pCtx->bIsBuffersAllocated ? isSPSCompatibleWithHardware(pSlice->pSPS, pSlice->field_pic_flag) : isSPSCompatibleWithStreamSettings(pCtx, pSlice->pSPS, pSlice->field_pic_flag, &pCtx->tStreamSettings);
 
     if(ret != AL_SUCCESS)
     {
@@ -360,7 +385,7 @@ static bool initSlice(AL_TDecCtx* pCtx, AL_TAvcSliceHdr* pSlice)
     }
 
     if(!pCtx->bIsBuffersAllocated)
-      pCtx->tStreamSettings = extractStreamSettings(pSlice->pSPS, pSlice->field_pic_flag, pCtx->tStreamSettings.bDecodeIntraOnly);
+      extractStreamSettings(pSlice->pSPS, &pCtx->tStreamSettings, pSlice->field_pic_flag);
 
     pCtx->bIsFirstSPSChecked = true;
 
@@ -639,8 +664,8 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
   bool* bFirstSliceInFrameIsValid = &pCtx->bFirstSliceInFrameIsValid;
   bool* bFirstIsValid = &pCtx->bFirstIsValid;
   bool* bBeginFrameIsValid = &pCtx->bBeginFrameIsValid;
-  bool bCheckDynResChange = pCtx->bIsBuffersAllocated;
-  AL_TDimension tLastDim = !pCtx->bIsFirstSPSChecked ? pCtx->tStreamSettings.tDim : extractDimension(pAUP->pActiveSPS, pSlice->field_pic_flag);
+
+  AL_TDimension tActiveDimension = !pCtx->bIsFirstSPSChecked ? pCtx->tStreamSettings.tDim : extractDimension(pAUP->pActiveSPS, pSlice->field_pic_flag);
 
   if(!bSliceBelongsToSameFrame && AL_Default_Decoder_HasOngoingFrame(pCtx))
     finishPreviousFrame(pCtx);
@@ -683,7 +708,13 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
     AL_TAvcSps* pSPS = &pAUP->pSPS[spsid];
     AL_ERR const ret = isSPSCompatibleWithStreamSettings(pCtx, pSPS, pSlice->field_pic_flag, &pCtx->tStreamSettings);
     isValid = ret == AL_SUCCESS;
-    AL_TStreamSettings spsSettings = extractStreamSettings(pSPS, pSlice->field_pic_flag, pCtx->tStreamSettings.bDecodeIntraOnly);
+    AL_TStreamSettings spsSettings;
+
+    if(isValid)
+    {
+      spsSettings.bDecodeIntraOnly = pCtx->tStreamSettings.bDecodeIntraOnly;
+      extractStreamSettings(pSPS, &spsSettings, pSlice->field_pic_flag);
+    }
 
     if(!isValid)
     {
@@ -691,7 +722,7 @@ static bool decodeSliceData(AL_TAup* pIAUP, AL_TDecCtx* pCtx, AL_ENut eNUT, bool
       AL_Default_Decoder_SetError(pCtx, ret, pPP->tBufIDs.FrmID, true);
       pSPS->bConceal = true;
     }
-    else if(bCheckDynResChange && (spsSettings.tDim.iWidth != tLastDim.iWidth || spsSettings.tDim.iHeight != tLastDim.iHeight))
+    else if(spsSettings.tDim.iWidth != tActiveDimension.iWidth || spsSettings.tDim.iHeight != tActiveDimension.iHeight)
     {
       AL_TCropInfo tCropInfo = AL_AVC_GetCropInfo(pSPS);
       AL_ERR error = resolutionFound(pCtx, &spsSettings, &tCropInfo, pSPS->max_num_ref_frames * (1 + pSlice->field_pic_flag));
@@ -985,6 +1016,7 @@ void AL_AVC_InitAUP(AL_TAvcAup* pAUP)
 /*****************************************************************************/
 AL_ERR CreateAvcDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB)
 {
+  pSettings->tStream.iMaxRef = Min(MAX_REF, pSettings->tStream.iMaxRef);
   AL_ERR errorCode = AL_CreateDefaultDecoder((AL_TDecoder**)hDec, pScheduler, pAllocator, pSettings, pCB);
 
   if(!AL_IS_ERROR_CODE(errorCode))

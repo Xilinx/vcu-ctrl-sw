@@ -14,6 +14,7 @@
 #include "lib_common_dec/DecInfo.h"
 #include "lib_common_dec/DecDpbMode.h"
 #include "lib_common_dec/DecSynchro.h"
+#include "lib_common_dec/StreamSettings.h"
 
 /*************************************************************************//*!
    \brief Decoder Input Mode
@@ -72,7 +73,7 @@ void AL_DecSettings_SetDefaults(AL_TDecSettings* pSettings);
    the number of invalid parameters found (true);
    and this Settings can not be used with IP encoder.
 *****************************************************************************/
-int AL_DecSettings_CheckValidity(AL_TDecSettings* pSettings, FILE* pOut);
+int AL_DecSettings_CheckValidity(AL_TDecSettings const* pSettings, FILE* pOut);
 
 /**************************************************************************//*!
    \brief Checks that decoding parameters are coherent between them.

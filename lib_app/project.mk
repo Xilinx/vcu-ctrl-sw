@@ -14,8 +14,12 @@ LIB_APP_SRC:=\
   lib_app/Parser.cpp\
   lib_app/Tokenizer.cpp\
   lib_app/FrameReader.cpp\
-  lib_app/NonCompFrameReader.cpp\
+  lib_app/UnCompFrameReader.cpp\
   lib_app/UnCompFrameWriter.cpp\
+  lib_app/SinkBaseWriter.cpp\
+  lib_app/SinkStreamMd5.cpp\
+  lib_app/SinkCrcDump.cpp\
+  lib_app/PlaneUtils.cpp\
   $(LIB_PERFS_SRC)\
   $(LIB_COMMON_SRC)\
 

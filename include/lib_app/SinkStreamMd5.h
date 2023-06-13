@@ -3,9 +3,6 @@
 
 #pragma once
 
-#include "sink.h"
-#include "CfgParser.h"
+#include "lib_app/Sink.h"
 
-std::unique_ptr<IFrameSink> createYuvMd5Calculator(std::string path, ConfigFile& cfg_);
 std::unique_ptr<IFrameSink> createStreamMd5Calculator(std::string path);
-

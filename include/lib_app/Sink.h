@@ -13,24 +13,32 @@ extern "C"
 
 struct IFrameSink
 {
-  virtual ~IFrameSink() {};
+  virtual ~IFrameSink() = default;
   virtual void PreprocessFrame() {};
   virtual void ProcessFrame(AL_TBuffer* frame) = 0;
 };
 
-struct NullFrameSink : IFrameSink
+struct NullFrameSink final : IFrameSink
 {
-  virtual void ProcessFrame(AL_TBuffer*) override {}
+  ~NullFrameSink() = default;
+  void ProcessFrame(AL_TBuffer*) override {}
 };
 
-struct MultiSink : IFrameSink
+struct MultiSink final : IFrameSink
 {
+  ~MultiSink() = default;
   void ProcessFrame(AL_TBuffer* frame) override
   {
-    for(auto& sink : sinks)
+    for(auto const& sink : sinks)
       sink->ProcessFrame(frame);
   }
 
+  void addSink(std::unique_ptr<IFrameSink>& newWriter)
+  {
+    sinks.push_back(std::move(newWriter));
+  }
+
+private:
   std::vector<std::unique_ptr<IFrameSink>> sinks;
 };
 

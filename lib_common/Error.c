@@ -19,8 +19,10 @@ const char* AL_Codec_ErrorToString(AL_ERR eErrorCode)
   case AL_ERR_REQUEST_MALFORMED: return "Channel creation failed, request was malformed";
   case AL_ERR_CMD_NOT_ALLOWED: return "Command is not allowed";
   case AL_ERR_CHAN_CREATION_MIX_REALTIME: return "Cannot mix realtime and non-realtime channel";
+  case AL_ERR_CANNOT_OPEN_FILE: return "Cannot Open file";
+  case AL_ERR_ROI_DISABLE: return "Regions Of Interest (ROI) are disabled";
   case AL_ERR_QPLOAD_DATA: return "Error in QP file data.";
-  case AL_ERR_QPLOAD_NOT_ENOUGH_DATA: return "Not enough datas in the provided QP table.";
+  case AL_ERR_QPLOAD_NOT_ENOUGH_DATA: return "Not enough data in the provided QP table.";
   case AL_ERR_QPLOAD_SEGMENT_CONFIG: return "Some segments are configured with an invalid QP in the provided QP table.";
   case AL_ERR_QPLOAD_QP_VALUE: return "Invalid QPs configured in the provided QP table.";
   case AL_ERR_QPLOAD_SEGMENT_INDEX: return "Invalid segment indexes found in the provided QP table.";
@@ -45,6 +47,7 @@ const char* AL_Codec_ErrorToString(AL_ERR eErrorCode)
   case AL_WARN_SPS_INTERLACE_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS: return "Sps sequence mode (progressive/interlaced) mode not compatible with channel settings, decoder discarded it";
   case AL_WARN_SPS_MIN_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS: return "Sps resolution not compatible with minimal resolution, decoder discarded it";
   case AL_WARN_SPS_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS: return "Sps resolution not compatible with channel settings, decoder discarded it";
+  case AL_WARN_ASO_FMO_NOT_SUPPORTED: return "Arbitrary Slice Order (ASO) or Flexible Macroblock Reordering (FMO) features are not supported, decoder discarded it";
 
   /* Others */
   case AL_SUCCESS: return "Success";

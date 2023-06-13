@@ -16,10 +16,7 @@ extern "C"
    be allocated.
    \param[out] pYUV        Pointer to the frame buffer (IYUV planar format) that receives the converted frame
    \param[in]  iSizePix    Size of each samples in byte
-   \param[in]  iCropLeft   Delta of the rectangular region at the left of the picture
-   \param[in]  iCropTop    Delta of the rectangular region at the right of the picture
-   \param[in]  iCropBottom Delta of the rectangular region at the top   of the picture
-   \param[in]  iCropBottom Delta of the rectangular region at the bottom of the picture
+   \param[in]  tCrop       Region of the picture to keep
 *****************************************************************************/
-void CropFrame(AL_TBuffer* pYUV, int iSizePix, int32_t iCropLeft, int32_t iCropRight, int32_t iCropTop, int32_t iCropBottom);
+void CropFrame(AL_TBuffer* pYUV, int iSizePix, AL_TCropInfo tCrop);
 

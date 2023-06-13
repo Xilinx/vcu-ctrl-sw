@@ -9,35 +9,9 @@
  *****************************************************************************/
 #pragma once
 
+#include "lib_common_dec/StreamSettings.h"
 #include "lib_common/SliceConsts.h"
 #include "lib_common/PicFormat.h"
-#include "lib_common/VideoMode.h"
-
-/*************************************************************************//*!
-   \brief Stream's settings
- *************************************************************************/
-typedef struct
-{
-  AL_TDimension tDim; /*!< Stream's dimension (width / height) */
-  AL_EChromaMode eChroma; /*!< Stream's chroma mode (400/420/422/444) */
-  int iBitDepth; /*!< Stream's bit depth */
-  int iLevel; /*!< Stream's level */
-  AL_EProfile eProfile; /*!< Stream's profile */
-  AL_ESequenceMode eSequenceMode; /*!< Stream's sequence mode */
-  bool bDecodeIntraOnly;  /*!< Should the decoder process only I frames  */
-}AL_TStreamSettings;
-
-/*************************************************************************//*!
-   \brief Cropping Info on the YUV reconstructed
- *************************************************************************/
-typedef struct t_CropInfo
-{
-  bool bCropping;         /*!< Cropping information present flag    */
-  uint32_t uCropOffsetLeft;   /*!< Left   offset of the cropping window */
-  uint32_t uCropOffsetRight;  /*!< Right  offset of the cropping window */
-  uint32_t uCropOffsetTop;    /*!< Top    offset of the cropping window */
-  uint32_t uCropOffsetBottom; /*!< Bottom offset of the cropping window */
-}AL_TCropInfo;
 
 /*************************************************************************//*!
    \brief Info on stream decoding
@@ -52,6 +26,7 @@ typedef struct t_InfoDecode
   AL_EFbStorageMode eFbStorageMode; /*! frame buffer storage mode */
   AL_EPicStruct ePicStruct; /*!< structure (frame/field, top/Bottom) of the current framebuffer */
   uint32_t uCRC; /*!< framebuffer data crc */
+  AL_EOutputType eOutputID;
   AL_TPosition tPos; /*!< Position of the top left decoded pixel */
 }AL_TInfoDecode;
 

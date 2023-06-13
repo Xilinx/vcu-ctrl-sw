@@ -13,6 +13,7 @@
 
 #include "DefaultDecoder.h"
 #include "NalUnitParser.h"
+#include "lib_decode/InternalError.h"
 #include "NalUnitParserPrivate.h"
 #include "UnsplitBufferFeeder.h"
 #include "SplitBufferFeeder.h"
@@ -24,9 +25,9 @@
 #include "lib_common/BufferStreamMeta.h"
 #include "lib_common/BufferHandleMeta.h"
 #include "lib_common/BufferAPIInternal.h"
-#include "lib_common/HardwareConfig.h"
 #include "lib_common/SEI.h"
 #include "lib_common_dec/IpDecFourCC.h"
+#include "lib_common_dec/DecHardwareConfig.h"
 
 #include "lib_common/AvcLevelsLimit.h"
 #include "lib_common/AvcUtils.h"
@@ -37,6 +38,7 @@
 #include "lib_decode/I_DecScheduler.h"
 #include "lib_common/CodecHook.h"
 #include "lib_common_dec/HDRMeta.h"
+#include "lib_common_dec/StreamSettingsInternal.h"
 
 #include "lib_assert/al_assert.h"
 
@@ -1480,7 +1482,7 @@ static bool CheckDisplayBufferCanBeUsed(AL_TDecCtx* pCtx, AL_TBuffer* pBuf)
   if(iPitchY < (int)AL_Decoder_GetMinPitch(tOutputDim.iWidth, pSettings->iBitDepth, eDisplayStorageMode))
     return false;
 
-  if(pCtx->tStreamSettings.eChroma == AL_CHROMA_4_4_4)
+  if(pSettings->eChroma == AL_CHROMA_4_4_4)
   {
     int const iPitchU = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_U);
     int const iPitchV = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_V);
@@ -1488,7 +1490,7 @@ static bool CheckDisplayBufferCanBeUsed(AL_TDecCtx* pCtx, AL_TBuffer* pBuf)
     if((iPitchY != iPitchU) || (iPitchU != iPitchV))
       return false;
   }
-  else if(pCtx->tStreamSettings.eChroma != AL_CHROMA_MONO)
+  else if(pSettings->eChroma != AL_CHROMA_MONO)
   {
     int const iPitchUV = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_UV);
 
@@ -1585,12 +1587,13 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
   AL_Assert(!pCtx->bIsBuffersAllocated);
 
   AL_ERR error = AL_ERR_NO_MEMORY;
-  AL_TStreamSettings const* pStreamSettings = &pCtx->tStreamSettings;
+  pCtx->tInitialStreamSettings = pCtx->tStreamSettings;
+  AL_TStreamSettings const* pStreamSettings = &pCtx->tInitialStreamSettings;
+
+  if(!CheckStreamSettings(pStreamSettings))
+    return false;
 
   int iSPSMaxSlices = RoundUp(pCtx->pChanParam->iHeight, 16) / 16;
-  int iSizeALF = 0;
-  int iSizeLmcs = 0;
-  int iSizeCQp = 0;
 
   if(isAVC(pCtx->pChanParam->eCodec))
     iSPSMaxSlices = AL_AVC_GetMaxNumberOfSlices(pStreamSettings->eProfile, pStreamSettings->iLevel,
@@ -1600,8 +1603,6 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
   if(isHEVC(pCtx->pChanParam->eCodec))
     iSPSMaxSlices = AL_HEVC_GetMaxNumberOfSlices(pStreamSettings->iLevel);
 
-  int iSizeWP = iSPSMaxSlices * WP_SLICE_SIZE;
-  int iSizeSP = iSPSMaxSlices * sizeof(AL_TDecSliceParam);
   int iSizeCompData = 0;
 
   if(isAVC(pCtx->pChanParam->eCodec))
@@ -1611,14 +1612,23 @@ bool AL_Default_Decoder_PreallocateBuffers(AL_TDecoder* pAbsDec)
     iSizeCompData = AL_GetAllocSize_HevcCompData(pStreamSettings->tDim, pStreamSettings->eChroma);
   int const iSizeCompMap = AL_GetAllocSize_DecCompMap(pStreamSettings->tDim);
 
+  int iSizeALF = 0;
+  int iSizeLmcs = 0;
+  int iSizeCQp = 0;
+
+  int iSizeWP = iSPSMaxSlices * WP_SLICE_SIZE;
+  int iSizeSP = iSPSMaxSlices * sizeof(AL_TDecSliceParam);
+
   if(!AL_Default_Decoder_AllocPool(pCtx, iSizeALF, iSizeLmcs, iSizeWP, iSizeSP, iSizeCompData, iSizeCompMap, iSizeCQp))
     goto fail_alloc;
 
-  int iDpbMaxBuf = 0, iMaxBuf = 0, iSizeMV = 0;
+  int iMaxBuf = 0;
+  int iDpbMaxBuf = 0;
+  int iSizeMV = 0;
 
   if(isAVC(pCtx->pChanParam->eCodec))
   {
-    iDpbMaxBuf = AL_AVC_GetMaxDpbBuffers(pStreamSettings, 0);
+    iDpbMaxBuf = AL_AVC_GetMaxDpbBuffers(pStreamSettings, pStreamSettings->iMaxRef);
     iMaxBuf = AL_AVC_GetMinOutputBuffersNeeded(pStreamSettings, pCtx->iStackSize);
     iSizeMV = AL_GetAllocSize_AvcMV(pStreamSettings->tDim);
   }
@@ -1697,21 +1707,6 @@ static AL_TBuffer* AllocEosBufferAVC(bool bSplitInput, AL_TAllocator* pAllocator
 }
 
 /*****************************************************************************/
-static bool CheckStreamSettings(AL_TStreamSettings const* pStreamSettings)
-{
-  if(!IsAtLeastOneStreamSettingsSet(pStreamSettings))
-    return true;
-
-  if(!IsAllStreamSettingsSet(pStreamSettings))
-    return false;
-
-  if(pStreamSettings->iBitDepth > AL_HWConfig_Dec_GetSupportedBitDepth())
-    return false;
-
-  return true;
-}
-
-/*****************************************************************************/
 static bool CheckDecodeUnit(AL_EDecUnit eDecUnit)
 {
   return eDecUnit != AL_DEC_UNIT_MAX_ENUM;
@@ -1778,7 +1773,7 @@ static bool CheckSettings(AL_TDecSettings const* pSettings)
 }
 
 /*****************************************************************************/
-static void AssignSettings(AL_TDecCtx* const pCtx, AL_TDecSettings const* const pSettings)
+static void AssignSettings(AL_TDecCtx* pCtx, AL_TDecSettings const* pSettings)
 {
   pCtx->eInputMode = pSettings->eInputMode;
   pCtx->iStackSize = pSettings->iStackSize;
@@ -1787,9 +1782,7 @@ static void AssignSettings(AL_TDecCtx* const pCtx, AL_TDecSettings const* const 
   pCtx->eDpbMode = pSettings->eDpbMode;
   pCtx->tStreamSettings = pSettings->tStream;
   pCtx->bUseIFramesAsSyncPoint = pSettings->bUseIFramesAsSyncPoint;
-
-  if(pCtx->tStreamSettings.bDecodeIntraOnly)
-    pCtx->bIsIFrame = true;
+  pCtx->bIsIFrame = pSettings->tStream.bDecodeIntraOnly;
 
   AL_TDecChanParam* pChan = pCtx->pChanParam;
   pChan->uMaxLatency = pSettings->iStackSize;
@@ -1849,7 +1842,8 @@ bool AL_Default_Decoder_AllocPool(AL_TDecCtx* pCtx, int iALFSize, int iLmcsSize,
   int iPoolSize = pCtx->bStillPictureProfile ? 1 : pCtx->iStackSize;
 
   AL_ECodec const eCodec = pCtx->pChanParam->eCodec;
-  AL_EChromaOrder eChromaOrder = AL_ChromaModeToChromaOrder(pCtx->tStreamSettings.eChroma);
+  AL_TStreamSettings const* pStreamSettings = &pCtx->tStreamSettings;
+  AL_EChromaOrder eChromaOrder = AL_ChromaModeToChromaOrder(pStreamSettings->eChroma);
   const uint32_t uRefListSize = AL_GetRefListOffsets(NULL, eCodec, eChromaOrder, sizeof(AL_PADDR));
 
   // Alloc Decoder buffers

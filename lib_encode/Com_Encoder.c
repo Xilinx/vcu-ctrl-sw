@@ -13,6 +13,7 @@
 #include "lib_common/BufferStreamMeta.h"
 #include "lib_common/BufferPictureMeta.h"
 #include "lib_common/StreamBuffer.h"
+#include "lib_rtos/types.h"
 #include "lib_common/BufferLookAheadMeta.h"
 #include "lib_common_enc/EncChanParamInternal.h"
 #include "lib_common_enc/RateCtrlMeta.h"
@@ -656,15 +657,27 @@ static uint32_t ComputeBitPerPixel(AL_TEncChanParam* pChParam)
 
 static void SetGoldenRefFrequency(AL_TEncChanParam* pChParam)
 {
-  pChParam->tGopParam.uFreqGoldenRef = 0;
-
-  if((pChParam->eLdaCtrlMode != AL_DYNAMIC_LDA) || (!pChParam->tRCParam.bUseGoldenRef))
+  if(!pChParam->tRCParam.bUseGoldenRef)
+  {
+    pChParam->tGopParam.uFreqGoldenRef = 0;
     return;
+  }
+
+  if(pChParam->eLdaCtrlMode != AL_DYNAMIC_LDA)
+  {
+    pChParam->tGopParam.uFreqGoldenRef = 0;
+    pChParam->tRCParam.bUseGoldenRef = false;
+    return;
+  }
 
   if(pChParam->tGopParam.eMode & AL_GOP_FLAG_DEFAULT)
   {
     if(pChParam->tGopParam.uNumB)
+    {
+      pChParam->tGopParam.uFreqGoldenRef = 0;
+      pChParam->tRCParam.bUseGoldenRef = false;
       return;
+    }
 
     if(pChParam->tRCParam.uGoldenRefFrequency < -1)
       pChParam->tGopParam.uFreqGoldenRef = 4;

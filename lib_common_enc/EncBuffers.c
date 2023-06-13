@@ -110,8 +110,7 @@ bool AL_IsSrcCompressed(AL_ESrcMode eSrcMode)
 /****************************************************************************/
 uint32_t AL_GetAllocSizeSrc_PixPlane(AL_ESrcMode eSrcFmt, int iPitch, int iStrideHeight, AL_EChromaMode eChromaMode, AL_EPlaneId ePlaneId)
 {
-  AL_EChromaOrder eChromaOrder = eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA :
-                                 (eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR);
+  AL_EChromaOrder eChromaOrder = GetChromaOrder(eChromaMode);
 
   if(!AL_Plane_Exists(eChromaOrder, false, ePlaneId))
     return 0;
@@ -151,7 +150,7 @@ uint32_t AL_GetAllocSizeSrc(AL_TDimension tDim, AL_EChromaMode eChromaMode, AL_E
 {
   (void)tDim;
 
-  AL_EChromaOrder eChromaOrder = eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR;
+  AL_EChromaOrder eChromaOrder = GetChromaOrder(eChromaMode);
   AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES];
 
   uint32_t uSize = 0;

@@ -14,7 +14,8 @@ LIB_COMMON_SRC:=\
   lib_common/IntVector.c\
   lib_common/Planes.c\
   lib_common/HardwareConfig.c\
-  lib_common/Error.c
+  lib_common/Error.c\
+  lib_common/DisplayInfoMeta.c\
 
 
 HAS_CODEC=0

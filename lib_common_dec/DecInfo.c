@@ -62,7 +62,7 @@ int AL_HEVC_GetMinOutputBuffersNeeded(AL_TStreamSettings const* pStreamSettings,
   if(AL_IS_INTRA_PROFILE(pStreamSettings->eProfile))
     return Max(2, iStack);
 
-  int const iDpbMaxBuf = AL_HEVC_GetMaxDPBSize(pStreamSettings->iLevel, pStreamSettings->tDim.iWidth, pStreamSettings->tDim.iHeight, AL_IS_INTRA_PROFILE(pStreamSettings->eProfile), AL_IS_STILL_PROFILE(pStreamSettings->eProfile), pStreamSettings->bDecodeIntraOnly);
+  int const iDpbMaxBuf = Max(AL_HEVC_GetMaxDPBSize(pStreamSettings->iLevel, pStreamSettings->tDim.iWidth, pStreamSettings->tDim.iHeight, AL_IS_INTRA_PROFILE(pStreamSettings->eProfile), AL_IS_STILL_PROFILE(pStreamSettings->eProfile), pStreamSettings->bDecodeIntraOnly), pStreamSettings->iMaxRef);
   return HEVC_GetMinOutputBuffersNeeded(iDpbMaxBuf, iStack, pStreamSettings->bDecodeIntraOnly);
 }
 

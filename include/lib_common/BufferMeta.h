@@ -24,6 +24,7 @@ typedef enum
   AL_META_TYPE_SEI, /*< sei messages */
   AL_META_TYPE_HDR, /*< hdr settings for the frame */
   AL_META_TYPE_RATECTRL, /*< rate-control statistics */
+  AL_META_TYPE_DISPLAY_INFO,
   AL_META_TYPE_MAX, /* sentinel */
   AL_META_TYPE_EXTENDED = 0x7F000000 /*< user can define their own metadatas after this value */
 }AL_EMetaType;

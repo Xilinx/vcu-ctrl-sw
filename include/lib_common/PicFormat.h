@@ -41,6 +41,18 @@ typedef struct
 }AL_TWindow;
 
 /*************************************************************************//*!
+   \brief Cropping Info on the YUV reconstructed
+ *************************************************************************/
+typedef struct t_CropInfo
+{
+  bool bCropping;         /*!< Cropping information present flag    */
+  uint32_t uCropOffsetLeft;   /*!< Left   offset of the cropping window */
+  uint32_t uCropOffsetRight;  /*!< Right  offset of the cropping window */
+  uint32_t uCropOffsetTop;    /*!< Top    offset of the cropping window */
+  uint32_t uCropOffsetBottom; /*!< Bottom offset of the cropping window */
+}AL_TCropInfo;
+
+/*************************************************************************//*!
    \brief chroma_format_idc
 *****************************************************************************/
 typedef enum e_ChromaMode
@@ -89,5 +101,23 @@ typedef struct AL_t_PicFormat
   bool bCompressed;
   bool b10bPacked;
 }AL_TPicFormat;
+
+/*************************************************************************//*!
+   \brief Output type
+ *************************************************************************/
+typedef enum AL_e_OutputType
+{
+  AL_OUTPUT_PRIMARY,
+  AL_OUTPUT_MAIN,
+  AL_OUTPUT_POSTPROC,
+  AL_OUTPUT_MAX_ENUM,
+}AL_EOutputType;
+
+/****************************************************************************/
+static inline AL_EChromaOrder GetChromaOrder(AL_EChromaMode eChromaMode)
+{
+  return eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA :
+         (eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR);
+}
 
 /*@}*/

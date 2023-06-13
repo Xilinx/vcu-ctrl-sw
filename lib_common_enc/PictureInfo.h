@@ -44,7 +44,7 @@ static const uint32_t AL_PICT_INFO_NOT_SHOWABLE = 0x80000000; /*!< The picture i
 #define AL_IS_SHOWABLE(PicInfo) (!((PicInfo).uFlags & AL_PICT_INFO_NOT_SHOWABLE))
 
 /*************************************************************************//*!
-   \brief Picture informations
+   \brief Picture information
 *****************************************************************************/
 typedef struct AL_t_PictureInfo
 {
@@ -53,11 +53,11 @@ typedef struct AL_t_PictureInfo
   int32_t iPOC; /*!< Picture Order Count */
   int32_t iFrameNum; /*!< H264 frame_num field */
   AL_ESliceType eType; /*!< The type of the current slice (I, P, B, ...) */
-  AL_EPicStruct ePicStruct; /*!< The pic_struct field (Are we using interlaced fields or not) */
-  AL_EMarkingRef eMarking;
-  uint8_t uTempId;
+  AL_EPicStruct ePicStruct; /*!< Identifies the pic_struct field */
+  AL_EMarkingRef eMarking; /*!< Reference picture status */
+  uint8_t uTempId; /*!< Temporal ID */
 
-  bool bForceLT[2]; /*!< Specifies if a following reference picture need to be markes as long-term */
+  bool bForceLT[2]; /*!< Specifies if a following reference picture need to be marked as long-term */
 
   int32_t iDpbOutputDelay;
   uint8_t uRefPicSetIdx;
@@ -65,7 +65,7 @@ typedef struct AL_t_PictureInfo
   int32_t iRecoveryCnt;
 
   bool bForceQp;
-  int8_t iQpSet;
+  int16_t iQpSet;
   bool bRateCtrlQpOffset;
   int8_t iRateCtrlQpOffset;
 

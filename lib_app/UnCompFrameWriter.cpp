@@ -1,217 +1,95 @@
 // SPDX-FileCopyrightText: © 2023 Allegro DVT <github-ip@allegrodvt.com>
 // SPDX-License-Identifier: MIT
 
+#include <iostream>
+#include <algorithm>
+
 #include "lib_app/UnCompFrameWriter.h"
 
 extern "C"
 {
 #include "lib_common/PixMapBuffer.h"
-#include "lib_common/Fbc.h"
+#include "lib_common/Planes.h"
+#include "lib_common/DisplayInfoMeta.h"
 }
-
-#include <iostream>
-#include <algorithm>
 
 using namespace std;
 
 /****************************************************************************/
-namespace
+UnCompFrameWriter::UnCompFrameWriter(std::shared_ptr<std::ostream> recFile, AL_EFbStorageMode eStorageMode, AL_EOutputType outputID) :
+  BaseFrameSink(recFile, eStorageMode, outputID)
 {
-inline int RoundUp(int iVal, int iRnd)
-{
-  return iVal >= 0 ? ((iVal + iRnd - 1) / iRnd) * iRnd : (iVal / iRnd) * iRnd;
-}
-
-inline int RoundUpAndMul(uint32_t iVal, uint32_t iRound, uint8_t iMul)
-{
-  return RoundUp(iVal, iRound) * iMul;
-}
-
-inline int RoundUpAndDivide(uint32_t iVal, uint32_t iRound, uint16_t iDiv)
-{
-  return RoundUp(iVal, iRound) / iDiv;
-}
-
-inline bool AreDimensionsEqual(AL_TDimension tDim1, AL_TDimension tDim2)
-{
-  return tDim1.iWidth == tDim2.iWidth && tDim1.iHeight == tDim2.iHeight;
-}
-}
-
-const std::string UnCompFrameWriterBase::ErrorMessageWrite = "Error writing in compressed YUV file.";
-const std::string UnCompFrameWriterBase::ErrorMessageBuffer = "Null buffer provided.";
-const std::string UnCompFrameWriter::ErrorMessagePitch = "U and V plane pitches must be identical.";
-
-/****************************************************************************/
-UnCompFrameWriterBase::UnCompFrameWriterBase(IWriter& recFile, TFourCC tCompFourCC, ETileMode eTileMode) :
-  m_recFile(recFile), m_uResolutionFrameCnt(0), m_tResolutionPointerPos(-1), m_tPicDim(AL_TDimension { 0, 0 }),
-  m_tCompFourCC(tCompFourCC), m_eTileMode(eTileMode)
-{
-  AL_GetPicFormat(m_tCompFourCC, &m_ePicFormat);
 }
 
 /****************************************************************************/
-void UnCompFrameWriterBase::WriteResolution(AL_TDimension tPicDim, TCrop tCrop, AL_TPicFormat tPicFormat)
+void UnCompFrameWriter::ProcessFrame(AL_TBuffer* pBuf)
 {
-  /* !! This assumes provided compressed buffers are allocated and filled up to the next 8 multiple in height !! */
-  static const uint32_t MIN_HEIGHT_ROUNDING = 8;
+  AL_EOutputType eOutputID = AL_OUTPUT_MAIN;
+  AL_TDisplayInfoMetaData* pMeta = reinterpret_cast<AL_TDisplayInfoMetaData*>(AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_DISPLAY_INFO));
 
-  m_tPicDim = tPicDim;
-  m_tCrop = tCrop;
-  m_ePicFormat = tPicFormat;
-  m_tCompFourCC = AL_GetFourCC(tPicFormat);
+  if(pMeta)
+    eOutputID = pMeta->eOutputID;
 
-  AL_EFbStorageMode storageMode = AL_GetStorageMode(m_tCompFourCC);// = m_ePicFormat.uBitDepth == 8 ? AL_FB_TILE_64x8_PAIRED : AL_FB_TILE_32x8_PAIRED;
+  m_tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
+  AL_GetPicFormat(m_tFourCC, &m_tPicFormat);
 
-  int iNbBytesPerPix = m_ePicFormat.uBitDepth > 8 ? 2 : 1;
-  int iChromaVertScale = m_ePicFormat.eChromaMode == AL_CHROMA_4_2_0 ? 2 : 1;
-  int iChromaHorzScale = m_ePicFormat.eChromaMode == AL_CHROMA_4_4_4 ? 1 : 2;
+  AL_EFbStorageMode currentStorageMode = AL_GetStorageMode(m_tFourCC);
 
-  if(storageMode == AL_FB_RASTER)
-  {
-    m_uPitchYFile = tPicDim.iWidth * iNbBytesPerPix;
-    m_uHeightInPitchYFile = tPicDim.iHeight;
-    m_uHeightInPitchCFile = RoundUp(m_uHeightInPitchYFile, iChromaVertScale) / iChromaVertScale;
-
-    if(m_ePicFormat.eChromaOrder == AL_C_ORDER_SEMIPLANAR)
-      m_uPitchCFile = m_uPitchYFile;
-    else
-      m_uPitchCFile = RoundUp(m_uPitchYFile, iChromaHorzScale) / iChromaHorzScale;
+  if(currentStorageMode != m_eStorageMode || eOutputID != m_iOutputID)
     return;
-  }
 
-  int iTileWidth = GetTileWidth(storageMode);
-  int iTileHeight = GetTileHeight(storageMode);
+  if(pMeta)
+    m_iOutputID = pMeta->eOutputID;
 
-  if(HasSuperTile(storageMode))
-  {
-    iTileWidth *= SUPER_TILE_WIDTH;
-    iTileHeight *= SUPER_TILE_WIDTH;
+  m_tPicDim = AL_PixMapBuffer_GetDimension(pBuf);
 
-    m_uPitchYFile = RoundUpAndMul(tPicDim.iWidth, iTileWidth, iTileHeight) * iNbBytesPerPix;
-  }
-  else
-    m_uPitchYFile = RoundUpAndMul(tPicDim.iWidth, iTileWidth, iTileHeight) * m_ePicFormat.uBitDepth >> 3;
+  int32_t iPitchInLuma = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_Y);
+  int32_t iPitchInChroma = 0;
 
-  m_uPitchCFile = m_uPitchYFile;
-  m_uHeightInPitchYFile = RoundUpAndDivide(tPicDim.iHeight, std::max(uint32_t(iTileHeight), MIN_HEIGHT_ROUNDING), iTileHeight);
+  uint8_t* pY = AL_PixMapBuffer_GetPlaneAddress(pBuf, AL_PLANE_Y);
 
-  if(m_ePicFormat.eChromaOrder == AL_C_ORDER_SEMIPLANAR)
-    m_uHeightInPitchCFile = RoundUp(m_uHeightInPitchYFile, iChromaVertScale) / iChromaVertScale;
-  else
-  {
-    iChromaVertScale = 0;
-    m_uHeightInPitchCFile = 0;
-  }
-}
+  uint8_t* pC1 = nullptr;
+  uint8_t* pC2 = nullptr;
 
-/****************************************************************************/
-bool UnCompFrameWriterBase::MustWriteResolution(AL_TDimension const& tPicDim, AL_TPicFormat const& tPicFormat, TCrop const& tCrop) const
-{
-  return !AreDimensionsEqual(tPicDim, m_tPicDim) ||
-         tPicFormat.eChromaOrder != m_ePicFormat.eChromaOrder ||
-         tPicFormat.eChromaMode != m_ePicFormat.eChromaMode ||
-         tCrop.iLeft != m_tCrop.iLeft ||
-         tCrop.iRight != m_tCrop.iRight ||
-         tCrop.iTop != m_tCrop.iTop ||
-         tCrop.iBottom != m_tCrop.iBottom;
-}
-
-/****************************************************************************/
-bool UnCompFrameWriterBase::WriteFrame(AL_TDimension tPicDim, AL_TPicFormat tPicFormat, TCrop tCrop, const uint8_t* pY, const uint8_t* pC1, const uint8_t* pC2, uint32_t iPitchInLuma, uint32_t iPitchInChroma)
-{
-  if(!CanWriteFrame())
-    return false;
-
-  if(MustWriteResolution(tPicDim, tPicFormat, tCrop))
-    WriteResolution(tPicDim, tCrop, tPicFormat);
-
-  WriteComponent(pY, iPitchInLuma, m_uHeightInPitchYFile, m_uPitchYFile);
-
-  if(m_ePicFormat.eChromaOrder == AL_C_ORDER_U_V)
-  {
-    WriteComponent(pC1, iPitchInChroma, m_uHeightInPitchCFile, m_uPitchCFile);
-    WriteComponent(pC2, iPitchInChroma, m_uHeightInPitchCFile, m_uPitchCFile);
-  }
-  else if(m_ePicFormat.eChromaOrder == AL_C_ORDER_SEMIPLANAR)
-    WriteComponent(pC1, iPitchInChroma, m_uHeightInPitchCFile, m_uPitchCFile);
-
-  m_uResolutionFrameCnt++;
-
-  return true;
-}
-
-/****************************************************************************/
-bool UnCompFrameWriterBase::CanWriteFrame()
-{
-  return m_recFile.IsOpen();
-}
-
-/****************************************************************************/
-void UnCompFrameWriterBase::WriteComponent(const uint8_t* pPix, uint32_t iPitchInPix, uint16_t uHeight, uint32_t uPitchFile)
-{
-  CheckNotNull(pPix);
-
-  for(int r = 0; r < uHeight; ++r)
-  {
-    WriteBuffer(m_recFile, pPix, uPitchFile);
-    pPix += iPitchInPix;
-  }
-}
-
-/****************************************************************************/
-void UnCompFrameWriterBase::WriteBuffer(IWriter& pStream, const uint8_t* pBuf, uint32_t uWriteSize)
-{
-  pStream.WriteBytes(reinterpret_cast<const char*>(pBuf), uWriteSize);
-}
-
-/****************************************************************************/
-void UnCompFrameWriterBase::CheckNotNull(const uint8_t* pBuf)
-{
-  if(nullptr == pBuf)
-    throw std::runtime_error(ErrorMessageBuffer);
-}
-
-/****************************************************************************/
-UnCompFrameWriter::UnCompFrameWriter(IWriter& recFile, TFourCC tCompFourCC, ETileMode eTileMode) :
-  m_Writer(recFile, tCompFourCC, eTileMode)
-{
-}
-
-/****************************************************************************/
-bool UnCompFrameWriter::WriteFrame(AL_TBuffer* pBuf, TCrop tCrop)
-{
-  if(!m_Writer.CanWriteFrame())
-    return false;
-
-  AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
-
-  // Luma
-  const uint8_t* pY = AL_PixMapBuffer_GetPlaneAddress(pBuf, AL_PLANE_Y);
-
-  // Chroma
-  const uint8_t* pC1 = nullptr;
-  const uint8_t* pC2 = nullptr;
-  uint32_t uPitchChroma = 0;
-
-  AL_TPicFormat tPicFormat;
-  AL_GetPicFormat(AL_PixMapBuffer_GetFourCC(pBuf), &tPicFormat);
-
-  if(tPicFormat.eChromaOrder == AL_C_ORDER_U_V)
+  if(m_tPicFormat.eChromaOrder == AL_C_ORDER_U_V)
   {
     pC1 = AL_PixMapBuffer_GetPlaneAddress(pBuf, AL_PLANE_U);
     pC2 = AL_PixMapBuffer_GetPlaneAddress(pBuf, AL_PLANE_V);
-    uPitchChroma = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_U);
+    iPitchInChroma = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_U);
 
-    if(int(uPitchChroma) != AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_V))
+    if(int(iPitchInChroma) != AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_V))
       throw std::runtime_error(ErrorMessagePitch);
   }
-  else if(tPicFormat.eChromaOrder == AL_C_ORDER_SEMIPLANAR)
+  else if(m_tPicFormat.eChromaOrder == AL_C_ORDER_SEMIPLANAR)
   {
     pC1 = AL_PixMapBuffer_GetPlaneAddress(pBuf, AL_PLANE_UV);
-    uPitchChroma = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_UV);
+    iPitchInChroma = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_UV);
   }
+  DimInTileCalculusRaster();
 
-  return m_Writer.WriteFrame(tDim, tPicFormat, tCrop, pY, pC1, pC2, AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_Y),
-                             uPitchChroma);
+  WritePix(pY, iPitchInLuma, m_uHeightInTileYFile, m_uPitchYFile);
+
+  if(m_tPicFormat.eChromaOrder == AL_C_ORDER_U_V)
+  {
+    WritePix(pC1, iPitchInChroma, m_uHeightInTileCFile, m_uPitchCFile);
+    WritePix(pC2, iPitchInChroma, m_uHeightInTileCFile, m_uPitchCFile);
+  }
+  else if(m_tPicFormat.eChromaOrder == AL_C_ORDER_SEMIPLANAR)
+    WritePix(pC1, iPitchInChroma, m_uHeightInTileCFile, m_uPitchCFile);
 }
+
+/****************************************************************************/
+void UnCompFrameWriter::DimInTileCalculusRaster()
+{
+  FactorsCalculus();
+
+  m_uPitchYFile = m_tPicDim.iWidth * m_iNbBytesPerPix;
+  m_uHeightInTileYFile = m_tPicDim.iHeight;
+  m_uHeightInTileCFile = AL_RoundUp(m_uHeightInTileYFile, m_iChromaVertScale) / m_iChromaVertScale;
+
+  if(m_tPicFormat.eChromaOrder == AL_C_ORDER_SEMIPLANAR)
+    m_uPitchCFile = m_uPitchYFile;
+  else
+    m_uPitchCFile = AL_RoundUp(m_uPitchYFile, m_iChromaHorzScale) / m_iChromaHorzScale;
+}
+

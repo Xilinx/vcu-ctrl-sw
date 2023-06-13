@@ -35,43 +35,43 @@ static inline size_t BytesToBits(size_t zBytes)
 /***************************************************************************/
 static inline int Clip3(int iVal, int iMin, int iMax)
 {
-  return ((iVal) < (iMin)) ? (iMin) : ((iVal) > (iMax)) ? (iMax) : (iVal);
+  return (iVal < iMin) ? iMin : ((iVal > iMax) ? iMax : iVal);
 }
 
 /***************************************************************************/
 static inline int Max(int iVal1, int iVal2)
 {
-  return ((iVal1) < (iVal2)) ? (iVal2) : (iVal1);
+  return (iVal1 < iVal2) ? iVal2 : iVal1;
 }
 
 /***************************************************************************/
 static inline uint32_t UnsignedMax(uint32_t iVal1, uint32_t iVal2)
 {
-  return ((iVal1) < (iVal2)) ? (iVal2) : (iVal1);
+  return (iVal1 < iVal2) ? iVal2 : iVal1;
 }
 
 /***************************************************************************/
 static inline size_t UnsignedMin(size_t iVal1, size_t iVal2)
 {
-  return ((iVal1) > (iVal2)) ? (iVal2) : (iVal1);
+  return (iVal1 > iVal2) ? iVal2 : iVal1;
 }
 
 /***************************************************************************/
 static inline int Min(int iVal1, int iVal2)
 {
-  return ((iVal1) > (iVal2)) ? (iVal2) : (iVal1);
+  return (iVal1 > iVal2) ? iVal2 : iVal1;
 }
 
 /***************************************************************************/
 static inline int Abs(int iVal)
 {
-  return ((iVal) > 0) ? (iVal) : (-(iVal));
+  return (iVal > 0) ? iVal : -iVal;
 }
 
 /***************************************************************************/
 static inline int Sign(int iVal)
 {
-  return ((iVal) > 0) ? (1) : (((iVal) < 0) ? (-1) : (0));
+  return (iVal > 0) ? 1 : ((iVal < 0) ? -1 : 0);
 }
 
 /***************************************************************************/

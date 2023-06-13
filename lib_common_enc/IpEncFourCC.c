@@ -30,7 +30,7 @@ AL_TPicFormat AL_EncGetSrcPicFormat(AL_EChromaMode eChromaMode, uint8_t uBitDept
     eChromaMode,
     uBitDepth,
     eStorageMode,
-    eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : (eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR),
+    GetChromaOrder(eChromaMode),
     bIsCompressed,
     b10bPacked
   };
@@ -52,7 +52,7 @@ AL_TPicFormat AL_EncGetRecPicFormat(AL_EChromaMode eChromaMode, uint8_t uBitDept
     eChromaMode,
     uBitDepth,
     AL_FB_TILE_64x4,
-    eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : (eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR),
+    GetChromaOrder(eChromaMode),
     bIsCompressed,
     false
   };

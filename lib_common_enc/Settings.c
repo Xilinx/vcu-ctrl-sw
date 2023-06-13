@@ -622,7 +622,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     if((pChParam->uSrcCropPosX % HStep) || (pChParam->uSrcCropPosY % VStep))
     {
       ++err;
-      MSG_ERROR("The input crop area doesn't fit the alignement constraints for the current buffer format");
+      MSG_ERROR("The input crop area doesn't fit the alignment constraints for the current buffer format");
     }
   }
 
@@ -675,7 +675,7 @@ int AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChP
     if(!AL_Constraint_NumCoreIsSane(AL_GET_CODEC(pChParam->eProfile), pChParam->uEncWidth, pChParam->uNumCore, pChParam->uLog2MaxCuSize, &diagnostic))
     {
       ++err;
-      MSGF_ERROR("Invalid parameter: NumCore. The width should at least be %d CTB per core. With the specified number of core, it is %d CTB per core. (Multi core alignement constraint might be the reason of this error if the CTB are equal)", diagnostic.requiredWidthInCtbPerCore, diagnostic.actualWidthInCtbPerCore);
+      MSGF_ERROR("Invalid parameter: NumCore. The width should at least be %d CTB per core. With the specified number of core, it is %d CTB per core. (Multi core alignment constraint might be the reason of this error if the CTB are equal)", diagnostic.requiredWidthInCtbPerCore, diagnostic.actualWidthInCtbPerCore);
     }
 
     if(AL_IS_HEVC(pChParam->eProfile) && pSettings->tChParam[0].uCabacInitIdc > 1)
@@ -1130,6 +1130,41 @@ static void AL_sCheckRange16b(int16_t* pRange, int* pNumIncoherency, const int16
 }
 
 /***************************************************************************/
+static void CorrectBitRateParams(AL_TEncChanParam* pChParam, TFourCC tFourCC, int iBitDepth, int* numIncoherency, FILE* pOut)
+{
+  if(AL_IS_CBR(pChParam->tRCParam.eRCMode))
+  {
+    pChParam->tRCParam.uMaxBitRate = pChParam->tRCParam.uTargetBitRate;
+  }
+
+  if(pChParam->tRCParam.uTargetBitRate > pChParam->tRCParam.uMaxBitRate)
+  {
+    MSG_WARNING("The specified MaxBitRate has to be greater than or equal to [Target]BitRate and will be adjusted");
+    pChParam->tRCParam.uMaxBitRate = pChParam->tRCParam.uTargetBitRate;
+    (*numIncoherency)++;
+  }
+
+  if(AL_IS_HEVC(pChParam->eProfile) || AL_IS_AVC(pChParam->eProfile))
+  {
+    if(AL_IS_CBR(pChParam->tRCParam.eRCMode))
+    {
+      AL_EChromaMode eInputChromaMode = AL_GetChromaMode(tFourCC);
+      AL_TDimension tDim = { pChParam->uEncWidth, pChParam->uEncHeight };
+      uint32_t maxNalSizeInByte = GetPcmVclNalSize(tDim, eInputChromaMode, iBitDepth);
+      uint64_t maxBitRate = 8LL * maxNalSizeInByte * pChParam->tRCParam.uFrameRate;
+
+      if(pChParam->tRCParam.uTargetBitRate > maxBitRate)
+      {
+        MSG_WARNING("The specified TargetBitRate is too high for this use case and will be adjusted");
+        pChParam->tRCParam.uTargetBitRate = maxBitRate;
+        pChParam->tRCParam.uMaxBitRate = maxBitRate;
+        (*numIncoherency)++;
+      }
+    }
+  }
+}
+
+/***************************************************************************/
 int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pChParam, TFourCC tFourCC, FILE* pOut)
 {
   AL_Assert(pSettings);
@@ -1261,37 +1296,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
     pChParam->uCuQPDeltaDepth = 0;
   }
 
-  if(AL_IS_CBR(pChParam->tRCParam.eRCMode))
-  {
-    pChParam->tRCParam.uMaxBitRate = pChParam->tRCParam.uTargetBitRate;
-  }
-
-  if(pChParam->tRCParam.uTargetBitRate > pChParam->tRCParam.uMaxBitRate)
-  {
-    MSG_WARNING("The specified MaxBitRate has to be greater than or equal to [Target]BitRate and will be adjusted");
-    pChParam->tRCParam.uMaxBitRate = pChParam->tRCParam.uTargetBitRate;
-    ++numIncoherency;
-  }
-
-  AL_EChromaMode eInputChromaMode = AL_GetChromaMode(tFourCC);
-
-  if(AL_IS_HEVC(pChParam->eProfile) || AL_IS_AVC(pChParam->eProfile))
-  {
-    if(AL_IS_CBR(pChParam->tRCParam.eRCMode))
-    {
-      AL_TDimension tDim = { pChParam->uEncWidth, pChParam->uEncHeight };
-      uint32_t maxNalSizeInByte = GetPcmVclNalSize(tDim, eInputChromaMode, iBitDepth);
-      uint64_t maxBitRate = 8LL * maxNalSizeInByte * pChParam->tRCParam.uFrameRate;
-
-      if(pChParam->tRCParam.uTargetBitRate > maxBitRate)
-      {
-        MSG_WARNING("The specified TargetBitRate is too high for this use case and will be adjusted");
-        pChParam->tRCParam.uTargetBitRate = maxBitRate;
-        pChParam->tRCParam.uMaxBitRate = maxBitRate;
-        ++numIncoherency;
-      }
-    }
-  }
+  CorrectBitRateParams(pChParam, tFourCC, iBitDepth, &numIncoherency, pOut);
 
   if(pChParam->tGopParam.uNumB > 0)
   {
@@ -1632,7 +1637,7 @@ int AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam* pCh
 
   }
 
-  // Fill zero value with surounding non-zero value if any. Warning: don't change the order of if statements below
+  // Fill zero value with surrounding non-zero value if any. Warning: don't change the order of if statements below
   if(pChParam->tRCParam.pMaxPictureSize[AL_SLICE_P] == 0)
     pChParam->tRCParam.pMaxPictureSize[AL_SLICE_P] = pChParam->tRCParam.pMaxPictureSize[AL_SLICE_I];
 

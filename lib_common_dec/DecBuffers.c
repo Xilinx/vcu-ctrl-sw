@@ -66,12 +66,6 @@ int AL_GetAllocSize_AvcMV(AL_TDimension tDim)
 }
 
 /****************************************************************************/
-static AL_EChromaOrder GetChromaOrder(AL_EChromaMode eChromaMode)
-{
-  return eChromaMode == AL_CHROMA_MONO ? AL_C_ORDER_NO_CHROMA : (eChromaMode == AL_CHROMA_4_4_4 ? AL_C_ORDER_U_V : AL_C_ORDER_SEMIPLANAR);
-}
-
-/****************************************************************************/
 static int GetChromaAllocSize(AL_EChromaMode eChromaMode, int iAllocSizeY)
 {
   switch(eChromaMode)

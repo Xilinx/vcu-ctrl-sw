@@ -7,7 +7,9 @@
 #include "lib_common_dec/DecBuffersInternal.h"
 #include "lib_common/Error.h"
 #include "lib_common/PixMapBufferInternal.h"
+#include "lib_common/BufferStreamMeta.h"
 #include "lib_common_dec/IpDecFourCC.h"
+#include "lib_common/DisplayInfoMeta.h"
 #include "lib_assert/al_assert.h"
 #include "lib_decode/lib_decode.h"
 
@@ -884,6 +886,7 @@ static void sFrmBufPool_GetInfoDecode(AL_TPictMngrCtx const* pCtx, int iFrameID,
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
   AL_Assert(tFourCC != 0);
   pInfo->eChromaMode = AL_GetChromaMode(tFourCC);
+  pInfo->eOutputID = AL_OUTPUT_MAIN;
   pInfo->tPos = pCtx->tOutputPosition;
 
   if(pStartsNewCVS)
@@ -903,7 +906,25 @@ static AL_TBuffer* AL_PictMngr_GetDisplayBuffer2(AL_TPictMngrCtx const* pCtx, AL
 
   AL_TRecBuffers tRecBuffers = sFrmBufPool_GetBufferFromID(&pCtx->FrmBufPool, iFrameID);
 
-  return sRecBuffers_GetDisplayBuffer(&tRecBuffers, &pCtx->FrmBufPool);
+  AL_TBuffer* displayBuffer = sRecBuffers_GetDisplayBuffer(&tRecBuffers, &pCtx->FrmBufPool);
+
+  if(pInfo)
+  {
+    AL_TDisplayInfoMetaData* pMeta = (AL_TDisplayInfoMetaData*)(AL_Buffer_GetMetaData(displayBuffer, AL_META_TYPE_DISPLAY_INFO));
+
+    if(pMeta)
+    {
+      pMeta->ePicStruct = pInfo->ePicStruct;
+      pMeta->tCrop = pInfo->tCrop;
+      pMeta->uCrc = pInfo->uCRC;
+      pMeta->uStreamBitDepthY = pInfo->uBitDepthY;
+      pMeta->uStreamBitDepthC = pInfo->uBitDepthC;
+      pMeta->eOutputID = pInfo->eOutputID;
+
+    }
+  }
+
+  return displayBuffer;
 }
 
 /***************************************************************************/

@@ -22,6 +22,11 @@ struct BitstreamWriter : IFrameSink
     WriteContainerHeader(m_file, cfg.Settings, cfg.MainInput.FileInfo, -1);
   }
 
+  ~BitstreamWriter()
+  {
+    m_file.flush();
+  }
+
   void ProcessFrame(AL_TBuffer* pStream) override
   {
     if(pStream == EndOfStream)

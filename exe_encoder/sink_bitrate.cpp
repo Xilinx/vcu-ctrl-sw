@@ -18,6 +18,11 @@ struct BitrateWriter : IFrameSink
     imageSizes.push_back(ImageSize { 0, false });
   }
 
+  ~BitrateWriter()
+  {
+    m_file << "]" << std::endl;
+  }
+
   float calculateBitrate(int numBits, int numFrame)
   {
     auto const durationInSeconds = numFrame / framerate * 1000;
@@ -39,12 +44,6 @@ struct BitrateWriter : IFrameSink
 
   void ProcessFrame(AL_TBuffer* pStream) override
   {
-    if(pStream == EndOfStream)
-    {
-      m_file << "]" << std::endl;
-      return;
-    }
-
     GetImageStreamSize(pStream, imageSizes);
     auto it = imageSizes.begin();
 
@@ -74,7 +73,6 @@ struct BitrateWriter : IFrameSink
         m_file << "," << std::endl;
 
         m_file << "{ \"frame\" : " << numFrame << ", \"size \" : " << it->size << ", \"window bitrate\" : " << windowBitrate << ", \"bitrate alone\" : " << calculateBitrate(numBits, 1) << ", \"total bitrate\" : " << calculateBitrate(totalBits, numFrame) << "}";
-
         it = imageSizes.erase(it);
       }
       else

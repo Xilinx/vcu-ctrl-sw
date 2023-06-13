@@ -4,78 +4,15 @@
 #include "lib_rtos/lib_rtos.h"
 #include "lib_assert/al_assert.h"
 #include "lib_decode/DecSettingsInternal.h"
+#include "lib_common_dec/StreamSettingsInternal.h"
+#include "lib_common_dec/DecHardwareConfig.h"
 #include "lib_common/Utils.h"
-#include "lib_common/HardwareConfig.h"
 #include "lib_common/Profiles.h"
+#include "lib_common/BufConst.h"
 
 /***************************************************************************/
 #define MSGF(msg, ...) { if(pOut) fprintf(pOut, msg "\r\n", __VA_ARGS__); }
 #define MSG(msg) { if(pOut) fprintf(pOut, msg "\r\n"); }
-#define STREAM_SETTING_UNKNOWN -1
-
-/******************************************************************************/
-static bool IsAtLeastOneStreamDimSet(AL_TDimension tDim)
-{
-  return (tDim.iWidth > 0) || (tDim.iHeight > 0);
-}
-
-/******************************************************************************/
-static bool IsAllStreamDimSet(AL_TDimension tDim)
-{
-  return (tDim.iWidth > 0) && (tDim.iHeight > 0);
-}
-
-/******************************************************************************/
-static bool IsStreamChromaSet(AL_EChromaMode eChroma)
-{
-  return eChroma != AL_CHROMA_MAX_ENUM;
-}
-
-/******************************************************************************/
-static bool IsStreamBitDepthSet(int iBitDepth)
-{
-  return iBitDepth > 0;
-}
-
-/******************************************************************************/
-static bool IsStreamLevelSet(int iLevel)
-{
-  return iLevel != STREAM_SETTING_UNKNOWN;
-}
-
-/******************************************************************************/
-static bool IsStreamProfileSet(int iProfileIdc)
-{
-  return iProfileIdc != STREAM_SETTING_UNKNOWN;
-}
-
-/******************************************************************************/
-static bool IsStreamSequenceModeSet(AL_ESequenceMode eSequenceMode)
-{
-  return eSequenceMode != AL_SM_MAX_ENUM;
-}
-
-/******************************************************************************/
-bool IsAllStreamSettingsSet(AL_TStreamSettings const* pStreamSettings)
-{
-  return IsAllStreamDimSet(pStreamSettings->tDim) &&
-         IsStreamChromaSet(pStreamSettings->eChroma) &&
-         IsStreamBitDepthSet(pStreamSettings->iBitDepth) &&
-         IsStreamLevelSet(pStreamSettings->iLevel) &&
-         IsStreamProfileSet(pStreamSettings->eProfile) &&
-         IsStreamSequenceModeSet(pStreamSettings->eSequenceMode);
-}
-
-/*****************************************************************************/
-bool IsAtLeastOneStreamSettingsSet(AL_TStreamSettings const* pStreamSettings)
-{
-  return IsAtLeastOneStreamDimSet(pStreamSettings->tDim) ||
-         IsStreamChromaSet(pStreamSettings->eChroma) ||
-         IsStreamBitDepthSet(pStreamSettings->iBitDepth) ||
-         IsStreamLevelSet(pStreamSettings->iLevel) ||
-         IsStreamProfileSet(pStreamSettings->eProfile) ||
-         IsStreamSequenceModeSet(pStreamSettings->eSequenceMode);
-}
 
 /***************************************************************************/
 void AL_DecSettings_SetDefaults(AL_TDecSettings* pSettings)
@@ -103,10 +40,11 @@ void AL_DecSettings_SetDefaults(AL_TDecSettings* pSettings)
   pSettings->tStream.eProfile = STREAM_SETTING_UNKNOWN;
   pSettings->tStream.iLevel = STREAM_SETTING_UNKNOWN;
   pSettings->tStream.bDecodeIntraOnly = false;
+  pSettings->tStream.iMaxRef = MAX_REF;
 }
 
 /***************************************************************************/
-int AL_DecSettings_CheckValidity(AL_TDecSettings* pSettings, FILE* pOut)
+int AL_DecSettings_CheckValidity(AL_TDecSettings const* pSettings, FILE* pOut)
 {
   AL_Assert(pSettings);
 

@@ -30,7 +30,7 @@ static const uint8_t tab_log2[256] =
 
 /*************************************************************************//*!
    \brief The log2 function computes the log2 mathematical operation on value
-   \param[in] value the value on which the log2 mathematical opeartion will be done
+   \param[in] value the value on which the log2 mathematical operation will be done
    \return    return the value of log2(value)
 *****************************************************************************/
 static uint32_t al_log2(uint32_t value)
@@ -248,14 +248,11 @@ uint8_t getbyte(AL_TRbspParser* pRP)
 
   int byte_offset = (int)(pRP->iTotalBitIndex >> 3);
 
-  if(pRP->iTrailingBitOneIndex < pRP->iTotalBitIndex + 8)
+  if(pRP->iTrailingBitOneIndex < pRP->iTotalBitIndex + 8 && !fetch_data(pRP))
   {
-    if(!fetch_data(pRP))
-    {
-      pRP->iTotalBitIndex = pRP->iTrailingBitOneIndexConceal;
-      pRP->pByte = &(pRP->pBuffer[pRP->iTotalBitIndex >> 3]);
-      return 0;
-    }
+    pRP->iTotalBitIndex = pRP->iTrailingBitOneIndexConceal;
+    pRP->pByte = &(pRP->pBuffer[pRP->iTotalBitIndex >> 3]);
+    return 0;
   }
 
   AL_Assert(pRP->iTotalBitIndex <= pRP->iTrailingBitOneIndex);
@@ -273,9 +270,8 @@ uint8_t* get_raw_data(AL_TRbspParser* pRP)
 /*****************************************************************************/
 uint8_t get_next_bit(AL_TRbspParser* pRP)
 {
-  if(pRP->iTrailingBitOneIndex < pRP->iTotalBitIndex + 1)
-    if(!fetch_data(pRP))
-      return -1;
+  if(pRP->iTrailingBitOneIndex < pRP->iTotalBitIndex + 1 && !fetch_data(pRP))
+    return -1;
 
   int bit_offset = (int)(pRP->iTotalBitIndex & 0x07);
   uint8_t bit;
@@ -382,7 +378,7 @@ int32_t i(AL_TRbspParser* pRP, uint8_t iNumBits)
   int abs_val = val_u & mask;
 
   if(val_u & ~mask)
-    return -((((~val_u) & mask)) + 1);
+    return -(((~val_u) & mask) + 1);
 
   return abs_val;
 }

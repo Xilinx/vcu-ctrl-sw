@@ -5,11 +5,5 @@
 
 #include "lib_decode/DecSettings.h"
 
-/******************************************************************************/
-bool IsAllStreamSettingsSet(AL_TStreamSettings const* pStreamSettings);
-
-/*****************************************************************************/
-bool IsAtLeastOneStreamSettingsSet(AL_TStreamSettings const* pStreamSettings);
-
 /*****************************************************************************/
 int GetAlignedStreamBufferSize(int iStreamBufferSize);

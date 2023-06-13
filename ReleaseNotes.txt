@@ -797,3 +797,22 @@
     -- Decoder:
       - Performances issues
     -- Several minors bugs
+
+2023-06-01
+----------
+Added Features:
+  -- All CLI options are now double-dashed `--`, or have a better double-dash's name
+
+API:
+    -- Rename NonCompFrameReader.h into UnCompFrameReader.h
+    -- Extract Display information into a common file: include/lib_common/DisplayInfoMeta.h
+    -- Extract StreamSettings into a single file: include/lib_common_dec/StreamSettings.h
+    -- Add helpers in API such as: AL_Round{Up, Down}, ..
+    -- Decoder:
+      - Ensure constness in AL_DecSettings_CheckValidity
+
+Fixes:
+  -- Decoder:
+    - NV16 format
+    - Concealment and resilience
+  -- Several minors bugs

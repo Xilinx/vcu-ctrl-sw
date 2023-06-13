@@ -6,7 +6,6 @@
 
 #include "IpDevice.h"
 #include "lib_app/console.h"
-#include "lib_app/utils.h"
 
 extern "C"
 {
