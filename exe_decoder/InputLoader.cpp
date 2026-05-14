@@ -445,7 +445,7 @@ bool SplitInput::InsertEndOfStreamAud(void)
     return true;
 
   auto const unusedOffset = GetCircularBufferUnusedOffset();
-  auto const unusedSize = GetCircularBufferUnusedOffset();
+  auto const unusedSize = GetCircularBufferUnusedSize();
   int32_t const eosSize = eosAud.size();
 
   if(eosSize > unusedSize)
