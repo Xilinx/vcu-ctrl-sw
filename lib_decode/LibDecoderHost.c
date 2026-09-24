@@ -4,7 +4,6 @@
 #include "lib_common/PicFormat.h"
 #include "lib_decode/I_DecSchedulerInfo.h"
 #include "lib_decode/DefaultDecoder.h"
-#include "lib_common_dec/DecOutputSettingsInternal.h"
 #include "lib_common_dec/I_DecArch.h"
 
 AL_ERR CreateAvcDecoder(AL_TDecoder** hDec, AL_IDecScheduler* pScheduler, AL_TAllocator* pAllocator, AL_TDecSettings* pSettings, AL_TDecCallBacks* pCB);
@@ -71,9 +70,9 @@ static void AL_Decoder_Destroy_Host(AL_HDecoder hDec)
 }
 
 /*****************************************************************************/
-static void AL_Decoder_SetParam_Host(AL_HDecoder hDec, const char* sPrefix, int32_t iFrmID, int32_t iNumFrm, bool bShouldPrintFrameDelimiter)
+static void AL_Decoder_SetParam_Host(AL_HDecoder hDec, const char* sPrefix, int32_t iFrmID, int32_t iNumFrm, bool bShouldPrintFrameDelimiter, bool bOutputTraceOnly)
 {
-  AL_Default_Decoder_SetParam((AL_TDecoder*)hDec, sPrefix, iFrmID, iNumFrm, bShouldPrintFrameDelimiter);
+  AL_Default_Decoder_SetParam((AL_TDecoder*)hDec, sPrefix, iFrmID, iNumFrm, bShouldPrintFrameDelimiter, bOutputTraceOnly);
 }
 
 /*****************************************************************************/
@@ -138,16 +137,6 @@ static bool AL_Decoder_PreallocateBuffers_Host(AL_HDecoder hDec)
   return AL_Default_Decoder_PreallocateBuffers(pDec);
 }
 
-static int32_t AL_Decoder_GetMinPitch_Host(int32_t iWidth, AL_TPicFormat const* pPicFormat)
-{
-  return AL_DecGetLumaPixPlanePitch(iWidth, pPicFormat);
-}
-
-static int32_t AL_Decoder_GetMinStrideHeight_Host(int32_t iHeight, AL_TPicFormat const* pPicFormat)
-{
-  return AL_DecGetPixPlaneHeight(iHeight, pPicFormat);
-}
-
 /*****************************************************************************/
 UNIT_ERROR AL_Decoder_TryDecodeOneUnit(AL_HDecoder hDec, AL_TBuffer* pBufStream)
 {
@@ -199,8 +188,6 @@ static AL_IDecArchVtable vtable =
   .DecoderGetLastError = AL_Decoder_GetLastError_Host,
   .DecoderGetFrameError = AL_Decoder_GetFrameError_Host,
   .DecoderPreallocateBuffers = AL_Decoder_PreallocateBuffers_Host,
-  .DecoderGetMinPitch = AL_Decoder_GetMinPitch_Host,
-  .DecoderGetMinStrideHeight = AL_Decoder_GetMinStrideHeight_Host,
   .DecoderSetDecOutputSettings = AL_Decoder_ConfigureOutputSettings_Host,
 };
 

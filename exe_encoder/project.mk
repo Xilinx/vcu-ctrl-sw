@@ -53,15 +53,6 @@ $(BIN)/AL_Encoder.exe: $(EXE_ENCODER_OBJ) $(LIB_REFENC_A) $(LIB_REFALLOC_A) $(LI
 AL_Encoder.exe: $(BIN)/AL_Encoder.exe
 TARGETS+=AL_Encoder.exe
 
-ifneq ($(ENABLE_LIB_ISCHEDULER),0)
-$(BIN)/AL_Encoder.sh: $(BIN)/AL_Encoder.exe
-	@echo "Generate script $@"
-	$(shell echo 'LD_LIBRARY_PATH=$(BIN) $(BIN)/AL_Encoder.exe "$$@"' > $@ && chmod a+x $@)
-
-AL_Encoder.sh: $(BIN)/AL_Encoder.sh
-TARGETS+=AL_Encoder.sh
-endif
-
 exe_encoder_src: $(EXE_ENCODER_SRCS)
 	@echo $(EXE_ENCODER_SRCS)
 

@@ -34,9 +34,10 @@ void AL_Common_Encoder_Destroy(AL_TEncCtx* pCtx);
    \param[in] pAlloc Pointer to a AL_TAllocator interface.
    \param[in] pSettings Pointer to AL_TEncSettings structure specifying the encoder
    parameters.
+   \param[in] callback callback called when the encoding of a frame is finished
    \return Channel creation result
 *****************************************************************************/
-AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncCtx* pCtx, AL_IEncScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings);
+AL_ERR AL_Common_Encoder_CreateChannel(AL_TEncCtx* pCtx, AL_IEncScheduler* pScheduler, AL_TAllocator* pAlloc, AL_TEncSettings const* pSettings, AL_CB_EndEncoding callback);
 
 /*****************************************************************************
    \brief Get information on created encoder

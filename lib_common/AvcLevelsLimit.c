@@ -4,6 +4,7 @@
 #include "lib_common/Profiles.h"
 #include "AvcLevelsLimit.h"
 #include "Utils.h"
+#include "Arithmetics.h"
 #include "LevelLimit.h"
 #include "BufConst.h"
 
@@ -66,8 +67,11 @@ static uint32_t AL_AVC_GetSliceRate(int32_t level)
 }
 
 /****************************************************************************/
-uint32_t AL_AVC_GetSpecificationMaxNumberOfSlices(void)
+uint32_t AL_AVC_GetSpecificationMaxNumberOfSlices(int32_t level)
 {
+  if(level >= 60)
+    return 5802;
+
   return 2880;
 }
 
@@ -92,7 +96,7 @@ uint32_t AL_AVC_GetMaxNumberOfSlices(AL_EProfile profile, int32_t level, int32_t
     }
   }
 
-  return Min(AL_AVC_GetSpecificationMaxNumberOfSlices(), maxNumSlices);
+  return Min(AL_AVC_GetSpecificationMaxNumberOfSlices(level), maxNumSlices);
 }
 
 /****************************************************************************/

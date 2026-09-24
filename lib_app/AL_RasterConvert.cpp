@@ -39,8 +39,8 @@ static void convertToY010(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(I0AL):
   case FOURCC(I2AL):
   case FOURCC(I4AL):
-  case FOURCC(P010):
-  case FOURCC(P210):
+  case FOURCC(P0AL):
+  case FOURCC(P2AL):
   case FOURCC(P410):
     return I0AL_To_Y010(pSrcIn, pSrcOut);
   case FOURCC(I420):
@@ -98,7 +98,7 @@ static void convertToNV12(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(YV12): return YV12_To_NV12(pSrcIn, pSrcOut);
   case FOURCC(NV12): CopyPixMapBuffer(pSrcIn, pSrcOut);
     return;
-  case FOURCC(P010): return P010_To_NV12(pSrcIn, pSrcOut);
+  case FOURCC(P0AL): return P0AL_To_NV12(pSrcIn, pSrcOut);
   case FOURCC(I0AL): return I0AL_To_NV12(pSrcIn, pSrcOut);
   default: return NoConversionFound(inFourCC, FOURCC(NV12));
   }
@@ -141,7 +141,7 @@ static void convertToXV15(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(IYUV): return IYUV_To_XV15(pSrcIn, pSrcOut);
   case FOURCC(YV12): return YV12_To_XV15(pSrcIn, pSrcOut);
   case FOURCC(NV12): return NV12_To_XV15(pSrcIn, pSrcOut);
-  case FOURCC(P010): return P010_To_XV15(pSrcIn, pSrcOut);
+  case FOURCC(P0AL): return P0AL_To_XV15(pSrcIn, pSrcOut);
   case FOURCC(I0AL): return I0AL_To_XV15(pSrcIn, pSrcOut);
   default: return NoConversionFound(inFourCC, FOURCC(XV15));
   }
@@ -156,7 +156,7 @@ static void convertToXV20(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(YV16): return I422_To_XV20(pSrcIn, pSrcOut);
   case FOURCC(NV16): return NV16_To_XV20(pSrcIn, pSrcOut);
   case FOURCC(I2AL): return I2AL_To_XV20(pSrcIn, pSrcOut);
-  case FOURCC(P210): return P210_To_XV20(pSrcIn, pSrcOut);
+  case FOURCC(P2AL): return P2AL_To_XV20(pSrcIn, pSrcOut);
   default: return NoConversionFound(inFourCC, FOURCC(XV20));
   }
 }
@@ -169,8 +169,8 @@ static void convertToXV10(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(Y010):
   case FOURCC(I0AL):
   case FOURCC(I2AL):
-  case FOURCC(P010):
-  case FOURCC(P210):
+  case FOURCC(P0AL):
+  case FOURCC(P2AL):
     return Y010_To_XV10(pSrcIn, pSrcOut);
   case FOURCC(Y800):
   case FOURCC(I420):
@@ -183,58 +183,58 @@ static void convertToXV10(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
 }
 
 /*****************************************************************************/
-static void convertToP010(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+static void convertToP0AL(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
   {
-  case FOURCC(Y800): return Y800_To_P010(pSrcIn, pSrcOut);
-  case FOURCC(I420): return I420_To_P010(pSrcIn, pSrcOut);
-  case FOURCC(IYUV): return IYUV_To_P010(pSrcIn, pSrcOut);
-  case FOURCC(YV12): return YV12_To_P010(pSrcIn, pSrcOut);
-  case FOURCC(NV12): return NV12_To_P010(pSrcIn, pSrcOut);
-  case FOURCC(P010): CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(Y800): return Y800_To_P0AL(pSrcIn, pSrcOut);
+  case FOURCC(I420): return I420_To_P0AL(pSrcIn, pSrcOut);
+  case FOURCC(IYUV): return IYUV_To_P0AL(pSrcIn, pSrcOut);
+  case FOURCC(YV12): return YV12_To_P0AL(pSrcIn, pSrcOut);
+  case FOURCC(NV12): return NV12_To_P0AL(pSrcIn, pSrcOut);
+  case FOURCC(P0AL): CopyPixMapBuffer(pSrcIn, pSrcOut);
     return;
-  case FOURCC(I0AL): return I0AL_To_P010(pSrcIn, pSrcOut);
-  default: return NoConversionFound(inFourCC, FOURCC(P010));
+  case FOURCC(I0AL): return I0AL_To_P0AL(pSrcIn, pSrcOut);
+  default: return NoConversionFound(inFourCC, FOURCC(P0AL));
   }
 }
 
 /*****************************************************************************/
-static void convertToP012(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+static void convertToP0CL(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
   {
-  case FOURCC(P012): CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(P0CL): CopyPixMapBuffer(pSrcIn, pSrcOut);
     return;
-  case FOURCC(I0CL): return I0CL_To_P012(pSrcIn, pSrcOut);
-  default: return NoConversionFound(inFourCC, FOURCC(P012));
+  case FOURCC(I0CL): return I0CL_To_P0CL(pSrcIn, pSrcOut);
+  default: return NoConversionFound(inFourCC, FOURCC(P0CL));
   }
 }
 
 /*****************************************************************************/
-static void convertToP210(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+static void convertToP2AL(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
   {
-  case FOURCC(I422): return I422_To_P210(pSrcIn, pSrcOut);
-  case FOURCC(YV16): return I422_To_P210(pSrcIn, pSrcOut);
-  case FOURCC(P210): CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(I422): return I422_To_P2AL(pSrcIn, pSrcOut);
+  case FOURCC(YV16): return I422_To_P2AL(pSrcIn, pSrcOut);
+  case FOURCC(P2AL): CopyPixMapBuffer(pSrcIn, pSrcOut);
     return;
-  case FOURCC(I2AL): return I2AL_To_P210(pSrcIn, pSrcOut);
-  case FOURCC(NV16): return NV16_To_P210(pSrcIn, pSrcOut);
-  default: return NoConversionFound(inFourCC, FOURCC(P210));
+  case FOURCC(I2AL): return I2AL_To_P2AL(pSrcIn, pSrcOut);
+  case FOURCC(NV16): return NV16_To_P2AL(pSrcIn, pSrcOut);
+  default: return NoConversionFound(inFourCC, FOURCC(P2AL));
   }
 }
 
 /*****************************************************************************/
-static void convertToP212(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
+static void convertToP2CL(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer* pSrcOut)
 {
   switch(inFourCC)
   {
-  case FOURCC(I2CL): return I2CL_To_P212(pSrcIn, pSrcOut);
-  case FOURCC(P212): CopyPixMapBuffer(pSrcIn, pSrcOut);
+  case FOURCC(I2CL): return I2CL_To_P2CL(pSrcIn, pSrcOut);
+  case FOURCC(P2CL): CopyPixMapBuffer(pSrcIn, pSrcOut);
     return;
-  default: return NoConversionFound(inFourCC, FOURCC(P212));
+  default: return NoConversionFound(inFourCC, FOURCC(P2CL));
   }
 }
 
@@ -262,7 +262,7 @@ static void convertToT608(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(I420): return I420_To_T608(pSrcIn, pSrcOut);
   case FOURCC(IYUV): return IYUV_To_T608(pSrcIn, pSrcOut);
   case FOURCC(NV12): return NV12_To_T608(pSrcIn, pSrcOut);
-  case FOURCC(P010): return P010_To_T608(pSrcIn, pSrcOut);
+  case FOURCC(P0AL): return P0AL_To_T608(pSrcIn, pSrcOut);
   case FOURCC(Y010): return Y010_To_T608(pSrcIn, pSrcOut);
   case FOURCC(Y012): return Y012_To_T608(pSrcIn, pSrcOut);
   case FOURCC(Y800): return Y800_To_T608(pSrcIn, pSrcOut);
@@ -283,7 +283,7 @@ static void convertToT60A(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(I420): return I420_To_T60A(pSrcIn, pSrcOut);
   case FOURCC(IYUV): return IYUV_To_T60A(pSrcIn, pSrcOut);
   case FOURCC(NV12): return NV12_To_T60A(pSrcIn, pSrcOut);
-  case FOURCC(P010): return P010_To_T60A(pSrcIn, pSrcOut);
+  case FOURCC(P0AL): return P0AL_To_T60A(pSrcIn, pSrcOut);
   case FOURCC(Y010): return Y010_To_T60A(pSrcIn, pSrcOut);
   case FOURCC(Y800): return Y800_To_T60A(pSrcIn, pSrcOut);
   case FOURCC(YV12): return YV12_To_T60A(pSrcIn, pSrcOut);
@@ -321,7 +321,7 @@ static void convertToT628(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(I2CL): return I2CL_To_T628(pSrcIn, pSrcOut);
   case FOURCC(I422): return I422_To_T628(pSrcIn, pSrcOut);
   case FOURCC(NV16): return NV16_To_T628(pSrcIn, pSrcOut);
-  case FOURCC(P210): return P210_To_T628(pSrcIn, pSrcOut);
+  case FOURCC(P2AL): return P2AL_To_T628(pSrcIn, pSrcOut);
   case FOURCC(Y010): return Y010_To_T628(pSrcIn, pSrcOut);
   case FOURCC(Y800): return Y800_To_T628(pSrcIn, pSrcOut);
 
@@ -339,7 +339,7 @@ static void convertToT62A(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(I2AL): return I2AL_To_T62A(pSrcIn, pSrcOut);
   case FOURCC(I422): return I422_To_T62A(pSrcIn, pSrcOut);
   case FOURCC(NV16): return NV16_To_T62A(pSrcIn, pSrcOut);
-  case FOURCC(P210): return P210_To_T62A(pSrcIn, pSrcOut);
+  case FOURCC(P2AL): return P2AL_To_T62A(pSrcIn, pSrcOut);
   case FOURCC(Y010): return Y010_To_T62A(pSrcIn, pSrcOut);
   case FOURCC(Y800): return Y800_To_T62A(pSrcIn, pSrcOut);
 
@@ -357,7 +357,7 @@ static void convertToT62C(AL_TBuffer const* pSrcIn, TFourCC inFourCC, AL_TBuffer
   case FOURCC(I2AL): return I2AL_To_T62C(pSrcIn, pSrcOut);
   case FOURCC(I2CL): return I2CL_To_T62C(pSrcIn, pSrcOut);
   case FOURCC(I422): return I422_To_T62C(pSrcIn, pSrcOut);
-  case FOURCC(P212): return P212_To_T62C(pSrcIn, pSrcOut);
+  case FOURCC(P2CL): return P2CL_To_T62C(pSrcIn, pSrcOut);
   case FOURCC(Y012): return Y012_To_T62C(pSrcIn, pSrcOut);
   case FOURCC(Y800): return Y800_To_T62C(pSrcIn, pSrcOut);
 
@@ -486,10 +486,10 @@ void CYuvSrcConv::ConvertSrcBuf(AL_TBuffer const* pSrcIn, AL_TBuffer* pSrcOut)
   case FOURCC(XV10): return convertToXV10(pSrcIn, tFourCCIn, pSrcOut);
   case FOURCC(XV15): return convertToXV15(pSrcIn, tFourCCIn, pSrcOut);
   case FOURCC(XV20): return convertToXV20(pSrcIn, tFourCCIn, pSrcOut);
-  case FOURCC(P010): return convertToP010(pSrcIn, tFourCCIn, pSrcOut);
-  case FOURCC(P012): return convertToP012(pSrcIn, tFourCCIn, pSrcOut);
-  case FOURCC(P210): return convertToP210(pSrcIn, tFourCCIn, pSrcOut);
-  case FOURCC(P212): return convertToP212(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(P0AL): return convertToP0AL(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(P0CL): return convertToP0CL(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(P2AL): return convertToP2AL(pSrcIn, tFourCCIn, pSrcOut);
+  case FOURCC(P2CL): return convertToP2CL(pSrcIn, tFourCCIn, pSrcOut);
   case FOURCC(P410): return convertToP410(pSrcIn, tFourCCIn, pSrcOut);
   case FOURCC(T608): return convertToT608(pSrcIn, tFourCCIn, pSrcOut);
   case FOURCC(T60A): return convertToT60A(pSrcIn, tFourCCIn, pSrcOut);

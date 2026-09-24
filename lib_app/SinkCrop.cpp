@@ -3,6 +3,9 @@
 
 #include "lib_app/SinkCrop.hpp"
 
+#include <stdexcept>
+#include <memory>
+
 extern "C"
 {
 #include "lib_common/PixMapBuffer.h"
@@ -25,7 +28,9 @@ SinkCrop::SinkCrop(std::unique_ptr<IFrameSink>& pSink, AL_TCropInfo* pCropInfo) 
 static int32_t GetPixSize(AL_TBuffer* pBuf)
 {
   AL_TPicFormat tPicFormat;
-  AL_GetPicFormat(AL_PixMapBuffer_GetFourCC(pBuf), &tPicFormat);
+
+  if(!AL_GetPicFormat(AL_PixMapBuffer_GetFourCC(pBuf), &tPicFormat))
+    throw std::runtime_error("Unknow picture format");
 
   if(tPicFormat.ePlaneMode == AL_PLANE_MODE_INTERLEAVED)
     return (tPicFormat.uBitDepth == 8 || (tPicFormat.uBitDepth == 10 && tPicFormat.eSamplePackMode == AL_SAMPLE_PACK_MODE_PACKED)) ? sizeof(uint32_t) : sizeof(AL_64U);

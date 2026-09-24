@@ -17,6 +17,7 @@
 #include "lib_common/PixMapBufferInternal.h"
 #include "lib_common/BufferHandleMeta.h"
 #include "lib_common/BufferAPIInternal.h"
+#include "lib_common/Utils.h"
 
 #include "lib_common_dec/RbspParser.h"
 
@@ -68,9 +69,9 @@ static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam const* pPicPar
   (void)eChromaMode;
 
   pPicBuffers->uBitdepth = AL_GetBitDepth(tFourCC);
-  pPicBuffers->uPitch = AL_PixMapBuffer_GetPlanePitch(pRec, AL_PLANE_Y);
+  pPicBuffers->uPitchY = AL_PixMapBuffer_GetPlanePitch(pRec, AL_PLANE_Y);
 
-  Rtos_Assert(pPicBuffers->uPitch != 0);
+  Rtos_Assert(pPicBuffers->uPitchY != 0);
 
   pPicBuffers->tRecY.tMD.uPhysicalAddr = AL_PixMapBuffer_GetPlanePhysicalAddress(pRec, AL_PLANE_Y);
   pPicBuffers->tRecY.tMD.pVirtualAddr = AL_PixMapBuffer_GetPlaneAddress(pRec, AL_PLANE_Y);
@@ -78,6 +79,9 @@ static void AL_sSaveCommandBlk2(AL_TDecCtx* pCtx, AL_TDecPicParam const* pPicPar
               "Luma plane is not set (buffer does not fit requirement)");
 
   AL_EPlaneId eFirstCPlane = AL_PLANE_MODE_PLANAR == ePlaneMode ? AL_PLANE_U : AL_PLANE_UV;
+  pPicBuffers->uPitchC = AL_PixMapBuffer_GetPlanePitch(pRec, eFirstCPlane);
+  Rtos_Assert(pPicBuffers->uPitchC != 0 || ePlaneMode == AL_PLANE_MODE_INTERLEAVED || eChromaMode == AL_CHROMA_4_0_0);
+
   pPicBuffers->tRecC1.tMD.uPhysicalAddr = AL_PixMapBuffer_GetPlanePhysicalAddress(pRec, eFirstCPlane);
   pPicBuffers->tRecC1.tMD.pVirtualAddr = AL_PixMapBuffer_GetPlaneAddress(pRec, eFirstCPlane);
   Rtos_Assert((eChromaMode == AL_CHROMA_4_0_0 || pPicBuffers->tRecC1.tMD.uPhysicalAddr != 0) &&
@@ -105,9 +109,27 @@ static void AL_FlushBuffers(AL_TDecCtx* pCtx)
   AL_TDecBuffers* pPictBuffers = &pCtx->tPoolPicBuffers[pCtx->uToggle];
 
   Rtos_FlushCacheMemory(pPictBuffers->tListRef.tMD.pVirtualAddr, pPictBuffers->tListRef.tMD.uSize);
-  Rtos_FlushCacheMemory(pPictBuffers->tPoc.tMD.pVirtualAddr, pPictBuffers->tPoc.tMD.uSize);
-  Rtos_FlushCacheMemory(pPictBuffers->tScl.tMD.pVirtualAddr, pPictBuffers->tScl.tMD.uSize);
-  Rtos_FlushCacheMemory(pPictBuffers->tWP.tMD.pVirtualAddr, pPictBuffers->tWP.tMD.uSize);
+
+  bool bFlushScalingList = false;
+
+  bFlushScalingList |= AL_IS_ITU_CODEC(pCtx->pChanParam->eCodec);
+
+  if(bFlushScalingList)
+    Rtos_FlushCacheMemory(pPictBuffers->tScl.tMD.pVirtualAddr, pPictBuffers->tScl.tMD.uSize);
+
+  bool bFlushPOC = false;
+
+  bFlushPOC |= AL_IS_ITU_CODEC(pCtx->pChanParam->eCodec);
+
+  if(bFlushPOC)
+    Rtos_FlushCacheMemory(pPictBuffers->tPoc.tMD.pVirtualAddr, pPictBuffers->tPoc.tMD.uSize);
+
+  bool bFlushWP = !pCtx->bIntraOnlyProfile;
+
+  bFlushWP &= AL_IS_ITU_CODEC(pCtx->pChanParam->eCodec);
+
+  if(bFlushWP)
+    Rtos_FlushCacheMemory(pPictBuffers->tWP.tMD.pVirtualAddr, pPictBuffers->tWP.tMD.uSize);
 
   // Stream buffer was already flushed for start-code detection.
 }

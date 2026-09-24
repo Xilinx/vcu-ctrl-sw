@@ -57,6 +57,16 @@ typedef struct AL_TWindow
 }AL_TWindow;
 
 /*****************************************************************************
+   \brief Check if a Window is empty
+   \param[in] pWindow Pointer to an AL_TWindow
+   \return true if the window is empty
+*****************************************************************************/
+static inline bool AL_IS_WINDOW_EMPTY(AL_TWindow const* pWindow)
+{
+  return (pWindow->tDim.iHeight == 0) || (pWindow->tDim.iWidth == 0);
+}
+
+/*****************************************************************************
    \brief Struct for dimension
 *****************************************************************************/
 typedef struct AL_TPhase
@@ -114,7 +124,6 @@ typedef enum AL_EFbStorageMode
   AL_FB_RASTER = 0,     /*!< Samples are stored in raster scan order */
   AL_FB_TILE_32x4 = 1,  /*!< Samples are stored going raster inside 4x4 blocks, themselves inside 32x4 tiles */
   AL_FB_TILE_64x4 = 2,  /*!< Samples are stored going raster inside 4x4 blocks, themselves inside 64x4 tiles */
-
   AL_FB_MAX_ENUM, /* sentinel */
 }AL_EFbStorageMode;
 

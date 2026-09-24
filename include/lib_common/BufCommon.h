@@ -20,7 +20,7 @@
    \param[in] eFrameBufferStorageMode how the framebuffer is stored in memory
    \return Number of lines in the pitch
 *****************************************************************************/
-int32_t AL_GetNumLinesInPitch(AL_EFbStorageMode eFrameBufferStorageMode);
+int32_t AL_GetNumLinesInPitch(AL_EFbStorageMode eFrameBufferStorageMode, AL_EChromaMode eChromaMode, uint8_t uBitDepth);
 
 /*****************************************************************************
    \param[in] tFourCC FourCC of a framebuffer
@@ -54,5 +54,12 @@ extern int32_t AL_CLEAN_BUFFERS;
    \return Calculated pitch of the buffer
 *****************************************************************************/
 int32_t AL_GetLumaPixPlanePitch(int32_t iWidth, AL_TPicFormat const* pPicFormat, int32_t iPitchAlignment);
+
+/*****************************************************************************
+   \param[in] pPicFormat Picture format of the frame buffer
+   \param[in] iLumaPitch Pitch of the corresponding Luma plane
+   \return Calculated chroma pitch of the buffer
+*****************************************************************************/
+int32_t AL_GetChromaPixPlanePitch(AL_TPicFormat const* pPicFormat, int32_t iLumaPitch);
 
 /*!@}*/

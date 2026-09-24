@@ -33,7 +33,7 @@ extern "C"
 #include "RCPlugin.hpp"
 #define NUM_PASS_OUTPUT 1
 
-#define MAX_NUM_REC_OUTPUT (MAX_NUM_LAYER > NUM_PASS_OUTPUT ? MAX_NUM_LAYER : NUM_PASS_OUTPUT)
+#define MAX_NUM_REC_OUTPUT (MAX_ENC_NUM_LAYER > NUM_PASS_OUTPUT ? MAX_ENC_NUM_LAYER : NUM_PASS_OUTPUT)
 #define MAX_NUM_BITSTREAM_OUTPUT NUM_PASS_OUTPUT
 
 static std::string PictTypeToString(AL_ESliceType type)
@@ -246,7 +246,7 @@ struct EncoderSink : IEncoderSink
     for(int32_t i = 0; i < MAX_NUM_BITSTREAM_OUTPUT; i++)
       BitstreamOutput[i].reset(new NullFrameSink);
 
-    for(int32_t i = 0; i < MAX_NUM_LAYER; i++)
+    for(int32_t i = 0; i < MAX_ENC_NUM_LAYER; i++)
       m_input_picCount[i] = 0;
 
     m_pictureType = cfg.RunInfo.printPictureType ? AL_SLICE_MAX_ENUM : -1;
@@ -356,7 +356,7 @@ struct EncoderSink : IEncoderSink
 
 private:
   AL_64S iPendingStreamCnt;
-  AL_64S m_input_picCount[MAX_NUM_LAYER] {};
+  AL_64S m_input_picCount[MAX_ENC_NUM_LAYER] {};
   AL_64S m_pictureType = -1;
   AL_64U m_StartTime = 0;
   AL_64U m_EndTime = 0;
@@ -470,6 +470,7 @@ private:
       if(pMeta && pMeta->bFilled)
       {
       }
+
       BitstreamOutput[iStreamId]->ProcessFrame(pStream);
     }
 

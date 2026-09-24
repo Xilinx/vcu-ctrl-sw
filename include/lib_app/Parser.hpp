@@ -5,10 +5,12 @@
 #include "Tokenizer.hpp"
 
 #include <algorithm>
+#include <cstdio>
 #include <deque>
 #include <functional>
 #include <limits>
 #include <map>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <cstdint>
@@ -50,7 +52,7 @@ static inline std::string toString(Codec codec)
   return "Unknown";
 }
 
-static inline std::vector<Codec> filterCodecs(std::vector<Codec> inputCodecs)
+static inline std::vector<Codec> filterCodecs(std::vector<Codec> const& inputCodecs)
 {
   std::vector<Codec> filteredCodecs {};
 
@@ -132,7 +134,7 @@ static inline void SetEnumDescr(std::map<std::string, EnumDescription<T>>& enumD
 }
 
 int32_t parseEnum(std::deque<Token>& tokens, std::map<std::string, EnumDescription<int>> const& availableEnums);
-std::map<std::string, EnumDescription<int>> createBoolEnums(std::vector<Codec> codecs);
+std::map<std::string, EnumDescription<int>> createBoolEnums(std::vector<Codec> const& codecs);
 int32_t parseBoolEnum(std::deque<Token>& tokens, std::map<std::string, EnumDescription<int>> boolEnums);
 bool hasOnlyOneIdentifier(std::deque<Token>& tokens);
 
@@ -334,7 +336,7 @@ static T get(ArithToken<T> const& arith)
 }
 
 template<typename T>
-static T reversePolishEval(std::deque<Token> tokens)
+static T reversePolishEval(std::deque<Token> const& tokens)
 {
   std::deque<ArithToken<T>> stack;
 
@@ -705,6 +707,40 @@ static inline std::string tolowerStr(std::string name)
   return name;
 }
 
+template<typename... Args, int buf_size_start = 256>
+static inline std::string stringFormat(std::string const& format, Args... args)
+{
+  char arr[buf_size_start];
+  int const n = std::snprintf(arr, buf_size_start, format.c_str(), args...);
+  bool success = n > 0 && n < buf_size_start;
+
+  if(success)
+    return {
+             arr
+    };
+
+  if(n < 0)
+    throw std::runtime_error("snprintf failed");
+
+  int size = buf_size_start * 2;
+
+  for(;;)
+  {
+    std::vector<char> buf_heap(size);
+    int const n = std::snprintf(buf_heap.data(), buf_size_start, format.c_str(), args...);
+    bool success = n > 0 && n < size;
+
+    if(success)
+      return {
+               buf_heap.data()
+      };
+
+    if(n < 0)
+      throw std::runtime_error("snprintf failed");
+    size = size * 2;
+  }
+}
+
 struct ConfigParser
 {
   Section curSection = Section::Global;
@@ -719,17 +755,17 @@ struct ConfigParser
 
   void removeIdentifierIf(std::vector<IdentifierValidation> conditions);
 
-  void addNote(Section section, char const* name, std::string note)
+  void addNote(Section section, char const* name, std::string const& note)
   {
     identifiers[section][tolowerStr(name)].notes.push_back(note);
   }
 
-  void addSeeAlso(Section section, char const* name, SeeAlsoInfo seealso)
+  void addSeeAlso(Section section, char const* name, SeeAlsoInfo const& seealso)
   {
     identifiers[section][tolowerStr(name)].seealso.push_back(seealso);
   }
 
-  void addWarning(Section section, char const* name, std::string warning)
+  void addWarning(Section section, char const* name, std::string const& warning)
   {
     identifiers[section][tolowerStr(name)].warnings.push_back(warning);
   }
@@ -747,14 +783,12 @@ struct ConfigParser
 
     identifiers[section][tolowerStr(name)] =
     {
-      [&](std::deque<Token>& tokens)
-      {
-        t = parseArithmetic<U>(tokens);
-      }, name, description, types,
-      [&t]() -> std::string
-      {
-        return std::to_string(t);
-      }, callbackInfo
+      [&](std::deque<Token>& tokens) { t = parseArithmetic<U>(tokens); },
+      name,
+      description,
+      types,
+      [&t]() -> std::string { return std::to_string(t); },
+      callbackInfo,
     };
   }
 
@@ -874,7 +908,7 @@ struct ConfigParser
   }
 
   template<typename T, typename U = long long int>
-  void addArithOrEnum(Section section, char const* name, T& t, std::map<std::string, EnumDescription<int>> availableEnums, std::string description, std::vector<ArithInfo<U>> info)
+  void addArithOrEnum(Section section, char const* name, T& t, std::map<std::string, EnumDescription<int>> const& availableEnums, std::string description, std::vector<ArithInfo<U>> info)
   {
     std::vector<ParameterType> types {
       ParameterType::String, ParameterType::ArithExpr
@@ -906,7 +940,7 @@ struct ConfigParser
   }
 
   template<typename T, typename U = long long int, typename Func, typename Func2>
-  void addArithFuncOrEnum(Section section, char const* name, T& t, Func f, Func2 m, std::map<std::string, EnumDescription<int>> availableEnums, std::string description, std::vector<ArithInfo<U>> info)
+  void addArithFuncOrEnum(Section section, char const* name, T& t, Func f, Func2 m, std::map<std::string, EnumDescription<int>> const& availableEnums, std::string description, std::vector<ArithInfo<U>> info)
   {
     std::vector<ParameterType> types {
       ParameterType::String, ParameterType::ArithExpr
@@ -938,7 +972,7 @@ struct ConfigParser
   }
 
   template<typename T>
-  void addBool(Section section, char const* name, T& t, std::string description, std::vector<Codec> codecs)
+  void addBool(Section section, char const* name, T& t, std::string const& description, std::vector<Codec> const& codecs)
   {
     std::vector<ParameterType> types {
       ParameterType::String
@@ -983,7 +1017,7 @@ struct ConfigParser
   }
 
   template<typename T>
-  void addFlag(Section section, char const* name, T& t, uint32_t uFlag, std::string description, std::vector<Codec> codecs)
+  void addFlag(Section section, char const* name, T& t, uint32_t uFlag, std::string description, std::vector<Codec> const& codecs)
   {
     std::vector<ParameterType> types {
       ParameterType::String

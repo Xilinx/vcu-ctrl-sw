@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "IntFifo.h"
+#include "lib_rtos/lib_rtos.h"
 
 bool IntFifo_Init(IntFifo* self, int32_t elements[], int32_t total_elements)
 {
@@ -71,10 +72,49 @@ int32_t IntFifo_Dequeue(IntFifo* self)
   return element;
 }
 
+void IntFifo_Remove(IntFifo* self, int32_t element)
+{
+  if(IntFifo_Empty(self))
+    return;
+
+  AL_TIndex i = 0;
+
+  for(; i < self->total_elements; ++i)
+  {
+    if(self->elements[(self->head + i) % self->total_elements] == element)
+      break;
+  }
+
+  Rtos_Assert(self->elements[(self->head + i) % self->total_elements] == element);
+
+  if(IntFifo_Size(self) == 1)
+  {
+    self->tail = AL_BAD_INDEX;
+    self->head = AL_BAD_INDEX;
+  }
+  else
+  {
+    for(; i < self->total_elements - 1; ++i)
+    {
+      self->elements[(self->head + i) % self->total_elements] = self->elements[(self->head + i + 1) % self->total_elements];
+    }
+
+    self->tail = (self->tail - 1) % self->total_elements;
+  }
+}
+
 int32_t IntFifo_Peek(IntFifo const* self)
 {
   if(IntFifo_Empty(self))
     return INTFIFO_INVALID;
 
   return self->elements[self->head];
+}
+
+int32_t IntFifo_PeekTail(IntFifo const* self)
+{
+  if(IntFifo_Empty(self))
+    return INTFIFO_INVALID;
+
+  return self->elements[self->tail];
 }

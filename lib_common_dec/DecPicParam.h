@@ -8,6 +8,8 @@
 #include "lib_common/SliceConsts.h"
 #include "lib_common/Index.h"
 
+#include "lib_common/AxiProperties.h"
+
 /*****************************************************************************/
 #define AL_DEC_OPT_EnableSclLst 0x00000001
 #define AL_DEC_OPT_LoadSclLst 0x00000002
@@ -38,8 +40,6 @@
 #define AL_SET_DEC_OPT(pPictParam, Opt, Val) (pPictParam)->uOptionFlags = (((pPictParam)->uOptionFlags & ~(AL_DEC_OPT_ ## Opt)) | (((Val) * (AL_DEC_OPT_ ## Opt)) & (AL_DEC_OPT_ ## Opt)))
 #define AL_GET_DEC_OPT(pPictParam, Opt) ((pPictParam)->uOptionFlags & (AL_DEC_OPT_ ## Opt))
 
-#define MAX_PLANES 3
-
 /****************************************************************************/
 typedef struct AL_TDecBufIDs
 {
@@ -58,6 +58,7 @@ static const AL_TDecBufIDs tEmptyBufIDs =
 typedef struct AL_TDecPictParam
 {
   AL_ECodec eCodec;
+  uint32_t uFrameCounter;
 
   AL_TDecBufIDs tBufIDs;
 
@@ -150,7 +151,8 @@ typedef struct AL_TDecBuffers
   TBuffer tWP;
 
   uint32_t uBitdepth;
-  uint32_t uPitch;
+  uint32_t uPitchY;
+  uint32_t uPitchC;
 
 }AL_TDecBuffers;
 
@@ -194,13 +196,15 @@ typedef struct AL_TDecPictBufferAddrs
   AL_PADDR pRecFbcMapY;
   AL_PADDR pRecFbcMapC1;
   uint32_t uBitdepth;
-  uint32_t uPitch;
+  uint32_t uPitchY;
+  uint32_t uPitchC;
 }AL_TDecPictBufferAddrs;
 
 /****************************************************************************/
 typedef struct AL_TDecBufferAddrs
 {
   AL_PADDR pCompData;
+  uint32_t uCompDataSize;
   AL_PADDR pCompMap;
   AL_PADDR pListRef;
   AL_PADDR pStream;
@@ -235,6 +239,8 @@ typedef struct AL_TDecPicStatus
   uint32_t uNumBins;
   uint32_t uNumConcealedLCU;
   bool bConcealed;
-  uint32_t uCRC;
+  AL_64U uCRC;
+  uint32_t uPixCount;
   AL_TDecPicState tDecPicState;
+  uint8_t uHangStageBitField; // encoded with module ID
 }AL_TDecPicStatus;

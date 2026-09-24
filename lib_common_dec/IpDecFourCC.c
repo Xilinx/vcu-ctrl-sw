@@ -4,15 +4,18 @@
 #include "lib_common_dec/IpDecFourCC.h"
 #include "lib_rtos/lib_rtos.h"
 
-TFourCC AL_GetDecFourCC(AL_TPicFormat const picFmt)
+TFourCC AL_GetDecFourCC(AL_TPicFormat const* pPicFormat)
 {
-  if(AL_FB_RASTER == picFmt.eStorageMode)
+  if(AL_FB_RASTER == pPicFormat->eStorageMode)
   {
-    Rtos_Assert(picFmt.eChromaMode == AL_CHROMA_MONO || picFmt.eChromaMode == AL_CHROMA_4_4_4 || picFmt.ePlaneMode == AL_PLANE_MODE_SEMIPLANAR);
-    Rtos_Assert(picFmt.uBitDepth == 8 || (AL_SAMPLE_PACK_MODE_PACKED_XV == picFmt.eSamplePackMode));
+    if(!(pPicFormat->eChromaMode == AL_CHROMA_MONO || pPicFormat->eChromaMode == AL_CHROMA_4_4_4 || pPicFormat->ePlaneMode == AL_PLANE_MODE_SEMIPLANAR))
+      return FOURCC(NULL);
+
+    if(!(pPicFormat->uBitDepth == 8 || (AL_SAMPLE_PACK_MODE_PACKED_XV == pPicFormat->eSamplePackMode)))
+      return FOURCC(NULL);
   }
 
-  return AL_GetFourCC(picFmt);
+  return AL_GetFourCC(pPicFormat);
 }
 
 AL_EPlaneMode AL_ChromaModeToPlaneMode(AL_EChromaMode eChromaMode)

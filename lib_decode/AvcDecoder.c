@@ -8,7 +8,7 @@
 #include "NalUnitParser.h"
 #include "NalUnitParserPrivate.h"
 
-#include "lib_common/Utils.h"
+#include "lib_common/Arithmetics.h"
 #include "lib_common/AvcLevelsLimit.h"
 #include "lib_common/AvcUtils.h"
 #include "lib_common/Error.h"
@@ -16,7 +16,7 @@
 
 #include "lib_common_dec/RbspParser.h"
 #include "lib_common_dec/DecInfoInternal.h"
-#include "lib_common_dec/Defines_mcu.h"
+#include "lib_common_dec/Scheduler_Defs.h"
 #include "lib_common_dec/DecHardwareConfig.h"
 #include "lib_common_dec/StreamSettingsInternal.h"
 #include "lib_common_dec/HDRMeta.h"
@@ -34,6 +34,20 @@ static AL_TDimension extractDimension(AL_TAvcSps const* pSPS, bool bHasFields)
 
   return (AL_TDimension) {
            (pSPS->pic_width_in_mbs_minus1 + 1) * 16, height * 16
+  };
+}
+
+/******************************************************************************/
+static AL_TDimension getMaxDimension(AL_TAvcSps const* pSPS)
+{
+  /* Further constrain based on the profile?*/
+  int32_t iMaxHeight = AL_DEC_MAX_HEIGHT;
+  int32_t iMaxWidth = AL_DEC_MAX_WIDTH;
+
+  (void)pSPS;
+
+  return (AL_TDimension) {
+           iMaxWidth, iMaxHeight
   };
 }
 
@@ -76,14 +90,16 @@ static int32_t getMaxNumberOfSlices(AL_TDecCtx const* pCtx, AL_TAvcSps const* pS
   }
 
   if(numUnitsInTick == 0 || timeScale == 0)
-    return Min(macroblocksCountInPicture, AL_AVC_GetSpecificationMaxNumberOfSlices());
+    return Min(macroblocksCountInPicture, AL_AVC_GetSpecificationMaxNumberOfSlices(pStreamSettings->iLevel));
 
   return AL_AVC_GetMaxNumberOfSlices(pStreamSettings->eProfile, pStreamSettings->iLevel, numUnitsInTick, timeScale, macroblocksCountInPicture);
 }
 
 /*****************************************************************************/
-static AL_ERR isSPSCompatibleWithHardware(AL_TAvcSps const* pSPS, bool bHasFields)
+static AL_ERR isSPSCompatibleWithHardware(AL_TAvcSps const* pSPS, bool bHasFields, bool bDisableMinimalResolutionCheck)
 {
+  (void)bDisableMinimalResolutionCheck;
+
   int32_t iSPSMaxBitDepth = getMaxBitDepthFromSPSPBitDepth(pSPS);
   AL_ERR eErr = AL_HWConfig_Dec_CheckBitDepth(iSPSMaxBitDepth);
 
@@ -91,7 +107,11 @@ static AL_ERR isSPSCompatibleWithHardware(AL_TAvcSps const* pSPS, bool bHasField
     return eErr;
 
   AL_TDimension tSPSDim = extractDimension(pSPS, bHasFields);
+
   eErr = AL_HWConfig_Dec_CheckFrameResolution(tSPSDim, AL_CORE_AVC_LOG2_MAX_CU_SIZE, AL_CORE_AVC_LOG2_MAX_CU_SIZE);
+
+  AL_TDimension tMaxDim = getMaxDimension(pSPS);
+  eErr = AL_HWConfig_Dec_CheckMaxFrameResolution(tSPSDim, tMaxDim);
 
   if(!AL_IS_SUCCESS_CODE(eErr))
     return eErr;
@@ -208,8 +228,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS, bool bHasF
   AL_TStreamSettings const* pStreamSettings = &pCtx->tCurrentStreamSettings;
   Rtos_Assert(iNumMBs == ((pStreamSettings->tDim.iWidth / 16) * (pStreamSettings->tDim.iHeight / 16)));
 
-  AL_TDecoderPoolSizes tSizes;
-  Rtos_Memset(&tSizes, 0, sizeof(AL_TDecoderPoolSizes));
+  AL_TDecoderPoolSizes tSizes = { 0 };
 
   int32_t iSPSMaxSlices = getMaxNumberOfSlices(pCtx, pSPS) + 1; // One more for conceal slice
   tSizes.iWPSize = iSPSMaxSlices * WP_SLICE_SIZE;
@@ -222,6 +241,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_TAvcSps const* pSPS, bool bHasF
     goto fail_alloc;
 
   AL_TPictMngrParam tPictMngrParam;
+  tPictMngrParam.eCodec = AL_CODEC_AVC;
   tPictMngrParam.uNumRef = AL_AVC_GetMaxDpbBuffers(pStreamSettings, pSPS->max_num_ref_frames * (1 + bHasFields));
   tPictMngrParam.eFbStorageMode = pCtx->pChanParam->eFBStorageMode;
   tPictMngrParam.uNumAnnexBuf = AL_AVC_GetMinOutputBuffersNeeded(pStreamSettings, pCtx->iStackSize);
@@ -306,7 +326,10 @@ static bool initSlice(AL_TDecCtx* pCtx, AL_TAvcSliceHdr* pSlice)
 
   if(!pCtx->bAreFirstStreamSettingsChecked)
   {
-    AL_ERR const ret = !pCtx->bAreBuffersAllocated ? isSPSCompatibleWithHardware(pSlice->pSPS, pSlice->field_pic_flag) : isSPSCompatibleWithInitialStreamSettings(pCtx, pSlice->pSPS, pSlice->field_pic_flag);
+    bool bDisableMinimalResolutionCheck = false;
+    AL_ERR const ret = !pCtx->bAreBuffersAllocated ?
+                       isSPSCompatibleWithHardware(pSlice->pSPS, pSlice->field_pic_flag, bDisableMinimalResolutionCheck) :
+                       isSPSCompatibleWithInitialStreamSettings(pCtx, pSlice->pSPS, pSlice->field_pic_flag);
 
     if(!AL_IS_SUCCESS_CODE(ret))
     {
@@ -426,20 +449,23 @@ static void createConcealSlice(AL_TDecCtx* pCtx, AL_TDecPicParam* pPicParam, AL_
 static void updatePictManager(AL_TPictMngrCtx* pCtx, AL_ENut eNUT, AL_TAvcSliceHdr* pSlice)
 {
   bool bClearRef = AL_AVC_IsIDR(eNUT);
+  AL_TDpb* pDpb = (AL_TDpb*)pCtx->pRefMngr;
 
   if(bClearRef)
+  {
+    if(pSlice->no_output_of_prior_pics_flag)
+      AL_Dpb_ClearOutput(pDpb);
     AL_PictMngr_Flush(pCtx);
+  }
 
   // update picture manager
-  AL_TDpb* pDpb = (AL_TDpb*)pCtx->pRefMngr;
   pDpb->iPrevFrameNum = pSlice->frame_num;
 
   AL_AVC_Dpb_EndParsing(pDpb);
 
   AL_EMarkingRef eMarkingFlag = ((pSlice->nal_ref_idc > 0) || bClearRef) ? (pSlice->long_term_reference_flag ? LONG_TERM_REF : SHORT_TERM_REF) : UNUSED_FOR_REF;
 
-  AL_TDpbInsertParam tParam;
-  Rtos_Memset(&tParam, 0, sizeof(AL_TDpbInsertParam));
+  AL_TDpbInsertParam tParam = { 0 };
   tParam.iFramePOC = pDpb->iCurFramePOC;
   tParam.ePicStruct = pDpb->ePicStruct;
   tParam.eMarkingFlag = eMarkingFlag;
@@ -914,6 +940,17 @@ static AL_EParseResult parseAndApplySPS(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_
         eParseResult = AL_PARSER_LAUNCHED_OK;
       }
       pIAup->avcAup.pSPS[tNewSPS.seq_parameter_set_id] = tNewSPS;
+
+      // reprocess scaling lists on PPSs pointing to this sps
+      for(int pps_id = 0; pps_id < AL_AVC_MAX_PPS; ++pps_id)
+      {
+        AL_TAvcPps* pPPS = &pIAup->avcAup.pPPS[pps_id];
+
+        if(pPPS->seq_parameter_set_id == tNewSPS.seq_parameter_set_id)
+        {
+          AL_AVC_ComputeSclParameters(pPPS);
+        }
+      }
     }
     else
       pIAup->avcAup.pSPS[tNewSPS.seq_parameter_set_id].bConceal = true;

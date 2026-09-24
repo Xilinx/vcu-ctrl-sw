@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 #include "Patchworker.h"
-#include "lib_common/Utils.h"
+
+#include "lib_common/Arithmetics.h"
 
 static int32_t GetBufferOffset(AL_TCircMetaData* pMeta)
 {

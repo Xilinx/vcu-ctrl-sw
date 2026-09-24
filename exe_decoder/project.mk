@@ -6,7 +6,8 @@ EXE_DECODER_SRC:=\
   $(THIS_EXE_DECODER)/CmdParser.cpp\
   $(THIS_EXE_DECODER)/IpDevice.cpp\
   $(THIS_EXE_DECODER)/CodecUtils.cpp\
-  $(THIS_EXE_DECODER)/InputLoader.cpp
+  $(THIS_EXE_DECODER)/InputLoader.cpp\
+  $(THIS_EXE_DECODER)/HeifLoader.cpp
 
 
 
@@ -15,6 +16,8 @@ EXE_DECODER_SRC:=\
 ifneq ($(ENABLE_DEC_SW_HIGH_DYNAMIC_RANGE),0)
   EXE_DECODER_SRC+=$(THIS_EXE_DECODER)/HDRWriter.cpp
 endif
+
+
 
 
 -include $(THIS_EXE_DECODER)/site.mk

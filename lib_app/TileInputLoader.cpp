@@ -7,10 +7,10 @@
 
 extern "C"
 {
-#include "lib_common/Utils.h"
 #include "lib_common/PixMapBuffer.h"
 #include "lib_common/Planes.h"
 #include "lib_common/Round.h"
+#include "lib_common/Arithmetics.h"
 }
 
 static int32_t GetTileSize(int32_t iTileHeight)

@@ -23,7 +23,7 @@ AL_TBuffer* PixMapBufPool::CreateBuf(AL_TAllocator* pAllocator, PFN_RefCount_Cal
 
   for(auto curChunk = vPlaneChunks.begin(); curChunk != vPlaneChunks.end(); curChunk++)
   {
-    if(!AL_PixMapBuffer_Allocate_And_AddPlanes(pBuf, curChunk->zSize, &curChunk->vPlDescriptions[0], curChunk->vPlDescriptions.size(), sName.c_str()))
+    if(!AL_PixMapBuffer_Allocate_And_AddPlanes(pBuf, curChunk->zSize, curChunk->vPlDescriptions.data(), curChunk->vPlDescriptions.size(), sName.c_str()))
     {
       AL_Buffer_Destroy(pBuf);
       return NULL;

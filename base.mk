@@ -20,7 +20,9 @@ ifneq ($(ENABLE_STATIC),0)
 endif
 
 ifneq ($(findstring mingw,$(TARGET)),mingw)
-    LINK_COMPAT+=-Wl,--hash-style=both
+ifneq ($(findstring darwin,$(TARGET)),darwin)
+	LINK_COMPAT+=-Wl,--hash-style=both
+endif
 endif
 
 define filter_out_dyn_lib

@@ -103,7 +103,7 @@ int32_t parseBoolEnum(std::deque<Token>& tokens, std::map<std::string, EnumDescr
   return parseEnum(tokens, boolEnums);
 }
 
-std::map<std::string, EnumDescription<int>> createBoolEnums(std::vector<Codec> codecs)
+std::map<std::string, EnumDescription<int>> createBoolEnums(std::vector<Codec> const& codecs)
 {
   /* we need something that can take a bool */
   std::map<std::string, EnumDescription<int>> boolEnums;

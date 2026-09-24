@@ -8,10 +8,10 @@ CXX:=$(CROSS_COMPILE)g++
 CC:=$(CROSS_COMPILE)gcc
 
 # Same as: ar/nm/ranlib --plugin=<liblto_plugin.so>
-ARCHIVER_TOOL?=
-AR:=$(CROSS_COMPILE)$(ARCHIVER_TOOL)ar
-NM:=$(CROSS_COMPILE)$(ARCHIVER_TOOL)nm
-RANLIB:=$(CROSS_COMPILE)$(ARCHIVER_TOOL)ranlib
+BINUTILS_PREFIX?=
+AR:=$(CROSS_COMPILE)$(BINUTILS_PREFIX)ar
+NM:=$(CROSS_COMPILE)$(BINUTILS_PREFIX)nm
+RANLIB:=$(CROSS_COMPILE)$(BINUTILS_PREFIX)ranlib
 
 AS:=$(CROSS_COMPILE)as
 LD:=$(CROSS_COMPILE)ld
@@ -87,20 +87,19 @@ ifneq ($(BUILD_LIB_A2P), 0)
 endif
 
 
-
 -include lib_app/project.mk #lib_common, lib_log and lib_fbc_standalone dependency
 
 
 
 BUILD_LIB_BITSTREAM=0
-ifneq ($(ENABLE_EXE_ENCODER),0)
+ifneq ($(ENABLE_ENCODER),0)
   BUILD_LIB_BITSTREAM=1
 endif
 ifneq ($(BUILD_LIB_BITSTREAM),0)
   -include lib_bitstream/project.mk
 endif
 
-ifneq ($(ENABLE_EXE_ENCODER),0)
+ifneq ($(ENABLE_ENCODER),0)
   -include lib_common_enc/project.mk
   -include lib_buf_mngt/project.mk
   -include lib_rate_ctrl/project.mk
@@ -109,7 +108,7 @@ ifneq ($(ENABLE_EXE_ENCODER),0)
 endif
 
 BUILD_LIB_COM_DEC=0
-ifneq ($(ENABLE_EXE_DECODER),0)
+ifneq ($(ENABLE_DECODER),0)
   BUILD_LIB_COM_DEC=1
 endif
 ifneq ($(BUILD_LIB_COM_DEC),0)
@@ -155,13 +154,20 @@ else
 -include ref.mk
 endif
 
-ifneq ($(ENABLE_EXE_DECODER),0)
-  # AL_Decoder
+ifneq ($(ENABLE_DECODER),0)
   -include lib_parsing/project.mk
 
   -include lib_scheduler_dec/project.mk
   -include lib_decode/project.mk
+endif
+
+ifneq ($(ENABLE_EXE_DECODER),0)
+  # AL_Decoder
   -include exe_decoder/project.mk
+
+endif
+
+ifneq ($(ENABLE_EXE_DECODER),0)
 endif
 
 
@@ -170,6 +176,7 @@ ifneq ($(ENABLE_EXE_ENCODER),0)
   # AL_Encoder
   -include exe_encoder/project.mk
 endif
+
 
 
 
@@ -200,21 +207,28 @@ HDR_INSTALL_OPT = -m 0644
 INCLUDE_DIR := include
 HEADER_DIRS_TMP := $(sort $(dir $(wildcard $(INCLUDE_DIR)/*/)))
 HEADER_DIRS := $(HEADER_DIRS_TMP:$(INCLUDE_DIR)/%=%)
-INSTALL_HDR_PATH := ${PREFIX}/include
-INSTALL_PATH ?= /usr/bin
+INSTALL_PATH ?= ${PREFIX}
+INSTALL_HDR_PATH := ${INSTALL_PATH}/include
+
+install: all install_headers
+	mkdir -p ${INSTALL_PATH}
+	find ${BIN} -maxdepth 1 -name '*.exe' -exec $(INSTALL) {} ${INSTALL_PATH} -m 755  ';'
+	find ${BIN} -maxdepth 1 -name '*.a' -exec $(INSTALL) {} ${INSTALL_PATH} -m 644 ';'
+	find ${BIN} -maxdepth 1 -type f -name '*.so*' -exec cp -d {} ${INSTALL_PATH} ';'
+	find ${BIN} -maxdepth 1 -type f -name "*.so*" -exec $(INSTALL) {} ${INSTALL_PATH} -m 755 ';'
+	find ${BIN} -maxdepth 1 -type l -name '*.so*' -exec cp -d {} ${INSTALL_PATH} ';'
 
 install_headers:
-	mkdir -p ${INSTALL_PATH}
 	@echo $(HEADER_DIRS)
 	for dirname in $(HEADER_DIRS); do \
 		$(INSTALL) -d "$(INCLUDE_DIR)/$$dirname" "$(INSTALL_HDR_PATH)/$$dirname"; \
-		$(INSTALL) $(HDR_INSTALL_OPT) "$(INCLUDE_DIR)/$$dirname"/*.h "$(INSTALL_HDR_PATH)/$$dirname" || true; \
-                $(INSTALL) $(HDR_INSTALL_OPT) "$(INCLUDE_DIR)/$$dirname"/*.hpp "$(INSTALL_HDR_PATH)/$$dirname" || true; \
+		$(INSTALL) $(HDR_INSTALL_OPT) "$(INCLUDE_DIR)/$$dirname"/*.h* "$(INSTALL_HDR_PATH)/$$dirname"; \
 	done; \
-	$(INSTALL) $(HDR_INSTALL_OPT) "$(INCLUDE_DIR)"/*.h "$(INSTALL_HDR_PATH)/" || true;
-	$(INSTALL) $(HDR_INSTALL_OPT) "$(INCLUDE_DIR)"/*.hpp "$(INSTALL_HDR_PATH)/" || true;
+	$(INSTALL) $(HDR_INSTALL_OPT) "$(INCLUDE_DIR)"/*.h* "$(INSTALL_HDR_PATH)/";
 	install -Dm 0755 bin/AL_Encoder.exe ${INSTALL_PATH}/ctrlsw_encoder
 	install -Dm 0755 bin/AL_Decoder.exe ${INSTALL_PATH}/ctrlsw_decoder
+
+
 
 pack_includes:
 	@echo $(PACK_INCLUDES)
@@ -228,4 +242,7 @@ coverage: LDFLAGS+=-lgcov
 
 true_all: $(TARGETS)
 
-.PHONY: true_all clean all
+print_flags:
+	@echo $(CFLAGS) $(INCLUDES)
+
+.PHONY: true_all clean all install

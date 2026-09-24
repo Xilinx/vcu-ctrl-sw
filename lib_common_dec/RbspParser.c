@@ -3,8 +3,8 @@
 
 #include "RbspParser.h"
 
-#include "lib_common/Utils.h"
 #include "lib_common_dec/DecBuffersInternal.h"
+#include "lib_common/Arithmetics.h"
 
 #define odd(a) ((a) & 1)
 #define even(a) (!odd(a))
@@ -227,6 +227,20 @@ bool simple_byte_alignment(AL_TRbspParser* pRP, uint8_t expected_bit)
     uint8_t alignment_bit = u(pRP, 1);
 
     if(alignment_bit != expected_bit)
+      return false;
+  }
+
+  return true;
+}
+
+/*****************************************************************************/
+bool simple_byte_alignment_nocheck(AL_TRbspParser* pRP)
+{
+  while(!byte_aligned(pRP))
+  {
+    uint8_t alignment_bit = u(pRP, 1);
+
+    if(alignment_bit == UINT8_MAX)
       return false;
   }
 

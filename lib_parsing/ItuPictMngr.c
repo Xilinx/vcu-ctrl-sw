@@ -20,10 +20,8 @@ static void sSetAnnexBuffersAddresses(AL_ECodec eCodec, AL_TDecSliceParam const*
 
   for(int32_t i = 0; i < AL_MAX_REF; ++i)
   {
-
     pColocMvList[i] = pPictMngrRefBuffers->pAnnexBufs[i][ITU_ANNEX_BUF_MV_IDX].tMD.uPhysicalAddr;
     pColocPocList[i] = pPictMngrRefBuffers->pAnnexBufs[i][ITU_ANNEX_BUF_POC_IDX].tMD.uPhysicalAddr;
-
   }
 }
 

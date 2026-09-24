@@ -17,10 +17,16 @@ typedef struct AL_IEncScheduler AL_IEncScheduler;
     \brief Interfaces with a scheduler that runs on different process.
     Its main usage is to interface with the MCU scheduler (microcontroller) when used with an hardware driver.
     It can also be used with a proxy driver to access a scheduler on another process.
-   \param[in] driver Select which driver you want to use. This will dictate how the communication with the scheduler will be handled.
-   \param[in] pDmaAllocator a dma allocator that will be used to create work buffers and to map some of the buffer that are sent to the scheduler.
-   \param[in] deviceFile The file that represents the device and that will be opened by the driver to communicate with the scheduler.
+   \param[in] pDriver Select which driver you want to use. This will dictate how the communication with the scheduler will be handled
+   \param[in] pDmaAllocator a dma allocator that will be used to create work buffers and to map some of the buffer that are sent to the scheduler
+   \return NULL on error. An AL_IEncScheduler pointer on success
 *****************************************************************************/
-AL_IEncScheduler* AL_SchedulerMcu_Create(AL_ICommunication* driver, AL_TLinuxDmaAllocator* pDmaAllocator, char const* deviceFile);
+AL_IEncScheduler* AL_EncSchedulerMcu_Create(AL_ICommunication* pDriver, AL_TLinuxDmaAllocator* pDmaAllocator);
+
+AL_DEPRECATED("Use AL_EncSchedulerMcu_Create instead!")
+static inline AL_IEncScheduler * AL_SchedulerMcu_Create(AL_ICommunication * pDriver, AL_TLinuxDmaAllocator * pDmaAllocator)
+{
+  return AL_EncSchedulerMcu_Create(pDriver, pDmaAllocator);
+}
 
 /*!@}*/

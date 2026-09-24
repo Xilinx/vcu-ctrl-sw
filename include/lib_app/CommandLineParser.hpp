@@ -97,7 +97,7 @@ struct CommandLineParser
   }
 
   template<typename T>
-  T readVal(std::string word)
+  static T readVal(std::string word)
   {
     bool hex = (word[0] == '0' && word[1] == 'x');
 
@@ -117,17 +117,17 @@ struct CommandLineParser
     return value;
   }
 
-  int32_t readInt(std::string word)
+  static int32_t readInt(std::string word)
   {
     return readVal<int32_t>(word);
   }
 
-  uint32_t readUint(std::string word)
+  static uint32_t readUint(std::string word)
   {
     return readVal<uint32_t>(word);
   }
 
-  double readDouble(std::string word)
+  static double readDouble(std::string word)
   {
     return readVal<double>(word);
   }

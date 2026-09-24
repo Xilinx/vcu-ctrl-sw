@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: © 2026 Allegro DVT <github-ip@allegrodvt.com>
 // SPDX-License-Identifier: MIT
 
-#include "lib_common/Utils.h"
+#include "lib_common/Arithmetics.h"
+#include "lib_common/Utils.h" // NUMCORE_AUTO
 #include "lib_common/ChannelResources.h"
 #include "lib_common_enc/ParamConstraintsInternal.h"
 
-#define MIN_QP_CHROMA_OFFSET -12
+#define MIN_QP_CHROMA_OFFSET (-12)
 #define MAX_QP_CHROMA_OFFSET 12
 
 static bool AL_CheckChromaOffsetsInRange(int8_t iQpOffset)

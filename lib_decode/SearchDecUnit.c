@@ -3,8 +3,9 @@
 
 #include "SearchDecUnit.h"
 #include "lib_common/Nuts.h"
+#include "lib_common/Utils.h" // ARRAY_SIZE
 #include "lib_common/SeiInternal.h"
-#include "lib_common/Utils.h"
+
 #include "lib_common/AvcUtils.h"
 #include "lib_common/HevcUtils.h"
 #include "lib_rtos/lib_rtos.h"
@@ -73,21 +74,6 @@ void AL_SearchDecUnit_AddNals(AL_TDecUnitSearchCtx* pCtx, AL_TStartCode const* p
 }
 
 /*****************************************************************************/
-static bool isAud(AL_ECodec eCodec, AL_ENut eNut)
-{
-  switch(eCodec)
-  {
-  case AL_CODEC_AVC:
-    return eNut == AL_AVC_NUT_AUD;
-  case AL_CODEC_HEVC:
-    return eNut == AL_HEVC_NUT_AUD;
-  default:
-    (void)eNut;
-    return false;
-  }
-}
-
-/*****************************************************************************/
 static bool isVcl(AL_ECodec eCodec, AL_ENut eNut)
 {
   switch(eCodec)
@@ -96,6 +82,21 @@ static bool isVcl(AL_ECodec eCodec, AL_ENut eNut)
     return AL_AVC_IsVcl(eNut);
   case AL_CODEC_HEVC:
     return AL_HEVC_IsVcl(eNut);
+  default:
+    (void)eNut;
+    return false;
+  }
+}
+
+/*****************************************************************************/
+static bool isAud(AL_ECodec eCodec, AL_ENut eNut)
+{
+  switch(eCodec)
+  {
+  case AL_CODEC_AVC:
+    return eNut == AL_AVC_NUT_AUD;
+  case AL_CODEC_HEVC:
+    return eNut == AL_HEVC_NUT_AUD;
   default:
     (void)eNut;
     return false;
@@ -228,9 +229,9 @@ static uint32_t skipNalHeader(uint32_t uPos, AL_ECodec eCodec, uint32_t uSize)
 
 /*****************************************************************************/
 #define IS_START_CODE(pBuf, uSize, uPos) ( \
-    (pBuf[uPos % uSize] == 0x00) && \
-    (pBuf[(uPos + 1) % uSize] == 0x00) && \
-    (pBuf[(uPos + 2) % uSize] == 0x01))
+    ((pBuf)[(uPos) % (uSize)] == 0x00) && \
+    ((pBuf)[((uPos) + 1) % (uSize)] == 0x00) && \
+    ((pBuf)[((uPos) + 2) % (uSize)] == 0x01))
 
 /*****************************************************************************/
 static bool isFirstSliceNAL(AL_TDecUnitSearchCtx* pCtx, AL_TNal* pNal)

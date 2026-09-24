@@ -3,6 +3,7 @@
 
 #include "lib_common_enc/QpTableMeta.h"
 #include "lib_common/Utils.h"
+
 #include "lib_rtos/lib_rtos.h"
 
 static bool destroy(AL_TMetaData* pBaseMeta)

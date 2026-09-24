@@ -28,4 +28,4 @@ typedef struct
   char cFrameType;
 }AL_PerfPrintCtx;
 
-void AL_PerformanceLog(AL_PerfPrintCtx* pPrintCtx);
+void AL_PerformanceLog(AL_PerfPrintCtx const* pPrintCtx);

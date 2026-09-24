@@ -3,7 +3,9 @@
 
 #include "lib_decode/lib_decode.h"
 #include "lib_common/PicFormat.h"
+#include "lib_common_dec/DecBuffersInternal.h"
 #include "lib_decode/LibDecoderHost.h"
+#include "lib_common_dec/DecOutputSettingsInternal.h"
 
 /* Initialize with decHost so AL_Lib_Decoder_Init() call is optional for the
  * time being.
@@ -28,7 +30,6 @@ void AL_Lib_Decoder_DeInit(void)
 {
   if(pArch)
     pArch->vtable->Deinit();
-  pArch = NULL;
 }
 
 /*****************************************************************************/
@@ -50,13 +51,14 @@ void AL_Decoder_Destroy(AL_HDecoder hDec)
 }
 
 /*****************************************************************************/
-void AL_Decoder_SetParam(AL_HDecoder hDec, const char* sPrefix, int32_t iFrmID, int32_t iNumFrm, bool bShouldPrintFrameDelimiter)
+void AL_Decoder_SetParam(AL_HDecoder hDec, const char* sPrefix, int32_t iFrmID, int32_t iNumFrm, bool bShouldPrintFrameDelimiter, bool bOutputTraceOnly)
 {
   if(!pArch)
     return;
 
   pArch->vtable->DecoderSetParam(hDec, sPrefix, iFrmID, iNumFrm,
-                                 bShouldPrintFrameDelimiter);
+                                 bShouldPrintFrameDelimiter,
+                                 bOutputTraceOnly);
 }
 
 /*****************************************************************************/
@@ -150,18 +152,12 @@ bool AL_Decoder_PreallocateBuffers(AL_HDecoder hDec)
 /*****************************************************************************/
 int32_t AL_Decoder_GetMinPitch(int32_t iWidth, AL_TPicFormat const* pPicFormat)
 {
-  if(!pArch)
-    return 0;
-
-  return pArch->vtable->DecoderGetMinPitch(iWidth, pPicFormat);
+  return AL_DecGetLumaPixPlanePitch(iWidth, pPicFormat);
 }
 
 /*****************************************************************************/
 int32_t AL_Decoder_GetMinStrideHeight(int32_t iHeight, AL_TPicFormat const* pPicFormat)
 {
-  if(!pArch)
-    return 0;
-
-  return pArch->vtable->DecoderGetMinStrideHeight(iHeight, pPicFormat);
+  return AL_DecGetPixPlaneHeight(iHeight, pPicFormat);
 }
 

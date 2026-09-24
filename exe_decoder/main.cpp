@@ -47,6 +47,8 @@ extern "C" {
 #include "lib_app/SinkCrcDump.hpp"
 #include "lib_app/SinkFrame.hpp"
 #include "lib_app/SinkYuvMd5.hpp"
+#include "lib_app/SinkCrcDump.hpp"
+#include "lib_app/SinkDecPerf.hpp"
 #include "lib_app/UnCompFrameReader.hpp"
 #include "lib_app/YuvIO.hpp"
 #include "lib_app/console.hpp"
@@ -59,6 +61,7 @@ extern "C" {
 #include "CmdParser.hpp"
 #include "CodecUtils.hpp"
 #include "InputLoader.hpp"
+#include "HeifLoader.hpp"
 #include "IpDevice.hpp"
 #include "SinkYuvCrc.hpp"
 #include "HDRWriter.hpp"
@@ -170,7 +173,7 @@ private:
   AL_TDimension m_tDisplayDimension = { 0, 0 };
   bool bMainOutputCompression = false;
   bool bHasOutput = false;
-  bool bEnableYuvOutput = false;
+  bool bEnableYUVOutput = false;
   std::shared_ptr<HDRWriter> pHDRWriter;
   std::shared_ptr<ofstream> hFileOut;
   std::shared_ptr<ofstream> hMapOut;
@@ -193,7 +196,7 @@ void DisplayManager::Configure(Config const& config)
   bool bMd5Output = !config.md5File.empty();
 
   bHasOutput = (config.bEnableYUVOutput || config.bCertCRC || bMd5Output);
-  bEnableYuvOutput = config.bEnableYUVOutput;
+  bEnableYUVOutput = config.bEnableYUVOutput;
 
   if(bHasOutput)
   {
@@ -249,7 +252,7 @@ void DisplayManager::ConfigureMainOutputWriters(AL_TDecOutputSettings const& tDe
 {
   (void)tDecOutputSettings;
 
-  if(!bHasOutput || bOutputWritersCreated || !bEnableYuvOutput)
+  if(!bHasOutput || bOutputWritersCreated || !bEnableYUVOutput)
     return;
 
   AL_EOutputType eOutputType = AL_OUTPUT_MAIN;
@@ -488,7 +491,7 @@ static int32_t sConfigureDecBufPool(PixMapBufPool& SrcBufPool, AL_TPicFormat con
   */
   const int32_t MULTICHUNK_ADDITIONAL_PLANE_SIZE = 2048;
 
-  auto const tFourCC = AL_GetFourCC(tPicFormat);
+  auto const tFourCC = AL_GetFourCC(&tPicFormat);
   SrcBufPool.SetFormat(tDim, tFourCC);
 
   std::vector<AL_TPlaneDescription> vPlaneDesc;
@@ -560,7 +563,7 @@ private:
   AL_TDecCallBacks CB {};
   AL_TDecSettings* pDecSettings;
   bool bUsePreAlloc = false;
-  PixMapBufPool tBaseBufPool[MAX_NUM_LAYER];
+  PixMapBufPool tBaseBufPool[MAX_DEC_NUM_LAYER];
   bool bSetRecPoolInMultiChunk = false;
   AL_TDecOutputSettings* pUserOutputSettings;
   ofstream seiOutput;
@@ -631,7 +634,6 @@ bool DecoderContext::WaitExit(uint32_t uTimeout)
 /******************************************************************************/
 static AL_ERR sBaseResolutionFound(int32_t iBufferNumber, AL_TStreamSettings const* pStreamSettings, AL_TCropInfo const* pCropInfo, void* pUserParam)
 {
-  (void)iBufferNumber;
   auto pCtx = (DecoderContext*)pUserParam;
   return pCtx->SetupBaseDecoderPool(iBufferNumber, pStreamSettings, pCropInfo);
 }
@@ -755,7 +757,14 @@ AL_ERR DecoderContext::SetupBaseDecoderPool(int32_t iBufferNumber, AL_TStreamSet
   this->tDisplayManager.ConfigureMainOutputWriters(*pUserOutputSettings);
 
   if(!AL_Decoder_ConfigureOutputSettings(GetBaseDecoderHandle(), pUserOutputSettings))
-    throw runtime_error("Could not configure the output settings");
+  {
+    std::string errstr;
+    AL_ERR err;
+    err = AL_Decoder_GetLastError(this->GetBaseDecoderHandle());
+    errstr = "Could not configure the output settings";
+    errstr += AL_Codec_ErrorToString(err);
+    throw runtime_error(errstr);
+  }
 
   /* Compute buffer sizing */
   int32_t iBufferSize = ComputeBaseDecoderRecBufferSizing(pStreamSettings, pUserOutputSettings);
@@ -763,7 +772,7 @@ AL_ERR DecoderContext::SetupBaseDecoderPool(int32_t iBufferNumber, AL_TStreamSet
   AL_TCropInfo pUserCropInfo = *pCropInfo;
 
   AL_TDimension outputDim = pStreamSettings->tDim;
-  ShowStreamInfo(iBufferNumber, iBufferSize, pStreamSettings, &pUserCropInfo, AL_GetFourCC(pUserOutputSettings->tPicFormat), outputDim);
+  ShowStreamInfo(iBufferNumber, iBufferSize, pStreamSettings, &pUserCropInfo, AL_GetFourCC(&pUserOutputSettings->tPicFormat), outputDim);
 
   if(tBaseBufPool[uLayerID].IsInit())
     return AL_SUCCESS;
@@ -881,6 +890,7 @@ void DisplayManager::ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int3
   if(tOutFourCC == FOURCC(NULL))
   {
     AL_EPlaneMode ePlaneMode = AL_PLANE_MODE_PLANAR;
+    bool bMSB = tRecPicFormat.bMSB;
 
     AL_EComponentOrder eConvCompOrder = AL_COMPONENT_ORDER_YUV;
 
@@ -893,10 +903,10 @@ void DisplayManager::ProcessFrame(AL_TBuffer& tRecBuf, AL_TInfoDecode info, int3
       eConvCompOrder,
       AL_SAMPLE_PACK_MODE_BYTE,
       false,
-      tRecPicFormat.bMSB
+      bMSB
     };
 
-    tOutFourCC = AL_GetFourCC(tConvPicFormat);
+    tOutFourCC = AL_GetFourCC(&tConvPicFormat);
   }
   else if(tOutFourCC == FOURCC(hard))
   {
@@ -1228,7 +1238,7 @@ struct AsyncFileInput final
   AsyncFileInput(void);
   ~AsyncFileInput(void);
   void Init(AL_HDecoder hDec_, BufPool& bufPool_, EndOfInputCallBack endOfInputCB_, PushBufferCallBack pushBufferCB_);
-  void ConfigureStreamInput(string const& sPath, string const& sPathSplitSizes, bool bSplitInput, AL_ECodec eCodec, bool bVclSplit);
+  void ConfigureStreamInput(string const& sPath, string const& sPathSplitSizes, bool bSplitInput, AL_ECodec eCodec, bool bVclSplit, EInputContainer eContainer);
   void Start();
 
 private:
@@ -1271,7 +1281,7 @@ void AsyncFileInput::Init(AL_HDecoder hDec, BufPool& bufPool, EndOfInputCallBack
 }
 
 /******************************************************************************/
-void AsyncFileInput::ConfigureStreamInput(string const& sPath, string const& sPathSplitSizes, bool bSplitInput, AL_ECodec eCodec, bool bVclSplit)
+void AsyncFileInput::ConfigureStreamInput(string const& sPath, string const& sPathSplitSizes, bool bSplitInput, AL_ECodec eCodec, bool bVclSplit, EInputContainer eContainer)
 {
   (void)eCodec;
   (void)sPathSplitSizes;
@@ -1282,6 +1292,12 @@ void AsyncFileInput::ConfigureStreamInput(string const& sPath, string const& sPa
   {
     OpenInput(ifFileSizes, sPathSplitSizes, false);
     m_StreamLoader.reset(new SplitInputFromSizes(ifFileSizes));
+  }
+
+  if(eContainer == EInputContainer::Heif)
+  {
+    m_StreamLoader.reset(new HeifLoader(eCodec));
+    return;
   }
 
   if(bSplitInput)
@@ -1495,7 +1511,7 @@ void SafeRunChannelMain(WorkerConfig& w)
   if(config.UseBaseDecoder())
   {
     auto hDec = tDecCtx.GetBaseDecoderHandle();
-    AL_Decoder_SetParam(hDec, w.useBoards->at(DEVICE_BASE_DECODER) ? "Fpga" : "Ref", config.iTraceIdx, config.iTraceNumber, config.ipCtrlMode == AL_EIpCtrlMode::AL_IPCTRL_MODE_TRACE);
+    AL_Decoder_SetParam(hDec, w.useBoards->at(DEVICE_BASE_DECODER) ? "Fpga" : "Ref", config.iTraceIdx, config.iTraceNumber, config.ipCtrlMode == AL_EIpCtrlMode::AL_IPCTRL_MODE_TRACE, config.bOutputTraceOnly);
   }
 
   // Parametrization of the lcevc decoder for traces
@@ -1547,7 +1563,7 @@ void SafeRunChannelMain(WorkerConfig& w)
 
     producer.Init(tDecCtx.GetBaseDecoderHandle(), tInputPool, AL_Decoder_Flush, AL_Decoder_PushStreamBuffer);
 
-    producer.ConfigureStreamInput(config.sIn, config.sSplitSizesFile, config.tDecSettings.eInputMode == AL_DEC_SPLIT_INPUT, eCodec, config.tDecSettings.eDecUnit == AL_VCL_NAL_UNIT);
+    producer.ConfigureStreamInput(config.sIn, config.sSplitSizesFile, config.tDecSettings.eInputMode == AL_DEC_SPLIT_INPUT, eCodec, config.tDecSettings.eDecUnit == AL_VCL_NAL_UNIT, config.eContainer);
     producer.Start();
 
     auto const maxWait = config.iTimeoutInSeconds * 1000;

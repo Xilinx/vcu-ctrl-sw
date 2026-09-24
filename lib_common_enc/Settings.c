@@ -13,6 +13,7 @@
 #include "lib_common/ChannelResources.h"
 #include "lib_common/Utils.h"
 #include "lib_common/Round.h"
+#include "lib_common/Arithmetics.h"
 #include "lib_common/StreamBufferPrivate.h"
 #include "lib_common_enc/EncBuffers.h"
 #include "lib_common_enc/EncSize.h"
@@ -460,9 +461,18 @@ static void XAVC_CheckCoherency(AL_TEncSettings* pSettings)
   pGop->uFreqIDR = Min(pGop->uGopLength, pGop->uFreqIDR);
 }
 
+static void setDefaultWeightedPred(AL_TEncSettings* pSettings)
+{
+  (void)pSettings;
+}
+
 /***************************************************************************/
 static void AL_sSettings_SetDefaultAVCParam(AL_TEncSettings* pSettings)
 {
+  {
+    (void)pSettings;
+  }
+
   pSettings->tChParam[0].uLog2MaxCuSize = AVC_MAX_CU_SIZE;
 
   if(pSettings->eScalingList == AL_SCL_MAX_ENUM)
@@ -475,6 +485,7 @@ static void AL_sSettings_SetDefaultHEVCParam(AL_TEncSettings* pSettings)
   if(pSettings->eScalingList == AL_SCL_MAX_ENUM)
     pSettings->eScalingList = AL_SCL_FLAT;
   pSettings->tChParam[0].uLog2MaxTuSkipSize = 2;
+  setDefaultWeightedPred(pSettings);
 }
 
 /***************************************************************************/
@@ -539,12 +550,16 @@ void AL_Settings_SetDefaults(AL_TEncSettings* pSettings)
   pSettings->NumLayer = 1;
   pSettings->NumView = 1;
 
+#if AL_ENABLE_AL_ENC_ZAPPER
+  pSettings->eZapperMode = AL_NO_ZAP;
+#endif
 }
 
 void AL_Settings_SetDefaultChannelParam(AL_TEncChanParam* pChan)
 {
   pChan->Direct8x8Infer = true;
   pChan->StrongIntraSmooth = true;
+  pChan->TemporalMVP = true;
 
   pChan->eProfile = AL_ENC_DEFAULT_PROFILE;
   pChan->uLevel = 51;
@@ -558,7 +573,6 @@ void AL_Settings_SetDefaultChannelParam(AL_TEncChanParam* pChan)
   pGop->uFreqIDR = UINT32_MAX;
   pGop->eGdrMode = AL_GDR_OFF;
   pGop->iFreqRP = INT32_MAX;
-  pGop->iGdrDuration = 0;
   pGop->uGopLength = 30;
 
   for(int8_t i = 0; i < 4; ++i)
@@ -608,6 +622,10 @@ void AL_Settings_SetDefaultChannelParam(AL_TEncChanParam* pChan)
   pChan->eStartCodeBytesAligned = AL_START_CODE_4_BYTES;
 #endif
 
+#if AL_ENABLE_AL_ENC_ZAPPER
+  pChan->tZapperV2Values.iBlockWeight = 1 << AL_ZAPPER_V2_LAMBDA_WEIGHT_SHIFT;
+  pChan->tZapperV2Values.iCoeffWeight = 1 << AL_ZAPPER_V2_LAMBDA_WEIGHT_SHIFT;
+#endif
 }
 
 /***************************************************************************/
@@ -621,6 +639,7 @@ void AL_Settings_SetDefaultChannelParam(AL_TEncChanParam* pChan)
 
 void AL_Settings_SetDefaultParam(AL_TEncSettings* pSettings)
 {
+  (void)setDefaultWeightedPred;
 
   int32_t iMinQP, iMaxQP;
   AL_ParamConstraints_GetQPBounds(AL_GET_CODEC(pSettings->tChParam[0].eProfile), &iMinQP, &iMaxQP);
@@ -644,6 +663,19 @@ void AL_Settings_SetDefaultParam(AL_TEncSettings* pSettings)
     AL_sSettings_SetDefaultHEVCParam(pSettings);
 
 }
+
+#if AL_ENABLE_AL_ENC_ZAPPER
+static int ErrorIfNotInRange(int64_t const value, int64_t const min, int64_t const max, char const* optName, FILE* pOut)
+{
+  if(value < min || value > max)
+  {
+    MSGF_ERROR("%s out of range: value: %" PRId64 ", range: [%" PRId64 "..%" PRId64 "]", optName, value, min, max);
+    return 1;
+  }
+  return 0;
+}
+
+#endif
 
 /***************************************************************************/
 int32_t AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* pChParam, FILE* pOut)
@@ -1019,12 +1051,17 @@ int32_t AL_Settings_CheckValidity(AL_TEncSettings* pSettings, AL_TEncChanParam* 
 
   if(pChParam->bSubframeLatency && AL_IS_AVC(pChParam->eProfile))
   {
-    if((pChParam->uEncHeight / iCTBSize) < (int)pChParam->uNumCore)
+    if(pChParam->uEncHeight < (pChParam->uNumCore * iCTBSize))
     {
       ++err;
-      MSG_ERROR("In SliceLat and with AVC, the encoding height must be equal to (CTB size) * (numCore)");
+      MSG_ERROR("In AVC subframe-latency, the encoding height must be hiher or equal than (CTB size) * (numCore)");
     }
   }
+
+#if AL_ENABLE_AL_ENC_ZAPPER
+  err += ErrorIfNotInRange(pChParam->tZapperV2Values.iBlockWeight, AL_ZAPPER_V2_LAMBDA_WEIGHT_MIN, AL_ZAPPER_V2_LAMBDA_WEIGHT_MAX, "ZapperV2 BlockWeight", pOut);
+  err += ErrorIfNotInRange(pChParam->tZapperV2Values.iCoeffWeight, AL_ZAPPER_V2_LAMBDA_WEIGHT_MIN, AL_ZAPPER_V2_LAMBDA_WEIGHT_MAX, "ZapperV2 CoeffWeight", pOut);
+#endif
 
   return err;
 }
@@ -1236,7 +1273,6 @@ int32_t AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam*
 
   if(AL_GetBitDepth(tFourCC) < iBitDepth)
     ++numIncoherency;
-
   uint16_t uMaxNumB = Max(pChParam->tGopParam.uGopLength - 2, 0);
 
   if(pChParam->tGopParam.eMode == AL_GOP_MODE_DEFAULT &&
@@ -1290,33 +1326,19 @@ int32_t AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam*
     {
       MSG_WARNING("Gop.FreqIDR is less than 1 with GDR activated. Setting Gop.FreqIDR to UINT8_MAX");
     }
-    switch(Sign(pChParam->tGopParam.iGdrDuration))
-    {
-    case 1:
 
-      if(!(pChParam->tGopParam.iGdrDuration <= pChParam->tGopParam.iFreqRP))
-      {
-        MSG_WARNING("GDR refresh duration must be less or equal to period of recovery point. GDR refresh duration was adapted.");
-        pChParam->tGopParam.iGdrDuration = pChParam->tGopParam.iFreqRP;
-      }
-      break;
-    case 0:
     {
       int32_t iLimit = (pChParam->tGopParam.eGdrMode == AL_GDR_VERTICAL) ? pChParam->uEncWidth : pChParam->uEncHeight;
       int32_t iLcuSize = 1 << pChParam->uLog2MaxCuSize;
       int32_t iNbLcu = (iLimit + iLcuSize - 1) / iLcuSize;
 
-      if((int)pChParam->tGopParam.iFreqRP < iNbLcu)
+      if(pChParam->tGopParam.iFreqRP < iNbLcu)
       {
         pChParam->tGopParam.iFreqRP = iNbLcu;
         MSG_WARNING("Frequency of recovery point must be at least equal to the number of LCU line/column");
       }
     }
-    break;
-    case -1:
-      MSG_ERROR("GDR duration can't be strictly negative");
-      return -1;
-    }
+
   }
 
 #if (defined(ANDROID) || defined(__ANDROID_API__))
@@ -1390,6 +1412,9 @@ int32_t AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam*
   if(!AL_IS_HEVC(pChParam->eProfile))
   {
   }
+
+  if(pChParam->tGopParam.eGdrMode == AL_GDR_VERTICAL)
+    pChParam->eEncTools |= AL_OPT_CONST_INTRA_PRED;
 
   if(AL_IS_XAVC(pChParam->eProfile))
     XAVC_CheckCoherency(pSettings);
@@ -1617,9 +1642,11 @@ int32_t AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam*
     ++numIncoherency;
   }
 
-  if(pChParam->tGopParam.bEnableLT && pChParam->tGopParam.uFreqLT <= 0)
+  if(pChParam->tGopParam.bEnableLT)
   {
-    pChParam->tGopParam.uFreqLT = pChParam->tGopParam.uGopLength;
+    if(pChParam->tGopParam.uFreqLT == 0)
+      pChParam->tGopParam.uFreqLT = pChParam->tGopParam.uGopLength;
+
     MSG_WARNING("Adjusting long term frequency value as long term is enabled");
     ++numIncoherency;
   }
@@ -1720,9 +1747,6 @@ int32_t AL_Settings_CheckCoherency(AL_TEncSettings* pSettings, AL_TEncChanParam*
       ++numIncoherency;
     }
   }
-
-  if(pChParam->tGopParam.eGdrMode == AL_GDR_VERTICAL)
-    pChParam->eEncTools |= AL_OPT_CONST_INTRA_PRED;
 
   if(AL_IS_INTERLACED(pChParam->eVideoMode))
   {

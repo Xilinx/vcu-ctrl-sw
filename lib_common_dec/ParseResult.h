@@ -10,6 +10,7 @@ typedef enum
   AL_PARSE_BAD_ID,
   AL_PARSE_UNSUPPORTED,
   AL_PARSER_LAUNCHED_OK,
+  AL_PARSER_OBU_OP_POINT_DISCARD,
 }AL_EParseResult;
 
 #include "lib_rtos/lib_rtos.h"

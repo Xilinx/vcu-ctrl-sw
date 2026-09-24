@@ -16,7 +16,7 @@ void SetChannelInfo(AL_TCommonChannelInfo* pChanInfo, const AL_TEncChanParam* pC
   uint32_t uFbcMaxBufSizeRatio = 0;
 
   pChanInfo->tRecPicFormat = AL_EncGetRecPicFormat(AL_GET_CHROMA_MODE(pChParam->ePicFormat), AL_GET_BITDEPTH(pChParam->ePicFormat), bComp, pChParam->eRecStorageMode);
-  pChanInfo->RecFourCC = AL_GetFourCC(pChanInfo->tRecPicFormat);
+  pChanInfo->RecFourCC = AL_GetFourCC(&pChanInfo->tRecPicFormat);
 
   pChanInfo->eCodec = AL_GET_CODEC(pChParam->eProfile);
 

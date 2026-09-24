@@ -30,9 +30,9 @@ struct BaseFrameWriter
 
 protected:
   template<typename T>
-  void WriteValue(std::shared_ptr<std::ostream> stream, T pVal);
+  void WriteValue(std::shared_ptr<std::ostream>& stream, T pVal);
   void WritePix(const uint8_t* pPix, uint32_t iPitchInPix, uint16_t uHeightInTile, uint32_t uPitchFile);
-  void WriteBuffer(std::shared_ptr<std::ostream> stream, const uint8_t* pBuf, uint32_t uWriteSize);
+  void WriteBuffer(std::shared_ptr<std::ostream>& stream, const uint8_t* pBuf, uint32_t uWriteSize);
   void CheckNotNull(const uint8_t* pBuf);
   void FactorsCalculus();
   void DimInTileCalculus();
@@ -57,14 +57,14 @@ protected:
 
 /****************************************************************************/
 template<typename T>
-void BaseFrameWriter::WriteValue(std::shared_ptr<std::ostream> stream, T pVal)
+void BaseFrameWriter::WriteValue(std::shared_ptr<std::ostream>& stream, T pVal)
 {
   if(stream->fail())
-    throw printf("Invalid output file");
+    throw std::runtime_error("Invalid output file");
   stream->write((char*)&pVal, sizeof(T));
 
   if(stream->fail())
-    throw printf("Invalid output file");
+    throw std::runtime_error("Invalid output file");
 }
 
 inline const char* StorageModeToString(AL_EFbStorageMode eStorageMode)
@@ -78,7 +78,7 @@ inline const char* StorageModeToString(AL_EFbStorageMode eStorageMode)
   case AL_FB_TILE_64x4:
     return "AL_FB_TILE_64x4";
   default:
-    assert("Invalid storage mode");
+    assert(false && "Invalid storage mode");
   }
 
   return NULL;

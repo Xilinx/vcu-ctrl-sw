@@ -531,7 +531,7 @@ bool AL_SeiParser_Parse(AL_TSeiParserCtx* pCtx, AL_TRbspParser* pRP, bool bIsPre
 
   // Send sei to the user
   // --------------------
-  if(bCanSendToUser && pCtx->pSeiParsedCallback)
+  if(bCanSendToUser && (pCtx->pSeiParsedCallback != NULL) && (pCtx->pSeiParsedCallback->func != NULL))
     pCtx->pSeiParsedCallback->func(bIsPrefix, ePayloadType, pPayloadData, uPayloadSize, pCtx->pSeiParsedCallback->userParam);
 
   return true;

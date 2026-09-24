@@ -107,7 +107,7 @@ typedef struct AL_THevcVps
 
   uint8_t vps_max_layer_id;
   uint16_t vps_num_layer_sets_minus1;
-  uint8_t layer_id_included_flag[2][64];
+  uint8_t layer_id_included_flag[MAX_NUM_LAYER][64];
 
   uint8_t vps_timing_info_present_flag;
   uint32_t vps_num_units_in_tick;
@@ -236,8 +236,6 @@ typedef struct AL_THevcSps
   uint8_t Log2CtbSize;
   uint16_t PicWidthInCtbs;
   uint16_t PicHeightInCtbs;
-  uint16_t PicWidthInMinCbs;
-  uint16_t PicHeightInMinCbs;
 
   /* picture dpb latency variable */
   uint32_t SpsMaxLatency;

@@ -6,6 +6,7 @@
 #include "include/lib_rtos/lib_rtos.h"
 #include "lib_common/SliceConsts.h"
 #include "lib_common/Nuts.h"
+#include "lib_common/Arithmetics.h"
 #include "lib_common/SeiInternal.h"
 #include "lib_common/ScalingList.h"
 #include "lib_common_enc/PictureInfo.h"
@@ -212,7 +213,8 @@ static void writeVpsData(AL_TBitStreamLite* pBS, AL_THevcVps const* pVps)
   for(iIdx = 1; iIdx <= pVps->vps_num_layer_sets_minus1; ++iIdx)
   {
     for(int32_t iLayerID = 0; iLayerID <= pVps->vps_max_layer_id; ++iLayerID)
-      AL_BitStreamLite_PutBit(pBS, pVps->layer_id_included_flag[iIdx][iLayerID]);
+      if(iIdx < MAX_ENC_NUM_LAYER)
+        AL_BitStreamLite_PutBit(pBS, pVps->layer_id_included_flag[iIdx][iLayerID]);
   }
 
   AL_BitStreamLite_PutBit(pBS, pVps->vps_timing_info_present_flag);

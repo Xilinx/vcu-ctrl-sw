@@ -12,7 +12,7 @@
 #include "lib_common/StreamSection.h"
 
 #define AL_MAX_SECTION (2 * (AL_MAX_ENC_SLICE + 2))
-#define AL_INVALID_STREAMSECTION_ID -1
+#define AL_INVALID_STREAMSECTION_ID (-1)
 
 /*****************************************************************************
    \brief Useful section of the buffer containing the bitstream

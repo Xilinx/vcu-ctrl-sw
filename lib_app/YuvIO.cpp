@@ -81,7 +81,9 @@ AL_TBuffer* AllocateDefaultYuvIOBuffer(AL_TDimension const& tDimension, TFourCC 
   AL_TDimension tRoundedDim = GetRoundedDim(tDimension, uRndDim);
 
   AL_TPicFormat tPicFormat;
-  AL_GetPicFormat(tFourCC, &tPicFormat);
+
+  if(!AL_GetPicFormat(tFourCC, &tPicFormat))
+    throw runtime_error("Unknow picture format");
 
   return AL_PixMapBuffer_Create_And_AddPlanes(AL_GetDefaultAllocator(), NULL, tDimension, tRoundedDim, tPicFormat, 1, "IO frame buffer");
 }
@@ -93,7 +95,9 @@ int32_t GetPictureSize(AL_TYUVFileInfo FI)
   int32_t iPictSize = uFileRowSize * FI.PictHeight;
 
   AL_TPicFormat tPicFormat;
-  AL_GetPicFormat(FI.FourCC, &tPicFormat);
+
+  if(!AL_GetPicFormat(FI.FourCC, &tPicFormat))
+    throw runtime_error("Unknow picture format");
 
   if(tPicFormat.eChromaMode != AL_CHROMA_MONO)
   {
@@ -214,8 +218,10 @@ static void ReadFileLuma(ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSize
 
     if(bTileFormat)
     {
-      int32_t iLinesInPitch = AL_GetNumLinesInPitch(eStorageMode);
-      uint32_t uTileSize = iLinesInPitch * (eStorageMode == AL_FB_TILE_32x4 ? 32 : 64);
+      int32_t iLinesInPitch = AL_GetNumLinesInPitch(eStorageMode, AL_GetChromaMode(tFourCC), AL_GetBitDepth(tFourCC));
+      int32_t iTileWidth = eStorageMode == AL_FB_TILE_32x4 ? 32 : 64;
+
+      uint32_t uTileSize = iLinesInPitch * iTileWidth;
       uSize = static_cast<uint32_t>(AL_RoundUp(uFileRowSize, uTileSize));
     }
 
@@ -267,7 +273,7 @@ static void ReadFileChroma(ifstream& File, AL_TBuffer* pBuf, AL_EPlaneId ePlaneT
 
     if(bTileFormat)
     {
-      int32_t iLinesInPitch = AL_GetNumLinesInPitch(eStorageMode);
+      int32_t iLinesInPitch = AL_GetNumLinesInPitch(eStorageMode, AL_GetChromaMode(tFourCC), AL_GetBitDepth(tFourCC));
       uint32_t uTileSize = iLinesInPitch * (eStorageMode == AL_FB_TILE_32x4 ? 32 : 64);
       uSize = static_cast<uint32_t>(AL_RoundUp(uRowSizeC, uTileSize));
     }
@@ -296,7 +302,9 @@ static void ReadFile(ifstream& File, AL_TBuffer* pBuf, uint32_t uFileRowSize, ui
 
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
   AL_TPicFormat tPicFormat;
-  AL_GetPicFormat(tFourCC, &tPicFormat);
+
+  if(!AL_GetPicFormat(tFourCC, &tPicFormat))
+    throw runtime_error("Unknow picture format");
 
   if(tPicFormat.ePlaneMode == AL_PLANE_MODE_SEMIPLANAR)
     ReadFileChroma(File, pBuf, AL_PLANE_UV, uFileRowSize, uFileNumRow, uRoundedNumRow);
@@ -323,9 +331,10 @@ bool ReadOneFrameYuv(ifstream& File, AL_TBuffer* pBuf, bool bLoop, uint32_t uRnd
   uint32_t uRowSizeLuma = GetIOLumaRowSize(tFourCC, tDim.iWidth);
   uint32_t uHeightLuma = tDim.iHeight;
   AL_EFbStorageMode eStorageMode = AL_GetStorageMode(tFourCC);
-  int32_t iLinesInPitch = AL_GetNumLinesInPitch(eStorageMode);
+  int32_t iLinesInPitch = AL_GetNumLinesInPitch(eStorageMode, AL_GetChromaMode(tFourCC), AL_GetBitDepth(tFourCC));
 
-  if(eStorageMode == AL_FB_TILE_32x4 || eStorageMode == AL_FB_TILE_64x4)
+  if(eStorageMode == AL_FB_TILE_32x4 || eStorageMode == AL_FB_TILE_64x4
+     )
   {
     uRowSizeLuma *= iLinesInPitch;
     uHeightLuma /= iLinesInPitch;
@@ -379,13 +388,15 @@ bool WriteOneFrame(ofstream& File, const AL_TBuffer* pBuf)
 
   int32_t iIORowSize = GetIOLumaRowSize(tFourCC, tDim.iWidth);
   AL_EFbStorageMode eStorageMode = AL_GetStorageMode(tFourCC);
-  int32_t iRowsInPitch = AL_GetNumLinesInPitch(eStorageMode);
+  int32_t iRowsInPitch = AL_GetNumLinesInPitch(eStorageMode, AL_GetChromaMode(tFourCC), AL_GetBitDepth(tFourCC));
 
   int32_t iHeight = tDim.iHeight;
   WritePlane(File, pBuf, AL_PLANE_Y, iIORowSize, iRowsInPitch, iHeight);
 
   AL_TPicFormat tPicFormat;
-  AL_GetPicFormat(tFourCC, &tPicFormat);
+
+  if(!AL_GetPicFormat(tFourCC, &tPicFormat))
+    throw runtime_error("Unknow picture format");
 
   if(tPicFormat.eChromaMode == AL_CHROMA_MONO)
     return true;
@@ -440,12 +451,14 @@ void ComputeMd5SumFrame(AL_TBuffer* pBuf, CMD5& pMD5)
   int32_t iHeight = tDim.iHeight;
 
   AL_EFbStorageMode eStorageMode = AL_GetStorageMode(tFourCC);
-  int32_t iLinesInPitch = AL_GetNumLinesInPitch(eStorageMode);
+  int32_t iLinesInPitch = AL_GetNumLinesInPitch(eStorageMode, AL_GetChromaMode(tFourCC), AL_GetBitDepth(tFourCC));
 
-  if(eStorageMode == AL_FB_TILE_32x4 || eStorageMode == AL_FB_TILE_64x4)
+  bool bIsTile = eStorageMode == AL_FB_TILE_32x4 || eStorageMode == AL_FB_TILE_64x4;
+
+  if(bIsTile)
   {
     iIORowSize *= iLinesInPitch;
-    iHeight /= iLinesInPitch;
+    iHeight = AL_UnsignedCeilDiv(iHeight, iLinesInPitch);
   }
 
   AL_EPlaneId eFistPlaneId = AL_PLANE_Y;
@@ -456,7 +469,9 @@ void ComputeMd5SumFrame(AL_TBuffer* pBuf, CMD5& pMD5)
   ComputeMd5Plane(pBuf, eFistPlaneId, iIORowSize, iHeight, pMD5);
 
   AL_TPicFormat tPicFormat;
-  AL_GetPicFormat(tFourCC, &tPicFormat);
+
+  if(!AL_GetPicFormat(tFourCC, &tPicFormat))
+    throw runtime_error("Unknow picture format");
 
   if(tPicFormat.eChromaMode == AL_CHROMA_MONO || tPicFormat.ePlaneMode == AL_PLANE_MODE_INTERLEAVED)
     return;
@@ -484,7 +499,9 @@ void ComputeMd5SumMap(AL_TBuffer* pBuf, CMD5& pMD5)
 {
   TFourCC tFourCC = AL_PixMapBuffer_GetFourCC(pBuf);
   AL_TPicFormat tPicFormat;
-  AL_GetPicFormat(tFourCC, &tPicFormat);
+
+  if(!AL_GetPicFormat(tFourCC, &tPicFormat))
+    throw runtime_error("Unknow picture format");
 
   if(!tPicFormat.bCompressed)
     return;
@@ -492,7 +509,7 @@ void ComputeMd5SumMap(AL_TBuffer* pBuf, CMD5& pMD5)
   AL_TDimension tDim = AL_PixMapBuffer_GetDimension(pBuf);
 
   int32_t iPitchMap = AL_PixMapBuffer_GetPlanePitch(pBuf, AL_PLANE_MAP_Y);
-  int32_t iLinesInPitch = AL_GetNumLinesInPitch(tPicFormat.eStorageMode);
+  int32_t iLinesInPitch = AL_GetNumLinesInPitch(tPicFormat.eStorageMode, tPicFormat.eChromaMode, tPicFormat.uBitDepth);
 
   int32_t iHeight = tDim.iHeight / iLinesInPitch;
 

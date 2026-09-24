@@ -60,6 +60,9 @@
 #ifndef AL_DEC_NUM_CORES
 #define AL_DEC_NUM_CORES 2
 #endif
+#ifndef AL_DEC_NUM_PARSER_PER_CORE
+#define AL_DEC_NUM_PARSER_PER_CORE 2
+#endif
 #ifndef AL_DEC_SW_MAX_STACK_SIZE
 #define AL_DEC_SW_MAX_STACK_SIZE 16
 #endif
@@ -68,6 +71,12 @@
 #endif
 #ifndef AL_ENC_CORE_MAX_WIDTH
 #define AL_ENC_CORE_MAX_WIDTH 4096
+#endif
+#ifndef AL_DEC_MAX_WIDTH
+#define AL_DEC_MAX_WIDTH 4096
+#endif
+#ifndef AL_DEC_MAX_HEIGHT
+#define AL_DEC_MAX_HEIGHT 16384
 #endif
 #ifndef AL_ENC_CORE_MAX_WIDTH_JPEG
 #define AL_ENC_CORE_MAX_WIDTH_JPEG 16384
@@ -84,8 +93,17 @@
 #ifndef AL_LOG_LEVEL
 #define AL_LOG_LEVEL 0
 #endif
+#ifndef MAX_ENC_NUM_LAYER
+#define MAX_ENC_NUM_LAYER 1
+#endif
+#ifndef MAX_DEC_NUM_LAYER
+#define MAX_DEC_NUM_LAYER 1
+#endif
 #ifndef MAX_NUM_LAYER
 #define MAX_NUM_LAYER 1
+#endif
+#ifndef AL_ENABLE_AL_ENC_ZAPPER
+#define AL_ENABLE_AL_ENC_ZAPPER 1
 #endif
 #ifndef AL_TITLE
 #define AL_TITLE Xilinx
@@ -94,5 +112,5 @@
 
 #define AL_CONFIGURE_COMMANDLINE "./configure --config-blob customers/Xilinx/config.ini"
 #define AL_VERSION_MAJOR 0
-#define AL_VERSION_MINOR 49
+#define AL_VERSION_MINOR 52
 #define AL_VERSION_PATCH 0

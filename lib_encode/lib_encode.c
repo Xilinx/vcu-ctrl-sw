@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: © 2026 Allegro DVT <github-ip@allegrodvt.com>
 // SPDX-License-Identifier: MIT
 
-#include "lib_encode/lib_encoder.h"
+#include "lib_encode/lib_encode.h"
 #include "lib_encode/LibEncoderHost.h"
 
 /* Initialize with encHost so AL_Lib_Encoder_Init() call is optional for the
@@ -27,7 +27,6 @@ void AL_Lib_Encoder_DeInit(void)
 {
   if(pArch)
     pArch->vtable->Deinit();
-  pArch = NULL;
 }
 
 /*****************************************************************************/

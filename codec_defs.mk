@@ -1,6 +1,8 @@
 ENABLE_64BIT?=1
 ENABLE_STATIC?=0
 BIN?=bin
+TEST=test
+
 
 GENERATED_FILES_DIR=$(BIN)/gen
 
@@ -11,7 +13,6 @@ endif
 
 INCLUDES+=-I.
 INCLUDES+=-Iinclude
-INCLUDES+=-I./extra/include
 
 CFLAGS+=-Wwrite-strings
 CFLAGS+=-Wredundant-decls

@@ -31,6 +31,13 @@ typedef struct AL_StringFourCC
                              | ((uint32_t)((# A)[3]) << 24)))
 
 /*****************************************************************************
+   \brief Converts string to TFourCC
+   \param[in] str string (shall be 4 characters long)
+   \return return the tFourCC that correspond to the given string
+*****************************************************************************/
+TFourCC FourCCFromString(const char* str);
+
+/*****************************************************************************
    \brief Returns the ChromaMode identifier according to the tFourCC parameter
    \param[in] tFourCC FourCC format of the current picture
    \return return the ChomaMode according to the tFourCC parameter
@@ -153,10 +160,10 @@ bool AL_IsRasterMSB(TFourCC tFourCC);
 
 /*****************************************************************************
    \brief Returns FourCC from AL_TPicFormat
-   \param[in] tPicFormat the pict format
-   \return return corresponding FourCC, 0 if picFormat does not exist
+   \param[in] pPicFormat Pointer of the picture format
+   \return return corresponding FourCC, FOURCC(NULL) if picFormat does not exist
 *****************************************************************************/
-TFourCC AL_GetFourCC(AL_TPicFormat tPicFormat);
+TFourCC AL_GetFourCC(AL_TPicFormat const* pPicFormat);
 
 /*****************************************************************************
    \brief Returns pointer to AL_TPicFormat from FourCC

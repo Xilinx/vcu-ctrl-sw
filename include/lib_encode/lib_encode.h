@@ -27,7 +27,7 @@
 /*****************************************************************************
     \brief Virtual interface used to access the scheduler of the Encoder IP.
     If you want to create multiple channels in the same process that access the same IP, the AL_IEncScheduler should be shared between them.
-    \see AL_SchedulerCpu_Create and AL_SchedulerMcu_Create if available to get concrete implementations of this interface.
+    \see AL_EncSchedulerCpu_Create and AL_EncSchedulerMcu_Create if available to get concrete implementations of this interface.
 *****************************************************************************/
 typedef struct AL_IEncScheduler AL_IEncScheduler;
 
@@ -207,7 +207,7 @@ bool AL_Encoder_PutStreamBuffer(AL_HEncoder hEnc, AL_TBuffer* pStream);
    The chroma pitch has to be equal to the luma pitch and must be 32bits aligned
    and should be superior to the minimum supported pitch for the resolution
    (See AL_EncGetMinPitch()). The chroma offset shouldn't fall inside the luma block.
-   The FourCC should be the same as the one from the channel (See AL_EncGetSrcFourCC())
+   The FourCC should be the same as the one from the channel (See AL_GetEncFourCC())
    \param[in] pQpTable Pointer to an optional qp table used if the external qp table mode is enabled
    \return If the function succeeds the return value is nonzero (true)
    If the function fails the return value is zero (false)

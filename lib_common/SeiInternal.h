@@ -8,6 +8,7 @@
  *****************************************************************************/
 #pragma once
 
+#include "lib_common/BufConst.h"
 #include "lib_common/SEI.h"
 #include "common_syntax_elements.h"
 

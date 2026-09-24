@@ -20,7 +20,8 @@ using namespace std;
 extern "C"
 {
 #include "lib_encode/EncSchedulerMcu.h"
-#include "lib_common/LinuxDriverCommunication.h"
+#include "lib_common_enc/EncLinuxDriverCommunication.h"
+#include "lib_common/I_Communication.h"
 }
 
 void CIpDevice::ConfigureMcu(CIpDeviceParam& param)
@@ -30,9 +31,14 @@ void CIpDevice::ConfigureMcu(CIpDeviceParam& param)
   if(!m_pAllocator)
     throw runtime_error("Can't open DMA allocator");
 
+  m_pCommunication.reset(AL_CreateEncLinuxDriverCommunication(param.pCfgFile->RunInfo.encDevicePaths.at(0).c_str()), &AL_ICommunication_Destroy);
+
+  if(m_pCommunication == nullptr)
+    throw runtime_error("Can't open encoder Linux driver");
+
   /* We lost the Linux Dma Allocator type before in an upcast,
    * but it is needed for the scheduler mcu as we need the GetFd api in it. */
-  m_pScheduler = AL_SchedulerMcu_Create(AL_GetLinuxDriverCommunication(), (AL_TLinuxDmaAllocator*)m_pAllocator.get(), param.pCfgFile->RunInfo.encDevicePaths.at(0).c_str());
+  m_pScheduler = AL_EncSchedulerMcu_Create(m_pCommunication.get(), (AL_TLinuxDmaAllocator*)m_pAllocator.get());
 
   if(!m_pScheduler)
     throw std::runtime_error("Failed to create MCU scheduler");

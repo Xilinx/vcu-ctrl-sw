@@ -10,6 +10,7 @@
 
 #include "lib_common/ScalingList.h"
 #include "lib_common/PicFormat.h"
+#include "lib_common_dec/DecPicParam.h"
 
 /*****************************************************************************
    \brief Dumps Hardware formatted decoder scaling list into buffer of bytes

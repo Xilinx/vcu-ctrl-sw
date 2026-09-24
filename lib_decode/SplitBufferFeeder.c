@@ -92,7 +92,8 @@ static bool Process(AL_TSplitBufferFeeder* this)
   AL_TCircMetaData* pMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(workBuf, AL_META_TYPE_CIRCULAR);
   Rtos_Assert(pMeta);
 
-  Rtos_FlushCacheMemory(AL_Buffer_GetData(workBuf) + pMeta->iOffset, pMeta->iAvailSize);
+  if(pMeta->iAvailSize != 0)
+    Rtos_FlushCacheMemory(AL_Buffer_GetData(workBuf) + pMeta->iOffset, pMeta->iAvailSize);
   AL_WorkPool_PushBack(&this->workPool, workBuf);
 
   UNIT_ERROR const err = pMeta->iAvailSize ? AL_Decoder_TryDecodeOneUnit(hDec, workBuf) : ERR_UNIT_NOT_FOUND;
@@ -196,6 +197,9 @@ static void pushEOS(AL_TFeeder* hFeeder)
   AL_TSplitBufferFeeder* this = (AL_TSplitBufferFeeder*)hFeeder;
 
   /* Ensure in subframe latency that even if the user doesn't send a full frame at the end of the stream, we can finish sent slices */
+  AL_TCircMetaData* pCircMeta = (AL_TCircMetaData*)AL_Buffer_GetMetaData(this->pEOSBuffer, AL_META_TYPE_CIRCULAR);
+  Rtos_Assert(pCircMeta != NULL);
+
   pushBuffer(hFeeder, this->pEOSBuffer, AL_Buffer_GetSize(this->pEOSBuffer), true);
 }
 
@@ -273,51 +277,29 @@ static const AL_TFeederVtable SplitBufferFeederVtable =
   &reset,
   &freeBuf,
 };
-
-static bool addEOSMeta(AL_TBuffer* pEOSBuffer)
+static bool checkEOSMeta(AL_TBuffer* pEOSBuffer)
 {
-  AL_TStreamMetaData* pStreamMeta = NULL;
-
   if(NULL == AL_Buffer_GetMetaData(pEOSBuffer, AL_META_TYPE_STREAM))
   {
-    pStreamMeta = AL_StreamMetaData_Create(1);
-
-    if(!AL_Buffer_AddMetaData(pEOSBuffer, (AL_TMetaData*)pStreamMeta))
-    {
-      AL_MetaData_Destroy((AL_TMetaData*)pStreamMeta);
-      return false;
-    }
-    AL_StreamMetaData_ClearAllSections(pStreamMeta);
-    AL_StreamMetaData_AddSection(pStreamMeta, 0, 0, AL_SECTION_END_FRAME_FLAG);
+    Rtos_Log(AL_LOG_ERROR, "Missing Stream Meta for eos-buffer for split-input feeder\n");
+    return false;
   }
 
   if(NULL == AL_Buffer_GetMetaData(pEOSBuffer, AL_META_TYPE_CIRCULAR))
   {
-    AL_TCircMetaData* pCircMeta = AL_CircMetaData_Create(0, AL_Buffer_GetSize(pEOSBuffer), true);
-
-    if(!pCircMeta)
-    {
-      AL_Buffer_RemoveMetaData(pEOSBuffer, (AL_TMetaData*)pStreamMeta);
-      AL_MetaData_Destroy((AL_TMetaData*)pStreamMeta);
-      return false;
-    }
-
-    if(!AL_Buffer_AddMetaData(pEOSBuffer, (AL_TMetaData*)pCircMeta))
-    {
-      AL_Buffer_RemoveMetaData(pEOSBuffer, (AL_TMetaData*)pStreamMeta);
-      AL_MetaData_Destroy((AL_TMetaData*)pStreamMeta);
-      AL_MetaData_Destroy((AL_TMetaData*)pCircMeta);
-      return false;
-    }
+    Rtos_Log(AL_LOG_ERROR, "Missing Circular Meta for eos-buffer for split-input feeder\n");
+    return false;
   }
+
   return true;
 }
 
 AL_TFeeder* AL_SplitBufferFeeder_Create(AL_HANDLE hDec, int32_t iMaxBufNum, AL_TBuffer* pEOSBuffer, bool bEOSParsingCB)
 {
-  Rtos_Assert(pEOSBuffer);
+  if(!pEOSBuffer)
+    return NULL;
 
-  if(!addEOSMeta(pEOSBuffer))
+  if(!checkEOSMeta(pEOSBuffer))
     return NULL;
 
   AL_TSplitBufferFeeder* this = Rtos_Malloc(sizeof(*this));

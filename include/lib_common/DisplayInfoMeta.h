@@ -23,7 +23,8 @@ typedef struct AL_TDisplayInfoMeta
   uint8_t uStreamBitDepthC;
   AL_TCropInfo tCrop;
   AL_EPicStruct ePicStruct;
-  uint32_t uCrc;
+  AL_64U uCrc;
+  uint32_t uPixCount;
   AL_EOutputType eOutputID;
   AL_TPosition tPos;
 }AL_TDisplayInfoMetaData;

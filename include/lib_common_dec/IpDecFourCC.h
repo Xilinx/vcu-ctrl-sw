@@ -13,10 +13,10 @@
    \brief Returns the FOURCC identifier of the decoded frame buffer generated
    by the decoder according to the chroma mode, the bitdepth of the stream
    and the storage mode of the ip
-   \param[in] picFmt source picture format
-   \return return the corresponding TFourCC format
+   \param[in] pPicFormat Pointer of the picture format
+   \return return the corresponding TFourCC format, FOURCC(NULL) if unsupported
 *****************************************************************************/
-TFourCC AL_GetDecFourCC(AL_TPicFormat const picFmt);
+TFourCC AL_GetDecFourCC(AL_TPicFormat const* pPicFormat);
 
 /*****************************************************************************
    \brief Returns the Chroma ordering format used by the decoder to store

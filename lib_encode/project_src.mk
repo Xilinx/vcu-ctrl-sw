@@ -4,10 +4,12 @@ LIB_ENCODE_SRC+=\
 	lib_encode/EncUtils.c\
 	lib_encode/IP_Stream.c\
 	lib_encode/LibEncoderHost.c\
-	lib_encode/lib_encoder.c\
+	lib_encode/lib_encode.c\
 	lib_encode/SourceBufferChecker.c\
 	lib_encode/LoadLda.c\
-	lib_encode/ITU_Section.c
+	lib_encode/ITU_Section.c\
+	lib_encode/I_EncScheduler.c\
+	lib_encode/EncSchedulerCommon.c
 
 
 ifneq ($(ENABLE_ENC_AVC),0)
@@ -30,6 +32,7 @@ endif
 
 
 
-ISCHEDULER_SRC:=\
-  lib_encode/I_EncScheduler.c\
-  lib_encode/EncSchedulerCommon.c\
+ifneq ($(ENABLE_MICROBLAZE),0)
+	LIB_ENCODE_SRC+=lib_encode/EncDriverDataConversions.c
+	LIB_ENCODE_SRC+=lib_encode/EncSchedulerMcu.c
+endif

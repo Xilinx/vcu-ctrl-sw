@@ -7,7 +7,7 @@
 #include "lib_common_dec/StreamSettingsInternal.h"
 #include "lib_common_dec/DecHardwareConfig.h"
 #include "lib_common/Round.h"
-#include "lib_common/Utils.h"
+#include "lib_common/Utils.h" // NUMCORE_AUTO
 #include "lib_common/Profiles.h"
 #include "lib_common/BufConst.h"
 
@@ -180,6 +180,5 @@ int32_t AL_DecOutputSettings_CheckValidity(AL_TDecOutputSettings const* pDecOutS
   (void)eCodec;
   (void)pOut;
   int32_t err = 0;
-
   return err;
 }

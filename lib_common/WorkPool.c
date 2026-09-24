@@ -3,7 +3,7 @@
 
 #include "WorkPool.h"
 
-#define INVALID_BUF_POS -1
+#define INVALID_BUF_POS (-1)
 
 bool AL_WorkPool_Init(WorkPool* pool, int32_t iMaxBufNum)
 {

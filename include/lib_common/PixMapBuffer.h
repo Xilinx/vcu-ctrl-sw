@@ -24,23 +24,15 @@
 AL_TBuffer* AL_PixMapBuffer_Create(AL_TAllocator* pAllocator, PFN_RefCount_CallBack pCallBack, AL_TDimension tDim, TFourCC tFourCC);
 
 /*************************************************************************//*!
-   \brief Compute the size pitch of a pixel plane according to its picture format
-   \param[in] uWidth Width of the picture in pixels
-   \param[in] tPicFormat Picture format of the frame buffer.
-   \param[in] uWidthAlignment Value of the alignment of the width
-   \param[in] iPixSize Size of a pixel in bytes
-*****************************************************************************/
-int32_t AL_PixMapBuffer_ComputePitch(uint32_t uWidth, AL_TPicFormat tPicFormat, uint8_t uWidthAlignment, size_t iPixSize);
-
-/*************************************************************************//*!
    \brief Compute the size of the planes necessary to create a PixMapBuffer
    \param[in] tDim Dimension of the picture (width and height in pixels).
    \param[in] tPicFormat Picture format of the frame buffer.
    \param[out] pPlanesSize List of the size of planes.
-   \param[out] iOutPixPitch Pitch of pixel planes.
+   \param[out] iOutPixPitchY Pitch of pixel luma plane.
+   \param[out] iOutPixPitchC Pitch of pixel chroma plane(s).
    \param[out] iOutMapPitch Pitch of map planes.
 *****************************************************************************/
-void AL_PixMapBuffer_ComputePlaneSizes(AL_TDimension tDim, AL_TPicFormat tPicFormat, size_t* pPlanesSize, int32_t* iOutPixPitch, int32_t* iOutMapPitch, uint8_t uWidthAlignment);
+void AL_PixMapBuffer_ComputePlaneSizes(AL_TDimension tDim, AL_TPicFormat tPicFormat, size_t* pPlanesSize, int32_t* iOutPixPitchY, int32_t* iOutPixPitchC, int32_t* iOutMapPitch, uint8_t uWidthAlignment);
 
 /*************************************************************************//*!
    \brief Allocate a continuous memory chunk to store planes, and add the

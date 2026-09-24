@@ -6,7 +6,7 @@
 #include "lib_common/Profiles.h"
 #include "lib_rtos/types.h"
 
-uint32_t AL_AVC_GetSpecificationMaxNumberOfSlices(void);
+uint32_t AL_AVC_GetSpecificationMaxNumberOfSlices(int32_t level);
 uint32_t AL_AVC_GetMaxNumberOfSlices(AL_EProfile profile, int32_t level, int32_t numUnitInTicks, int32_t timeScale, int32_t numMbsInPic);
 uint32_t AL_AVC_GetMaxCPBSize(int32_t level);
 uint32_t AL_AVC_GetMaxDPBSize(int32_t iLevel, int32_t iWidth, int32_t iHeight, int32_t iSpsMaxRef, bool bIntraProfile, bool bDecodeIntraOnly);

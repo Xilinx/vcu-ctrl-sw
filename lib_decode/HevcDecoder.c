@@ -8,7 +8,7 @@
 
 #include "lib_common/Nuts.h"
 #include "lib_common/Round.h"
-#include "lib_common/Utils.h"
+#include "lib_common/Arithmetics.h"
 #include "lib_common/HevcLevelsLimit.h"
 #include "lib_common/HevcUtils.h"
 #include "lib_common/Error.h"
@@ -16,7 +16,7 @@
 
 #include "lib_common_dec/RbspParser.h"
 #include "lib_common_dec/DecInfoInternal.h"
-#include "lib_common_dec/Defines_mcu.h"
+#include "lib_common_dec/Scheduler_Defs.h"
 #include "lib_common_dec/DecHardwareConfig.h"
 #include "lib_common_dec/StreamSettingsInternal.h"
 #include "lib_decode/NalUnitParser.h"
@@ -184,9 +184,25 @@ static AL_ERR resolutionFound(AL_TDecCtx* pCtx, AL_TStreamSettings const* pCurre
   return pCtx->tDecCB.resolutionFoundCB.func(iMaxBuf, pCurrentStreamSettings, pCropInfo, pCtx->tDecCB.resolutionFoundCB.userParam);
 }
 
-/*****************************************************************************/
-static AL_ERR isSPSCompatibleWithHardware(AL_THevcSps const* pSPS)
+/******************************************************************************/
+static AL_TDimension getMaxDimension(AL_THevcSps const* pSPS)
 {
+  /* Constrain further based on the profile?*/
+  int32_t iMaxHeight = AL_DEC_MAX_HEIGHT;
+  int32_t iMaxWidth = AL_DEC_MAX_WIDTH;
+
+  (void)pSPS;
+
+  return (AL_TDimension) {
+           iMaxWidth, iMaxHeight
+  };
+}
+
+/*****************************************************************************/
+static AL_ERR isSPSCompatibleWithHardware(AL_THevcSps const* pSPS, bool bDisableMinimalResolutionCheck)
+{
+  (void)bDisableMinimalResolutionCheck;
+
   int32_t iSPSMaxBitDepth = getMaxBitDepthFromSPSPBitDepth(pSPS);
   AL_ERR eErr = AL_HWConfig_Dec_CheckBitDepth(iSPSMaxBitDepth);
 
@@ -194,7 +210,11 @@ static AL_ERR isSPSCompatibleWithHardware(AL_THevcSps const* pSPS)
     return eErr;
 
   AL_TDimension tSPSDim = { pSPS->pic_width_in_luma_samples, pSPS->pic_height_in_luma_samples };
+
   eErr = AL_HWConfig_Dec_CheckFrameResolution(tSPSDim, pSPS->Log2CtbSize, pSPS->Log2MinCbSize);
+
+  AL_TDimension tMaxDim = getMaxDimension(pSPS);
+  eErr = AL_HWConfig_Dec_CheckMaxFrameResolution(tSPSDim, tMaxDim);
 
   if(!AL_IS_SUCCESS_CODE(eErr))
     return eErr;
@@ -278,14 +298,28 @@ static AL_ERR isSPSCompatibleWithInitialStreamSettings(AL_TDecCtx const* pCtx, A
 }
 
 /*****************************************************************************/
+static AL_ERR isPPSCompatibleWidthCurrentDecodingMode(AL_TDecCtx const* pCtx, AL_THevcPps const* pPPS)
+{
+
+  if(pCtx->pChanParam->bLowLat &&
+     pPPS->tiles_enabled_flag &&
+     pPPS->num_tile_columns_minus1 >= pCtx->pChanParam->uNumCore * AL_DEC_NUM_PARSER_PER_CORE)
+  {
+    Rtos_Log(AL_LOG_ERROR, "Pictures with %d tile column(s) are not supported in lowlatency mode with only %d core(s)\n", pPPS->num_tile_columns_minus1 + 1, pCtx->pChanParam->uNumCore);
+    return AL_WARN_PPS_TILEMAP_NOT_COMPATIBLE_WITH_DECODING_MODE;
+  }
+
+  return AL_SUCCESS;
+}
+
+/*****************************************************************************/
 static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
 {
   AL_TStreamSettings const* pStreamSettings = &pCtx->tCurrentStreamSettings;
   int32_t iMaxLCU = AL_RoundUp(pStreamSettings->tDim.iWidth, 64) * AL_RoundUp(pStreamSettings->tDim.iHeight, 64) / 256; // (64 * 64 / 16);
   int32_t iSPSMaxSlices = Min(AL_HEVC_GetMaxNumberOfSlices(pStreamSettings->iLevel), iMaxLCU);
 
-  AL_TDecoderPoolSizes tSizes;
-  Rtos_Memset(&tSizes, 0, sizeof(AL_TDecoderPoolSizes));
+  AL_TDecoderPoolSizes tSizes = { 0 };
 
   tSizes.iWPSize = iSPSMaxSlices * WP_SLICE_SIZE;
   tSizes.iSPSize = iSPSMaxSlices * sizeof(AL_TDecSliceParam);
@@ -303,6 +337,7 @@ static bool allocateBuffers(AL_TDecCtx* pCtx, AL_THevcSps const* pSPS)
     iDpbRef = 1;
 
   AL_TPictMngrParam tPictMngrParam;
+  tPictMngrParam.eCodec = AL_CODEC_HEVC;
   tPictMngrParam.uNumRef = iDpbRef;
   tPictMngrParam.eFbStorageMode = pCtx->pChanParam->eFBStorageMode;
   tPictMngrParam.uNumAnnexBuf = AL_HEVC_GetMinOutputBuffersNeeded(pStreamSettings, pCtx->iStackSize);
@@ -405,11 +440,25 @@ static bool initSlice(AL_TDecCtx* pCtx, AL_THevcSliceHdr* pSlice)
 
   if(!pCtx->bAreFirstStreamSettingsChecked)
   {
-    AL_ERR const ret = !pCtx->bAreBuffersAllocated ? isSPSCompatibleWithHardware(pSlice->pSPS) : isSPSCompatibleWithInitialStreamSettings(pCtx, pSlice->pSPS);
+    bool bDisableMinimalResolutionCheck = false;
+    AL_ERR ret = !pCtx->bAreBuffersAllocated ?
+                 isSPSCompatibleWithHardware(pSlice->pSPS, bDisableMinimalResolutionCheck) :
+                 isSPSCompatibleWithInitialStreamSettings(pCtx, pSlice->pSPS);
 
     if(!AL_IS_SUCCESS_CODE(ret))
     {
       Rtos_Log(AL_LOG_ERROR, "Cannot decode using the current allocated buffers\n");
+      pSlice->pPPS = &pAup->pPPS[pCtx->tConceal.iLastPPSId];
+      pSlice->pSPS = pSlice->pPPS->pSPS;
+      AL_Default_Decoder_SetError(pCtx, ret, -1, true);
+      return false;
+    }
+
+    ret = isPPSCompatibleWidthCurrentDecodingMode(pCtx, pSlice->pPPS);
+
+    if(!AL_IS_SUCCESS_CODE(ret))
+    {
+      Rtos_Log(AL_LOG_ERROR, "Cannot decode this tile pattern with selected decoding mode\n");
       pSlice->pPPS = &pAup->pPPS[pCtx->tConceal.iLastPPSId];
       pSlice->pSPS = pSlice->pPPS->pSPS;
       AL_Default_Decoder_SetError(pCtx, ret, -1, true);

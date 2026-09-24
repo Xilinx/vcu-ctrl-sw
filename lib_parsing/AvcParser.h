@@ -19,3 +19,4 @@ AL_EParseResult AL_AVC_ParseSPS(AL_TRbspParser* pRP, AL_TAvcSps* pSPS);
 bool AL_AVC_ParseSEI(AL_TAup* pIAup, AL_TRbspParser* pRP, bool bIsPrefix, AL_CB_ParsedSei* cb, AL_TSeiMetaData* pMeta);
 void AL_AVC_GetCropInfo(AL_TAvcSps const* pSPS, AL_TCropInfo* pCropInfo);
 AL_EParseResult AL_AVC_ParseNal(AL_TAup* pIAup, AL_TRbspParser* pRP, AL_ENut eNut);
+void AL_AVC_ComputeSclParameters(AL_TAvcPps* pPPS);

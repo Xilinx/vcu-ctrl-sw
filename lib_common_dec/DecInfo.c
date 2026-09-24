@@ -4,7 +4,8 @@
 #include "lib_common_dec/DecInfo.h"
 #include "lib_common_dec/DecInfoInternal.h"
 #include "lib_common_dec/DecDpbMode.h"
-#include "lib_common/Utils.h"
+#include "lib_common/Arithmetics.h"
+
 #include "lib_common/AvcLevelsLimit.h"
 #include "lib_common/HevcLevelsLimit.h"
 

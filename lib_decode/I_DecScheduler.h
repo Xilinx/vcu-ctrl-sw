@@ -41,12 +41,12 @@ typedef struct
 }AL_TDecScheduler_CB_EndStartCode;
 
 /****************************************************************************/
-typedef struct AL_IDecSchedulerChanParams
+typedef struct AL_TDecScheduler_ChannelParams
 {
   AL_TMemDesc* pMDChParams;
   AL_TDecScheduler_CB_EndParsing endParsingCallback;
   AL_TDecScheduler_CB_EndDecoding endDecodingCallback;
-}AL_IDecSchedulerChanParams;
+}AL_TDecScheduler_ChannelParams;
 
 /****************************************************************************/
 typedef struct AL_IDecSchedulerVtable AL_IDecSchedulerVtable;
@@ -63,7 +63,7 @@ typedef struct AL_IDecSchedulerVtable
   void (* Destroy)(AL_IDecScheduler* pScheduler);
 
   AL_ERR (* CreateStartCodeChannel)(AL_HANDLE* hStartCodeChannel, AL_IDecScheduler* pScheduler);
-  AL_ERR (* CreateChannel)(AL_HANDLE* hChannel, AL_IDecScheduler* pScheduler, AL_IDecSchedulerChanParams* pChanParams);
+  AL_ERR (* CreateChannel)(AL_HANDLE* hChannel, AL_IDecScheduler* pScheduler, AL_TDecScheduler_ChannelParams* pChannelParams);
   AL_ERR (* DestroyStartCodeChannel)(AL_IDecScheduler* pScheduler, AL_HANDLE hStartCodeChannel);
   AL_ERR (* DestroyChannel)(AL_IDecScheduler* pScheduler, AL_HANDLE hChannel);
 
@@ -79,17 +79,14 @@ typedef struct AL_IDecSchedulerVtable
    \brief Channel creation
    \param[out] hChannel Handle to the created channel in case of success
    \param[in] pThis Decoder scheduler interface
-   \param[in] pMDChParams Pointer to the memory descriptor containing the channel
-   parameters
-   \param[in] endParsingCallback Callback structure
-   \param[in] endDecodingCallback Callback structure
+   \param[in] pChannelParams Channel parameters
    \return error code explaining why the channel creation failed
    or AL_SUCCESS (See include/lib_common/Error.h)
 *****************************************************************************/
 static inline
-AL_ERR AL_IDecScheduler_CreateChannel(AL_HANDLE* hChannel, AL_IDecScheduler* pThis, AL_IDecSchedulerChanParams* pChanParams)
+AL_ERR AL_IDecScheduler_CreateChannel(AL_HANDLE* hChannel, AL_IDecScheduler* pThis, AL_TDecScheduler_ChannelParams* pChannelParams)
 {
-  return pThis->vtable->CreateChannel(hChannel, pThis, pChanParams);
+  return pThis->vtable->CreateChannel(hChannel, pThis, pChannelParams);
 }
 
 /*****************************************************************************

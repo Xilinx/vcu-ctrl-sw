@@ -21,6 +21,7 @@ typedef void* AL_MUTEX;
 typedef void* AL_SEMAPHORE;
 typedef void* AL_EVENT;
 typedef void* AL_THREAD;
+typedef void* AL_DRIVER;
 
 /****************************************************************************/
 #define AL_NO_WAIT 0
@@ -38,6 +39,7 @@ void* Rtos_Memmove(void* pDst, void const* pSrc, size_t zSize);
 void* Rtos_Memset(void* pDst, int32_t iVal, size_t zSize);
 int32_t Rtos_Memcmp(void const* pBuf1, void const* pBuf2, size_t zSize);
 int32_t Rtos_Strncmp(char const* pStr1, char const* pStr2, size_t zSize);
+char* Rtos_Strndup(char const* pStr, size_t zSize);
 
 #define AL_LOG_CRITICAL 0
 #define AL_LOG_ERROR 1
@@ -101,9 +103,15 @@ void Rtos_DeleteThread(AL_THREAD Thread);
 /****************************************************************************/
 /*  Driver */
 /****************************************************************************/
-void* Rtos_DriverOpen(char const* name);
-void Rtos_DriverClose(void* driver);
-int32_t Rtos_DriverIoctl(void* driver, unsigned long int request, void* data);
+/*****************************************************************************
+   \brief Open a driver and provide the handle to it
+   \param[in] name Driver's/Device's name to open
+   \param[out] err Errno code
+   \return A valid handle if `err == 0`, garbage otherwise
+*****************************************************************************/
+AL_DRIVER Rtos_DriverOpen(char const* name, int* err);
+void Rtos_DriverClose(AL_DRIVER driver);
+int32_t Rtos_DriverIoctl(AL_DRIVER driver, unsigned long int request, void* data);
 
 #define AL_POLLIN 0x001   /* There is data to read.  */
 #define AL_POLLPRI 0x002   /* There is urgent data to read.  */
@@ -123,7 +131,7 @@ typedef struct Rtos_PollCtx
   int32_t timeout;
 }Rtos_PollCtx;
 
-int32_t Rtos_DriverPoll(void* driver, Rtos_PollCtx* ctx);
+int32_t Rtos_DriverPoll(AL_DRIVER driver, Rtos_PollCtx* ctx);
 
 /****************************************************************************/
 /*  Atomics */

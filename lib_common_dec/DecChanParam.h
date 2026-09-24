@@ -26,7 +26,7 @@ typedef struct AL_TDecChannelParam
   uint32_t uMaxLatency;
   uint8_t uNumCore;
   uint8_t uNumTileColumns;
-  uint8_t uPostProcId;
+  bool bForceMultipleDec1PerFrame; /*!< Force using several dec1 per frame (when slice or tile pattern  permits) */
   bool bNonRealtime;
   uint8_t uDDRWidth;
   bool bLowLat;

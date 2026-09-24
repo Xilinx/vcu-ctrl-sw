@@ -27,7 +27,7 @@
 #define VPRINTF(...) do { int ERR(__LINE__) = vprintf(__VA_ARGS__); Rtos_Assert(ERR(__LINE__) >= 0); } while(0);
 #define FCLOSE(...) do { int ERR(__LINE__) = fclose(__VA_ARGS__); (void)(ERR(__LINE__)); } while(0);
 #define FPUTC(...) do { int ERR(__LINE__) = fputc(__VA_ARGS__); Rtos_Assert(ERR(__LINE__) >= EOF); } while(0);
-#define SNPRINTF(NAME, MAX, ...) do { int ERR(__LINE__) = snprintf(NAME, MAX, __VA_ARGS__); Rtos_Assert(ERR(__LINE__) >= 0); Rtos_Assert(ERR(__LINE__) < MAX); } while(0);
+#define SNPRINTF(NAME, MAX, ...) do { int ERR(__LINE__) = snprintf(NAME, MAX, __VA_ARGS__); Rtos_Assert(ERR(__LINE__) >= 0); Rtos_Assert((size_t)ERR(__LINE__) < MAX); } while(0);
 #define SPRINTF(...) do { int ERR(__LINE__) = sprintf(__VA_ARGS__); Rtos_Assert(ERR(__LINE__) >= 0); } while(0);
 #define VFPRINTF(...) do { int ERR(__LINE__) = vfprintf(__VA_ARGS__); Rtos_Assert(ERR(__LINE__) >= 0); } while(0);
 #define FFLUSH(...) do { int ERR(__LINE__) = fflush(__VA_ARGS__); Rtos_Assert(ERR(__LINE__) != EOF); } while(0);

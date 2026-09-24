@@ -234,8 +234,8 @@ static inline uint32_t AL_GET_PPS_NUM_ACT_REF_L1(uint32_t HlsParam)
   return uNumRefL1Minus1;
 }
 
-#define AL_SET_PPS_NUM_ACT_REF_L0(HlsParam, Num) (HlsParam) = ((HlsParam) & ~AL_PPS_NUM_ACT_REF_L0) | ((Num) << 4)
-#define AL_SET_PPS_NUM_ACT_REF_L1(HlsParam, Num) (HlsParam) = ((HlsParam) & ~AL_PPS_NUM_ACT_REF_L1) | ((Num) << 8)
+#define AL_SET_PPS_NUM_ACT_REF_L0(HlsParam, Num) ((HlsParam) = ((HlsParam) & ~AL_PPS_NUM_ACT_REF_L0) | ((Num) << 4))
+#define AL_SET_PPS_NUM_ACT_REF_L1(HlsParam, Num) ((HlsParam) = ((HlsParam) & ~AL_PPS_NUM_ACT_REF_L1) | ((Num) << 8))
 
 /*****************************************************************************
    \brief Encoding option enum
@@ -256,6 +256,9 @@ typedef enum AL_EChEncOption
   AL_OPT_SCENE_CHANGE_DETECTION = 0x00004000, /*!< Scene change detection based on a lookahead encoding */
   AL_OPT_FORCE_MV_CLIP = 0x00020000, /*!< Forces motion vector clipping in ranges specified in channel parameters */
   AL_OPT_RDO_COST_MODE = 0x00040000, /*!< Reinforces the influence of the chrominance in the RDO choice */
+#if AL_ENABLE_AL_ENC_ZAPPER
+  AL_OPT_ZAPPER = 0x00080000, /*!< Enables zapper option */
+#endif
 }AL_EChEncOption;
 
 /*****************************************************************************
@@ -309,8 +312,8 @@ typedef enum AL_ERateCtrlOption
 typedef struct __AL_ALIGNED__ (4) AL_TRCParam
 {
   AL_ERateCtrlMode eRCMode;
-  uint32_t uInitialRemDelay; /*!< Initial removal delay */
-  uint32_t uCPBSize; /*!< Size of the Codec Picture Buffer */
+  uint32_t uInitialRemDelay; /*!< Initial removal delay in ticks (delay in ms * 90) */
+  uint32_t uCPBSize; /*!< Size of the Codec Picture Buffer in ticks (size in ms * 90) */
   uint16_t uFrameRate; /*!< Number of frame per second */
   uint16_t uClkRatio; /*!< Clock ratio (1000 or 1001). Typical formula to obtain the final framerate is uFrameRate * 1000 / uClkRatio */
   uint32_t uTargetBitRate; /*!< The bitrate in bit per seconds targeted by the user */
@@ -328,7 +331,7 @@ typedef struct __AL_ALIGNED__ (4) AL_TRCParam
   uint32_t uNumPel;
   uint16_t uMaxPSNR;
   uint16_t uMaxPelVal;
-  uint32_t pMaxPictureSize[AL_MAX_FRAME_TYPE];
+  uint32_t pMaxPictureSize[AL_MAX_FRAME_TYPE]; /*!< Maximum picture size for all frame type (I,P,B (check AL_ESliceType for array index)) in bit (0 = no limit) */
 } AL_TRCParam;
 
 static inline bool AL_IsEncHwRateCtrlEnabled(AL_TRCParam const* pRCParam)
@@ -366,15 +369,15 @@ typedef struct __AL_ALIGNED__ (4) AL_TGopParam
 {
   AL_EGopCtrlMode eMode;
   uint16_t uGopLength; /*!< Length of the Group Of Picture in the encoded stream */
-  uint8_t uNumB; /*!< Number of B frames per Group of Picture in the encoded stream */
+  uint8_t uNumB; /*!< The maximal count of B-frames between two consecutive anchor frames (I or P) */
   uint8_t uFreqGoldenRef;
-  uint32_t uFreqIDR; /*!< Frequency of the Instantaneous Decoding Refresh Picture. This is also used to determine the GDR frequency */
+  uint32_t uFreqIDR; /*!< Frequency of the Instantaneous Decoding Refresh Picture */
   bool bEnableLT;
   bool bWriteAvcHdrSvcExt;
+  bool bDoubleRef;
   uint32_t uFreqLT;
-  AL_EGdrMode eGdrMode;
-  int32_t iFreqRP;
-  int32_t iGdrDuration;
+  AL_EGdrMode eGdrMode; /*!< Gdr Mode selection. \see AL_EGdrMode for the details */
+  int32_t iFreqRP; /*!< Defines how many frames between two recovery/refresh point starts (in number of frames) */
   int8_t tempDQP[4];
 } AL_TGopParam;
 
@@ -388,17 +391,6 @@ typedef struct AL_TLookAheadParam
   int16_t iComplexity;
   int16_t iTargetLevel;
 }AL_TLookAheadParam;
-
-/*****************************************************************************
-   \brief Max burst size
-*****************************************************************************/
-typedef enum AL_EMaxBurstSize
-{
-  AL_BURST_256 = 0,
-  AL_BURST_128 = 1,
-  AL_BURST_64 = 2,
-  AL_BURST_512 = 3,
-}AL_EMaxBurstSize;
 
 /*****************************************************************************
    \brief Source compression type
@@ -416,7 +408,7 @@ typedef enum AL_ESrcMode
 
 #define MASK_SRC_COMP 0x01
 #define AL_GET_COMP_MODE(SrcConvFmt) ((SrcConvFmt) & MASK_SRC_COMP)
-#define AL_SET_COMP_MODE(SrcConvFmt, CompMode) (SrcConvFmt) = ((SrcConvFmt) & ~MASK_SRC_COMP) | ((CompMode) & MASK_SRC_COMP)
+#define AL_SET_COMP_MODE(SrcConvFmt, CompMode) ((SrcConvFmt) = ((SrcConvFmt) & ~MASK_SRC_COMP) | ((CompMode) & MASK_SRC_COMP))
 
 /***************************************************************************/
 
@@ -429,6 +421,25 @@ typedef enum AL_EMotionVectorDirection
   AL_MV_DIRECTION_VERTICAL = 1,
   AL_MV_DIRECTION_MAX_ENUM
 }AL_EMotionVectorDirection;
+
+#if AL_ENABLE_AL_ENC_ZAPPER
+
+#define AL_ZAPPER_V2_LAMBDA_WEIGHT_SHIFT (9)
+#define AL_ZAPPER_V2_LAMBDA_WEIGHT_PRECISION (14)
+#define AL_ZAPPER_V2_LAMBDA_WEIGHT_MIN (0)
+#define AL_ZAPPER_V2_LAMBDA_WEIGHT_MAX ((1 << AL_ZAPPER_V2_LAMBDA_WEIGHT_PRECISION) - 1)
+
+/*****************************************************************************
+   \brief Zapper V2 Values structure
+*****************************************************************************/
+typedef struct AL_TZapperV2Values
+{
+  int64_t iBlockWeight;
+  int64_t iCoeffWeight;
+}AL_TZapperV2Values;
+static const int AL_ZAPPER_LAMBDA_WEIGHT_SHIFT = 9;
+
+#endif
 
 /*****************************************************************************
    \brief Channel parameters structure
@@ -513,6 +524,7 @@ typedef struct __AL_ALIGNED__ (4) AL_TEncChanParam
   uint8_t uMaxTransfoDepthIntra;
   uint8_t uMaxTransfoDepthInter;
   bool StrongIntraSmooth; // HEVC only
+  bool TemporalMVP; // HEVC only
 
   AL_EEntropyMode eEntropyMode;
 
@@ -537,6 +549,10 @@ typedef struct __AL_ALIGNED__ (4) AL_TEncChanParam
   uint16_t uOutputCropPosY;
   bool bUseUniformSliceType;
   AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned;
+
+#if AL_ENABLE_AL_ENC_ZAPPER
+  AL_TZapperV2Values tZapperV2Values;
+#endif
 
 } AL_TEncChanParam;
 

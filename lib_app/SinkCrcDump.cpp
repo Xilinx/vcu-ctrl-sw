@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: © 2026 Allegro DVT <github-ip@allegrodvt.com>
 // SPDX-License-Identifier: MIT
 
-#include <fstream>
+#include <cinttypes>
+#include <cstdio>
 #include <string>
-#include <iomanip>
 
 #include "lib_app/SinkCrcDump.hpp"
 #include "lib_app/Sink.hpp"
@@ -23,27 +23,34 @@ public:
   {
     if(!path.empty())
     {
-      OpenOutput(m_CrcFile, path, false);
-      m_CrcFile << std::hex << std::uppercase;
+      m_CrcFile = fopen(path.c_str(), "w");
+    }
+  }
+
+  ~StreamCrcDump()
+  {
+    if(m_CrcFile)
+    {
+      fclose(m_CrcFile);
     }
   }
 
   void ProcessFrame(AL_TBuffer* pBuf) override
   {
-    AL_TDisplayInfoMetaData* pMeta = reinterpret_cast<AL_TDisplayInfoMetaData*>(AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_DISPLAY_INFO));
+    auto* pMeta = reinterpret_cast<AL_TDisplayInfoMetaData*>(AL_Buffer_GetMetaData(pBuf, AL_META_TYPE_DISPLAY_INFO));
 
-    if(pMeta && pMeta->eOutputID == AL_OUTPUT_MAIN)
+    if(pMeta)
     {
-      if(m_CrcFile.is_open())
+      if(m_CrcFile)
       {
-        m_CrcFile << std::setfill('0') << std::setw(8) << (int)pMeta->uCrc;
-        m_CrcFile << std::endl;
+        fprintf(m_CrcFile, "%016" PRIX64 " - %08" PRIu32, pMeta->uCrc, pMeta->uPixCount);
+        fprintf(m_CrcFile, "\n");
       }
     }
   }
 
 private:
-  std::ofstream m_CrcFile;
+  FILE* m_CrcFile = nullptr;
 };
 
 IFrameSink* createStreamCrcDump(std::string const& path)

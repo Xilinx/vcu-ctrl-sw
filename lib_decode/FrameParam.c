@@ -79,6 +79,8 @@ void AL_AVC_FillSliceParameters(const AL_TAvcSliceHdr* pSlice, const AL_TDecCtx*
 
   Rtos_Memset(pSliceParam, 0, offsetof(AL_TDecSliceParam, pEntryPointOffsets));
 
+  pSliceParam->bIsRef = pSlice->nal_ref_idc != 0;
+
   pSliceParam->uCabacInitIdc = pSlice->cabac_init_idc;
   pSliceParam->bDirectSpatial = (bool)pSlice->direct_spatial_mv_pred_flag;
 
@@ -236,6 +238,19 @@ void AL_HEVC_FillPictParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx
 }
 
 /******************************************************************************/
+static bool IsSLNR(uint8_t uNut)
+{
+  return uNut == AL_HEVC_NUT_TRAIL_N ||
+         uNut == AL_HEVC_NUT_TSA_N ||
+         uNut == AL_HEVC_NUT_STSA_N ||
+         uNut == AL_HEVC_NUT_RADL_N ||
+         uNut == AL_HEVC_NUT_RASL_N ||
+         uNut == AL_HEVC_NUT_RSV_VCL_N10 ||
+         uNut == AL_HEVC_NUT_RSV_VCL_N12 ||
+         uNut == AL_HEVC_NUT_RSV_VCL_N14;
+}
+
+/******************************************************************************/
 void AL_HEVC_FillSliceParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCtx* pCtx, AL_TDecSliceParam* pSliceParam)
 {
   /* to speed up memset we don't reset pEntryPointOffsets array */
@@ -243,6 +258,8 @@ void AL_HEVC_FillSliceParameters(const AL_THevcSliceHdr* pSlice, const AL_TDecCt
 
   // fast access
   const AL_THevcPps* pPps = pSlice->pPPS;
+
+  pSliceParam->bIsRef = !IsSLNR(pSlice->nal_unit_type);
 
   pSliceParam->uMaxMergeCand = 5 - pSlice->five_minus_max_num_merge_cand;
   pSliceParam->bColocFromL0 = pSlice->collocated_from_l0_flag;

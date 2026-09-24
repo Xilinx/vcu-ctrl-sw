@@ -42,6 +42,7 @@ typedef struct AL_IReferenceManagerVtable
 
   uint8_t (* GetReflistIds)(AL_IReferenceManager* pCtx, AL_TIndex* pFrameIds, AL_TIndex* pAnnexIds, bool* pConcealIds, bool bConceal, AL_TIndex tConcealPicID);
   AL_TIndex (* GetLastPicID)(AL_IReferenceManager const* pCtx);
+  AL_TIndex (* GetLastRefPicID)(AL_IReferenceManager const* pCtx);
   AL_TIndex (* GetAnnexIdFromReferenceId)(AL_IReferenceManager const* pCtx, AL_TIndex tRefId);
 }AL_IReferenceManagerVtable;
 
@@ -120,6 +121,13 @@ static inline
 AL_TIndex AL_IReferenceManager_GetLastPicID(AL_IReferenceManager const* pCtx)
 {
   return pCtx->vtable->GetLastPicID(pCtx);
+}
+
+/*************************************************************************/
+static inline
+AL_TIndex AL_IReferenceManager_GetLastRefPicID(AL_IReferenceManager const* pCtx)
+{
+  return pCtx->vtable->GetLastRefPicID(pCtx);
 }
 
 /*************************************************************************/

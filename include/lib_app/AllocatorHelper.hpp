@@ -11,6 +11,7 @@ extern "C"
 }
 #include <memory>
 #include <stdexcept>
+#include <string>
 
 static inline
 AL_TAllocator* CreateDmaAllocator(const char* deviceName)

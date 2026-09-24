@@ -5,26 +5,6 @@
 #include "lib_common/MemDesc.h"
 #include "lib_common/Profiles.h"
 
-void AL_Decoder_InitInternalBuffers(AL_TDecCtx* pCtx)
-{
-  AL_MemDesc_Init(&pCtx->BufNoAE.tMD);
-  AL_MemDesc_Init(&pCtx->BufSCD.tMD);
-  AL_MemDesc_Init(&pCtx->SCTable.tMD);
-
-  for(int32_t i = 0; i < AL_DEC_SW_MAX_STACK_SIZE; ++i)
-  {
-    AL_MemDesc_Init(&pCtx->PoolSclLst[i].tMD);
-    AL_MemDesc_Init(&pCtx->PoolCompData[i].tMD);
-    AL_MemDesc_Init(&pCtx->PoolCompMap[i].tMD);
-    AL_MemDesc_Init(&pCtx->tPoolSliceParams[i].tMD);
-    AL_MemDesc_Init(&pCtx->PoolWP[i].tMD);
-    AL_MemDesc_Init(&pCtx->PoolListRefAddr[i].tMD);
-  }
-
-  AL_MemDesc_Init(&pCtx->tMDChanParam);
-  pCtx->pChanParam = NULL;
-}
-
 /*****************************************************************************/
 bool AL_Decoder_Alloc(AL_TDecCtx* pCtx, AL_TMemDesc* pMD, uint32_t uSize, char const* name)
 {
@@ -71,11 +51,7 @@ bool AL_Decoder_AllocPool(AL_TDecCtx* pCtx, AL_TDecoderPoolSizes const* pSizes)
     {
       {
         SAFE_POOL_ALLOC(pCtx, &pCtx->PoolCompData[i].tMD, pSizes->iCompDataSize, "comp data");
-
-        if(AL_IS_ITU_CODEC(eCodec))
-        {
-          SAFE_POOL_ALLOC(pCtx, &pCtx->PoolCompMap[i].tMD, pSizes->iCompMapSize, "comp map");
-        }
+        SAFE_POOL_ALLOC(pCtx, &pCtx->PoolCompMap[i].tMD, pSizes->iCompMapSize, "comp map");
       }
     }
   }
@@ -86,12 +62,15 @@ bool AL_Decoder_AllocPool(AL_TDecCtx* pCtx, AL_TDecoderPoolSizes const* pSizes)
 /*****************************************************************************/
 static void AL_Decoder_Free(AL_TMemDesc* pMD)
 {
-  AL_MemDesc_Free(pMD);
+  /* TODO: MemDesc_Init isn't allocate */
+  if(pMD->hAllocBuf != NULL)
+    AL_MemDesc_Free(pMD);
 }
 
 /*****************************************************************************/
 void AL_Decoder_DeinitBuffers(AL_TDecCtx* pCtx)
 {
+
   for(int32_t i = 0; i < AL_DEC_SW_MAX_STACK_SIZE; i++)
   {
     AL_Decoder_Free(&pCtx->PoolCompData[i].tMD);

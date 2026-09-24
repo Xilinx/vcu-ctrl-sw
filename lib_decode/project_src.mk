@@ -15,14 +15,16 @@ LIB_DECODE_SRC+=\
   lib_decode/DecSchedulerCommon.c
 
 
-ifneq ($(ENABLE_DEC_ITU), 0)
+ifneq ($(ENABLE_DEC_ITU_OR_AOM_400), 0)
   LIB_DECODE_SRC +=\
     lib_decode/SliceDataParsing.c
 endif
 
 
+#For the moment DecSchedulerMcu is not built for D400
 ifneq ($(ENABLE_MICROBLAZE),0)
   LIB_DECODE_SRC+=lib_decode/DecSchedulerMcu.c
+  LIB_DECODE_SRC+=lib_decode/DecDriverDataConversions.c
 else
 endif
 

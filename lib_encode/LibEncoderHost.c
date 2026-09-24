@@ -5,9 +5,10 @@
 #include "IP_EncoderCtx.h"
 #include "lib_encode/I_EncScheduler.h"
 #include "lib_encode/Common_Encoder.h"
-#include "lib_encode/lib_encoder.h"
+#include "lib_common/Arithmetics.h"
+#include "lib_encode/lib_encode.h"
 #include "lib_encode/I_EncArch.h"
-#include "lib_encode/lib_encoder.h"
+#include "lib_encode/lib_encode.h"
 
 #include "lib_rtos/lib_rtos.h"
 
@@ -29,15 +30,7 @@ static AL_ERR CreateEncCtx(AL_IEncScheduler* pScheduler, AL_TAllocator* pAlloc, 
   if(AL_IS_AVC(pSettings->tChParam[0].eProfile))
     AL_CreateAvcEncoder(&pCtx->encoder);
 
-  AL_ERR errorCode = AL_Common_Encoder_CreateChannel(pCtx, pScheduler, pAlloc, pSettings);
-
-  if(AL_IS_ERROR_CODE(errorCode))
-    return errorCode;
-
-  if(callback.func)
-    pCtx->tLayerCtx[0].tEndEncodingCallback = callback;
-
-  return errorCode;
+  return AL_Common_Encoder_CreateChannel(pCtx, pScheduler, pAlloc, pSettings, callback);
 }
 
 static bool CheckVersion(AL_TIEncSchedulerVersion const* pVersion)
@@ -67,13 +60,12 @@ static AL_ERR AL_Encoder_Create_Host(AL_HEncoder* hEnc, AL_IEncScheduler* pSched
 
   AL_ERR errorCode = AL_ERR_NO_MEMORY;
 
-  AL_TEncoder* pEncoder = (AL_HEncoder)Rtos_Malloc(sizeof(AL_TEncoder));
-  *hEnc = (AL_HEncoder)pEncoder;
+  AL_TEncoder* pEncoder = Rtos_Calloc(1, sizeof(*pEncoder));
 
-  if(!pEncoder)
+  if(pEncoder == NULL)
     goto fail;
 
-  Rtos_Memset(pEncoder, 0, sizeof(*pEncoder));
+  *hEnc = (AL_HEncoder)pEncoder;
 
   errorCode = CreateEncCtx(pScheduler, pAlloc, pSettings, callback, &pEncoder->pCtx);
 

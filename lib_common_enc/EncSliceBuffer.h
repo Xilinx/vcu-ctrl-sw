@@ -32,7 +32,7 @@ typedef struct TSliceBuffersEnc
   TSpan Rec[AL_PLANE_MAX_ENUM]; /*!< Pointer to frame buffers that receives reconstructed slice. */
   TBufferMV Coloc; /*!< Pointer to co-located buffer. */
   TBufferMV MV; /*!< Pointer to MV buffer that contains valid POC List section
-                   and that receives Motion Vectors of the encoded slice. */
+                    and that receives Motion Vectors of the encoded slice. */
 
   TBuffer CompData; /*!< Pointer to the intermediate compressed buffer */
   TBuffer CompMap; /*!< Pointer to the intermediate compressed mapping */
@@ -44,4 +44,5 @@ typedef struct TSliceBuffersEnc
   TBufferEP Hwrc[AL_ENC_NUM_CORES]; /*!< Pointer to the HwRcCtx buffers for each core */
 
   AL_TCircBuffer Stream;
+
 }TSliceBuffersEnc;

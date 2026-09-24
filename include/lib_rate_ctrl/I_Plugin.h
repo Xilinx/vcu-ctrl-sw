@@ -219,6 +219,10 @@ typedef struct
 
    This function should be at 0x80080000 (extension start address). The link script takes care of this for you.
  *****************************************************************************/
-void* RC_Plugin_Init(RC_Plugin_Vtable* pRcPlugin, Mcu_Export_Vtable* pMcu, AL_TAllocator* pAllocator, AL_VADDR pDmaContext, uint32_t zDmaSize) __attribute__((section(".text_plugin")));
-
+void* RC_Plugin_Init(RC_Plugin_Vtable* pRcPlugin, Mcu_Export_Vtable* pMcu, AL_TAllocator* pAllocator, AL_VADDR pDmaContext, uint32_t zDmaSize)
+#if defined(__APPLE__)
+__attribute__((section("TEXT,.text_plugin")));
+#else
+__attribute__((section(".text_plugin")));
+#endif
 /*!@}*/

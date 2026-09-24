@@ -8,7 +8,7 @@
  *****************************************************************************/
 #pragma once
 
-#include "lib_encode/lib_encoder.h"
+#include "lib_encode/lib_encode.h"
 #include "lib_rtos/lib_rtos.h"
 #include "SourceBufferChecker.h"
 #include "lib_common_enc/EncPicInfo.h"
@@ -79,13 +79,16 @@ typedef struct
   AL_TPps pps;
   AL_TAud aud;
 
-  AL_TSrcBufferChecker srcBufferChecker;
+  AL_TSrcBufferChecker tSrcBufferChecker;
+  AL_TDimension tMaxEncodedDim;
+
   AL_TEncRequestInfo currentRequestInfo;
   TBufferEP tBufEP1;
 
   int32_t iCurStreamSent;
   int32_t iCurStreamRecv;
   AL_TBuffer* StreamSent[AL_MAX_STREAM_BUFFER];
+  bool bEndOfStreamReceived;
 
   AL_TMemDesc tMDChParam;
 
@@ -113,7 +116,7 @@ typedef struct AL_TFrameInfoPool
 {
   /* O(1) access to a frame info */
   AL_TIDPool tIDPool;
-  AL_TFrameInfo FrameInfos[MAX_NUM_LAYER * ENC_MAX_CMD];
+  AL_TFrameInfo FrameInfos[MAX_ENC_NUM_LAYER * ENC_MAX_CMD];
 }AL_TFrameInfoPool;
 
 /*****************************************************************************
@@ -136,11 +139,10 @@ typedef struct AL_TEncCtx
 
   AL_TEncSettings* pSettings;
 
-  AL_TEncLayerCtx tLayerCtx[MAX_NUM_LAYER];
+  AL_TEncLayerCtx tLayerCtx[MAX_ENC_NUM_LAYER];
 
-  AL_THeadersCtx tHeadersCtx[MAX_NUM_LAYER];
+  AL_THeadersCtx tHeadersCtx[MAX_ENC_NUM_LAYER];
   AL_TVps vps;
-  bool bEndOfStreamReceived[MAX_NUM_LAYER];
 
   int32_t initialCpbRemovalDelay;
   int32_t cpbRemovalDelay;

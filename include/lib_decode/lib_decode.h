@@ -129,7 +129,7 @@ void AL_Decoder_Destroy(AL_HDecoder hDec);
 
 /****************************************************************************/
 /* internal. Used for traces */
-void AL_Decoder_SetParam(AL_HDecoder hDec, const char* sPrefix, int32_t iFrmID, int32_t iNumFrm, bool bShouldPrintFrameDelimiter);
+void AL_Decoder_SetParam(AL_HDecoder hDec, const char* sPrefix, int32_t iFrmID, int32_t iNumFrm, bool bShouldPrintFrameDelimiter, bool bOutputTraceOnly);
 
 /*****************************************************************************
    \brief Pushes a buffer to the decoder queue. It will be decoded when possible
@@ -137,7 +137,7 @@ void AL_Decoder_SetParam(AL_HDecoder hDec, const char* sPrefix, int32_t iFrmID, 
    \param[in] pBuf Pointer to the encoded bitstream buffer
    \param[in] uSize Size in bytes of actual data in pBuf
    \param[in] uFlags Flags characterizing the stream buffer
-   \return return the current error status
+   \return return true if buffer has been successfully pushed, false otherwise
 *****************************************************************************/
 bool AL_Decoder_PushStreamBuffer(AL_HDecoder hDec, AL_TBuffer* pBuf, size_t uSize, uint8_t uFlags);
 
@@ -204,6 +204,7 @@ AL_ERR AL_Decoder_GetFrameError(AL_HDecoder hDec, AL_TBuffer const* pBuf);
    Giving wrong information about the stream will lead to undefined behaviour.
    Calling this function will reduce the memory footprint of the decoder and
    will remove the latency of the allocation of the internal buffer at runtime.
+   \warning This is a blocking function waiting for resolutionFoundCB to end
    \param[in]  hDec  Handle to a decoder object.
    \return return false if the allocation failed. True otherwise
 *****************************************************************************/

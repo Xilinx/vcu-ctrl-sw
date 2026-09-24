@@ -1,22 +1,27 @@
 // SPDX-FileCopyrightText: © 2026 Allegro DVT <github-ip@allegrodvt.com>
 // SPDX-License-Identifier: MIT
 
-#include <sys/ioctl.h>
+#include "lib_rtos/types.h"
+#include "lib_rtos/lib_rtos.h"
+
 #include <sys/types.h>
 #include <sys/mman.h>
 
 #include <stdio.h>
 #include <errno.h>
-#include <malloc.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "lib_fpga/DmaAllocLinux.h"
-#include "lib_rtos/types.h"
-#include "lib_rtos/lib_rtos.h"
-#include "allegro_ioctl_reg.h"
 #include "DevicePool.h"
 
+#include "driver/al5r/al_uapi_ioctl.h"
+#include "driver/al5r/al_uapi_struct.h"
+
+#define GET_DMA_FD GET_DMA32_FD
+#define GET_DMA_MMAP GET_DMA32_MMAP
+#define GET_DMA_PHY GET_DMA32_PHY
+#define al5_dma_info al5_dma32_info
 struct DmaBuffer
 {
   /* ioctl structure */
@@ -36,7 +41,7 @@ struct LinuxDmaCtx
 {
   AL_TLinuxDmaAllocator base;
   char deviceFile[MAX_DEVICE_FILE_NAME];
-  int32_t fd;
+  AL_DRIVER driver;
 };
 
 /******************************************************************************/
@@ -58,7 +63,7 @@ static bool LinuxDma_Free(AL_TAllocator* pAllocator, AL_HANDLE hBuf)
   if(pDmaBuffer->shouldCloseFd)
     close(pDmaBuffer->info.fd);
 
-  free(pDmaBuffer);
+  Rtos_Free(pDmaBuffer);
 
   return bRet;
 }
@@ -106,14 +111,14 @@ static AL_PADDR LinuxDma_GetPhysicalAddr(AL_TAllocator* pAllocator, AL_HANDLE hB
 static void LinuxDma_Destroy(AL_TAllocator* pAllocator)
 {
   struct LinuxDmaCtx* pCtx = (struct LinuxDmaCtx*)pAllocator;
-  AL_DevicePool_Close(pCtx->fd);
-  free(pCtx);
+  AL_DevicePool_Close(pCtx->driver);
+  Rtos_Free(pCtx);
 }
 
 /******************************************************************************/
 static AL_TAllocator* create(const char* deviceFile, void const* vtable)
 {
-  struct LinuxDmaCtx* pCtx = (struct LinuxDmaCtx*)calloc(1, sizeof(struct LinuxDmaCtx));
+  struct LinuxDmaCtx* pCtx = (struct LinuxDmaCtx*)Rtos_Calloc(1, sizeof(struct LinuxDmaCtx));
 
   if(NULL == pCtx)
     return NULL;
@@ -128,15 +133,16 @@ static AL_TAllocator* create(const char* deviceFile, void const* vtable)
   if(snprintf(pCtx->deviceFile, sizeof(pCtx->deviceFile), "%s", deviceFile) != deviceFileSize)
     goto fail_open;
 
-  pCtx->fd = AL_DevicePool_Open(deviceFile);
+  int iErr;
+  pCtx->driver = AL_DevicePool_Open(deviceFile, &iErr);
 
-  if(pCtx->fd < 0)
+  if(iErr != 0)
     goto fail_open;
 
   return (AL_TAllocator*)pCtx;
 
   fail_open:
-  free(pCtx);
+  Rtos_Free(pCtx);
   return NULL;
 }
 
@@ -154,7 +160,7 @@ static bool LinuxDma_GetDmaFd(AL_TAllocator* pAllocator, struct al5_dma_info* pI
 {
   struct LinuxDmaCtx* pCtx = (struct LinuxDmaCtx*)pAllocator;
 
-  if(ioctl(pCtx->fd, GET_DMA_FD, pInfo) < 0)
+  if(Rtos_DriverIoctl(pCtx->driver, GET_DMA_FD, pInfo) < 0)
   {
     perror("GET_DMA_FD");
     return false;
@@ -166,7 +172,7 @@ static bool LinuxDma_GetBusAddrFromFd(AL_TLinuxDmaAllocator* pAllocator, struct 
 {
   struct LinuxDmaCtx* pCtx = (struct LinuxDmaCtx*)pAllocator;
 
-  if(ioctl(pCtx->fd, GET_DMA_PHY, pInfo) < 0)
+  if(Rtos_DriverIoctl(pCtx->driver, GET_DMA_PHY, pInfo) < 0)
   {
     perror("GET_DMA_PHY");
     return false;
@@ -176,7 +182,7 @@ static bool LinuxDma_GetBusAddrFromFd(AL_TLinuxDmaAllocator* pAllocator, struct 
 
 static AL_HANDLE LinuxDma_Alloc(AL_TAllocator* pAllocator, size_t zSize)
 {
-  struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)calloc(1, sizeof(*pDmaBuffer));
+  struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)Rtos_Calloc(1, sizeof(*pDmaBuffer));
 
   if(NULL == pDmaBuffer)
     return NULL;
@@ -194,7 +200,7 @@ static AL_HANDLE LinuxDma_Alloc(AL_TAllocator* pAllocator, size_t zSize)
   return (AL_HANDLE)pDmaBuffer;
 
   fail:
-  free(pDmaBuffer);
+  Rtos_Free(pDmaBuffer);
   return NULL;
 }
 
@@ -278,7 +284,7 @@ static size_t LinuxDma_GetDmabufSize(int32_t fd)
 
 static AL_HANDLE LinuxDma_ImportFromFd(AL_TLinuxDmaAllocator* pAllocator, int32_t fd)
 {
-  struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)calloc(1, sizeof(*pDmaBuffer));
+  struct DmaBuffer* pDmaBuffer = (struct DmaBuffer*)Rtos_Calloc(1, sizeof(*pDmaBuffer));
 
   if(pDmaBuffer == NULL)
     return NULL;
@@ -299,7 +305,7 @@ static AL_HANDLE LinuxDma_ImportFromFd(AL_TLinuxDmaAllocator* pAllocator, int32_
   return pDmaBuffer;
 
   fail:
-  free(pDmaBuffer);
+  Rtos_Free(pDmaBuffer);
   return NULL;
 }
 

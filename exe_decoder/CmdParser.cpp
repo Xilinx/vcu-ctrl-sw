@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <string>
 
 #include "CmdParser.hpp"
 #include "exe_decoder/CodecUtils.hpp"
@@ -15,6 +16,7 @@ extern "C"
 #include "lib_common/BufCommon.h"
 #include "lib_common/PicFormat.h"
 #include "lib_common/Round.h"
+#include "lib_rtos/assert.h"
 #include "lib_rtos/utils.h"
 #include "lib_common/AvcLevels.h"
 #include "lib_common/HevcLevels.h"
@@ -178,7 +180,7 @@ static void GetExpectedSeparator(stringstream& ss, char expectedSep)
 static void ParsePreAllocArgs(AL_TStreamSettings* settings, AL_ECodec codec, string const& toParse)
 {
   stringstream ss(toParse);
-  ss.unsetf(ios::dec);
+  ss.unsetf(ios::oct);
   ss.unsetf(ios::hex);
   ss >> settings->tDim.iWidth;
   GetExpectedSeparator(ss, 'x');
@@ -228,6 +230,11 @@ static void ParsePreAllocArgs(AL_TStreamSettings* settings, AL_ECodec codec, str
     ss >> settings->iMaxRef;
   }
 
+  bool bIsBitDepthValid = (settings->iBitDepth == 8) || (settings->iBitDepth == 10) || (settings->iBitDepth == 12);
+
+  if(!bIsBitDepthValid)
+    throw runtime_error("Unsupported bitdepth");
+
   if(codec == AL_CODEC_AVC)
   {
     if(!AL_AVC_IsLevel(settings->iLevel))
@@ -265,9 +272,12 @@ static void ParsePreAllocArgs(AL_TStreamSettings* settings, AL_ECodec codec, str
 }
 
 /******************************************************************************/
-static bool IsPrimaryOutputFormatAllowed(AL_EFbStorageMode mode)
+static bool IsPrimaryOutputFormatAllowed(AL_EFbStorageMode mode, AL_ECodec codec)
 {
-  return AL_FB_RASTER == mode || AL_FB_TILE_32x4 == mode || AL_FB_TILE_64x4 == mode;
+  (void)codec;
+  bool bAllowed = AL_FB_RASTER == mode || AL_FB_TILE_32x4 == mode || AL_FB_TILE_64x4 == mode;
+
+  return bAllowed;
 }
 
 /******************************************************************************/
@@ -275,7 +285,7 @@ static void ProcessOutputArgs(Config& config, const string& sRasterOut)
 {
   (void)sRasterOut;
 
-  if(!IsPrimaryOutputFormatAllowed(config.tDecSettings.eFBStorageMode))
+  if(!IsPrimaryOutputFormatAllowed(config.tDecSettings.eFBStorageMode, config.tDecSettings.eCodec))
     throw runtime_error("Primary output format is not allowed !");
 
   if(!config.bEnableYUVOutput)
@@ -290,7 +300,14 @@ static void ProcessOutputArgs(Config& config, const string& sRasterOut)
 template<int32_t Offset>
 static int32_t IntWithOffset(const string& word)
 {
-  return atoi(word.c_str()) + Offset;
+  try
+  {
+    return stoi(word.c_str()) + Offset;
+  }
+  catch(const exception &)
+  {
+    throw runtime_error("Error when converting string to int: unable to parse the word '" + word + "'");
+  }
 }
 
 /******************************************************************************/
@@ -304,11 +321,19 @@ static TCouple CoupleWithSeparator(const string& str)
     uint32_t second;
   }* pCouple = reinterpret_cast<t_couple*>(&Couple);
 
-  static_assert(sizeof(TCouple) == sizeof(t_couple), "Invalid structure size");
+  Rtos_StaticAssert(sizeof(TCouple) == sizeof(t_couple), "Invalid structure size");
 
   size_t sep = str.find_first_of(Separator);
-  pCouple->first = atoi(str.substr(0, sep).c_str());
-  pCouple->second = atoi(str.substr(sep + 1).c_str());
+
+  try
+  {
+    pCouple->first = stoi(str.substr(0, sep).c_str());
+    pCouple->second = stoi(str.substr(sep + 1).c_str());
+  }
+  catch(const exception &)
+  {
+    throw runtime_error("Error when converting string to couple of int: unable to parse the word '" + str + "'");
+  }
 
   return Couple;
 }
@@ -353,7 +378,6 @@ Config ParseCommandLine(int32_t argc, char* argv[])
 
   opt.addString("--input,--in,-in,--i,-i", &config.sIn, "Input bitstream");
   opt.addString("--output,--out,-out,--o,-o", &config.sMainOut, "Output YUV");
-
   opt.addFlag("--avc,-avc", &config.tDecSettings.eCodec,
               string("Specify the input bitstream codec (default: ") + string(AL_CodecToString(AL_DEC_DEFAULT_CODEC)) + string(")"),
               AL_CODEC_AVC);
@@ -361,6 +385,11 @@ Config ParseCommandLine(int32_t argc, char* argv[])
   opt.addFlag("--hevc,-hevc", &config.tDecSettings.eCodec,
               string("Specify the input bitstream codec (default: ") + string(AL_CodecToString(AL_DEC_DEFAULT_CODEC)) + string(")"),
               AL_CODEC_HEVC);
+  opt.addOption("--heic,-heic", [&](string)
+  {
+    config.tDecSettings.eCodec = AL_CODEC_HEVC;
+    config.eContainer = EInputContainer::Heif;
+  }, "Input is a HEIC still image");
   opt.addInt("--framerate,--fps,-fps", &fps, "force framerate");
   opt.addCustom("--clock,--clk,-clk", &config.tDecSettings.uClkRatio, &IntWithOffset<1000>, "Set clock ratio, (0 for 1000, 1 for 1001)", "number");
   opt.addString("--bitdepth,--bd,-bd", &sOutputBitDepth, "Output YUV bitdepth (8, 10, 12, alloc : force prealloc if present, if not fallback to first, stream: use current frame bitdepth, first: always use bitdepth of the first decoded frame)");
@@ -387,7 +416,9 @@ Config ParseCommandLine(int32_t argc, char* argv[])
 
   opt.addOption("--fbuf-format,--ff,-ff", [&](string)
   {
-    config.tDecSettings.eFBStorageMode = ParseFrameBufferFormat(opt.popWord(), config.tDecSettings.bFrameBufferCompression);
+    string sWordToParse = opt.popWord();
+    config.tDecSettings.eFBStorageMode = ParseFrameBufferFormat(sWordToParse, config.tDecSettings.bFrameBufferCompression);
+
   }, "Specify the format of the decoded frame buffers (" + GetFrameBufferFormatOptDesc() + ")");
 
   opt.addFlag("--split-input", &config.tDecSettings.eInputMode,
@@ -435,9 +466,11 @@ Config ParseCommandLine(int32_t argc, char* argv[])
     config.iTraceNumber = opt.popInt();
     config.iTraceIdx = max(0, config.iTraceIdx);
   }, "Number of frames to trace", "number");
+  opt.addFlag("--output-trace-only", &config.bOutputTraceOnly, "Only trace output buffers (non input nor sram map)");
 
   opt.addFlag("--use-early-callback", &config.tDecSettings.bUseEarlyCallback, "Low latency phase 2. Call end decoding at decoding launch. This only makes sense with special support for hardware synchronization. Requires --lowlat. ");
   opt.addInt("--core,-core", &config.tDecSettings.uNumCore, "Number of decoder cores");
+  opt.addFlag("--force-multiple-dec1-per-frame", &config.tDecSettings.bForceMultipleDec1PerFrame, "Force using multiple dec1 per frame (when slice/tile pattern permits)");
   opt.addFlag("--non-realtime", &config.tDecSettings.bNonRealtime, "Specifies that the channel is a non-realtime channel");
   opt.addInt("--ddrwidth,-ddrwidth", &config.tDecSettings.uDDRWidth, "Width of DDR requests (16, 32, 64) (default: 32)");
   opt.addFlag("--nocache,-nocache", &config.tDecSettings.bDisableCache, "Inactivate the cache");
@@ -560,6 +593,9 @@ Config ParseCommandLine(int32_t argc, char* argv[])
 
   if(config.sIn.empty())
     throw runtime_error("No input file specified (use -h to get help)");
+
+  if(config.eContainer != EInputContainer::Elementary && config.tDecSettings.eInputMode == AL_DEC_SPLIT_INPUT)
+    throw runtime_error("--avif/--heic do not support --split-input");
 
   return config;
 }

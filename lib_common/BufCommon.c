@@ -3,6 +3,9 @@
 
 #include "Utils.h"
 
+#include "include/config.h"
+#include "include/lib_common/PicFormat.h"
+#include "include/lib_rtos/assert.h"
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common/BufCommon.h"
 #include "lib_common/BufCommonInternal.h"
@@ -10,9 +13,12 @@
 #include "lib_common/Round.h"
 
 /*****************************************************************************/
-int32_t AL_GetNumLinesInPitch(AL_EFbStorageMode eFrameBufferStorageMode)
+int32_t AL_GetNumLinesInPitch(AL_EFbStorageMode eFrameBufferStorageMode, AL_EChromaMode eChromaMode, uint8_t uBitDepth)
 {
-  if(!IsTile(eFrameBufferStorageMode))
+  (void)eChromaMode;
+  (void)uBitDepth;
+
+  if(eFrameBufferStorageMode == AL_FB_RASTER)
   {
     return 1;
   }
@@ -23,9 +29,10 @@ int32_t AL_GetNumLinesInPitch(AL_EFbStorageMode eFrameBufferStorageMode)
 }
 
 /******************************************************************************/
-static inline int32_t GetWidthRound(AL_EFbStorageMode eStorageMode, uint8_t uBitDepth)
+static inline int32_t GetWidthRound(AL_EFbStorageMode eStorageMode, uint8_t uBitDepth, AL_EChromaMode eChromaMode)
 {
   (void)uBitDepth;
+  (void)eChromaMode;
   switch(eStorageMode)
   {
   case AL_FB_RASTER: return 1;
@@ -48,13 +55,13 @@ static inline int32_t GetWidthRound(AL_EFbStorageMode eStorageMode, uint8_t uBit
 int32_t AL_GetLumaPixPlanePitch(int32_t iWidth, AL_TPicFormat const* pPicFormat, int32_t iPitchAlignment)
 {
   int32_t iVal = 0;
-  int32_t const iRndWidth = AL_RoundUp(iWidth, GetWidthRound(pPicFormat->eStorageMode, pPicFormat->uBitDepth));
+  int32_t const iRndWidth = AL_RoundUp(iWidth, GetWidthRound(pPicFormat->eStorageMode, pPicFormat->uBitDepth, pPicFormat->eChromaMode));
 
   if(IsTile(pPicFormat->eStorageMode))
   {
     uint8_t uBitDepth = (pPicFormat->uBitDepth + 1) & 0xFE; // Prevent 9 and 11 bitdepth -> 10/12
 
-    iVal = iRndWidth * AL_GetNumLinesInPitch(pPicFormat->eStorageMode) * uBitDepth / 8;
+    iVal = iRndWidth * AL_GetNumLinesInPitch(pPicFormat->eStorageMode, pPicFormat->eChromaMode, uBitDepth) * uBitDepth / 8;
 
   }
   else
@@ -93,6 +100,24 @@ int32_t AL_GetLumaPixPlanePitch(int32_t iWidth, AL_TPicFormat const* pPicFormat,
 
   Rtos_Assert(iPitchAlignment > 0);
   return AL_RoundUp(iVal, iPitchAlignment);
+}
+
+/****************************************************************************/
+int32_t AL_GetChromaPixPlanePitch(AL_TPicFormat const* pPicFormat, int32_t iLumaPitch)
+{
+  if(pPicFormat->eChromaMode == AL_CHROMA_MONO || pPicFormat->ePlaneMode == AL_PLANE_MODE_INTERLEAVED)
+    return 0;
+
+  int32_t iNumPlanes = pPicFormat->ePlaneMode == AL_PLANE_MODE_SEMIPLANAR ? 2 : 1;
+  int32_t iChromaPitch = iLumaPitch;
+
+  if(pPicFormat->eChromaMode != AL_CHROMA_4_4_4)
+  {
+    int32_t iRound = pPicFormat->uBitDepth > 8 ? 4 : 2;
+    iChromaPitch = AL_RoundUp(iLumaPitch, iRound) / 2;
+  }
+
+  return iChromaPitch * iNumPlanes;
 }
 
 /****************************************************************************/
@@ -151,19 +176,7 @@ int32_t AL_GetChromaPitch(TFourCC tFourCC, int32_t iLumaPitch)
   if(!bSuccess)
     return -1;
 
-  if(tPicFormat.eChromaMode == AL_CHROMA_MONO)
-    return 0;
-
-  int32_t iNumPlanes = tPicFormat.ePlaneMode == AL_PLANE_MODE_SEMIPLANAR ? 2 : 1;
-  int32_t iChromaPitch = iLumaPitch;
-
-  if(tPicFormat.eChromaMode != AL_CHROMA_4_4_4)
-  {
-    int32_t iRound = tPicFormat.uBitDepth > 8 ? 4 : 2;
-    iChromaPitch = AL_RoundUp(iLumaPitch, iRound) / 2;
-  }
-
-  return iChromaPitch * iNumPlanes;
+  return AL_GetChromaPixPlanePitch(&tPicFormat, iLumaPitch);
 }
 
 /****************************************************************************/

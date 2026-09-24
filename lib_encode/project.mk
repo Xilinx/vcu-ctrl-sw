@@ -3,27 +3,6 @@ LIB_ENCODER_DLL=$(BIN)/liballegro_encode.so
 
 include lib_encode/project_src.mk
 
-LIB_ISCHEDULER_ENC_A=$(BIN)/liballegro_encscheduler.a
-LIB_ISCHEDULER_ENC_DLL=$(BIN)/liballegro_encscheduler.so
-
-
-ifneq ($(ENABLE_MICROBLAZE),0)
-  ISCHEDULER_SRC+=lib_encode/DriverDataConversions.c
-  ISCHEDULER_SRC+=lib_encode/EncSchedulerMcu.c
-endif
-
-LIB_ISCHEDULER_ENC_SRC:=\
-  $(ISCHEDULER_SRC)\
-  $(LIB_RATECTRL_SRC)\
-  $(LIB_BUF_MNGT_SRC)\
-  $(LIB_SCHEDULER_ENC_SRC)\
-  $(LIB_BITSTREAM_SRC)\
-
-LIB_ISCHEDULER_ENC_OBJ:=$(LIB_ISCHEDULER_ENC_SRC:%=$(BIN)/%.o)
-
-$(LIB_ISCHEDULER_ENC_DLL): $(LIB_ISCHEDULER_ENC_OBJ)
-
-$(LIB_ISCHEDULER_ENC_A): $(LIB_ISCHEDULER_ENC_OBJ)
 
 LIB_ENCODER_SRC:=\
   $(LIB_FPGA_SRC)\
@@ -31,23 +10,11 @@ LIB_ENCODER_SRC:=\
   $(LIB_COMMON_ENC_SRC)\
   $(LIB_RTOS_SRC)\
   $(LIB_ENCODE_SRC)\
-  $(LIB_LOG_SRC)
-
-
-ifneq ($(ENABLE_LIB_ISCHEDULER),0)
-  ifneq ($(ENABLE_STATIC),0)
-    $(warning the lib_ischeduler will be compiled in instead of being compiled as a library)
-    ENABLE_LIB_ISCHEDULER:=0
-  endif
-endif
-
-ifneq ($(ENABLE_LIB_ISCHEDULER),0)
-  LIB_ENCODER_OBJ+=$(LIB_ISCHEDULER_ENC_DLL)
-  LIB_ISCHEDULER_ENC_SRC_SHOW=$(LIB_ISCHEDULER_ENC_SRC)
-else
-  LIB_ENCODER_SRC+=$(LIB_ISCHEDULER_ENC_SRC)
-  LIB_ISCHEDULER_ENC_SRC_SHOW=
-endif
+  $(LIB_LOG_SRC)\
+  $(LIB_RATECTRL_SRC)\
+  $(LIB_BUF_MNGT_SRC)\
+  $(LIB_SCHEDULER_ENC_SRC)\
+  $(LIB_BITSTREAM_SRC)\
 
 LIB_ENCODER_OBJ+=$(LIB_ENCODER_SRC:%=$(BIN)/%.o)
 
@@ -66,6 +33,6 @@ TARGETS+=liballegro_encode_dll
 
 
 liballegro_encode_src: $(LIB_ENCODER_SRC)
-	@echo $(LIB_ENCODER_SRC) $(LIB_ISCHEDULER_ENC_SRC_SHOW)
+	@echo $(LIB_ENCODER_SRC)
 
 .PHONY: liballegro_encode liballegro_encode_dll liballegro_encode_a liballegro_encoder_src

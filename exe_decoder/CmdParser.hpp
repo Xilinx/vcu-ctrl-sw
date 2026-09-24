@@ -32,6 +32,12 @@ static uint32_t constexpr uDefaultNumBuffersHeldByNextComponent = 1; /* We need 
 
 static const int32_t DEFAULT_DEC_APB_ID = 2;
 
+enum class EInputContainer
+{
+  Elementary,
+  Heif
+};
+
 /******************************************************************************/
 struct Config
 {
@@ -44,6 +50,7 @@ struct Config
   std::string sCrc;
 
   AL_TDecSettings tDecSettings {};
+  EInputContainer eContainer = EInputContainer::Elementary; /*!< Specify if stream is muxed (only HEIC-based containers(AVIF, HEIF) supported) */
   AL_TDecOutputSettings tUserOutputSettings {};
   bool bEnableCrop = false;
 
@@ -51,11 +58,12 @@ struct Config
   AL_ESchedulerType eSchedulerType = AL_ESchedulerType::AL_SCHEDULER_TYPE_MCU;
   bool bSelectDeviceWithLowestAvailableResources = false;
   int32_t iOutputBitDepth = OUTPUT_BD_ALLOC;
+  bool bEnableYUVOutput = true;
   TFourCC tOutputFourCC = FOURCC(NULL);
   int32_t iTraceIdx = -1;
   int32_t iTraceNumber = 0;
+  bool bOutputTraceOnly = false;
   bool bForceCleanBuffers = false;
-  bool bEnableYUVOutput = true;
   uint32_t uInputBufferNum = 2;
   size_t zInputBufferSize = zDefaultInputBufferSize;
   AL_EIpCtrlMode ipCtrlMode = AL_EIpCtrlMode::AL_IPCTRL_MODE_STANDARD;

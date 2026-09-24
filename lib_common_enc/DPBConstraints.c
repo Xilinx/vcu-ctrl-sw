@@ -37,6 +37,9 @@ uint8_t AL_DPBConstraint_GetMaxRef_DefaultGop(const AL_TGopParam* pGopParam, AL_
   if(pGopParam->bEnableLT)
     ++uNumRef;
 
+  if(pGopParam->bDoubleRef)
+    ++uNumRef;
+
   return uNumRef;
 }
 
@@ -107,7 +110,9 @@ uint8_t AL_DPBConstraint_GetMaxRef_PyramidalGop(const AL_TGopParam* pGopParam, A
       uNumRef++;
   }
 
-  if(pGopParam->bEnableLT)
+  if(pGopParam->bEnableLT
+     || pGopParam->bDoubleRef
+     )
     uNumRef++;
 
   return uNumRef;
@@ -135,6 +140,9 @@ uint8_t AL_DPBConstraint_GetMaxRef_LowDelayGop(const AL_TGopParam* pGopParam, AL
   }
 
   if(pGopParam->bEnableLT)
+    ++uNumRef;
+
+  if(pGopParam->bDoubleRef)
     ++uNumRef;
 
   return uNumRef;

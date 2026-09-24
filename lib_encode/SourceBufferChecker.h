@@ -9,13 +9,13 @@
 
 typedef struct
 {
-  AL_TDimension currentDim;
-  AL_TDimension maxDim;
-  AL_ESrcMode srcMode;
-  TFourCC fourCC;
+  AL_TDimension tCurrentDim;
+  AL_TDimension tMaxDim;
+  AL_ESrcMode eSrcMode;
+  TFourCC tFourCC;
   bool bMonochrome;
 }AL_TSrcBufferChecker;
 
 void AL_SrcBuffersChecker_Init(AL_TSrcBufferChecker* pCtx, AL_TEncChanParam const* pChParam);
 bool AL_SrcBuffersChecker_UpdateResolution(AL_TSrcBufferChecker* pCtx, AL_TDimension tNewDim);
-bool AL_SrcBuffersChecker_CanBeUsed(AL_TSrcBufferChecker* pCtx, AL_TBuffer* buffer);
+bool AL_SrcBuffersChecker_CanBeUsed(AL_TSrcBufferChecker const* pCtx, AL_TBuffer const* pBuf);

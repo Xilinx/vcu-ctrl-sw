@@ -16,8 +16,7 @@
 // Limitation on old decoder ips
 #define AL_MAX_HEIGHT 8192
 #define SIZE_LCU_INFO 16   /*!< LCU compressed size + LCU offset                  */
-#define SCD_SIZE 128 /*!< size of start code detector output                */
-
+#define ITU_JPEG_SCD_SIZE (16 * sizeof(AL_TStartCode)) /*!< size of start code detector output                */
 #define MAX_NAL_UNIT 4096/*!< Maximum nal unit within an access unit supported  */
 #define NON_VCL_NAL_SIZE 5248 /*!< Init size of the Deanti-emulated buffer used by the software to parse the high level syntax data  */
 
@@ -63,6 +62,7 @@ typedef struct TRefListOffsets
   uint32_t uColocPocOffset;
   uint32_t uColocMVOffset;
   uint32_t uMapOffset;
+  uint32_t uDimensionOffset;
 }TRefListOffsets;
 
 /*****************************************************************************

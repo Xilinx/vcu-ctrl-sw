@@ -46,8 +46,9 @@ endif
 
 
 
+
 ENABLE_TILE_INPUT_LOADER=0
-ifneq ($(BUILD_EXE_FBC),0)
+ifneq ($(ENABLE_EXE_SITE),0)
   ENABLE_TILE_INPUT_LOADER=1
 endif
 
@@ -56,6 +57,12 @@ ifneq ($(ENABLE_TILE_INPUT_LOADER),0)
 endif
 
 
+
+NEED_PIXEL_BUS_FEEDER=0
+
+ifneq ($(NEED_PIXEL_BUS_FEEDER),0)
+  LIB_APP_SRC+=lib_app/PixelBusSourceFeeder.cpp
+endif
 
 ifeq ($(findstring mingw,$(TARGET)),mingw)
   LIB_APP_SRC+=lib_app/plateform_windows.cpp

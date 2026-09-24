@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "lib_rate_ctrl/I_Plugin.h"
+#include "lib_rtos/assert.h"
 
 // Example RC Plugin structure given to us by the user
 // This needs to be validated as the data is coming from user space
@@ -16,7 +17,7 @@ struct RCPlugin
   uint32_t tail;
   uint32_t curQp;
 };
-static_assert(sizeof(struct RCPlugin) == 36 * sizeof(uint32_t), "");
+Rtos_StaticAssert(sizeof(struct RCPlugin) == 36 * sizeof(uint32_t), "");
 
 struct RCExampleCtx
 {

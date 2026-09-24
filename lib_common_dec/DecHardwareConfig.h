@@ -11,4 +11,6 @@ int32_t AL_HWConfig_Dec_GetSupportedBitDepth(void);
 
 AL_ERR AL_HWConfig_Dec_CheckBitDepth(int iBitDepth);
 AL_ERR AL_HWConfig_Dec_CheckChromaMode(AL_EChromaMode eChromaMode);
+
 AL_ERR AL_HWConfig_Dec_CheckFrameResolution(AL_TDimension tFrameDim, uint8_t uLog2Ctu, uint8_t uLog2MinCb);
+AL_ERR AL_HWConfig_Dec_CheckMaxFrameResolution(AL_TDimension tFrameDim, AL_TDimension tMaxDim);

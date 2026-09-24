@@ -93,6 +93,11 @@ static void ConfigureChannel(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam, AL_TE
   if(pSettings->eScalingList != AL_SCL_FLAT)
     pChParam->eEncTools |= AL_OPT_SCL_LST;
 
+#if AL_ENABLE_AL_ENC_ZAPPER
+
+  if(pSettings->eZapperMode != AL_NO_ZAP)
+    pChParam->eEncOptions |= AL_OPT_ZAPPER;
+#endif
 }
 
 static void preprocessEp1(AL_TEncCtx* pCtx, TBufferEP* pEp1)

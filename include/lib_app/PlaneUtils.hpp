@@ -11,4 +11,4 @@ extern "C"
 #include "lib_common/Planes.h"
 }
 
-std::vector<AL_TPlaneDescription> getPlaneDescription(TFourCC tFourCC, int32_t iPitch, int32_t iPitchMap, size_t sizes[], int& iTotalOffset);
+std::vector<AL_TPlaneDescription> getPlaneDescription(TFourCC tFourCC, int32_t iPitchY, int32_t iPitchC, int32_t iPitchMap, size_t sizes[], int& iTotalOffset);

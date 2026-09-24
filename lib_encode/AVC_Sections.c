@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: MIT
 
 #include "AVC_Sections.h"
+
 #include "lib_bitstream/AVC_RbspEncod.h"
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/Nuts.h"
-#include "lib_common/Utils.h"
+#include "lib_common/Arithmetics.h"
 
 AL_TNalHeader GetNalHeaderAvc(uint8_t uNUT, uint8_t uNalRefIdc, uint8_t uLayerId, uint8_t uTemporalId)
 {

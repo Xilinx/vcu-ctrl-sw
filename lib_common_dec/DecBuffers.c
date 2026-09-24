@@ -5,6 +5,7 @@
 #include "lib_common_dec/DecBuffersInternal.h"
 #include "lib_common/Round.h"
 #include "lib_common/Utils.h"
+#include "lib_common/Arithmetics.h"
 #include "lib_common/BufferPixMapMeta.h"
 
 /*****************************************************************************/
@@ -21,7 +22,7 @@ int32_t AL_DecGetPixPlaneHeight(int32_t iHeight, AL_TPicFormat const* pPicFormat
 {
   // Height alignment required by customers to the LCU size
   int32_t const iLcuAlignment = 64;
-  return AL_RoundUp(iHeight, iLcuAlignment) / AL_GetNumLinesInPitch(pPicFormat->eStorageMode);
+  return AL_RoundUp(iHeight, iLcuAlignment) / AL_GetNumLinesInPitch(pPicFormat->eStorageMode, pPicFormat->eChromaMode, pPicFormat->uBitDepth);
 }
 
 /****************************************************************************/
@@ -41,7 +42,7 @@ int32_t AL_GetAllocSize_AvcCompData(AL_TDimension tDim, AL_EChromaMode eChromaMo
 /****************************************************************************/
 int32_t AL_GetAllocSize_DecCompMap(AL_TDimension tDim)
 {
-  int32_t iBlk16x16 = GetSquareBlkNumber(tDim, 16);
+  int32_t iBlk16x16 = GetSquareBlkNumber(tDim, 64) * 16;
   return SIZE_LCU_INFO * iBlk16x16;
 }
 
@@ -56,7 +57,8 @@ int32_t AL_GetAllocSize_HevcMV(AL_TDimension tDim)
 int32_t AL_GetAllocSize_AvcMV(AL_TDimension tDim)
 {
   int32_t iNumBlk = GetSquareBlkNumber(tDim, 16);
-  return 16 * iNumBlk * sizeof(int32_t);
+  int32_t iSize = 16 * iNumBlk * sizeof(int32_t);
+  return iSize;
 }
 
 /*****************************************************************************/
@@ -161,7 +163,7 @@ AL_TMetaData* AL_CreateRecBufMetaData(AL_TDimension tDim, int32_t iMinPitch, TFo
 
   for(int32_t iPlane = 0; iPlane < iNbPlanes; iPlane++)
   {
-    int32_t iPitch = usedPlanes[iPlane] == AL_PLANE_Y ? iMinPitch : AL_GetChromaPitch(tFourCC, iMinPitch);
+    int32_t iPitch = usedPlanes[iPlane] == AL_PLANE_Y || usedPlanes[iPlane] == AL_PLANE_YUV ? iMinPitch : AL_GetChromaPitch(tFourCC, iMinPitch);
     AL_PixMapMetaData_AddPlane(pSrcMeta, (AL_TPlane) {0, iOffset, iPitch }, usedPlanes[iPlane]);
 
     if(usedPlanes[iPlane] == AL_PLANE_U)
@@ -203,7 +205,7 @@ static uint32_t GetBufferSize(AL_TDecFrameBufferParams const* pFrameBufferParams
 AL_TBuffer* AL_DecCreateFrameBuffer(AL_TDecFrameBufferParams const* pFrameBufferParams, AL_TAllocator* pAllocator, PFN_RefCount_CallBack pRefCountCallback, void* pUserParam)
 {
   AL_TDimension tDim = pFrameBufferParams->tDim;
-  TFourCC tFourCC = AL_GetFourCC(pFrameBufferParams->tPicFormat);
+  TFourCC tFourCC = AL_GetFourCC(&pFrameBufferParams->tPicFormat);
   int32_t iMinPitch = AL_DecGetLumaPixPlanePitch(tDim.iWidth, &pFrameBufferParams->tPicFormat);
   int32_t iSizeYuv = GetBufferSize(pFrameBufferParams, iMinPitch);
 

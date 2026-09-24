@@ -6,6 +6,7 @@
 void AL_SetBufferAddrs(AL_TDecBufferAddrs* pBufAddrs, AL_TDecBuffers const* pPictBuffers, AL_TDecChanParam const* pChanParam)
 {
   pBufAddrs->pCompData = pPictBuffers->tCompData.tMD.uPhysicalAddr;
+  pBufAddrs->uCompDataSize = pPictBuffers->tCompData.tMD.uSize;
   pBufAddrs->pCompMap = pPictBuffers->tCompMap.tMD.uPhysicalAddr;
   pBufAddrs->pListRef = pPictBuffers->tListRef.tMD.uPhysicalAddr;
   pBufAddrs->pMV = pPictBuffers->tMV.tMD.uPhysicalAddr;
@@ -21,6 +22,7 @@ void AL_SetBufferAddrs(AL_TDecBufferAddrs* pBufAddrs, AL_TDecBuffers const* pPic
   Rtos_Assert(pPictBuffers->tStream.tMD.uSize > 0);
   pBufAddrs->uStreamSize = pPictBuffers->tStream.tMD.uSize;
   pBufAddrs->tDecBuffers.uBitdepth = pPictBuffers->uBitdepth;
-  pBufAddrs->tDecBuffers.uPitch = pPictBuffers->uPitch;
+  pBufAddrs->tDecBuffers.uPitchY = pPictBuffers->uPitchY;
+  pBufAddrs->tDecBuffers.uPitchC = pPictBuffers->uPitchC;
 
 }

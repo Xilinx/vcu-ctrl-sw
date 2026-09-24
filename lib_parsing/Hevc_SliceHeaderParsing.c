@@ -4,10 +4,11 @@
 #include "Hevc_SliceHeaderParsing.h"
 #include "HevcParser.h"
 #include "lib_rtos/assert.h"
+#include "lib_common/Arithmetics.h"
 #include "lib_common/BufConst.h"
 #include "lib_common/HevcUtils.h"
 #include "lib_common/SliceConsts.h"
-#include "lib_common/Utils.h"
+
 #include "lib_common/Nuts.h"
 #include "lib_common_dec/RbspParser.h"
 #include "lib_rtos/lib_rtos.h"

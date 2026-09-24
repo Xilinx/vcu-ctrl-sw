@@ -3,7 +3,7 @@
 
 #include "lib_app/PlaneUtils.hpp"
 
-std::vector<AL_TPlaneDescription> getPlaneDescription(TFourCC tFourCC, int32_t iPitch, int32_t iPitchMap, size_t sizes[], int& iTotalOffset)
+std::vector<AL_TPlaneDescription> getPlaneDescription(TFourCC tFourCC, int32_t iPitchY, int32_t iPitchC, int32_t iPitchMap, size_t sizes[], int& iTotalOffset)
 {
   std::vector<AL_TPlaneDescription> outputPlaneDescription;
   AL_EPlaneId usedPlanes[AL_MAX_BUFFER_PLANES];
@@ -18,27 +18,27 @@ std::vector<AL_TPlaneDescription> getPlaneDescription(TFourCC tFourCC, int32_t i
     AL_EPlaneId ePlaneId = usedPlanes[iPlane];
 
     int32_t planeIdx = 0;
-    int32_t pitch = iPitch;
+    int32_t pitch = iPitchY;
     switch(ePlaneId)
     {
     case AL_PLANE_U:
       planeIdx = 1;
-      pitch = iPitch;
+      pitch = iPitchC;
       break;
 
     case AL_PLANE_V:
       planeIdx = 2;
-      pitch = iPitch;
+      pitch = iPitchC;
       break;
 
     case AL_PLANE_UV:
       planeIdx = 1;
-      pitch = iPitch;
+      pitch = iPitchC;
       break;
 
     case AL_PLANE_YUV:
       planeIdx = 0;
-      pitch = iPitch;
+      pitch = iPitchY;
       break;
 
     case AL_PLANE_MAP_Y:

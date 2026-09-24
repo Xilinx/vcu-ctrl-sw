@@ -4,6 +4,7 @@
 #include "lib_common_enc/QPTableInternal.h"
 #include "lib_common_enc/ParamConstraintsInternal.h"
 #include "lib_common/Utils.h"
+#include "lib_common/Arithmetics.h"
 #include "lib_common/Round.h"
 #include "lib_common/Error.h"
 

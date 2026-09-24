@@ -4,7 +4,9 @@
 #include "ChannelResources.h"
 #include "Utils.h"
 #include "lib_rtos/lib_rtos.h"
+#include "lib_rtos/types.h"
 #include "lib_common/Round.h"
+#include "lib_common/Arithmetics.h"
 
 static int32_t divideRoundUp(AL_64U dividende, AL_64U divisor)
 {

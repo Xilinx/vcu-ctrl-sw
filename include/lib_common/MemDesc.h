@@ -34,12 +34,6 @@ typedef struct AL_TMemDesc
 }AL_TMemDesc;
 
 /*****************************************************************************
-   \brief Clears Memory descriptor
-   \param pMD pointer to the memory descriptor
-*****************************************************************************/
-void AL_MemDesc_Init(AL_TMemDesc* pMD);
-
-/*****************************************************************************
    \brief Alloc Memory
    \param pMD Pointer to AL_TMemDesc structure that receives allocated
    memory information
@@ -53,6 +47,6 @@ bool AL_MemDesc_AllocNamed(AL_TMemDesc* pMD, AL_TAllocator* pAllocator, size_t u
    \brief Frees Memory
    \param pMD pointer to the memory descriptor
 *****************************************************************************/
-bool AL_MemDesc_Free(AL_TMemDesc* pMD);
+void AL_MemDesc_Free(AL_TMemDesc* pMD);
 
 /*!@}*/

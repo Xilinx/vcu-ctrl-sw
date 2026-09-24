@@ -29,7 +29,7 @@ AL_EFbStorageMode ETileModeToEFbStorageMode(ETileMode eTileMode)
   case TILE_64x4_v1: return AL_FB_TILE_64x4;
   case RASTER: return AL_FB_RASTER;
 
-  default: std::runtime_error("Unsupported eTileMode");
+  default:;
   }
 
   throw std::runtime_error("Unsupported eTileMode");

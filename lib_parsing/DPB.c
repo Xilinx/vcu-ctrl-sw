@@ -10,6 +10,7 @@
 #include "DPB.h"
 #include "lib_common/Round.h"
 #include "lib_common/Index.h"
+#include "lib_common/Arithmetics.h"
 
 static void DispFifo_Init(AL_TDispFifo* pFifo)
 {
@@ -690,6 +691,28 @@ static AL_TIndex sApiGetLastPicID(AL_IReferenceManager const* pICtx)
 }
 
 /*************************************************************************/
+static AL_TIndex sApiGetLastRefPicID(AL_IReferenceManager const* pICtx)
+{
+  AL_TDpb const* pDpb = (AL_TDpb const*)pICtx;
+  Rtos_GetMutex(pDpb->Mutex);
+
+  AL_TIndex tNodeID = pDpb->tHeadPOCNodeID;
+  AL_TIndex tRetID = AL_BAD_INDEX;
+
+  while(IS_NODE_VALID(tNodeID))
+  {
+    if(IS_NODE_VALID(pDpb->Nodes[tNodeID].tPicID) && pDpb->Nodes[tNodeID].eMarkingFlag < UNUSED_FOR_REF)
+      tRetID = pDpb->Nodes[tNodeID].tPicID;
+
+    tNodeID = pDpb->Nodes[tNodeID].tNextPOCNodeID;
+  }
+
+  Rtos_ReleaseMutex(pDpb->Mutex);
+
+  return tRetID;
+}
+
+/*************************************************************************/
 uint8_t AL_Dpb_GetNumRef(AL_TDpb const* pDpb)
 {
   return pDpb->uNumRef;
@@ -784,7 +807,9 @@ void AL_Dpb_sFillList(AL_TDpb const* pDpb, int32_t* pPocList, uint16_t* pLongTer
 
         if(pDpb->Nodes[tNodeID].eMarkingFlag == LONG_TERM_REF)
           *pLongTermList |= (1 << tPicID); // long term flag
-        *pAvailableRefList |= (1 << tPicID); // available ref POC
+
+        if(pDpb->Nodes[tNodeID].eMarkingFlag != UNUSED_FOR_REF)
+          *pAvailableRefList |= (1 << tPicID); // available ref POC
         *pSubpicList |= (pDpb->Nodes[tNodeID].bSubpicFlag << tPicID);
       }
     }
@@ -1369,34 +1394,34 @@ static void sApiEndDecoding(AL_IReferenceManager* pICtx, AL_TIndex tFrameID)
 /*****************************************************************************/
 void AL_Dpb_PictNumberProcess(AL_TDpb* pDpb, AL_TAvcSliceHdr const* pSlice)
 {
-  AL_TIndex tPicID = pDpb->tHeadDecOrderNodeID;
+  AL_TIndex tNodeID = pDpb->tHeadDecOrderNodeID;
   AL_TDpbNode* pNodes = pDpb->Nodes;
   uint32_t uMaxFrameNum = 1 << (pSlice->pSPS->log2_max_frame_num_minus4 + 4);
 
-  while(IS_NODE_VALID(tPicID))// loop over references pictures
+  while(IS_NODE_VALID(tNodeID))// loop over references pictures
   {
-    if(pNodes[tPicID].eMarkingFlag == UNUSED_FOR_REF)
+    if(pNodes[tNodeID].eMarkingFlag == UNUSED_FOR_REF)
     {
-      tPicID = pNodes[tPicID].tNextDecOrderNodeID;
+      tNodeID = pNodes[tNodeID].tNextDecOrderNodeID;
       continue;
     }
 
-    if(pNodes[tPicID].eMarkingFlag == SHORT_TERM_REF)
+    if(pNodes[tNodeID].eMarkingFlag == SHORT_TERM_REF)
     {
-      pNodes[tPicID].iFrameNumber = pNodes[tPicID].iSliceFrameNumber;
+      pNodes[tNodeID].iFrameNumber = pNodes[tNodeID].iSliceFrameNumber;
 
-      if(pNodes[tPicID].iFrameNumber > pSlice->frame_num)
-        pNodes[tPicID].iFrameNumberWrap = pNodes[tPicID].iFrameNumber - uMaxFrameNum;
+      if(pNodes[tNodeID].iFrameNumber > pSlice->frame_num)
+        pNodes[tNodeID].iFrameNumberWrap = pNodes[tNodeID].iFrameNumber - uMaxFrameNum;
       else
-        pNodes[tPicID].iFrameNumberWrap = pNodes[tPicID].iFrameNumber;
+        pNodes[tNodeID].iFrameNumberWrap = pNodes[tNodeID].iFrameNumber;
 
-      pNodes[tPicID].iPicNum = pNodes[tPicID].iFrameNumberWrap;
+      pNodes[tNodeID].iPicNum = pNodes[tNodeID].iFrameNumberWrap;
 
     }
-    else if(pNodes[tPicID].eMarkingFlag == LONG_TERM_REF)
-      pNodes[tPicID].iLongTermPicNum = pNodes[tPicID].iLongTermFrameIdx;
+    else if(pNodes[tNodeID].eMarkingFlag == LONG_TERM_REF)
+      pNodes[tNodeID].iLongTermPicNum = pNodes[tNodeID].iLongTermFrameIdx;
 
-    tPicID = pNodes[tPicID].tNextDecOrderNodeID;
+    tNodeID = pNodes[tNodeID].tNextDecOrderNodeID;
   }
 }
 
@@ -1755,6 +1780,7 @@ static uint8_t sApiGetReflistIds(AL_IReferenceManager* pICtx, AL_TIndex* pFrameI
     {
       pFrameIds[iPicID] = AL_BAD_INDEX;
       pAnnexIds[iPicID] = AL_BAD_INDEX;
+      pConcealIds[iPicID] = true;
     }
   }
 
@@ -1788,6 +1814,7 @@ static AL_IReferenceManagerVtable const vTable =
 
   sApiGetReflistIds,
   sApiGetLastPicID,
+  sApiGetLastRefPicID,
   sApiGetAnnexIdFromReferenceId
 };
 

@@ -7,6 +7,18 @@
 /* Assert */
 /****************************************************************************/
 
+#ifndef __cplusplus
+
+#ifdef __GNUC__
+#define Rtos_StaticAssert _Static_assert
+#else
+#define Rtos_StaticAssert(assertion, ...) _STATIC_ASSERT(assertion)
+#endif
+
+#else
+#define Rtos_StaticAssert static_assert
+#endif
+
 #if !defined(NDEBUG)
 
 #define Rtos_Assert(bCondition) \
@@ -18,7 +30,7 @@
 /****************************************************************************/
 /*** W i n 3 2  &  L i n u x  c o m m o n ***/
 /****************************************************************************/
-#if defined(_WIN32) || defined(__linux__)
+#if defined(_WIN32) || defined(__linux__) || defined(__APPLE__)
 
 #include <assert.h>
 #include "lib_rtos/lib_rtos.h"
@@ -32,6 +44,9 @@
   } while(false)
 
 #else
+
+#include <stdint.h>
+#include <stdbool.h>
 
 /****************************************************************************/
 /*** N o O p e r a t i n g S y s t e m ***/

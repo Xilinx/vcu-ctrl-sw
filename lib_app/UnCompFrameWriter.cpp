@@ -77,45 +77,51 @@ void UnCompFrameWriter::WriteFrame(AL_TBuffer* pBuf, AL_TCropInfo* pCrop, AL_EPi
     }
   }
 
-  if(tCrop.bCropping)
-  {
-    m_tPicDim.iWidth -= tCrop.uCropOffsetLeft + tCrop.uCropOffsetRight;
-    m_tPicDim.iHeight -= tCrop.uCropOffsetTop + tCrop.uCropOffsetBottom;
-  }
-
   if(AL_IsTiled(m_tFourCC))
+  {
     DimInTileCalculus();
+  }
   else
+  {
+    if(tCrop.bCropping)
+    {
+      m_tPicDim.iWidth -= tCrop.uCropOffsetLeft + tCrop.uCropOffsetRight;
+      m_tPicDim.iHeight -= tCrop.uCropOffsetTop + tCrop.uCropOffsetBottom;
+    }
+
     DimInTileCalculusRaster();
 
-  if(tCrop.bCropping)
-    pY += tCrop.uCropOffsetTop * iPitchInLuma + tCrop.uCropOffsetLeft * m_iNbBytesPerPix;
+    if(tCrop.bCropping)
+    {
+      pY += tCrop.uCropOffsetTop * iPitchInLuma + tCrop.uCropOffsetLeft * m_iNbBytesPerPix;
+
+      if(m_tPicFormat.eChromaMode != AL_CHROMA_4_0_0)
+      {
+        tCrop.uCropOffsetTop /= m_tPicFormat.eChromaMode == AL_CHROMA_4_2_0 ? 2 : 1;
+        tCrop.uCropOffsetLeft /= m_tPicFormat.eChromaMode == AL_CHROMA_4_4_4 ? 1 : 2;
+
+        if(m_tPicFormat.ePlaneMode == AL_PLANE_MODE_PLANAR)
+        {
+          pC1 += tCrop.uCropOffsetTop * iPitchInChroma + tCrop.uCropOffsetLeft * m_iNbBytesPerPix;
+          pC2 += tCrop.uCropOffsetTop * iPitchInChroma + tCrop.uCropOffsetLeft * m_iNbBytesPerPix;
+        }
+        else if(m_tPicFormat.ePlaneMode == AL_PLANE_MODE_SEMIPLANAR)
+          pC1 += tCrop.uCropOffsetTop * iPitchInChroma + tCrop.uCropOffsetLeft * m_iNbBytesPerPix * 2;
+      }
+    }
+  }
 
   WritePix(pY, iPitchInLuma, m_uHeightInTileYFile, m_uPitchYFile);
 
   if(m_tPicFormat.eChromaMode != AL_CHROMA_4_0_0)
   {
-    tCrop.uCropOffsetTop /= m_tPicFormat.eChromaMode == AL_CHROMA_4_2_0 ? 2 : 1;
-    tCrop.uCropOffsetLeft /= m_tPicFormat.eChromaMode == AL_CHROMA_4_4_4 ? 1 : 2;
-
     if(m_tPicFormat.ePlaneMode == AL_PLANE_MODE_PLANAR)
     {
-      if(tCrop.bCropping)
-      {
-        pC1 += tCrop.uCropOffsetTop * iPitchInChroma + tCrop.uCropOffsetLeft * m_iNbBytesPerPix;
-        pC2 += tCrop.uCropOffsetTop * iPitchInChroma + tCrop.uCropOffsetLeft * m_iNbBytesPerPix;
-      }
-
       WritePix(pC1, iPitchInChroma, m_uHeightInTileCFile, m_uPitchCFile);
       WritePix(pC2, iPitchInChroma, m_uHeightInTileCFile, m_uPitchCFile);
     }
     else if(m_tPicFormat.ePlaneMode == AL_PLANE_MODE_SEMIPLANAR)
-    {
-      if(tCrop.bCropping)
-        pC1 += tCrop.uCropOffsetTop * iPitchInChroma + tCrop.uCropOffsetLeft * m_iNbBytesPerPix * 2;
-
       WritePix(pC1, iPitchInChroma, m_uHeightInTileCFile, m_uPitchCFile);
-    }
   }
 
   m_recFile->flush();

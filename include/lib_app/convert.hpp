@@ -10,11 +10,22 @@ extern "C" {
 #include "lib_common/FourCC.h"
 }
 
+void TAm8_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void TA08_To_NV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void TA08_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void TA28_To_YUY2(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void TA48_To_AYUV(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void TA48_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+
+void TA2A_To_Y210(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void TA4A_To_Y410(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void TA4A_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+
 void YV12_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void YV12_To_IYUV(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void YV12_To_NV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void YV12_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void YV12_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void YV12_To_P0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void YV12_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void YV12_To_XV15(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
@@ -24,11 +35,11 @@ void I420_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I420_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I420_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I420_To_NV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void I420_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I420_To_P0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I420_To_XV15(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void I422_To_NV16(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void I422_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I422_To_P2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I422_To_XV20(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void I444_To_NV24(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -38,7 +49,7 @@ void I444_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void IYUV_To_YV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void IYUV_To_NV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void IYUV_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void IYUV_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void IYUV_To_P0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void IYUV_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void IYUV_To_XV15(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
@@ -47,12 +58,12 @@ void NV12_To_IYUV(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void NV12_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void NV12_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void NV12_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void NV12_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void NV12_To_P0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void NV12_To_XV15(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void NV16_To_I422(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void NV16_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void NV16_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void NV16_To_P2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void NV16_To_XV20(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void NV24_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -63,7 +74,7 @@ void Y800_To_YV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y800_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y800_To_IYUV(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y800_To_NV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void Y800_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void Y800_To_P0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y800_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y800_To_XV15(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y800_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -73,29 +84,29 @@ void Y012_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void Y800_To_XV10(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
-void P010_To_YV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P010_To_IYUV(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P010_To_NV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P010_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P010_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P012_To_Y012(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P010_To_XV15(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P010_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P010_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P012_To_I0CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P212_To_I2CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P012_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P212_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P0AL_To_YV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P0AL_To_IYUV(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P0AL_To_NV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P0AL_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P0AL_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P0CL_To_Y012(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P0AL_To_XV15(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P0AL_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P0AL_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P0CL_To_I0CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P2CL_To_I2CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P0CL_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P2CL_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I4CL_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I0CL_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I0CL_To_Y012(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P012_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P212_To_I422(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P0CL_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P2CL_To_I422(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I4CL_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
-void P210_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P210_To_I422(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P210_To_XV20(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P2AL_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P2AL_To_I422(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P2AL_To_XV20(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void Y010_To_XV15(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y010_To_XV10(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -105,19 +116,19 @@ void I0AL_To_IYUV(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I0AL_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I0AL_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I0AL_To_NV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void I0AL_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I0AL_To_P0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I0AL_To_XV15(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void I2AL_To_NV16(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void I2AL_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I2AL_To_P2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I2AL_To_XV20(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void I4AL_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I4AL_To_NV24(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I4AL_To_P410(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
-void I0CL_To_P012(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void I2CL_To_P212(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I0CL_To_P0CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void I2CL_To_P2CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I4CL_To_P412(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void T6m8_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -128,7 +139,7 @@ void T608_To_IYUV(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T608_To_NV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T608_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T608_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void T608_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void T608_To_P0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T608_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T608_To_I0CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
@@ -138,7 +149,7 @@ void T60A_To_IYUV(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T60A_To_NV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T60A_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T60A_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void T60A_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void T60A_To_P0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T60A_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T60A_To_XV15(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T60A_To_XV10(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -148,7 +159,7 @@ void T60C_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T60C_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T60C_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T60C_To_I0CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void T60C_To_P012(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void T60C_To_P0CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T60C_To_I420(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void T628_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -156,14 +167,14 @@ void T628_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T628_To_I422(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T628_To_NV16(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T628_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void T628_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void T628_To_P2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void T62A_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T62A_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T62A_To_I422(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T62A_To_NV16(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T62A_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void T62A_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void T62A_To_P2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T62A_To_XV20(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void T62C_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -171,7 +182,7 @@ void T62C_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T62C_To_Y012(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T62C_To_I422(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T62C_To_I2CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void T62C_To_P212(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void T62C_To_P2CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void T648_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void T648_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -196,7 +207,7 @@ void Y010_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y010_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y010_To_T64C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y012_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P010_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P0AL_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y800_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void NV12_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I0AL_To_T608(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -217,7 +228,7 @@ void Y010_To_T60A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y010_To_T60C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y012_To_T60C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void NV12_To_T60A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P010_To_T60A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P0AL_To_T60A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y800_To_T62A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y800_To_T62C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y012_To_T62C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -228,8 +239,8 @@ void I2AL_To_T62C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I422_To_T62C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I422_To_T62A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void NV16_To_T62A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P210_To_T62A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P212_To_T62C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P2AL_To_T62A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P2CL_To_T62C(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I444_To_T648(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I444_To_T64A(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I4AL_To_T648(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -243,7 +254,7 @@ void I422_To_T628(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void NV16_To_T628(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I2AL_To_T628(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void I2CL_To_T628(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void P210_To_T628(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void P2AL_To_T628(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void XV10_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void XV10_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -254,7 +265,7 @@ void XV15_To_IYUV(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void XV15_To_NV12(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void XV15_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void XV15_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void XV15_To_P010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void XV15_To_P0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void XV15_To_I0AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void XV20_To_Y800(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -262,7 +273,7 @@ void XV20_To_I422(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void XV20_To_NV16(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void XV20_To_Y010(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void XV20_To_I2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
-void XV20_To_P210(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void XV20_To_P2AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 
 void AYUV_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void AVUY_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
@@ -271,8 +282,10 @@ void AYUV_To_NV24(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y410_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y4AL_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y4AM_To_I4AL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void Y4AM_To_I4AM(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y4CL_To_I4CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void Y4CM_To_I4CL(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
+void Y4CM_To_I4CM(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void UYVY_To_I422(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void ABGR_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst);
 void BGRA_To_I444(AL_TBuffer const* pSrc, AL_TBuffer* pDst);

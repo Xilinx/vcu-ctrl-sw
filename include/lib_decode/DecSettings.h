@@ -37,6 +37,7 @@ typedef struct AL_TDecSettings
   int32_t iStackSize;       /*!< Size of the command stack handled by the decoder */
   int32_t iStreamBufSize;   /*!< Size of the internal circular stream buffer (0 = default) */
   uint8_t uNumCore;     /*!< Number of core used for the decoding */
+  bool bForceMultipleDec1PerFrame; /*!< Force using several dec1 per frame (when slice or tile pattern  permits) */
   bool bNonRealtime;    /*!< Specify is a non-realtime channel */
   uint32_t uFrameRate;  /*!< Frame rate value used if syntax element isn't present */
   uint32_t uClkRatio;   /*!< Clock ratio value used if syntax element isn't present */

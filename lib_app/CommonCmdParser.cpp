@@ -26,12 +26,15 @@ std::string GetFrameBufferFormatOptDesc(bool bSecondOutput)
   {
 
   }
+  else
+  {
+  }
 
   return sFBufFormatOptDesc;
 }
 
 /******************************************************************************/
-AL_TPosition ParsePosition(std::string s, int32_t iMultiple)
+AL_TPosition ParsePosition(std::string const& s, int32_t iMultiple)
 {
   AL_TPosition tPos = { 0, 0 };
 
@@ -50,10 +53,10 @@ AL_TPosition ParsePosition(std::string s, int32_t iMultiple)
 }
 
 /******************************************************************************/
-AL_TDimension ParseDimension(std::string s, int32_t multiple)
+AL_TDimension ParseDimension(std::string const& s, int32_t multiple)
 {
   std::stringstream ss(s);
-  ss.unsetf(std::ios::dec);
+  ss.unsetf(std::ios::oct);
   ss.unsetf(std::ios::hex);
 
   char sep = 0;

@@ -90,29 +90,29 @@ AL_TPixMapMetaData* AL_PixMapMetaData_Create(AL_TDimension tDim, AL_TPlane tYPla
   return pMeta;
 }
 
-int32_t AL_PixMapMetaData_GetOffset(AL_TPixMapMetaData* pMeta, AL_EPlaneId ePlaneId)
+int32_t AL_PixMapMetaData_GetOffset(AL_TPixMapMetaData const* pMeta, AL_EPlaneId ePlaneId)
 {
   return pMeta->tPlanes[ePlaneId].iOffset;
 }
 
-int32_t AL_PixMapMetaData_GetOffsetY(AL_TPixMapMetaData* pMeta)
+int32_t AL_PixMapMetaData_GetOffsetY(AL_TPixMapMetaData const* pMeta)
 {
   return AL_PixMapMetaData_GetOffset(pMeta, AL_PLANE_Y);
 }
 
-int32_t AL_PixMapMetaData_GetOffsetUV(AL_TPixMapMetaData* pMeta)
+int32_t AL_PixMapMetaData_GetOffsetUV(AL_TPixMapMetaData const* pMeta)
 {
   return AL_PixMapMetaData_GetOffset(pMeta, AL_PLANE_UV);
 }
 
-int32_t AL_PixMapMetaData_GetLumaSize(AL_TPixMapMetaData* pMeta)
+int32_t AL_PixMapMetaData_GetLumaSize(AL_TPixMapMetaData const* pMeta)
 {
   if(AL_IsTiled(pMeta->tFourCC))
     return pMeta->tPlanes[AL_PLANE_Y].iPitch * pMeta->tDim.iHeight / 4;
   return pMeta->tPlanes[AL_PLANE_Y].iPitch * pMeta->tDim.iHeight;
 }
 
-int32_t AL_PixMapMetaData_GetChromaSize(AL_TPixMapMetaData* pMeta)
+int32_t AL_PixMapMetaData_GetChromaSize(AL_TPixMapMetaData const* pMeta)
 {
   AL_EChromaMode eCMode = AL_GetChromaMode(pMeta->tFourCC);
 

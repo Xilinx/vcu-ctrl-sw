@@ -23,8 +23,6 @@
 
 #include "lib_common/AvcHeaders.h"
 
-#define IS_NODE_VALID(tNodeID) (AL_IS_VALID_INDEX(tNodeID))
-
 /*****************************************************************************
    \brief Picture status enum
 *****************************************************************************/

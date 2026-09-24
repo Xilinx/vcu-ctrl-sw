@@ -33,7 +33,7 @@ static void initHls(AL_TEncCtx* pCtx, AL_TEncChanParam* pChParam)
 {
   // Update SPS & PPS Flags ------------------------------------------------
   uint32_t* pSpsParam = &pChParam->uSpsParam;
-  *pSpsParam = AL_SPS_TEMPORAL_MVP_EN_FLAG; // TODO
+  *pSpsParam = pChParam->TemporalMVP ? AL_SPS_TEMPORAL_MVP_EN_FLAG : 0;
 
   int32_t log2_max_poc = (pChParam->tRCParam.eOptions & AL_RC_OPT_ENABLE_SKIP) ? 16 : 10;
   AL_SET_SPS_LOG2_MAX_POC(pSpsParam, log2_max_poc);

@@ -44,7 +44,8 @@ typedef struct
 typedef struct
 {
   bool bStartsNewCVS;
-  uint32_t uCRC;
+  AL_64U uCRC;
+  uint32_t uPixCount;
   AL_TCropInfo tCrop;
   AL_EPicStruct ePicStruct;
   AL_ERR eError;
@@ -83,6 +84,7 @@ typedef struct
   bool bForceDisplay;
   AL_EFbStorageMode eFbStorageMode;
   AL_TDecOutputSettings tDecOutputSettings;
+  AL_ECodec eCodec;
 
   AL_TFrmBufPool FrmBufPool;
   AL_TBufPool AnnexBufPool;
@@ -106,6 +108,7 @@ typedef struct
 {
   uint8_t uNumRef; /*!< Number of reference to manage */
   AL_EFbStorageMode eFbStorageMode; /*!< Frame buffer storage mode */
+  AL_ECodec eCodec; /*!< Codec being decoded */
 
   uint8_t uNumAnnexBuf; /*!< Number of annex buffer to allocate */
   uint8_t uNumSubBuf; /*!< The annex buffer will be cut in uNumSubBuf */
@@ -226,6 +229,15 @@ void AL_PictMngr_Flush(AL_TPictMngrCtx* pCtx);
 AL_TIndex AL_PictMngr_GetLastPicID(AL_TPictMngrCtx const* pCtx);
 
 /*****************************************************************************
+   \brief This function return the Pic ID of the last inserted frame marked
+    as reference
+   \param[in] pCtx Pointer to a Picture manager context object
+   \return returns the Pic ID of the last inserted reference frame
+        0xFF if the DPB is empty
+*****************************************************************************/
+AL_TIndex AL_PictMngr_GetLastRefPicID(AL_TPictMngrCtx const* pCtx);
+
+/*****************************************************************************
    \brief This function insert a decoded frame into the DPB
    \param[in,out] pCtx        Pointer to a Picture manager context object
    \param[in] tFrameID        Frame id of the associated frame buffer
@@ -285,15 +297,16 @@ AL_TBuffer* AL_PictMngr_GetRecBufferFromID(AL_TPictMngrCtx* pCtx, AL_TIndex tFra
 AL_TRecBufferInfo const* AL_PictMngr_GetRecInfoFromID(AL_TPictMngrCtx const* pCtx, AL_TIndex tFrameID);
 
 /*****************************************************************************
-   \brief This function returns the encoding error status associated to a display or rec buffer
-   \param[in]  pCtx      Pointer to a Picture manager context object
-   \param[in]  pDisplayBuf  Display/Rec buffer pointer
-   \param[out] pError    Pointer to the error status
+   \brief This function returns the decoding error status associated to a display buffer
+   \param[in] pCtx Pointer to a Picture manager context object
+   \param[in] pDisplayBuf Display buffer pointer
+   \param[out] pError Pointer to the error status
    \return true if error status found, false if pointer to buffer not found
 *****************************************************************************/
-bool AL_PictMngr_GetFrameEncodingError(AL_TPictMngrCtx const* pCtx, AL_TBuffer const* pBuf, AL_ERR* pError);
+bool AL_PictMngr_GetFrameDecodingError(AL_TPictMngrCtx const* pCtx, AL_TBuffer const* pBuf, AL_ERR* pError);
 
-void AL_PictMngr_UpdateDisplayBufferCRC(AL_TPictMngrCtx* pCtx, AL_TIndex tFrameID, uint32_t uCRC);
+void AL_PictMngr_UpdateDisplayBufferCRC(AL_TPictMngrCtx* pCtx, AL_TIndex tFrameID, AL_64U uCRC);
+void AL_PictMngr_UpdateDisplayBufferPixCount(AL_TPictMngrCtx* pCtx, AL_TIndex tFrameID, uint32_t uPixCount);
 void AL_PictMngr_UpdateDisplayBufferCrop(AL_TPictMngrCtx* pCtx, AL_TCropInfo const* pCrop);
 void AL_PictMngr_UpdateDisplayBufferPicStruct(AL_TPictMngrCtx* pCtx, AL_EPicStruct ePicStruct);
 void AL_PictMngr_UpdateDisplayBufferError(AL_TPictMngrCtx* pCtx, AL_TIndex tFrameID, AL_ERR eError);
@@ -305,9 +318,9 @@ void AL_PictMngr_UnlockID(AL_TPictMngrCtx* pCtx, AL_TIndex tFrameID, AL_TIndex t
 
 /*****************************************************************************/
 bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam const* pSliceParam, AL_TRecBuffers* pRecs, TBuffer* pAnnex, AL_TPictMngrRefBuffers* pRefBuffers);
-void AL_PictMngr_GetAnnexBuffersFromReferenceID(AL_TPictMngrCtx* pCtx, AL_TIndex tRefId, TBuffer* pAnnexBuffers);
+void AL_PictMngr_GetAnnexBuffersFromReferenceID(AL_TPictMngrCtx const* pCtx, AL_TIndex tRefId, TBuffer* pAnnexBuffers);
 
 void AL_PictMngr_UpdateReferenceManager(AL_TPictMngrCtx* pCtx);
-void AL_PictMngr_GetAnnexBuffers(AL_TPictMngrCtx* pCtx, AL_TIndex tAnnexID, TBuffer* pAnnex);
+void AL_PictMngr_GetAnnexBuffers(AL_TPictMngrCtx const* pCtx, AL_TIndex tAnnexID, TBuffer* pAnnex);
 
 /*!@}*/

@@ -3,5 +3,7 @@
 
 #pragma once
 
-#include "allegro_ioctl_mcu_codec.h"
-#include "driver/microblaze/include/al_dec_ioctl.h"
+#include <string>
+#include "lib_app/Sink.hpp"
+
+IFrameSink* createStreamDecPerfDump(std::string const& path);

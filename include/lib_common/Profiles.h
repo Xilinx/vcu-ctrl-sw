@@ -8,6 +8,7 @@
 ******************************************************************************/
 #pragma once
 
+#include "lib_rtos/assert.h"
 #include "lib_rtos/types.h"
 
 /****************************************************************************/
@@ -133,9 +134,9 @@ static inline int32_t AL_GET_PROFILE_IDC(AL_EProfile eProfile)
   return eProfile & 0x000000FF;
 }
 
-#define AL_GET_PROFILE_CODEC_AND_IDC(Prof) (Prof & 0xFF0000FF)
-#define AL_GET_RExt_FLAGS(Prof) ((Prof & 0x00FFFF00) >> 8)
-#define AL_GET_CS_FLAGS(Prof) ((Prof & 0x00FFFF00) >> 8)
+#define AL_GET_PROFILE_CODEC_AND_IDC(Prof) ((Prof) & 0xFF0000FF)
+#define AL_GET_RExt_FLAGS(Prof) (((Prof) & 0x00FFFF00) >> 8)
+#define AL_GET_CS_FLAGS(Prof) (((Prof) & 0x00FFFF00) >> 8)
 
 /****************************************************************************/
 static inline bool AL_HAS_LEVEL(AL_EProfile eProfile)
@@ -143,13 +144,15 @@ static inline bool AL_HAS_LEVEL(AL_EProfile eProfile)
   AL_ECodec const eCodec = AL_GET_CODEC(eProfile);
   switch(eCodec)
   {
-  case AL_CODEC_AVC: return true;
-  case AL_CODEC_HEVC: return true;
-  case AL_CODEC_VVC: return true;
-  case AL_CODEC_AV1: return true;
-  case AL_CODEC_AV2: return true;
-  case AL_CODEC_LCEVC: return true;
-  default: return false;
+  case AL_CODEC_AVC:
+  case AL_CODEC_HEVC:
+  case AL_CODEC_VVC:
+  case AL_CODEC_AV1:
+  case AL_CODEC_AV2:
+  case AL_CODEC_LCEVC:
+    return true;
+  default:
+    return false;
   }
 }
 

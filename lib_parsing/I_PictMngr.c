@@ -14,6 +14,7 @@
 #include "lib_common_dec/IpDecFourCC.h"
 #include "lib_common_dec/DecPicParam.h"
 #include "lib_common/DisplayInfoMeta.h"
+#include "lib_common/Utils.h"
 #include "lib_decode/lib_decode.h"
 #include "lib_rtos/lib_rtos.h"
 
@@ -281,9 +282,10 @@ static void sFrmBufPool_InitAvailableBuffers(AL_TFrmBufPool* pFrmBufPool)
 }
 
 /*************************************************************************/
-static bool sFrmBufPool_Init(AL_TFrmBufPool* pFrmBufPool, AL_TAllocator* pAllocator, bool bHasSecondOutputFrame)
+static bool sFrmBufPool_Init(AL_TFrmBufPool* pFrmBufPool, AL_TAllocator* pAllocator, bool bHasPrimaryOutputFrame, bool bHasSecondOutputFrame)
 {
   (void)pAllocator;
+  (void)bHasPrimaryOutputFrame;
   (void)bHasSecondOutputFrame;
 
   pFrmBufPool->Mutex = Rtos_CreateMutex();
@@ -468,7 +470,7 @@ static size_t sPictMngr_GetAllocationSizeForAnnexBuffer(AL_TPictMngrCtx* pCtx, s
 }
 
 /*****************************************************************************/
-static void sPictMngr_GetAnnexBuffers(AL_TPictMngrCtx* pCtx, TBuffer const* pRawBuf, TBuffer* pAnnexBuf)
+static void sPictMngr_GetAnnexBuffers(AL_TPictMngrCtx const* pCtx, TBuffer const* pRawBuf, TBuffer* pAnnexBuf)
 {
   for(size_t i = 0; i < pCtx->zNumAnnexBuf; i++)
   {
@@ -528,7 +530,7 @@ bool AL_PictMngr_BasicInit(AL_TPictMngrCtx* pCtx, AL_IReferenceManager* pRefMngr
   {
     size_t tAnnexSize = sPictMngr_GetAllocationSizeForAnnexBuffer(pCtx, pParam->zSubBufSizes, pParam->uNumSubBuf);
 
-    if(!AL_TBufPool_Init(&pCtx->AnnexBufPool, pParam->uNumAnnexBuf, tAnnexSize, pAllocator, "Annex"))
+    if(!AL_TBufPool_Init(&pCtx->AnnexBufPool, pParam->uNumAnnexBuf, tAnnexSize, pAllocator, "Annex", true))
       return false;
 
     pCtx->bIsAnnexPoolSet = true;
@@ -537,6 +539,7 @@ bool AL_PictMngr_BasicInit(AL_TPictMngrCtx* pCtx, AL_IReferenceManager* pRefMngr
     pCtx->bIsAnnexPoolSet = false;
 
   pCtx->eFbStorageMode = pParam->eFbStorageMode;
+  pCtx->eCodec = pParam->eCodec;
   pCtx->tFrameID = AL_BAD_INDEX;
   pCtx->tAnnexID = AL_BAD_INDEX;
 
@@ -557,7 +560,10 @@ bool AL_PictMngr_CompleteInit(AL_TPictMngrCtx* pCtx, AL_TAllocator* pAllocator, 
   pCtx->tDecOutputSettings = *pDecOutputSettings;
 
   bool bEnableSecondOutput = false;
-  bool bSuccess = sFrmBufPool_Init(&pCtx->FrmBufPool, pAllocator, bEnableSecondOutput);
+
+  bool bEnablePrimaryOutput = true;
+
+  bool bSuccess = sFrmBufPool_Init(&pCtx->FrmBufPool, pAllocator, bEnablePrimaryOutput, bEnableSecondOutput);
   pCtx->bCompleteInit = bSuccess;
   return bSuccess;
 }
@@ -643,7 +649,7 @@ static void sBuffer_ChangePictChromaMode(AL_TBuffer* pBuf, AL_EChromaMode eChrom
   if(eChromaMode == tPicFmt.eChromaMode)
     return;
   tPicFmt = AL_GetDecPicFormat(eChromaMode, tPicFmt.uBitDepth, tPicFmt.eStorageMode, tPicFmt.bCompressed, AL_PLANE_MODE_MAX_ENUM);
-  tFourCC = AL_GetDecFourCC(tPicFmt);
+  tFourCC = AL_GetDecFourCC(&tPicFmt);
   AL_PixMapBuffer_SetFourCC(pBuf, tFourCC);
 }
 
@@ -731,16 +737,29 @@ AL_TIndex AL_PictMngr_GetLastPicID(AL_TPictMngrCtx const* pCtx)
 }
 
 /*****************************************************************************/
+AL_TIndex AL_PictMngr_GetLastRefPicID(AL_TPictMngrCtx const* pCtx)
+{
+  return AL_IReferenceManager_GetLastRefPicID(pCtx->pRefMngr);
+}
+
+/*****************************************************************************/
 void AL_PictMngr_Insert(AL_TPictMngrCtx* pCtx, AL_TIndex tFrameID, AL_TIndex tAnnexID, void* pParam)
 {
   AL_IReferenceManager_Insert(pCtx->pRefMngr, tFrameID, tAnnexID, pParam);
 }
 
 /***************************************************************************/
-static void sFrmBufPool_UpdateCRC(AL_TFrmBufPool* pFrmBufPool, AL_TIndex tFrameID, uint32_t uCRC)
+static void sFrmBufPool_UpdateCRC(AL_TFrmBufPool* pFrmBufPool, AL_TIndex tFrameID, AL_64U uCRC)
 {
   Rtos_Assert(tFrameID < AL_REFMNGR_MAX_POOL_SIZE);
   pFrmBufPool->vFrameData[tFrameID].tRecInfo.uCRC = uCRC;
+}
+
+/***************************************************************************/
+static void sFrmBufPool_UpdatePixCount(AL_TFrmBufPool* pFrmBufPool, AL_TIndex tFrameID, uint32_t uPixCount)
+{
+  Rtos_Assert(tFrameID < AL_REFMNGR_MAX_POOL_SIZE);
+  pFrmBufPool->vFrameData[tFrameID].tRecInfo.uPixCount = uPixCount;
 }
 
 /***************************************************************************/
@@ -765,9 +784,15 @@ static void sFrmBufPool_UpdateError(AL_TFrmBufPool* pFrmBufPool, AL_TIndex tFram
 }
 
 /***************************************************************************/
-void AL_PictMngr_UpdateDisplayBufferCRC(AL_TPictMngrCtx* pCtx, AL_TIndex tFrameID, uint32_t uCRC)
+void AL_PictMngr_UpdateDisplayBufferCRC(AL_TPictMngrCtx* pCtx, AL_TIndex tFrameID, AL_64U uCRC)
 {
   sFrmBufPool_UpdateCRC(&pCtx->FrmBufPool, tFrameID, uCRC);
+}
+
+/***************************************************************************/
+void AL_PictMngr_UpdateDisplayBufferPixCount(AL_TPictMngrCtx* pCtx, AL_TIndex tFrameID, uint32_t uPixCount)
+{
+  sFrmBufPool_UpdatePixCount(&pCtx->FrmBufPool, tFrameID, uPixCount);
 }
 
 /***************************************************************************/
@@ -822,6 +847,7 @@ static void sPictMngr_GetInfoDecode(AL_TPictMngrCtx* pCtx, AL_TIndex tFrameID, A
   pInfo->tCrop = pFrmBufPool->vFrameData[tFrameID].tRecInfo.tCrop;
   pInfo->uBitDepthY = pInfo->uBitDepthC = AL_GetBitDepth(pMetaSrc->tFourCC);
   pInfo->uCRC = pFrmBufPool->vFrameData[tFrameID].tRecInfo.uCRC;
+  pInfo->uPixCount = pFrmBufPool->vFrameData[tFrameID].tRecInfo.uPixCount;
   pInfo->tDim = AL_PixMapBuffer_GetDimension(pBuf);
   pInfo->eFbStorageMode = eFbStorageMode;
   pInfo->ePicStruct = pFrmBufPool->vFrameData[tFrameID].tRecInfo.ePicStruct;
@@ -860,6 +886,7 @@ static AL_TBuffer* sPictMngr_GetDisplayBuffer(AL_TPictMngrCtx* pCtx, AL_TInfoDec
       pMeta->ePicStruct = pInfo->ePicStruct;
       pMeta->tCrop = pInfo->tCrop;
       pMeta->uCrc = pInfo->uCRC;
+      pMeta->uPixCount = pInfo->uPixCount;
       pMeta->uStreamBitDepthY = pInfo->uBitDepthY;
       pMeta->uStreamBitDepthC = pInfo->uBitDepthC;
       pMeta->eOutputID = pInfo->eOutputID;
@@ -948,7 +975,7 @@ AL_TRecBufferInfo const* AL_PictMngr_GetRecInfoFromID(AL_TPictMngrCtx const* pCt
 }
 
 /*************************************************************************/
-bool AL_PictMngr_GetFrameEncodingError(AL_TPictMngrCtx const* pCtx, AL_TBuffer const* pDisplayBuf, AL_ERR* pError)
+bool AL_PictMngr_GetFrameDecodingError(AL_TPictMngrCtx const* pCtx, AL_TBuffer const* pDisplayBuf, AL_ERR* pError)
 {
   if(!pCtx->bCompleteInit)
     return false;
@@ -1087,7 +1114,7 @@ AL_TBuffer* AL_PictMngr_GetUnusedDisplayBuffer(AL_TPictMngrCtx* pCtx)
 }
 
 /*****************************************************************************/
-void AL_PictMngr_GetAnnexBuffers(AL_TPictMngrCtx* pCtx, AL_TIndex tAnnexID, TBuffer* pAnnex)
+void AL_PictMngr_GetAnnexBuffers(AL_TPictMngrCtx const* pCtx, AL_TIndex tAnnexID, TBuffer* pAnnex)
 {
   sPictMngr_GetAnnexBuffers(pCtx, &pCtx->AnnexBufPool.pBufs[tAnnexID], pAnnex);
 }
@@ -1141,7 +1168,7 @@ bool AL_PictMngr_GetBuffers(AL_TPictMngrCtx* pCtx, AL_TDecSliceParam const* pSli
 }
 
 /*************************************************************************/
-void AL_PictMngr_GetAnnexBuffersFromReferenceID(AL_TPictMngrCtx* pCtx, AL_TIndex tRefId, TBuffer* pAnnexBuffers)
+void AL_PictMngr_GetAnnexBuffersFromReferenceID(AL_TPictMngrCtx const* pCtx, AL_TIndex tRefId, TBuffer* pAnnexBuffers)
 {
   AL_TIndex tAnnexID = AL_IReferenceManager_GetAnnexIdFromReferenceId(pCtx->pRefMngr, tRefId);
   Rtos_Assert(AL_IS_VALID_INDEX(tAnnexID));

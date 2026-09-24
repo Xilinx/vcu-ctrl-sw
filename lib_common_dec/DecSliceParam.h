@@ -38,7 +38,7 @@ typedef struct AL_TDecSliceParam
 
   int8_t iCbQpOffset;
   int8_t iCrQpOffset;
-  int8_t iSliceQq;
+  int16_t iSliceQq;
   int8_t iTcOffsetDiv2;
   int8_t iBetaOffsetDiv2;
 
@@ -69,7 +69,9 @@ typedef struct AL_TDecSliceParam
   bool bAcrossSliceLoopFilter;
   bool bCuChromaQpOffset;
   bool bNextIsDependent;
+  bool bNextIsAnotherTile;
   bool bTile;
+  bool bIsRef;
 
   AL_ESliceType eSliceType;
   uint32_t uStrAvailSize;
@@ -83,4 +85,3 @@ typedef struct AL_TDecSliceParam
   uint32_t pEntryPointOffsets[AL_MAX_ENTRY_POINT + 1];
 
 }AL_TDecSliceParam;
-

@@ -14,10 +14,10 @@
 /*****************************************************************************
    \brief Returns the FOURCC identifier of the framebuffer the encoder is expecting
    according to the chosen encoding chroma mode, bitdepth and storage mode.
-   \param[in] picFmt source picture format
-   \return Returns the corresponding TFourCC format
+   \param[in] pPicFormat Pointer to the picture format
+   \return Returns the corresponding TFourCC format or FOURCC(NULL) if unsupported
 *****************************************************************************/
-TFourCC AL_EncGetSrcFourCC(AL_TPicFormat const picFmt);
+TFourCC AL_GetEncFourCC(AL_TPicFormat const* pPicFormat);
 
 /*****************************************************************************
    \brief Returns the TPicFormat of the framebuffer the encoder is expecting

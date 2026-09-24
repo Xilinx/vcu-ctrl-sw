@@ -86,7 +86,7 @@ static int32_t AL_PlaneId_To_PlaneSizeId(AL_EPlaneId ePlaneId)
   }
 }
 
-void AL_PixMapBuffer_ComputePlaneSizes(AL_TDimension tDim, AL_TPicFormat tPicFormat, size_t* pPlanesSize, int32_t* iOutPixPitch, int32_t* iOutMapPitch, uint8_t uWidthAlignment)
+void AL_PixMapBuffer_ComputePlaneSizes(AL_TDimension tDim, AL_TPicFormat tPicFormat, size_t* pPlanesSize, int32_t* iOutPixPitchY, int32_t* iOutPixPitchC, int32_t* iOutMapPitch, uint8_t uWidthAlignment)
 {
   int32_t iAlignedWidth, iAlignedHeight, iTileHeight = 0, iTileWidth = 0, iPixPitch = 0;
   int32_t iMapTileHeight = 0, iMapAlignedHeight, iMapPitch = 0;
@@ -120,7 +120,7 @@ void AL_PixMapBuffer_ComputePlaneSizes(AL_TDimension tDim, AL_TPicFormat tPicFor
   }
 
   // Compute First Pixel & Map Planes size
-  pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_Y)] = iPixPitch * iAlignedHeight;
+  pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_Y)] = iPixPitch * iAlignedHeight / AL_GetNumLinesInPitch(tPicFormat.eStorageMode, tPicFormat.eChromaMode, tPicFormat.uBitDepth);
   pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_U)] = 0;
   pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_V)] = 0;
 
@@ -138,17 +138,11 @@ void AL_PixMapBuffer_ComputePlaneSizes(AL_TDimension tDim, AL_TPicFormat tPicFor
     goto finish_planes_calculations;
 
   // Compute chroma planes sizes
-
-  pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_U)] = GetChromaSize(pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_Y)], tPicFormat.eChromaMode, tPicFormat.ePlaneMode);
-
-  if(tPicFormat.bCompressed)
-    pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_MAP_U)] = pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_MAP_Y)];
-
   if(tPicFormat.eChromaMode == AL_CHROMA_4_2_0 && IsTile(tPicFormat.eStorageMode)) // Have to realign to the tile height
   {
     // Assumption: Planar Tiled Mode don't exist (this was a previous code assumption)
     iAlignedHeight = AL_RoundUp(tDim.iHeight / 2, iTileHeight);
-    pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_UV)] = iPixPitch * iAlignedHeight;
+    pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_UV)] = iPixPitch * iAlignedHeight / AL_GetNumLinesInPitch(tPicFormat.eStorageMode, tPicFormat.eChromaMode, tPicFormat.uBitDepth);
 
     if(tPicFormat.bCompressed)
     {
@@ -159,13 +153,20 @@ void AL_PixMapBuffer_ComputePlaneSizes(AL_TDimension tDim, AL_TPicFormat tPicFor
       pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_MAP_UV)] = iMapPitch * ((iMapAlignedHeight / uTileVerticalAlignment) / iMapTileHeight);
     }
   }
-
-  if(tPicFormat.ePlaneMode == AL_PLANE_MODE_PLANAR || tPicFormat.eChromaMode == AL_CHROMA_4_4_4) // Force 444 to planar
+  else
   {
-    pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_V)] = pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_U)];
+    pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_U)] = GetChromaSize(pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_Y)], tPicFormat.eChromaMode, tPicFormat.ePlaneMode);
 
     if(tPicFormat.bCompressed)
-      pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_MAP_V)] = pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_MAP_U)];
+      pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_MAP_U)] = pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_MAP_Y)];
+
+    if(tPicFormat.ePlaneMode == AL_PLANE_MODE_PLANAR || tPicFormat.eChromaMode == AL_CHROMA_4_4_4) // Force 444 to planar
+    {
+      pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_V)] = pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_U)];
+
+      if(tPicFormat.bCompressed)
+        pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_MAP_V)] = pPlanesSize[AL_PlaneId_To_PlaneSizeId(AL_PLANE_MAP_U)];
+    }
   }
 
   finish_planes_calculations:
@@ -173,7 +174,8 @@ void AL_PixMapBuffer_ComputePlaneSizes(AL_TDimension tDim, AL_TPicFormat tPicFor
   // Align returned PixPitch to the tile height (I personally don't know why but there were
   // specific calculations that were made to account for this so I suppose that there's a reason)
 
-  *iOutPixPitch = iPixPitch;
+  *iOutPixPitchY = iPixPitch;
+  *iOutPixPitchC = AL_GetChromaPixPlanePitch(&tPicFormat, iPixPitch);
   *iOutMapPitch = iMapPitch;
 }
 
@@ -203,7 +205,7 @@ bool AL_PixMapBuffer_Allocate_And_AddPlanes(AL_TBuffer* pBuf, size_t zSize, cons
   return true;
 }
 
-static int32_t AL_PixMapBuffer_CreatePlaneDescription(AL_TPlaneDescription* pPlaneDesc, size_t* pPlanesSize, AL_EPlaneId* usedPlanes, int32_t iNbPlanes, TFourCC tFourCC, int32_t iPixPitch, int32_t iMapPitch)
+static int32_t AL_PixMapBuffer_CreatePlaneDescription(AL_TPlaneDescription* pPlaneDesc, size_t* pPlanesSize, AL_EPlaneId* usedPlanes, int32_t iNbPlanes, int32_t iPixPitchY, int32_t iPixPitchC, int32_t iMapPitch)
 {
   int32_t iTotalPlanesSize = 0;
 
@@ -212,9 +214,7 @@ static int32_t AL_PixMapBuffer_CreatePlaneDescription(AL_TPlaneDescription* pPla
     AL_EPlaneId ePlaneId = usedPlanes[iPlane];
 
     int32_t currSize = pPlanesSize[AL_PlaneId_To_PlaneSizeId(ePlaneId)];
-    int32_t currPitch = ePlaneId < AL_PLANE_MAP_Y ? iPixPitch : iMapPitch;
-
-    currPitch = (ePlaneId == AL_PLANE_Y || ePlaneId == AL_PLANE_YUV) ? currPitch : AL_GetChromaPitch(tFourCC, currPitch);
+    int32_t currPitch = ePlaneId >= AL_PLANE_MAP_Y ? iMapPitch : ePlaneId == AL_PLANE_Y || ePlaneId == AL_PLANE_YUV ? iPixPitchY : iPixPitchC;
 
     pPlaneDesc[iPlane] = (AL_TPlaneDescription) {
       ePlaneId, iTotalPlanesSize, currPitch
@@ -231,17 +231,17 @@ AL_TBuffer* AL_PixMapBuffer_Create_And_AddPlanes(AL_TAllocator* pAllocator, PFN_
   size_t pPlanesSize[AL_MAX_BUFFER_PLANES];
   AL_TPlaneDescription pPlaneDesc[AL_MAX_BUFFER_PLANES];
 
-  TFourCC tFourCC = AL_GetFourCC(tPicFormat);
+  TFourCC tFourCC = AL_GetFourCC(&tPicFormat);
   AL_TBuffer* pBuf = AL_PixMapBuffer_Create(pAllocator, pCallBack, tAllocDim, tFourCC);
 
   if(pBuf == NULL)
     return NULL;
 
   int32_t iNbPlanes = AL_Plane_GetBufferPlanes(tPicFormat, usedPlanes);
-  int32_t iPixPitch, iMapPitch;
-  AL_PixMapBuffer_ComputePlaneSizes(tDim, tPicFormat, pPlanesSize, &iPixPitch, &iMapPitch, uWidthAlignment);
+  int32_t iPixPitchY, iPixPitchC, iMapPitch;
+  AL_PixMapBuffer_ComputePlaneSizes(tDim, tPicFormat, pPlanesSize, &iPixPitchY, &iPixPitchC, &iMapPitch, uWidthAlignment);
 
-  int32_t iTotalPlanesSize = AL_PixMapBuffer_CreatePlaneDescription(pPlaneDesc, pPlanesSize, usedPlanes, iNbPlanes, tFourCC, iPixPitch, iMapPitch);
+  int32_t iTotalPlanesSize = AL_PixMapBuffer_CreatePlaneDescription(pPlaneDesc, pPlanesSize, usedPlanes, iNbPlanes, iPixPitchY, iPixPitchC, iMapPitch);
 
   if(!AL_PixMapBuffer_Allocate_And_AddPlanes(pBuf, iTotalPlanesSize, &pPlaneDesc[0], iNbPlanes, name))
   {

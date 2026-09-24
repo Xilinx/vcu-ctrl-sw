@@ -10,6 +10,7 @@
 #include "Hevc_PictMngr.h"
 #include "lib_common/HevcUtils.h"
 #include "lib_common/Index.h"
+#include "lib_common/Arithmetics.h"
 #include "lib_parsing/HevcParser.h"
 
 /*****************************************************************************/

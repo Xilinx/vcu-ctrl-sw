@@ -30,7 +30,7 @@ using namespace std;
 extern "C"
 {
 #include "lib_decode/DecSchedulerMcu.h"
-#include "lib_common/LinuxDriverCommunication.h"
+#include "lib_common_dec/DecLinuxDriverCommunication.h"
 }
 
 std::shared_ptr<AL_TAllocator> CreateProxyAllocator(char const*)
@@ -39,7 +39,7 @@ std::shared_ptr<AL_TAllocator> CreateProxyAllocator(char const*)
   return nullptr;
 }
 
-void CIpDevice::ConfigureMcu(AL_ICommunication* driver, bool useProxy)
+void CIpDevice::ConfigureMcu(std::shared_ptr<AL_ICommunication> driver, bool useProxy)
 {
   if(useProxy)
     m_pAllocator = CreateProxyAllocator(m_tSelectedDevices.back().c_str());
@@ -49,7 +49,7 @@ void CIpDevice::ConfigureMcu(AL_ICommunication* driver, bool useProxy)
   if(!m_pAllocator)
     throw runtime_error("Can't open DMA allocator");
 
-  m_pScheduler = AL_DecSchedulerMcu_Create(driver, m_tSelectedDevices.back().c_str());
+  m_pScheduler = AL_DecSchedulerMcu_Create(driver.get());
 
   if(!m_pScheduler)
     throw runtime_error("Failed to create MCU scheduler");
@@ -118,7 +118,8 @@ std::string CIpDevice::SelectMcuDevice(std::set<std::string> const& tDevices)
       nDeviceIndex++;
       continue;
     }
-    AL_IDecScheduler* scheduler = AL_DecSchedulerMcu_Create(AL_GetLinuxDriverCommunication(), device.c_str());
+    m_pCommunication.reset(AL_CreateDecLinuxDriverCommunication(device.c_str()), &AL_ICommunication_Destroy);
+    AL_IDecScheduler* scheduler = AL_DecSchedulerMcu_Create(m_pCommunication.get());
 
     if(scheduler == nullptr)
       throw runtime_error(string("Can't create MCU Scheduler: ") + device);
@@ -174,7 +175,8 @@ void CIpDevice::SelectNextDevice(void)
     return;
 
   m_tSelectedDevices.push_back(selectedDevice);
-  ConfigureMcu(AL_GetLinuxDriverCommunication(), false);
+  m_pCommunication.reset(AL_CreateDecLinuxDriverCommunication(selectedDevice.c_str()), &AL_ICommunication_Destroy);
+  ConfigureMcu(m_pCommunication, false);
 }
 
 bool CIpDevice::HandleDeviceFailure(void)
@@ -213,8 +215,10 @@ CIpDevice::CIpDevice(CIpDeviceParam const& param, AL_EDeviceType eDeviceType, st
   {
     m_numDevices = CountIPDevices();
     m_bSelectDeviceWithLowestAvailableResources = param.bSelectDeviceWithLowestAvailableResources;
-    this->m_tSelectedDevices.insert(this->m_tSelectedDevices.begin(), SelectMcuDevice(m_tDevices));
-    ConfigureMcu(AL_GetLinuxDriverCommunication(), false);
+    std::string selectedDevice = SelectMcuDevice(m_tDevices);
+    this->m_tSelectedDevices.insert(this->m_tSelectedDevices.begin(), selectedDevice);
+    m_pCommunication.reset(AL_CreateDecLinuxDriverCommunication(selectedDevice.c_str()), &AL_ICommunication_Destroy);
+    ConfigureMcu(m_pCommunication, false);
     return;
   }
 

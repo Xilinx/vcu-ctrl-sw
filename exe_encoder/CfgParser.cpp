@@ -4,7 +4,6 @@
 #include "CfgParser.hpp"
 #include "lib_app/Parser.hpp"
 #include "lib_app/JsonFile.hpp"
-
 #include <algorithm>
 #include <cassert>
 #include <climits>
@@ -31,6 +30,7 @@ extern "C"
 #include "lib_common/SEI.h"
 #include "lib_common/SliceConsts.h"
 #include "lib_common_enc/RateCtrlMeta.h"
+#include "lib_rtos/assert.h"
 #include "lib_rtos/utils.h"
 }
 
@@ -97,11 +97,11 @@ static map<string, EnumDescription<int>> const getOutputFourCCs(void)
   fourCCs["YUY2"] = { FOURCC(YUY2), "YUV 4:2:2 as for UYVY but with different component ordering within the u_int32 macropixel.", aomituCodecs() };
 
   fourCCs["Y010"] = { FOURCC(Y010), "YUV file contains 10-bit monochrome samples.", allCodecs() };
-  fourCCs["P010"] = { FOURCC(P010), "YUV file contains 4:2:0 10-bit video samples each stored in a 16-bit word in semi-planar format with all picture luma (Y) samples followed by interleaved U and V chroma samples.", allCodecs() };
+  fourCCs["P0AL"] = { FOURCC(P0AL), "YUV file contains 4:2:0 10-bit video samples each stored in a 16-bit word in semi-planar format with all picture luma (Y) samples followed by interleaved U and V chroma samples.", allCodecs() };
   fourCCs["I0AL"] = { FOURCC(I0AL), "YUV file contains 4:2:0 10-bit video samples each stored in a 16-bit word in planar format with all picture luma (Y) samples followed by chroma samples (all U samples then all V samples).", allCodecs() };
 
   fourCCs["I2AL"] = { FOURCC(I2AL), "YUV file contains 4:2:2 10-bit video samples each stored in a 16-bit word in planar format with all picture luma (Y) samples followed by chroma samples (all U samples then all V samples).", allCodecs() };
-  fourCCs["P210"] = { FOURCC(P210), "YUV file contains 4:2:2 10-bit video samples each stored in a 16-bit word in semi-planar format with all picture luma (Y) samples followed by interleaved U and V chroma samples.", allCodecs() };
+  fourCCs["P2AL"] = { FOURCC(P2AL), "YUV file contains 4:2:2 10-bit video samples each stored in a 16-bit word in semi-planar format with all picture luma (Y) samples followed by interleaved U and V chroma samples.", allCodecs() };
   fourCCs["YUVP"] = { FOURCC(YUVP), "YCbCr 4:2:2 extended precision 10-bits per component in Y0U0Y1V0 order", allCodecs() };
 
   fourCCs["XV10"] = { FOURCC(XV10), "YUV file contains packed 10-bit monochrome samples with 3 samples per 32-bit words (the 2 LSBs are not used).", allCodecs() };
@@ -127,11 +127,11 @@ static map<string, EnumDescription<int>> const getInputFourCCs(void)
   fourCCs["YUY2"] = { FOURCC(YUY2), "YUV 4:2:2 as for UYVY but with different component ordering within the u_int32 macropixel.", aomituCodecs() };
 
   fourCCs["Y010"] = { FOURCC(Y010), "YUV file contains 10-bit monochrome samples.", allCodecs() };
-  fourCCs["P010"] = { FOURCC(P010), "YUV file contains 4:2:0 10-bit video samples each stored in a 16-bit word in semi-planar format with all picture luma (Y) samples followed by interleaved U and V chroma samples.", allCodecs() };
+  fourCCs["P0AL"] = { FOURCC(P0AL), "YUV file contains 4:2:0 10-bit video samples each stored in a 16-bit word in semi-planar format with all picture luma (Y) samples followed by interleaved U and V chroma samples.", allCodecs() };
   fourCCs["I0AL"] = { FOURCC(I0AL), "YUV file contains 4:2:0 10-bit video samples each stored in a 16-bit word in planar format with all picture luma (Y) samples followed by chroma samples (all U samples then all V samples).", allCodecs() };
 
   fourCCs["I2AL"] = { FOURCC(I2AL), "YUV file contains 4:2:2 10-bit video samples each stored in a 16-bit word in planar format with all picture luma (Y) samples followed by chroma samples (all U samples then all V samples).", allCodecs() };
-  fourCCs["P210"] = { FOURCC(P210), "YUV file contains 4:2:2 10-bit video samples each stored in a 16-bit word in semi-planar format with all picture luma (Y) samples followed by interleaved U and V chroma samples.", allCodecs() };
+  fourCCs["P2AL"] = { FOURCC(P2AL), "YUV file contains 4:2:2 10-bit video samples each stored in a 16-bit word in semi-planar format with all picture luma (Y) samples followed by interleaved U and V chroma samples.", allCodecs() };
   fourCCs["YUVP"] = { FOURCC(YUVP), "YCbCr 4:2:2 extended precision 10-bits per component in Y0U0Y1V0 order", allCodecs() };
 
   fourCCs["XV10"] = { FOURCC(XV10), "YUV file contains packed 10-bit monochrome samples with 3 samples per 32-bit words (the 2 LSBs are not used).", allCodecs() };
@@ -296,8 +296,13 @@ static void SetFpsAndClkRatio(int32_t value, uint16_t& iFps, uint16_t& iClkRatio
   iFps = value / 1000;
   iClkRatio = 1000;
 
-  if(value %= 1000)
-    iClkRatio += (1000 - value) / ++iFps;
+  int32_t iRem = value % 1000;
+
+  if(iRem != 0)
+  {
+    iFps++;
+    iClkRatio += (1000 - iRem) / iFps;
+  }
 }
 
 static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCParam& RCParam)
@@ -447,7 +452,7 @@ static void populateRCParam(Section curSection, ConfigParser& parser, AL_TRCPara
   {
     return std::max(std::min((decltype(RCParam.uMaxPSNR))((value + 28.0) * 100), (decltype(RCParam.uMaxPSNR)) 4800), (decltype(RCParam.uMaxPSNR)) 2800);
   }, [](decltype(RCParam.uMaxPSNR) value) { return (double)value / 100 - 28.0; }, "Specifies the maximum quality for the CAPPED_VBR rate control mode", {
-    { allCodecs(), 20.00, 50.00 },
+    { allCodecs(), 00, 20.00 },
   });
   map<string, EnumDescription<int>> MaxPictureSizeEnums;
   MaxPictureSizeEnums["DISABLE"] = { 0, "DISABLE to not constrain the picture size", aomituCodecs() };
@@ -533,7 +538,7 @@ static void populateGopSection(ConfigParser& parser, ConfigFile& cfg)
   gopCtrlModes["LOW_DELAY_B"] = { AL_GOP_MODE_LOW_DELAY_B, "Group Of Pictures pattern with a single I-picture at the beginning followed with B-pictures only. Each B-picture use the previous picture as first reference; the second reference depends on the [GOP]Gop.Length parameter.", aomituCodecs() };
   gopCtrlModes["PYRAMIDAL_GOP"] = { AL_GOP_MODE_PYRAMIDAL, "Advanced Group Of Pictures pattern with hierarchical B-pictures. The size of the hierarchy depends on the [GOP]Gop.NumB parameter.", aomituCodecs() };
   gopCtrlModes["DEFAULT_GOP_B"] = { AL_GOP_MODE_DEFAULT_B, "Basic Group Of Pictures settings, includes only B-pictures.", aomituCodecs() };
-  gopCtrlModes["PYRAMIDAL_GOP_B"] = { AL_GOP_MODE_PYRAMIDAL_B, "Advanced Group Of Pictures pattern width hierarchical B-pictures, includes only B-pictures.", aomituCodecs() };
+  gopCtrlModes["PYRAMIDAL_GOP_B"] = { AL_GOP_MODE_PYRAMIDAL_B, "Advanced Group Of Pictures pattern with hierarchical B-pictures, includes only B-pictures.", aomituCodecs() };
   gopCtrlModes["ADAPTIVE_GOP"] = { AL_GOP_MODE_ADAPTIVE, "Advanced Group Of Pictures pattern with an adaptive number of consecutive B-pictures to dynamically fit stream's characteristics.", aomituCodecs() };
   parser.addEnum(curSection, "GopCtrlMode", GopParam.eMode, gopCtrlModes, "Specifies the Group Of Pictures configuration mode.");
 
@@ -551,14 +556,15 @@ static void populateGopSection(ConfigParser& parser, ConfigFile& cfg)
   parser.addArithOrEnum(curSection, "Gop.FreqIDR", GopParam.uFreqIDR, freqIdrEnums, "Specifies the minimum number of frames between two IDR pictures. IDR insertion depends on the position of the GOP boundary", {
     { ituCodecs(), 0, UINT32_MAX }
   });
-  parser.addBool(curSection, "Gop.EnableLT", GopParam.bEnableLT, "Enables the Long Term Reference Picture (LTRP) feature", allCodecs());
+  parser.addBool(curSection, "Gop.EnableLT", GopParam.bEnableLT, "Enables the Long Term Reference Picture (LTRP) feature", aomituCodecs());
   parser.addNote(curSection, "Gop.EnableLT", "Must be set to TRUE when using LTRP feature in CmdFile.");
   parser.addSeeAlso(curSection, "Gop.EnableLT", { Section::Input, "CmdFile" });
   parser.addSeeAlso(curSection, "Gop.EnableLT", { Section::Input, "Format" });
+  parser.addBool(curSection, "Gop.DoubleRef", GopParam.bDoubleRef, "Allows a picture P to reference two different pictures with half-search range for each reference picture", allCodecs());
   parser.addArith(curSection, "Gop.FreqLT", GopParam.uFreqLT, "Specifies the Long Term reference picture refresh frequency in number of frames", {
     { ituCodecs(), 0, UINT32_MAX },
   });
-  parser.addArith(curSection, "Gop.NumB", GopParam.uNumB, "Maximum number of consecutive B frames in a Group Of Pictures. Used only when GopCtrlMode is set to DEFAULT_GOP, ADAPTIVE_GOP or PYRAMIDAL_GOP.", {
+  parser.addArith(curSection, "Gop.NumB", GopParam.uNumB, "The maximal count of B-frames between two consecutive anchor frames (I or P). Used only when GopCtrlMode is set to DEFAULT_GOP, ADAPTIVE_GOP or PYRAMIDAL_GOP.", {
     { ituCodecs(), 0, 4 },
     { aomCodecs(), 0, 2 },
   });
@@ -599,7 +605,7 @@ static void populateGopSection(ConfigParser& parser, ConfigFile& cfg)
   parser.addSeeAlso(curSection, "Gop.GdrMode", { Section::Settings, "EnableSEI" });
   parser.addSeeAlso(curSection, "Gop.GdrMode", { Section::Settings, "LoopFilter" });
   parser.addArith(curSection, "Gop.FreqRP", GopParam.iFreqRP, "Specifies the minimum number of frames between two recovery points. Must be used with GDR, where it defines how many frames we have between two intra-line sweep starts.", {
-    { ituCodecs(), 0, UINT32_MAX }
+    { ituCodecs(), 0, INT32_MAX }
   });
   parser.addSeeAlso(curSection, "Gop.FreqRP", { curSection, "Gop.GdrMode" });
 }
@@ -903,8 +909,8 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
 
   parser.addNote(curSection, "SliceSize", "Not supported in AVC multicores");
   parser.addBool(curSection, "DependentSlice", cfg.Settings.bDependentSlice, "When there are several slices per frame (e.g. NumSlices is greater than 1 or SliceSize is greater than 0), this parameter specifies whether the additional slices are dependent slice segments or regular slices", isOnlyCodec(Codec::Hevc));
-  parser.addSeeAlso(curSection, "DependentSlice", { curSection, "NumSlices" });
   parser.addSeeAlso(curSection, "DependentSlice", { curSection, "SliceSize" });
+  parser.addSeeAlso(curSection, "DependentSlice", { curSection, "NumSlices" });
   parser.addBool(curSection, "SubframeLatency", cfg.Settings.tChParam[0].bSubframeLatency, "Enable the subframe latency mode. This option requires multiple slices per frame.", allCodecs());
   parser.addSeeAlso(curSection, "SubframeLatency", { curSection, "NumSlices" });
   parser.addBool(curSection, "UniformSliceType", cfg.Settings.tChParam[0].bUseUniformSliceType, "Enable uniform slice types encoding. This means that all the slices will have the same type. The encoder will use a slice_type between 5 and 9.", isOnlyCodec(Codec::Avc));
@@ -999,6 +1005,9 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   parser.addFlag(curSection, "ConstrainedIntraPred", cfg.Settings.tChParam[0].eEncTools, AL_OPT_CONST_INTRA_PRED, "Specifies the value of constrained_intra_pred_flag syntax element", filterCodecs({ Codec::Hevc, Codec::Avc }));
   parser.addNote(curSection, "ConstrainedIntraPred", "Set automatically to true when GDR is used in mode GDR_VERTICAL");
   parser.addSeeAlso(curSection, "ConstrainedIntraPred", { Section::Gop, "Gop.GdrMode" });
+  parser.addBool(curSection, "StrongIntraSmoothing", cfg.Settings.tChParam[0].StrongIntraSmooth, "Specifies if the Strong intra smoothing should be used or not", filterCodecs({ Codec::Hevc }));
+  parser.addBool(curSection, "TemporalMVP", cfg.Settings.tChParam[0].TemporalMVP, "Specifies if the Temporal MVP should be used or not", aomituCodecs());
+
   parser.addFlag(curSection, "WaveFront", cfg.Settings.tChParam[0].eEncTools, AL_OPT_WPP, "DEPRECATED. Enable WaveFront parallel processing", filterCodecs({ Codec::Hevc }));
   parser.addNote(curSection, "WaveFront", "When a video sequence (resolution and frame rate) requires more than one core for encoding and WaveFront is disabled, the encoder automatically uses tiles instead.");
   string l2cacheDesc = "";
@@ -1008,7 +1017,7 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
   parser.addFlag(curSection, "AvcLowLat", cfg.Settings.tChParam[0].eEncOptions, AL_OPT_LOWLAT_SYNC, "Enables a special synchronization mode for AVC low latency encoding", isOnlyCodec(Codec::Avc));
   parser.addNote(curSection, "AvcLowLat", "Available only in multi-cores use cases");
   parser.addNote(curSection, "AvcLowLat", "Decrease latency, but can also decrease performance");
-  parser.addBool(curSection, "SliceLat", cfg.Settings.tChParam[0].bSubframeLatency, "Enables slice latency mode", allCodecs());
+  parser.addBool(curSection, "SliceLat", cfg.Settings.tChParam[0].bSubframeLatency, "Enables slice latency mode", ituCodecs());
   parser.addBool(curSection, "LowLatInterrupt", cfg.Settings.tChParam[0].bSubframeLatency, "DEPRECATED. Enables interrupt at slice level instead of frame level for low latency encoding. This parameter is use for validation purpose only", allCodecs());
 
   if(AL_ENC_NUM_CORES > 1 || AL_ENC_NUM_CORE_JPEG > 1)
@@ -1021,6 +1030,17 @@ static void populateSettingsSection(ConfigParser& parser, ConfigFile& cfg, Tempo
     parser.addNote(curSection, "NumCore", "The value 0 is equal to AUTO.");
     parser.addNote(curSection, "NumCore", "The allowed number of core depends on parameters like: frame resolution, framerate, and hardware capabilities. When the specified number of core rise to an invalid configuration the encoder fails with message 'Error while creating channel'.");
   }
+
+#if AL_ENABLE_AL_ENC_ZAPPER
+  map<string, EnumDescription<int>> zapperModes;
+  zapperModes["NONE"] = { AL_NO_ZAP, "Disable the zapper feature", aomituCodecs() };
+  zapperModes["DEFAULT"] = { AL_DEFAULT_ZAP, "Enable the zapper feature using the default parameters", aomituCodecs() };
+  zapperModes["CUSTOM"] = { AL_CUSTOM_ZAP, "Enable the zapper feature using custom parameters. The parameters are loaded from the file specified with FileZapper parameter", aomituCodecs() };
+  parser.addEnum(curSection, "Zapper", cfg.Settings.eZapperMode, zapperModes, "This parameter enables/disables the zapper feature.");
+  parser.addSeeAlso(curSection, "Zapper", { curSection, "FileZapper" });
+  parser.addPath(curSection, "FileZapper", temp.sZapperFile, "This parameter specifies the files used as parameter for the zapper feature. Check file format in the references section", aomituCodecs());
+  parser.addNote(curSection, "FileZapper", "For more details on file structure, see :ref:`File formats page<tests_application/encoder/user_manuals/file_formats-label>`");
+#endif
 
   parser.addFlag(curSection, "CostMode", cfg.Settings.tChParam[0].eEncOptions, AL_OPT_RDO_COST_MODE, "This parameter allows to reinforce the influence of the chrominance in the RDO choice. Useful to improve the visual quality of video sequences with low saturation.", aomituCodecs());
 
@@ -1429,8 +1449,7 @@ static bool ParseScalingListFile(const string& sSLFileName, AL_TEncSettings& Set
 
   if(!SLFile.is_open())
   {
-    warnstream << " => No Scaling list file, using Default" << endl;
-    return false;
+    throw std::runtime_error("No Scaling list file is found");
   }
   ESLMode eMode;
   int32_t iLine = 0;
@@ -1503,6 +1522,9 @@ static void GetScalingList(AL_TEncSettings& Settings, string const& sScalingList
   }
 }
 
+#if AL_ENABLE_AL_ENC_ZAPPER
+#endif
+
 /* Perform some settings coherence checks after complete parsing. */
 static void PostParsingChecks(AL_TEncSettings& Settings)
 {
@@ -1568,10 +1590,93 @@ static void DefaultLambdaFactors(AL_TEncSettings& Settings, bool bParseLambdaFac
     pChan->LdaFactors[i] = identity;
 }
 
+#if AL_ENABLE_AL_ENC_ZAPPER
+static void ParseZapperV2(int64_t& iBlockWeight, int64_t& iCoeffWeight, std::string const& tFilename)
+{
+  std::ifstream ZapFile(tFilename.c_str());
+
+  if(!ZapFile.is_open())
+  {
+    throw std::runtime_error(" => No Zap file");
+  }
+
+  enum struct Mode
+  {
+    CoeffWeight,
+    BlockWeight,
+    Error,
+  };
+
+  Mode m = Mode::Error;
+
+  for(;;)
+  {
+    string sLine;
+    getline(ZapFile, sLine);
+
+    if(ZapFile.fail())
+      break;
+
+    sLine = chomp(sLine);
+
+    if(sLine.empty() || sLine[0] == '#') // Comment
+    {
+      // nothing to do
+    }
+    else if(sLine[0] == '[') // Mode select
+    {
+      if(KEYWORD("[BLOCK_WEIGHT]"))
+        m = Mode::BlockWeight;
+      else if(KEYWORD("[COEFF_WEIGHT]"))
+        m = Mode::CoeffWeight;
+      else
+        throw std::runtime_error("Invalid zapper file");
+
+      getline(ZapFile, sLine);
+
+      if(ZapFile.fail())
+        throw std::runtime_error("Invalid zapper file");
+
+      stringstream ss(sLine);
+      string sVal;
+      ss >> sVal;
+
+      if(!sVal.empty() && isdigit(sVal[0]))
+      {
+        if(m == Mode::BlockWeight)
+          iBlockWeight = stoi(sVal);
+        else if(m == Mode::CoeffWeight)
+          iCoeffWeight = stoi(sVal);
+      }
+      else
+        throw std::runtime_error("Invalid zapper file");
+    }
+  }
+}
+
+#endif
+
 void CfgParser::PostParsingConfiguration(ConfigFile& cfg, std::ostream& warnStream)
 {
   CheckAndUpdateRelativePath(cfg.sCfgPath, temporaries.sScalingListFile);
   GetScalingList(cfg.Settings, temporaries.sScalingListFile, warnStream);
+#if AL_ENABLE_AL_ENC_ZAPPER
+  switch(cfg.Settings.eZapperMode)
+  {
+  case AL_DEFAULT_ZAP:
+    cfg.Settings.tChParam[0].tZapperV2Values.iBlockWeight = 1 << AL_ZAPPER_LAMBDA_WEIGHT_SHIFT;
+    cfg.Settings.tChParam[0].tZapperV2Values.iCoeffWeight = 1 << AL_ZAPPER_LAMBDA_WEIGHT_SHIFT;
+    break;
+
+  case AL_CUSTOM_ZAP:
+    ParseZapperV2(cfg.Settings.tChParam[0].tZapperV2Values.iBlockWeight, cfg.Settings.tChParam[0].tZapperV2Values.iCoeffWeight, temporaries.sZapperFile);
+    break;
+  case AL_NO_ZAP:
+  default:
+    break;
+  }
+
+#endif
   DefaultLambdaFactors(cfg.Settings, temporaries.bParseLambdaFactors);
 
 }

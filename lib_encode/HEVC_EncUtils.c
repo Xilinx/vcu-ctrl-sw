@@ -4,9 +4,11 @@
 #include "EncUtils.h"
 #include "IP_EncoderCtx.h"
 #include "HEVC_EncHwScalingList.h"
+#include "lib_rtos/assert.h"
 #include "lib_common/SyntaxConversion.h"
-#include "lib_common/Utils.h"
+
 #include "lib_common/Round.h"
+#include "lib_common/Arithmetics.h"
 #include "lib_common/ScalingList.h"
 #include "lib_common_enc/EncBuffersInternal.h"
 #include "lib_common_enc/Itu_Utils.h"
@@ -355,8 +357,8 @@ void AL_HEVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, AL_TE
 
   pSPS->long_term_ref_pics_present_flag = AL_GET_SPS_LOG2_NUM_LONG_TERM_RPS(pChParam->uSpsParam) ? 1 : 0;
   pSPS->num_long_term_ref_pics_sps = 0;
-  pSPS->sps_temporal_mvp_enabled_flag = 1;
-  pSPS->strong_intra_smoothing_enabled_flag = (pChParam->uLog2MaxCuSize > 4) ? 1 : 0;
+  pSPS->sps_temporal_mvp_enabled_flag = pChParam->TemporalMVP ? 1u : 0u;
+  pSPS->strong_intra_smoothing_enabled_flag = (pChParam->uLog2MaxCuSize > 4) ? pChParam->StrongIntraSmooth : 0;
 
 #if __ANDROID_API__
   pSPS->vui_parameters_present_flag = 0;

@@ -1,12 +1,14 @@
 // SPDX-FileCopyrightText: © 2026 Allegro DVT <github-ip@allegrodvt.com>
 // SPDX-License-Identifier: MIT
 
-#include "lib_parsing/HevcParser.h"
+#include "HevcParser.h"
+#include "SeiParser.h"
+
 #include "lib_rtos/assert.h"
+#include "lib_common/Arithmetics.h"
 #include "lib_common/Utils.h"
 #include "lib_common/SeiInternal.h"
 #include "lib_common/ScalingList.h"
-#include "SeiParser.h"
 
 #define CONCEAL_LEVEL_IDC 60 * 3
 
@@ -128,6 +130,7 @@ static void pps_multilayer_extension(AL_TRbspParser* pRP, AL_THevcPps* pPPS)
 
   for(uint32_t i = 0; i < pPPS->num_ref_loc_offsets; i++)
   {
+    Rtos_Assert(i < MAX_NUM_LAYER);
     pPPS->ref_loc_offset_layer_id[i] = u(pRP, 6);
     pPPS->scaled_ref_layer_offset_present_flag[i] = u(pRP, 1);
 
@@ -279,23 +282,19 @@ AL_EParseResult AL_HEVC_ParsePPS(AL_TAup* pIAup, AL_TRbspParser* pRP, uint16_t* 
     }
 
     /* register tile topology within the frame */
+    uint32_t uLine = 0;
+
     for(uint8_t i = 0; i <= pPPS->num_tile_rows_minus1; ++i)
     {
+      uint32_t uClmn = 0;
+
       for(uint8_t j = 0; j <= pPPS->num_tile_columns_minus1; ++j)
       {
-        uint8_t line = 0;
-        uint8_t clmn = 0;
-        uint8_t uClmn = 0;
-        uint8_t uLine = 0;
-
-        while(line < i)
-          uLine += pPPS->pTileRowHeights[line++];
-
-        while(clmn < j)
-          uClmn += pPPS->pTileColWidths[clmn++];
-
         pPPS->TileTopology[(i * (pPPS->num_tile_columns_minus1 + 1)) + j] = uLine * uLCUPicWidth + uClmn;
+        uClmn += pPPS->pTileColWidths[j];
       }
+
+      uLine += pPPS->pTileRowHeights[i];
     }
 
     pPPS->loop_filter_across_tiles_enabled_flag = u(pRP, 1);
@@ -1175,12 +1174,6 @@ AL_EParseResult AL_HEVC_ParseSPS(AL_TRbspParser* pRP, AL_THevcSps* pSPS)
   pSPS->PicWidthInCtbs = (pSPS->pic_width_in_luma_samples + ((1 << pSPS->Log2CtbSize) - 1)) >> pSPS->Log2CtbSize;
   pSPS->PicHeightInCtbs = (pSPS->pic_height_in_luma_samples + ((1 << pSPS->Log2CtbSize) - 1)) >> pSPS->Log2CtbSize;
 
-  COMPLY_WITH_LOG(pSPS->PicWidthInCtbs >= 2, "SPS width less than 2 CTBs is not supported\n");
-  COMPLY_WITH_LOG(pSPS->PicHeightInCtbs >= 2, "SPS height less than 2 CTBs is not supported\n");
-
-  pSPS->PicWidthInMinCbs = pSPS->pic_width_in_luma_samples >> pSPS->Log2MinCbSize;
-  pSPS->PicHeightInMinCbs = pSPS->pic_height_in_luma_samples >> pSPS->Log2MinCbSize;
-
   pSPS->SpsMaxLatency = pSPS->sps_max_latency_increase_plus1[pSPS->sps_max_sub_layers_minus1] ? pSPS->sps_max_num_reorder_pics[pSPS->sps_max_sub_layers_minus1] + pSPS->sps_max_latency_increase_plus1[pSPS->sps_max_sub_layers_minus1] - 1 : UINT32_MAX;
 
   pSPS->MaxPicOrderCntLsb = 1 << (pSPS->log2_max_slice_pic_order_cnt_lsb_minus4 + 4);
@@ -1318,7 +1311,7 @@ AL_EParseResult AL_HEVC_ParseVPS(AL_TAup* pIAup, AL_TRbspParser* pRP)
 
   for(int32_t i = 1; i <= pVPS->vps_num_layer_sets_minus1; ++i)
   {
-    uint16_t uOffset = Min(i, 1);
+    uint16_t uOffset = Min(i, MAX_DEC_NUM_LAYER - 1);
 
     for(int32_t j = 0; j <= pVPS->vps_max_layer_id; j++)
       pVPS->layer_id_included_flag[uOffset][j] = u(pRP, 1);

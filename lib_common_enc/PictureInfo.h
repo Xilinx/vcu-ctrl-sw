@@ -4,9 +4,9 @@
 #pragma once
 
 #include "lib_buf_mngt/FrmBuf.h"
+#include "lib_common/Utils.h"
 #include "lib_common_enc/EncChanParam.h"
 #include "lib_common_enc/EncPicInfo.h"
-#include "lib_common/Utils.h"
 
 /*****************************************************************************/
 static const uint8_t PicStructToFieldNumber[] =

@@ -39,6 +39,7 @@ const char* AL_Codec_ErrorToString(AL_ERR eErrorCode)
   case AL_ERR_ALIGNMENT: return "Alignment constraint not respected";
   case AL_ERR_BUFFER_STACK_FULL: return "Too many buffers provided, stack is full";
   case AL_ERR_INVALID_NEURAL_VIDEO_PROCESSOR_LOADABLE: return "Loadable for Neural Video Processor is invalid. The loadable format might not be handled, the targeted hardware might be wrong, the buffer can corrupted...";
+  case AL_ERR_AXI_BUS_ERROR: return "AXI bus error occurred so the current encoding/decoding operation on HW has been reset for all current channels";
 
   /* Warnings */
   case AL_WARN_CONCEAL_DETECT: return "Decoder had to conceal some errors in the stream";
@@ -58,6 +59,7 @@ const char* AL_Codec_ErrorToString(AL_ERR eErrorCode)
   case AL_WARN_INVALID_ACCESS_UNIT_STRUCTURE: return "The NALs present in the stream buffer don't form a valid Access Unit structure";
   case AL_WARN_HW_CONCEAL_DETECT: return "Decoder hardware had to conceal some errors in the stream";
   case AL_WARN_UNEXPECTED_SLICE_IN_INTRA_PROFILE: return "One or more P or B slices have been detected in Intra only profile, decoder skipped them";
+  case AL_WARN_PPS_TILEMAP_NOT_COMPATIBLE_WITH_DECODING_MODE: return "one or more pictures have too many tile columns for the selected decoding mode (coupled or low latency)";
 
   /* Others */
   case AL_SUCCESS: return "Success";

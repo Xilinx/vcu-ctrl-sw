@@ -12,6 +12,8 @@
 #include "lib_common_enc/RateCtrlStats.h"
 #include "lib_rtos/types.h"
 
+#include "lib_common/AxiProperties.h"
+
 /*****************************************************************************
    \brief Encoding tool enum
 *****************************************************************************/
@@ -30,6 +32,8 @@ typedef struct AL_TEncInfo
   uint8_t uPpsId;
   int16_t iPpsQP;
 
+#if AL_ENABLE_AL_ENC_ZAPPER
+#endif
   AL_TLookAheadParam tLAParam;
 
   AL_64U UserParam;
@@ -120,7 +124,7 @@ typedef struct
 
   uint32_t uSumCplx;
 
-  int32_t iTileWidth[AL_ENC_NUM_CORES * 1];
+  int32_t iTileWidth[AL_MAX_COLUMNS_TILE];
   int32_t iTileHeight[AL_MAX_ROWS_TILE];
 
   AL_ERR eErrorCode;
@@ -174,6 +178,7 @@ typedef struct
   AL_PADDR pPAddr;
   AL_PTR64 pVAddr;
 }AL_TQpTableAddrs;
+
 typedef struct
 {
   AL_TSrcAddrs tSrcAddrs;

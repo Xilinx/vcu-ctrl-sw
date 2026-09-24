@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 #include "AvcParser.h"
+
+#include "lib_common/Arithmetics.h"
 #include "lib_common/Utils.h"
 #include "lib_common/SeiInternal.h"
 #include "lib_common_dec/ParseResult.h"
@@ -43,6 +45,84 @@ static void propagate_scaling_list(int32_t iSclID, uint8_t* Default4x4Flag, uint
         Default8x8Flag[iSclID - 6] = 1;
       else
         Rtos_Memcpy(ScalingList8x8[iSclID - 6], ScalingList8x8[iSclID - 8], 64);
+    }
+  }
+}
+
+/*****************************************************************************/
+void AL_AVC_ComputeSclParameters(AL_TAvcPps* pPPS)
+{
+  if(pPPS->pic_scaling_matrix_present_flag)
+  {
+    for(int32_t i = 0; i < 6 + (pPPS->pSPS->chroma_format_idc != 3 ? 2 : 6) * pPPS->transform_8x8_mode_flag; i++)
+    {
+      if(!pPPS->pic_scaling_list_present_flag[i])
+      {
+        if(i < 6)
+          pPPS->UseDefaultScalingMatrix4x4Flag[i] = 0;
+        else
+          pPPS->UseDefaultScalingMatrix8x8Flag[i - 6] = 0;
+
+        if(!pPPS->pSPS->seq_scaling_matrix_present_flag)
+          propagate_scaling_list(i, pPPS->UseDefaultScalingMatrix4x4Flag, pPPS->UseDefaultScalingMatrix8x8Flag, pPPS->ScalingList4x4, pPPS->ScalingList8x8);
+        else
+        {
+          if(i < 6)
+          {
+            if(i == 0 || i == 3)
+            {
+              if(pPPS->pSPS->UseDefaultScalingMatrix4x4Flag[i])
+                pPPS->UseDefaultScalingMatrix4x4Flag[i] = 1;
+              else
+                Rtos_Memcpy(pPPS->ScalingList4x4[i], pPPS->pSPS->ScalingList4x4[i], 16);
+            }
+            else
+            {
+              if(pPPS->UseDefaultScalingMatrix4x4Flag[i - 1])
+                pPPS->UseDefaultScalingMatrix4x4Flag[i] = 1;
+              else
+                Rtos_Memcpy(pPPS->ScalingList4x4[i], pPPS->ScalingList4x4[i - 1], 16);
+            }
+          }
+          else
+          {
+            if(i < 8)
+            {
+              if(pPPS->pSPS->UseDefaultScalingMatrix8x8Flag[i - 6])
+                pPPS->UseDefaultScalingMatrix8x8Flag[i - 6] = 1;
+              else
+                Rtos_Memcpy(pPPS->ScalingList8x8[i - 6], pPPS->pSPS->ScalingList8x8[i - 6], 64);
+            }
+            else
+            {
+              if(pPPS->UseDefaultScalingMatrix8x8Flag[i - 8])
+                pPPS->UseDefaultScalingMatrix8x8Flag[i - 6] = 1;
+              else
+                Rtos_Memcpy(pPPS->ScalingList8x8[i - 6], pPPS->ScalingList8x8[i - 8], 64);
+            }
+          }
+        }
+      }
+    }
+  }
+  else if(pPPS->pSPS)
+  {
+    for(int32_t i = 0; i < (pPPS->pSPS->chroma_format_idc != 3 ? 8 : 12); ++i)
+    {
+      if(i < 6)
+      {
+        if(pPPS->pSPS->UseDefaultScalingMatrix4x4Flag[i])
+          pPPS->UseDefaultScalingMatrix4x4Flag[i] = 1;
+        else
+          Rtos_Memcpy(pPPS->ScalingList4x4[i], pPPS->pSPS->ScalingList4x4[i], 16);
+      }
+      else
+      {
+        if(pPPS->pSPS->UseDefaultScalingMatrix8x8Flag[i - 6])
+          pPPS->UseDefaultScalingMatrix8x8Flag[i - 6] = 1;
+        else
+          Rtos_Memcpy(pPPS->ScalingList8x8[i - 6], pPPS->pSPS->ScalingList8x8[i - 6], 64);
+      }
     }
   }
 }
@@ -465,7 +545,7 @@ AL_EParseResult AL_AVC_ParseSPS(AL_TRbspParser* pRP, AL_TAvcSps* pSPS)
   {
     pSPS->chroma_format_idc = ue(pRP);
 
-    COMPLY(pSPS->chroma_format_idc < AL_CHROMA_MAX_ENUM);
+    COMPLY(pSPS->chroma_format_idc <= AL_CHROMA_4_4_4); // 0 to 3 inclusive range
 
     if(pSPS->chroma_format_idc == 3)
       pSPS->separate_colour_plane_flag = u(pRP, 1);
@@ -536,9 +616,6 @@ AL_EParseResult AL_AVC_ParseSPS(AL_TRbspParser* pRP, AL_TAvcSps* pSPS)
 
   pSPS->pic_width_in_mbs_minus1 = ue(pRP);
   pSPS->pic_height_in_map_units_minus1 = ue(pRP);
-
-  COMPLY(pSPS->pic_width_in_mbs_minus1 >= 1);
-  COMPLY(pSPS->pic_height_in_map_units_minus1 >= 1);
 
   pSPS->frame_mbs_only_flag = u(pRP, 1);
 

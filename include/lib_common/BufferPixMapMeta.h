@@ -75,20 +75,20 @@ bool AL_PixMapMetaData_AddPlane(AL_TPixMapMetaData* pMeta, AL_TPlane tPlane, AL_
    \param[in] ePlaneId plane type
    \return Returns the plane buffer offset
 *****************************************************************************/
-int32_t AL_PixMapMetaData_GetOffset(AL_TPixMapMetaData* pMeta, AL_EPlaneId ePlaneId);
+int32_t AL_PixMapMetaData_GetOffset(AL_TPixMapMetaData const* pMeta, AL_EPlaneId ePlaneId);
 
 /*****************************************************************************
    \brief Get the size of the luma inside the picture
    \param[in] pMeta A pointer the pixmap metadata
    \return Returns size of the luma region
 *****************************************************************************/
-int32_t AL_PixMapMetaData_GetLumaSize(AL_TPixMapMetaData* pMeta);
+int32_t AL_PixMapMetaData_GetLumaSize(AL_TPixMapMetaData const* pMeta);
 
 /*****************************************************************************
    \brief Get the size of the chroma inside the picture
    \param[in] pMeta A pointer the pixmap metadata
    \return Returns size of the chroma region
 *****************************************************************************/
-int32_t AL_PixMapMetaData_GetChromaSize(AL_TPixMapMetaData* pMeta);
+int32_t AL_PixMapMetaData_GetChromaSize(AL_TPixMapMetaData const* pMeta);
 
 /*!@}*/

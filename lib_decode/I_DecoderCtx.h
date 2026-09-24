@@ -35,6 +35,18 @@ typedef enum
   SEND_REMAINING_NAL,
 }AL_DecodeNalStep;
 
+typedef enum
+{
+  AL_AOM_STREAM_FORMAT_UNKNOWN,
+  AL_AOM_STREAM_FORMAT_IVF,
+  AL_AOM_STREAM_FORMAT_ANNEXB,
+  AL_AOM_STREAM_FORMAT_LOW_OVERHEAD, /* AV1 low-overhead bitstream format, spec section 5 */
+}AL_EAomStreamFormat;
+
+/* Probe guard: within 64 OBUs after the initial TD, we should see enough evidence
+ * that this is a real AV1 stream: sequence header plus first frame/header */
+#define AOM_DEMUX_PROBE_MAX_OBUS 64
+
 typedef struct AL_TDecCtx AL_TDecCtx;
 
 typedef struct
@@ -148,6 +160,7 @@ struct AL_TDecCtx
   int32_t iTraceLastFrame;
   int32_t iTraceCounter;
   bool bShouldPrintFrameDelimiter;
+  bool bOutputTraceOnly;
 
   // stream context status
   bool bFirstIsValid;

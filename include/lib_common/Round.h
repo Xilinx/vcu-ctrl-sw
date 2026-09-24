@@ -45,6 +45,20 @@ static inline AL_64U AL_UnsignedRoundUpAndDivide(AL_64U zVal, AL_64S iRound, AL_
   return AL_UnsignedRoundUp(zVal, iRound) / iDiv;
 }
 
+static inline AL_64S AL_Round2AndDivide(AL_64S iVal, AL_64S iRnd)
+{
+  if(iVal == 0)
+    return iVal;
+  return (iVal + (iRnd / 2)) / iRnd;
+}
+
+static inline AL_64S AL_Round2SignedAndDivide(AL_64S iVal, AL_64S iRnd)
+{
+  if(iVal >= 0)
+    return AL_Round2AndDivide(iVal, iRnd);
+  return -AL_Round2AndDivide(-iVal, iRnd);
+}
+
 static inline AL_PADDR AL_PhysAddrRoundUp(AL_PADDR uVal, AL_64S iRnd)
 {
   return ((uVal + iRnd - 1) / iRnd) * iRnd;

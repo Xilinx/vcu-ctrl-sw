@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: MIT
 
 #include "DecHwScalingList.h"
+#include "lib_common/Av2Headers.h"
+#include "lib_common/Planes.h"
+#include "lib_common/ScalingList.h"
+#include "lib_common_dec/Av2Defines.h"
+#include "lib_common_dec/DecPicParam.h"
 #include "lib_rtos/lib_rtos.h"
 
 /******************************************************************************/

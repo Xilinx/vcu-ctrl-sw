@@ -53,7 +53,7 @@ extern "C" {
 #include "lib_common/Round.h"
 #include "lib_common/StreamBuffer.h"
 #include "lib_common_enc/RateCtrlMeta.h"
-#include "lib_encode/lib_encoder.h"
+#include "lib_encode/lib_encode.h"
 #include "lib_rtos/lib_rtos.h"
 #include "lib_common_enc/EncBuffers.h"
 #include "lib_common_enc/IpEncFourCC.h"
@@ -248,30 +248,9 @@ void introspect(ConfigFile& cfg)
   throw runtime_error("introspection is not compiled in");
 }
 
-static void SetCodingResolution(ConfigFile& cfg)
-{
-  int32_t iMaxSrcWidth = cfg.MainInput.FileInfo.PictWidth;
-  int32_t iMaxSrcHeight = cfg.MainInput.FileInfo.PictHeight;
-
-  for(auto const& input: cfg.DynamicInputs)
-  {
-    iMaxSrcWidth = max(input.FileInfo.PictWidth, iMaxSrcWidth);
-    iMaxSrcHeight = max(input.FileInfo.PictHeight, iMaxSrcHeight);
-  }
-
-  cfg.Settings.tChParam[0].uSrcWidth = iMaxSrcWidth;
-  cfg.Settings.tChParam[0].uSrcHeight = iMaxSrcHeight;
-
-  cfg.Settings.tChParam[0].uEncWidth = cfg.Settings.tChParam[0].uSrcWidth;
-  cfg.Settings.tChParam[0].uEncHeight = cfg.Settings.tChParam[0].uSrcHeight;
-
-  if(cfg.Settings.tChParam[0].bEnableSrcCrop)
-  {
-    cfg.Settings.tChParam[0].uEncWidth = cfg.Settings.tChParam[0].uSrcCropWidth;
-    cfg.Settings.tChParam[0].uEncHeight = cfg.Settings.tChParam[0].uSrcCropHeight;
-  }
-
-}
+static bool g_helpCfg = false;
+static bool g_helpCfgJson = false;
+static bool g_showCfg = false;
 
 /*****************************************************************************/
 void ParseCommandLine(int32_t argc, char** argv, ConfigFile& cfg, CfgParser& cfgParser)
@@ -291,6 +270,10 @@ void ParseCommandLine(int32_t argc, char** argv, ConfigFile& cfg, CfgParser& cfg
     else
       DoNotAcceptCfg = true;
   });
+
+  opt.addFlag("--help-cfg", &g_helpCfg, "Show cfg help. Show the default value for each parameter. If this option is used with a cfg, show the end value of each parameter.");
+  opt.addFlag("--help-cfg-json", &g_helpCfgJson, "Same as --help-cfg but in json format");
+  opt.addFlag("--show-cfg", &g_showCfg, "Show the cfg variables value before launching the program");
 
   opt.addFlag("--help,-h", &help, "Show this help");
   opt.addFlag("--help-json", &helpJson, "Show this help (json)");
@@ -323,7 +306,7 @@ void ParseCommandLine(int32_t argc, char** argv, ConfigFile& cfg, CfgParser& cfg
   opt.addString("--md5-stream", &cfg.RunInfo.sStreamMd5Path, "Filename to the output MD5 of the bitstream");
   opt.addInt("--input-width", &cfg.MainInput.FileInfo.PictWidth, "Specifies YUV input width");
   opt.addInt("--input-height", &cfg.MainInput.FileInfo.PictHeight, "Specifies YUV input height");
-  opt.addCustom("--input-format", &cfg.MainInput.FileInfo.FourCC, createParseInputFourCC(&cfgParser), "Specifies YUV input format (I420, IYUV, YV12, NV12, Y800, Y010, P010, I0AL ...)", "enum");
+  opt.addCustom("--input-format", &cfg.MainInput.FileInfo.FourCC, createParseInputFourCC(&cfgParser), "Specifies YUV input format (I420, IYUV, YV12, NV12, Y800, Y010, P0AL, I0AL ...)", "enum");
   opt.addCustom("--rec-format", &cfg.RecFourCC, createParseRecFourCC(&cfgParser), "Specifies output format", "enum");
 
   opt.addInt("--level", &cfg.Settings.tChParam[0].uLevel, "Specifies the level we want to encode with (10 to 62)");
@@ -340,8 +323,7 @@ void ParseCommandLine(int32_t argc, char** argv, ConfigFile& cfg, CfgParser& cfg
                 string { ", CHROMA_4_2_2" } +
                 string { ")" }, "enum");
 
-  int32_t outputBitdepth = -1;
-  opt.addInt("--out-bitdepth", &outputBitdepth, string { "Specifies bitdepth of output stream (8" } +
+  opt.addInt("--out-bitdepth", &cfg.iOutputBitdepth, string { "Specifies bitdepth of output stream (8" } +
              string { ", 10" } +
              string { ")" });
 
@@ -415,7 +397,7 @@ void ParseCommandLine(int32_t argc, char** argv, ConfigFile& cfg, CfgParser& cfg
 
   opt.startDeprecatedSection();
   opt.addString("--md5", &cfg.RunInfo.sRecMd5Path, "Use --md5-rec instead");
-  opt.addInt("--ip-bitdepth", &outputBitdepth, "Use --out-bitdepth instead");
+  opt.addInt("--ip-bitdepth", &cfg.iOutputBitdepth, "Use --out-bitdepth instead");
 
   opt.addFlag("--diagnostic", &cfg.Settings.bDiagnostic, "Additional checks meant for debugging. Not to be used on real usecases, might slow down encoding.");
 
@@ -446,20 +428,126 @@ void ParseCommandLine(int32_t argc, char** argv, ConfigFile& cfg, CfgParser& cfg
 
   if(g_Verbosity)
     cerr << warning.str();
+}
 
-  SetCodingResolution(cfg);
+/*****************************************************************************/
+static void SetHardwareResolutions(ConfigFile& cfg)
+{
+  int32_t iMaxSrcWidth = cfg.MainInput.FileInfo.PictWidth;
+  int32_t iMaxSrcHeight = cfg.MainInput.FileInfo.PictHeight;
 
-  if(outputBitdepth != -1)
-    AL_SET_BITDEPTH(&cfg.Settings.tChParam[0].ePicFormat, outputBitdepth);
+  for(auto const& input: cfg.DynamicInputs)
+  {
+    iMaxSrcWidth = max(input.FileInfo.PictWidth, iMaxSrcWidth);
+    iMaxSrcHeight = max(input.FileInfo.PictHeight, iMaxSrcHeight);
+  }
+
+  cfg.Settings.tChParam[0].uSrcWidth = iMaxSrcWidth;
+  cfg.Settings.tChParam[0].uSrcHeight = iMaxSrcHeight;
+
+  cfg.Settings.tChParam[0].uEncWidth = cfg.Settings.tChParam[0].uSrcWidth;
+  cfg.Settings.tChParam[0].uEncHeight = cfg.Settings.tChParam[0].uSrcHeight;
+
+  if(cfg.Settings.tChParam[0].bEnableSrcCrop)
+  {
+    cfg.Settings.tChParam[0].uEncWidth = cfg.Settings.tChParam[0].uSrcCropWidth;
+    cfg.Settings.tChParam[0].uEncHeight = cfg.Settings.tChParam[0].uSrcCropHeight;
+  }
+
+}
+
+static void SetHardwareBitDepths(ConfigFile& cfg)
+{
+  if(cfg.iOutputBitdepth != -1)
+    AL_SET_BITDEPTH(&cfg.Settings.tChParam[0].ePicFormat, cfg.iOutputBitdepth);
 
   cfg.Settings.tChParam[0].uSrcBitDepth = AL_GET_BITDEPTH(cfg.Settings.tChParam[0].ePicFormat);
+}
+
+void SetMoreDefaults(ConfigFile& cfg)
+{
+  auto& FileInfo = cfg.MainInput.FileInfo;
+  auto& Settings = cfg.Settings;
+  auto& RecFourCC = cfg.RecFourCC;
+  auto& RunInfo = cfg.RunInfo;
+
+  if(RunInfo.encDevicePaths.empty())
+    RunInfo.encDevicePaths = ENCODER_DEVICES;
+
+  if(FileInfo.FrameRate == 0)
+    FileInfo.FrameRate = Settings.tChParam[0].tRCParam.uFrameRate;
+
+  if(RecFourCC == FOURCC(NULL))
+  {
+    AL_TPicFormat tOutPicFormat;
+
+    if(AL_GetPicFormat(FileInfo.FourCC, &tOutPicFormat))
+    {
+      if(tOutPicFormat.eComponentOrder != AL_COMPONENT_ORDER_RGB && tOutPicFormat.eComponentOrder != AL_COMPONENT_ORDER_BGR)
+        tOutPicFormat.eChromaMode = AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat);
+      tOutPicFormat.ePlaneMode = tOutPicFormat.eChromaMode == AL_CHROMA_MONO ? AL_PLANE_MODE_MONOPLANE : tOutPicFormat.ePlaneMode;
+      tOutPicFormat.uBitDepth = AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat);
+      RecFourCC = AL_GetFourCC(&tOutPicFormat);
+    }
+    else
+    {
+      RecFourCC = FileInfo.FourCC;
+    }
+  }
+
+  AL_TPicFormat tRecPicFormat;
+
+  if(AL_GetPicFormat(RecFourCC, &tRecPicFormat))
+  {
+    auto& RecFileName = cfg.RecFileName;
+
+    if(!RecFileName.empty())
+      if(tRecPicFormat.eStorageMode != AL_FB_RASTER && !tRecPicFormat.bCompressed)
+        throw runtime_error("Reconstructed storage format can only be tiled if compressed.");
+  }
+}
+
+AL_ESrcMode SrcFormatToSrcMode(AL_ESrcFormat eSrcFormat)
+{
+  switch(eSrcFormat)
+  {
+  case AL_SRC_FORMAT_RASTER:
+    return AL_SRC_RASTER;
+  default:
+    throw runtime_error("Unsupported source format.");
+  }
+}
+
+void AdjustSettingsAfterParsing(ConfigFile& cfg)
+{
+  SetHardwareResolutions(cfg);
+
+  SetHardwareBitDepths(cfg);
 
   if(AL_IS_STILL_PROFILE(cfg.Settings.tChParam[0].eProfile))
     cfg.RunInfo.iMaxPict = 1;
 
+  auto& Settings = cfg.Settings;
+  auto& RecFileName = cfg.RecFileName;
+  auto& RunInfo = cfg.RunInfo;
+
+  AL_Settings_SetDefaultParam(&Settings);
+  SetMoreDefaults(cfg);
+
+  if(!RecFileName.empty() || !RunInfo.sRecMd5Path.empty())
+  {
+
+    Settings.tChParam[0].eEncOptions = (AL_EChEncOption)(Settings.tChParam[0].eEncOptions | AL_OPT_FORCE_REC);
+  }
+
+  AL_ESrcMode eSrcMode = SrcFormatToSrcMode(cfg.eSrcFormat);
+
+  for(uint8_t uLayer = 0; uLayer < cfg.Settings.NumLayer; uLayer++)
+    Settings.tChParam[uLayer].eSrcMode = eSrcMode;
 }
 
-bool checkQPTableFolder(ConfigFile& cfg)
+/*****************************************************************************/
+bool CheckQPTableFolder(ConfigFile& cfg)
 {
   std::regex qp_file_per_frame_regex("QP(^|)(s|_[0-9]+)\\.hex");
 
@@ -501,7 +589,7 @@ void ValidateConfig(ConfigFile& cfg)
 
     if((cfg.RunInfo.eGenerateQpMode & AL_GENERATE_QP_TABLE_MASK) == AL_GENERATE_LOAD_QP)
     {
-      if(!checkQPTableFolder(cfg))
+      if(!CheckQPTableFolder(cfg))
         throw runtime_error("No QP File found");
     }
 
@@ -516,49 +604,6 @@ void ValidateConfig(ConfigFile& cfg)
     AL_TwoPassMngr_SetPass1Settings(cfg.Settings);
 
   SetConsoleColor(CC_DEFAULT);
-}
-
-void SetMoreDefaults(ConfigFile& cfg)
-{
-  auto& FileInfo = cfg.MainInput.FileInfo;
-  auto& Settings = cfg.Settings;
-  auto& RecFourCC = cfg.RecFourCC;
-  auto& RunInfo = cfg.RunInfo;
-
-  if(RunInfo.encDevicePaths.empty())
-    RunInfo.encDevicePaths = ENCODER_DEVICES;
-
-  if(FileInfo.FrameRate == 0)
-    FileInfo.FrameRate = Settings.tChParam[0].tRCParam.uFrameRate;
-
-  if(RecFourCC == FOURCC(NULL))
-  {
-    AL_TPicFormat tOutPicFormat;
-
-    if(AL_GetPicFormat(FileInfo.FourCC, &tOutPicFormat))
-    {
-      if(tOutPicFormat.eComponentOrder != AL_COMPONENT_ORDER_RGB && tOutPicFormat.eComponentOrder != AL_COMPONENT_ORDER_BGR)
-        tOutPicFormat.eChromaMode = AL_GET_CHROMA_MODE(Settings.tChParam[0].ePicFormat);
-      tOutPicFormat.ePlaneMode = tOutPicFormat.eChromaMode == AL_CHROMA_MONO ? AL_PLANE_MODE_MONOPLANE : tOutPicFormat.ePlaneMode;
-      tOutPicFormat.uBitDepth = AL_GET_BITDEPTH(Settings.tChParam[0].ePicFormat);
-      RecFourCC = AL_GetFourCC(tOutPicFormat);
-    }
-    else
-    {
-      RecFourCC = FileInfo.FourCC;
-    }
-  }
-
-  AL_TPicFormat tRecPicFormat;
-
-  if(AL_GetPicFormat(RecFourCC, &tRecPicFormat))
-  {
-    auto& RecFileName = cfg.RecFileName;
-
-    if(!RecFileName.empty())
-      if(tRecPicFormat.eStorageMode != AL_FB_RASTER && !tRecPicFormat.bCompressed)
-        throw runtime_error("Reconstructed storage format can only be tiled if compressed.");
-  }
 }
 
 /*****************************************************************************/
@@ -621,7 +666,7 @@ struct SrcConverterParams
 bool IsConversionNeeded(SrcConverterParams& tSrcConverterParams)
 {
 
-  const TFourCC tSrcFourCC = AL_GetFourCC(tSrcConverterParams.tSrcPicFmt);
+  const TFourCC tSrcFourCC = AL_GetFourCC(&tSrcConverterParams.tSrcPicFmt);
 
   if(tSrcConverterParams.tFileFourCC != tSrcFourCC)
   {
@@ -699,17 +744,6 @@ static shared_ptr<AL_TBuffer> GetSrcFrame(AL_64S& iReadCount, AL_64S iPictCount,
   return frame;
 }
 
-AL_ESrcMode SrcFormatToSrcMode(AL_ESrcFormat eSrcFormat)
-{
-  switch(eSrcFormat)
-  {
-  case AL_SRC_FORMAT_RASTER:
-    return AL_SRC_RASTER;
-  default:
-    throw runtime_error("Unsupported source format.");
-  }
-}
-
 /*****************************************************************************/
 static bool InitQpBufPool(BufPool& pool, AL_TEncSettings& Settings, AL_TEncChanParam& tChParam, int32_t frameBuffersCount, AL_TAllocator* pAllocator)
 {
@@ -745,7 +779,7 @@ static SrcBufDesc GetSrcBufDescription(AL_TDimension tDimension, uint8_t uBitDep
 
   SrcBufDesc srcBufDesc =
   {
-    AL_GetFourCC(tPicFormat), {}
+    AL_GetFourCC(&tPicFormat), {}
   };
 
   int32_t iPitchY = ComputeYPitch(tDimension.iWidth, tPicFormat);
@@ -761,7 +795,7 @@ static SrcBufDesc GetSrcBufDescription(AL_TDimension tDimension, uint8_t uBitDep
 
   for(int32_t iPlane = 0; iPlane < iNbPlanes; iPlane++)
   {
-    int32_t iPitch = usedPlanes[iPlane] == AL_PLANE_Y ? iPitchY : AL_GetChromaPitch(srcBufDesc.tFourCC, iPitchY);
+    int32_t iPitch = usedPlanes[iPlane] == AL_PLANE_Y || usedPlanes[iPlane] == AL_PLANE_YUV ? iPitchY : AL_GetChromaPitch(srcBufDesc.tFourCC, iPitchY);
     srcChunk.vPlaneDesc.push_back(AL_TPlaneDescription { usedPlanes[iPlane], srcChunk.iChunkSize, iPitch });
     srcChunk.iChunkSize += AL_GetAllocSizeSrc_PixPlane(&tPicFormat, iPitchY, iStrideHeight, usedPlanes[iPlane]);
 
@@ -971,12 +1005,10 @@ void LayerResources::Init(ConfigFile& cfg, AL_TEncoderInfo tEncInfo, int32_t iLa
 
     AL_MetaData_Destroy(pMeta);
   }
-
   // --------------------------------------------------------------------------------
   // Tuning Input Buffers
   // --------------------------------------------------------------------------------
   int32_t frameBuffersCount = g_defaultMinBuffers + GetNumBufForGop(Settings);
-
   {
     frameBuffersCount = g_defaultMinBuffers + GetNumBufForGop(Settings);
 
@@ -1307,6 +1339,37 @@ void SafeChannelMain(ConfigFile& cfg, CIpDevice* pIpDevice, CIpDeviceParam& para
 
 }
 
+/*****************************************************************************/
+static CIpDeviceParam BuildIPDeviceParams(ConfigFile& cfg)
+{
+  auto& RunInfo = cfg.RunInfo;
+
+  CIpDeviceParam param;
+  param.eSchedulerType = RunInfo.eSchedulerType;
+  param.eDeviceType = RunInfo.eDeviceType;
+
+  param.pCfgFile = &cfg;
+  param.eTrackDmaMode = RunInfo.eTrackDmaMode;
+
+  return param;
+}
+
+static shared_ptr<CIpDevice> BuildIPDevice(CIpDeviceParam param, ConfigFile* pCfgChannels, uint32_t const uNumChannels)
+{
+  (void)pCfgChannels;
+  (void)uNumChannels;
+
+  auto pIPDevice = shared_ptr<CIpDevice>(new CIpDevice);
+
+  if(!pIPDevice)
+    throw runtime_error("Can't create IpDevice");
+
+  pIPDevice->Configure(param);
+
+  return pIPDevice;
+}
+
+/*****************************************************************************/
 struct channel_runtime_error : public runtime_error
 {
   explicit channel_runtime_error() : runtime_error("")
@@ -1384,51 +1447,38 @@ void SafeMain(int32_t argc, char* argv[])
 
     SetDefaults(cfg);
     ParseCommandLine(argvChannels[chan].size(), argvChannels[chan].data(), cfg, cfgParser);
+    AdjustSettingsAfterParsing(cfg);
 
-    auto& Settings = cfg.Settings;
-    auto& RecFileName = cfg.RecFileName;
-    auto& RunInfo = cfg.RunInfo;
-
-    AL_Settings_SetDefaultParam(&Settings);
-    SetMoreDefaults(cfg);
-
-    if(!RecFileName.empty() || !RunInfo.sRecMd5Path.empty())
+    if(g_helpCfg)
     {
-      Settings.tChParam[0].eEncOptions = (AL_EChEncOption)(Settings.tChParam[0].eEncOptions | AL_OPT_FORCE_REC);
+      cfgParser.PrintConfigFileUsage(cfg);
+      return;
     }
 
-    AL_ESrcMode eSrcMode = SrcFormatToSrcMode(cfg.eSrcFormat);
-
-    for(uint8_t uLayer = 0; uLayer < cfg.Settings.NumLayer; uLayer++)
-      Settings.tChParam[uLayer].eSrcMode = eSrcMode;
+    if(g_helpCfgJson)
+    {
+      cfgParser.PrintConfigFileUsageJson(cfg);
+      return;
+    }
 
     DisplayVersionInfo();
 
     ValidateConfig(cfg);
 
+    if(g_showCfg)
+      cfgParser.PrintConfig(cfg);
+
   }
 
   AL_ELibEncoderArch eArch = AL_LIB_ENCODER_ARCH_HOST;
 
-  auto& cfg = cfgChannels[0];
-  auto& RunInfo = cfg.RunInfo;
+  auto& cfgFirstChan = cfgChannels[0];
 
   if(!AL_IS_SUCCESS_CODE(AL_Lib_Encoder_Init(eArch)))
     throw runtime_error("Can't setup encode library");
 
-  CIpDeviceParam param;
-  param.eSchedulerType = RunInfo.eSchedulerType;
-  param.eDeviceType = RunInfo.eDeviceType;
-
-  param.pCfgFile = &cfg;
-  param.eTrackDmaMode = RunInfo.eTrackDmaMode;
-
-  auto pIpDevice = shared_ptr<CIpDevice>(new CIpDevice);
-
-  if(!pIpDevice)
-    throw runtime_error("Can't create IpDevice");
-
-  pIpDevice->Configure(param);
+  auto param = BuildIPDeviceParams(cfgFirstChan);
+  auto pIpDevice = BuildIPDevice(param, &cfgChannels[0], numChan);
 
   if(numChan > 1)
   {
@@ -1457,7 +1507,7 @@ void SafeMain(int32_t argc, char* argv[])
   }
 
   exception_ptr pError;
-  ChannelMain(cfg, pIpDevice.get(), param, pError, 0);
+  ChannelMain(cfgFirstChan, pIpDevice.get(), param, pError, 0);
 
   if(pError)
     rethrow_exception(pError);

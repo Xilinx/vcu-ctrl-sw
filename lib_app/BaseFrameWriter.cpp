@@ -76,7 +76,7 @@ void BaseFrameWriter::WritePix(const uint8_t* pPix, uint32_t iPitchInPix, uint16
 }
 
 /****************************************************************************/
-void BaseFrameWriter::WriteBuffer(std::shared_ptr<std::ostream> stream, const uint8_t* pBuf, uint32_t uWriteSize)
+void BaseFrameWriter::WriteBuffer(std::shared_ptr<std::ostream>& stream, const uint8_t* pBuf, uint32_t uWriteSize)
 {
   stream->write(reinterpret_cast<const char*>(pBuf), uWriteSize);
 }

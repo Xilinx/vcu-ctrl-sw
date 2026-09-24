@@ -4,7 +4,8 @@
 #include "Avc_SliceHeaderParsing.h"
 
 #include "lib_common/SliceConsts.h"
-#include "lib_common/Utils.h"
+
+#include "lib_common/Arithmetics.h"
 #include "lib_common/Nuts.h"
 #include "lib_common_dec/RbspParser.h"
 #include "lib_common/AvcUtils.h"

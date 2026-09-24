@@ -13,7 +13,6 @@ typedef struct
 
 }AL_TDecoderPoolSizes;
 
-void AL_Decoder_InitInternalBuffers(AL_TDecCtx* pCtx);
 void AL_Decoder_DeinitBuffers(AL_TDecCtx* pCtx);
 
 /*****************************************************************************

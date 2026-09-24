@@ -19,7 +19,7 @@ void AL_TBufPool_Deinit(AL_TBufPool* pBufPool)
 }
 
 /*************************************************************************/
-bool AL_TBufPool_Init(AL_TBufPool* pBufPool, uint8_t uMaxBuf, size_t zSize, AL_TAllocator* pAllocator, char const* name)
+bool AL_TBufPool_Init(AL_TBufPool* pBufPool, uint8_t uMaxBuf, size_t zSize, AL_TAllocator* pAllocator, char const* name, bool bShouldCleanMemory)
 {
   Rtos_Assert(uMaxBuf <= BUFPOOL_MAX_SIZE);
 
@@ -28,7 +28,7 @@ bool AL_TBufPool_Init(AL_TBufPool* pBufPool, uint8_t uMaxBuf, size_t zSize, AL_T
 
   for(uint8_t i = 0; i < uMaxBuf; ++i)
   {
-    AL_MemDesc_Init(&pBufPool->pBufs[i].tMD);
+    Rtos_Memset(&pBufPool->pBufs[i].tMD, 0, sizeof(pBufPool->pBufs[i].tMD));
     pBufPool->iAccessCnt[i] = 0;
     IntFifo_Queue(&pBufPool->tFreeIdFifo, i);
 
@@ -48,6 +48,8 @@ bool AL_TBufPool_Init(AL_TBufPool* pBufPool, uint8_t uMaxBuf, size_t zSize, AL_T
   if(!pBufPool->Semaphore)
     goto fail_alloc;
 
+  pBufPool->bShouldCleanMemory = bShouldCleanMemory;
+
   return true;
 
   fail_alloc:
@@ -66,13 +68,25 @@ AL_TIndex AL_TBufPool_GetFreeBufID(AL_TBufPool* pBufPool)
   AL_TIndex tID = IntFifo_Dequeue(&pBufPool->tFreeIdFifo);
   Rtos_Assert(pBufPool->iAccessCnt[tID] == 0);
   pBufPool->iAccessCnt[tID] = 1;
-  AL_CleanupMemory(pBufPool->pBufs[tID].tMD.pVirtualAddr, pBufPool->pBufs[tID].tMD.uSize);
+
+  if(pBufPool->bShouldCleanMemory)
+    AL_CleanupMemory(pBufPool->pBufs[tID].tMD.pVirtualAddr, pBufPool->pBufs[tID].tMD.uSize);
   Rtos_ReleaseMutex(pBufPool->Mutex);
   return tID;
 }
 
 /*************************************************************************/
-void AL_TBufPool_DecrementBufID(AL_TBufPool* pBufPool, AL_TIndex tID)
+bool AL_TBufPool_GetBufFreeStatus(AL_TBufPool* pBufPool, AL_TIndex tID)
+{
+  Rtos_GetMutex(pBufPool->Mutex);
+  bool bFree = (pBufPool->iAccessCnt[tID] == 0);
+  Rtos_ReleaseMutex(pBufPool->Mutex);
+
+  return bFree;
+}
+
+/*************************************************************************/
+bool AL_TBufPool_DecrementBufID(AL_TBufPool* pBufPool, AL_TIndex tID)
 {
   Rtos_Assert(tID < BUFPOOL_MAX_SIZE);
   Rtos_GetMutex(pBufPool->Mutex);
@@ -92,6 +106,8 @@ void AL_TBufPool_DecrementBufID(AL_TBufPool* pBufPool, AL_TIndex tID)
 
   if(bFree)
     Rtos_ReleaseSemaphore(pBufPool->Semaphore);
+
+  return bFree;
 }
 
 /*************************************************************************/

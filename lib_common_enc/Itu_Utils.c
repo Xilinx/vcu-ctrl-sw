@@ -8,5 +8,11 @@ int GetNumActiveRefIdx(AL_TEncChanParam const* pChParam)
   (void)pChParam;
   int32_t iNumRef = 1;
 
+  bool bIncrNumRef = false;
+
+  bIncrNumRef |= pChParam->tGopParam.bDoubleRef;
+
+  if(bIncrNumRef)
+    iNumRef++;
   return iNumRef;
 }

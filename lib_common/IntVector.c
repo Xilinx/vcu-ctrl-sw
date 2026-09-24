@@ -10,7 +10,7 @@ void IntVector_Init(IntVector* self)
 
 static void shiftLeftFrom(IntVector* self, int32_t index)
 {
-  for(int32_t i = index; i < self->count; i++)
+  for(int32_t i = index; i < self->count - 1; i++)
     self->elements[i] = self->elements[i + 1];
 }
 

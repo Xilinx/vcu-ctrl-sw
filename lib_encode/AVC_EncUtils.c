@@ -5,7 +5,8 @@
 #include "IP_EncoderCtx.h"
 #include "AVC_EncHwScalingList.h"
 #include "lib_common/SyntaxConversion.h"
-#include "lib_common/Utils.h"
+
+#include "lib_common/Arithmetics.h"
 #include "lib_common/ScalingList.h"
 #include "lib_common/AvcLevelsLimit.h"
 #include "lib_common_enc/EncBuffersInternal.h"
@@ -357,7 +358,7 @@ void AL_AVC_GenerateSPS(AL_TSps* pISPS, AL_TEncSettings const* pSettings, int32_
   pSPS->vui_param.hrd_param.low_delay_hrd_flag[0] = 0;
 
   // Picture structure information
-  pSPS->vui_param.pic_struct_present_flag = 1;
+  pSPS->vui_param.pic_struct_present_flag = (pSettings->eEnableSEI & AL_SEI_PT) == AL_SEI_PT;
 
   if(AL_IS_XAVC_CBG(pChannel->eProfile) && AL_IS_INTRA_PROFILE(pChannel->eProfile))
     pSPS->vui_param.pic_struct_present_flag = 0;

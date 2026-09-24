@@ -130,6 +130,9 @@ struct ConfigFile
   bool strict_mode;
 
   int32_t iForceStreamBufSize = 0;
+
+  int32_t iOutputBitdepth = -1;
+
 };
 
 struct Temporary

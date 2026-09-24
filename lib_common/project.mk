@@ -9,7 +9,6 @@ LIB_COMMON_SRC:=\
   lib_common/BufferHandleMeta.c\
   lib_common/Fifo.c\
   lib_common/FourCC.c\
-  lib_common/LinuxDriverCommunication.c\
   lib_common/PixMapBuffer.c\
   lib_common/IntVector.c\
   lib_common/Planes.c\
@@ -40,6 +39,7 @@ ifneq ($(ENABLE_HEVC),0)
   LIB_COMMON_SRC+=lib_common/HevcUtils.c
 endif
 
+
 HAS_HEVC_MULTI_LAYER=0
 
 
@@ -58,7 +58,6 @@ ifneq ($(ENABLE_CODEC),0)
   LIB_COMMON_SRC+=lib_common/BufferPictureMeta.c
   LIB_COMMON_SRC+=lib_common/BufferPictureDecMeta.c
   LIB_COMMON_SRC+=lib_common/BufferSeiMeta.c
-
 
 
 

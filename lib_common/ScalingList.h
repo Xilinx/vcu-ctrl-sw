@@ -9,6 +9,8 @@
 typedef uint8_t AL_TMtx8x8[8 * 8];
 typedef uint8_t AL_TMtx4x4[4 * 4];
 typedef uint8_t AL_TMtxDC[4];
+typedef uint8_t AL_TMtx8x4[8 * 4];
+typedef uint8_t AL_TMtx4x8[4 * 8];
 
 /*****************************************************************************
    \brief Scaling List Matrices in software user-friendly format
@@ -27,6 +29,13 @@ typedef struct AL_THevcScalingList
   AL_TMtx4x4 t4x4Cr;
   AL_TMtxDC tDC;
 }AL_TScalingList[2];  // common for AVC and HEVC
+
+typedef struct AL_TAv2ScalingList
+{
+  AL_TMtx8x8 t8x8;
+  AL_TMtx8x4 t8x4;
+  AL_TMtx4x8 t4x8;
+}AL_TAv2ScalingList;
 
 /*****************************************************************************
    \brief Diagonal scanning order

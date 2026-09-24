@@ -35,7 +35,7 @@ bool GetFileSize(std::ifstream& fileStream, size_t& zSize);
 bool GetFileSize(std::string const& filename, size_t& zSize);
 
 /****************************************************************************/
-#define FROM_HEX_ERROR -1
+#define FROM_HEX_ERROR (-1)
 int32_t FromHex2(char a, char b);
 
 /****************************************************************************/

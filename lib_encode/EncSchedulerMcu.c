@@ -10,26 +10,30 @@
 #include "lib_encode/I_EncSchedulerInfo.h"
 #include "lib_encode/EncSchedulerMcu.h"
 #include "lib_encode/EncSchedulerCommon.h"
+#include "lib_common/Arithmetics.h"
 #include "lib_common/Error.h"
 #include "lib_common_enc/RateCtrlMeta.h"
+#include "lib_rtos/assert.h"
 #include "lib_rtos/lib_rtos.h"
-#include "allegro_ioctl_mcu_enc.h"
-#include "DriverDataConversions.h"
+#include "EncDriverDataConversions.h"
 #include "lib_fpga/DmaAllocLinux.h"
-#include "lib_common/Utils.h"
-#include "allegro_ioctl_mcu_enc.h"
 
-#include <stdio.h>
-#include <string.h> // strerrno, strlen, strcpy
-#include <errno.h>
+#include "lib_rtos/types.h"
+
+#define GET_DMA_FD GET_DMA32_FD
+#define al5_dma_info al5_dma32_info
+
+#include "driver/microblaze/include/al_uapi_codec_ioctl.h"
+#include "driver/microblaze/include/al_uapi_enc_ioctl.h"
+
+#include <string.h> // strerrno
 #include <unistd.h> // for close
 
 typedef struct
 {
-  const AL_IEncSchedulerVtable* vtable;
+  AL_IEncSchedulerVtable const* vtable;
   AL_TLinuxDmaAllocator* allocator;
   AL_ICommunication* driver;
-  char* deviceFile;
 }AL_TEncSchedulerMicroblaze;
 
 typedef struct
@@ -37,7 +41,7 @@ typedef struct
   AL_TEncScheduler_CB_EndEncoding CBs;
   AL_TCommonChannelInfo info;
   AL_ICommunication* driver;
-  int32_t fd;
+  AL_HANDLE hCommunicationLine;
   AL_THREAD thread;
   bool outputRec;
 }AL_TEncChannelMicroblaze;
@@ -55,7 +59,7 @@ static AL_ERR API_CreateChannel(AL_HANDLE* hChannel, AL_IEncScheduler* pISchedul
   (void)hRcPluginDmaContext;
   AL_ERR errorCode = AL_ERROR;
   AL_TEncSchedulerMicroblaze* pScheduler = (AL_TEncSchedulerMicroblaze*)pIScheduler;
-  AL_TEncChannelMicroblaze* pChannel = Rtos_Malloc(sizeof(*pChannel));
+  AL_TEncChannelMicroblaze* pChannel = Rtos_Calloc(1, sizeof(*pChannel));
 
   if(NULL == pChannel)
   {
@@ -63,14 +67,14 @@ static AL_ERR API_CreateChannel(AL_HANDLE* hChannel, AL_IEncScheduler* pISchedul
     goto channel_creation_fail;
   }
 
-  Rtos_Memset(pChannel, 0, sizeof(*pChannel));
-
   pChannel->driver = pScheduler->driver;
-  pChannel->fd = AL_ICommunication_Open(pChannel->driver, pScheduler->deviceFile);
 
-  if(pChannel->fd < 0)
+  AL_ECommunicationError eError = AL_COMMUNICATION_ERROR_UNKNOWN;
+  pChannel->hCommunicationLine = AL_ICommunication_Open(pChannel->driver, &eError);
+
+  if(eError != AL_COMMUNICATION_SUCCESS)
   {
-    fprintf(stderr, "Couldn't open device file %s while creating channel; %s\n", pScheduler->deviceFile, strerror(errno));
+    Rtos_Log(AL_LOG_ERROR, "Couldn't open communication while creating channel: %s\n", AL_ECommunicationError_ToString(eError));
     goto driver_open_fail;
   }
 
@@ -85,16 +89,16 @@ static AL_ERR API_CreateChannel(AL_HANDLE* hChannel, AL_IEncScheduler* pISchedul
 
   Rtos_FlushCacheMemory(&msg.rc_plugin_fd, sizeof(msg.rc_plugin_fd));
 
-  AL_ECommunicationError errdrv = AL_ICommunication_PostBlockingMessage(pChannel->driver, pChannel->fd, AL_MCU_CONFIG_CHANNEL, &msg);
+  AL_ECommunicationError errdrv = AL_ICommunication_PostBlockingMessage(pChannel->driver, pChannel->hCommunicationLine, AL_COMMUNICATION_MESSAGE_CONFIG_CHANNEL, &msg);
 
-  if(errdrv != COMMUNICATION_SUCCESS)
+  if(errdrv != AL_COMMUNICATION_SUCCESS)
   {
-    if(errdrv == COMMUNICATION_ERROR_NO_MEMORY)
+    if(errdrv == AL_COMMUNICATION_ERROR_NO_MEMORY)
       errorCode = AL_ERR_NO_MEMORY;
 
     /* the ioctl might not have been called at all,
      * so the error_code might no be set. leave it to AL_ERROR in this case */
-    if((errdrv == COMMUNICATION_ERROR_CHANNEL) && (msg.status.error_code != 0))
+    if((errdrv == AL_COMMUNICATION_ERROR_CHANNEL) && (msg.status.error_code != 0))
       errorCode = msg.status.error_code;
 
     goto fail;
@@ -122,7 +126,7 @@ static AL_ERR API_CreateChannel(AL_HANDLE* hChannel, AL_IEncScheduler* pISchedul
   return AL_SUCCESS;
 
   fail:
-  AL_ICommunication_Close(pScheduler->driver, pChannel->fd);
+  AL_ICommunication_Close(pScheduler->driver, pChannel->hCommunicationLine);
   driver_open_fail:
   Rtos_Free(pChannel);
   channel_creation_fail:
@@ -139,14 +143,7 @@ static void createEncodeMsg(struct al5_encode_msg* msg, AL_TEncInfo* pEncInfo, A
     return;
   }
 
-  for(int32_t i = 0; i < ARRAY_SIZE(pBuffersAddrs->tQpTableAddrs); ++i)
-  {
-    if(pBuffersAddrs->tQpTableAddrs[i].pPAddr)
-      pBuffersAddrs->tQpTableAddrs[i].pVAddr = (pBuffersAddrs->tQpTableAddrs[i].pPAddr & 0x7FFFFFFF) + DCACHE_OFFSET;
-    else
-      pBuffersAddrs->tQpTableAddrs[i].pVAddr = 0;
-  }
-
+  prepareQpTablesAddr(pBuffersAddrs);
   setEncodeMsg(msg, pEncInfo, pReqInfo, pBuffersAddrs);
 }
 
@@ -156,7 +153,7 @@ static bool API_EncodeOneFrame(AL_IEncScheduler* pIScheduler, AL_HANDLE hChannel
   AL_TEncChannelMicroblaze* pChannel = (AL_TEncChannelMicroblaze*)hChannel;
   struct al5_encode_msg msg = { 0 };
   createEncodeMsg(&msg, pEncInfo, pReqInfo, pBuffersAddrs);
-  return AL_ICommunication_PostBlockingMessage(pScheduler->driver, pChannel->fd, AL_MCU_ENCODE_ONE_FRM, &msg) == COMMUNICATION_SUCCESS;
+  return AL_ICommunication_PostBlockingMessage(pScheduler->driver, pChannel->hCommunicationLine, AL_COMMUNICATION_MESSAGE_ENCODE_ONE_FRAME, &msg) == AL_COMMUNICATION_SUCCESS;
 }
 
 static bool API_DestroyChannel(AL_IEncScheduler* pIScheduler, AL_HANDLE hChannel)
@@ -167,13 +164,13 @@ static bool API_DestroyChannel(AL_IEncScheduler* pIScheduler, AL_HANDLE hChannel
   if(NULL == pChannel)
     return false;
 
-  AL_ICommunication_PostBlockingMessage(pScheduler->driver, pChannel->fd, AL_MCU_DESTROY_CHANNEL, NULL);
+  AL_ICommunication_PostBlockingMessage(pScheduler->driver, pChannel->hCommunicationLine, AL_COMMUNICATION_MESSAGE_DESTROY_CHANNEL, NULL);
 
   if(!Rtos_JoinThread(pChannel->thread))
     return false;
   Rtos_DeleteThread(pChannel->thread);
 
-  AL_ICommunication_Close(pScheduler->driver, pChannel->fd);
+  AL_ICommunication_Close(pScheduler->driver, pChannel->hCommunicationLine);
 
   Rtos_Free(pChannel);
 
@@ -189,7 +186,7 @@ static bool API_GetRecPicture(AL_IEncScheduler* pIScheduler, AL_HANDLE hChannel,
   if(!pChannel->outputRec)
     return false;
 
-  if(AL_ICommunication_PostBlockingMessage(pScheduler->driver, pChannel->fd, AL_MCU_GET_REC_PICTURE, &msg) != COMMUNICATION_SUCCESS)
+  if(AL_ICommunication_PostBlockingMessage(pScheduler->driver, pChannel->hCommunicationLine, AL_COMMUNICATION_MESSAGE_GET_REC_PICTURE, &msg) != AL_COMMUNICATION_SUCCESS)
     return false;
 
   AL_TLinuxDmaAllocator* pAllocator = pScheduler->allocator;
@@ -221,9 +218,9 @@ static bool API_ReleaseRecPicture(AL_IEncScheduler* pIScheduler, AL_HANDLE hChan
 
   AL_HANDLE hRecBuf = pRecPic->pBuf->hBufs[0];
   AL_TLinuxDmaAllocator* pAllocator = pScheduler->allocator;
-  __s32 fd = AL_LinuxDmaAllocator_GetFd(pAllocator, hRecBuf);
+  int32_t fd = AL_LinuxDmaAllocator_GetFd(pAllocator, hRecBuf);
 
-  if(AL_ICommunication_PostBlockingMessage(pScheduler->driver, pChannel->fd, AL_MCU_RELEASE_REC_PICTURE, &fd) != COMMUNICATION_SUCCESS)
+  if(AL_ICommunication_PostBlockingMessage(pScheduler->driver, pChannel->hCommunicationLine, AL_COMMUNICATION_MESSAGE_RELEASE_REC_PICTURE, &fd) != AL_COMMUNICATION_SUCCESS)
     return false;
 
   AL_Allocator_Free((AL_TAllocator*)pAllocator, hRecBuf);
@@ -234,6 +231,8 @@ static bool API_ReleaseRecPicture(AL_IEncScheduler* pIScheduler, AL_HANDLE hChan
 
 static void processStatusMsg(AL_TEncChannelMicroblaze* pChannel, struct al5_params* msg)
 {
+  Rtos_InvalidateCacheMemory(msg, sizeof(msg->size));
+  Rtos_InvalidateCacheMemory(msg, msg->size);
   Rtos_Assert(msg->size >= sizeof(AL_PTR64));
   AL_PTR64 streamBufferPtr;
   Rtos_Memcpy(&streamBufferPtr, msg->opaque, sizeof(AL_PTR64));
@@ -264,16 +263,16 @@ static void* WaitForStatus(void* p)
   {
     ctx.revents = 0;
 
-    AL_ECommunicationError err = AL_ICommunication_PostBlockingMessage(pChannel->driver, pChannel->fd, AL_POLL_MSG, &ctx);
+    AL_ECommunicationError err = AL_ICommunication_PostBlockingMessage(pChannel->driver, pChannel->hCommunicationLine, AL_COMMUNICATION_MESSAGE_POLL, &ctx);
 
-    if(err != COMMUNICATION_SUCCESS)
+    if(err != AL_COMMUNICATION_SUCCESS)
       continue;
 
     if(ctx.revents & AL_POLLIN)
     {
-      AL_ECommunicationError err = AL_ICommunication_PostNonBlockingMessage(pChannel->driver, pChannel->fd, AL_MCU_WAIT_FOR_STATUS, &msg);
+      AL_ECommunicationError err = AL_ICommunication_PostNonBlockingMessage(pChannel->driver, pChannel->hCommunicationLine, AL_COMMUNICATION_MESSAGE_WAIT_FOR_STATUS, &msg);
 
-      if(err == COMMUNICATION_SUCCESS)
+      if(err == AL_COMMUNICATION_SUCCESS)
         processStatusMsg(pChannel, &msg);
       else
         Rtos_Log(AL_LOG_ERROR, "Failed to get encode status (error code: %d)\n", err);
@@ -281,9 +280,7 @@ static void* WaitForStatus(void* p)
 
     /* If the polling finds an end of operation, it means that the channel was destroyed and we can stop waiting for encoding results. */
     if(ctx.revents & AL_POLLHUP)
-    {
       break;
-    }
   }
 
   return NULL;
@@ -292,13 +289,12 @@ static void* WaitForStatus(void* p)
 static void API_Destroy(AL_IEncScheduler* pIScheduler)
 {
   AL_TEncSchedulerMicroblaze* pScheduler = (AL_TEncSchedulerMicroblaze*)pIScheduler;
-  Rtos_Free(pScheduler->deviceFile);
   Rtos_Free(pScheduler);
 }
 
-static __s32 getFd(AL_TBuffer const* pBuffer)
+static int32_t getFd(AL_TBuffer const* pBuffer)
 {
-  return (__s32)AL_LinuxDmaAllocator_GetFd((AL_TLinuxDmaAllocator*)pBuffer->pAllocator, pBuffer->hBufs[0]);
+  return (int32_t)AL_LinuxDmaAllocator_GetFd((AL_TLinuxDmaAllocator*)pBuffer->pAllocator, pBuffer->hBufs[0]);
 }
 
 static void createPutStreamMsg(struct al5_buffer* msg, AL_TBuffer* streamBuffer, AL_64U streamUserPtr, uint32_t uOffset)
@@ -323,17 +319,18 @@ static void API_PutStreamBuffer(AL_IEncScheduler* pIScheduler, AL_HANDLE hChanne
   AL_TEncChannelMicroblaze* pChannel = (AL_TEncChannelMicroblaze*)hChannel;
   struct al5_buffer driverBuffer;
   createPutStreamMsg(&driverBuffer, streamBuffer, streamUserPtr, uOffset);
-  AL_ICommunication_PostBlockingMessage(pScheduler->driver, pChannel->fd, AL_MCU_PUT_STREAM_BUFFER, &driverBuffer);
+  AL_ICommunication_PostBlockingMessage(pScheduler->driver, pChannel->hCommunicationLine, AL_COMMUNICATION_MESSAGE_PUT_STREAM_BUFFER, &driverBuffer);
 }
 
 /******************************************************************************/
 static void GetSchedulerVersion(AL_TEncSchedulerMicroblaze const* pScheduler, AL_TIEncSchedulerVersion* pVersion)
 {
-  int32_t const fd = AL_ICommunication_Open(pScheduler->driver, pScheduler->deviceFile);
+  AL_ECommunicationError eError = AL_COMMUNICATION_ERROR_UNKNOWN;
+  AL_HANDLE hCommunicationLine = AL_ICommunication_Open(pScheduler->driver, &eError);
 
-  if(fd < 0)
+  if(eError != AL_COMMUNICATION_SUCCESS)
   {
-    Rtos_Log(AL_LOG_ERROR, "Couldn't open device file '%s' while creating channel: '%s'\n", pScheduler->deviceFile, strerror(errno));
+    Rtos_Log(AL_LOG_ERROR, "Couldn't open communication while getting scheduler version: %s\n", AL_ECommunicationError_ToString(eError));
     return;
   }
 
@@ -342,21 +339,21 @@ static void GetSchedulerVersion(AL_TEncSchedulerMicroblaze const* pScheduler, AL
   msg.opaque[0] = eInfo;
   Rtos_Memcpy(&msg.opaque[sizeof(eInfo) / sizeof(*msg.opaque)], pVersion, sizeof(*pVersion));
 
-  static_assert(sizeof(eInfo) + sizeof(*pVersion) <= sizeof(msg.opaque), "Driver version structure struct is too small");
+  Rtos_StaticAssert(sizeof(eInfo) + sizeof(*pVersion) <= sizeof(msg.opaque), "Driver version structure struct is too small");
   msg.size = sizeof(eInfo) + sizeof(*pVersion);
 
-  AL_ECommunicationError const error = AL_ICommunication_PostBlockingMessage(pScheduler->driver, fd, AL_MCU_GET, &msg);
+  AL_ECommunicationError const error = AL_ICommunication_PostBlockingMessage(pScheduler->driver, hCommunicationLine, AL_COMMUNICATION_MESSAGE_GET, &msg);
 
-  if(error != COMMUNICATION_SUCCESS)
+  if(error != AL_COMMUNICATION_SUCCESS)
   {
     Rtos_Log(AL_LOG_ERROR, "Failed to get parameter '%s', (error code: '%d')\n", ToStringIEncSchedulerInfo(AL_IENCSCHEDULER_VERSION), error);
-    AL_ICommunication_Close(pScheduler->driver, fd);
+    AL_ICommunication_Close(pScheduler->driver, hCommunicationLine);
     return;
   }
 
   Rtos_Memcpy(pVersion, &msg.opaque[1], sizeof(*pVersion));
 
-  AL_ICommunication_Close(pScheduler->driver, fd);
+  AL_ICommunication_Close(pScheduler->driver, hCommunicationLine);
 }
 
 static void API_Get(AL_IEncScheduler const* pScheduler, AL_EIEncSchedulerInfo info, void* pParam)
@@ -401,15 +398,9 @@ static const AL_IEncSchedulerVtable McuEncSchedulerVtable =
   API_Set,
 };
 
-AL_IEncScheduler* AL_SchedulerMcu_Create(AL_ICommunication* driver, AL_TLinuxDmaAllocator* pDmaAllocator, char const* deviceFile)
+AL_IEncScheduler* AL_EncSchedulerMcu_Create(AL_ICommunication* driver, AL_TLinuxDmaAllocator* pDmaAllocator)
 {
   if(NULL == driver)
-    return NULL;
-
-  if(NULL == pDmaAllocator)
-    return NULL;
-
-  if(NULL == deviceFile)
     return NULL;
 
   AL_TEncSchedulerMicroblaze* pScheduler = Rtos_Malloc(sizeof(*pScheduler));
@@ -417,15 +408,6 @@ AL_IEncScheduler* AL_SchedulerMcu_Create(AL_ICommunication* driver, AL_TLinuxDma
   if(NULL == pScheduler)
     return NULL;
 
-  pScheduler->deviceFile = Rtos_Malloc((strlen(deviceFile) + 1) * sizeof(char));
-
-  if(NULL == pScheduler->deviceFile)
-  {
-    Rtos_Free(pScheduler);
-    return NULL;
-  }
-
-  strcpy(pScheduler->deviceFile, deviceFile);
   pScheduler->vtable = &McuEncSchedulerVtable;
   pScheduler->driver = driver;
   pScheduler->allocator = pDmaAllocator;
@@ -435,9 +417,9 @@ AL_IEncScheduler* AL_SchedulerMcu_Create(AL_ICommunication* driver, AL_TLinuxDma
 
 #else
 
-AL_IEncScheduler* AL_SchedulerMcu_Create(AL_ICommunication* driver, AL_TAllocator* pDmaAllocator, char const* deviceFile)
+AL_IEncScheduler* AL_EncSchedulerMcu_Create(AL_ICommunication* driver, AL_TAllocator* pDmaAllocator)
 {
-  (void)driver, (void)pDmaAllocator, (void)deviceFile;
+  (void)driver, (void)pDmaAllocator;
   return NULL;
 }
 

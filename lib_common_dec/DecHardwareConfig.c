@@ -3,7 +3,8 @@
 
 #include "DecHardwareConfig.h"
 #include "lib_rtos/lib_rtos.h"
-#include "lib_common_dec/Defines_mcu.h"
+#include "lib_common/Arithmetics.h"
+#include "lib_common_dec/Scheduler_Defs.h"
 
 /*****************************************************************************/
 AL_EChromaMode AL_HWConfig_Dec_GetSupportedChromaMode(void)
@@ -56,6 +57,24 @@ AL_ERR AL_HWConfig_Dec_CheckFrameResolution(AL_TDimension tFrameDim, uint8_t uLo
   {
     Rtos_Log(AL_LOG_ERROR, "Height '%i' is not supported by the HARDWARE. Minimum supported height is '%i'.\n", tFrameDim.iHeight, iMinResolution);
     return AL_WARN_SPS_MIN_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
+  }
+
+  return AL_SUCCESS;
+}
+
+/*****************************************************************************/
+AL_ERR AL_HWConfig_Dec_CheckMaxFrameResolution(AL_TDimension tFrameDim, AL_TDimension tMaxDim)
+{
+  if(tFrameDim.iWidth > tMaxDim.iWidth)
+  {
+    Rtos_Log(AL_LOG_ERROR, "Width '%i' is not supported by the HARDWARE. Maximum supported width is '%i'.\n", tFrameDim.iWidth, tMaxDim.iWidth);
+    return AL_WARN_SPS_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
+  }
+
+  if(tFrameDim.iHeight > tMaxDim.iHeight)
+  {
+    Rtos_Log(AL_LOG_ERROR, "Height '%i' is not supported by the HARDWARE. Maximum supported height is '%i'.\n", tFrameDim.iHeight, tMaxDim.iHeight);
+    return AL_WARN_SPS_RESOLUTION_NOT_COMPATIBLE_WITH_CHANNEL_SETTINGS;
   }
 
   return AL_SUCCESS;

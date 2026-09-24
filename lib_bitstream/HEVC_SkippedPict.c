@@ -10,7 +10,7 @@
 #include "BitStreamLite.h"
 #include "Cabac.h"
 
-#include "lib_common/Utils.h"
+#include "lib_common/Arithmetics.h"
 
 /****************************************************************************/
 static unsigned int AL_sHEVC_WriteSkippedCU(AL_TBitStreamLite* pBS, AL_TCabacCtx* pCtx, uint8_t* pState, uint8_t* pValMPS, int32_t iAvailA, int32_t iAvailB, int32_t iSplit)

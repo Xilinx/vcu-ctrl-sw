@@ -10,27 +10,9 @@
 extern "C"
 {
 #include "lib_common/PicFormat.h"
-#include "lib_common_postproc/PostProcTypes.h"
 #include "lib_common/FourCC.h"
 #include "lib_common/AllocatorTracker.h"
 }
-
-static const std::map<std::string, AL_EPostProcRotation> HandledRotation =
-{
-  { "0", AL_POSTPROC_ROTATION_NONE },
-  { "90", AL_POSTPROC_R90 },
-  { "180", AL_POSTPROC_R180 },
-  { "270", AL_POSTPROC_R270 },
-};
-
-static const std::map<std::string, AL_EPostProcMirror> HandledMirror =
-{
-  { "NONE", AL_POSTPROC_MIRROR_NONE },
-  { "H", AL_POSTPROC_MIRROR_HORIZONTAL },
-  { "V", AL_POSTPROC_MIRROR_VERTICAL },
-  { "HV", AL_POSTPROC_MIRROR_HV },
-  { "VH", AL_POSTPROC_MIRROR_HV },
-};
 
 static const std::map<std::string, AL_EChromaMode> HandledChromaMode =
 {
@@ -78,5 +60,5 @@ T ParseHandledValue(std::string s, const std::map<std::string, T> HandledValues,
 
 AL_EFbStorageMode ParseFrameBufferFormat(const std::string& sBufFormat, bool& bBufComp);
 std::string GetFrameBufferFormatOptDesc(bool bSecondOutput = false);
-AL_TPosition ParsePosition(std::string s, int32_t iMultiple);
-AL_TDimension ParseDimension(std::string s, int32_t multiple);
+AL_TPosition ParsePosition(std::string const& s, int32_t iMultiple);
+AL_TDimension ParseDimension(std::string const& s, int32_t multiple);

@@ -11,8 +11,10 @@
 #include "lib_common/I_Communication.h"
 
 /*****************************************************************************
-    \brief Get a driver that will access an hardware device
+  \brief Get a driver that will access an hardware encoder device
+  \param[in] pDevice Device name
+  \return The communication interface ptr on success, NULL otherwise.
 *****************************************************************************/
-AL_ICommunication* AL_GetLinuxDriverCommunication(void);
+AL_ICommunication* AL_CreateEncLinuxDriverCommunication(char const* pDevice);
 
 /*!@}*/

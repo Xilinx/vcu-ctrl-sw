@@ -27,7 +27,8 @@ typedef struct AL_TInfoDecode
   AL_TCropInfo tCrop; /*!< Crop information of the current framebuffer */
   AL_EFbStorageMode eFbStorageMode; /*! frame buffer storage mode */
   AL_EPicStruct ePicStruct; /*!< structure (frame/field, top/Bottom) of the current framebuffer */
-  uint32_t uCRC; /*!< framebuffer data crc */
+  AL_64U uCRC; /*!< framebuffer data crc */
+  uint32_t uPixCount; /*!< framebuffer pixel count */
   AL_EOutputType eOutputID;
   AL_TPosition tPos; /*!< Position of the top left decoded pixel */
 }AL_TInfoDecode;

@@ -6,6 +6,7 @@
 #include <set>
 #include <string>
 #include <array>
+#include <memory>
 #include <vector>
 #include "lib_app/utils.hpp"
 #include "IpDeviceCommon.hpp"
@@ -14,6 +15,7 @@ extern "C"
 {
 #include "lib_decode/lib_decode.h"
 #include "lib_common_dec/DecChanParam.h"
+#include "lib_common/I_Communication.h"
 }
 
 typedef struct AL_IDecScheduler AL_IDecScheduler;
@@ -47,8 +49,9 @@ private:
   std::set<std::string> m_FailedDevices;
   bool m_bSelectDeviceWithLowestAvailableResources;
   uint32_t m_numDevices;
+  std::shared_ptr<AL_ICommunication> m_pCommunication = nullptr;
 
-  void ConfigureMcu(AL_ICommunication* driver, bool useProxy);
+  void ConfigureMcu(std::shared_ptr<AL_ICommunication> pCommunication, bool useProxy);
   std::string SelectMcuDevice(std::set<std::string> const& tDevices);
 };
 

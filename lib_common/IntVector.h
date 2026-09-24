@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <lib_rtos/types.h> // bool
-#include <lib_common/Utils.h> // Min
+#include "lib_rtos/types.h"
+#include "Arithmetics.h"
 
 #define MAX_ELEMENTS 32
 

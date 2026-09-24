@@ -57,6 +57,8 @@ typedef enum AL_ERR
   AL_WARN_HW_CONCEAL_DETECT = AL_DEF_WARNING(16),
   /*! The decoder detect one or more P or B slices in Intra only profile and skipped them*/
   AL_WARN_UNEXPECTED_SLICE_IN_INTRA_PROFILE = AL_DEF_WARNING(17),
+  /*! The decoder detect one or more picture too many tile columns for the selected decoding mode (couple or low latency) */
+  AL_WARN_PPS_TILEMAP_NOT_COMPATIBLE_WITH_DECODING_MODE = AL_DEF_WARNING(18),
 
   /*! Unknown error */
   AL_ERROR = AL_DEF_ERROR(0),
@@ -117,6 +119,7 @@ typedef enum AL_ERR
   AL_ERR_BUFFER_STACK_FULL = AL_DEF_ERROR(42),
   /*! Loadable version not handled, buffer corrupted... */
   AL_ERR_INVALID_NEURAL_VIDEO_PROCESSOR_LOADABLE = AL_DEF_ERROR(43),
+  AL_ERR_AXI_BUS_ERROR = AL_DEF_ERROR(45),
   AL_ERR_UNKNOWN,
 }AL_ERR;
 

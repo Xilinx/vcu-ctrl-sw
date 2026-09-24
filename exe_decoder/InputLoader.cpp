@@ -276,14 +276,14 @@ static CircBufferFrame SearchStartCodes(CircBuffer Stream, AL_ECodec eCodec, boo
   auto const iSize = Stream.tBuf.iSize;
   uint8_t const* pBuf = Stream.tBuf.pBuf;
 
-  auto endOfStream = !sFindNextStartCode(Stream, nalCurrent, iOffsetNext);
+  (void)sFindNextStartCode(Stream, nalCurrent, iOffsetNext); // This call is needed since the function triggers side effect
   nalCurrent.NUT = parser->ReadNut(pBuf, iSize, iOffsetNext);
 
   while(1)
   {
     NalInfo nalNext {};
 
-    endOfStream = !sFindNextStartCode(Stream, nalNext, iOffsetNext);
+    auto endOfStream = !sFindNextStartCode(Stream, nalNext, iOffsetNext);
     nalCurrent.size = nalNext.startCode.offsetSC - nalCurrent.startCode.offsetSC - nalCurrent.startCode.sizeSC;
     nalNext.NUT = parser->ReadNut(pBuf, iSize, iOffsetNext);
 

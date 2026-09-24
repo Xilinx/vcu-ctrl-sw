@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: © 2026 Allegro DVT <github-ip@allegrodvt.com>
 // SPDX-License-Identifier: MIT
 
-#ifndef _AL_DEC_IOCTL_H_
-#define _AL_DEC_IOCTL_H_
+#ifndef AL_UAPI_DEC_IOCTL_H
+#define AL_UAPI_DEC_IOCTL_H
 
-#include <linux/types.h>
 #include <linux/ioctl.h>
 
-#include "al_ioctl.h"
+#include "al_uapi_dec_struct.h"
+#include "al_uapi_codec_ioctl.h"
 
 #define AL_MCU_CONFIG_CHANNEL _IOWR('q', 2, struct al5_channel_config)
 #define AL_MCU_DESTROY_CHANNEL _IO('q', 4)
@@ -20,30 +20,4 @@
 #define AL_MCU_GET _IOWR('q', 20, struct al5_params)
 #define AL_MCU_SET _IOWR('q', 21, struct al5_params)
 
-struct al5_channel_config {
-	struct al5_params param;
-	struct al5_channel_status status;
-};
-
-struct al5_scstatus {
-	__u16 num_sc;
-	__u32 num_bytes;
-};
-
-struct al5_decode_msg {
-	struct al5_params params;
-	struct al5_params addresses;
-	__u32 slice_param_v;
-};
-
-struct al5_decode_jpeg_msg {
-	struct al5_params param;
-	struct al5_params buffer_addrs;
-};
-
-struct al5_search_sc_msg {
-	struct al5_params param;
-	struct al5_params buffer_addrs;
-};
-
-#endif /* _AL_DEC_IOCTL_H_ */
+#endif /* AL_UAPI_DEC_IOCTL_H */

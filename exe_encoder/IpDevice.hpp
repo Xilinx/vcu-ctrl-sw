@@ -10,9 +10,10 @@
 
 extern "C"
 {
-#include "lib_encode/lib_encoder.h"
+#include "lib_encode/lib_encode.h"
 #include "lib_log/I_Logger.h"
 #include "lib_log/I_Timer.h"
+#include "lib_common/I_Communication.h"
 }
 
 typedef struct AL_TAllocator AL_TAllocator;
@@ -49,6 +50,7 @@ private:
   std::shared_ptr<AL_TAllocator> m_pAllocator = nullptr;
   AL_ITimer* m_pTimer = nullptr;
 
+  std::shared_ptr<AL_ICommunication> m_pCommunication = nullptr;
   void ConfigureMcu(CIpDeviceParam& param);
 };
 

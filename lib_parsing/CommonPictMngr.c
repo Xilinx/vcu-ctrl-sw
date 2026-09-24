@@ -3,7 +3,8 @@
 
 #include "CommonPictMngr.h"
 #include "lib_common/PixMapBufferInternal.h"
-#include "lib_common/Utils.h"
+
+#include "lib_common/Arithmetics.h"
 
 /*****************************************************************************/
 void ExtractReferenceAddresses(uint8_t uIdx, AL_TPicFormat const* pPicFormat, AL_TPosition tPosOffset, uint8_t uMaxRef, AL_TBuffer const* pRefBuf, PhysAddr pRef, PhysAddr pFbcRef)
@@ -39,6 +40,5 @@ void AL_CommonPictMngr_ExtractRefBuffersAddresses(AL_ECodec eCodec, AL_TPicForma
   for(int32_t i = 0; i < uMaxRef; ++i)
   {
     ExtractReferenceAddresses(i, pPicFormat, tPosOffset, uMaxRef, pPictMngrRefBuffers->pRefBufs[i], pRef, pFbcList);
-
   }
 }

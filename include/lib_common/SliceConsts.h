@@ -9,6 +9,7 @@
 #pragma once
 
 #include "Profiles.h"
+#include "lib_rtos/assert.h"
 
 #define AL_MAX_SLICES_SUBFRAME 32
 
@@ -48,8 +49,8 @@ typedef enum AL_ESliceType
   AL_SLICE_MAX_ENUM, /* sentinel */
 }AL_ESliceType;
 
-static_assert(((int)AL_SLICE_I + 1) == AL_MAX_FRAME_TYPE, "Invalid slice-type definition");
-static_assert(((int)AL_SLICE_P + 1) == AL_MAX_INTER_FRAME_TYPE, "Invalid slice-type definition");
+Rtos_StaticAssert(((int)AL_SLICE_I + 1) == AL_MAX_FRAME_TYPE, "Invalid slice-type definition");
+Rtos_StaticAssert(((int)AL_SLICE_P + 1) == AL_MAX_INTER_FRAME_TYPE, "Invalid slice-type definition");
 
 /*****************************************************************************
    \brief identifies the entropy coding method
@@ -69,6 +70,7 @@ typedef enum AL_EWPMode
   AL_WP_DEFAULT,
   AL_WP_EXPLICIT,
   AL_WP_IMPLICIT,
+  AL_WP_AUTO,
   AL_WP_MAX_ENUM, /* sentinel */
 }AL_EWPMode;
 

@@ -4,6 +4,7 @@
 #include "EncBuffersInternal.h"
 
 #include "lib_common/Utils.h"
+#include "lib_common/Arithmetics.h"
 #include "lib_common/Round.h"
 
 #include "lib_rtos/lib_rtos.h"
@@ -113,7 +114,7 @@ bool AL_IsSrcMSB(AL_ESrcMode eSrcMode)
 /****************************************************************************/
 uint32_t AL_GetAllocSizeSrc_PixPlane(AL_TPicFormat const* pPicFormat, int32_t iPitch, int32_t iStrideHeight, AL_EPlaneId ePlaneId)
 {
-  return AL_RoundUp(AL_GetAllocSize_Frame_PixPlane(pPicFormat, (AL_TPitch) {iPitch, iStrideHeight / AL_GetNumLinesInPitch(pPicFormat->eStorageMode) }, ePlaneId), HW_IP_BURST_ALIGNMENT);
+  return AL_RoundUp(AL_GetAllocSize_Frame_PixPlane(pPicFormat, (AL_TPitch) {iPitch, iStrideHeight / AL_GetNumLinesInPitch(pPicFormat->eStorageMode, pPicFormat->eChromaMode, pPicFormat->uBitDepth) }, ePlaneId), HW_IP_BURST_ALIGNMENT);
 }
 
 /****************************************************************************/

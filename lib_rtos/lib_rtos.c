@@ -7,10 +7,10 @@
 /****************************************************************************/
 /*** W i n 3 2  &  L i n u x  c o m m o n ***/
 /****************************************************************************/
-#if defined(_WIN32) || defined(__linux__)
+#if defined(_WIN32) || defined(__linux__) || defined(__APPLE__)
 
 #include <string.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -95,6 +95,12 @@ void* Rtos_Memcpy(void* pDst, void const* pSrc, size_t zSize)
 void* Rtos_Memset(void* pDst, int32_t iVal, size_t zSize)
 {
   return memset(pDst, iVal, zSize);
+}
+
+/****************************************************************************/
+int32_t Rtos_Strncmp(char const* pStr1, char const* pStr2, size_t zSize)
+{
+  return strncmp(pStr1, pStr2, zSize);
 }
 
 /****************************************************************************/
@@ -281,20 +287,21 @@ void Rtos_DeleteThread(AL_THREAD Thread)
   Rtos_Free(Thread);
 }
 
-void* Rtos_DriverOpen(char const* name)
+AL_DRIVER Rtos_DriverOpen(char const* name, int* err)
 {
   // not implemented
   (void)name;
-  return (void*)(intptr_t)-1;
+  (void)err;
+  return NULL;
 }
 
-void Rtos_DriverClose(void* driver)
+void Rtos_DriverClose(AL_DRIVER driver)
 {
   // not implemented
   (void)driver;
 }
 
-int32_t Rtos_DriverIoctl(void* driver, unsigned long int request, void* data)
+int32_t Rtos_DriverIoctl(AL_DRIVER driver, unsigned long int request, void* data)
 {
   // not implemented
   (void)driver;
@@ -303,7 +310,7 @@ int32_t Rtos_DriverIoctl(void* driver, unsigned long int request, void* data)
   return -1;
 }
 
-int32_t Rtos_DriverPoll(void* driver, Rtos_PollCtx* ctx)
+int32_t Rtos_DriverPoll(AL_DRIVER driver, Rtos_PollCtx* ctx)
 {
   // not implemented
   (void)driver;
@@ -311,14 +318,27 @@ int32_t Rtos_DriverPoll(void* driver, Rtos_PollCtx* ctx)
   return -1;
 }
 
+char* Rtos_Strndup(char const* pStr, size_t zSize)
+{
+  size_t zLength = strlen(pStr);
+  char* pOutStr = Rtos_Malloc(zLength + 1);
+
+  if(pOutStr == NULL)
+    return NULL;
+
+  pOutStr = Rtos_Memcpy(pOutStr, pStr, zLength);
+  pOutStr[zLength] = '\0';
+  return pOutStr;
+}
+
 /****************************************************************************/
 /*** L i n u x ***/
 /****************************************************************************/
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__APPLE__)
 
 #include <sys/time.h>
-#include <sys/prctl.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 #include <pthread.h>
@@ -330,6 +350,12 @@ typedef struct
   pthread_cond_t Cond;
   bool bSignaled;
 }evt_t;
+
+typedef struct
+{
+  sem_t* sem;
+  char name[64];
+}al_sem_t;
 
 /****************************************************************************/
 AL_64U Rtos_GetTime(void)
@@ -418,15 +444,16 @@ bool Rtos_ReleaseMutex(AL_MUTEX Mutex)
 /****************************************************************************/
 AL_SEMAPHORE Rtos_CreateSemaphore(int32_t iInitialCount)
 {
-  sem_t* pSem = (sem_t*)Rtos_Malloc(sizeof(sem_t));
+  al_sem_t* pSem = (al_sem_t*)Rtos_Malloc(sizeof(al_sem_t));
 
   if(pSem == NULL)
     return (AL_SEMAPHORE)NULL;
 
-  // No shared between processes
-  int iProcessShared = 0;
+  snprintf(pSem->name, sizeof(pSem->name), "/sem_%d_%p", getpid(), (void*)pSem);
+  sem_unlink(pSem->name);
+  pSem->sem = sem_open(pSem->name, O_CREAT | O_EXCL, S_IRUSR | S_IWUSR, iInitialCount);
 
-  if(sem_init(pSem, iProcessShared, iInitialCount) != 0)
+  if(pSem->sem == SEM_FAILED)
   {
     Rtos_Free(pSem);
     return (AL_SEMAPHORE)NULL;
@@ -438,15 +465,18 @@ AL_SEMAPHORE Rtos_CreateSemaphore(int32_t iInitialCount)
 /****************************************************************************/
 void Rtos_DeleteSemaphore(AL_SEMAPHORE Semaphore)
 {
-  sem_t* pSem = (sem_t*)Semaphore;
-  sem_destroy(pSem);
+  if(Semaphore == NULL)
+    return;
+  al_sem_t* pSem = (al_sem_t*)Semaphore;
+  sem_close(pSem->sem);
+  sem_unlink(pSem->name);
   Rtos_Free(pSem);
 }
 
 /****************************************************************************/
 bool Rtos_GetSemaphore(AL_SEMAPHORE Semaphore, uint32_t Wait)
 {
-  sem_t* pSem = (sem_t*)Semaphore;
+  al_sem_t* pSem = (al_sem_t*)Semaphore;
 
   if(pSem == NULL)
     return false;
@@ -457,7 +487,7 @@ bool Rtos_GetSemaphore(AL_SEMAPHORE Semaphore, uint32_t Wait)
   {
     do
     {
-      ret = sem_trywait(pSem);
+      ret = sem_trywait(pSem->sem);
     }
     while(ret == -1 && errno == EINTR);
 
@@ -467,7 +497,7 @@ bool Rtos_GetSemaphore(AL_SEMAPHORE Semaphore, uint32_t Wait)
   {
     do
     {
-      ret = sem_wait(pSem);
+      ret = sem_wait(pSem->sem);
     }
     while(ret == -1 && errno == EINTR);
 
@@ -481,7 +511,12 @@ bool Rtos_GetSemaphore(AL_SEMAPHORE Semaphore, uint32_t Wait)
 
     do
     {
-      ret = sem_timedwait(pSem, &Ts);
+#if defined(__linux__)
+      ret = sem_timedwait(pSem->sem, &Ts);
+#elif defined(__APPLE__)
+      ret = sem_trywait(pSem->sem);
+      nanosleep(&Ts, NULL);
+#endif
     }
     while(ret == -1 && errno == EINTR);
 
@@ -494,12 +529,12 @@ bool Rtos_GetSemaphore(AL_SEMAPHORE Semaphore, uint32_t Wait)
 /****************************************************************************/
 bool Rtos_ReleaseSemaphore(AL_SEMAPHORE Semaphore)
 {
-  sem_t* pSem = (sem_t*)Semaphore;
+  al_sem_t* pSem = (al_sem_t*)Semaphore;
 
   if(pSem == NULL)
     return false;
 
-  sem_post(pSem);
+  sem_post(pSem->sem);
   return true;
 }
 
@@ -610,11 +645,22 @@ AL_THREAD Rtos_CreateThread(void* (*pFunc)(void* pParam), void* pParam)
 }
 
 /****************************************************************************/
+#if defined(__linux__)
+#include <sys/prctl.h>
 void Rtos_SetCurrentThreadName(const char* pThreadName)
 {
   prctl(PR_SET_NAME, (unsigned long)pThreadName, 0, 0, 0);
 }
 
+#elif defined(__APPLE__)
+void Rtos_SetCurrentThreadName(const char* pThreadName)
+{
+  pthread_setname_np(pThreadName);
+}
+
+#else
+#error
+#endif
 /****************************************************************************/
 bool Rtos_JoinThread(AL_THREAD Thread)
 {
@@ -629,22 +675,37 @@ void Rtos_DeleteThread(AL_THREAD Thread)
 
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <errno.h>
 
-void* Rtos_DriverOpen(char const* name)
+AL_DRIVER Rtos_DriverOpen(char const* name, int* err)
 {
-  int32_t fd = open(name, O_RDWR | O_NONBLOCK);
-  return (void*)(intptr_t)fd;
+  Rtos_Assert(err != NULL);
+
+  if(err == NULL)
+    return NULL;
+
+  int fd = open(name, O_RDWR | O_NONBLOCK);
+
+  if(fd < 0)
+  {
+    *err = errno;
+    return NULL;
+  }
+
+  *err = 0;
+
+  return (AL_DRIVER)(intptr_t)fd;
 }
 
-void Rtos_DriverClose(void* driver)
+void Rtos_DriverClose(AL_DRIVER driver)
 {
-  int32_t fd = (int)(intptr_t)driver;
+  int fd = (int)(intptr_t)driver;
   close(fd);
 }
 
-int32_t Rtos_DriverIoctl(void* driver, unsigned long int request, void* data)
+int32_t Rtos_DriverIoctl(AL_DRIVER driver, unsigned long int request, void* data)
 {
-  int32_t fd = (int)(intptr_t)driver;
+  int fd = (int)(intptr_t)driver;
   return ioctl(fd, request, data);
 }
 
@@ -660,7 +721,7 @@ bool is_polling_timeout(int32_t err)
   return err == 0;
 }
 
-int32_t Rtos_DriverPoll(void* driver, Rtos_PollCtx* ctx)
+int32_t Rtos_DriverPoll(AL_DRIVER driver, Rtos_PollCtx* ctx)
 {
   struct pollfd pollData;
   /* bitfield are bit compatible */
@@ -677,6 +738,12 @@ int32_t Rtos_DriverPoll(void* driver, Rtos_PollCtx* ctx)
 
   ctx->revents = pollData.revents;
   return 1;
+}
+
+/****************************************************************************/
+char* Rtos_Strndup(char const* pStr, size_t zSize)
+{
+  return strndup(pStr, zSize);
 }
 
 /****************************************************************************/
@@ -746,12 +813,12 @@ bool Rtos_ReleaseSemaphore(AL_SEMAPHORE Semaphore)
 #if defined(_MSC_VER)
 Rtos_AtomicType Rtos_AtomicIncrement(Rtos_AtomicVolatileType* iVal)
 {
-  return InterlockedIncrement(iVal);
+  return InterlockedIncrement((volatile long*)iVal);
 }
 
 Rtos_AtomicType Rtos_AtomicDecrement(Rtos_AtomicVolatileType* iVal)
 {
-  return InterlockedDecrement(iVal);
+  return InterlockedDecrement((volatile long*)iVal);
 }
 
 #else
@@ -781,12 +848,28 @@ void Rtos_InitCacheCB(void* ctx, Rtos_MemoryFnCB pfnInvalCB, Rtos_MemoryFnCB pfn
 
 void Rtos_InvalidateCacheMemory(void* pMem, size_t zSize)
 {
-  if(pfnInvalMemoryCB)
+  if(zSize == 0)
+  {
+    Rtos_Log(AL_LOG_WARNING, "Rtos_InvalidateCacheMemory called with zSize == 0");
+    return;
+  }
+
+  Rtos_Assert(pMem != NULL);
+
+  if(pfnInvalMemoryCB != NULL)
     pfnInvalMemoryCB(pCacheCBCtx, pMem, zSize);
 }
 
 void Rtos_FlushCacheMemory(void* pMem, size_t zSize)
 {
-  if(pfnFlushMemoryCB)
+  if(zSize == 0)
+  {
+    Rtos_Log(AL_LOG_WARNING, "Rtos_FlushCacheMemory called with zSize == 0");
+    return;
+  }
+
+  Rtos_Assert(pMem != NULL);
+
+  if(pfnFlushMemoryCB != NULL)
     pfnFlushMemoryCB(pCacheCBCtx, pMem, zSize);
 }

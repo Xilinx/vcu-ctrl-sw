@@ -30,7 +30,7 @@ inline uint32_t Rot(uint32_t X, uint32_t s)
   return (X << s) | (X >> (32 - s));
 }
 
-#define MD5(d, X, Y, Z, Fn, i, C, s) d = (Rot(d + Fn(X, Y, Z) + pBlock[i] + C, s) + X)
+#define MD5(d, X, Y, Z, Fn, i, C, s) d = (Rot((d) + Fn(X, Y, Z) + pBlock[i] + (C), s) + (X))
 
 /*************************************************************************************/
 CMD5::CMD5(void)

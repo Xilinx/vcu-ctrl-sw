@@ -9,7 +9,8 @@
 #include "lib_common/SliceConsts.h"
 #include "lib_common/StreamBuffer.h"
 #include "lib_common/StreamSection.h"
-#include "lib_common/Utils.h"
+
+#include "lib_common/Arithmetics.h"
 #include "lib_rtos/lib_rtos.h"
 
 #include "lib_bitstream/AVC_RbspEncod.h"
@@ -67,7 +68,7 @@ static void GenerateNal(IRbspWriter* writer, AL_TBitStreamLite* bitstream, int32
   AL_StreamMetaData_AddSection(pMeta, start, size, eFlags);
 }
 
-static void GenerateConfigNalUnits(IRbspWriter* writer, AL_TNalUnit* nals, uint32_t* nalsFlags, int32_t nalsCount, AL_TBuffer* pStream, AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned)
+static void GenerateConfigNalUnits(IRbspWriter* writer, AL_TNalUnit* nals, AL_ESectionFlags* nalsFlags, int32_t nalsCount, AL_TBuffer* pStream, AL_EStartCodeBytesAlignedMode eStartCodeBytesAligned)
 {
   AL_TBitStreamLite bitstream;
   int32_t bitstreamSize = AL_ENC_MAX_CONFIG_HEADER_SIZE;
