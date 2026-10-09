@@ -73,7 +73,7 @@
 #define AL_ENC_CORE_MAX_WIDTH 4096
 #endif
 #ifndef AL_DEC_MAX_WIDTH
-#define AL_DEC_MAX_WIDTH 4096
+#define AL_DEC_MAX_WIDTH 8192
 #endif
 #ifndef AL_DEC_MAX_HEIGHT
 #define AL_DEC_MAX_HEIGHT 16384
